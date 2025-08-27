@@ -52,6 +52,7 @@ type BoxType = 'Wet' | 'Dry' | 'Normal';
 
 const parseSpecValue = (specStr: string): { min: number; max: number | null } => {
     if (!specStr) return { min: 0, max: null };
+    // This regex finds all decimal or integer numbers in the string.
     const numbers = specStr.match(/\d+(\.\d+)?/g);
     if (!numbers) return { min: 0, max: null };
 
@@ -162,17 +163,17 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
         break;
     }
 
-    // Calculate GSM based on moisture
     const baseMoisture = 6.0;
     const baseGsm = gsmSpec.min;
     let gsmResult: number;
 
     if (gsmSpec.max === null) {
-      // Handle single value spec
-      gsmResult = baseGsm + (moistureResult - baseMoisture); // Simple increase
+      // Handle single value spec: add a small variation based on moisture
+      gsmResult = baseGsm + (moistureResult - baseMoisture) * 1.5;
     } else {
       // Handle range spec
-      gsmResult = baseGsm + (moistureResult - baseMoisture) * ((baseGsm * 0.10) / 3.0);
+      const moisturePercentage = (moistureResult - baseMoisture) / (moistureHigh - baseMoisture);
+      gsmResult = baseGsm + moisturePercentage * (gsmSpec.max - baseGsm);
     }
     
     const safeMinGsm = gsmSpec.min + 5;
