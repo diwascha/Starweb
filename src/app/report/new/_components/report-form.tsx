@@ -52,7 +52,7 @@ type BoxType = 'Wet' | 'Dry' | 'Normal';
 
 const parseSpecValue = (specStr: string): { min: number; max: number | null } => {
     if (!specStr) return { min: 0, max: null };
-    // This regex finds all decimal or integer numbers in the string.
+    // This regex finds all decimal or integer numbers in the string, ignoring text.
     const numbers = specStr.match(/\d+(\.\d+)?/g);
     if (!numbers) return { min: 0, max: null };
 
@@ -112,7 +112,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
     },
   });
 
-  const calculateAndSetValues = (boxType: BoxType, moistureValue?: number) => {
+  const calculateAndSetValues = (boxType: BoxType) => {
     if (!selectedProduct) {
       toast({
         title: 'Select a Product',
@@ -129,14 +129,13 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
     
     const moistureLow = 6.5;
     const moistureHigh = 9.5;
+    const moistureBaseForGsm = 6.0;
 
     let moistureResult: number;
     let loadResult: number = 0;
 
-    if (moistureValue !== undefined) {
-      moistureResult = moistureValue;
-    } else {
-      switch (boxType) {
+    
+    switch (boxType) {
         case 'Wet':
           moistureResult = getRandomInRange(9.0, moistureHigh);
           break;
@@ -147,7 +146,6 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
         default:
           moistureResult = getRandomInRange(7.1, 8.9);
           break;
-      }
     }
     
     switch (boxType) {
@@ -163,19 +161,21 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
         break;
     }
 
-    const baseMoisture = 6.0;
-    const baseGsm = gsmSpec.min;
+    
     let gsmResult: number;
+    const moisturePercentage = Math.max(0, (moistureResult - moistureBaseForGsm) / (moistureHigh - moistureBaseForGsm));
 
-    if (gsmSpec.max === null) {
-      // Handle single value spec: add a small variation based on moisture
-      gsmResult = baseGsm + (moistureResult - baseMoisture) * 1.5;
+    if (gsmSpec.max === null || gsmSpec.max === gsmSpec.min) {
+        // Handle single value spec: add a small variation based on moisture
+        // The variation is a percentage of the moisture effect, applied to a small range (e.g., 10% of base)
+        const gsmVariation = gsmSpec.min * 0.10; // Allow 10% variation
+        gsmResult = gsmSpec.min + (moisturePercentage * gsmVariation);
     } else {
-      // Handle range spec
-      const moisturePercentage = (moistureResult - baseMoisture) / (moistureHigh - baseMoisture);
-      gsmResult = baseGsm + moisturePercentage * (gsmSpec.max - baseGsm);
+        // Handle range spec: linear interpolation
+        gsmResult = gsmSpec.min + moisturePercentage * (gsmSpec.max - gsmSpec.min);
     }
     
+    // Ensure GSM result is at least 5 above minimum, but not exceeding max if it exists.
     const safeMinGsm = gsmSpec.min + 5;
     gsmResult = Math.max(gsmResult, safeMinGsm);
     
