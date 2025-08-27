@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { PlusCircle, Plus, FileText, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
+import { PlusCircle, Plus, FileText, MoreHorizontal, Edit, Trash2, View } from 'lucide-react';
 import useLocalStorage from '@/hooks/use-local-storage';
 import type { Report, Product, ProductSpecification } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -40,6 +40,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useRouter } from 'next/navigation';
 
 const initialSpecValues: ProductSpecification = {
   dimension: '',
@@ -67,6 +68,7 @@ export default function DashboardClient() {
 
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     setIsClient(true);
@@ -188,63 +190,65 @@ export default function DashboardClient() {
             <section>
                 <h2 className="text-2xl font-semibold tracking-tight mb-4">Reports</h2>
                 {reports.length > 0 ? (
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                        {reports.map(report => (
-                        <Card key={report.id}>
-                            <CardHeader>
-                            <CardTitle className="flex justify-between items-start">
-                                <span>{report.product.name}</span>
+                    <Card>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Product</TableHead>
+                            <TableHead>Serial No</TableHead>
+                            <TableHead>Date</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {reports.map(report => (
+                            <TableRow key={report.id}>
+                              <TableCell className="font-medium">{report.product.name}</TableCell>
+                              <TableCell>{report.serialNumber}</TableCell>
+                              <TableCell>{new Date(report.date).toLocaleDateString()}</TableCell>
+                              <TableCell className="text-right">
                                 <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
+                                  <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" size="icon" className="h-8 w-8">
-                                    <MoreHorizontal className="h-4 w-4" />
+                                      <MoreHorizontal className="h-4 w-4" />
                                     </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onSelect={() => window.location.href = `/report/edit/${report.id}`}>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onSelect={() => router.push(`/report/${report.id}`)}>
+                                      <View className="mr-2 h-4 w-4" /> View
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onSelect={() => router.push(`/report/edit/${report.id}`)}>
                                       <Edit className="mr-2 h-4 w-4" /> Edit
                                     </DropdownMenuItem>
                                     <DropdownMenuSeparator />
                                     <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                            <DropdownMenuItem onSelect={e => e.preventDefault()}>
-                                                <Trash2 className="mr-2 h-4 w-4 text-destructive" /> 
-                                                <span className="text-destructive">Delete</span>
-                                            </DropdownMenuItem>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                <AlertDialogDescription>
-                                                    This action cannot be undone. This will permanently delete the report.
-                                                </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                <AlertDialogAction onClick={() => deleteReport(report.id)}>Delete</AlertDialogAction>
-                                            </AlertDialogFooter>
-                                        </AlertDialogContent>
+                                      <AlertDialogTrigger asChild>
+                                        <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                                          <Trash2 className="mr-2 h-4 w-4 text-destructive" />
+                                          <span className="text-destructive">Delete</span>
+                                        </DropdownMenuItem>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                            This action cannot be undone. This will permanently delete the report.
+                                          </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                          <AlertDialogAction onClick={() => deleteReport(report.id)}>Delete</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
                                     </AlertDialog>
-                                </DropdownMenuContent>
+                                  </DropdownMenuContent>
                                 </DropdownMenu>
-                            </CardTitle>
-                            <CardDescription>
-                                S/N: {report.serialNumber} | Generated on {new Date(report.date).toLocaleDateString()}
-                            </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                            <p className="text-sm text-muted-foreground">
-                                View the detailed test report and analysis.
-                            </p>
-                            </CardContent>
-                            <CardFooter>
-                            <Button asChild className="w-full">
-                                <Link href={`/report/${report.id}`}>View Report</Link>
-                            </Button>
-                            </CardFooter>
-                        </Card>
-                        ))}
-                    </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </Card>
                 ) : (
                     <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-12">
                         <div className="flex flex-col items-center gap-1 text-center">
