@@ -50,8 +50,9 @@ const dynamicFields: (keyof TestResultData)[] = ['gsm', 'moisture', 'load'];
 
 type BoxType = 'Wet' | 'Dry' | 'Normal';
 
-// Helper to parse range strings like "100 to 200"
+// Helper to parse range strings like "100 - 200" or "100 to 200"
 const parseRange = (rangeStr: string): { low: number; high: number } => {
+    if (!rangeStr) return { low: 0, high: 0 };
     const parts = rangeStr.match(/(\d+(\.\d+)?)/g);
     if (!parts || parts.length < 2) return { low: 0, high: 0 };
     const low = parseFloat(parts[0]);
@@ -61,6 +62,7 @@ const parseRange = (rangeStr: string): { low: number; high: number } => {
 
 // Helper to parse minimum value strings like "500 Min"
 const parseMin = (minStr: string): number => {
+    if (!minStr) return 0;
     const part = minStr.match(/(\d+(\.\d+)?)/);
     return part ? parseFloat(part[0]) : 0;
 };
@@ -166,6 +168,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
     if (selectedProduct && !reportToEdit) {
       handleProductChange(selectedProduct.id);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProduct, reportToEdit]);
 
   const handleProductChange = (productId: string) => {
