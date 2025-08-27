@@ -20,6 +20,7 @@ import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { generateNextSerialNumber } from '@/lib/utils';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { RefreshCw } from 'lucide-react';
 
 const reportFormSchema = z.object({
   productId: z.string().min(1, { message: 'Product is required.' }),
@@ -77,6 +78,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedBoxType, setSelectedBoxType] = useState<BoxType | null>(null);
 
   useEffect(() => {
     setIsClient(true);
@@ -115,6 +117,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
     form.setValue('productId', productId);
     const product = products.find(p => p.id === productId);
     setSelectedProduct(product || null);
+    setSelectedBoxType(null); // Reset box type on product change
     if (product) {
       // Auto-fill static fields
       staticFields.forEach(field => {
@@ -131,7 +134,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
     if (!selectedProduct) {
       toast({
         title: 'Select a Product',
-        description: 'Please select a product before choosing a box type.',
+        description: 'Please select a product before generating values.',
         variant: 'destructive',
       });
       return;
@@ -139,8 +142,11 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
 
     const spec = selectedProduct.specification;
     const gsmRange = parseRange(spec.gsm);
-    const moistureRange = parseRange(spec.moisture);
     const loadMin = parseMin(spec.load);
+
+    // Hardcoded moisture constraints
+    const moistureLow = 6.5;
+    const moistureHigh = 9.5;
 
     let gsmResult: number = 0;
     let moistureResult: number = 0;
@@ -148,17 +154,17 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
 
     switch (boxType) {
       case 'Wet':
-        moistureResult = getRandomInRange(moistureRange.high * 0.95, moistureRange.high);
+        moistureResult = getRandomInRange(moistureHigh * 0.95, moistureHigh);
         gsmResult = getRandomInRange(gsmRange.high * 0.95, gsmRange.high);
         loadResult = getRandomInRange(loadMin + 3, loadMin + 5);
         break;
       case 'Dry':
-        moistureResult = getRandomInRange(moistureRange.low, moistureRange.low * 1.05);
+        moistureResult = getRandomInRange(moistureLow, moistureLow * 1.05);
         gsmResult = getRandomInRange(gsmRange.low, gsmRange.low * 1.05);
         loadResult = getRandomInRange(loadMin + 15, loadMin + 25);
         break;
       case 'Normal':
-        const moistureMid = (moistureRange.low + moistureRange.high) / 2;
+        const moistureMid = (moistureLow + moistureHigh) / 2;
         const gsmMid = (gsmRange.low + gsmRange.high) / 2;
         moistureResult = getRandomInRange(moistureMid * 0.9, moistureMid * 1.1);
         gsmResult = getRandomInRange(gsmMid * 0.9, gsmMid * 1.1);
@@ -166,10 +172,22 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
         break;
     }
 
-    // Clamp values to ensure they are within the spec range
-    form.setValue('moisture', String(Math.max(moistureRange.low, Math.min(moistureRange.high, moistureResult))));
+    // Clamp values to ensure they are within the spec range and constraints
+    form.setValue('moisture', String(parseFloat(Math.max(moistureLow, Math.min(moistureHigh, moistureResult)).toFixed(2))));
     form.setValue('gsm', String(Math.max(gsmRange.low, Math.min(gsmRange.high, gsmResult))));
     form.setValue('load', String(Math.max(loadMin, loadResult))); // Ensure load is at least minimum
+  };
+
+  const handleRegenerate = () => {
+    if (selectedBoxType) {
+      calculateAndSetValues(selectedBoxType);
+    } else {
+      toast({
+        title: 'Select a Box Type',
+        description: 'Please select a box type before regenerating values.',
+        variant: 'destructive',
+      });
+    }
   };
 
 
@@ -293,40 +311,51 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
             {selectedProduct && (
               <>
                  <FormItem>
-                  <FormLabel>Box Type Classification</FormLabel>
-                  <FormDescription>
-                    Select a box type to auto-fill Moisture, GSM, and Load based on predefined rules.
-                  </FormDescription>
-                  <RadioGroup
-                    onValueChange={(value) => calculateAndSetValues(value as BoxType)}
-                    className="flex flex-col md:flex-row gap-4 pt-2"
-                    disabled={!selectedProduct}
-                  >
-                    <FormItem className="flex items-center space-x-3 space-y-0">
-                      <FormControl>
-                        <RadioGroupItem value="Wet" />
-                      </FormControl>
-                      <FormLabel className="font-normal">
-                        Wet Box
-                      </FormLabel>
-                    </FormItem>
-                    <FormItem className="flex items-center space-x-3 space-y-0">
-                      <FormControl>
-                        <RadioGroupItem value="Dry" />
-                      </FormControl>
-                      <FormLabel className="font-normal">
-                        Dry Box
-                      </FormLabel>
-                    </FormItem>
-                    <FormItem className="flex items-center space-x-3 space-y-0">
-                      <FormControl>
-                        <RadioGroupItem value="Normal" />
-                      </FormControl>
-                      <FormLabel className="font-normal">
-                        Normal Box
-                      </FormLabel>
-                    </FormItem>
-                  </RadioGroup>
+                    <FormLabel>Box Type Classification</FormLabel>
+                    <FormDescription>
+                        Select a box type to auto-fill Moisture, GSM, and Load based on predefined rules.
+                    </FormDescription>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 pt-2">
+                        <RadioGroup
+                            onValueChange={(value) => {
+                                const boxType = value as BoxType;
+                                setSelectedBoxType(boxType);
+                                calculateAndSetValues(boxType);
+                            }}
+                            value={selectedBoxType || ''}
+                            className="flex flex-row gap-4"
+                            disabled={!selectedProduct}
+                        >
+                            <FormItem className="flex items-center space-x-3 space-y-0">
+                                <FormControl>
+                                    <RadioGroupItem value="Wet" />
+                                </FormControl>
+                                <FormLabel className="font-normal">Wet Box</FormLabel>
+                            </FormItem>
+                            <FormItem className="flex items-center space-x-3 space-y-0">
+                                <FormControl>
+                                    <RadioGroupItem value="Dry" />
+                                </FormControl>
+                                <FormLabel className="font-normal">Dry Box</FormLabel>
+                            </FormItem>
+                            <FormItem className="flex items-center space-x-3 space-y-0">
+                                <FormControl>
+                                    <RadioGroupItem value="Normal" />
+                                </FormControl>
+                                <FormLabel className="font-normal">Normal Box</FormLabel>
+                            </FormItem>
+                        </RadioGroup>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={handleRegenerate}
+                            disabled={!selectedBoxType}
+                        >
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            Regenerate
+                        </Button>
+                    </div>
                 </FormItem>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <FormField
