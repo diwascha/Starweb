@@ -64,8 +64,8 @@ export default function ReportView({ reportId }: { reportId: string }) {
             <h2 className="text-xl font-semibold underline">TEST REPORT</h2>
         </header>
         
-        <div className="grid grid-cols-2 text-sm mb-4 gap-x-4">
-            <div><span className="font-semibold">Serial No:</span> {report.serialNumber}</div>
+        <div className="grid grid-cols-2 text-sm mb-8 gap-x-4">
+            <div><span className="font-semibold">Test Serial No:</span> {report.serialNumber}</div>
             <div className="text-right"><span className="font-semibold">Date:</span> {new Date(report.date).toLocaleDateString()}</div>
             <div><span className="font-semibold">Tax Invoice No:</span> {report.taxInvoiceNumber}</div>
             <div className="text-right"><span className="font-semibold">Challan No:</span> {report.challanNumber}</div>
