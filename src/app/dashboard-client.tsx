@@ -229,7 +229,7 @@ export default function DashboardClient() {
                                 </DropdownMenu>
                             </CardTitle>
                             <CardDescription>
-                                Report generated on {new Date(report.date).toLocaleDateString()}
+                                S/N: {report.serialNumber} | Generated on {new Date(report.date).toLocaleDateString()}
                             </CardDescription>
                             </CardHeader>
                             <CardContent>
@@ -270,7 +270,7 @@ export default function DashboardClient() {
                             <TableRow>
                             <TableHead>Product Name</TableHead>
                             <TableHead>Material Code</TableHead>
-                            <TableHead>Company</TableHead>
+                            <TableHead>Delivered To</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -366,7 +366,7 @@ export default function DashboardClient() {
                   <div className="grid gap-4 py-4">
                     <div className="grid grid-cols-4 items-center gap-4">
                       <Label htmlFor="product-name" className="text-right">
-                        Name
+                        Product Name
                       </Label>
                       <Input
                         id="product-name"
@@ -388,7 +388,7 @@ export default function DashboardClient() {
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                       <Label htmlFor="company-name" className="text-right">
-                        Company
+                        Delivered To
                       </Label>
                       <Input
                         id="company-name"

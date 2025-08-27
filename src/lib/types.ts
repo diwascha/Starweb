@@ -27,6 +27,7 @@ export interface PrintLogEntry {
 
 export interface Report {
   id: string;
+  serialNumber: string;
   product: Product;
   date: string;
   testData: TestResultData;

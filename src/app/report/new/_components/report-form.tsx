@@ -100,8 +100,12 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
           toast({ title: 'Success', description: 'Report updated successfully.' });
           router.push(`/report/${reportToEdit.id}`);
       } else {
+        const nextSerialNumber = (reports.length + 1).toString().padStart(3, '0');
+        const serialNumber = `2082/83-${nextSerialNumber}`;
+
         const newReport: Report = {
             id: crypto.randomUUID(),
+            serialNumber,
             product: selectedProduct,
             date: new Date().toISOString(),
             testData,

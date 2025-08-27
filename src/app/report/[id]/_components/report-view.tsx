@@ -57,11 +57,25 @@ export default function ReportView({ reportId }: { reportId: string }) {
         </Button>
       </div>
 
-      <div className="printable-area space-y-8">
+      <div className="printable-area space-y-8 p-4 border rounded-lg">
+        <header className="text-center space-y-2 mb-8">
+            <h1 className="text-2xl font-bold">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
+            <p className="text-muted-foreground">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
+            <h2 className="text-xl font-semibold underline">TEST REPORT</h2>
+        </header>
+        
+        <div className="flex justify-between text-sm mb-4">
+            <div>
+                <span className="font-semibold">Serial No:</span> {report.serialNumber}
+            </div>
+            <div>
+                <span className="font-semibold">Date:</span> {new Date(report.date).toLocaleDateString()}
+            </div>
+        </div>
+
         <Card>
           <CardHeader>
-            <CardTitle>{report.product.name} - Test Report</CardTitle>
-            <CardDescription>Generated on {new Date(report.date).toLocaleString()}</CardDescription>
+            <CardTitle>Product Test Report</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
              <section>
@@ -75,8 +89,8 @@ export default function ReportView({ reportId }: { reportId: string }) {
                         <span className="font-medium text-muted-foreground">Material Code: </span>
                         <span>{report.product.materialCode}</span>
                     </div>
-                    <div>
-                        <span className="font-medium text-muted-foreground">Company: </span>
+                     <div>
+                        <span className="font-medium text-muted-foreground">Delivered To: </span>
                         <span>{report.product.companyName}</span>
                     </div>
                     <div>
@@ -156,9 +170,10 @@ export default function ReportView({ reportId }: { reportId: string }) {
             top: 0;
             width: 100%;
             margin: 0;
-            padding: 0;
+            padding: 2rem;
+            border: none;
           }
-          .printable-area .shadow-lg, .printable-area .shadow-sm {
+           .printable-area .shadow-lg, .printable-area .shadow-sm {
             box-shadow: none !important;
           }
            .printable-area .border {
