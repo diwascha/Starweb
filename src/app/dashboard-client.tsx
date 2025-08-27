@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { PlusCircle, Plus, FileText, MoreHorizontal, Edit, Trash2, View, Printer, ArrowUpDown } from 'lucide-react';
 import useLocalStorage from '@/hooks/use-local-storage';
 import type { Report, Product, ProductSpecification } from '@/lib/types';
@@ -504,6 +505,13 @@ export default function DashboardClient() {
   
   return (
     <div className="flex flex-col gap-8">
+       <div className="flex items-center gap-4">
+        <Image src="/logo.png" alt="Company Logo" width={80} height={80} />
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h2>
+          <p className="text-muted-foreground">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
+        </div>
+      </div>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Report Dashboard</h1>
@@ -608,8 +616,3 @@ export default function DashboardClient() {
     </div>
   );
 }
-
-    
-    
-
-    

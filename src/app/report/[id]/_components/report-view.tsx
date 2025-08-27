@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Printer } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import NepaliDate from 'nepali-date-converter';
+import Image from 'next/image';
 
 export default function ReportView({ reportId }: { reportId: string }) {
   const [reports, setReports] = useLocalStorage<Report[]>('reports', []);
@@ -64,11 +65,16 @@ export default function ReportView({ reportId }: { reportId: string }) {
         </Button>
       </div>
 
-      <div className="printable-area space-y-8 p-4 border rounded-lg">
-        <header className="text-center space-y-2 mb-8">
-            <h1 className="text-2xl font-bold">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
-            <p className="text-muted-foreground">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
-            <h2 className="text-xl font-semibold underline">TEST REPORT</h2>
+      <div className="printable-area space-y-8 p-4 border rounded-lg bg-white text-black">
+        <header className="text-center space-y-2 mb-8 relative">
+            <div className="absolute top-0 left-1/2 -translate-x-1/2">
+              <Image src="/logo.png" alt="Company Logo" width={100} height={100} />
+            </div>
+            <div className="pt-28">
+              <h1 className="text-2xl font-bold">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
+              <p>HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
+              <h2 className="text-xl font-semibold underline mt-2">TEST REPORT</h2>
+            </div>
         </header>
         
         <div className="grid grid-cols-2 text-sm mb-4 gap-x-4 gap-y-2">
@@ -78,9 +84,9 @@ export default function ReportView({ reportId }: { reportId: string }) {
             <div className="text-right"><span className="font-semibold">Challan No:</span> {report.challanNumber}</div>
         </div>
         
-        <Separator className="my-4"/>
+        <Separator className="my-4 bg-gray-300"/>
 
-        <Card>
+        <Card className="shadow-none border-gray-300">
           <CardHeader>
             <CardTitle>Product Test Report</CardTitle>
           </CardHeader>
@@ -89,33 +95,33 @@ export default function ReportView({ reportId }: { reportId: string }) {
                 <h2 className="text-xl font-semibold mb-2">Product Information</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div>
-                        <span className="font-medium text-muted-foreground">Product Name: </span>
+                        <span className="font-medium">Product Name: </span>
                         <span>{report.product.name}</span>
                     </div>
                     <div>
-                        <span className="font-medium text-muted-foreground">Material Code: </span>
+                        <span className="font-medium">Material Code: </span>
                         <span>{report.product.materialCode}</span>
                     </div>
                      <div>
-                        <span className="font-medium text-muted-foreground">Delivered To: </span>
+                        <span className="font-medium">Delivered To: </span>
                         <span>{report.product.companyName}</span>
                     </div>
                     <div>
-                        <span className="font-medium text-muted-foreground">Address: </span>
+                        <span className="font-medium">Address: </span>
                         <span>{report.product.address}</span>
                     </div>
                 </div>
             </section>
-            <Separator />
+            <Separator className="bg-gray-300"/>
             <section>
               <h2 className="text-xl font-semibold mb-2">Test Parameters & Results</h2>
-              <div className="border rounded-lg">
+              <div className="border rounded-lg border-gray-300">
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead>Parameter</TableHead>
-                      <TableHead>Standard</TableHead>
-                      <TableHead>Result</TableHead>
+                    <TableRow className="border-b-gray-300">
+                      <TableHead className="text-black font-semibold">Parameter</TableHead>
+                      <TableHead className="text-black font-semibold">Standard</TableHead>
+                      <TableHead className="text-black font-semibold">Result</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -139,7 +145,7 @@ export default function ReportView({ reportId }: { reportId: string }) {
                       }
                       
                       return (
-                        <TableRow key={key}>
+                        <TableRow key={key} className="border-b-gray-300">
                           <TableCell className="font-medium">
                             {formatLabel(key)}
                           </TableCell>
@@ -194,28 +200,27 @@ export default function ReportView({ reportId }: { reportId: string }) {
       </div>
       <style jsx global>{`
         @media print {
-          body * {
-            visibility: hidden;
-          }
-          .printable-area,
-          .printable-area * {
-            visibility: visible;
+          body {
+            background-color: #fff;
           }
           .printable-area {
+            visibility: visible;
             position: absolute;
             left: 0;
             top: 0;
             width: 100%;
             margin: 0;
-            padding: 2rem;
+            padding: 1.5rem;
             border: none;
+            color: #000;
           }
-           .printable-area .shadow-lg, .printable-area .shadow-sm {
-            box-shadow: none !important;
-          }
-           .printable-area .border {
-            border: 1px solid #ccc !important;
-          }
+           .printable-area * {
+            visibility: visible;
+            font-family: 'Times New Roman', Times, serif;
+           }
+           .print\:hidden {
+              display: none;
+           }
         }
       `}</style>
     </>
