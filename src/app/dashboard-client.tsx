@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { PlusCircle, Plus, FileText, MoreHorizontal, Edit, Trash2, View, Printer } from 'lucide-react';
+import { PlusCircle, Plus, FileText, MoreHorizontal, Edit, Trash2, View, Printer, ArrowUpDown } from 'lucide-react';
 import useLocalStorage from '@/hooks/use-local-storage';
 import type { Report, Product, ProductSpecification } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -54,6 +54,9 @@ const initialSpecValues: ProductSpecification = {
   load: '',
 };
 
+type SortKey = 'serialNumber' | 'productName';
+type SortDirection = 'asc' | 'desc';
+
 export default function DashboardClient() {
   const [reports, setReports] = useLocalStorage<Report[]>('reports', []);
   const [products, setProducts] = useLocalStorage<Product[]>('products', []);
@@ -65,6 +68,11 @@ export default function DashboardClient() {
   
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  
+  const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({
+    key: 'serialNumber',
+    direction: 'desc',
+  });
 
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
@@ -181,6 +189,41 @@ export default function DashboardClient() {
   const dialogDescription = editingProduct ? 'Update the details and specifications for this product.' : 'Enter the details and specifications for the new product.';
   const dialogButtonText = editingProduct ? 'Save changes' : 'Save product';
 
+  const requestSort = (key: SortKey) => {
+    let direction: SortDirection = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+  
+  const sortedReports = useMemo(() => {
+    const sortableReports = [...reports];
+    if (sortConfig.key) {
+      sortableReports.sort((a, b) => {
+        let aValue: string | number;
+        let bValue: string | number;
+
+        if (sortConfig.key === 'productName') {
+          aValue = a.product.name.toLowerCase();
+          bValue = b.product.name.toLowerCase();
+        } else { // serialNumber
+           aValue = parseInt(a.serialNumber.split('-')[1] || '0', 10);
+           bValue = parseInt(b.serialNumber.split('-')[1] || '0', 10);
+        }
+
+        if (aValue < bValue) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return sortableReports;
+  }, [reports, sortConfig]);
+
   const renderContent = () => {
     if (!isClient) {
       return (
@@ -191,10 +234,6 @@ export default function DashboardClient() {
         </div>
       );
     }
-    
-    const sortedReports = [...reports].sort((a, b) => {
-      return a.product.name.localeCompare(b.product.name);
-    });
     
     const sortedProducts = [...products].sort((a, b) => a.name.localeCompare(b.name));
 
@@ -223,8 +262,18 @@ export default function DashboardClient() {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Test Serial No.</TableHead>
-                            <TableHead>Product</TableHead>
+                            <TableHead>
+                                <Button variant="ghost" onClick={() => requestSort('serialNumber')}>
+                                Test Serial No.
+                                <ArrowUpDown className="ml-2 h-4 w-4" />
+                                </Button>
+                            </TableHead>
+                            <TableHead>
+                                <Button variant="ghost" onClick={() => requestSort('productName')}>
+                                Product
+                                <ArrowUpDown className="ml-2 h-4 w-4" />
+                                </Button>
+                            </TableHead>
                             <TableHead>Invoice Number</TableHead>
                             <TableHead>Challan Number</TableHead>
                             <TableHead>Quantities</TableHead>
