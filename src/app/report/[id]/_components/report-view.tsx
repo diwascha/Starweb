@@ -19,18 +19,20 @@ export default function ReportView({ reportId }: { reportId: string }) {
   }, [reportId, reports]);
 
   const handlePrint = () => {
-    if (!report) return;
-
-    const newLogEntry = { date: new Date().toISOString() };
-    const updatedReport = {
-        ...report,
-        printLog: [...(report.printLog || []), newLogEntry],
-    };
-
-    setReports(reports.map(r => r.id === reportId ? updatedReport : r));
-    setReport(updatedReport); // Update local state to show log immediately
-
-    window.print();
+    if (report) {
+      const newLogEntry = { date: new Date().toISOString() };
+      const updatedReport = {
+          ...report,
+          printLog: [...(report.printLog || []), newLogEntry],
+      };
+      setReports(reports.map(r => r.id === reportId ? updatedReport : r));
+      setReport(updatedReport); 
+    }
+    
+    // We need to wait for state to update before printing
+    setTimeout(() => {
+      window.print();
+    }, 100);
   };
 
   if (!report) {
