@@ -72,7 +72,7 @@ export default function ReportView({ reportId }: { reportId: string }) {
         
         <div className="grid grid-cols-2 text-sm mb-4 gap-x-4 gap-y-2">
             <div><span className="font-semibold">Test Serial No:</span> {report.serialNumber}</div>
-            <div className="text-right"><span className="font-semibold">Date:</span> {new Date(report.date).toLocaleDateString()} ({nepaliDateString} B.S.)</div>
+            <div className="text-right"><span className="font-semibold">Date:</span> {nepaliDateString} B.S. ({new Date(report.date).toLocaleDateString()})</div>
             <div><span className="font-semibold">Tax Invoice No:</span> {report.taxInvoiceNumber}</div>
             <div className="text-right"><span className="font-semibold">Challan No:</span> {report.challanNumber}</div>
         </div>
