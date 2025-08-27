@@ -125,8 +125,18 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
           toast({ title: 'Success', description: 'Report updated successfully.' });
           router.push(`/report/${reportToEdit.id}`);
       } else {
-        const nextSerialNumber = (reports.length + 1).toString().padStart(3, '0');
-        const serialNumber = `2082/083-${nextSerialNumber}`;
+        const serialPrefix = '2082/083-';
+        let maxNumber = 0;
+        reports.forEach(report => {
+          if (report.serialNumber.startsWith(serialPrefix)) {
+            const numPart = parseInt(report.serialNumber.substring(serialPrefix.length), 10);
+            if (!isNaN(numPart) && numPart > maxNumber) {
+              maxNumber = numPart;
+            }
+          }
+        });
+        const nextNumber = maxNumber + 1;
+        const serialNumber = `${serialPrefix}${nextNumber.toString().padStart(3, '0')}`;
 
         const newReport: Report = {
             id: crypto.randomUUID(),
