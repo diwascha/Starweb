@@ -125,44 +125,35 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
           toast({ title: 'Success', description: 'Report updated successfully.' });
           router.push(`/report/${reportToEdit.id}`);
       } else {
-        let newReport: Report | null = null;
+        const serialPrefix = '2082/083-';
+        let maxNumber = 0;
         
-        setReports(prevReports => {
-          const serialPrefix = '2082/083-';
-          let maxNumber = 0;
-          
-          prevReports.forEach(report => {
-            if (report && report.serialNumber && report.serialNumber.startsWith(serialPrefix)) {
-              const numPart = parseInt(report.serialNumber.substring(serialPrefix.length), 10);
-              if (!isNaN(numPart) && numPart > maxNumber) {
-                maxNumber = numPart;
-              }
+        reports.forEach(report => {
+          if (report && report.serialNumber && report.serialNumber.startsWith(serialPrefix)) {
+            const numPart = parseInt(report.serialNumber.substring(serialPrefix.length), 10);
+            if (!isNaN(numPart) && numPart > maxNumber) {
+              maxNumber = numPart;
             }
-          });
-          const nextNumber = maxNumber + 1;
-          const generatedSerialNumber = `${serialPrefix}${nextNumber.toString().padStart(3, '0')}`;
-          
-          newReport = {
-              id: crypto.randomUUID(),
-              serialNumber: generatedSerialNumber,
-              taxInvoiceNumber,
-              challanNumber,
-              quantity,
-              product: selectedProduct,
-              date: new Date().toISOString(),
-              testData,
-              printLog: [],
-          };
-
-          return [...prevReports, newReport];
+          }
         });
+        const nextNumber = maxNumber + 1;
+        const generatedSerialNumber = `${serialPrefix}${nextNumber.toString().padStart(3, '0')}`;
+        
+        const newReport: Report = {
+            id: crypto.randomUUID(),
+            serialNumber: generatedSerialNumber,
+            taxInvoiceNumber,
+            challanNumber,
+            quantity,
+            product: selectedProduct,
+            date: new Date().toISOString(),
+            testData,
+            printLog: [],
+        };
 
+        setReports([...reports, newReport]);
         toast({ title: 'Success', description: 'Report generated successfully.' });
-        if (newReport) {
-            router.push(`/report/${newReport.id}`);
-        } else {
-            router.push('/');
-        }
+        router.push(`/report/${newReport.id}`);
       }
     } catch (error) {
       console.error('Failed to generate report:', error);
