@@ -1,14 +1,21 @@
 export interface Product {
   id: string;
   name: string;
+  materialCode: string;
+  companyName: string;
+  address: string;
 }
 
 export interface TestData {
+  dimension: string;
   ply: string;
   gsm: string;
-  burstingStrength: string;
-  cobbValue: string;
-  moistureContent: string;
+  stapleWidth: string;
+  stapling: string;
+  overlapWidth: string;
+  printing: string;
+  moisture: string;
+  load: string;
 }
 
 export interface Report {

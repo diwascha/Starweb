@@ -22,11 +22,15 @@ import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
   productId: z.string().min(1, { message: 'Product is required.' }),
+  dimension: z.string().min(1, { message: 'Dimension is required.' }),
   ply: z.string().min(1, { message: 'Ply is required.' }),
   gsm: z.string().min(1, { message: 'GSM is required.' }),
-  burstingStrength: z.string().min(1, { message: 'Bursting Strength is required.' }),
-  cobbValue: z.string().min(1, { message: 'Cobb Value is required.' }),
-  moistureContent: z.string().min(1, { message: 'Moisture Content is required.' }),
+  stapleWidth: z.string().min(1, { message: 'Staple Width is required.' }),
+  stapling: z.string().min(1, { message: 'Stapling is required.' }),
+  overlapWidth: z.string().min(1, { message: 'Overlap Width is required.' }),
+  printing: z.string().min(1, { message: 'Printing is required.' }),
+  moisture: z.string().min(1, { message: 'Moisture is required.' }),
+  load: z.string().min(1, { message: 'Load is required.' }),
 });
 
 export function ReportForm() {
@@ -40,11 +44,15 @@ export function ReportForm() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       productId: '',
+      dimension: '',
       ply: '',
       gsm: '',
-      burstingStrength: '',
-      cobbValue: '',
-      moistureContent: '',
+      stapleWidth: '',
+      stapling: '',
+      overlapWidth: '',
+      printing: '',
+      moisture: '',
+      load: '',
     },
   });
 
@@ -58,13 +66,8 @@ export function ReportForm() {
         return;
       }
 
-      const testData: TestData = {
-        ply: values.ply,
-        gsm: values.gsm,
-        burstingStrength: values.burstingStrength,
-        cobbValue: values.cobbValue,
-        moistureContent: values.moistureContent,
-      };
+      const { productId, ...testDataValues } = values;
+      const testData: TestData = testDataValues;
 
       const visualization = await generateReportVisualization({
         productName: selectedProduct.name,
@@ -133,6 +136,19 @@ export function ReportForm() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <FormField
                 control={form.control}
+                name="dimension"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Dimension</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., 10x10x10" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
                 name="ply"
                 render={({ field }) => (
                   <FormItem>
@@ -159,12 +175,12 @@ export function ReportForm() {
               />
               <FormField
                 control={form.control}
-                name="burstingStrength"
+                name="stapleWidth"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Bursting Strength (kg/cm²)</FormLabel>
+                    <FormLabel>Staple Width (mm)</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., 12.5" {...field} />
+                      <Input placeholder="e.g., 12" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -172,10 +188,23 @@ export function ReportForm() {
               />
               <FormField
                 control={form.control}
-                name="cobbValue"
+                name="stapling"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Cobb Value (g/m²)</FormLabel>
+                    <FormLabel>Stapling</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Center" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="overlapWidth"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Overlap Width (mm)</FormLabel>
                     <FormControl>
                       <Input placeholder="e.g., 25" {...field} />
                     </FormControl>
@@ -185,12 +214,38 @@ export function ReportForm() {
               />
               <FormField
                 control={form.control}
-                name="moistureContent"
+                name="printing"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Moisture Content (%)</FormLabel>
+                    <FormLabel>Printing</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., 2-Color Flexo" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="moisture"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Moisture (%)</FormLabel>
                     <FormControl>
                       <Input placeholder="e.g., 7.5" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="load"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Load (kg)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., 500" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

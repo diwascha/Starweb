@@ -25,24 +25,36 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { Textarea } from '@/components/ui/textarea';
 
 export default function DashboardClient() {
   const [reports, setReports] = useLocalStorage<Report[]>('reports', []);
   const [products, setProducts] = useLocalStorage<Product[]>('products', []);
   const [newProductName, setNewProductName] = useState('');
+  const [newMaterialCode, setNewMaterialCode] = useState('');
+  const [newCompanyName, setNewCompanyName] = useState('');
+  const [newAddress, setNewAddress] = useState('');
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const { toast } = useToast();
 
   const handleAddProduct = () => {
-    if (newProductName.trim() !== '') {
+    if (newProductName.trim() !== '' && newMaterialCode.trim() !== '' && newCompanyName.trim() !== '' && newAddress.trim() !== '') {
       const newProduct: Product = {
         id: crypto.randomUUID(),
         name: newProductName.trim(),
+        materialCode: newMaterialCode.trim(),
+        companyName: newCompanyName.trim(),
+        address: newAddress.trim(),
       };
       setProducts([...products, newProduct]);
       setNewProductName('');
+      setNewMaterialCode('');
+      setNewCompanyName('');
+      setNewAddress('');
       setIsAddProductOpen(false);
       toast({ title: 'Success', description: 'New product added.' });
+    } else {
+      toast({ title: 'Error', description: 'Please fill all the fields.', variant: 'destructive' });
     }
   };
 
@@ -65,12 +77,13 @@ export default function DashboardClient() {
                 <Plus className="mr-2 h-4 w-4" /> Add Product
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
                 <DialogTitle>Add New Product</DialogTitle>
-                <DialogDescription>Enter the name of the new product.</DialogDescription>
+                <DialogDescription>Enter the details of the new product.</DialogDescription>
               </DialogHeader>
               <form
+                id="add-product-form"
                 onSubmit={e => {
                   e.preventDefault();
                   handleAddProduct();
@@ -88,11 +101,44 @@ export default function DashboardClient() {
                       className="col-span-3"
                     />
                   </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="material-code" className="text-right">
+                      Material Code
+                    </Label>
+                    <Input
+                      id="material-code"
+                      value={newMaterialCode}
+                      onChange={e => setNewMaterialCode(e.target.value)}
+                      className="col-span-3"
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="company-name" className="text-right">
+                      Company
+                    </Label>
+                    <Input
+                      id="company-name"
+                      value={newCompanyName}
+                      onChange={e => setNewCompanyName(e.target.value)}
+                      className="col-span-3"
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-start gap-4">
+                    <Label htmlFor="address" className="text-right mt-2">
+                      Address
+                    </Label>
+                    <Textarea
+                      id="address"
+                      value={newAddress}
+                      onChange={e => setNewAddress(e.target.value)}
+                      className="col-span-3"
+                    />
+                  </div>
                 </div>
-                <DialogFooter>
-                  <Button type="submit">Save product</Button>
-                </DialogFooter>
               </form>
+              <DialogFooter>
+                <Button type="submit" form="add-product-form">Save product</Button>
+              </DialogFooter>
             </DialogContent>
           </Dialog>
           <Button asChild>

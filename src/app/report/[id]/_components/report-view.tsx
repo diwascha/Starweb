@@ -113,6 +113,27 @@ export default function ReportView({ reportId }: { reportId: string }) {
             <CardDescription>Generated on {new Date(report.date).toLocaleString()}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+             <section>
+                <h2 className="text-xl font-semibold mb-2">Product Information</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <span className="font-medium text-muted-foreground">Product Name: </span>
+                        <span>{report.product.name}</span>
+                    </div>
+                    <div>
+                        <span className="font-medium text-muted-foreground">Material Code: </span>
+                        <span>{report.product.materialCode}</span>
+                    </div>
+                    <div>
+                        <span className="font-medium text-muted-foreground">Company: </span>
+                        <span>{report.product.companyName}</span>
+                    </div>
+                    <div>
+                        <span className="font-medium text-muted-foreground">Address: </span>
+                        <span>{report.product.address}</span>
+                    </div>
+                </div>
+            </section>
             <section>
               <h2 className="text-xl font-semibold mb-2">Test Parameters & Results</h2>
               <div className="border rounded-lg">
