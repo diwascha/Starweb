@@ -35,8 +35,8 @@ const prompt = ai.definePrompt({
   prompt: `You are an expert in data visualization. Given the following test data for the product "{{productName}}", recommend the most appropriate type of data visualization to effectively present the results.
 
 Test Data:
-{{#each (keyvalue testData)}}
-  {{key}}: {{value}}
+{{#each testData}}
+  {{@key}}: {{this}}
 {{/each}}
 
 Consider the data types and the relationships between different parameters. Explain your reasoning.
