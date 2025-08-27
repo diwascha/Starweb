@@ -169,6 +169,15 @@ export default function DashboardClient() {
         </div>
       );
     }
+    
+    const sortedReports = [...reports].sort((a, b) => {
+        if (!a.serialNumber) return 1;
+        if (!b.serialNumber) return -1;
+        return b.serialNumber.localeCompare(a.serialNumber);
+    });
+    
+    const sortedProducts = [...products].sort((a, b) => a.name.localeCompare(b.name));
+
 
     if (reports.length === 0 && products.length === 0) {
         return (
@@ -203,7 +212,7 @@ export default function DashboardClient() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {reports.map(report => (
+                          {sortedReports.map(report => (
                             <TableRow key={report.id}>
                               <TableCell className="font-medium">{report.serialNumber}</TableCell>
                               <TableCell>{report.product.name}</TableCell>
@@ -283,7 +292,7 @@ export default function DashboardClient() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {products.map(product => (
+                            {sortedProducts.map(product => (
                             <TableRow key={product.id}>
                                 <TableCell className="font-medium">{product.name}</TableCell>
                                 <TableCell>{product.materialCode}</TableCell>
