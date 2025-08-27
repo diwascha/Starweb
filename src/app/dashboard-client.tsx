@@ -194,18 +194,22 @@ export default function DashboardClient() {
                       <Table>
                         <TableHeader>
                           <TableRow>
+                            <TableHead>Serial Number</TableHead>
                             <TableHead>Product</TableHead>
-                            <TableHead>Serial No</TableHead>
-                            <TableHead>Date</TableHead>
+                            <TableHead>Invoice Number</TableHead>
+                            <TableHead>Challan Number</TableHead>
+                            <TableHead>Quantities</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {reports.map(report => (
                             <TableRow key={report.id}>
-                              <TableCell className="font-medium">{report.product.name}</TableCell>
-                              <TableCell>{report.serialNumber}</TableCell>
-                              <TableCell>{new Date(report.date).toLocaleDateString()}</TableCell>
+                              <TableCell className="font-medium">{report.serialNumber}</TableCell>
+                              <TableCell>{report.product.name}</TableCell>
+                              <TableCell>{report.taxInvoiceNumber}</TableCell>
+                              <TableCell>{report.challanNumber}</TableCell>
+                              <TableCell>{report.quantity}</TableCell>
                               <TableCell className="text-right">
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>

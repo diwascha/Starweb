@@ -30,6 +30,7 @@ export interface Report {
   serialNumber: string;
   taxInvoiceNumber: string;
   challanNumber: string;
+  quantity: string;
   product: Product;
   date: string;
   testData: TestResultData;
