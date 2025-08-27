@@ -16,7 +16,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import useLocalStorage from '@/hooks/use-local-storage';
 import type { Product, Report, TestResultData } from '@/lib/types';
 import { useRouter } from 'next/navigation';
-import { generateReportVisualization } from '@/ai/flows/generate-report-visualization';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -90,18 +89,12 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
     try {
       const { productId, ...testDataValues } = values;
       const testData: TestResultData = testDataValues;
-
-      const visualization = await generateReportVisualization({
-        productName: selectedProduct.name,
-        testData: testData,
-      });
       
       if (reportToEdit) {
           const updatedReport: Report = {
               ...reportToEdit,
               product: selectedProduct,
               testData,
-              visualization,
           };
           setReports(reports.map(r => r.id === reportToEdit.id ? updatedReport : r));
           toast({ title: 'Success', description: 'Report updated successfully.' });
@@ -112,7 +105,6 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
             product: selectedProduct,
             date: new Date().toISOString(),
             testData,
-            visualization,
             printLog: [],
         };
 
@@ -124,7 +116,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
       console.error('Failed to generate report:', error);
       toast({
         title: 'Error',
-        description: 'Failed to generate report visualization. Please try again.',
+        description: 'Failed to generate report. Please try again.',
         variant: 'destructive',
       });
       setIsSubmitting(false);

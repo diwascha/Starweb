@@ -31,8 +31,4 @@ export interface Report {
   date: string;
   testData: TestResultData;
   printLog?: PrintLogEntry[];
-  visualization?: {
-    visualizationType: string;
-    reasoning: string;
-  };
 }
