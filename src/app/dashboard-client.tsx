@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -54,7 +55,8 @@ const initialSpecValues: ProductSpecification = {
   load: '',
 };
 
-type SortKey = 'serialNumber' | 'productName';
+type ReportSortKey = 'serialNumber' | 'productName';
+type ProductSortKey = 'name' | 'materialCode' | 'companyName';
 type SortDirection = 'asc' | 'desc';
 
 export default function DashboardClient() {
@@ -69,9 +71,14 @@ export default function DashboardClient() {
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   
-  const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({
+  const [reportSortConfig, setReportSortConfig] = useState<{ key: ReportSortKey; direction: SortDirection }>({
     key: 'serialNumber',
     direction: 'desc',
+  });
+
+  const [productSortConfig, setProductSortConfig] = useState<{ key: ProductSortKey; direction: SortDirection }>({
+    key: 'name',
+    direction: 'asc',
   });
 
   const { toast } = useToast();
@@ -189,22 +196,30 @@ export default function DashboardClient() {
   const dialogDescription = editingProduct ? 'Update the details and specifications for this product.' : 'Enter the details and specifications for the new product.';
   const dialogButtonText = editingProduct ? 'Save changes' : 'Save product';
 
-  const requestSort = (key: SortKey) => {
+  const requestReportSort = (key: ReportSortKey) => {
     let direction: SortDirection = 'asc';
-    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+    if (reportSortConfig.key === key && reportSortConfig.direction === 'asc') {
       direction = 'desc';
     }
-    setSortConfig({ key, direction });
+    setReportSortConfig({ key, direction });
+  };
+
+  const requestProductSort = (key: ProductSortKey) => {
+    let direction: SortDirection = 'asc';
+    if (productSortConfig.key === key && productSortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setProductSortConfig({ key, direction });
   };
   
   const sortedReports = useMemo(() => {
     const sortableReports = [...reports];
-    if (sortConfig.key) {
+    if (reportSortConfig.key) {
       sortableReports.sort((a, b) => {
         let aValue: string | number;
         let bValue: string | number;
 
-        if (sortConfig.key === 'productName') {
+        if (reportSortConfig.key === 'productName') {
           aValue = a.product.name.toLowerCase();
           bValue = b.product.name.toLowerCase();
         } else { // serialNumber
@@ -213,16 +228,35 @@ export default function DashboardClient() {
         }
 
         if (aValue < bValue) {
-          return sortConfig.direction === 'asc' ? -1 : 1;
+          return reportSortConfig.direction === 'asc' ? -1 : 1;
         }
         if (aValue > bValue) {
-          return sortConfig.direction === 'asc' ? 1 : -1;
+          return reportSortConfig.direction === 'asc' ? 1 : -1;
         }
         return 0;
       });
     }
     return sortableReports;
-  }, [reports, sortConfig]);
+  }, [reports, reportSortConfig]);
+
+  const sortedProducts = useMemo(() => {
+    const sortableProducts = [...products];
+    if (productSortConfig.key) {
+      sortableProducts.sort((a, b) => {
+        const aValue = a[productSortConfig.key].toLowerCase();
+        const bValue = b[productSortConfig.key].toLowerCase();
+
+        if (aValue < bValue) {
+          return productSortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return productSortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return sortableProducts;
+  }, [products, productSortConfig]);
 
   const renderContent = () => {
     if (!isClient) {
@@ -234,9 +268,6 @@ export default function DashboardClient() {
         </div>
       );
     }
-    
-    const sortedProducts = [...products].sort((a, b) => a.name.localeCompare(b.name));
-
 
     if (reports.length === 0 && products.length === 0) {
         return (
@@ -263,13 +294,13 @@ export default function DashboardClient() {
                         <TableHeader>
                           <TableRow>
                             <TableHead>
-                                <Button variant="ghost" onClick={() => requestSort('serialNumber')}>
+                                <Button variant="ghost" onClick={() => requestReportSort('serialNumber')}>
                                 Test Serial No.
                                 <ArrowUpDown className="ml-2 h-4 w-4" />
                                 </Button>
                             </TableHead>
                             <TableHead>
-                                <Button variant="ghost" onClick={() => requestSort('productName')}>
+                                <Button variant="ghost" onClick={() => requestReportSort('productName')}>
                                 Product
                                 <ArrowUpDown className="ml-2 h-4 w-4" />
                                 </Button>
@@ -357,9 +388,24 @@ export default function DashboardClient() {
                         <Table>
                         <TableHeader>
                             <TableRow>
-                            <TableHead>Product Name</TableHead>
-                            <TableHead>Material Code</TableHead>
-                            <TableHead>Delivered To</TableHead>
+                            <TableHead>
+                                <Button variant="ghost" onClick={() => requestProductSort('name')}>
+                                Product Name
+                                <ArrowUpDown className="ml-2 h-4 w-4" />
+                                </Button>
+                            </TableHead>
+                            <TableHead>
+                                <Button variant="ghost" onClick={() => requestProductSort('materialCode')}>
+                                Material Code
+                                <ArrowUpDown className="ml-2 h-4 w-4" />
+                                </Button>
+                            </TableHead>
+                            <TableHead>
+                                <Button variant="ghost" onClick={() => requestProductSort('companyName')}>
+                                Delivered To
+                                <ArrowUpDown className="ml-2 h-4 w-4" />
+                                </Button>
+                            </TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -531,3 +577,5 @@ export default function DashboardClient() {
     </div>
   );
 }
+
+    
