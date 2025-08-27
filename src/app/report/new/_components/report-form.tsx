@@ -381,7 +381,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
                             variant="outline"
                             size="sm"
                             onClick={handleRegenerate}
-                            disabled={!selectedBoxType}
+                            disabled={!selectedBoxType || !selectedProduct}
                         >
                             <RefreshCw className="mr-2 h-4 w-4" />
                             Regenerate
@@ -482,5 +482,3 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
     </>
   );
 }
-
-    
