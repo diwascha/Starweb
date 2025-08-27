@@ -1,12 +1,4 @@
-export interface Product {
-  id: string;
-  name: string;
-  materialCode: string;
-  companyName: string;
-  address: string;
-}
-
-export interface TestData {
+export interface ProductSpecification {
   dimension: string;
   ply: string;
   gsm: string;
@@ -18,11 +10,22 @@ export interface TestData {
   load: string;
 }
 
+export interface Product {
+  id: string;
+  name: string;
+  materialCode: string;
+  companyName: string;
+  address: string;
+  specification: ProductSpecification;
+}
+
+export type TestResultData = Record<keyof ProductSpecification, string>;
+
 export interface Report {
   id: string;
   product: Product;
   date: string;
-  testData: TestData;
+  testData: TestResultData;
   visualization?: {
     visualizationType: string;
     reasoning: string;

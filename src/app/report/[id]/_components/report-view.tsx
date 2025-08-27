@@ -35,6 +35,10 @@ export default function ReportView({ reportId }: { reportId: string }) {
     name: key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()),
     value: parseFloat(value) || 0,
   }));
+  
+  const formatLabel = (key: string) => {
+    return key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+  };
 
   const renderChart = () => {
     if (!report.visualization) return null;
@@ -141,16 +145,18 @@ export default function ReportView({ reportId }: { reportId: string }) {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Parameter</TableHead>
-                      <TableHead>Value</TableHead>
+                      <TableHead>Standard</TableHead>
+                      <TableHead>Result</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {Object.entries(report.testData).map(([key, value]) => (
+                    {Object.keys(report.product.specification).map((key) => (
                       <TableRow key={key}>
                         <TableCell className="font-medium">
-                          {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                          {formatLabel(key)}
                         </TableCell>
-                        <TableCell>{String(value)}</TableCell>
+                        <TableCell>{report.product.specification[key as keyof typeof report.product.specification]}</TableCell>
+                        <TableCell>{report.testData[key as keyof typeof report.testData]}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

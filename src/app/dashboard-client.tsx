@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { PlusCircle, Plus, FileText, MoreHorizontal } from 'lucide-react';
 import useLocalStorage from '@/hooks/use-local-storage';
-import type { Report, Product } from '@/lib/types';
+import type { Report, Product, ProductSpecification } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -26,6 +26,19 @@ import {
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
+import { ScrollArea } from '@/components/ui/scroll-area';
+
+const initialSpecValues: ProductSpecification = {
+  dimension: '',
+  ply: '',
+  gsm: '',
+  stapleWidth: '',
+  stapling: '',
+  overlapWidth: '',
+  printing: '',
+  moisture: '',
+  load: '',
+};
 
 export default function DashboardClient() {
   const [reports, setReports] = useLocalStorage<Report[]>('reports', []);
@@ -34,23 +47,31 @@ export default function DashboardClient() {
   const [newMaterialCode, setNewMaterialCode] = useState('');
   const [newCompanyName, setNewCompanyName] = useState('');
   const [newAddress, setNewAddress] = useState('');
+  const [newSpec, setNewSpec] = useState<ProductSpecification>(initialSpecValues);
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const { toast } = useToast();
 
+  const resetForm = () => {
+    setNewProductName('');
+    setNewMaterialCode('');
+    setNewCompanyName('');
+    setNewAddress('');
+    setNewSpec(initialSpecValues);
+  };
+
   const handleAddProduct = () => {
-    if (newProductName.trim() !== '' && newMaterialCode.trim() !== '' && newCompanyName.trim() !== '' && newAddress.trim() !== '') {
+    const isSpecFilled = Object.values(newSpec).every(val => val.trim() !== '');
+    if (newProductName.trim() !== '' && newMaterialCode.trim() !== '' && newCompanyName.trim() !== '' && newAddress.trim() !== '' && isSpecFilled) {
       const newProduct: Product = {
         id: crypto.randomUUID(),
         name: newProductName.trim(),
         materialCode: newMaterialCode.trim(),
         companyName: newCompanyName.trim(),
         address: newAddress.trim(),
+        specification: newSpec,
       };
       setProducts([...products, newProduct]);
-      setNewProductName('');
-      setNewMaterialCode('');
-      setNewCompanyName('');
-      setNewAddress('');
+      resetForm();
       setIsAddProductOpen(false);
       toast({ title: 'Success', description: 'New product added.' });
     } else {
@@ -61,6 +82,15 @@ export default function DashboardClient() {
   const deleteReport = (id: string) => {
     setReports(reports.filter(report => report.id !== id));
     toast({ title: 'Report Deleted', description: 'The report has been successfully deleted.' });
+  };
+
+  const handleSpecChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setNewSpec(prev => ({ ...prev, [name]: value }));
+  };
+
+  const formatLabel = (key: string) => {
+    return key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
   };
 
   return (
@@ -77,10 +107,10 @@ export default function DashboardClient() {
                 <Plus className="mr-2 h-4 w-4" /> Add Product
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-lg">
               <DialogHeader>
                 <DialogTitle>Add New Product</DialogTitle>
-                <DialogDescription>Enter the details of the new product.</DialogDescription>
+                <DialogDescription>Enter the details and specifications for the new product.</DialogDescription>
               </DialogHeader>
               <form
                 id="add-product-form"
@@ -89,52 +119,69 @@ export default function DashboardClient() {
                   handleAddProduct();
                 }}
               >
-                <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="product-name" className="text-right">
-                      Name
-                    </Label>
-                    <Input
-                      id="product-name"
-                      value={newProductName}
-                      onChange={e => setNewProductName(e.target.value)}
-                      className="col-span-3"
-                    />
+                <ScrollArea className="h-[60vh] pr-4">
+                  <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="product-name" className="text-right">
+                        Name
+                      </Label>
+                      <Input
+                        id="product-name"
+                        value={newProductName}
+                        onChange={e => setNewProductName(e.target.value)}
+                        className="col-span-3"
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="material-code" className="text-right">
+                        Material Code
+                      </Label>
+                      <Input
+                        id="material-code"
+                        value={newMaterialCode}
+                        onChange={e => setNewMaterialCode(e.target.value)}
+                        className="col-span-3"
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="company-name" className="text-right">
+                        Company
+                      </Label>
+                      <Input
+                        id="company-name"
+                        value={newCompanyName}
+                        onChange={e => setNewCompanyName(e.target.value)}
+                        className="col-span-3"
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 items-start gap-4">
+                      <Label htmlFor="address" className="text-right mt-2">
+                        Address
+                      </Label>
+                      <Textarea
+                        id="address"
+                        value={newAddress}
+                        onChange={e => setNewAddress(e.target.value)}
+                        className="col-span-3"
+                      />
+                    </div>
+                    <h3 className="text-lg font-semibold mt-4 col-span-4">Standard Specifications</h3>
+                    {Object.keys(initialSpecValues).map(key => (
+                      <div key={key} className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor={key} className="text-right">
+                          {formatLabel(key)}
+                        </Label>
+                        <Input
+                          id={key}
+                          name={key}
+                          value={newSpec[key as keyof ProductSpecification]}
+                          onChange={handleSpecChange}
+                          className="col-span-3"
+                        />
+                      </div>
+                    ))}
                   </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="material-code" className="text-right">
-                      Material Code
-                    </Label>
-                    <Input
-                      id="material-code"
-                      value={newMaterialCode}
-                      onChange={e => setNewMaterialCode(e.target.value)}
-                      className="col-span-3"
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="company-name" className="text-right">
-                      Company
-                    </Label>
-                    <Input
-                      id="company-name"
-                      value={newCompanyName}
-                      onChange={e => setNewCompanyName(e.target.value)}
-                      className="col-span-3"
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-start gap-4">
-                    <Label htmlFor="address" className="text-right mt-2">
-                      Address
-                    </Label>
-                    <Textarea
-                      id="address"
-                      value={newAddress}
-                      onChange={e => setNewAddress(e.target.value)}
-                      className="col-span-3"
-                    />
-                  </div>
-                </div>
+                </ScrollArea>
               </form>
               <DialogFooter>
                 <Button type="submit" form="add-product-form">Save product</Button>
