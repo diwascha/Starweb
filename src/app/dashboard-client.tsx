@@ -208,8 +208,8 @@ export default function DashboardClient() {
           aValue = a.product.name.toLowerCase();
           bValue = b.product.name.toLowerCase();
         } else { // serialNumber
-           aValue = parseInt(a.serialNumber.split('-')[1] || '0', 10);
-           bValue = parseInt(b.serialNumber.split('-')[1] || '0', 10);
+           aValue = parseInt((a.serialNumber || '0').split('-')[1] || '0', 10);
+           bValue = parseInt((b.serialNumber || '0').split('-')[1] || '0', 10);
         }
 
         if (aValue < bValue) {
