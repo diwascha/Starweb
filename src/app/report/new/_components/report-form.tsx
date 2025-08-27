@@ -125,25 +125,9 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
           toast({ title: 'Success', description: 'Report updated successfully.' });
           router.push(`/report/${reportToEdit.id}`);
       } else {
-        const serialPrefix = '2082/083-';
-        let maxNumber = 0;
-        
-        // This logic finds the highest number from all existing reports
-        reports.forEach(report => {
-          if (report.serialNumber.startsWith(serialPrefix)) {
-            const numPart = parseInt(report.serialNumber.substring(serialPrefix.length), 10);
-            if (!isNaN(numPart) && numPart > maxNumber) {
-              maxNumber = numPart;
-            }
-          }
-        });
-
-        const nextNumber = maxNumber + 1;
-        const serialNumber = `${serialPrefix}${nextNumber.toString().padStart(3, '0')}`;
-
         const newReport: Report = {
             id: crypto.randomUUID(),
-            serialNumber,
+            serialNumber: '', // Will be set in the callback
             taxInvoiceNumber,
             challanNumber,
             quantity,
@@ -153,7 +137,24 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
             printLog: [],
         };
 
-        setReports(prevReports => [...prevReports, newReport]);
+        setReports(prevReports => {
+          const serialPrefix = '2082/083-';
+          let maxNumber = 0;
+          
+          prevReports.forEach(report => {
+            if (report.serialNumber.startsWith(serialPrefix)) {
+              const numPart = parseInt(report.serialNumber.substring(serialPrefix.length), 10);
+              if (!isNaN(numPart) && numPart > maxNumber) {
+                maxNumber = numPart;
+              }
+            }
+          });
+          const nextNumber = maxNumber + 1;
+          newReport.serialNumber = `${serialPrefix}${nextNumber.toString().padStart(3, '0')}`;
+          
+          return [...prevReports, newReport];
+        });
+
         toast({ title: 'Success', description: 'Report generated successfully.' });
         router.push(`/report/${newReport.id}`);
       }
