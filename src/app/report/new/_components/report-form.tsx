@@ -1,3 +1,4 @@
+
 'use client';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -78,16 +79,17 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [selectedBoxType, setSelectedBoxType] = useState<BoxType | null>(null);
+  const [selectedBoxType, setSelectedBoxType] = useState<BoxType>('Normal');
 
   useEffect(() => {
     setIsClient(true);
     if (reportToEdit) {
         const product = products.find(p => p.id === reportToEdit.product.id);
         setSelectedProduct(product || null);
+        setSelectedBoxType('Normal');
     }
   }, [reportToEdit, products]);
-
+  
   const form = useForm<ReportFormValues>({
     resolver: zodResolver(reportFormSchema),
     defaultValues: reportToEdit ? {
@@ -112,23 +114,6 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
       load: '',
     },
   });
-  
-  const handleProductChange = (productId: string) => {
-    form.setValue('productId', productId);
-    const product = products.find(p => p.id === productId);
-    setSelectedProduct(product || null);
-    setSelectedBoxType(null); // Reset box type on product change
-    if (product) {
-      // Auto-fill static fields
-      staticFields.forEach(field => {
-        form.setValue(field, product.specification[field]);
-      });
-      // Clear dynamic fields
-      dynamicFields.forEach(field => {
-        form.setValue(field, '');
-      });
-    }
-  };
 
   const calculateAndSetValues = (boxType: BoxType) => {
     if (!selectedProduct) {
@@ -154,21 +139,20 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
 
     switch (boxType) {
       case 'Wet':
-        moistureResult = getRandomInRange(moistureHigh * 0.95, moistureHigh);
+        moistureResult = getRandomInRange(9.0, moistureHigh); // High moisture
         gsmResult = getRandomInRange(gsmRange.high * 0.95, gsmRange.high);
         loadResult = getRandomInRange(loadMin + 3, loadMin + 5);
         break;
       case 'Dry':
-        moistureResult = getRandomInRange(moistureLow, moistureLow * 1.05);
+        moistureResult = getRandomInRange(moistureLow, 7.0); // Low moisture
         gsmResult = getRandomInRange(gsmRange.low, gsmRange.low * 1.05);
         loadResult = getRandomInRange(loadMin + 15, loadMin + 25);
         break;
       case 'Normal':
-        const moistureMid = (moistureLow + moistureHigh) / 2;
+        moistureResult = getRandomInRange(7.1, 8.9); // Mid-range moisture
         const gsmMid = (gsmRange.low + gsmRange.high) / 2;
-        moistureResult = getRandomInRange(moistureMid * 0.9, moistureMid * 1.1);
         gsmResult = getRandomInRange(gsmMid * 0.9, gsmMid * 1.1);
-        loadResult = getRandomInRange(loadMin + 6, loadMin + 14); // Between low and high thresholds
+        loadResult = getRandomInRange(loadMin + 6, loadMin + 14);
         break;
     }
 
@@ -177,6 +161,34 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
     form.setValue('gsm', String(Math.max(gsmRange.low, Math.min(gsmRange.high, gsmResult))));
     form.setValue('load', String(Math.max(loadMin, loadResult))); // Ensure load is at least minimum
   };
+
+  useEffect(() => {
+    if (selectedProduct && !reportToEdit) {
+      handleProductChange(selectedProduct.id);
+    }
+  }, [selectedProduct, reportToEdit]);
+
+  const handleProductChange = (productId: string) => {
+    form.setValue('productId', productId);
+    const product = products.find(p => p.id === productId);
+    if (product) {
+      setSelectedProduct(product);
+      // Auto-fill static fields
+      staticFields.forEach(field => {
+        form.setValue(field, product.specification[field]);
+      });
+      // Set default box type and calculate values
+      const defaultBoxType = 'Normal';
+      setSelectedBoxType(defaultBoxType);
+      calculateAndSetValues(defaultBoxType);
+    } else {
+      setSelectedProduct(null);
+      // Clear all fields if product is deselected
+       dynamicFields.forEach(field => form.setValue(field, ''));
+       staticFields.forEach(field => form.setValue(field, ''));
+    }
+  };
+
 
   const handleRegenerate = () => {
     if (selectedBoxType) {
@@ -201,7 +213,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
       const { productId, taxInvoiceNumber, challanNumber, quantity, ...testDataValues } = values;
       const testData: TestResultData = testDataValues;
       
-      const updatedReports = reports ? [...reports] : [];
+      let newReportId = reportToEdit ? reportToEdit.id : crypto.randomUUID();
 
       if (reportToEdit) {
           const updatedReport: Report = {
@@ -214,7 +226,6 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
           };
           setReports(reports.map(r => r.id === reportToEdit.id ? updatedReport : r));
           toast({ title: 'Success', description: 'Report updated successfully.' });
-          router.push(`/report/${reportToEdit.id}`);
       } else {
         const newReportData: Omit<Report, 'id' | 'serialNumber'> = {
             taxInvoiceNumber,
@@ -226,14 +237,13 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
             printLog: [],
         };
 
-        const newReportId = crypto.randomUUID();
+        const tempReport: Report = {
+            ...newReportData,
+            id: newReportId,
+            serialNumber: 'PENDING',
+        };
         
         setReports(prevReports => {
-            const tempReport: Report = {
-                ...newReportData,
-                id: newReportId,
-                serialNumber: '', // Temporary
-            };
             const allReports = [...(prevReports || []), tempReport];
             const finalSerialNumber = generateNextSerialNumber(allReports);
             
@@ -243,8 +253,8 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
         });
 
         toast({ title: 'Success', description: 'Report generated successfully.' });
-        router.push(`/report/${newReportId}`);
       }
+       router.push(`/report/${newReportId}`);
     } catch (error) {
       console.error('Failed to generate report:', error);
       toast({
