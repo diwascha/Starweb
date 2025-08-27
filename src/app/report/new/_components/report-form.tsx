@@ -1,3 +1,4 @@
+
 'use client';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -17,7 +18,7 @@ import useLocalStorage from '@/hooks/use-local-storage';
 import type { Product, Report, TestData } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { generateReportVisualization } from '@/ai/flows/generate-report-visualization';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
@@ -39,6 +40,11 @@ export function ReportForm() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -253,7 +259,7 @@ export function ReportForm() {
               />
             </div>
 
-            <Button type="submit" disabled={isSubmitting || products.length === 0}>
+            <Button type="submit" disabled={isSubmitting || (isClient && products.length === 0)}>
               {isSubmitting ? 'Generating...' : 'Generate Report'}
             </Button>
           </form>
