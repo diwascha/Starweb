@@ -170,7 +170,15 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
     // Calculate GSM based on moisture
     const baseMoisture = 6.0;
     const baseGsm = gsmSpec.min;
-    let gsmResult = baseGsm + (moistureResult - baseMoisture) * ((baseGsm * 0.10) / 3.0);
+    let gsmResult: number;
+
+    if (gsmSpec.max === null) {
+      // Handle single value spec
+      gsmResult = baseGsm + (moistureResult - baseMoisture); // Simple increase
+    } else {
+      // Handle range spec
+      gsmResult = baseGsm + (moistureResult - baseMoisture) * ((baseGsm * 0.10) / 3.0);
+    }
     
     const safeMinGsm = gsmSpec.min + 5;
     gsmResult = Math.max(gsmResult, safeMinGsm);
