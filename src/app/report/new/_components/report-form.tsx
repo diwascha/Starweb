@@ -50,9 +50,9 @@ const dynamicFields: (keyof TestResultData)[] = ['gsm', 'moisture', 'load'];
 
 type BoxType = 'Wet' | 'Dry' | 'Normal';
 
-const parseGsmSpec = (gsmStr: string): { min: number; max: number | null } => {
-    if (!gsmStr) return { min: 0, max: null };
-    const numbers = gsmStr.match(/\d+(\.\d+)?/g);
+const parseSpecValue = (specStr: string): { min: number; max: number | null } => {
+    if (!specStr) return { min: 0, max: null };
+    const numbers = specStr.match(/\d+(\.\d+)?/g);
     if (!numbers) return { min: 0, max: null };
 
     const parsedNumbers = numbers.map(parseFloat);
@@ -60,12 +60,6 @@ const parseGsmSpec = (gsmStr: string): { min: number; max: number | null } => {
         return { min: parsedNumbers[0], max: null };
     }
     return { min: Math.min(...parsedNumbers), max: Math.max(...parsedNumbers) };
-};
-
-const parseMin = (minStr: string): number => {
-    if (!minStr) return 0;
-    const part = minStr.match(/(\d+(\.\d+)?)/);
-    return part ? parseFloat(part[0]) : 0;
 };
 
 const getRandomInRange = (min: number, max: number, precision: number = 2) => {
@@ -128,8 +122,9 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
     }
 
     const spec = selectedProduct.specification;
-    const gsmSpec = parseGsmSpec(spec.gsm);
-    const loadMin = parseMin(spec.load);
+    const gsmSpec = parseSpecValue(spec.gsm);
+    const loadSpec = parseSpecValue(spec.load);
+    const loadMin = loadSpec.min;
     
     const moistureLow = 6.5;
     const moistureHigh = 9.5;
