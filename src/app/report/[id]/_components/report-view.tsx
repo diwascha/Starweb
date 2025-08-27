@@ -124,8 +124,19 @@ export default function ReportView({ reportId }: { reportId: string }) {
                       const standardValue = report.product.specification[specKey];
                       const resultValue = report.testData[specKey];
                       
-                      const displayStandard = specKey === 'gsm' ? `${standardValue} G/M2` : standardValue;
-                      const displayResult = specKey === 'gsm' ? `${resultValue} G/M2` : resultValue;
+                      let displayStandard = standardValue;
+                      let displayResult = resultValue;
+                      
+                      if (specKey === 'gsm') {
+                        displayStandard = `${standardValue} G/M2`;
+                        displayResult = `${resultValue} G/M2`;
+                      } else if (specKey === 'moisture') {
+                        displayStandard = `${standardValue} %`;
+                        displayResult = `${resultValue} %`;
+                      } else if (specKey === 'load') {
+                        displayStandard = `${standardValue} KGF`;
+                        displayResult = `${resultValue} KGF`;
+                      }
                       
                       return (
                         <TableRow key={key}>
