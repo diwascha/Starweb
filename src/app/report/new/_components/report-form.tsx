@@ -40,6 +40,9 @@ interface ReportFormProps {
     reportToEdit?: Report;
 }
 
+const staticFields: (keyof TestResultData)[] = ['dimension', 'ply', 'stapleWidth', 'stapling', 'overlapWidth', 'printing'];
+const dynamicFields: (keyof TestResultData)[] = ['gsm', 'moisture', 'load'];
+
 export function ReportForm({ reportToEdit }: ReportFormProps) {
   const [products] = useLocalStorage<Product[]>('products', []);
   const [reports, setReports] = useLocalStorage<Report[]>('reports', []);
@@ -84,6 +87,16 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
     form.setValue('productId', productId);
     const product = products.find(p => p.id === productId);
     setSelectedProduct(product || null);
+    if (product) {
+      // Auto-fill static fields
+      staticFields.forEach(field => {
+        form.setValue(field, product.specification[field]);
+      });
+      // Clear dynamic fields
+      dynamicFields.forEach(field => {
+        form.setValue(field, '');
+      });
+    }
   };
 
   async function onSubmit(values: ReportFormValues) {
@@ -136,8 +149,6 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
       setIsSubmitting(false);
     }
   }
-
-  const specKeys = selectedProduct ? (Object.keys(selectedProduct.specification) as Array<keyof TestResultData>) : [];
 
   const formatLabel = (key: string) => {
     return key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
@@ -221,7 +232,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
                     />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    {specKeys.map(key => (
+                    {dynamicFields.map(key => (
                     <FormField
                         key={key}
                         control={form.control}
@@ -239,6 +250,25 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
                         </FormItem>
                         )}
                     />
+                    ))}
+                    {staticFields.map(key => (
+                      <FormField
+                          key={key}
+                          control={form.control}
+                          name={key}
+                          render={({ field }) => (
+                          <FormItem>
+                              <FormLabel>{formatLabel(key)}</FormLabel>
+                              <FormControl>
+                              <Input {...field} readOnly className="bg-muted/50 cursor-not-allowed"/>
+                              </FormControl>
+                              <FormDescription>
+                              Standard: {selectedProduct.specification[key]}
+                              </FormDescription>
+                              <FormMessage />
+                          </FormItem>
+                          )}
+                      />
                     ))}
                 </div>
               </>
