@@ -21,11 +21,16 @@ export interface Product {
 
 export type TestResultData = Record<keyof ProductSpecification, string>;
 
+export interface PrintLogEntry {
+  date: string;
+}
+
 export interface Report {
   id: string;
   product: Product;
   date: string;
   testData: TestResultData;
+  printLog?: PrintLogEntry[];
   visualization?: {
     visualizationType: string;
     reasoning: string;

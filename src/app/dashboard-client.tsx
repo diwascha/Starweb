@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { PlusCircle, Plus, FileText, MoreHorizontal } from 'lucide-react';
+import { PlusCircle, Plus, FileText, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
 import useLocalStorage from '@/hooks/use-local-storage';
 import type { Report, Product, ProductSpecification } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import {
   Dialog,
@@ -23,10 +24,22 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const initialSpecValues: ProductSpecification = {
   dimension: '',
@@ -48,7 +61,10 @@ export default function DashboardClient() {
   const [newCompanyName, setNewCompanyName] = useState('');
   const [newAddress, setNewAddress] = useState('');
   const [newSpec, setNewSpec] = useState<ProductSpecification>(initialSpecValues);
-  const [isAddProductOpen, setIsAddProductOpen] = useState(false);
+  
+  const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
 
@@ -62,26 +78,65 @@ export default function DashboardClient() {
     setNewCompanyName('');
     setNewAddress('');
     setNewSpec(initialSpecValues);
+    setEditingProduct(null);
   };
 
-  const handleAddProduct = () => {
+  const openAddProductDialog = () => {
+    resetForm();
+    setIsProductDialogOpen(true);
+  };
+
+  const openEditProductDialog = (product: Product) => {
+    setEditingProduct(product);
+    setNewProductName(product.name);
+    setNewMaterialCode(product.materialCode);
+    setNewCompanyName(product.companyName);
+    setNewAddress(product.address);
+    setNewSpec(product.specification);
+    setIsProductDialogOpen(true);
+  };
+
+  const handleProductSubmit = () => {
     const isSpecFilled = Object.values(newSpec).every(val => val.trim() !== '');
     if (newProductName.trim() !== '' && newMaterialCode.trim() !== '' && newCompanyName.trim() !== '' && newAddress.trim() !== '' && isSpecFilled) {
-      const newProduct: Product = {
-        id: crypto.randomUUID(),
-        name: newProductName.trim(),
-        materialCode: newMaterialCode.trim(),
-        companyName: newCompanyName.trim(),
-        address: newAddress.trim(),
-        specification: newSpec,
-      };
-      setProducts([...products, newProduct]);
+      if (editingProduct) {
+        // Edit existing product
+        const updatedProduct: Product = {
+          ...editingProduct,
+          name: newProductName.trim(),
+          materialCode: newMaterialCode.trim(),
+          companyName: newCompanyName.trim(),
+          address: newAddress.trim(),
+          specification: newSpec,
+        };
+        setProducts(products.map(p => (p.id === editingProduct.id ? updatedProduct : p)));
+        // Also update the product details in any existing reports
+        setReports(reports.map(r => r.product.id === editingProduct.id ? {...r, product: updatedProduct} : r));
+        toast({ title: 'Success', description: 'Product updated.' });
+      } else {
+        // Add new product
+        const newProduct: Product = {
+          id: crypto.randomUUID(),
+          name: newProductName.trim(),
+          materialCode: newMaterialCode.trim(),
+          companyName: newCompanyName.trim(),
+          address: newAddress.trim(),
+          specification: newSpec,
+        };
+        setProducts([...products, newProduct]);
+        toast({ title: 'Success', description: 'New product added.' });
+      }
       resetForm();
-      setIsAddProductOpen(false);
-      toast({ title: 'Success', description: 'New product added.' });
+      setIsProductDialogOpen(false);
     } else {
       toast({ title: 'Error', description: 'Please fill all the fields.', variant: 'destructive' });
     }
+  };
+  
+  const deleteProduct = (id: string) => {
+    setProducts(products.filter(product => product.id !== id));
+    setReports(reports.filter(report => report.product.id !== id));
+    toast({ title: 'Product Deleted', description: 'The product and its associated reports have been deleted.' });
   };
 
   const deleteReport = (id: string) => {
@@ -97,72 +152,187 @@ export default function DashboardClient() {
   const formatLabel = (key: string) => {
     return key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
   };
+  
+  const dialogTitle = editingProduct ? 'Edit Product' : 'Add New Product';
+  const dialogDescription = editingProduct ? 'Update the details and specifications for this product.' : 'Enter the details and specifications for the new product.';
+  const dialogButtonText = editingProduct ? 'Save changes' : 'Save product';
 
   const renderContent = () => {
     if (!isClient) {
       return (
         <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
           <div className="flex flex-col items-center gap-1 text-center">
-            <h3 className="text-2xl font-bold tracking-tight">Loading reports...</h3>
+            <h3 className="text-2xl font-bold tracking-tight">Loading...</h3>
           </div>
         </div>
       );
     }
 
-    if (reports.length > 0) {
-      return (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {reports.map(report => (
-            <Card key={report.id}>
-              <CardHeader>
-                <CardTitle className="flex justify-between items-start">
-                  <span>{report.product.name}</span>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onSelect={() => deleteReport(report.id)}>
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </CardTitle>
-                <CardDescription>
-                  Report generated on {new Date(report.date).toLocaleDateString()}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  View the detailed test report and analysis.
-                </p>
-              </CardContent>
-              <CardFooter>
-                <Button asChild className="w-full">
-                  <Link href={`/report/${report.id}`}>View Report</Link>
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
-      );
-    }
+    if (reports.length === 0 && products.length === 0) {
+        return (
+          <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
+            <div className="flex flex-col items-center gap-1 text-center">
+              <FileText className="h-12 w-12 text-muted-foreground" />
+              <h3 className="text-2xl font-bold tracking-tight">No products or reports</h3>
+              <p className="text-sm text-muted-foreground">Get started by adding a product, then create a report.</p>
+              <Button className="mt-4" onClick={openAddProductDialog}>
+                 <Plus className="mr-2 h-4 w-4" /> Add Product
+              </Button>
+            </div>
+          </div>
+        );
+      }
 
     return (
-      <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
-        <div className="flex flex-col items-center gap-1 text-center">
-          <FileText className="h-12 w-12 text-muted-foreground" />
-          <h3 className="text-2xl font-bold tracking-tight">No reports found</h3>
-          <p className="text-sm text-muted-foreground">Get started by creating a new test report.</p>
-          <Button className="mt-4" asChild>
-            <Link href="/report/new">
-              <PlusCircle className="mr-2 h-4 w-4" /> New Report
-            </Link>
-          </Button>
+        <div className="flex flex-col gap-8">
+            <section>
+                <h2 className="text-2xl font-semibold tracking-tight mb-4">Reports</h2>
+                {reports.length > 0 ? (
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        {reports.map(report => (
+                        <Card key={report.id}>
+                            <CardHeader>
+                            <CardTitle className="flex justify-between items-start">
+                                <span>{report.product.name}</span>
+                                <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onSelect={() => window.location.href = `/report/edit/${report.id}`}>
+                                      <Edit className="mr-2 h-4 w-4" /> Edit
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                                                <Trash2 className="mr-2 h-4 w-4 text-destructive" /> 
+                                                <span className="text-destructive">Delete</span>
+                                            </DropdownMenuItem>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    This action cannot be undone. This will permanently delete the report.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => deleteReport(report.id)}>Delete</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                </DropdownMenuContent>
+                                </DropdownMenu>
+                            </CardTitle>
+                            <CardDescription>
+                                Report generated on {new Date(report.date).toLocaleDateString()}
+                            </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                            <p className="text-sm text-muted-foreground">
+                                View the detailed test report and analysis.
+                            </p>
+                            </CardContent>
+                            <CardFooter>
+                            <Button asChild className="w-full">
+                                <Link href={`/report/${report.id}`}>View Report</Link>
+                            </Button>
+                            </CardFooter>
+                        </Card>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-12">
+                        <div className="flex flex-col items-center gap-1 text-center">
+                        <FileText className="h-10 w-10 text-muted-foreground" />
+                        <h3 className="text-xl font-bold tracking-tight">No reports found</h3>
+                        <p className="text-sm text-muted-foreground">Get started by creating a new test report.</p>
+                        <Button className="mt-4" asChild>
+                            <Link href="/report/new">
+                            <PlusCircle className="mr-2 h-4 w-4" /> New Report
+                            </Link>
+                        </Button>
+                        </div>
+                    </div>
+                )}
+            </section>
+            
+            <section>
+                <h2 className="text-2xl font-semibold tracking-tight mb-4">Products</h2>
+                {products.length > 0 ? (
+                    <Card>
+                        <Table>
+                        <TableHeader>
+                            <TableRow>
+                            <TableHead>Product Name</TableHead>
+                            <TableHead>Material Code</TableHead>
+                            <TableHead>Company</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {products.map(product => (
+                            <TableRow key={product.id}>
+                                <TableCell className="font-medium">{product.name}</TableCell>
+                                <TableCell>{product.materialCode}</TableCell>
+                                <TableCell>{product.companyName}</TableCell>
+                                <TableCell className="text-right">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                                        <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onSelect={() => openEditProductDialog(product)}>
+                                        <Edit className="mr-2 h-4 w-4" /> Edit
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                     <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                                                <Trash2 className="mr-2 h-4 w-4 text-destructive" /> 
+                                                <span className="text-destructive">Delete</span>
+                                            </DropdownMenuItem>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    This will permanently delete the product and all associated reports. This action cannot be undone.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => deleteProduct(product.id)}>Delete</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                                </TableCell>
+                            </TableRow>
+                            ))}
+                        </TableBody>
+                        </Table>
+                    </Card>
+                ) : (
+                     <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-12">
+                        <div className="flex flex-col items-center gap-1 text-center">
+                            <h3 className="text-xl font-bold tracking-tight">No products found</h3>
+                            <p className="text-sm text-muted-foreground">Get started by adding a product.</p>
+                            <Button className="mt-4" onClick={openAddProductDialog}>
+                                <Plus className="mr-2 h-4 w-4" /> Add Product
+                            </Button>
+                        </div>
+                    </div>
+                )}
+            </section>
         </div>
-      </div>
     );
   };
   
@@ -171,25 +341,25 @@ export default function DashboardClient() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Report Dashboard</h1>
-          <p className="text-muted-foreground">View and manage your test reports.</p>
+          <p className="text-muted-foreground">View and manage your test reports and products.</p>
         </div>
         <div className="flex gap-2">
-          <Dialog open={isAddProductOpen} onOpenChange={setIsAddProductOpen}>
+          <Dialog open={isProductDialogOpen} onOpenChange={setIsProductDialogOpen}>
             <DialogTrigger asChild>
-              <Button>
+              <Button onClick={openAddProductDialog}>
                 <Plus className="mr-2 h-4 w-4" /> Add Product
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-lg">
               <DialogHeader>
-                <DialogTitle>Add New Product</DialogTitle>
-                <DialogDescription>Enter the details and specifications for the new product.</DialogDescription>
+                <DialogTitle>{dialogTitle}</DialogTitle>
+                <DialogDescription>{dialogDescription}</DialogDescription>
               </DialogHeader>
               <form
                 id="add-product-form"
                 onSubmit={e => {
                   e.preventDefault();
-                  handleAddProduct();
+                  handleProductSubmit();
                 }}
               >
                 <ScrollArea className="h-[60vh] pr-4">
@@ -257,7 +427,7 @@ export default function DashboardClient() {
                 </ScrollArea>
               </form>
               <DialogFooter>
-                <Button type="submit" form="add-product-form">Save product</Button>
+                <Button type="submit" form="add-product-form">{dialogButtonText}</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>

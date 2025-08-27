@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import useLocalStorage from '@/hooks/use-local-storage';
 import type { Product, Report, TestResultData } from '@/lib/types';
 import { useRouter } from 'next/navigation';
@@ -35,7 +35,11 @@ const reportFormSchema = z.object({
 
 type ReportFormValues = z.infer<typeof reportFormSchema>;
 
-export function ReportForm() {
+interface ReportFormProps {
+    reportToEdit?: Report;
+}
+
+export function ReportForm({ reportToEdit }: ReportFormProps) {
   const [products] = useLocalStorage<Product[]>('products', []);
   const [reports, setReports] = useLocalStorage<Report[]>('reports', []);
   const router = useRouter();
@@ -46,11 +50,18 @@ export function ReportForm() {
 
   useEffect(() => {
     setIsClient(true);
-  }, []);
+    if (reportToEdit) {
+        const product = products.find(p => p.id === reportToEdit.product.id);
+        setSelectedProduct(product || null);
+    }
+  }, [reportToEdit, products]);
 
   const form = useForm<ReportFormValues>({
     resolver: zodResolver(reportFormSchema),
-    defaultValues: {
+    defaultValues: reportToEdit ? {
+        productId: reportToEdit.product.id,
+        ...reportToEdit.testData
+    } : {
       productId: '',
       dimension: '',
       ply: '',
@@ -84,18 +95,31 @@ export function ReportForm() {
         productName: selectedProduct.name,
         testData: testData,
       });
+      
+      if (reportToEdit) {
+          const updatedReport: Report = {
+              ...reportToEdit,
+              product: selectedProduct,
+              testData,
+              visualization,
+          };
+          setReports(reports.map(r => r.id === reportToEdit.id ? updatedReport : r));
+          toast({ title: 'Success', description: 'Report updated successfully.' });
+          router.push(`/report/${reportToEdit.id}`);
+      } else {
+        const newReport: Report = {
+            id: crypto.randomUUID(),
+            product: selectedProduct,
+            date: new Date().toISOString(),
+            testData,
+            visualization,
+            printLog: [],
+        };
 
-      const newReport: Report = {
-        id: crypto.randomUUID(),
-        product: selectedProduct,
-        date: new Date().toISOString(),
-        testData,
-        visualization,
-      };
-
-      setReports([...reports, newReport]);
-      toast({ title: 'Success', description: 'Report generated successfully.' });
-      router.push(`/report/${newReport.id}`);
+        setReports([...reports, newReport]);
+        toast({ title: 'Success', description: 'Report generated successfully.' });
+        router.push(`/report/${newReport.id}`);
+      }
     } catch (error) {
       console.error('Failed to generate report:', error);
       toast({
@@ -113,10 +137,20 @@ export function ReportForm() {
     return key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
   };
 
+  const title = reportToEdit ? 'Edit Test Report' : 'Create New Test Report';
+  const description = reportToEdit ? 'Update the test results for this report.' : 'Fill in the details below to generate a new report.';
+  const buttonText = isSubmitting ? (reportToEdit ? 'Updating...' : 'Generating...') : (reportToEdit ? 'Update Report' : 'Generate Report');
+
   return (
+    <>
+     <div className="mb-8">
+        <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
+        <p className="text-muted-foreground">{description}</p>
+      </div>
     <Card>
       <CardHeader>
         <CardTitle>Test Result Input</CardTitle>
+        <CardDescription>Select a product and enter the measured test results against its standard specifications.</CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
@@ -127,7 +161,7 @@ export function ReportForm() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Product</FormLabel>
-                  <Select onValueChange={handleProductChange} defaultValue={field.value}>
+                  <Select onValueChange={handleProductChange} defaultValue={field.value} disabled={!!reportToEdit}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a product to test" />
@@ -137,7 +171,7 @@ export function ReportForm() {
                       {isClient && products.length > 0 ? (
                         products.map(product => (
                           <SelectItem key={product.id} value={product.id}>
-                            {product.name}
+                            {product.name} ({product.materialCode})
                           </SelectItem>
                         ))
                       ) : (
@@ -174,12 +208,13 @@ export function ReportForm() {
               </div>
             )}
 
-            <Button type="submit" disabled={isSubmitting || (isClient && products.length === 0)}>
-              {isSubmitting ? 'Generating...' : 'Generate Report'}
+            <Button type="submit" disabled={isSubmitting || !selectedProduct || (isClient && products.length === 0)}>
+              {buttonText}
             </Button>
           </form>
         </Form>
       </CardContent>
     </Card>
+    </>
   );
 }

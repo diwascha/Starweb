@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import useLocalStorage from '@/hooks/use-local-storage';
 import type { Report } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,9 +9,10 @@ import { Button } from '@/components/ui/button';
 import { Printer, Lightbulb } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { Separator } from '@/components/ui/separator';
 
 export default function ReportView({ reportId }: { reportId: string }) {
-  const [reports] = useLocalStorage<Report[]>('reports', []);
+  const [reports, setReports] = useLocalStorage<Report[]>('reports', []);
   const [report, setReport] = useState<Report | null>(null);
 
   useEffect(() => {
@@ -20,6 +21,17 @@ export default function ReportView({ reportId }: { reportId: string }) {
   }, [reportId, reports]);
 
   const handlePrint = () => {
+    if (!report) return;
+
+    const newLogEntry = { date: new Date().toISOString() };
+    const updatedReport = {
+        ...report,
+        printLog: [...(report.printLog || []), newLogEntry],
+    };
+
+    setReports(reports.map(r => r.id === reportId ? updatedReport : r));
+    setReport(updatedReport); // Update local state to show log immediately
+
     window.print();
   };
 
@@ -110,7 +122,7 @@ export default function ReportView({ reportId }: { reportId: string }) {
         </Button>
       </div>
 
-      <div className="printable-area">
+      <div className="printable-area space-y-8">
         <Card>
           <CardHeader>
             <CardTitle>{report.product.name} - Test Report</CardTitle>
@@ -138,6 +150,7 @@ export default function ReportView({ reportId }: { reportId: string }) {
                     </div>
                 </div>
             </section>
+            <Separator />
             <section>
               <h2 className="text-xl font-semibold mb-2">Test Parameters & Results</h2>
               <div className="border rounded-lg">
@@ -188,6 +201,33 @@ export default function ReportView({ reportId }: { reportId: string }) {
             )}
           </CardContent>
         </Card>
+        
+        {report.printLog && report.printLog.length > 0 && (
+           <Card className="print:hidden">
+             <CardHeader>
+               <CardTitle>Print History</CardTitle>
+               <CardDescription>This report has been printed {report.printLog.length} time(s).</CardDescription>
+             </CardHeader>
+             <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Print #</TableHead>
+                            <TableHead>Date & Time</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {report.printLog.map((log, index) => (
+                            <TableRow key={index}>
+                                <TableCell>{index + 1}</TableCell>
+                                <TableCell>{new Date(log.date).toLocaleString()}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+             </CardContent>
+           </Card>
+        )}
       </div>
       <style jsx global>{`
         @media print {
