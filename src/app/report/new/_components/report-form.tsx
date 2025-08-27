@@ -21,6 +21,8 @@ import { useToast } from '@/hooks/use-toast';
 
 const reportFormSchema = z.object({
   productId: z.string().min(1, { message: 'Product is required.' }),
+  taxInvoiceNumber: z.string().min(1, { message: 'Tax Invoice Number is required.' }),
+  challanNumber: z.string().min(1, { message: 'Challan Number is required.' }),
   dimension: z.string().min(1, { message: 'Dimension result is required.' }),
   ply: z.string().min(1, { message: 'Ply result is required.' }),
   gsm: z.string().min(1, { message: 'GSM result is required.' }),
@@ -59,9 +61,13 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
     resolver: zodResolver(reportFormSchema),
     defaultValues: reportToEdit ? {
         productId: reportToEdit.product.id,
+        taxInvoiceNumber: reportToEdit.taxInvoiceNumber,
+        challanNumber: reportToEdit.challanNumber,
         ...reportToEdit.testData
     } : {
       productId: '',
+      taxInvoiceNumber: '',
+      challanNumber: '',
       dimension: '',
       ply: '',
       gsm: '',
@@ -87,13 +93,15 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
     }
     setIsSubmitting(true);
     try {
-      const { productId, ...testDataValues } = values;
+      const { productId, taxInvoiceNumber, challanNumber, ...testDataValues } = values;
       const testData: TestResultData = testDataValues;
       
       if (reportToEdit) {
           const updatedReport: Report = {
               ...reportToEdit,
               product: selectedProduct,
+              taxInvoiceNumber,
+              challanNumber,
               testData,
           };
           setReports(reports.map(r => r.id === reportToEdit.id ? updatedReport : r));
@@ -101,11 +109,13 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
           router.push(`/report/${reportToEdit.id}`);
       } else {
         const nextSerialNumber = (reports.length + 1).toString().padStart(3, '0');
-        const serialNumber = `2082/83-${nextSerialNumber}`;
+        const serialNumber = `2082/083-${nextSerialNumber}`;
 
         const newReport: Report = {
             id: crypto.randomUUID(),
             serialNumber,
+            taxInvoiceNumber,
+            challanNumber,
             product: selectedProduct,
             date: new Date().toISOString(),
             testData,
@@ -181,30 +191,60 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
             />
 
             {selectedProduct && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {specKeys.map(key => (
-                  <FormField
-                    key={key}
-                    control={form.control}
-                    name={key}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{formatLabel(key)}</FormLabel>
-                        <FormControl>
-                          <Input placeholder={`Enter result for ${formatLabel(key)}`} {...field} />
-                        </FormControl>
-                        <FormDescription>
-                          Standard: {selectedProduct.specification[key]}
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <FormField
+                        control={form.control}
+                        name="taxInvoiceNumber"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Tax Invoice Number</FormLabel>
+                            <FormControl>
+                            <Input placeholder="Enter Tax Invoice Number" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="challanNumber"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Challan No</FormLabel>
+                            <FormControl>
+                            <Input placeholder="Enter Challan Number" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {specKeys.map(key => (
+                    <FormField
+                        key={key}
+                        control={form.control}
+                        name={key}
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>{formatLabel(key)}</FormLabel>
+                            <FormControl>
+                            <Input placeholder={`Enter result for ${formatLabel(key)}`} {...field} />
+                            </FormControl>
+                            <FormDescription>
+                            Standard: {selectedProduct.specification[key]}
+                            </FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                    ))}
+                </div>
+              </>
             )}
 
-            <Button type="submit" disabled={isSubmitting || !selectedProduct || (isClient && products.length === 0)}>
+            <Button type="submit" disabled={isSubmitting || !selectedProduct || !isClient || (isClient && products.length === 0)}>
               {buttonText}
             </Button>
           </form>
