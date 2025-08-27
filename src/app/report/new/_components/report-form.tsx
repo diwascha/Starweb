@@ -122,7 +122,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
             printLog: [],
         };
 
-        setReports(currentReports => [...currentReports, newReport]);
+        setReports([...reports, newReport]);
         toast({ title: 'Success', description: 'Report generated successfully.' });
         router.push(`/report/${newReport.id}`);
       }

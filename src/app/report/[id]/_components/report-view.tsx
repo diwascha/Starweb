@@ -25,14 +25,16 @@ export default function ReportView({ reportId }: { reportId: string }) {
           ...report,
           printLog: [...(report.printLog || []), newLogEntry],
       };
-      setReports(reports.map(r => r.id === reportId ? updatedReport : r));
+      
+      const updatedReports = reports.map(r => r.id === reportId ? updatedReport : r);
+      setReports(updatedReports);
       setReport(updatedReport); 
+      
+      // We use a timeout to ensure the state update is processed before printing
+      setTimeout(() => {
+        window.print();
+      }, 0);
     }
-    
-    // We need to wait for state to update before printing
-    setTimeout(() => {
-      window.print();
-    }, 100);
   };
 
   if (!report) {
