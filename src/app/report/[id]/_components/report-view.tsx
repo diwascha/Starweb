@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Printer } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import NepaliDate from 'nepali-date-converter';
 
 export default function ReportView({ reportId }: { reportId: string }) {
   const [reports, setReports] = useLocalStorage<Report[]>('reports', []);
@@ -49,6 +50,9 @@ export default function ReportView({ reportId }: { reportId: string }) {
     return key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
   };
 
+  const nepaliDate = new NepaliDate(new Date(report.date));
+  const nepaliDateString = nepaliDate.format('YYYY/MM/DD');
+
   return (
     <>
       <div className="flex justify-between items-center mb-8 print:hidden">
@@ -68,7 +72,7 @@ export default function ReportView({ reportId }: { reportId: string }) {
         
         <div className="grid grid-cols-2 text-sm mb-4 gap-x-4 gap-y-2">
             <div><span className="font-semibold">Test Serial No:</span> {report.serialNumber}</div>
-            <div className="text-right"><span className="font-semibold">Date:</span> {new Date(report.date).toLocaleDateString()}</div>
+            <div className="text-right"><span className="font-semibold">Date:</span> {new Date(report.date).toLocaleDateString()} ({nepaliDateString} B.S.)</div>
             <div><span className="font-semibold">Tax Invoice No:</span> {report.taxInvoiceNumber}</div>
             <div className="text-right"><span className="font-semibold">Challan No:</span> {report.challanNumber}</div>
         </div>
