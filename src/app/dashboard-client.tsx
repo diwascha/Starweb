@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { PlusCircle, Plus, FileText, MoreHorizontal } from 'lucide-react';
 import useLocalStorage from '@/hooks/use-local-storage';
@@ -50,6 +50,11 @@ export default function DashboardClient() {
   const [newSpec, setNewSpec] = useState<ProductSpecification>(initialSpecValues);
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const { toast } = useToast();
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const resetForm = () => {
     setNewProductName('');
@@ -93,6 +98,74 @@ export default function DashboardClient() {
     return key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
   };
 
+  const renderContent = () => {
+    if (!isClient) {
+      return (
+        <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
+          <div className="flex flex-col items-center gap-1 text-center">
+            <h3 className="text-2xl font-bold tracking-tight">Loading reports...</h3>
+          </div>
+        </div>
+      );
+    }
+
+    if (reports.length > 0) {
+      return (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {reports.map(report => (
+            <Card key={report.id}>
+              <CardHeader>
+                <CardTitle className="flex justify-between items-start">
+                  <span>{report.product.name}</span>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onSelect={() => deleteReport(report.id)}>
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </CardTitle>
+                <CardDescription>
+                  Report generated on {new Date(report.date).toLocaleDateString()}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  View the detailed test report and analysis.
+                </p>
+              </CardContent>
+              <CardFooter>
+                <Button asChild className="w-full">
+                  <Link href={`/report/${report.id}`}>View Report</Link>
+                </Button>
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
+        <div className="flex flex-col items-center gap-1 text-center">
+          <FileText className="h-12 w-12 text-muted-foreground" />
+          <h3 className="text-2xl font-bold tracking-tight">No reports found</h3>
+          <p className="text-sm text-muted-foreground">Get started by creating a new test report.</p>
+          <Button className="mt-4" asChild>
+            <Link href="/report/new">
+              <PlusCircle className="mr-2 h-4 w-4" /> New Report
+            </Link>
+          </Button>
+        </div>
+      </div>
+    );
+  };
+  
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -195,58 +268,7 @@ export default function DashboardClient() {
           </Button>
         </div>
       </div>
-
-      {reports.length > 0 ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {reports.map(report => (
-            <Card key={report.id}>
-              <CardHeader>
-                <CardTitle className="flex justify-between items-start">
-                  <span>{report.product.name}</span>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onSelect={() => deleteReport(report.id)}>
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </CardTitle>
-                <CardDescription>
-                  Report generated on {new Date(report.date).toLocaleDateString()}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  View the detailed test report and analysis.
-                </p>
-              </CardContent>
-              <CardFooter>
-                <Button asChild className="w-full">
-                  <Link href={`/report/${report.id}`}>View Report</Link>
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
-          <div className="flex flex-col items-center gap-1 text-center">
-            <FileText className="h-12 w-12 text-muted-foreground" />
-            <h3 className="text-2xl font-bold tracking-tight">No reports found</h3>
-            <p className="text-sm text-muted-foreground">Get started by creating a new test report.</p>
-            <Button className="mt-4" asChild>
-              <Link href="/report/new">
-                <PlusCircle className="mr-2 h-4 w-4" /> New Report
-              </Link>
-            </Button>
-          </div>
-        </div>
-      )}
+      {renderContent()}
     </div>
   );
 }
