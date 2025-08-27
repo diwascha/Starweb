@@ -108,7 +108,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
           toast({ title: 'Success', description: 'Report updated successfully.' });
           router.push(`/report/${reportToEdit.id}`);
       } else {
-        const nextSerialNumber = (reports.length + 1).toString().padStart(3, '0');
+        const nextSerialNumber = (reports ? reports.length + 1 : 1).toString().padStart(3, '0');
         const serialNumber = `2082/083-${nextSerialNumber}`;
 
         const newReport: Report = {
@@ -122,7 +122,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
             printLog: [],
         };
 
-        setReports([...reports, newReport]);
+        setReports(currentReports => [...(currentReports || []), newReport]);
         toast({ title: 'Success', description: 'Report generated successfully.' });
         router.push(`/report/${newReport.id}`);
       }
