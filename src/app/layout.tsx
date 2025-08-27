@@ -5,7 +5,7 @@ import {AppSidebar} from '@/components/app-sidebar';
 import {Toaster} from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
-  title: 'TestReportGen',
+  title: 'Shivam QTR',
   description: 'Generate test reports for multiple products.',
 };
 
