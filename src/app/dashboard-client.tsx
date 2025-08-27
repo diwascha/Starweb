@@ -193,9 +193,7 @@ export default function DashboardClient() {
     }
     
     const sortedReports = [...reports].sort((a, b) => {
-        if (!a.serialNumber) return 1;
-        if (!b.serialNumber) return -1;
-        return b.serialNumber.localeCompare(a.serialNumber);
+      return a.product.name.localeCompare(b.product.name);
     });
     
     const sortedProducts = [...products].sort((a, b) => a.name.localeCompare(b.name));
