@@ -119,15 +119,24 @@ export default function ReportView({ reportId }: { reportId: string }) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {Object.keys(report.product.specification).map((key) => (
-                      <TableRow key={key}>
-                        <TableCell className="font-medium">
-                          {formatLabel(key)}
-                        </TableCell>
-                        <TableCell>{report.product.specification[key as keyof typeof report.product.specification]}</TableCell>
-                        <TableCell>{report.testData[key as keyof typeof report.testData]}</TableCell>
-                      </TableRow>
-                    ))}
+                    {Object.keys(report.product.specification).map((key) => {
+                      const specKey = key as keyof typeof report.product.specification;
+                      const standardValue = report.product.specification[specKey];
+                      const resultValue = report.testData[specKey];
+                      
+                      const displayStandard = specKey === 'gsm' ? `${standardValue} G/M2` : standardValue;
+                      const displayResult = specKey === 'gsm' ? `${resultValue} G/M2` : resultValue;
+                      
+                      return (
+                        <TableRow key={key}>
+                          <TableCell className="font-medium">
+                            {formatLabel(key)}
+                          </TableCell>
+                          <TableCell>{displayStandard}</TableCell>
+                          <TableCell>{displayResult}</TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
