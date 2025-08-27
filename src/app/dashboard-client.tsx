@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { PlusCircle, Plus, FileText, MoreHorizontal, Edit, Trash2, View } from 'lucide-react';
+import { PlusCircle, Plus, FileText, MoreHorizontal, Edit, Trash2, View, Printer } from 'lucide-react';
 import useLocalStorage from '@/hooks/use-local-storage';
 import type { Report, Product, ProductSpecification } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -145,6 +145,28 @@ export default function DashboardClient() {
     setReports(reports.filter(report => report.id !== id));
     toast({ title: 'Report Deleted', description: 'The report has been successfully deleted.' });
   };
+  
+  const handlePrint = (report: Report) => {
+    const newLogEntry = { date: new Date().toISOString() };
+    const updatedReport = {
+      ...report,
+      printLog: [...(report.printLog || []), newLogEntry],
+    };
+    
+    const updatedReports = reports.map(r => r.id === report.id ? updatedReport : r);
+    setReports(updatedReports);
+    
+    // Use a timeout to ensure state update is processed before navigating
+    setTimeout(() => {
+        const printWindow = window.open(`/report/${report.id}`, '_blank');
+        if (printWindow) {
+            printWindow.onload = () => {
+                printWindow.print();
+            };
+        }
+    }, 100);
+  };
+
 
   const handleSpecChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -232,6 +254,9 @@ export default function DashboardClient() {
                                     </DropdownMenuItem>
                                     <DropdownMenuItem onSelect={() => router.push(`/report/edit/${report.id}`)}>
                                       <Edit className="mr-2 h-4 w-4" /> Edit
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onSelect={() => handlePrint(report)}>
+                                      <Printer className="mr-2 h-4 w-4" /> Print
                                     </DropdownMenuItem>
                                     <DropdownMenuSeparator />
                                     <AlertDialog>
