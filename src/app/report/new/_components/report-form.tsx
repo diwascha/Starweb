@@ -125,24 +125,14 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
           toast({ title: 'Success', description: 'Report updated successfully.' });
           router.push(`/report/${reportToEdit.id}`);
       } else {
-        const newReport: Report = {
-            id: crypto.randomUUID(),
-            serialNumber: '', // Will be set in the callback
-            taxInvoiceNumber,
-            challanNumber,
-            quantity,
-            product: selectedProduct,
-            date: new Date().toISOString(),
-            testData,
-            printLog: [],
-        };
-
+        let newReport: Report | null = null;
+        
         setReports(prevReports => {
           const serialPrefix = '2082/083-';
           let maxNumber = 0;
           
           prevReports.forEach(report => {
-            if (report.serialNumber.startsWith(serialPrefix)) {
+            if (report && report.serialNumber && report.serialNumber.startsWith(serialPrefix)) {
               const numPart = parseInt(report.serialNumber.substring(serialPrefix.length), 10);
               if (!isNaN(numPart) && numPart > maxNumber) {
                 maxNumber = numPart;
@@ -150,13 +140,29 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
             }
           });
           const nextNumber = maxNumber + 1;
-          newReport.serialNumber = `${serialPrefix}${nextNumber.toString().padStart(3, '0')}`;
+          const generatedSerialNumber = `${serialPrefix}${nextNumber.toString().padStart(3, '0')}`;
           
+          newReport = {
+              id: crypto.randomUUID(),
+              serialNumber: generatedSerialNumber,
+              taxInvoiceNumber,
+              challanNumber,
+              quantity,
+              product: selectedProduct,
+              date: new Date().toISOString(),
+              testData,
+              printLog: [],
+          };
+
           return [...prevReports, newReport];
         });
 
         toast({ title: 'Success', description: 'Report generated successfully.' });
-        router.push(`/report/${newReport.id}`);
+        if (newReport) {
+            router.push(`/report/${newReport.id}`);
+        } else {
+            router.push('/');
+        }
       }
     } catch (error) {
       console.error('Failed to generate report:', error);
