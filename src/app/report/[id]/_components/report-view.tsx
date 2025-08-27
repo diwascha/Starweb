@@ -51,7 +51,7 @@ export default function ReportView({ reportId }: { reportId: string }) {
         <h1 className="text-3xl font-bold">Test Report</h1>
         <Button onClick={handlePrint}>
           <Printer className="mr-2 h-4 w-4" />
-          Print / Export PDF
+          Print or Save as PDF
         </Button>
       </div>
 
