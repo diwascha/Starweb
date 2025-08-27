@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -131,6 +132,16 @@ export default function ReportView({ reportId }: { reportId: string }) {
                 </Table>
               </div>
             </section>
+            <div className="mt-16 grid grid-cols-2 gap-8 pt-12 text-sm">
+              <div className="text-center">
+                <div className="border-t border-black w-48 mx-auto"></div>
+                <p className="font-semibold mt-2">Prepared by</p>
+              </div>
+              <div className="text-center">
+                <div className="border-t border-black w-48 mx-auto"></div>
+                <p className="font-semibold mt-2">Approved by</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
         
