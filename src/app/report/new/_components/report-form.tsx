@@ -50,24 +50,24 @@ const dynamicFields: (keyof TestResultData)[] = ['gsm', 'moisture', 'load'];
 
 type BoxType = 'Wet' | 'Dry' | 'Normal';
 
-// Helper to parse range strings like "100 - 200" or "100 to 200"
-const parseRange = (rangeStr: string): { low: number; high: number } => {
-    if (!rangeStr) return { low: 0, high: 0 };
-    const parts = rangeStr.match(/(\d+(\.\d+)?)/g);
-    if (!parts || parts.length < 2) return { low: 0, high: 0 };
-    const low = parseFloat(parts[0]);
-    const high = parseFloat(parts[1]);
-    return { low, high };
+const parseGsmSpec = (gsmStr: string): { min: number; max: number | null } => {
+    if (!gsmStr) return { min: 0, max: null };
+    const numbers = gsmStr.match(/\d+(\.\d+)?/g);
+    if (!numbers) return { min: 0, max: null };
+
+    const parsedNumbers = numbers.map(parseFloat);
+    if (parsedNumbers.length === 1) {
+        return { min: parsedNumbers[0], max: null };
+    }
+    return { min: Math.min(...parsedNumbers), max: Math.max(...parsedNumbers) };
 };
 
-// Helper to parse minimum value strings like "500 Min"
 const parseMin = (minStr: string): number => {
     if (!minStr) return 0;
     const part = minStr.match(/(\d+(\.\d+)?)/);
     return part ? parseFloat(part[0]) : 0;
 };
 
-// Helper for random number in range
 const getRandomInRange = (min: number, max: number, precision: number = 2) => {
     const value = Math.random() * (max - min) + min;
     return parseFloat(value.toFixed(precision));
@@ -117,7 +117,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
     },
   });
 
-  const calculateAndSetValues = (boxType: BoxType) => {
+  const calculateAndSetValues = (boxType: BoxType, moistureValue?: number) => {
     if (!selectedProduct) {
       toast({
         title: 'Select a Product',
@@ -128,47 +128,68 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
     }
 
     const spec = selectedProduct.specification;
-    const gsmRange = parseRange(spec.gsm);
+    const gsmSpec = parseGsmSpec(spec.gsm);
     const loadMin = parseMin(spec.load);
-
-    // Hardcoded moisture constraints
+    
     const moistureLow = 6.5;
     const moistureHigh = 9.5;
 
-    let gsmResult: number = 0;
-    let moistureResult: number = 0;
+    let moistureResult: number;
     let loadResult: number = 0;
 
+    if (moistureValue !== undefined) {
+      moistureResult = moistureValue;
+    } else {
+      switch (boxType) {
+        case 'Wet':
+          moistureResult = getRandomInRange(9.0, moistureHigh);
+          break;
+        case 'Dry':
+          moistureResult = getRandomInRange(moistureLow, 7.0);
+          break;
+        case 'Normal':
+        default:
+          moistureResult = getRandomInRange(7.1, 8.9);
+          break;
+      }
+    }
+    
     switch (boxType) {
       case 'Wet':
-        moistureResult = getRandomInRange(9.0, moistureHigh); // High moisture
-        gsmResult = getRandomInRange(gsmRange.high * 0.95, gsmRange.high); // High GSM
-        loadResult = getRandomInRange(loadMin + 3, loadMin + 5); // Low Load
+        loadResult = getRandomInRange(loadMin + 3, loadMin + 5);
         break;
       case 'Dry':
-        moistureResult = getRandomInRange(moistureLow, 7.0); // Low moisture
-        gsmResult = getRandomInRange(gsmRange.low, gsmRange.low * 1.05); // Low GSM
-        loadResult = getRandomInRange(loadMin + 15, loadMin + 25); // High Load
+        loadResult = getRandomInRange(loadMin + 15, loadMin + 25);
         break;
       case 'Normal':
-        moistureResult = getRandomInRange(7.1, 8.9); // Mid-range moisture
-        const gsmMid = (gsmRange.low + gsmRange.high) / 2;
-        gsmResult = getRandomInRange(gsmMid * 0.9, gsmMid * 1.1); // Mid-range GSM
-        loadResult = getRandomInRange(loadMin + 6, loadMin + 14); // Medium Load
+      default:
+        loadResult = getRandomInRange(loadMin + 6, loadMin + 14);
         break;
     }
 
-    // Clamp values to ensure they are within the spec range and constraints
-    form.setValue('moisture', String(parseFloat(Math.max(moistureLow, Math.min(moistureHigh, moistureResult)).toFixed(2))));
-    form.setValue('gsm', String(Math.max(gsmRange.low, Math.min(gsmRange.high, gsmResult))));
-    form.setValue('load', String(Math.max(loadMin, loadResult))); // Ensure load is at least minimum
+    // Calculate GSM based on moisture
+    const baseMoisture = 6.0;
+    const baseGsm = gsmSpec.min;
+    let gsmResult = baseGsm + (moistureResult - baseMoisture) * ((baseGsm * 0.10) / 3.0);
+    
+    const safeMinGsm = gsmSpec.min + 5;
+    gsmResult = Math.max(gsmResult, safeMinGsm);
+    
+    if (gsmSpec.max !== null) {
+      gsmResult = Math.min(gsmResult, gsmSpec.max);
+    }
+    
+    form.setValue('moisture', String(parseFloat(moistureResult.toFixed(2))));
+    form.setValue('gsm', String(parseFloat(gsmResult.toFixed(2))));
+    form.setValue('load', String(Math.max(loadMin, parseFloat(loadResult.toFixed(2)))));
   };
+
 
   useEffect(() => {
     if (selectedProduct && !reportToEdit) {
       handleProductChange(selectedProduct.id);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable--next-line react-hooks/exhaustive-deps
   }, [selectedProduct, reportToEdit]);
 
   const handleProductChange = (productId: string) => {
@@ -176,17 +197,14 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
     const product = products.find(p => p.id === productId);
     if (product) {
       setSelectedProduct(product);
-      // Auto-fill static fields
       staticFields.forEach(field => {
         form.setValue(field, product.specification[field]);
       });
-      // Set default box type and calculate values
       const defaultBoxType = 'Normal';
       setSelectedBoxType(defaultBoxType);
       calculateAndSetValues(defaultBoxType);
     } else {
       setSelectedProduct(null);
-      // Clear all fields if product is deselected
        dynamicFields.forEach(field => form.setValue(field, ''));
        staticFields.forEach(field => form.setValue(field, ''));
     }
@@ -464,3 +482,5 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
     </>
   );
 }
+
+    
