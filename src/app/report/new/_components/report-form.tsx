@@ -127,6 +127,8 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
       } else {
         const serialPrefix = '2082/083-';
         let maxNumber = 0;
+        
+        // This logic finds the highest number from all existing reports
         reports.forEach(report => {
           if (report.serialNumber.startsWith(serialPrefix)) {
             const numPart = parseInt(report.serialNumber.substring(serialPrefix.length), 10);
@@ -135,6 +137,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
             }
           }
         });
+
         const nextNumber = maxNumber + 1;
         const serialNumber = `${serialPrefix}${nextNumber.toString().padStart(3, '0')}`;
 
