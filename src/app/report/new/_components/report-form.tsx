@@ -140,7 +140,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
             printLog: [],
         };
 
-        setReports([...reports, newReport]);
+        setReports(prevReports => [...prevReports, newReport]);
         toast({ title: 'Success', description: 'Report generated successfully.' });
         router.push(`/report/${newReport.id}`);
       }
@@ -151,7 +151,8 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
         description: 'Failed to generate report. Please try again.',
         variant: 'destructive',
       });
-      setIsSubmitting(false);
+    } finally {
+        setIsSubmitting(false);
     }
   }
 

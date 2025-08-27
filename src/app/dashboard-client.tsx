@@ -194,7 +194,7 @@ export default function DashboardClient() {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Serial Number</TableHead>
+                            <TableHead>Test Serial No.</TableHead>
                             <TableHead>Product</TableHead>
                             <TableHead>Invoice Number</TableHead>
                             <TableHead>Challan Number</TableHead>
