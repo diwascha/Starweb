@@ -55,7 +55,7 @@ const initialSpecValues: ProductSpecification = {
   load: '',
 };
 
-type ReportSortKey = 'serialNumber' | 'productName';
+type ReportSortKey = 'serialNumber' | 'productName' | 'taxInvoiceNumber' | 'challanNumber' | 'quantity';
 type ProductSortKey = 'name' | 'materialCode' | 'companyName';
 type SortDirection = 'asc' | 'desc';
 
@@ -218,15 +218,31 @@ export default function DashboardClient() {
       sortableReports.sort((a, b) => {
         let aValue: string | number;
         let bValue: string | number;
-
-        if (reportSortConfig.key === 'productName') {
-          aValue = a.product.name.toLowerCase();
-          bValue = b.product.name.toLowerCase();
-        } else { // serialNumber
-           aValue = parseInt((a.serialNumber || '0').split('-')[1] || '0', 10);
-           bValue = parseInt((b.serialNumber || '0').split('-')[1] || '0', 10);
+  
+        switch (reportSortConfig.key) {
+          case 'productName':
+            aValue = a.product.name.toLowerCase();
+            bValue = b.product.name.toLowerCase();
+            break;
+          case 'taxInvoiceNumber':
+            aValue = a.taxInvoiceNumber.toLowerCase();
+            bValue = b.taxInvoiceNumber.toLowerCase();
+            break;
+          case 'challanNumber':
+            aValue = a.challanNumber.toLowerCase();
+            bValue = b.challanNumber.toLowerCase();
+            break;
+          case 'quantity':
+            aValue = a.quantity.toLowerCase();
+            bValue = b.quantity.toLowerCase();
+            break;
+          case 'serialNumber':
+          default:
+            aValue = parseInt((a.serialNumber || '0').split('-')[1] || '0', 10);
+            bValue = parseInt((b.serialNumber || '0').split('-')[1] || '0', 10);
+            break;
         }
-
+  
         if (aValue < bValue) {
           return reportSortConfig.direction === 'asc' ? -1 : 1;
         }
@@ -305,9 +321,24 @@ export default function DashboardClient() {
                                 <ArrowUpDown className="ml-2 h-4 w-4" />
                                 </Button>
                             </TableHead>
-                            <TableHead>Invoice Number</TableHead>
-                            <TableHead>Challan Number</TableHead>
-                            <TableHead>Quantities</TableHead>
+                            <TableHead>
+                                <Button variant="ghost" onClick={() => requestReportSort('taxInvoiceNumber')}>
+                                Invoice Number
+                                <ArrowUpDown className="ml-2 h-4 w-4" />
+                                </Button>
+                            </TableHead>
+                            <TableHead>
+                                <Button variant="ghost" onClick={() => requestReportSort('challanNumber')}>
+                                Challan Number
+                                <ArrowUpDown className="ml-2 h-4 w-4" />
+                                </Button>
+                            </TableHead>
+                            <TableHead>
+                                <Button variant="ghost" onClick={() => requestReportSort('quantity')}>
+                                Quantities
+                                <ArrowUpDown className="ml-2 h-4 w-4" />
+                                </Button>
+                            </TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -577,5 +608,8 @@ export default function DashboardClient() {
     </div>
   );
 }
+
+    
+    
 
     
