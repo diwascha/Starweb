@@ -19,6 +19,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { generateNextSerialNumber } from '@/lib/utils';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 const reportFormSchema = z.object({
   productId: z.string().min(1, { message: 'Product is required.' }),
@@ -44,6 +45,29 @@ interface ReportFormProps {
 
 const staticFields: (keyof TestResultData)[] = ['dimension', 'ply', 'stapleWidth', 'stapling', 'overlapWidth', 'printing'];
 const dynamicFields: (keyof TestResultData)[] = ['gsm', 'moisture', 'load'];
+
+type BoxType = 'Wet' | 'Dry' | 'Normal';
+
+// Helper to parse range strings like "100 to 200"
+const parseRange = (rangeStr: string): { low: number; high: number } => {
+    const parts = rangeStr.match(/(\d+(\.\d+)?)/g);
+    if (!parts || parts.length < 2) return { low: 0, high: 0 };
+    const low = parseFloat(parts[0]);
+    const high = parseFloat(parts[1]);
+    return { low, high };
+};
+
+// Helper to parse minimum value strings like "500 Min"
+const parseMin = (minStr: string): number => {
+    const part = minStr.match(/(\d+(\.\d+)?)/);
+    return part ? parseFloat(part[0]) : 0;
+};
+
+// Helper for random number in range
+const getRandomInRange = (min: number, max: number, precision: number = 2) => {
+    const value = Math.random() * (max - min) + min;
+    return parseFloat(value.toFixed(precision));
+};
 
 export function ReportForm({ reportToEdit }: ReportFormProps) {
   const [products] = useLocalStorage<Product[]>('products', []);
@@ -86,7 +110,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
       load: '',
     },
   });
-
+  
   const handleProductChange = (productId: string) => {
     form.setValue('productId', productId);
     const product = products.find(p => p.id === productId);
@@ -103,6 +127,52 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
     }
   };
 
+  const calculateAndSetValues = (boxType: BoxType) => {
+    if (!selectedProduct) {
+      toast({
+        title: 'Select a Product',
+        description: 'Please select a product before choosing a box type.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const spec = selectedProduct.specification;
+    const gsmRange = parseRange(spec.gsm);
+    const moistureRange = parseRange(spec.moisture);
+    const loadMin = parseMin(spec.load);
+
+    let gsmResult: number = 0;
+    let moistureResult: number = 0;
+    let loadResult: number = 0;
+
+    switch (boxType) {
+      case 'Wet':
+        moistureResult = getRandomInRange(moistureRange.high * 0.95, moistureRange.high);
+        gsmResult = getRandomInRange(gsmRange.high * 0.95, gsmRange.high);
+        loadResult = getRandomInRange(loadMin + 3, loadMin + 5);
+        break;
+      case 'Dry':
+        moistureResult = getRandomInRange(moistureRange.low, moistureRange.low * 1.05);
+        gsmResult = getRandomInRange(gsmRange.low, gsmRange.low * 1.05);
+        loadResult = getRandomInRange(loadMin + 15, loadMin + 25);
+        break;
+      case 'Normal':
+        const moistureMid = (moistureRange.low + moistureRange.high) / 2;
+        const gsmMid = (gsmRange.low + gsmRange.high) / 2;
+        moistureResult = getRandomInRange(moistureMid * 0.9, moistureMid * 1.1);
+        gsmResult = getRandomInRange(gsmMid * 0.9, gsmMid * 1.1);
+        loadResult = getRandomInRange(loadMin + 6, loadMin + 14); // Between low and high thresholds
+        break;
+    }
+
+    // Clamp values to ensure they are within the spec range
+    form.setValue('moisture', String(Math.max(moistureRange.low, Math.min(moistureRange.high, moistureResult))));
+    form.setValue('gsm', String(Math.max(gsmRange.low, Math.min(gsmRange.high, gsmResult))));
+    form.setValue('load', String(Math.max(loadMin, loadResult))); // Ensure load is at least minimum
+  };
+
+
   async function onSubmit(values: ReportFormValues) {
     if (!selectedProduct) {
       toast({ title: 'Error', description: 'Please select a product.', variant: 'destructive' });
@@ -113,6 +183,8 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
       const { productId, taxInvoiceNumber, challanNumber, quantity, ...testDataValues } = values;
       const testData: TestResultData = testDataValues;
       
+      const updatedReports = reports ? [...reports] : [];
+
       if (reportToEdit) {
           const updatedReport: Report = {
               ...reportToEdit,
@@ -126,9 +198,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
           toast({ title: 'Success', description: 'Report updated successfully.' });
           router.push(`/report/${reportToEdit.id}`);
       } else {
-        const newReport: Report = {
-            id: crypto.randomUUID(),
-            serialNumber: '', // Start with empty, will be assigned
+        const newReportData: Omit<Report, 'id' | 'serialNumber'> = {
             taxInvoiceNumber,
             challanNumber,
             quantity,
@@ -137,15 +207,25 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
             testData,
             printLog: [],
         };
+
+        const newReportId = crypto.randomUUID();
         
         setReports(prevReports => {
-            const updatedReports = [...prevReports, newReport];
-            newReport.serialNumber = generateNextSerialNumber(updatedReports);
-            return updatedReports;
+            const tempReport: Report = {
+                ...newReportData,
+                id: newReportId,
+                serialNumber: '', // Temporary
+            };
+            const allReports = [...(prevReports || []), tempReport];
+            const finalSerialNumber = generateNextSerialNumber(allReports);
+            
+            return allReports.map(r => 
+                r.id === newReportId ? { ...r, serialNumber: finalSerialNumber } : r
+            );
         });
 
         toast({ title: 'Success', description: 'Report generated successfully.' });
-        router.push(`/report/${newReport.id}`);
+        router.push(`/report/${newReportId}`);
       }
     } catch (error) {
       console.error('Failed to generate report:', error);
@@ -212,6 +292,42 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
 
             {selectedProduct && (
               <>
+                 <FormItem>
+                  <FormLabel>Box Type Classification</FormLabel>
+                  <FormDescription>
+                    Select a box type to auto-fill Moisture, GSM, and Load based on predefined rules.
+                  </FormDescription>
+                  <RadioGroup
+                    onValueChange={(value) => calculateAndSetValues(value as BoxType)}
+                    className="flex flex-col md:flex-row gap-4 pt-2"
+                    disabled={!selectedProduct}
+                  >
+                    <FormItem className="flex items-center space-x-3 space-y-0">
+                      <FormControl>
+                        <RadioGroupItem value="Wet" />
+                      </FormControl>
+                      <FormLabel className="font-normal">
+                        Wet Box
+                      </FormLabel>
+                    </FormItem>
+                    <FormItem className="flex items-center space-x-3 space-y-0">
+                      <FormControl>
+                        <RadioGroupItem value="Dry" />
+                      </FormControl>
+                      <FormLabel className="font-normal">
+                        Dry Box
+                      </FormLabel>
+                    </FormItem>
+                    <FormItem className="flex items-center space-x-3 space-y-0">
+                      <FormControl>
+                        <RadioGroupItem value="Normal" />
+                      </FormControl>
+                      <FormLabel className="font-normal">
+                        Normal Box
+                      </FormLabel>
+                    </FormItem>
+                  </RadioGroup>
+                </FormItem>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <FormField
                         control={form.control}
@@ -253,7 +369,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
                         )}
                     />
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {dynamicFields.map(key => (
                     <FormField
                         key={key}
