@@ -140,19 +140,19 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
     switch (boxType) {
       case 'Wet':
         moistureResult = getRandomInRange(9.0, moistureHigh); // High moisture
-        gsmResult = getRandomInRange(gsmRange.high * 0.95, gsmRange.high);
-        loadResult = getRandomInRange(loadMin + 3, loadMin + 5);
+        gsmResult = getRandomInRange(gsmRange.high * 0.95, gsmRange.high); // High GSM
+        loadResult = getRandomInRange(loadMin + 3, loadMin + 5); // Low Load
         break;
       case 'Dry':
         moistureResult = getRandomInRange(moistureLow, 7.0); // Low moisture
-        gsmResult = getRandomInRange(gsmRange.low, gsmRange.low * 1.05);
-        loadResult = getRandomInRange(loadMin + 15, loadMin + 25);
+        gsmResult = getRandomInRange(gsmRange.low, gsmRange.low * 1.05); // Low GSM
+        loadResult = getRandomInRange(loadMin + 15, loadMin + 25); // High Load
         break;
       case 'Normal':
         moistureResult = getRandomInRange(7.1, 8.9); // Mid-range moisture
         const gsmMid = (gsmRange.low + gsmRange.high) / 2;
-        gsmResult = getRandomInRange(gsmMid * 0.9, gsmMid * 1.1);
-        loadResult = getRandomInRange(loadMin + 6, loadMin + 14);
+        gsmResult = getRandomInRange(gsmMid * 0.9, gsmMid * 1.1); // Mid-range GSM
+        loadResult = getRandomInRange(loadMin + 6, loadMin + 14); // Medium Load
         break;
     }
 
