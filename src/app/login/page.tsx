@@ -43,7 +43,7 @@ export default function LoginPage() {
     try {
       // Check for hardcoded administrator first
       if (data.username === 'Administrator' && data.password === 'Admin') {
-        await login({ username: data.username, role: 'Admin' });
+        await login({ username: data.username, roleId: 'admin' });
         toast({
           title: 'Success',
           description: 'Logged in successfully.',
@@ -58,7 +58,7 @@ export default function LoginPage() {
       );
 
       if (foundUser) {
-        await login({ username: foundUser.username, role: foundUser.role });
+        await login({ username: foundUser.username, roleId: foundUser.roleId });
         toast({
           title: 'Success',
           description: 'Logged in successfully.',

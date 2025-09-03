@@ -86,11 +86,26 @@ export interface PurchaseOrder {
   deliveryDate?: string; // ISO string for delivery date
 }
 
-export type UserRole = 'Admin' | 'User';
+// RBAC Types
+export const modules = ['dashboard', 'reports', 'products', 'purchaseOrders', 'rawMaterials', 'settings'] as const;
+export type Module = typeof modules[number];
+
+export const actions = ['view', 'create', 'edit', 'delete'] as const;
+export type Action = typeof actions[number];
+
+export type Permissions = {
+  [key in Module]?: Action[];
+};
+
+export interface Role {
+  id: string;
+  name: string;
+  permissions: Permissions;
+}
 
 export interface User {
   id: string;
   username: string;
-  password?: string; // Optional because we don't want to expose it everywhere
-  role: UserRole;
+  password?: string;
+  roleId: string;
 }

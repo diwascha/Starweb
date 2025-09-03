@@ -1,14 +1,14 @@
 
 'use client';
 
-import { useState, useEffect, createContext, useContext, ReactNode, useCallback } from 'react';
+import { useState, useEffect, createContext, useContext, ReactNode, useCallback, useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import type { UserRole } from '@/lib/types';
+import type { User, Role, Permissions } from '@/lib/types';
+import useLocalStorage from './use-local-storage';
 
-// Mock user object
 interface UserSession {
   username: string;
-  role: UserRole;
+  roleId: string;
 }
 
 interface AuthContextType {
@@ -16,6 +16,7 @@ interface AuthContextType {
   loading: boolean;
   login: (user: UserSession) => Promise<void>;
   logout: () => Promise<void>;
+  hasPermission: (module: keyof Permissions, action: 'view' | 'create' | 'edit' | 'delete') => boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -23,6 +24,7 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   login: async () => {},
   logout: async () => {},
+  hasPermission: () => false,
 });
 
 const USER_SESSION_KEY = 'user_session';
@@ -30,6 +32,7 @@ const USER_SESSION_KEY = 'user_session';
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<UserSession | null>(null);
   const [loading, setLoading] = useState(true);
+  const [roles] = useLocalStorage<Role[]>('roles', []);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -58,7 +61,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [user, loading, pathname, router]);
 
-
   const login = useCallback(async (userToLogin: UserSession) => {
     sessionStorage.setItem(USER_SESSION_KEY, JSON.stringify(userToLogin));
     setUser(userToLogin);
@@ -69,10 +71,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(null);
     router.push('/login');
   }, [router]);
+
+  const hasPermission = useCallback((module: keyof Permissions, action: 'view' | 'create' | 'edit' | 'delete'): boolean => {
+    if (!user) return false;
+    
+    // Hardcoded full access for Administrator
+    if (user.username === 'Administrator') return true;
+
+    const userRole = roles.find(r => r.id === user.roleId);
+    if (!userRole) return false;
+
+    const modulePermissions = userRole.permissions[module];
+    if (!modulePermissions) return false;
+
+    return modulePermissions.includes(action);
+  }, [user, roles]);
   
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, hasPermission }}>
       {children}
     </AuthContext.Provider>
   );
