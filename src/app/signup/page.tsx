@@ -29,6 +29,7 @@ export default function SignupPage() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [firebaseError, setFirebaseError] = useState<string | null>(null);
+  const [firebaseErrorCode, setFirebaseErrorCode] = useState<string | null>(null);
 
   const {
     register,
@@ -41,6 +42,7 @@ export default function SignupPage() {
   const onSubmit = async (data: SignupFormValues) => {
     setIsLoading(true);
     setFirebaseError(null);
+    setFirebaseErrorCode(null);
     try {
       await createUserWithEmailAndPassword(auth, data.email, data.password);
       toast({
@@ -50,18 +52,32 @@ export default function SignupPage() {
       router.push('/dashboard');
     } catch (error: any) {
         let errorMessage = error.message;
-        if (error.code === 'auth/operation-not-allowed') {
-            errorMessage = 'Email/Password sign-up is not enabled in the Firebase Console.';
+        const errorCode = error.code;
+        
+        if (errorCode === 'auth/operation-not-allowed') {
+            errorMessage = 'Email/Password sign-up is not enabled. Please enable it in the Firebase Console.';
+        } else if (errorCode === 'auth/configuration-not-found') {
+            errorMessage = 'Firebase configuration is not found. This can happen if your app\'s domain is not authorized. Please add it in the Firebase Console.';
         }
+        
       toast({
         title: 'Signup Failed',
         description: errorMessage,
         variant: 'destructive',
       });
       setFirebaseError(errorMessage);
+      setFirebaseErrorCode(errorCode);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const getFirebaseConsoleLink = () => {
+    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+    if (firebaseErrorCode === 'auth/configuration-not-found') {
+        return `https://console.firebase.google.com/project/${projectId}/authentication/settings`;
+    }
+    return `https://console.firebase.google.com/project/${projectId}/authentication/providers`;
   };
 
   return (
@@ -82,21 +98,17 @@ export default function SignupPage() {
                     <AlertTitle>Signup Error</AlertTitle>
                     <AlertDescription>
                         {firebaseError}
-                        {firebaseError.includes('not enabled') && (
-                            <>
-                                <br />
-                                Please enable it in the{' '}
-                                <a
-                                href={`https://console.firebase.google.com/project/${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}/authentication/providers`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="underline"
-                                >
-                                Firebase Console
-                                </a>
-                                .
-                            </>
-                        )}
+                        <br />
+                        Please check the settings in the{' '}
+                        <a
+                        href={getFirebaseConsoleLink()}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline"
+                        >
+                        Firebase Console
+                        </a>
+                        .
                     </AlertDescription>
                 </Alert>
             )}
