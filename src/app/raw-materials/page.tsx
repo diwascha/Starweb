@@ -47,15 +47,17 @@ const materialTypes = [
 type RawMaterialSortKey = 'name' | 'type';
 type SortDirection = 'asc' | 'desc';
 
-const generateMaterialName = (name: string, type: string, size: string, gsm: string, bf: string) => {
+const generateMaterialName = (type: string, size: string, gsm: string, bf: string) => {
     if (type === 'Kraft Paper' || type === 'Virgin Paper') {
-        const parts = [name || type];
+        const parts = [type];
         if (size) parts.push(`${size} inch`);
         if (gsm) parts.push(`${gsm} GSM`);
         if (bf) parts.push(`${bf} BF`);
         return parts.join(' - ');
     }
-    return name;
+    // For other types, this function will not be used to generate the final name,
+    // as the user provides it directly.
+    return type;
 };
 
 
@@ -111,18 +113,23 @@ export default function RawMaterialsPage() {
   const handleMaterialSubmit = () => {
     const isPaper = newMaterialType === 'Kraft Paper' || newMaterialType === 'Virgin Paper';
     
-    if (newMaterialType.trim() === '' || (!isPaper && newMaterialName.trim() === '')) {
-      toast({ title: 'Error', description: 'Please fill all required fields.', variant: 'destructive' });
+    if (newMaterialType.trim() === '') {
+        toast({ title: 'Error', description: 'Please select a material type.', variant: 'destructive' });
+        return;
+    }
+    if (!isPaper && newMaterialName.trim() === '') {
+      toast({ title: 'Error', description: 'Please provide a name/description.', variant: 'destructive' });
       return;
     }
     
-    const finalName = generateMaterialName(
-        newMaterialName.trim(), 
-        newMaterialType.trim(), 
-        newMaterialSize.trim(), 
-        newMaterialGsm.trim(), 
-        newMaterialBf.trim()
-    );
+    const finalName = isPaper 
+        ? generateMaterialName(
+            newMaterialType.trim(), 
+            newMaterialSize.trim(), 
+            newMaterialGsm.trim(), 
+            newMaterialBf.trim()
+          )
+        : newMaterialName.trim();
 
       if (editingMaterial) {
         const updatedMaterial: RawMaterial = {
@@ -347,16 +354,18 @@ export default function RawMaterialsPage() {
                             </SelectContent>
                         </Select>
                     </div>
-
-                    <div className="space-y-2">
-                        <Label htmlFor="material-name">Name / Description</Label>
-                        <Input
-                        id="material-name"
-                        value={newMaterialName}
-                        onChange={e => setNewMaterialName(e.target.value)}
-                        placeholder={isPaper ? "e.g. Kraft Paper" : "e.g. Corrugation Gum"}
-                        />
-                    </div>
+                    
+                    {!isPaper && (
+                        <div className="space-y-2">
+                            <Label htmlFor="material-name">Name / Description</Label>
+                            <Input
+                            id="material-name"
+                            value={newMaterialName}
+                            onChange={e => setNewMaterialName(e.target.value)}
+                            placeholder={"e.g. Corrugation Gum"}
+                            />
+                        </div>
+                    )}
                     
                     {isPaper && (
                         <>
@@ -402,3 +411,5 @@ export default function RawMaterialsPage() {
     </div>
   );
 }
+
+    
