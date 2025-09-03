@@ -34,19 +34,31 @@ const USER_SESSION_KEY = 'user_session';
 const pageOrder: Module[] = ['dashboard', 'reports', 'products', 'purchaseOrders', 'rawMaterials', 'settings', 'hr'];
 
 // Function to convert kebab-case to camelCase
-const kebabToCamel = (s: string): Module => {
+const kebabToCamel = (s: string): Module | string => {
     const specialCases: Record<string, Module> = {
       'report': 'reports',
-      'product': 'products',
-      'purchase-order': 'purchaseOrders',
-      'raw-material': 'rawMaterials',
+      'products': 'products',
+      'purchase-orders': 'purchaseOrders',
+      'raw-materials': 'rawMaterials',
+      'settings': 'settings',
+      'hr': 'hr',
+      'dashboard': 'dashboard',
     };
     if (specialCases[s]) {
         return specialCases[s];
     }
     const cameled = s.replace(/-./g, x => x[1].toUpperCase());
-    return cameled as Module;
+    return cameled;
 };
+
+const moduleToPath = (module: Module): string => {
+    if (module === 'hr') return '/hr/employees'; // Default HR page
+    if (module === 'dashboard') return '/dashboard';
+    
+    const kebab = module.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`);
+    return `/${kebab}`;
+}
+
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<UserSession | null>(null);
@@ -120,22 +132,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     if (user && !isAuthPage) {
         const pathSegments = pathname.split('/').filter(Boolean);
-        const pathModuleKebab = pathSegments[0] || 'dashboard';
-        const currentModule = kebabToCamel(pathModuleKebab);
+        if (pathSegments.length === 0) return; // Root page is handled by page.tsx
 
-        const canViewCurrentModule = modules.includes(currentModule) && hasPermission(currentModule, 'view');
-        
-        if (!canViewCurrentModule) {
-            const firstAllowedPage = pageOrder.find(module => hasPermission(module, 'view'));
+        const mainSegment = pathSegments[0];
+        const currentModuleAttempt = kebabToCamel(mainSegment);
+
+        if (modules.includes(currentModuleAttempt as Module)) {
+            const currentModule = currentModuleAttempt as Module;
+            const canViewCurrentModule = hasPermission(currentModule, 'view');
             
-            if (firstAllowedPage) {
-                 const redirectPath = `/${firstAllowedPage === 'hr' ? 'hr' : firstAllowedPage.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`)}`;
-                 if (pathname !== redirectPath) {
-                    router.push(redirectPath);
-                }
-            } else {
-                 if (pathname !== '/dashboard') {
-                   router.push('/dashboard');
+            if (!canViewCurrentModule) {
+                const firstAllowedPage = pageOrder.find(module => hasPermission(module, 'view'));
+                
+                if (firstAllowedPage) {
+                     const redirectPath = moduleToPath(firstAllowedPage);
+                     if (pathname !== redirectPath) {
+                        router.push(redirectPath);
+                    }
+                } else {
+                     if (pathname !== '/dashboard') {
+                       router.push('/dashboard');
+                    }
                 }
             }
         }

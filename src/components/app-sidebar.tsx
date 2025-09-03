@@ -10,8 +10,11 @@ import {
   SidebarMenuButton,
   SidebarFooter,
   SidebarSeparator,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarGroupContent,
 } from '@/components/ui/sidebar';
-import { FileText, LayoutDashboard, TestTubeDiagonal, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users } from 'lucide-react';
+import { FileText, LayoutDashboard, TestTubeDiagonal, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users, Calendar } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
@@ -115,16 +118,33 @@ export function AppSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
         )}
+        
+        {hasPermission('hr', 'view') && <SidebarSeparator />}
+
         {hasPermission('hr', 'view') && (
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={getIsActive('/hr')}>
-              <Link href="/hr">
-                <Users />
-                <span>HR Management</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+            <SidebarGroup className="p-2 pb-0">
+                <SidebarGroupLabel className="px-2">HR Management</SidebarGroupLabel>
+                <SidebarGroupContent>
+                     <SidebarMenuItem>
+                        <SidebarMenuButton asChild isActive={getIsActive('/hr/employees')}>
+                        <Link href="/hr/employees">
+                            <Users />
+                            <span>Employees</span>
+                        </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton asChild isActive={getIsActive('/hr/attendance')}>
+                        <Link href="/hr/attendance">
+                            <Calendar />
+                            <span>Attendance</span>
+                        </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                </SidebarGroupContent>
+            </SidebarGroup>
         )}
+        
         <SidebarSeparator />
         {hasPermission('settings', 'view') && (
           <SidebarMenuItem>
