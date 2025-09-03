@@ -21,7 +21,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -38,19 +37,23 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-const materialCategories = [
-    'Kraft Paper', 'Gum', 'Ink', 'Stitching Wire', 'Strapping', 'Machinery Spare Parts', 'Other'
+const materialTypes = [
+    'Kraft Paper', 'Virgin Paper', 'Gum', 'Ink', 'Stitching Wire', 'Strapping', 'Machinery Spare Parts', 'Other'
 ];
 
-type RawMaterialSortKey = 'name' | 'category';
+type RawMaterialSortKey = 'name' | 'type';
 type SortDirection = 'asc' | 'desc';
 
 export default function RawMaterialsPage() {
   const [rawMaterials, setRawMaterials] = useLocalStorage<RawMaterial[]>('rawMaterials', []);
   
+  const [newMaterialType, setNewMaterialType] = useState('');
   const [newMaterialName, setNewMaterialName] = useState('');
-  const [newMaterialCategory, setNewMaterialCategory] = useState('');
+  const [newMaterialSize, setNewMaterialSize] = useState('');
+  const [newMaterialGsm, setNewMaterialGsm] = useState('');
+  const [newMaterialBf, setNewMaterialBf] = useState('');
   
   const [isMaterialDialogOpen, setIsMaterialDialogOpen] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<RawMaterial | null>(null);
@@ -69,8 +72,11 @@ export default function RawMaterialsPage() {
   }, []);
   
   const resetForm = () => {
+    setNewMaterialType('');
     setNewMaterialName('');
-    setNewMaterialCategory('');
+    setNewMaterialSize('');
+    setNewMaterialGsm('');
+    setNewMaterialBf('');
     setEditingMaterial(null);
   };
 
@@ -81,26 +87,35 @@ export default function RawMaterialsPage() {
 
   const openEditMaterialDialog = (material: RawMaterial) => {
     setEditingMaterial(material);
+    setNewMaterialType(material.type);
     setNewMaterialName(material.name);
-    setNewMaterialCategory(material.category);
+    setNewMaterialSize(material.size);
+    setNewMaterialGsm(material.gsm);
+    setNewMaterialBf(material.bf);
     setIsMaterialDialogOpen(true);
   };
 
   const handleMaterialSubmit = () => {
-    if (newMaterialName.trim() !== '' && newMaterialCategory.trim() !== '') {
+    if (newMaterialType.trim() !== '' && newMaterialName.trim() !== '') {
       if (editingMaterial) {
         const updatedMaterial: RawMaterial = {
           ...editingMaterial,
+          type: newMaterialType.trim(),
           name: newMaterialName.trim(),
-          category: newMaterialCategory.trim(),
+          size: newMaterialSize.trim(),
+          gsm: newMaterialGsm.trim(),
+          bf: newMaterialBf.trim(),
         };
         setRawMaterials(rawMaterials.map(m => (m.id === editingMaterial.id ? updatedMaterial : m)));
         toast({ title: 'Success', description: 'Raw material updated.' });
       } else {
         const newMaterial: RawMaterial = {
           id: crypto.randomUUID(),
+          type: newMaterialType.trim(),
           name: newMaterialName.trim(),
-          category: newMaterialCategory.trim(),
+          size: newMaterialSize.trim(),
+          gsm: newMaterialGsm.trim(),
+          bf: newMaterialBf.trim(),
         };
         setRawMaterials([...rawMaterials, newMaterial]);
         toast({ title: 'Success', description: 'New raw material added.' });
@@ -108,7 +123,7 @@ export default function RawMaterialsPage() {
       resetForm();
       setIsMaterialDialogOpen(false);
     } else {
-      toast({ title: 'Error', description: 'Please fill all the fields.', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Please fill Type and Name.', variant: 'destructive' });
     }
   };
   
@@ -136,7 +151,7 @@ export default function RawMaterialsPage() {
         const lowercasedQuery = searchQuery.toLowerCase();
         filtered = filtered.filter(material =>
             (material.name || '').toLowerCase().includes(lowercasedQuery) ||
-            (material.category || '').toLowerCase().includes(lowercasedQuery)
+            (material.type || '').toLowerCase().includes(lowercasedQuery)
         );
     }
 
@@ -156,6 +171,8 @@ export default function RawMaterialsPage() {
     }
     return filtered;
   }, [rawMaterials, sortConfig, searchQuery]);
+  
+  const isPaper = newMaterialType === 'Kraft Paper' || newMaterialType === 'Virgin Paper';
 
   const renderContent = () => {
     if (!isClient) {
@@ -194,11 +211,14 @@ export default function RawMaterialsPage() {
                     </Button>
                 </TableHead>
                 <TableHead>
-                    <Button variant="ghost" onClick={() => requestSort('category')}>
-                    Category
+                    <Button variant="ghost" onClick={() => requestSort('type')}>
+                    Type
                     <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
                 </TableHead>
+                <TableHead>Size (Inch)</TableHead>
+                <TableHead>GSM</TableHead>
+                <TableHead>BF</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
             </TableHeader>
@@ -206,7 +226,10 @@ export default function RawMaterialsPage() {
                 {filteredAndSortedMaterials.map(material => (
                 <TableRow key={material.id}>
                     <TableCell className="font-medium">{material.name}</TableCell>
-                    <TableCell>{material.category}</TableCell>
+                    <TableCell>{material.type}</TableCell>
+                    <TableCell>{material.size}</TableCell>
+                    <TableCell>{material.gsm}</TableCell>
+                    <TableCell>{material.bf}</TableCell>
                     <TableCell className="text-right">
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -288,27 +311,58 @@ export default function RawMaterialsPage() {
               >
                   <div className="grid gap-4 py-4">
                     <div className="space-y-2">
-                      <Label htmlFor="material-name">Material Name</Label>
+                        <Label htmlFor="material-type">Type</Label>
+                        <Select onValueChange={setNewMaterialType} value={newMaterialType}>
+                            <SelectTrigger id="material-type">
+                                <SelectValue placeholder="Select a type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {materialTypes.map(cat => (
+                                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                     <div className="space-y-2">
+                      <Label htmlFor="material-name">Name / Description</Label>
                       <Input
                         id="material-name"
                         value={newMaterialName}
                         onChange={e => setNewMaterialName(e.target.value)}
+                        placeholder={isPaper ? "e.g. 150 GSM 20 BF Paper" : "e.g. Pesting Gum"}
                       />
                     </div>
-                    <div className="space-y-2">
-                       <Label htmlFor="material-category">Category</Label>
-                        <select
-                            id="material-category"
-                            value={newMaterialCategory}
-                            onChange={e => setNewMaterialCategory(e.target.value)}
-                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                            <option value="" disabled>Select a category</option>
-                            {materialCategories.map(cat => (
-                                <option key={cat} value={cat}>{cat}</option>
-                            ))}
-                        </select>
-                    </div>
+                    {isPaper && (
+                        <>
+                           <div className="space-y-2">
+                             <Label htmlFor="material-size">Size (Inch)</Label>
+                             <Input
+                                id="material-size"
+                                value={newMaterialSize}
+                                onChange={e => setNewMaterialSize(e.target.value)}
+                                placeholder="e.g. 42.5"
+                              />
+                           </div>
+                            <div className="space-y-2">
+                             <Label htmlFor="material-gsm">GSM</Label>
+                             <Input
+                                id="material-gsm"
+                                value={newMaterialGsm}
+                                onChange={e => setNewMaterialGsm(e.target.value)}
+                                placeholder="e.g. 150"
+                              />
+                           </div>
+                            <div className="space-y-2">
+                             <Label htmlFor="material-bf">BF</Label>
+                             <Input
+                                id="material-bf"
+                                value={newMaterialBf}
+                                onChange={e => setNewMaterialBf(e.target.value)}
+                                placeholder="e.g. 20"
+                              />
+                           </div>
+                        </>
+                    )}
                   </div>
               </form>
               <DialogFooter>

@@ -33,6 +33,16 @@ export default function PurchaseOrderView({ poId }: { poId: string }) {
 
   const nepaliDate = new NepaliDate(new Date(purchaseOrder.poDate));
   const nepaliDateString = nepaliDate.format('YYYY/MM/DD');
+  
+  const groupedItems = purchaseOrder.items.reduce((acc, item) => {
+    const key = item.rawMaterialType || 'Other';
+    if (!acc[key]) {
+      acc[key] = [];
+    }
+    acc[key].push(item);
+    return acc;
+  }, {} as Record<string, typeof purchaseOrder.items>);
+
 
   return (
     <>
@@ -79,17 +89,28 @@ export default function PurchaseOrderView({ poId }: { poId: string }) {
                   <TableHeader>
                     <TableRow className="border-b-gray-300">
                       <TableHead className="text-black font-semibold">S.N.</TableHead>
-                      <TableHead className="text-black font-semibold">Particulars</TableHead>
-                      <TableHead className="text-black font-semibold text-right">Quantity</TableHead>
+                      <TableHead className="text-black font-semibold">Size (Inch)</TableHead>
+                      <TableHead className="text-black font-semibold">GSM</TableHead>
+                      <TableHead className="text-black font-semibold">BF</TableHead>
+                      <TableHead className="text-black font-semibold text-right">Wt. (Ton)</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {purchaseOrder.items.map((item, index) => (
-                      <TableRow key={item.rawMaterialId} className="border-b-gray-300">
-                        <TableCell>{index + 1}</TableCell>
-                        <TableCell>{item.rawMaterialName}</TableCell>
-                        <TableCell className="text-right">{item.quantity}</TableCell>
-                      </TableRow>
+                     {Object.entries(groupedItems).map(([type, items]) => (
+                        <>
+                            <TableRow key={type} className="border-b-gray-300">
+                                <TableCell colSpan={5} className="font-bold">{type}</TableCell>
+                            </TableRow>
+                            {items.map((item, index) => (
+                              <TableRow key={`${item.rawMaterialId}-${index}`} className="border-b-gray-300">
+                                <TableCell>{index + 1}</TableCell>
+                                <TableCell>{item.size || '-'}</TableCell>
+                                <TableCell>{item.gsm || '-'}</TableCell>
+                                <TableCell>{item.bf || '-'}</TableCell>
+                                <TableCell className="text-right">{item.quantity}</TableCell>
+                              </TableRow>
+                            ))}
+                        </>
                     ))}
                   </TableBody>
                 </Table>

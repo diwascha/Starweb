@@ -26,6 +26,10 @@ import NepaliDate from 'nepali-date-converter';
 const poItemSchema = z.object({
   rawMaterialId: z.string().min(1, 'Material is required.'),
   rawMaterialName: z.string(),
+  rawMaterialType: z.string(),
+  size: z.string(),
+  gsm: z.string(),
+  bf: z.string(),
   quantity: z.string().min(1, 'Quantity is required.'),
 });
 
@@ -114,13 +118,20 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   const handleItemMaterialChange = (index: number, rawMaterialId: string) => {
     const material = rawMaterials.find(p => p.id === rawMaterialId);
     if (material) {
-      const currentItem = form.getValues(`items.${index}`);
-      update(index, { ...currentItem, rawMaterialId: material.id, rawMaterialName: material.name });
+      update(index, {
+        rawMaterialId: material.id,
+        rawMaterialName: material.name,
+        rawMaterialType: material.type,
+        size: material.size,
+        gsm: material.gsm,
+        bf: material.bf,
+        quantity: '',
+      });
     }
   };
 
   const addNewItem = () => {
-    append({ rawMaterialId: '', rawMaterialName: '', quantity: '' });
+    append({ rawMaterialId: '', rawMaterialName: '', rawMaterialType: '', size: '', gsm: '', bf: '', quantity: '' });
   };
   
   const poDate = form.watch('poDate');
@@ -234,7 +245,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                 />
                                 <CommandList>
                                     <CommandEmpty>
-                                        <button className="w-full text-left p-2 text-sm" onClick={() => handleCompanySelect(field.value)}>
+                                        <button type="button" className="w-full text-left p-2 text-sm" onClick={() => handleCompanySelect(field.value)}>
                                             Add "{field.value}"
                                         </button>
                                     </CommandEmpty>
@@ -279,58 +290,68 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                 <CardDescription>Add raw materials to the purchase order.</CardDescription>
             </CardHeader>
             <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead className="w-3/5">Material</TableHead>
-                            <TableHead>Quantity</TableHead>
-                            <TableHead className="w-[50px]"> </TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {fields.map((item, index) => (
-                            <TableRow key={item.id}>
-                                <TableCell>
-                                    <FormField
-                                        control={form.control}
-                                        name={`items.${index}.rawMaterialId`}
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <Select onValueChange={(value) => { field.onChange(value); handleItemMaterialChange(index, value); }} defaultValue={field.value}>
-                                                    <FormControl>
-                                                        <SelectTrigger>
-                                                            <SelectValue placeholder="Select a material" />
-                                                        </SelectTrigger>
-                                                    </FormControl>
-                                                    <SelectContent>
-                                                        {isClient && rawMaterials.map(p => (
-                                                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                </TableCell>
-                                <TableCell>
-                                    <FormField
-                                        control={form.control}
-                                        name={`items.${index}.quantity`}
-                                        render={({ field }) => (
-                                            <FormItem><FormControl><Input placeholder="e.g. 5 Tons" {...field} /></FormControl><FormMessage /></FormItem>
-                                        )}
-                                    />
-                                </TableCell>
-                                <TableCell>
-                                    <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
-                                        <Trash2 className="h-4 w-4 text-destructive" />
-                                    </Button>
-                                </TableCell>
+                <div className="overflow-x-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className="w-[300px]">Material</TableHead>
+                                <TableHead>Type</TableHead>
+                                <TableHead>Size (Inch)</TableHead>
+                                <TableHead>GSM</TableHead>
+                                <TableHead>BF</TableHead>
+                                <TableHead>Quantity (Ton)</TableHead>
+                                <TableHead className="w-[50px]"> </TableHead>
                             </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
+                        </TableHeader>
+                        <TableBody>
+                            {fields.map((item, index) => (
+                                <TableRow key={item.id}>
+                                    <TableCell>
+                                        <FormField
+                                            control={form.control}
+                                            name={`items.${index}.rawMaterialId`}
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <Select onValueChange={(value) => { field.onChange(value); handleItemMaterialChange(index, value); }} value={field.value}>
+                                                        <FormControl>
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Select a material" />
+                                                            </SelectTrigger>
+                                                        </FormControl>
+                                                        <SelectContent>
+                                                            {isClient && rawMaterials.map(p => (
+                                                                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    </TableCell>
+                                    <TableCell>{item.rawMaterialType || '-'}</TableCell>
+                                    <TableCell>{item.size || '-'}</TableCell>
+                                    <TableCell>{item.gsm || '-'}</TableCell>
+                                    <TableCell>{item.bf || '-'}</TableCell>
+                                    <TableCell>
+                                        <FormField
+                                            control={form.control}
+                                            name={`items.${index}.quantity`}
+                                            render={({ field }) => (
+                                                <FormItem><FormControl><Input placeholder="e.g. 5" {...field} /></FormControl><FormMessage /></FormItem>
+                                            )}
+                                        />
+                                    </TableCell>
+                                    <TableCell>
+                                        <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
+                                            <Trash2 className="h-4 w-4 text-destructive" />
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
                 {form.formState.errors.items?.message && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.items.message}</p>}
             </CardContent>
           </Card>

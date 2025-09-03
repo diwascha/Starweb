@@ -33,7 +33,7 @@ export interface PrintLogEntry {
 }
 
 export interface Report {
-  id: string;
+  id:string;
   serialNumber: string;
   taxInvoiceNumber: string;
   challanNumber: string;
@@ -46,13 +46,20 @@ export interface Report {
 
 export interface RawMaterial {
   id: string;
-  name: string;
-  category: string;
+  type: string; // e.g., 'Kraft Paper', 'Virgin Paper', 'Gum'
+  name: string; // e.g., '150 GSM 20 BF', or 'Pesting Gum'
+  size: string;
+  gsm: string;
+  bf: string;
 }
 
 export interface PurchaseOrderItem {
   rawMaterialId: string;
   rawMaterialName: string;
+  rawMaterialType: string;
+  size: string;
+  gsm: string;
+  bf: string;
   quantity: string;
 }
 
