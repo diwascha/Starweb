@@ -130,6 +130,7 @@ export interface Driver {
     name: string;
     licenseNumber: string;
     contactNumber: string;
+    dateOfBirth: string; // ISO string
 }
 
 export interface InsurancePolicy {

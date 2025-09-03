@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo } from 'react';
 import useLocalStorage from '@/hooks/use-local-storage';
 import type { Driver } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, CalendarIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -33,8 +33,13 @@ import {
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/use-auth';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
-type DriverSortKey = 'name' | 'licenseNumber' | 'contactNumber';
+
+type DriverSortKey = 'name' | 'licenseNumber' | 'contactNumber' | 'dateOfBirth';
 type SortDirection = 'asc' | 'desc';
 
 export default function DriversPage() {
@@ -47,6 +52,7 @@ export default function DriversPage() {
         name: '',
         licenseNumber: '',
         contactNumber: '',
+        dateOfBirth: new Date().toISOString(),
     });
     
     const [searchQuery, setSearchQuery] = useState('');
@@ -65,6 +71,7 @@ export default function DriversPage() {
             name: '',
             licenseNumber: '',
             contactNumber: '',
+            dateOfBirth: new Date().toISOString(),
         });
     };
 
@@ -82,6 +89,13 @@ export default function DriversPage() {
         const { name, value } = e.target;
         setFormState(prev => ({ ...prev, [name]: value }));
     };
+    
+    const handleDateChange = (date: Date | undefined) => {
+        if (date) {
+            setFormState(prev => ({ ...prev, dateOfBirth: date.toISOString() }));
+        }
+    };
+
 
     const handleSubmit = () => {
         if (!formState.name || !formState.licenseNumber) {
@@ -122,7 +136,8 @@ export default function DriversPage() {
             filtered = filtered.filter(d =>
                 d.name.toLowerCase().includes(lowercasedQuery) ||
                 d.licenseNumber.toLowerCase().includes(lowercasedQuery) ||
-                d.contactNumber.toLowerCase().includes(lowercasedQuery)
+                d.contactNumber.toLowerCase().includes(lowercasedQuery) ||
+                format(new Date(d.dateOfBirth), 'PPP').toLowerCase().includes(lowercasedQuery)
             );
         }
         filtered.sort((a, b) => {
@@ -166,6 +181,7 @@ export default function DriversPage() {
                             <TableHead><Button variant="ghost" onClick={() => requestSort('name')}>Name <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('licenseNumber')}>License Number <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('contactNumber')}>Contact Number <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                             <TableHead><Button variant="ghost" onClick={() => requestSort('dateOfBirth')}>Date of Birth <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -175,6 +191,7 @@ export default function DriversPage() {
                                 <TableCell>{driver.name}</TableCell>
                                 <TableCell>{driver.licenseNumber}</TableCell>
                                 <TableCell>{driver.contactNumber}</TableCell>
+                                <TableCell>{format(new Date(driver.dateOfBirth), 'PPP')}</TableCell>
                                 <TableCell className="text-right">
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
@@ -250,6 +267,31 @@ export default function DriversPage() {
                     <div className="space-y-2">
                         <Label htmlFor="contactNumber">Contact Number</Label>
                         <Input id="contactNumber" name="contactNumber" value={formState.contactNumber} onChange={handleFormChange} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                         <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                variant={"outline"}
+                                className={cn(
+                                    "w-full justify-start text-left font-normal",
+                                    !formState.dateOfBirth && "text-muted-foreground"
+                                )}
+                                >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {formState.dateOfBirth ? format(new Date(formState.dateOfBirth), "PPP") : <span>Pick a date</span>}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0">
+                                <Calendar
+                                mode="single"
+                                selected={new Date(formState.dateOfBirth)}
+                                onSelect={handleDateChange}
+                                initialFocus
+                                />
+                            </PopoverContent>
+                        </Popover>
                     </div>
                 </div>
                 <DialogFooter>
