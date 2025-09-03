@@ -1,6 +1,7 @@
 export interface ProductSpecification {
   dimension: string;
   ply: string;
+  weightOfBox: string;
   gsm: string;
   stapleWidth: string;
   stapling: string;

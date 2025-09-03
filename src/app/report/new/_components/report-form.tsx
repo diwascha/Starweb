@@ -35,6 +35,7 @@ const reportFormSchema = z.object({
   quantity: z.string().optional(),
   dimension: testResultSchema,
   ply: testResultSchema,
+  weightOfBox: testResultSchema,
   gsm: testResultSchema,
   stapleWidth: testResultSchema,
   stapling: testResultSchema,
@@ -53,6 +54,7 @@ interface ReportFormProps {
 const testDataKeys: (keyof ProductSpecification)[] = [
   'dimension',
   'ply',
+  'weightOfBox',
   'gsm',
   'stapleWidth',
   'stapling',
@@ -62,7 +64,7 @@ const testDataKeys: (keyof ProductSpecification)[] = [
   'load',
 ];
 
-const staticFields: (keyof ProductSpecification)[] = ['dimension', 'ply', 'stapleWidth', 'stapling', 'overlapWidth', 'printing'];
+const staticFields: (keyof ProductSpecification)[] = ['dimension', 'ply', 'weightOfBox', 'stapleWidth', 'stapling', 'overlapWidth', 'printing'];
 const dynamicFields: (keyof ProductSpecification)[] = ['gsm', 'moisture', 'load'];
 
 type BoxType = 'Wet' | 'Dry' | 'Normal';
@@ -118,6 +120,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
       quantity: '',
       dimension: { value: '', remark: '' },
       ply: { value: '', remark: '' },
+      weightOfBox: { value: '', remark: '' },
       gsm: { value: '', remark: '' },
       stapleWidth: { value: '', remark: '' },
       stapling: { value: '', remark: '' },
