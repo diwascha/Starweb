@@ -1,4 +1,5 @@
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -86,8 +87,18 @@ export interface PurchaseOrder {
   deliveryDate?: string; // ISO string for delivery date
 }
 
+// --- HR Module Types ---
+export type WageBasis = 'Monthly' | 'Hourly';
+
+export interface Employee {
+  id: string;
+  name: string;
+  wageBasis: WageBasis;
+  wageAmount: number;
+}
+
 // RBAC Types
-export const modules = ['dashboard', 'reports', 'products', 'purchaseOrders', 'rawMaterials', 'settings'] as const;
+export const modules = ['dashboard', 'reports', 'products', 'purchaseOrders', 'rawMaterials', 'settings', 'hr'] as const;
 export type Module = typeof modules[number];
 
 export const actions = ['view', 'create', 'edit', 'delete'] as const;

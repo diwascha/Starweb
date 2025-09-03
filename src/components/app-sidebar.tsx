@@ -11,7 +11,7 @@ import {
   SidebarFooter,
   SidebarSeparator,
 } from '@/components/ui/sidebar';
-import { FileText, LayoutDashboard, TestTubeDiagonal, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings } from 'lucide-react';
+import { FileText, LayoutDashboard, TestTubeDiagonal, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
@@ -39,8 +39,6 @@ export function AppSidebar() {
 
   const getIsActive = (path: string) => {
     if (!isClient) return false;
-    // This logic ensures that parent routes are highlighted for their child routes
-    // e.g., /purchase-orders will be active for /purchase-orders/new
     return pathname.startsWith(path);
   };
   
@@ -113,6 +111,16 @@ export function AppSidebar() {
               <Link href="/raw-materials">
                 <Wrench />
                 <span>Raw Materials</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        )}
+        {hasPermission('hr', 'view') && (
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={getIsActive('/hr')}>
+              <Link href="/hr">
+                <Users />
+                <span>HR Management</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
