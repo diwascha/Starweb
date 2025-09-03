@@ -215,11 +215,9 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
     const product = products.find(p => p.id === productId);
     if (product) {
       setSelectedProduct(product);
-      staticFields.forEach(field => {
-        form.setValue(`${field}.value`, product.specification[field]);
-        form.setValue(`${field}.remark`, '');
-      });
-      dynamicFields.forEach(field => {
+      testDataKeys.forEach(field => {
+        const isStatic = staticFields.includes(field);
+        form.setValue(`${field}.value`, isStatic ? product.specification[field] : '');
         form.setValue(`${field}.remark`, '');
       });
       const defaultBoxType = 'Normal';
@@ -473,19 +471,6 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
                               <FormDescription>
                                 Standard: {selectedProduct.specification[key]}
                               </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name={`${key}.remark`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Remark for {formatLabel(key)}</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Enter remark (optional)" {...field} />
-                              </FormControl>
                               <FormMessage />
                             </FormItem>
                           )}
