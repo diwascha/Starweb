@@ -13,6 +13,7 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
   SidebarGroupContent,
+  SidebarContent,
 } from '@/components/ui/sidebar';
 import { FileText, LayoutDashboard, TestTubeDiagonal, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users, Calendar, Award, Wallet, Building2 } from 'lucide-react';
 import Link from 'next/link';
@@ -57,131 +58,139 @@ export function AppSidebar() {
           <h1 className="text-xl font-semibold">Shivam QTR</h1>
         </div>
       </SidebarHeader>
-      <SidebarMenu>
-        {hasPermission('dashboard', 'view') && (
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={pathname === '/dashboard'}>
-              <Link href="/dashboard">
-                <LayoutDashboard />
-                <span>Dashboard</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        )}
-        {hasPermission('reports', 'create') && (
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={pathname === '/report/new'}>
-              <Link href="/report/new">
-                <FileText />
-                <span>New QT Reports</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        )}
-         {hasPermission('reports', 'view') && (
-           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={getIsActive('/reports') || getIsActive('/report')}>
-              <Link href="/reports">
-                <FileSpreadsheet />
-                <span>QT Reports Database</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-         )}
-        {hasPermission('products', 'view') && (
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={getIsActive('/products')}>
-              <Link href="/products">
-                <Package />
-                <span>QT Products</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        )}
-        {hasPermission('purchaseOrders', 'view') && (
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={getIsActive('/purchase-orders')}>
-              <Link href="/purchase-orders">
-                <ShoppingCart />
-                <span>Purchase Orders</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        )}
-        {hasPermission('rawMaterials', 'view') && (
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={getIsActive('/raw-materials')}>
-              <Link href="/raw-materials">
-                <Wrench />
-                <span>Raw Materials</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        )}
-        
-        {hasPermission('hr', 'view') && <SidebarSeparator />}
-
-        {hasPermission('hr', 'view') && (
-          <SidebarGroup className="p-2 pb-0">
-            <SidebarGroupLabel className="px-2">HR Management</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={getIsActive('/hr/employees')}>
-                  <Link href="/hr/employees">
-                    <Users />
-                    <span>Employees</span>
-                  </Link>
+      <SidebarContent>
+        <SidebarMenu>
+            {hasPermission('dashboard', 'view') && (
+            <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={pathname === '/dashboard'}>
+                <Link href="/dashboard">
+                    <LayoutDashboard />
+                    <span>Dashboard</span>
+                </Link>
                 </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={getIsActive('/hr/attendance')}>
-                  <Link href="/hr/attendance">
-                    <Calendar />
-                    <span>Attendance</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={getIsActive('/hr/payroll')} disabled>
-                  <Link href="/hr/payroll">
+            </SidebarMenuItem>
+            )}
+            {hasPermission('reports', 'create') && (
+            <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={pathname === '/report/new'}>
+                <Link href="/report/new">
                     <FileText />
-                    <span>Payroll</span>
-                  </Link>
+                    <span>New QT Reports</span>
+                </Link>
                 </SidebarMenuButton>
-              </SidebarMenuItem>
-               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={getIsActive('/hr/bonus')} disabled>
-                  <Link href="/hr/bonus">
-                    <Award />
-                    <span>Bonus</span>
-                  </Link>
+            </SidebarMenuItem>
+            )}
+            {hasPermission('reports', 'view') && (
+            <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={getIsActive('/reports') || getIsActive('/report')}>
+                <Link href="/reports">
+                    <FileSpreadsheet />
+                    <span>QT Reports Database</span>
+                </Link>
                 </SidebarMenuButton>
-              </SidebarMenuItem>
-               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={getIsActive('/hr/payslip')} disabled>
-                  <Link href="/hr/payslip">
-                    <Wallet />
-                    <span>Payslip</span>
-                  </Link>
+            </SidebarMenuItem>
+            )}
+            {hasPermission('products', 'view') && (
+            <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={getIsActive('/products')}>
+                <Link href="/products">
+                    <Package />
+                    <span>QT Products</span>
+                </Link>
                 </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
-        
-        <SidebarSeparator />
-        {hasPermission('settings', 'view') && (
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={getIsActive('/settings')}>
-              <Link href="/settings">
-                <Settings />
-                <span>Settings</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        )}
-      </SidebarMenu>
-       <SidebarFooter className="mt-auto">
+            </SidebarMenuItem>
+            )}
+            {hasPermission('purchaseOrders', 'view') && (
+            <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={getIsActive('/purchase-orders')}>
+                <Link href="/purchase-orders">
+                    <ShoppingCart />
+                    <span>Purchase Orders</span>
+                </Link>
+                </SidebarMenuButton>
+            </SidebarMenuItem>
+            )}
+            {hasPermission('rawMaterials', 'view') && (
+            <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={getIsActive('/raw-materials')}>
+                <Link href="/raw-materials">
+                    <Wrench />
+                    <span>Raw Materials</span>
+                </Link>
+                </SidebarMenuButton>
+            </SidebarMenuItem>
+            )}
+            
+            {hasPermission('hr', 'view') && (
+                <>
+                    <SidebarSeparator />
+                    <SidebarMenuItem>
+                        <SidebarMenuButton asChild isActive={pathname === '/hr'}>
+                        <Link href="/hr">
+                            <Building2 />
+                            <span>HR Management</span>
+                        </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <div className="ml-4">
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={getIsActive('/hr/employees')}>
+                            <Link href="/hr/employees">
+                                <Users />
+                                <span>Employees</span>
+                            </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={getIsActive('/hr/attendance')}>
+                            <Link href="/hr/attendance">
+                                <Calendar />
+                                <span>Attendance</span>
+                            </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={getIsActive('/hr/payroll')} disabled>
+                            <Link href="#">
+                                <FileText />
+                                <span>Payroll</span>
+                            </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={getIsActive('/hr/bonus')} disabled>
+                            <Link href="#">
+                                <Award />
+                                <span>Bonus</span>
+                            </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={getIsActive('/hr/payslip')} disabled>
+                            <Link href="#">
+                                <Wallet />
+                                <span>Payslip</span>
+                            </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                    </div>
+                </>
+            )}
+            
+            <SidebarSeparator />
+            {hasPermission('settings', 'view') && (
+            <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={getIsActive('/settings')}>
+                <Link href="/settings">
+                    <Settings />
+                    <span>Settings</span>
+                </Link>
+                </SidebarMenuButton>
+            </SidebarMenuItem>
+            )}
+        </SidebarMenu>
+      </SidebarContent>
+       <SidebarFooter>
         <SidebarSeparator />
          <div className="flex flex-col gap-2 p-2 text-sm">
             <p className="font-medium text-sidebar-foreground truncate">{user.username}</p>
