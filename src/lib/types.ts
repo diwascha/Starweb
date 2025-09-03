@@ -111,8 +111,30 @@ export interface AttendanceRecord {
     status: AttendanceStatus;
 }
 
+// --- Fleet Management Types ---
+export type VehicleStatus = 'Active' | 'In Maintenance' | 'Decommissioned';
+
+export interface Vehicle {
+  id: string;
+  name: string;
+  licensePlate: string;
+  make: string;
+  model: string;
+  year: number;
+  vin: string;
+  status: VehicleStatus;
+}
+
+export interface Driver {
+    id: string;
+    name: string;
+    licenseNumber: string;
+    contactNumber: string;
+}
+
+
 // RBAC Types
-export const modules = ['dashboard', 'reports', 'products', 'purchaseOrders', 'rawMaterials', 'settings', 'hr'] as const;
+export const modules = ['dashboard', 'reports', 'products', 'purchaseOrders', 'rawMaterials', 'settings', 'hr', 'fleet'] as const;
 export type Module = typeof modules[number];
 
 export const actions = ['view', 'create', 'edit', 'delete'] as const;

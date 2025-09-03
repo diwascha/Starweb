@@ -12,7 +12,7 @@ import {
   SidebarSeparator,
   SidebarContent,
 } from '@/components/ui/sidebar';
-import { FileText, LayoutDashboard, TestTubeDiagonal, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users, Calendar, Award, Wallet, Building2, PlusCircle } from 'lucide-react';
+import { FileText, LayoutDashboard, TestTubeDiagonal, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users, Calendar, Award, Wallet, Building2, PlusCircle, Truck } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
@@ -201,6 +201,38 @@ export function AppSidebar() {
                             <Link href="#">
                                 <Wallet />
                                 <span>Payslip</span>
+                            </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                    </div>
+                </>
+            )}
+
+            {hasPermission('fleet', 'view') && (
+                 <>
+                    <SidebarSeparator />
+                     <SidebarMenuItem>
+                        <SidebarMenuButton asChild isActive={getIsActive('/fleet')}>
+                        <Link href="/fleet">
+                            <Truck />
+                            <span>Fleet Management</span>
+                        </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <div className="ml-4">
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={getIsActive('/fleet/vehicles')}>
+                            <Link href="/fleet/vehicles">
+                                <Truck />
+                                <span>Vehicles</span>
+                            </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={getIsActive('/fleet/drivers')}>
+                            <Link href="/fleet/drivers">
+                                <Users />
+                                <span>Drivers</span>
                             </Link>
                             </SidebarMenuButton>
                         </SidebarMenuItem>

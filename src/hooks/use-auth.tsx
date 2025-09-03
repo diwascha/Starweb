@@ -31,7 +31,7 @@ const AuthContext = createContext<AuthContextType>({
 
 const USER_SESSION_KEY = 'user_session';
 
-const pageOrder: Module[] = ['dashboard', 'reports', 'products', 'purchaseOrders', 'rawMaterials', 'settings', 'hr'];
+const pageOrder: Module[] = ['dashboard', 'reports', 'products', 'purchaseOrders', 'rawMaterials', 'settings', 'hr', 'fleet'];
 
 // Function to convert kebab-case to camelCase
 const kebabToCamel = (s: string): Module | string => {
@@ -46,6 +46,9 @@ const kebabToCamel = (s: string): Module | string => {
       'hr': 'hr',
       'hr/employees': 'hr',
       'hr/attendance': 'hr',
+      'fleet': 'fleet',
+      'fleet/vehicles': 'fleet',
+      'fleet/drivers': 'fleet',
       'dashboard': 'dashboard',
     };
     if (specialCases[s]) {
