@@ -418,18 +418,39 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                             name={`items.${index}.rawMaterialId`}
                                             render={({ field }) => (
                                                 <FormItem>
-                                                    <Select onValueChange={(value) => { field.onChange(value); handleItemMaterialChange(index, value); }} value={field.value}>
-                                                        <FormControl>
-                                                            <SelectTrigger>
-                                                                <SelectValue placeholder="Select a material" />
-                                                            </SelectTrigger>
-                                                        </FormControl>
-                                                        <SelectContent>
-                                                            {isClient && filteredRawMaterials.map(p => (
-                                                                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
+                                                    <Popover>
+                                                        <PopoverTrigger asChild>
+                                                            <FormControl>
+                                                                <Button variant="outline" role="combobox" className="w-full justify-between">
+                                                                    {field.value ? filteredRawMaterials.find(m => m.id === field.value)?.name : "Select a material"}
+                                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                                </Button>
+                                                            </FormControl>
+                                                        </PopoverTrigger>
+                                                        <PopoverContent className="p-0">
+                                                            <Command>
+                                                                <CommandInput placeholder="Search material..." />
+                                                                <CommandList>
+                                                                    <CommandEmpty>No material found.</CommandEmpty>
+                                                                    <CommandGroup>
+                                                                        {isClient && filteredRawMaterials.map(p => (
+                                                                            <CommandItem
+                                                                                key={p.id}
+                                                                                value={p.name}
+                                                                                onSelect={() => {
+                                                                                    form.setValue(`items.${index}.rawMaterialId`, p.id);
+                                                                                    handleItemMaterialChange(index, p.id);
+                                                                                }}
+                                                                            >
+                                                                                <Check className={cn("mr-2 h-4 w-4", p.id === field.value ? "opacity-100" : "opacity-0")} />
+                                                                                {p.name}
+                                                                            </CommandItem>
+                                                                        ))}
+                                                                    </CommandGroup>
+                                                                </CommandList>
+                                                            </Command>
+                                                        </PopoverContent>
+                                                    </Popover>
                                                     <FormMessage />
                                                 </FormItem>
                                             )}
