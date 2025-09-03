@@ -262,6 +262,8 @@ export function AppSidebar() {
                 </>
             )}
         </SidebarMenu>
+      </SidebarContent>
+       <SidebarFooter>
         <SidebarMenu>
             <SidebarSeparator />
             {hasPermission('settings', 'view') && (
@@ -275,8 +277,6 @@ export function AppSidebar() {
             </SidebarMenuItem>
             )}
         </SidebarMenu>
-      </SidebarContent>
-       <SidebarFooter>
         <SidebarSeparator />
          <div className="flex flex-col gap-2 p-2 text-sm">
             <p className="font-medium text-sidebar-foreground truncate">{user.username}</p>
