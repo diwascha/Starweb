@@ -41,13 +41,9 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
     try {
-      // Check against users in local storage first
-      const foundUser = users.find(
-        (user) => user.username === data.username && user.password === data.password
-      );
-
-      if (foundUser) {
-        await login(foundUser);
+       // First, check for hardcoded administrator
+      if (data.username === 'Administrator' && data.password === 'Admin') {
+        await login({ id: 'admin', username: data.username, roleId: 'admin' });
         toast({
           title: 'Success',
           description: 'Logged in successfully.',
@@ -56,9 +52,13 @@ export default function LoginPage() {
         return;
       }
       
-      // Then, check for hardcoded administrator
-      if (data.username === 'Administrator' && data.password === 'Admin') {
-        await login({ id: 'admin', username: data.username, roleId: 'admin' });
+      // Then, check against users in local storage
+      const foundUser = users.find(
+        (user) => user.username === data.username && user.password === data.password
+      );
+
+      if (foundUser) {
+        await login(foundUser);
         toast({
           title: 'Success',
           description: 'Logged in successfully.',

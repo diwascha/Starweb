@@ -35,10 +35,13 @@ const pageOrder: Module[] = ['dashboard', 'reports', 'products', 'purchaseOrders
 
 // Function to convert kebab-case to camelCase
 const kebabToCamel = (s: string): Module => {
+    // Special case for root path
+    if (s === 'report' || s === 'product' || s === 'purchase-order') {
+        return (s + 's') as Module;
+    }
     const cameled = s.replace(/-./g, x => x[1].toUpperCase());
     return cameled as Module;
 };
-
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<UserSession | null>(null);
@@ -61,7 +64,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   
   const hasPermission = useCallback((module: Module, action: Action): boolean => {
     if (!user) return false;
-    // All users can view the dashboard
+    // Admins and all users can view the dashboard
     if (module === 'dashboard' && action === 'view') return true;
     if (user.roleId === 'admin') return true;
     if (user.permissions) {
@@ -122,11 +125,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             
             if (firstAllowedPage) {
                 const redirectPath = `/${firstAllowedPage.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`)}`;
-                if (pathname !== redirectPath) {
+                 if (pathname !== redirectPath) {
                     router.push(redirectPath);
                 }
             } else {
-                if (pathname !== '/dashboard') {
+                 if (pathname !== '/dashboard') {
                    router.push('/dashboard');
                 }
             }
