@@ -159,15 +159,9 @@ export default function PurchaseOrderView({ poId }: { poId: string }) {
                   </div>
                 </section>
             )}
-            <div className="mt-16 grid grid-cols-2 gap-8 pt-12 text-sm">
-              <div className="text-center">
-                <div className="border-t border-black w-48 mx-auto"></div>
-                <p className="font-semibold mt-2">Prepared by</p>
-              </div>
-              <div className="text-center">
-                <div className="border-t border-black w-48 mx-auto"></div>
-                <p className="font-semibold mt-2">Approved by</p>
-              </div>
+            <div className="mt-16 text-center pt-12 text-xs text-gray-500">
+              <p>This is a digitally issued document and is valid without a signature.</p>
+              <p className="font-semibold mt-1">SHIVAM PACKAGING INDUSTRIES PVT LTD.</p>
             </div>
           </CardContent>
         </Card>
