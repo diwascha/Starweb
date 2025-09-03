@@ -8,7 +8,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from '@/components/ui/sidebar';
-import { FileText, LayoutDashboard, TestTubeDiagonal, Package, FileSpreadsheet } from 'lucide-react';
+import { FileText, LayoutDashboard, TestTubeDiagonal, Package, FileSpreadsheet, ShoppingCart } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -37,6 +37,14 @@ export function AppSidebar() {
             <Link href="/reports">
               <FileSpreadsheet />
               <span>Reports</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+         <SidebarMenuItem>
+          <SidebarMenuButton asChild isActive={pathname.startsWith('/purchase-orders')}>
+            <Link href="/purchase-orders">
+              <ShoppingCart />
+              <span>Purchase Orders</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>

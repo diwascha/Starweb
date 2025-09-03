@@ -1,3 +1,4 @@
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -41,4 +42,22 @@ export interface Report {
   date: string;
   testData: TestResultData;
   printLog?: PrintLogEntry[];
+}
+
+export interface PurchaseOrderItem {
+  productId: string;
+  productName: string;
+  quantity: number;
+  rate: number;
+  amount: number;
+}
+
+export interface PurchaseOrder {
+  id: string;
+  poNumber: string;
+  poDate: string; // ISO string
+  companyName: string;
+  companyAddress: string;
+  items: PurchaseOrderItem[];
+  totalAmount: number;
 }
