@@ -47,15 +47,15 @@ const materialTypes = [
 type RawMaterialSortKey = 'name' | 'type';
 type SortDirection = 'asc' | 'desc';
 
-const generateMaterialName = (type: string, size: string, gsm: string, bf: string) => {
+const generateMaterialName = (name: string, type: string, size: string, gsm: string, bf: string) => {
     if (type === 'Kraft Paper' || type === 'Virgin Paper') {
-        const parts = [type];
+        const parts = [name || type];
         if (size) parts.push(`${size} inch`);
         if (gsm) parts.push(`${gsm} GSM`);
         if (bf) parts.push(`${bf} BF`);
         return parts.join(' - ');
     }
-    return type;
+    return name;
 };
 
 
@@ -63,6 +63,7 @@ export default function RawMaterialsPage() {
   const [rawMaterials, setRawMaterials] = useLocalStorage<RawMaterial[]>('rawMaterials', []);
   
   const [newMaterialType, setNewMaterialType] = useState('');
+  const [newMaterialName, setNewMaterialName] = useState('');
   const [newMaterialSize, setNewMaterialSize] = useState('');
   const [newMaterialGsm, setNewMaterialGsm] = useState('');
   const [newMaterialBf, setNewMaterialBf] = useState('');
@@ -85,6 +86,7 @@ export default function RawMaterialsPage() {
   
   const resetForm = () => {
     setNewMaterialType('');
+    setNewMaterialName('');
     setNewMaterialSize('');
     setNewMaterialGsm('');
     setNewMaterialBf('');
@@ -99,6 +101,7 @@ export default function RawMaterialsPage() {
   const openEditMaterialDialog = (material: RawMaterial) => {
     setEditingMaterial(material);
     setNewMaterialType(material.type);
+    setNewMaterialName(material.name);
     setNewMaterialSize(material.size);
     setNewMaterialGsm(material.gsm);
     setNewMaterialBf(material.bf);
@@ -106,14 +109,26 @@ export default function RawMaterialsPage() {
   };
 
   const handleMaterialSubmit = () => {
-    if (newMaterialType.trim() !== '') {
-        const generatedName = generateMaterialName(newMaterialType.trim(), newMaterialSize.trim(), newMaterialGsm.trim(), newMaterialBf.trim());
+    const isPaper = newMaterialType === 'Kraft Paper' || newMaterialType === 'Virgin Paper';
+    
+    if (newMaterialType.trim() === '' || (!isPaper && newMaterialName.trim() === '')) {
+      toast({ title: 'Error', description: 'Please fill all required fields.', variant: 'destructive' });
+      return;
+    }
+    
+    const finalName = generateMaterialName(
+        newMaterialName.trim(), 
+        newMaterialType.trim(), 
+        newMaterialSize.trim(), 
+        newMaterialGsm.trim(), 
+        newMaterialBf.trim()
+    );
 
       if (editingMaterial) {
         const updatedMaterial: RawMaterial = {
           ...editingMaterial,
           type: newMaterialType.trim(),
-          name: generatedName,
+          name: finalName,
           size: newMaterialSize.trim(),
           gsm: newMaterialGsm.trim(),
           bf: newMaterialBf.trim(),
@@ -124,7 +139,7 @@ export default function RawMaterialsPage() {
         const newMaterial: RawMaterial = {
           id: crypto.randomUUID(),
           type: newMaterialType.trim(),
-          name: generatedName,
+          name: finalName,
           size: newMaterialSize.trim(),
           gsm: newMaterialGsm.trim(),
           bf: newMaterialBf.trim(),
@@ -134,9 +149,6 @@ export default function RawMaterialsPage() {
       }
       resetForm();
       setIsMaterialDialogOpen(false);
-    } else {
-      toast({ title: 'Error', description: 'Please select a Type.', variant: 'destructive' });
-    }
   };
   
   const deleteMaterial = (id: string) => {
@@ -335,6 +347,17 @@ export default function RawMaterialsPage() {
                             </SelectContent>
                         </Select>
                     </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="material-name">Name / Description</Label>
+                        <Input
+                        id="material-name"
+                        value={newMaterialName}
+                        onChange={e => setNewMaterialName(e.target.value)}
+                        placeholder={isPaper ? "e.g. Kraft Paper" : "e.g. Corrugation Gum"}
+                        />
+                    </div>
+                    
                     {isPaper && (
                         <>
                            <div className="space-y-2">
