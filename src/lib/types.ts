@@ -44,12 +44,16 @@ export interface Report {
   printLog?: PrintLogEntry[];
 }
 
+export interface RawMaterial {
+  id: string;
+  name: string;
+  category: string;
+}
+
 export interface PurchaseOrderItem {
-  productId: string;
-  productName: string;
-  quantity: number;
-  rate: number;
-  amount: number;
+  rawMaterialId: string;
+  rawMaterialName: string;
+  quantity: string;
 }
 
 export interface PurchaseOrder {
@@ -59,5 +63,4 @@ export interface PurchaseOrder {
   companyName: string;
   companyAddress: string;
   items: PurchaseOrderItem[];
-  totalAmount: number;
 }

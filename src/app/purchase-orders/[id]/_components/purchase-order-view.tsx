@@ -80,31 +80,19 @@ export default function PurchaseOrderView({ poId }: { poId: string }) {
                     <TableRow className="border-b-gray-300">
                       <TableHead className="text-black font-semibold">S.N.</TableHead>
                       <TableHead className="text-black font-semibold">Particulars</TableHead>
-                      <TableHead className="text-black font-semibold">Quantity</TableHead>
-                      <TableHead className="text-black font-semibold">Rate</TableHead>
-                      <TableHead className="text-black font-semibold text-right">Amount</TableHead>
+                      <TableHead className="text-black font-semibold text-right">Quantity</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {purchaseOrder.items.map((item, index) => (
-                      <TableRow key={item.productId} className="border-b-gray-300">
+                      <TableRow key={item.rawMaterialId} className="border-b-gray-300">
                         <TableCell>{index + 1}</TableCell>
-                        <TableCell>{item.productName}</TableCell>
-                        <TableCell>{item.quantity}</TableCell>
-                        <TableCell>{item.rate.toFixed(2)}</TableCell>
-                        <TableCell className="text-right">{item.amount.toFixed(2)}</TableCell>
+                        <TableCell>{item.rawMaterialName}</TableCell>
+                        <TableCell className="text-right">{item.quantity}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
-              </div>
-              <div className="flex justify-end mt-4">
-                <div className="w-1/3">
-                    <div className="flex justify-between font-semibold text-lg">
-                        <span>Total:</span>
-                        <span>{purchaseOrder.totalAmount.toFixed(2)}</span>
-                    </div>
-                </div>
               </div>
             </section>
             <div className="mt-16 grid grid-cols-2 gap-8 pt-12 text-sm">

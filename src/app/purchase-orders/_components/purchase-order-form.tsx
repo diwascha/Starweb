@@ -8,7 +8,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import useLocalStorage from '@/hooks/use-local-storage';
-import type { Product, PurchaseOrder } from '@/lib/types';
+import type { RawMaterial, PurchaseOrder } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
@@ -24,11 +24,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import NepaliDate from 'nepali-date-converter';
 
 const poItemSchema = z.object({
-  productId: z.string().min(1, 'Product is required.'),
-  productName: z.string(),
-  quantity: z.coerce.number().min(1, 'Quantity must be at least 1.'),
-  rate: z.coerce.number().min(0, 'Rate cannot be negative.'),
-  amount: z.coerce.number(),
+  rawMaterialId: z.string().min(1, 'Material is required.'),
+  rawMaterialName: z.string(),
+  quantity: z.string().min(1, 'Quantity is required.'),
 });
 
 const purchaseOrderSchema = z.object({
@@ -46,7 +44,7 @@ interface PurchaseOrderFormProps {
 }
 
 export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
-  const [products] = useLocalStorage<Product[]>('products', []);
+  const [rawMaterials] = useLocalStorage<RawMaterial[]>('rawMaterials', []);
   const [purchaseOrders, setPurchaseOrders] = useLocalStorage<PurchaseOrder[]>('purchaseOrders', []);
   const router = useRouter();
   const { toast } = useToast();
@@ -94,13 +92,13 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
 
   const companies = useMemo(() => {
     const companyMap = new Map<string, {name: string, address: string}>();
-    products.forEach(product => {
-        if (product.companyName && !companyMap.has(product.companyName.toLowerCase())) {
-            companyMap.set(product.companyName.toLowerCase(), { name: product.companyName, address: product.address });
+    purchaseOrders.forEach(po => {
+        if (po.companyName && !companyMap.has(po.companyName.toLowerCase())) {
+            companyMap.set(po.companyName.toLowerCase(), { name: po.companyName, address: po.companyAddress });
         }
     });
     return Array.from(companyMap.values()).sort((a,b) => a.name.localeCompare(b.name));
-  }, [products]);
+  }, [purchaseOrders]);
 
   const handleCompanySelect = (companyName: string) => {
     form.setValue('companyName', companyName);
@@ -113,29 +111,18 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     setIsCompanyPopoverOpen(false);
   };
   
-  const handleItemProductChange = (index: number, productId: string) => {
-    const product = products.find(p => p.id === productId);
-    if (product) {
+  const handleItemMaterialChange = (index: number, rawMaterialId: string) => {
+    const material = rawMaterials.find(p => p.id === rawMaterialId);
+    if (material) {
       const currentItem = form.getValues(`items.${index}`);
-      update(index, { ...currentItem, productId: product.id, productName: product.name });
+      update(index, { ...currentItem, rawMaterialId: material.id, rawMaterialName: material.name });
     }
   };
 
-  const handleItemValueChange = (index: number, field: 'quantity' | 'rate', value: string) => {
-    const numericValue = parseFloat(value) || 0;
-    const currentItem = form.getValues(`items.${index}`);
-    const newValues = { ...currentItem, [field]: numericValue };
-    const quantity = newValues.quantity || 0;
-    const rate = newValues.rate || 0;
-    newValues.amount = quantity * rate;
-    update(index, newValues);
-  }
-
   const addNewItem = () => {
-    append({ productId: '', productName: '', quantity: 1, rate: 0, amount: 0 });
+    append({ rawMaterialId: '', rawMaterialName: '', quantity: '' });
   };
   
-  const totalAmount = form.watch('items').reduce((acc, item) => acc + (item.amount || 0), 0);
   const poDate = form.watch('poDate');
   const nepaliDateString = useMemo(() => {
     if (!poDate) return '';
@@ -145,12 +132,11 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
 
   async function onSubmit(values: PurchaseOrderFormValues) {
     try {
-        const finalValues = { ...values, totalAmount };
       if (poToEdit) {
         const updatedPO: PurchaseOrder = {
           ...poToEdit,
-          ...finalValues,
-          poDate: finalValues.poDate.toISOString(),
+          ...values,
+          poDate: values.poDate.toISOString(),
         };
         setPurchaseOrders(purchaseOrders.map(p => (p.id === poToEdit.id ? updatedPO : p)));
         toast({ title: 'Success', description: 'Purchase Order updated.' });
@@ -158,8 +144,8 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
       } else {
         const newPO: PurchaseOrder = {
           id: crypto.randomUUID(),
-          ...finalValues,
-          poDate: finalValues.poDate.toISOString(),
+          ...values,
+          poDate: values.poDate.toISOString(),
         };
         setPurchaseOrders([...purchaseOrders, newPO]);
         toast({ title: 'Success', description: 'New Purchase Order created.' });
@@ -229,7 +215,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                 name="companyName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Company Name</FormLabel>
+                    <FormLabel>Supplier Company</FormLabel>
                     <Popover open={isCompanyPopoverOpen} onOpenChange={setIsCompanyPopoverOpen}>
                         <PopoverTrigger asChild>
                             <FormControl>
@@ -273,7 +259,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                     name="companyAddress"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Company Address</FormLabel>
+                            <FormLabel>Supplier Address</FormLabel>
                             <FormControl><Textarea {...field} /></FormControl>
                             <FormMessage />
                         </FormItem>
@@ -290,16 +276,14 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                         <PlusCircle className="mr-2 h-4 w-4" /> Add Item
                     </Button>
                 </div>
-                <CardDescription>Add products to the purchase order.</CardDescription>
+                <CardDescription>Add raw materials to the purchase order.</CardDescription>
             </CardHeader>
             <CardContent>
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead className="w-2/5">Product</TableHead>
+                            <TableHead className="w-3/5">Material</TableHead>
                             <TableHead>Quantity</TableHead>
-                            <TableHead>Rate</TableHead>
-                            <TableHead>Amount</TableHead>
                             <TableHead className="w-[50px]"> </TableHead>
                         </TableRow>
                     </TableHeader>
@@ -309,17 +293,17 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                 <TableCell>
                                     <FormField
                                         control={form.control}
-                                        name={`items.${index}.productId`}
+                                        name={`items.${index}.rawMaterialId`}
                                         render={({ field }) => (
                                             <FormItem>
-                                                <Select onValueChange={(value) => { field.onChange(value); handleItemProductChange(index, value); }} defaultValue={field.value}>
+                                                <Select onValueChange={(value) => { field.onChange(value); handleItemMaterialChange(index, value); }} defaultValue={field.value}>
                                                     <FormControl>
                                                         <SelectTrigger>
-                                                            <SelectValue placeholder="Select a product" />
+                                                            <SelectValue placeholder="Select a material" />
                                                         </SelectTrigger>
                                                     </FormControl>
                                                     <SelectContent>
-                                                        {isClient && products.map(p => (
+                                                        {isClient && rawMaterials.map(p => (
                                                             <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                                                         ))}
                                                     </SelectContent>
@@ -334,25 +318,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                         control={form.control}
                                         name={`items.${index}.quantity`}
                                         render={({ field }) => (
-                                            <FormItem><FormControl><Input type="number" {...field} onChange={e => handleItemValueChange(index, 'quantity', e.target.value)}/></FormControl><FormMessage /></FormItem>
-                                        )}
-                                    />
-                                </TableCell>
-                                 <TableCell>
-                                    <FormField
-                                        control={form.control}
-                                        name={`items.${index}.rate`}
-                                        render={({ field }) => (
-                                            <FormItem><FormControl><Input type="number" {...field} onChange={e => handleItemValueChange(index, 'rate', e.target.value)}/></FormControl><FormMessage /></FormItem>
-                                        )}
-                                    />
-                                </TableCell>
-                                <TableCell>
-                                    <FormField
-                                        control={form.control}
-                                        name={`items.${index}.amount`}
-                                        render={({ field }) => (
-                                            <FormItem><FormControl><Input readOnly {...field} value={field.value.toFixed(2)} /></FormControl></FormItem>
+                                            <FormItem><FormControl><Input placeholder="e.g. 5 Tons" {...field} /></FormControl><FormMessage /></FormItem>
                                         )}
                                     />
                                 </TableCell>
@@ -366,12 +332,6 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                     </TableBody>
                 </Table>
                 {form.formState.errors.items?.message && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.items.message}</p>}
-
-                 <div className="flex justify-end mt-4">
-                    <div className="text-lg font-semibold">
-                        Total: {totalAmount.toFixed(2)}
-                    </div>
-                </div>
             </CardContent>
           </Card>
           <Button type="submit">{buttonText}</Button>

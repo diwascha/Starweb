@@ -31,7 +31,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { useRouter } from 'next/navigation';
 
-type SortKey = 'poNumber' | 'poDate' | 'companyName' | 'totalAmount';
+type SortKey = 'poNumber' | 'poDate' | 'companyName';
 type SortDirection = 'asc' | 'desc';
 
 export default function PurchaseOrdersPage() {
@@ -72,7 +72,7 @@ export default function PurchaseOrdersPage() {
         filtered = filtered.filter(po =>
             (po.poNumber || '').toLowerCase().includes(lowercasedQuery) ||
             (po.companyName || '').toLowerCase().includes(lowercasedQuery) ||
-            po.items.some(item => item.productName.toLowerCase().includes(lowercasedQuery))
+            po.items.some(item => (item.rawMaterialName || '').toLowerCase().includes(lowercasedQuery))
         );
     }
     
@@ -140,11 +140,6 @@ export default function PurchaseOrdersPage() {
                     Company Name <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
                 </TableHead>
-                <TableHead>
-                    <Button variant="ghost" onClick={() => requestSort('totalAmount')}>
-                    Total Amount <ArrowUpDown className="ml-2 h-4 w-4" />
-                    </Button>
-                </TableHead>
                 <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
             </TableHeader>
@@ -154,7 +149,6 @@ export default function PurchaseOrdersPage() {
                     <TableCell className="font-medium">{po.poNumber}</TableCell>
                     <TableCell>{new Date(po.poDate).toLocaleDateString()}</TableCell>
                     <TableCell>{po.companyName}</TableCell>
-                    <TableCell>{po.totalAmount.toFixed(2)}</TableCell>
                     <TableCell className="text-right">
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>

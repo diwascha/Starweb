@@ -1,6 +1,6 @@
 
 import { Button } from '@/components/ui/button';
-import { FileText, PlusCircle } from 'lucide-react';
+import { FileText, PlusCircle, Package } from 'lucide-react';
 import Link from 'next/link';
 
 export default function DashboardPage() {
@@ -19,7 +19,7 @@ export default function DashboardPage() {
           </Button>
           <Button asChild variant="outline">
             <Link href="/products">
-              <PlusCircle className="mr-2 h-4 w-4" /> Add Product
+              <Package className="mr-2 h-4 w-4" /> Add Product
             </Link>
           </Button>
         </div>
