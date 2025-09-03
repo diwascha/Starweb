@@ -189,9 +189,10 @@ export default function RawMaterialsPage() {
   };
   
   const tabs = useMemo(() => {
+    if (!isClient) return ['All'];
     const types = new Set(rawMaterials.map(m => m.type));
     return ['All', ...Array.from(types).sort()];
-  }, [rawMaterials]);
+  }, [rawMaterials, isClient]);
   
   const filteredAndSortedMaterials = useMemo(() => {
     let filtered = [...rawMaterials];
@@ -456,18 +457,21 @@ export default function RawMaterialsPage() {
           </Dialog>
         </div>
       </header>
-       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-            {tabs.map(tab => (
-                 <TabsTrigger key={tab} value={tab}>{tab}</TabsTrigger>
-            ))}
-        </TabsList>
-        {tabs.map(tab => (
-            <TabsContent key={tab} value={tab}>
-                {renderContent()}
-            </TabsContent>
-        ))}
-      </Tabs>
+       {isClient && (
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList>
+              {tabs.map(tab => (
+                   <TabsTrigger key={tab} value={tab}>{tab}</TabsTrigger>
+              ))}
+          </TabsList>
+          {tabs.map(tab => (
+              <TabsContent key={tab} value={tab}>
+                  {renderContent()}
+              </TabsContent>
+          ))}
+        </Tabs>
+       )}
+       {!isClient && renderContent()}
     </div>
   );
 }
