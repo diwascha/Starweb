@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview An AI flow to summarize changes between two versions of a purchase order.
@@ -45,7 +46,7 @@ function toPromptData(po: PurchaseOrder): z.infer<typeof PurchaseOrderSchema> {
     items: po.items.map(item => ({
       rawMaterialName: item.rawMaterialName,
       quantity: item.quantity,
-      unit: item.unit,
+      unit: item.unit || 'N/A', // Handle cases where unit might be missing in old data
     })),
   };
 }
