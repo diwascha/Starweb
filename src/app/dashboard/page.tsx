@@ -107,6 +107,24 @@ export default function DashboardPage() {
       );
   }
 
+  // Check if user has any view permissions at all.
+  const hasAnyViewPermission = [
+    'dashboard', 'reports', 'products', 'purchaseOrders', 'rawMaterials', 'settings'
+  ].some(module => hasPermission(module as any, 'view'));
+
+
+  if (!hasAnyViewPermission) {
+    return (
+      <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
+        <div className="flex flex-col items-center gap-1 text-center">
+          <h3 className="text-2xl font-bold tracking-tight">Access Denied</h3>
+          <p className="text-sm text-muted-foreground">You do not have permissions to view any modules. Please contact an administrator.</p>
+        </div>
+      </div>
+    );
+  }
+
+
   return (
     <div className="flex flex-col gap-8">
       <header className="flex items-center justify-between">

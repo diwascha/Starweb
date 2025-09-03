@@ -34,8 +34,12 @@ const USER_SESSION_KEY = 'user_session';
 const pageOrder: Module[] = ['dashboard', 'reports', 'products', 'purchaseOrders', 'rawMaterials', 'settings'];
 
 // Function to convert kebab-case to camelCase
-const kebabToCamel = (s: string): string => {
-  return s.replace(/-./g, x => x[1].toUpperCase());
+const kebabToCamel = (s: string): Module => {
+  const camelCase = s.replace(/-./g, x => x[1].toUpperCase());
+   if (camelCase === 'purchaseOrder') return 'purchaseOrders';
+  if (camelCase === 'rawMaterial') return 'rawMaterials';
+  if (camelCase === 'report') return 'reports';
+  return camelCase as Module;
 };
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -110,13 +114,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     if (user && !isAuthPage) {
         const pathSegments = pathname.split('/').filter(Boolean);
-        let pathModule = pathSegments[0] || 'dashboard';
-
-        if (pathModule === 'report') {
-            pathModule = 'reports';
-        }
-        
-        const currentModule = kebabToCamel(pathModule) as Module;
+        const pathModuleKebab = pathSegments[0] || 'dashboard';
+        const currentModule = kebabToCamel(pathModuleKebab);
 
         const canViewCurrentModule = modules.includes(currentModule) && hasPermission(currentModule, 'view');
         
@@ -124,11 +123,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const firstAllowedPage = pageOrder.find(module => hasPermission(module, 'view'));
             
             if (firstAllowedPage) {
-                // Convert camelCase module name back to kebab-case for URL path
                 const redirectPath = `/${firstAllowedPage.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`)}`;
-                router.push(redirectPath);
+                if (pathname !== redirectPath) {
+                    router.push(redirectPath);
+                }
             } else {
-                logout();
+                // If user has no view permissions for any page, keep them on dashboard
+                // The dashboard will show a message for them. Don't log them out.
+                if (pathname !== '/dashboard') {
+                   router.push('/dashboard');
+                }
             }
         }
     }
