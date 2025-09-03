@@ -13,6 +13,8 @@ import Image from 'next/image';
 import NepaliDate from 'nepali-date-converter';
 import { useRouter } from 'next/navigation';
 
+const paperTypes = ['Kraft Paper', 'Virgin Paper'];
+
 export default function PurchaseOrderView({ poId }: { poId: string }) {
   const [purchaseOrders] = useLocalStorage<PurchaseOrder[]>('purchaseOrders', []);
   const [purchaseOrder, setPurchaseOrder] = useState<PurchaseOrder | null>(null);
@@ -97,43 +99,52 @@ export default function PurchaseOrderView({ poId }: { poId: string }) {
             <p className="text-sm">{purchaseOrder.companyAddress}</p>
           </CardHeader>
           <CardContent className="space-y-6">
-            <section>
-              <h2 className="text-xl font-semibold mb-2">Order Details</h2>
-              <div className="border rounded-lg border-gray-300">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-b-gray-300">
-                      <TableHead className="text-black font-semibold">S.N.</TableHead>
-                      <TableHead className="text-black font-semibold">Description</TableHead>
-                      <TableHead className="text-black font-semibold">Size (Inch)</TableHead>
-                      <TableHead className="text-black font-semibold">GSM</TableHead>
-                      <TableHead className="text-black font-semibold">BF</TableHead>
-                      <TableHead className="text-black font-semibold text-right">Quantity</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                     {Object.entries(groupedItems).map(([type, items]) => (
-                        <Fragment key={type}>
-                            <TableRow className="border-b-gray-300">
-                                <TableCell colSpan={6} className="font-bold">{type}</TableCell>
+            <section className="space-y-4">
+              <h2 className="text-xl font-semibold">Order Details</h2>
+               {Object.entries(groupedItems).map(([type, items]) => {
+                  const isPaper = paperTypes.includes(type);
+                  return (
+                    <div key={type} className="border rounded-lg border-gray-300">
+                        <Table>
+                        <TableHeader>
+                            <TableRow className="border-b-gray-300 bg-gray-100">
+                                <TableCell colSpan={isPaper ? 6 : 4} className="font-bold text-black">{type}</TableCell>
                             </TableRow>
+                            <TableRow className="border-b-gray-300">
+                            <TableHead className="text-black font-semibold">S.N.</TableHead>
+                            <TableHead className="text-black font-semibold">Description</TableHead>
+                            {isPaper && (
+                                <>
+                                <TableHead className="text-black font-semibold">Size (Inch)</TableHead>
+                                <TableHead className="text-black font-semibold">GSM</TableHead>
+                                <TableHead className="text-black font-semibold">BF</TableHead>
+                                </>
+                            )}
+                            <TableHead className="text-black font-semibold text-right">Quantity</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
                             {items.map((item, index) => (
-                              <TableRow key={`${item.rawMaterialId}-${index}`} className="border-b-gray-300">
+                            <TableRow key={`${item.rawMaterialId}-${index}`} className="border-b-gray-300">
                                 <TableCell>{index + 1}</TableCell>
                                 <TableCell>{item.rawMaterialName}</TableCell>
-                                <TableCell>{item.size || '-'}</TableCell>
-                                <TableCell>{item.gsm || '-'}</TableCell>
-                                <TableCell>{item.bf || '-'}</TableCell>
+                                {isPaper && (
+                                    <>
+                                        <TableCell>{item.size || '-'}</TableCell>
+                                        <TableCell>{item.gsm || '-'}</TableCell>
+                                        <TableCell>{item.bf || '-'}</TableCell>
+                                    </>
+                                )}
                                 <TableCell className="text-right">{item.quantity} {item.unit}</TableCell>
-                              </TableRow>
+                            </TableRow>
                             ))}
-                        </Fragment>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                        </TableBody>
+                        </Table>
+                    </div>
+                  );
+                })}
             </section>
-             {showAmendedDate && purchaseOrder.amendments && (
+             {showAmendedDate && purchaseOrder.amendments && purchaseOrder.amendments.length > 0 && (
                 <section>
                   <h3 className="text-lg font-semibold">Amendment History</h3>
                   <div className="text-sm border-t border-gray-300 mt-2 pt-2 space-y-2">
