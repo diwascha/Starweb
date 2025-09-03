@@ -16,7 +16,7 @@ interface UserSession {
 interface AuthContextType {
   user: UserSession | null;
   loading: boolean;
-  login: (user: UserSession) => Promise<void>;
+  login: (user: User) => Promise<void>;
   logout: () => Promise<void>;
   hasPermission: (module: Module, action: Action) => boolean;
 }
@@ -36,11 +36,6 @@ const pageOrder: Module[] = ['dashboard', 'reports', 'products', 'purchaseOrders
 // Function to convert kebab-case to camelCase
 const kebabToCamel = (s: string): Module => {
     const cameled = s.replace(/-./g, x => x[1].toUpperCase());
-    // Handle specific pluralization cases from URLs
-    if (cameled === 'purchaseOrder') return 'purchaseOrders';
-    if (cameled === 'rawMaterial') return 'rawMaterials';
-    if (cameled === 'report') return 'reports';
-    if (cameled === 'product') return 'products';
     return cameled as Module;
 };
 
@@ -48,7 +43,6 @@ const kebabToCamel = (s: string): Module => {
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<UserSession | null>(null);
   const [loading, setLoading] = useState(true);
-  const [users] = useLocalStorage<User[]>('users', []);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -77,24 +71,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return false;
   }, [user]);
 
-  const login = useCallback(async (userToLogin: UserSession) => {
+  const login = useCallback(async (userToLogin: User) => {
     let sessionToStore: UserSession;
-    if (userToLogin.username === 'Administrator') {
+    if (userToLogin.username === 'Administrator' && userToLogin.roleId === 'admin') {
       sessionToStore = {
         username: userToLogin.username,
         roleId: 'admin',
       };
     } else {
-       const foundUser = users.find(u => u.username === userToLogin.username);
        sessionToStore = {
           username: userToLogin.username,
           roleId: 'user',
-          permissions: foundUser?.permissions,
+          permissions: userToLogin.permissions,
        };
     }
     sessionStorage.setItem(USER_SESSION_KEY, JSON.stringify(sessionToStore));
     setUser(sessionToStore);
-  }, [users]);
+  }, []);
 
   const logout = useCallback(async () => {
     sessionStorage.removeItem(USER_SESSION_KEY);
@@ -119,25 +112,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     if (user && !isAuthPage) {
         const pathSegments = pathname.split('/').filter(Boolean);
-        // Default to dashboard if no path segments
         const pathModuleKebab = pathSegments[0] || 'dashboard';
         const currentModule = kebabToCamel(pathModuleKebab);
 
         const canViewCurrentModule = modules.includes(currentModule) && hasPermission(currentModule, 'view');
         
         if (!canViewCurrentModule) {
-            // Find the first page the user has access to and redirect
             const firstAllowedPage = pageOrder.find(module => hasPermission(module, 'view'));
             
             if (firstAllowedPage) {
-                // Convert camelCase module name to kebab-case path
                 const redirectPath = `/${firstAllowedPage.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`)}`;
                 if (pathname !== redirectPath) {
                     router.push(redirectPath);
                 }
             } else {
-                // If user has no view permissions for any page, keep them on dashboard
-                // The dashboard will show a message for them. Don't log them out.
                 if (pathname !== '/dashboard') {
                    router.push('/dashboard');
                 }
@@ -154,5 +142,3 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 };
 
 export const useAuth = () => useContext(AuthContext);
-
-    

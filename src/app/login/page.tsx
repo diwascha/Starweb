@@ -47,7 +47,7 @@ export default function LoginPage() {
       );
 
       if (foundUser) {
-        await login({ username: foundUser.username, roleId: foundUser.roleId, permissions: foundUser.permissions });
+        await login(foundUser);
         toast({
           title: 'Success',
           description: 'Logged in successfully.',
@@ -58,7 +58,7 @@ export default function LoginPage() {
       
       // Then, check for hardcoded administrator
       if (data.username === 'Administrator' && data.password === 'Admin') {
-        await login({ username: data.username, roleId: 'admin' });
+        await login({ id: 'admin', username: data.username, roleId: 'admin' });
         toast({
           title: 'Success',
           description: 'Logged in successfully.',
