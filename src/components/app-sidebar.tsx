@@ -39,12 +39,9 @@ export function AppSidebar() {
 
   const getIsActive = (path: string) => {
     if (!isClient) return false;
-    // For the dashboard, we want an exact match.
     if (path === '/dashboard') {
       return pathname === path;
     }
-    // For all other main sections, we check if the current URL path starts with the link's path.
-    // This correctly handles nested pages like /products/new, /reports/123, etc.
     return pathname.startsWith(path);
   };
   
@@ -83,7 +80,7 @@ export function AppSidebar() {
         )}
          {hasPermission('reports', 'view') && (
            <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={getIsActive('/reports')}>
+            <SidebarMenuButton asChild isActive={getIsActive('/reports') || getIsActive('/report/')}>
               <Link href="/reports">
                 <FileSpreadsheet />
                 <span>QT Reports Database</span>
