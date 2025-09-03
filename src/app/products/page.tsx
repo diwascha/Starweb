@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search } from 'lucide-react';
 import useLocalStorage from '@/hooks/use-local-storage';
 import type { Report, Product, ProductSpecification } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -68,6 +68,7 @@ export default function ProductsPage() {
   
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   
   const [productSortConfig, setProductSortConfig] = useState<{ key: ProductSortKey; direction: SortDirection }>({
     key: 'name',
@@ -169,10 +170,20 @@ export default function ProductsPage() {
     setProductSortConfig({ key, direction });
   };
   
-  const sortedProducts = useMemo(() => {
-    const sortableProducts = [...products];
+  const filteredAndSortedProducts = useMemo(() => {
+    let filteredProducts = [...products];
+
+    if (searchQuery) {
+        const lowercasedQuery = searchQuery.toLowerCase();
+        filteredProducts = filteredProducts.filter(product =>
+            (product.name || '').toLowerCase().includes(lowercasedQuery) ||
+            (product.materialCode || '').toLowerCase().includes(lowercasedQuery) ||
+            (product.companyName || '').toLowerCase().includes(lowercasedQuery)
+        );
+    }
+
     if (productSortConfig.key) {
-      sortableProducts.sort((a, b) => {
+      filteredProducts.sort((a, b) => {
         const aValue = a[productSortConfig.key].toLowerCase();
         const bValue = b[productSortConfig.key].toLowerCase();
 
@@ -185,8 +196,8 @@ export default function ProductsPage() {
         return 0;
       });
     }
-    return sortableProducts;
-  }, [products, productSortConfig]);
+    return filteredProducts;
+  }, [products, productSortConfig, searchQuery]);
 
   const renderContent = () => {
     if (!isClient) {
@@ -240,7 +251,7 @@ export default function ProductsPage() {
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {sortedProducts.map(product => (
+                {filteredAndSortedProducts.map(product => (
                 <TableRow key={product.id}>
                     <TableCell className="font-medium">{product.name}</TableCell>
                     <TableCell>{product.materialCode}</TableCell>
@@ -295,7 +306,17 @@ export default function ProductsPage() {
             <h1 className="text-3xl font-bold tracking-tight">Products</h1>
             <p className="text-muted-foreground">Add, view, and manage your products.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+            <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                    type="search"
+                    placeholder="Search products..."
+                    className="pl-8 sm:w-[300px]"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                />
+            </div>
           <Dialog open={isProductDialogOpen} onOpenChange={setIsProductDialogOpen}>
             <DialogTrigger asChild>
               <Button onClick={openAddProductDialog}>
