@@ -44,6 +44,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
+import { useAuth } from '@/hooks/use-auth';
 
 type SortKey = 'poNumber' | 'poDate' | 'companyName' | 'status';
 type SortDirection = 'asc' | 'desc';
@@ -60,6 +61,7 @@ export default function PurchaseOrdersPage() {
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
   const router = useRouter();
+  const { hasPermission } = useAuth();
 
   const [deliveryDialogOpen, setDeliveryDialogOpen] = useState(false);
   const [poToUpdate, setPoToUpdate] = useState<PurchaseOrder | null>(null);
@@ -171,11 +173,13 @@ export default function PurchaseOrdersPage() {
             <div className="flex flex-col items-center gap-1 text-center">
               <h3 className="text-2xl font-bold tracking-tight">No purchase orders yet</h3>
               <p className="text-sm text-muted-foreground">Get started by creating a new purchase order.</p>
-              <Button className="mt-4" asChild>
-                <Link href="/purchase-orders/new">
-                  <PlusCircle className="mr-2 h-4 w-4" /> New Purchase Order
-                </Link>
-              </Button>
+              {hasPermission('purchaseOrders', 'create') && (
+                <Button className="mt-4" asChild>
+                    <Link href="/purchase-orders/new">
+                    <PlusCircle className="mr-2 h-4 w-4" /> New Purchase Order
+                    </Link>
+                </Button>
+              )}
             </div>
           </div>
         );
@@ -226,40 +230,57 @@ export default function PurchaseOrdersPage() {
                         </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => router.push(`/purchase-orders/${po.id}`)}>
-                            <View className="mr-2 h-4 w-4" /> View
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => router.push(`/purchase-orders/edit/${po.id}`)} disabled={po.status === 'Delivered' || po.status === 'Canceled'}>
-                            <Edit className="mr-2 h-4 w-4" /> Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onSelect={() => handleOpenDeliveryDialog(po)} disabled={po.status === 'Delivered' || po.status === 'Canceled'}>
-                             <PackageCheck className="mr-2 h-4 w-4" /> Mark as Delivered
-                        </DropdownMenuItem>
-                         <DropdownMenuItem onSelect={() => updatePoStatus(po.id, 'Canceled')} disabled={po.status === 'Delivered' || po.status === 'Canceled'}>
-                            <Ban className="mr-2 h-4 w-4" /> Cancel Order
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                            <DropdownMenuItem onSelect={e => e.preventDefault()}>
-                                <Trash2 className="mr-2 h-4 w-4 text-destructive" />
-                                <span className="text-destructive">Delete</span>
+                        {hasPermission('purchaseOrders', 'view') && (
+                            <DropdownMenuItem onSelect={() => router.push(`/purchase-orders/${po.id}`)}>
+                                <View className="mr-2 h-4 w-4" /> View
                             </DropdownMenuItem>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                            <AlertDialogHeader>
-                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                This action cannot be undone. This will permanently delete the purchase order.
-                                </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => deletePurchaseOrder(po.id)}>Delete</AlertDialogAction>
-                            </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
+                        )}
+                        {hasPermission('purchaseOrders', 'edit') && (
+                            <DropdownMenuItem onClick={() => router.push(`/purchase-orders/edit/${po.id}`)} disabled={po.status === 'Delivered' || po.status === 'Canceled'}>
+                                <Edit className="mr-2 h-4 w-4" /> Edit
+                            </DropdownMenuItem>
+                        )}
+                        
+                        {(hasPermission('purchaseOrders', 'view') || hasPermission('purchaseOrders', 'edit')) &&
+                         (hasPermission('purchaseOrders', 'delete') || hasPermission('purchaseOrders', 'edit')) &&
+                         <DropdownMenuSeparator />
+                        }
+
+                        {hasPermission('purchaseOrders', 'edit') && (
+                            <>
+                                <DropdownMenuItem onSelect={() => handleOpenDeliveryDialog(po)} disabled={po.status === 'Delivered' || po.status === 'Canceled'}>
+                                    <PackageCheck className="mr-2 h-4 w-4" /> Mark as Delivered
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => updatePoStatus(po.id, 'Canceled')} disabled={po.status === 'Delivered' || po.status === 'Canceled'}>
+                                    <Ban className="mr-2 h-4 w-4" /> Cancel Order
+                                </DropdownMenuItem>
+                            </>
+                        )}
+                        
+                        {hasPermission('purchaseOrders', 'delete') && hasPermission('purchaseOrders', 'edit') && <DropdownMenuSeparator />}
+                        
+                        {hasPermission('purchaseOrders', 'delete') && (
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                                    <Trash2 className="mr-2 h-4 w-4 text-destructive" />
+                                    <span className="text-destructive">Delete</span>
+                                </DropdownMenuItem>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                    This action cannot be undone. This will permanently delete the purchase order.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => deletePurchaseOrder(po.id)}>Delete</AlertDialogAction>
+                                </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        )}
                         </DropdownMenuContent>
                     </DropdownMenu>
                     </TableCell>
@@ -289,11 +310,13 @@ export default function PurchaseOrdersPage() {
                     onChange={(e) => setSearchQuery(e.target.value)}
                 />
             </div>
-          <Button asChild>
-            <Link href="/purchase-orders/new">
-              <PlusCircle className="mr-2 h-4 w-4" /> New Purchase Order
-            </Link>
-          </Button>
+            {hasPermission('purchaseOrders', 'create') && (
+                <Button asChild>
+                    <Link href="/purchase-orders/new">
+                    <PlusCircle className="mr-2 h-4 w-4" /> New Purchase Order
+                    </Link>
+                </Button>
+            )}
         </div>
       </header>
       {renderContent()}

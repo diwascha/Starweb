@@ -104,7 +104,7 @@ export function AppSidebar() {
             <SidebarMenuButton asChild isActive={getIsActive('/products', true)}>
               <Link href="/products">
                 <Package />
-                <span>QT Product</span>
+                <span>QT Products</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

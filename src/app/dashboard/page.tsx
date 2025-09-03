@@ -14,11 +14,13 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { getStatusBadgeVariant } from '@/lib/utils';
 import { differenceInDays } from 'date-fns';
+import { useAuth } from '@/hooks/use-auth';
 
 export default function DashboardPage() {
   const [reports] = useLocalStorage<Report[]>('reports', []);
   const [purchaseOrders] = useLocalStorage<PurchaseOrder[]>('purchaseOrders', []);
   const [isClient, setIsClient] = useState(false);
+  const { hasPermission } = useAuth();
 
   useEffect(() => {
     setIsClient(true);
@@ -113,16 +115,20 @@ export default function DashboardPage() {
           <p className="text-muted-foreground">An overview of your test reports and product data.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button asChild>
-            <Link href="/report/new">
-              <PlusCircle className="mr-2 h-4 w-4" /> New QT Reports
-            </Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href="/purchase-orders/new">
-              <ShoppingCart className="mr-2 h-4 w-4" /> New Purchase Order
-            </Link>
-          </Button>
+            {hasPermission('reports', 'create') && (
+              <Button asChild>
+                <Link href="/report/new">
+                  <PlusCircle className="mr-2 h-4 w-4" /> New QT Reports
+                </Link>
+              </Button>
+            )}
+            {hasPermission('purchaseOrders', 'create') && (
+              <Button asChild variant="outline">
+                <Link href="/purchase-orders/new">
+                  <ShoppingCart className="mr-2 h-4 w-4" /> New Purchase Order
+                </Link>
+              </Button>
+            )}
         </div>
       </header>
       

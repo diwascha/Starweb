@@ -41,18 +41,7 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
     try {
-      // Check for hardcoded administrator first
-      if (data.username === 'Administrator' && data.password === 'Admin') {
-        await login({ username: data.username, roleId: 'admin' });
-        toast({
-          title: 'Success',
-          description: 'Logged in successfully.',
-        });
-        router.push('/dashboard');
-        return;
-      }
-
-      // Check against users in local storage
+      // Check against users in local storage first
       const foundUser = users.find(
         (user) => user.username === data.username && user.password === data.password
       );
@@ -64,9 +53,22 @@ export default function LoginPage() {
           description: 'Logged in successfully.',
         });
         router.push('/dashboard');
-      } else {
-        throw new Error('Invalid username or password.');
+        return;
       }
+      
+      // Then, check for hardcoded administrator
+      if (data.username === 'Administrator' && data.password === 'Admin') {
+        await login({ username: data.username, roleId: 'admin' });
+        toast({
+          title: 'Success',
+          description: 'Logged in successfully.',
+        });
+        router.push('/dashboard');
+        return;
+      }
+
+      throw new Error('Invalid username or password.');
+
     } catch (error: any) {
       toast({
         title: 'Login Failed',
@@ -119,5 +121,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
-    

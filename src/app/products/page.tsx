@@ -44,6 +44,7 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/hooks/use-auth';
 
 
 const initialSpecValues: ProductSpecification = {
@@ -84,6 +85,7 @@ export default function ProductsPage() {
 
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
+  const { hasPermission } = useAuth();
 
   useEffect(() => {
     setIsClient(true);
@@ -244,9 +246,11 @@ export default function ProductsPage() {
             <div className="flex flex-col items-center gap-1 text-center">
               <h3 className="text-2xl font-bold tracking-tight">No products found</h3>
               <p className="text-sm text-muted-foreground">Get started by adding a new product.</p>
-              <Button className="mt-4" onClick={openAddProductDialog}>
-                 <Plus className="mr-2 h-4 w-4" /> Add Product
-              </Button>
+               {hasPermission('products', 'create') && (
+                <Button className="mt-4" onClick={openAddProductDialog}>
+                    <Plus className="mr-2 h-4 w-4" /> Add Product
+                </Button>
+               )}
             </div>
           </div>
         );
@@ -292,10 +296,13 @@ export default function ProductsPage() {
                         </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => openEditProductDialog(product)}>
-                            <Edit className="mr-2 h-4 w-4" /> Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
+                         {hasPermission('products', 'edit') && (
+                            <DropdownMenuItem onSelect={() => openEditProductDialog(product)}>
+                                <Edit className="mr-2 h-4 w-4" /> Edit
+                            </DropdownMenuItem>
+                         )}
+                         {hasPermission('products', 'delete') && hasPermission('products', 'edit') && <DropdownMenuSeparator />}
+                         {hasPermission('products', 'delete') && (
                             <AlertDialog>
                             <AlertDialogTrigger asChild>
                                 <DropdownMenuItem onSelect={e => e.preventDefault()}>
@@ -316,6 +323,7 @@ export default function ProductsPage() {
                                 </AlertDialogFooter>
                             </AlertDialogContent>
                         </AlertDialog>
+                         )}
                         </DropdownMenuContent>
                     </DropdownMenu>
                     </TableCell>
@@ -345,135 +353,137 @@ export default function ProductsPage() {
                     onChange={(e) => setSearchQuery(e.target.value)}
                 />
             </div>
-          <Dialog open={isProductDialogOpen} onOpenChange={setIsProductDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={openAddProductDialog}>
-                <Plus className="mr-2 h-4 w-4" /> Add Product
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>{dialogTitle}</DialogTitle>
-                <DialogDescription>{dialogDescription}</DialogDescription>
-              </DialogHeader>
-              <form
-                id="add-product-form"
-                onSubmit={e => {
-                  e.preventDefault();
-                  handleProductSubmit();
-                }}
-              >
-                <ScrollArea className="h-[60vh] pr-4">
-                  <div className="grid gap-6 py-4">
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="product-name">Product Name</Label>
-                          <Input
-                            id="product-name"
-                            value={newProductName}
-                            onChange={e => setNewProductName(e.target.value)}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                           <Label htmlFor="material-code">Material Code</Label>
-                           <Input
-                            id="material-code"
-                            value={newMaterialCode}
-                            onChange={e => setNewMaterialCode(e.target.value)}
-                          />
-                        </div>
-                    </div>
-                     <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="company-name">Delivered To</Label>
-                            <Popover open={isCompanyPopoverOpen} onOpenChange={setIsCompanyPopoverOpen}>
-                                <PopoverTrigger asChild>
-                                    <Button
-                                        variant="outline"
-                                        role="combobox"
-                                        aria-expanded={isCompanyPopoverOpen}
-                                        className="w-full justify-between"
-                                    >
-                                        {newCompanyName || "Select or type a company..."}
-                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="p-0">
-                                    <Command>
-                                        <CommandInput 
-                                            placeholder="Search or add company..."
-                                            value={newCompanyName}
-                                            onValueChange={setNewCompanyName}
-                                        />
-                                        <CommandList>
-                                            <CommandEmpty>
-                                                <button 
-                                                    className="w-full text-left p-2 text-sm"
-                                                    onClick={() => handleCompanySelect(newCompanyName)}
-                                                >
-                                                    Add "{newCompanyName}"
-                                                </button>
-                                            </CommandEmpty>
-                                            <CommandGroup>
-                                                {companies.map((company) => (
-                                                    <CommandItem
-                                                        key={company}
-                                                        value={company}
-                                                        onSelect={(currentValue) => {
-                                                            handleCompanySelect(currentValue === newCompanyName.toLowerCase() ? '' : company)
-                                                        }}
-                                                    >
-                                                        <Check
-                                                            className={cn(
-                                                            "mr-2 h-4 w-4",
-                                                            newCompanyName.toLowerCase() === company.toLowerCase() ? "opacity-100" : "opacity-0"
-                                                            )}
-                                                        />
-                                                        {company}
-                                                    </CommandItem>
-                                                ))}
-                                            </CommandGroup>
-                                        </CommandList>
-                                    </Command>
-                                </PopoverContent>
-                            </Popover>
-                        </div>
-                        <div className="space-y-2">
-                           <Label htmlFor="address">Address</Label>
-                           <Textarea
-                            id="address"
-                            value={newAddress}
-                            onChange={e => setNewAddress(e.target.value)}
-                            />
-                        </div>
-                    </div>
-                    
-                    <div>
-                        <h3 className="text-lg font-semibold mb-4">Standard Specifications</h3>
+          {hasPermission('products', 'create') && (
+              <Dialog open={isProductDialogOpen} onOpenChange={setIsProductDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button onClick={openAddProductDialog}>
+                    <Plus className="mr-2 h-4 w-4" /> Add Product
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle>{dialogTitle}</DialogTitle>
+                    <DialogDescription>{dialogDescription}</DialogDescription>
+                  </DialogHeader>
+                  <form
+                    id="add-product-form"
+                    onSubmit={e => {
+                      e.preventDefault();
+                      handleProductSubmit();
+                    }}
+                  >
+                    <ScrollArea className="h-[60vh] pr-4">
+                      <div className="grid gap-6 py-4">
                         <div className="grid grid-cols-2 gap-4">
-                        {Object.keys(initialSpecValues).map(key => (
-                          <div key={key} className="space-y-2">
-                            <Label htmlFor={key}>
-                              {formatLabel(key)}
-                            </Label>
-                            <Input
-                              id={key}
-                              name={key}
-                              value={newSpec[key as keyof ProductSpecification]}
-                              onChange={handleSpecChange}
-                            />
-                          </div>
-                        ))}
+                            <div className="space-y-2">
+                              <Label htmlFor="product-name">Product Name</Label>
+                              <Input
+                                id="product-name"
+                                value={newProductName}
+                                onChange={e => setNewProductName(e.target.value)}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                               <Label htmlFor="material-code">Material Code</Label>
+                               <Input
+                                id="material-code"
+                                value={newMaterialCode}
+                                onChange={e => setNewMaterialCode(e.target.value)}
+                              />
+                            </div>
                         </div>
-                    </div>
-                  </div>
-                </ScrollArea>
-              </form>
-              <DialogFooter>
-                <Button type="submit" form="add-product-form">{dialogButtonText}</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+                         <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="company-name">Delivered To</Label>
+                                <Popover open={isCompanyPopoverOpen} onOpenChange={setIsCompanyPopoverOpen}>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            role="combobox"
+                                            aria-expanded={isCompanyPopoverOpen}
+                                            className="w-full justify-between"
+                                        >
+                                            {newCompanyName || "Select or type a company..."}
+                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="p-0">
+                                        <Command>
+                                            <CommandInput 
+                                                placeholder="Search or add company..."
+                                                value={newCompanyName}
+                                                onValueChange={setNewCompanyName}
+                                            />
+                                            <CommandList>
+                                                <CommandEmpty>
+                                                    <button 
+                                                        className="w-full text-left p-2 text-sm"
+                                                        onClick={() => handleCompanySelect(newCompanyName)}
+                                                    >
+                                                        Add "{newCompanyName}"
+                                                    </button>
+                                                </CommandEmpty>
+                                                <CommandGroup>
+                                                    {companies.map((company) => (
+                                                        <CommandItem
+                                                            key={company}
+                                                            value={company}
+                                                            onSelect={(currentValue) => {
+                                                                handleCompanySelect(currentValue === newCompanyName.toLowerCase() ? '' : company)
+                                                            }}
+                                                        >
+                                                            <Check
+                                                                className={cn(
+                                                                "mr-2 h-4 w-4",
+                                                                newCompanyName.toLowerCase() === company.toLowerCase() ? "opacity-100" : "opacity-0"
+                                                                )}
+                                                            />
+                                                            {company}
+                                                        </CommandItem>
+                                                    ))}
+                                                </CommandGroup>
+                                            </CommandList>
+                                        </Command>
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+                            <div className="space-y-2">
+                               <Label htmlFor="address">Address</Label>
+                               <Textarea
+                                id="address"
+                                value={newAddress}
+                                onChange={e => setNewAddress(e.target.value)}
+                                />
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <h3 className="text-lg font-semibold mb-4">Standard Specifications</h3>
+                            <div className="grid grid-cols-2 gap-4">
+                            {Object.keys(initialSpecValues).map(key => (
+                              <div key={key} className="space-y-2">
+                                <Label htmlFor={key}>
+                                  {formatLabel(key)}
+                                </Label>
+                                <Input
+                                  id={key}
+                                  name={key}
+                                  value={newSpec[key as keyof ProductSpecification]}
+                                  onChange={handleSpecChange}
+                                />
+                              </div>
+                            ))}
+                            </div>
+                        </div>
+                      </div>
+                    </ScrollArea>
+                  </form>
+                  <DialogFooter>
+                    <Button type="submit" form="add-product-form">{dialogButtonText}</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+          )}
         </div>
       </header>
       {renderContent()}

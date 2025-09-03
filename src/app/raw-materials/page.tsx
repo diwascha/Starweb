@@ -44,6 +44,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/hooks/use-auth';
 
 const materialTypes = [
     'Kraft Paper', 'Virgin Paper', 'Gum', 'Ink', 'Stitching Wire', 'Strapping', 'Machinery Spare Parts', 'Other'
@@ -88,6 +89,7 @@ export default function RawMaterialsPage() {
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
   const [activeTab, setActiveTab] = useState('All');
+  const { hasPermission } = useAuth();
   
   const [unitInputValue, setUnitInputValue] = useState('');
   const [isUnitPopoverOpen, setIsUnitPopoverOpen] = useState(false);
@@ -285,9 +287,11 @@ export default function RawMaterialsPage() {
             <div className="flex flex-col items-center gap-1 text-center">
               <h3 className="text-2xl font-bold tracking-tight">No raw materials found</h3>
               <p className="text-sm text-muted-foreground">Get started by adding a new raw material.</p>
-              <Button className="mt-4" onClick={openAddMaterialDialog}>
-                 <Plus className="mr-2 h-4 w-4" /> Add Raw Material
-              </Button>
+              {hasPermission('rawMaterials', 'create') && (
+                <Button className="mt-4" onClick={openAddMaterialDialog}>
+                    <Plus className="mr-2 h-4 w-4" /> Add Raw Material
+                </Button>
+              )}
             </div>
           </div>
         );
@@ -347,10 +351,13 @@ export default function RawMaterialsPage() {
                             </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                            <DropdownMenuItem onSelect={() => openEditMaterialDialog(material)}>
-                                <Edit className="mr-2 h-4 w-4" /> Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
+                            {hasPermission('rawMaterials', 'edit') && (
+                                <DropdownMenuItem onSelect={() => openEditMaterialDialog(material)}>
+                                    <Edit className="mr-2 h-4 w-4" /> Edit
+                                </DropdownMenuItem>
+                            )}
+                            {hasPermission('rawMaterials', 'edit') && hasPermission('rawMaterials', 'delete') && <DropdownMenuSeparator />}
+                            {hasPermission('rawMaterials', 'delete') && (
                                 <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                     <DropdownMenuItem onSelect={e => e.preventDefault()}>
@@ -371,6 +378,7 @@ export default function RawMaterialsPage() {
                                     </AlertDialogFooter>
                                 </AlertDialogContent>
                             </AlertDialog>
+                            )}
                             </DropdownMenuContent>
                         </DropdownMenu>
                         </TableCell>
@@ -401,135 +409,137 @@ export default function RawMaterialsPage() {
                     onChange={(e) => setSearchQuery(e.target.value)}
                 />
             </div>
-          <Dialog open={isMaterialDialogOpen} onOpenChange={setIsMaterialDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={openAddMaterialDialog}>
-                <Plus className="mr-2 h-4 w-4" /> Add Raw Material
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>{dialogTitle}</DialogTitle>
-                <DialogDescription>{dialogDescription}</DialogDescription>
-              </DialogHeader>
-              <form
-                id="add-material-form"
-                onSubmit={e => {
-                  e.preventDefault();
-                  handleMaterialSubmit();
-                }}
-              >
-                  <div className="grid gap-4 py-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="material-type">Type</Label>
-                        <Select onValueChange={setNewMaterialType} value={newMaterialType}>
-                            <SelectTrigger id="material-type">
-                                <SelectValue placeholder="Select a type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {materialTypes.map(cat => (
-                                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    
-                    {!isPaperTypeSelectedInDialog && newMaterialType && (
+          {hasPermission('rawMaterials', 'create') && (
+            <Dialog open={isMaterialDialogOpen} onOpenChange={setIsMaterialDialogOpen}>
+                <DialogTrigger asChild>
+                <Button onClick={openAddMaterialDialog}>
+                    <Plus className="mr-2 h-4 w-4" /> Add Raw Material
+                </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>{dialogTitle}</DialogTitle>
+                    <DialogDescription>{dialogDescription}</DialogDescription>
+                </DialogHeader>
+                <form
+                    id="add-material-form"
+                    onSubmit={e => {
+                    e.preventDefault();
+                    handleMaterialSubmit();
+                    }}
+                >
+                    <div className="grid gap-4 py-4">
                         <div className="space-y-2">
-                            <Label htmlFor="material-name">Name / Description</Label>
-                            <Input
-                            id="material-name"
-                            value={newMaterialName}
-                            onChange={e => setNewMaterialName(e.target.value)}
-                            placeholder={"e.g. Corrugation Gum"}
-                            />
-                        </div>
-                    )}
-                    
-                    {isPaperTypeSelectedInDialog && (
-                        <>
-                           <div className="space-y-2">
-                             <Label htmlFor="material-size">Size (Inch)</Label>
-                             <Input
-                                id="material-size"
-                                value={newMaterialSize}
-                                onChange={e => setNewMaterialSize(e.target.value)}
-                                placeholder="e.g. 42.5"
-                              />
-                           </div>
-                            <div className="space-y-2">
-                             <Label htmlFor="material-gsm">GSM</Label>
-                             <Input
-                                id="material-gsm"
-                                value={newMaterialGsm}
-                                onChange={e => setNewMaterialGsm(e.target.value)}
-                                placeholder="e.g. 150"
-                              />
-                           </div>
-                            <div className="space-y-2">
-                             <Label htmlFor="material-bf">BF</Label>
-                             <Input
-                                id="material-bf"
-                                value={newMaterialBf}
-                                onChange={e => setNewMaterialBf(e.target.value)}
-                                placeholder="e.g. 20"
-                              />
-                           </div>
-                        </>
-                    )}
-                     {newMaterialType && (
-                        <div className="space-y-2">
-                            <Label htmlFor="material-units">Units of Measurement</Label>
-                             <Popover open={isUnitPopoverOpen} onOpenChange={setIsUnitPopoverOpen}>
-                                <PopoverTrigger asChild>
-                                    <div className="flex min-h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm flex-wrap gap-1">
-                                    {newMaterialUnits.map(unit => (
-                                        <Badge key={unit} variant="secondary" className="gap-1">
-                                            {unit}
-                                            <button onClick={() => handleUnitRemove(unit)} className="rounded-full hover:bg-background/50">
-                                                <X className="h-3 w-3" />
-                                            </button>
-                                        </Badge>
+                            <Label htmlFor="material-type">Type</Label>
+                            <Select onValueChange={setNewMaterialType} value={newMaterialType}>
+                                <SelectTrigger id="material-type">
+                                    <SelectValue placeholder="Select a type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {materialTypes.map(cat => (
+                                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                                     ))}
-                                    <input
-                                        placeholder={newMaterialUnits.length === 0 ? "e.g. Kg, Ton..." : ""}
-                                        value={unitInputValue}
-                                        onChange={e => setUnitInputValue(e.target.value)}
-                                        onKeyDown={handleUnitKeyDown}
-                                        className="bg-transparent outline-none flex-1 placeholder:text-muted-foreground text-sm"
-                                    />
-                                    </div>
-                                </PopoverTrigger>
-                                <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
-                                    <Command>
-                                        <CommandInput 
-                                            placeholder="Search or create unit..."
-                                            value={unitInputValue}
-                                            onValueChange={setUnitInputValue}
-                                        />
-                                        <CommandList>
-                                            <CommandEmpty>No results. Press Enter to add.</CommandEmpty>
-                                            <CommandGroup>
-                                                {allUnits.filter(u => !newMaterialUnits.includes(u)).map(unit => (
-                                                    <CommandItem key={unit} onSelect={() => handleUnitSelect(unit)}>
-                                                        <Check className={cn("mr-2 h-4 w-4", newMaterialUnits.includes(unit) ? "opacity-100" : "opacity-0")} />
-                                                        {unit}
-                                                    </CommandItem>
-                                                ))}
-                                            </CommandGroup>
-                                        </CommandList>
-                                    </Command>
-                                </PopoverContent>
-                            </Popover>
+                                </SelectContent>
+                            </Select>
                         </div>
-                    )}
-                  </div>
-              </form>
-              <DialogFooter>
-                <Button type="submit" form="add-material-form">{dialogButtonText}</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+                        
+                        {!isPaperTypeSelectedInDialog && newMaterialType && (
+                            <div className="space-y-2">
+                                <Label htmlFor="material-name">Name / Description</Label>
+                                <Input
+                                id="material-name"
+                                value={newMaterialName}
+                                onChange={e => setNewMaterialName(e.target.value)}
+                                placeholder={"e.g. Corrugation Gum"}
+                                />
+                            </div>
+                        )}
+                        
+                        {isPaperTypeSelectedInDialog && (
+                            <>
+                               <div className="space-y-2">
+                                 <Label htmlFor="material-size">Size (Inch)</Label>
+                                 <Input
+                                    id="material-size"
+                                    value={newMaterialSize}
+                                    onChange={e => setNewMaterialSize(e.target.value)}
+                                    placeholder="e.g. 42.5"
+                                  />
+                               </div>
+                                <div className="space-y-2">
+                                 <Label htmlFor="material-gsm">GSM</Label>
+                                 <Input
+                                    id="material-gsm"
+                                    value={newMaterialGsm}
+                                    onChange={e => setNewMaterialGsm(e.target.value)}
+                                    placeholder="e.g. 150"
+                                  />
+                               </div>
+                                <div className="space-y-2">
+                                 <Label htmlFor="material-bf">BF</Label>
+                                 <Input
+                                    id="material-bf"
+                                    value={newMaterialBf}
+                                    onChange={e => setNewMaterialBf(e.target.value)}
+                                    placeholder="e.g. 20"
+                                  />
+                               </div>
+                            </>
+                        )}
+                         {newMaterialType && (
+                            <div className="space-y-2">
+                                <Label htmlFor="material-units">Units of Measurement</Label>
+                                 <Popover open={isUnitPopoverOpen} onOpenChange={setIsUnitPopoverOpen}>
+                                    <PopoverTrigger asChild>
+                                        <div className="flex min-h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm flex-wrap gap-1">
+                                        {newMaterialUnits.map(unit => (
+                                            <Badge key={unit} variant="secondary" className="gap-1">
+                                                {unit}
+                                                <button onClick={() => handleUnitRemove(unit)} className="rounded-full hover:bg-background/50">
+                                                    <X className="h-3 w-3" />
+                                                </button>
+                                            </Badge>
+                                        ))}
+                                        <input
+                                            placeholder={newMaterialUnits.length === 0 ? "e.g. Kg, Ton..." : ""}
+                                            value={unitInputValue}
+                                            onChange={e => setUnitInputValue(e.target.value)}
+                                            onKeyDown={handleUnitKeyDown}
+                                            className="bg-transparent outline-none flex-1 placeholder:text-muted-foreground text-sm"
+                                        />
+                                        </div>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
+                                        <Command>
+                                            <CommandInput 
+                                                placeholder="Search or create unit..."
+                                                value={unitInputValue}
+                                                onValueChange={setUnitInputValue}
+                                            />
+                                            <CommandList>
+                                                <CommandEmpty>No results. Press Enter to add.</CommandEmpty>
+                                                <CommandGroup>
+                                                    {allUnits.filter(u => !newMaterialUnits.includes(u)).map(unit => (
+                                                        <CommandItem key={unit} onSelect={() => handleUnitSelect(unit)}>
+                                                            <Check className={cn("mr-2 h-4 w-4", newMaterialUnits.includes(unit) ? "opacity-100" : "opacity-0")} />
+                                                            {unit}
+                                                        </CommandItem>
+                                                    ))}
+                                                </CommandGroup>
+                                            </CommandList>
+                                        </Command>
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+                        )}
+                    </div>
+                </form>
+                <DialogFooter>
+                    <Button type="submit" form="add-material-form">{dialogButtonText}</Button>
+                </DialogFooter>
+                </DialogContent>
+            </Dialog>
+          )}
         </div>
       </header>
        {isClient ? (
@@ -549,4 +559,3 @@ export default function RawMaterialsPage() {
     </div>
   );
 }
-

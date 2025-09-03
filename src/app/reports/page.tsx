@@ -30,6 +30,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/use-auth';
 
 type ReportSortKey = 'serialNumber' | 'productName' | 'taxInvoiceNumber' | 'challanNumber' | 'quantity';
 type SortDirection = 'asc' | 'desc';
@@ -46,6 +47,7 @@ export default function ReportsPage() {
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
   const router = useRouter();
+  const { hasPermission } = useAuth();
 
   useEffect(() => {
     setIsClient(true);
@@ -158,11 +160,13 @@ export default function ReportsPage() {
               <FileText className="h-12 w-12 text-muted-foreground" />
               <h3 className="text-2xl font-bold tracking-tight">No reports yet</h3>
               <p className="text-sm text-muted-foreground">Get started by creating a new report.</p>
-              <Button className="mt-4" asChild>
-                <Link href="/report/new">
-                  <PlusCircle className="mr-2 h-4 w-4" /> New QT Reports
-                </Link>
-              </Button>
+              {hasPermission('reports', 'create') && (
+                <Button className="mt-4" asChild>
+                    <Link href="/report/new">
+                    <PlusCircle className="mr-2 h-4 w-4" /> New QT Reports
+                    </Link>
+                </Button>
+              )}
             </div>
           </div>
         );
@@ -222,36 +226,44 @@ export default function ReportsPage() {
                         </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => router.push(`/report/${report.id}`)}>
-                            <View className="mr-2 h-4 w-4" /> View
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => router.push(`/report/edit/${report.id}`)}>
-                            <Edit className="mr-2 h-4 w-4" /> Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => handlePrint(report)}>
-                            <Printer className="mr-2 h-4 w-4" /> Print
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                            <DropdownMenuItem onSelect={e => e.preventDefault()}>
-                                <Trash2 className="mr-2 h-4 w-4 text-destructive" />
-                                <span className="text-destructive">Delete</span>
+                        {hasPermission('reports', 'view') && (
+                           <DropdownMenuItem onSelect={() => router.push(`/report/${report.id}`)}>
+                                <View className="mr-2 h-4 w-4" /> View
                             </DropdownMenuItem>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                            <AlertDialogHeader>
-                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                This action cannot be undone. This will permanently delete the report.
-                                </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => deleteReport(report.id)}>Delete</AlertDialogAction>
-                            </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
+                        )}
+                        {hasPermission('reports', 'edit') && (
+                            <DropdownMenuItem onSelect={() => router.push(`/report/edit/${report.id}`)}>
+                                <Edit className="mr-2 h-4 w-4" /> Edit
+                            </DropdownMenuItem>
+                        )}
+                        {hasPermission('reports', 'view') && (
+                            <DropdownMenuItem onSelect={() => handlePrint(report)}>
+                                <Printer className="mr-2 h-4 w-4" /> Print
+                            </DropdownMenuItem>
+                        )}
+                        {(hasPermission('reports', 'edit') || hasPermission('reports', 'view')) && hasPermission('reports', 'delete') && <DropdownMenuSeparator />}
+                        {hasPermission('reports', 'delete') && (
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                                    <Trash2 className="mr-2 h-4 w-4 text-destructive" />
+                                    <span className="text-destructive">Delete</span>
+                                </DropdownMenuItem>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                    This action cannot be undone. This will permanently delete the report.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => deleteReport(report.id)}>Delete</AlertDialogAction>
+                                </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        )}
                         </DropdownMenuContent>
                     </DropdownMenu>
                     </TableCell>
@@ -281,11 +293,13 @@ export default function ReportsPage() {
                     onChange={(e) => setSearchQuery(e.target.value)}
                 />
             </div>
-          <Button asChild>
-            <Link href="/report/new">
-              <PlusCircle className="mr-2 h-4 w-4" /> New QT Reports
-            </Link>
-          </Button>
+          {hasPermission('reports', 'create') && (
+            <Button asChild>
+                <Link href="/report/new">
+                <PlusCircle className="mr-2 h-4 w-4" /> New QT Reports
+                </Link>
+            </Button>
+          )}
         </div>
       </header>
       {renderContent()}
