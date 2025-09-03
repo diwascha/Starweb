@@ -2,7 +2,7 @@
 'use client';
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Truck, Users, ShieldCheck, Star, DollarSign, Wrench } from 'lucide-react';
+import { Truck, Users, ShieldCheck, Star, CreditCard, Wrench } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
 
@@ -40,18 +40,10 @@ const fleetModules = [
         action: 'view'
     },
     {
-        name: 'Income',
-        description: 'Log and track all revenue from vehicles.',
-        href: '/fleet/income',
-        icon: DollarSign,
-        permission: 'fleet',
-        action: 'view'
-    },
-    {
-        name: 'Expenses',
-        description: 'Log and track all vehicle-related expenses.',
-        href: '/fleet/expenses',
-        icon: Wrench,
+        name: 'Transactions',
+        description: 'Log and track all income and expenses.',
+        href: '/fleet/transactions',
+        icon: CreditCard,
         permission: 'fleet',
         action: 'view'
     },

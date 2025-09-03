@@ -12,7 +12,7 @@ import {
   SidebarSeparator,
   SidebarContent,
 } from '@/components/ui/sidebar';
-import { FileText, LayoutDashboard, TestTubeDiagonal, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users, Calendar, Award, Wallet, Building2, PlusCircle, Truck, ShieldCheck, Star, DollarSign } from 'lucide-react';
+import { FileText, LayoutDashboard, TestTubeDiagonal, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users, Calendar, Award, Wallet, Building2, PlusCircle, Truck, ShieldCheck, Star, CreditCard } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
@@ -151,7 +151,8 @@ export function AppSidebar() {
                     </div>
                 </>
             )}
-
+        </SidebarMenu>
+        <SidebarMenu>
              <SidebarSeparator />
              <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={getIsActive('/hr')}>
@@ -203,7 +204,8 @@ export function AppSidebar() {
                     </SidebarMenuButton>
                 </SidebarMenuItem>
             </div>
-
+        </SidebarMenu>
+        <SidebarMenu>
             {hasPermission('fleet', 'view') && (
                  <>
                     <SidebarSeparator />
@@ -249,25 +251,18 @@ export function AppSidebar() {
                             </SidebarMenuButton>
                         </SidebarMenuItem>
                         <SidebarMenuItem>
-                            <SidebarMenuButton asChild isActive={getIsActive('/fleet/income')}>
-                            <Link href="/fleet/income">
-                                <DollarSign />
-                                <span>Income</span>
-                            </Link>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
-                        <SidebarMenuItem>
-                            <SidebarMenuButton asChild isActive={getIsActive('/fleet/expenses')}>
-                            <Link href="/fleet/expenses">
-                                <Wrench />
-                                <span>Expenses</span>
+                            <SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions')}>
+                            <Link href="/fleet/transactions">
+                                <CreditCard />
+                                <span>Transactions</span>
                             </Link>
                             </SidebarMenuButton>
                         </SidebarMenuItem>
                     </div>
                 </>
             )}
-            
+        </SidebarMenu>
+        <SidebarMenu>
             <SidebarSeparator />
             {hasPermission('settings', 'view') && (
             <SidebarMenuItem>

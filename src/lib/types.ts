@@ -156,20 +156,17 @@ export interface Membership {
 export const expenseCategories = ['Fuel', 'Maintenance', 'Insurance', 'Tires', 'Repairs', 'Tolls', 'Permits', 'Other'] as const;
 export type ExpenseCategory = typeof expenseCategories[number];
 
-export interface Expense {
-    id: string;
-    vehicleId: string;
-    date: string; // ISO string
-    category: ExpenseCategory;
-    amount: number;
-    description: string;
-}
+export const incomeSources = ['Freight', 'Leasing', 'Sale', 'Other'] as const;
+export type IncomeSource = typeof incomeSources[number];
 
-export interface Income {
+export type TransactionType = 'Income' | 'Expense';
+
+export interface Transaction {
     id: string;
     vehicleId: string;
     date: string; // ISO string
-    source: string;
+    type: TransactionType;
+    category: ExpenseCategory | IncomeSource;
     amount: number;
     description: string;
 }
