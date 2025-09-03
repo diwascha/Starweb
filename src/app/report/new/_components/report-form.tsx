@@ -25,9 +25,9 @@ import { RefreshCw } from 'lucide-react';
 
 const reportFormSchema = z.object({
   productId: z.string().min(1, { message: 'Product is required.' }),
-  taxInvoiceNumber: z.string().min(1, { message: 'Tax Invoice Number is required.' }),
-  challanNumber: z.string().min(1, { message: 'Challan Number is required.' }),
-  quantity: z.string().min(1, { message: 'Quantity is required.' }),
+  taxInvoiceNumber: z.string().optional(),
+  challanNumber: z.string().optional(),
+  quantity: z.string().optional(),
   dimension: z.string().min(1, { message: 'Dimension result is required.' }),
   ply: z.string().min(1, { message: 'Ply result is required.' }),
   gsm: z.string().min(1, { message: 'GSM result is required.' }),
@@ -244,18 +244,18 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
           const updatedReport: Report = {
               ...reportToEdit,
               product: selectedProduct,
-              taxInvoiceNumber,
-              challanNumber,
-              quantity,
+              taxInvoiceNumber: taxInvoiceNumber || 'N/A',
+              challanNumber: challanNumber || 'N/A',
+              quantity: quantity || 'N/A',
               testData,
           };
           setReports(reports.map(r => r.id === reportToEdit.id ? updatedReport : r));
           toast({ title: 'Success', description: 'Report updated successfully.' });
       } else {
         const newReportData: Omit<Report, 'id' | 'serialNumber'> = {
-            taxInvoiceNumber,
-            challanNumber,
-            quantity,
+            taxInvoiceNumber: taxInvoiceNumber || 'N/A',
+            challanNumber: challanNumber || 'N/A',
+            quantity: quantity || 'N/A',
             product: selectedProduct,
             date: new Date().toISOString(),
             testData,
