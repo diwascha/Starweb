@@ -7,7 +7,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from '@/components/ui/sidebar';
-import { FileText, LayoutDashboard, TestTubeDiagonal } from 'lucide-react';
+import { FileText, LayoutDashboard, TestTubeDiagonal, Package } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -24,10 +24,18 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarMenu>
         <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={pathname === '/'}>
-            <Link href="/">
+          <SidebarMenuButton asChild isActive={pathname.startsWith('/reports')}>
+            <Link href="/reports">
               <LayoutDashboard />
-              <span>Dashboard</span>
+              <span>Reports</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton asChild isActive={pathname.startsWith('/products')}>
+            <Link href="/products">
+              <Package />
+              <span>Products</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
