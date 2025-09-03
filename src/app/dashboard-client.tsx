@@ -42,6 +42,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useRouter } from 'next/navigation';
 
 const initialSpecValues: ProductSpecification = {
@@ -302,220 +303,217 @@ export default function DashboardClient() {
       }
 
     return (
-        <div className="flex flex-col gap-8">
-            <section>
-                <h2 className="text-2xl font-semibold tracking-tight mb-4">Reports</h2>
-                {reports.length > 0 ? (
-                    <Card>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>
-                                <Button variant="ghost" onClick={() => requestReportSort('serialNumber')}>
-                                Test Serial No.
-                                <ArrowUpDown className="ml-2 h-4 w-4" />
+        <Tabs defaultValue="reports" className="flex-1">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="reports">Reports</TabsTrigger>
+            <TabsTrigger value="products">Products</TabsTrigger>
+          </TabsList>
+          <TabsContent value="reports">
+            {reports.length > 0 ? (
+                <Card>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>
+                            <Button variant="ghost" onClick={() => requestReportSort('serialNumber')}>
+                            Test Serial No.
+                            <ArrowUpDown className="ml-2 h-4 w-4" />
+                            </Button>
+                        </TableHead>
+                        <TableHead>
+                            <Button variant="ghost" onClick={() => requestReportSort('productName')}>
+                            Product
+                            <ArrowUpDown className="ml-2 h-4 w-4" />
+                            </Button>
+                        </TableHead>
+                        <TableHead>
+                            <Button variant="ghost" onClick={() => requestReportSort('taxInvoiceNumber')}>
+                            Invoice Number
+                            <ArrowUpDown className="ml-2 h-4 w-4" />
+                            </Button>
+                        </TableHead>
+                        <TableHead>
+                            <Button variant="ghost" onClick={() => requestReportSort('challanNumber')}>
+                            Challan Number
+                            <ArrowUpDown className="ml-2 h-4 w-4" />
+                            </Button>
+                        </TableHead>
+                        <TableHead>
+                            <Button variant="ghost" onClick={() => requestReportSort('quantity')}>
+                            Quantities
+                            <ArrowUpDown className="ml-2 h-4 w-4" />
+                            </Button>
+                        </TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {sortedReports.map(report => (
+                        <TableRow key={report.id}>
+                          <TableCell className="font-medium">{report.serialNumber}</TableCell>
+                          <TableCell>{report.product.name}</TableCell>
+                          <TableCell>{report.taxInvoiceNumber}</TableCell>
+                          <TableCell>{report.challanNumber}</TableCell>
+                          <TableCell>{report.quantity}</TableCell>
+                          <TableCell className="text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <MoreHorizontal className="h-4 w-4" />
                                 </Button>
-                            </TableHead>
-                            <TableHead>
-                                <Button variant="ghost" onClick={() => requestReportSort('productName')}>
-                                Product
-                                <ArrowUpDown className="ml-2 h-4 w-4" />
-                                </Button>
-                            </TableHead>
-                            <TableHead>
-                                <Button variant="ghost" onClick={() => requestReportSort('taxInvoiceNumber')}>
-                                Invoice Number
-                                <ArrowUpDown className="ml-2 h-4 w-4" />
-                                </Button>
-                            </TableHead>
-                            <TableHead>
-                                <Button variant="ghost" onClick={() => requestReportSort('challanNumber')}>
-                                Challan Number
-                                <ArrowUpDown className="ml-2 h-4 w-4" />
-                                </Button>
-                            </TableHead>
-                            <TableHead>
-                                <Button variant="ghost" onClick={() => requestReportSort('quantity')}>
-                                Quantities
-                                <ArrowUpDown className="ml-2 h-4 w-4" />
-                                </Button>
-                            </TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {sortedReports.map(report => (
-                            <TableRow key={report.id}>
-                              <TableCell className="font-medium">{report.serialNumber}</TableCell>
-                              <TableCell>{report.product.name}</TableCell>
-                              <TableCell>{report.taxInvoiceNumber}</TableCell>
-                              <TableCell>{report.challanNumber}</TableCell>
-                              <TableCell>{report.quantity}</TableCell>
-                              <TableCell className="text-right">
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                                      <MoreHorizontal className="h-4 w-4" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onSelect={() => router.push(`/report/${report.id}`)}>
-                                      <View className="mr-2 h-4 w-4" /> View
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onSelect={() => router.push(`/report/${report.id}`)}>
+                                  <View className="mr-2 h-4 w-4" /> View
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => router.push(`/report/edit/${report.id}`)}>
+                                  <Edit className="mr-2 h-4 w-4" /> Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => handlePrint(report)}>
+                                  <Printer className="mr-2 h-4 w-4" /> Print
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                                      <Trash2 className="mr-2 h-4 w-4 text-destructive" />
+                                      <span className="text-destructive">Delete</span>
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem onSelect={() => router.push(`/report/edit/${report.id}`)}>
-                                      <Edit className="mr-2 h-4 w-4" /> Edit
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onSelect={() => handlePrint(report)}>
-                                      <Printer className="mr-2 h-4 w-4" /> Print
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <AlertDialog>
-                                      <AlertDialogTrigger asChild>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        This action cannot be undone. This will permanently delete the report.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => deleteReport(report.id)}>Delete</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </Card>
+            ) : (
+                <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-12 mt-4">
+                    <div className="flex flex-col items-center gap-1 text-center">
+                    <FileText className="h-10 w-10 text-muted-foreground" />
+                    <h3 className="text-xl font-bold tracking-tight">No reports found</h3>
+                    <p className="text-sm text-muted-foreground">Get started by creating a new test report.</p>
+                    <Button className="mt-4" asChild>
+                        <Link href="/report/new">
+                        <PlusCircle className="mr-2 h-4 w-4" /> New Report
+                        </Link>
+                    </Button>
+                    </div>
+                </div>
+            )}
+          </TabsContent>
+          <TabsContent value="products">
+             {products.length > 0 ? (
+                <Card>
+                    <Table>
+                    <TableHeader>
+                        <TableRow>
+                        <TableHead>
+                            <Button variant="ghost" onClick={() => requestProductSort('name')}>
+                            Product Name
+                            <ArrowUpDown className="ml-2 h-4 w-4" />
+                            </Button>
+                        </TableHead>
+                        <TableHead>
+                            <Button variant="ghost" onClick={() => requestProductSort('materialCode')}>
+                            Material Code
+                            <ArrowUpDown className="ml-2 h-4 w-4" />
+                            </Button>
+                        </TableHead>
+                        <TableHead>
+                            <Button variant="ghost" onClick={() => requestProductSort('companyName')}>
+                            Delivered To
+                            <ArrowUpDown className="ml-2 h-4 w-4" />
+                            </Button>
+                        </TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {sortedProducts.map(product => (
+                        <TableRow key={product.id}>
+                            <TableCell className="font-medium">{product.name}</TableCell>
+                            <TableCell>{product.materialCode}</TableCell>
+                            <TableCell>{product.companyName}</TableCell>
+                            <TableCell className="text-right">
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                <DropdownMenuItem onSelect={() => openEditProductDialog(product)}>
+                                    <Edit className="mr-2 h-4 w-4" /> Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                 <AlertDialog>
+                                    <AlertDialogTrigger asChild>
                                         <DropdownMenuItem onSelect={e => e.preventDefault()}>
-                                          <Trash2 className="mr-2 h-4 w-4 text-destructive" />
-                                          <span className="text-destructive">Delete</span>
+                                            <Trash2 className="mr-2 h-4 w-4 text-destructive" /> 
+                                            <span className="text-destructive">Delete</span>
                                         </DropdownMenuItem>
-                                      </AlertDialogTrigger>
-                                      <AlertDialogContent>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
                                         <AlertDialogHeader>
-                                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                          <AlertDialogDescription>
-                                            This action cannot be undone. This will permanently delete the report.
-                                          </AlertDialogDescription>
+                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                This will permanently delete the product and all associated reports. This action cannot be undone.
+                                            </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
-                                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                          <AlertDialogAction onClick={() => deleteReport(report.id)}>Delete</AlertDialogAction>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => deleteProduct(product.id)}>Delete</AlertDialogAction>
                                         </AlertDialogFooter>
-                                      </AlertDialogContent>
-                                    </AlertDialog>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </Card>
-                ) : (
-                    <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-12">
-                        <div className="flex flex-col items-center gap-1 text-center">
-                        <FileText className="h-10 w-10 text-muted-foreground" />
-                        <h3 className="text-xl font-bold tracking-tight">No reports found</h3>
-                        <p className="text-sm text-muted-foreground">Get started by creating a new test report.</p>
-                        <Button className="mt-4" asChild>
-                            <Link href="/report/new">
-                            <PlusCircle className="mr-2 h-4 w-4" /> New Report
-                            </Link>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                            </TableCell>
+                        </TableRow>
+                        ))}
+                    </TableBody>
+                    </Table>
+                </Card>
+            ) : (
+                 <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-12 mt-4">
+                    <div className="flex flex-col items-center gap-1 text-center">
+                        <h3 className="text-xl font-bold tracking-tight">No products found</h3>
+                        <p className="text-sm text-muted-foreground">Get started by adding a product.</p>
+                        <Button className="mt-4" onClick={openAddProductDialog}>
+                            <Plus className="mr-2 h-4 w-4" /> Add Product
                         </Button>
-                        </div>
                     </div>
-                )}
-            </section>
-            
-            <section>
-                <h2 className="text-2xl font-semibold tracking-tight mb-4">Products</h2>
-                {products.length > 0 ? (
-                    <Card>
-                        <Table>
-                        <TableHeader>
-                            <TableRow>
-                            <TableHead>
-                                <Button variant="ghost" onClick={() => requestProductSort('name')}>
-                                Product Name
-                                <ArrowUpDown className="ml-2 h-4 w-4" />
-                                </Button>
-                            </TableHead>
-                            <TableHead>
-                                <Button variant="ghost" onClick={() => requestProductSort('materialCode')}>
-                                Material Code
-                                <ArrowUpDown className="ml-2 h-4 w-4" />
-                                </Button>
-                            </TableHead>
-                            <TableHead>
-                                <Button variant="ghost" onClick={() => requestProductSort('companyName')}>
-                                Delivered To
-                                <ArrowUpDown className="ml-2 h-4 w-4" />
-                                </Button>
-                            </TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {sortedProducts.map(product => (
-                            <TableRow key={product.id}>
-                                <TableCell className="font-medium">{product.name}</TableCell>
-                                <TableCell>{product.materialCode}</TableCell>
-                                <TableCell>{product.companyName}</TableCell>
-                                <TableCell className="text-right">
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                                        <MoreHorizontal className="h-4 w-4" />
-                                    </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onSelect={() => openEditProductDialog(product)}>
-                                        <Edit className="mr-2 h-4 w-4" /> Edit
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                     <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                            <DropdownMenuItem onSelect={e => e.preventDefault()}>
-                                                <Trash2 className="mr-2 h-4 w-4 text-destructive" /> 
-                                                <span className="text-destructive">Delete</span>
-                                            </DropdownMenuItem>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                <AlertDialogDescription>
-                                                    This will permanently delete the product and all associated reports. This action cannot be undone.
-                                                </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                <AlertDialogAction onClick={() => deleteProduct(product.id)}>Delete</AlertDialogAction>
-                                            </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                                </TableCell>
-                            </TableRow>
-                            ))}
-                        </TableBody>
-                        </Table>
-                    </Card>
-                ) : (
-                     <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-12">
-                        <div className="flex flex-col items-center gap-1 text-center">
-                            <h3 className="text-xl font-bold tracking-tight">No products found</h3>
-                            <p className="text-sm text-muted-foreground">Get started by adding a product.</p>
-                            <Button className="mt-4" onClick={openAddProductDialog}>
-                                <Plus className="mr-2 h-4 w-4" /> Add Product
-                            </Button>
-                        </div>
-                    </div>
-                )}
-            </section>
-        </div>
+                </div>
+            )}
+          </TabsContent>
+        </Tabs>
     );
   };
   
   return (
     <div className="flex flex-col gap-8">
-       <div className="flex items-center gap-4">
-        <Image src="/logo.png" alt="Company Logo" width={80} height={80} />
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h2>
-          <p className="text-muted-foreground">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
-        </div>
-      </div>
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Report Dashboard</h1>
-          <p className="text-muted-foreground">View and manage your test reports and products.</p>
+      <header className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Image src="/logo.png" alt="Company Logo" width={80} height={80} />
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Report Dashboard</h1>
+            <p className="text-muted-foreground">View and manage your test reports and products.</p>
+          </div>
         </div>
         <div className="flex gap-2">
           <Dialog open={isProductDialogOpen} onOpenChange={setIsProductDialogOpen}>
@@ -611,8 +609,15 @@ export default function DashboardClient() {
             </Link>
           </Button>
         </div>
+      </header>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="md:col-span-3 flex flex-col gap-8">
+          {renderContent()}
+        </div>
       </div>
-      {renderContent()}
     </div>
   );
 }
+
+    
