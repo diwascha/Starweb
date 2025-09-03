@@ -31,13 +31,18 @@ const AuthContext = createContext<AuthContextType>({
 
 const USER_SESSION_KEY = 'user_session';
 
-const pageOrder: Module[] = ['dashboard', 'reports', 'products', 'purchaseOrders', 'rawMaterials', 'settings'];
+const pageOrder: Module[] = ['dashboard', 'reports', 'products', 'purchaseOrders', 'rawMaterials', 'settings', 'hr'];
 
 // Function to convert kebab-case to camelCase
 const kebabToCamel = (s: string): Module => {
-    // Special case for root path
-    if (s === 'report' || s === 'product' || s === 'purchase-order') {
-        return (s + 's') as Module;
+    const specialCases: Record<string, Module> = {
+      'report': 'reports',
+      'product': 'products',
+      'purchase-order': 'purchaseOrders',
+      'raw-material': 'rawMaterials',
+    };
+    if (specialCases[s]) {
+        return specialCases[s];
     }
     const cameled = s.replace(/-./g, x => x[1].toUpperCase());
     return cameled as Module;
@@ -46,6 +51,7 @@ const kebabToCamel = (s: string): Module => {
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<UserSession | null>(null);
   const [loading, setLoading] = useState(true);
+  const [users] = useLocalStorage<User[]>('users', []);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -64,7 +70,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   
   const hasPermission = useCallback((module: Module, action: Action): boolean => {
     if (!user) return false;
-    // Admins and all users can view the dashboard
     if (module === 'dashboard' && action === 'view') return true;
     if (user.roleId === 'admin') return true;
     if (user.permissions) {
@@ -124,7 +129,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const firstAllowedPage = pageOrder.find(module => hasPermission(module, 'view'));
             
             if (firstAllowedPage) {
-                const redirectPath = `/${firstAllowedPage.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`)}`;
+                 const redirectPath = `/${firstAllowedPage === 'hr' ? 'hr' : firstAllowedPage.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`)}`;
                  if (pathname !== redirectPath) {
                     router.push(redirectPath);
                 }
