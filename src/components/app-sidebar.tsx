@@ -15,15 +15,13 @@ import { FileText, LayoutDashboard, TestTubeDiagonal, Package, FileSpreadsheet, 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
-import { signOut } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
 import { Button } from './ui/button';
 import { useToast } from '@/hooks/use-toast';
 
 export function AppSidebar() {
   const pathname = usePathname();
   const [isClient, setIsClient] = useState(false);
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -33,9 +31,8 @@ export function AppSidebar() {
   
   const handleSignOut = async () => {
     try {
-        await signOut(auth);
+        await logout();
         toast({ title: 'Signed Out', description: 'You have been successfully signed out.'});
-        router.push('/login');
     } catch (error) {
         toast({ title: 'Error', description: 'Failed to sign out.', variant: 'destructive'});
     }
@@ -124,7 +121,7 @@ export function AppSidebar() {
        <SidebarFooter className="mt-auto">
         <SidebarSeparator />
          <div className="flex flex-col gap-2 p-2 text-sm">
-            <p className="font-medium text-sidebar-foreground truncate">{user.email}</p>
+            <p className="font-medium text-sidebar-foreground truncate">{user.username}</p>
          </div>
         <SidebarMenuItem>
             <Button variant="ghost" className="w-full justify-start gap-2" onClick={handleSignOut}>

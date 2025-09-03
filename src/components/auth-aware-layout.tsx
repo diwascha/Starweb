@@ -10,7 +10,7 @@ export default function AuthAwareLayout({ children }: { children: React.ReactNod
     const { user, loading } = useAuth();
     const pathname = usePathname();
 
-    const isAuthPage = pathname === '/login' || pathname === '/signup' || pathname === '/forgot-password';
+    const isAuthPage = pathname === '/login';
 
     if (loading) {
         return (
