@@ -63,11 +63,19 @@ export interface PurchaseOrderItem {
   quantity: string;
 }
 
+export interface Amendment {
+  date: string; // ISO string
+  remarks: string;
+}
+
 export interface PurchaseOrder {
   id: string;
   poNumber: string;
   poDate: string; // ISO string
+  createdAt: string; // ISO string
+  updatedAt: string; // ISO string
   companyName: string;
   companyAddress: string;
   items: PurchaseOrderItem[];
+  amendments?: Amendment[];
 }

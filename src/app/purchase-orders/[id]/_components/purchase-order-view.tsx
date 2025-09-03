@@ -4,7 +4,7 @@
 import { useEffect, useState, Fragment } from 'react';
 import useLocalStorage from '@/hooks/use-local-storage';
 import type { PurchaseOrder } from '@/lib/types';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Printer } from 'lucide-react';
@@ -33,6 +33,11 @@ export default function PurchaseOrderView({ poId }: { poId: string }) {
 
   const nepaliDate = new NepaliDate(new Date(purchaseOrder.poDate));
   const nepaliDateString = nepaliDate.format('YYYY/MM/DD');
+  
+  const createdDate = new Date(purchaseOrder.createdAt);
+  const amendedDate = new Date(purchaseOrder.updatedAt);
+
+  const showAmendedDate = purchaseOrder.amendments && purchaseOrder.amendments.length > 0;
   
   const groupedItems = purchaseOrder.items.reduce((acc, item) => {
     const key = item.rawMaterialType || 'Other';
@@ -71,7 +76,17 @@ export default function PurchaseOrderView({ poId }: { poId: string }) {
         
         <div className="grid grid-cols-2 text-sm mb-4 gap-x-4 gap-y-2">
             <div><span className="font-semibold">PO No:</span> {purchaseOrder.poNumber}</div>
-            <div className="text-right"><span className="font-semibold">Date:</span> {nepaliDateString} B.S. ({new Date(purchaseOrder.poDate).toLocaleDateString('en-CA')})</div>
+            <div className="text-right">
+              <span className="font-semibold">Date:</span> {nepaliDateString} B.S. ({new Date(purchaseOrder.poDate).toLocaleDateString('en-CA')})
+            </div>
+            <div>
+              <span className="font-semibold">Created Date:</span> {createdDate.toLocaleDateString('en-CA')}
+            </div>
+             {showAmendedDate && (
+              <div className="text-right">
+                <span className="font-semibold">Amended Date:</span> {amendedDate.toLocaleDateString('en-CA')}
+              </div>
+            )}
         </div>
         
         <Separator className="my-4 bg-gray-300"/>
@@ -116,6 +131,21 @@ export default function PurchaseOrderView({ poId }: { poId: string }) {
                 </Table>
               </div>
             </section>
+             {showAmendedDate && purchaseOrder.amendments && (
+                <section>
+                  <h3 className="text-lg font-semibold">Amendment History</h3>
+                  <div className="text-sm border-t border-gray-300 mt-2 pt-2 space-y-2">
+                    {purchaseOrder.amendments.map((amendment, index) => (
+                      <div key={index}>
+                        <p className="font-semibold">
+                          Amended on: {new Date(amendment.date).toLocaleString()}
+                        </p>
+                        <p className="pl-4">Remarks: {amendment.remarks}</p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+            )}
             <div className="mt-16 grid grid-cols-2 gap-8 pt-12 text-sm">
               <div className="text-center">
                 <div className="border-t border-black w-48 mx-auto"></div>
@@ -129,6 +159,34 @@ export default function PurchaseOrderView({ poId }: { poId: string }) {
           </CardContent>
         </Card>
       </div>
+       {purchaseOrder.amendments && purchaseOrder.amendments.length > 0 && (
+           <Card className="mt-8 print:hidden">
+             <CardHeader>
+               <CardTitle>Amendment History</CardTitle>
+               <CardDescription>This PO has been amended {purchaseOrder.amendments.length} time(s).</CardDescription>
+             </CardHeader>
+             <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Amendment #</TableHead>
+                            <TableHead>Date & Time</TableHead>
+                            <TableHead>Remarks</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {purchaseOrder.amendments.map((log, index) => (
+                            <TableRow key={index}>
+                                <TableCell>{index + 1}</TableCell>
+                                <TableCell>{new Date(log.date).toLocaleString()}</TableCell>
+                                <TableCell>{log.remarks}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+             </CardContent>
+           </Card>
+        )}
       <style jsx global>{`
         @media print {
           body {

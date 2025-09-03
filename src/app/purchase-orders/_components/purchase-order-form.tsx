@@ -8,7 +8,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import useLocalStorage from '@/hooks/use-local-storage';
-import type { RawMaterial, PurchaseOrder } from '@/lib/types';
+import type { RawMaterial, PurchaseOrder, Amendment } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
@@ -41,6 +41,7 @@ const purchaseOrderSchema = z.object({
   companyName: z.string().min(1, 'Company name is required.'),
   companyAddress: z.string().min(1, 'Company address is required.'),
   items: z.array(poItemSchema).min(1, 'At least one item is required.'),
+  amendmentRemarks: z.string().optional(),
 });
 
 type PurchaseOrderFormValues = z.infer<typeof purchaseOrderSchema>;
@@ -64,6 +65,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
       return {
         ...poToEdit,
         poDate: new Date(poToEdit.poDate),
+        amendmentRemarks: '',
       };
     }
     return {
@@ -72,6 +74,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
       companyName: '',
       companyAddress: '',
       items: [],
+      amendmentRemarks: '',
     };
   }, [poToEdit]);
 
@@ -84,6 +87,16 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     control: form.control,
     name: "items",
   });
+  
+  // Conditionally apply validation for amendmentRemarks
+  useEffect(() => {
+    if (poToEdit) {
+      form.register('amendmentRemarks', { required: 'Amendment remarks are required when editing.' });
+    } else {
+      form.unregister('amendmentRemarks');
+    }
+  }, [poToEdit, form]);
+
 
   useEffect(() => {
     setIsClient(true);
@@ -194,19 +207,35 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   async function onSubmit(values: PurchaseOrderFormValues) {
     try {
       if (poToEdit) {
+         if (!values.amendmentRemarks || values.amendmentRemarks.trim() === '') {
+          form.setError('amendmentRemarks', { type: 'manual', message: 'Amendment remarks are required when editing.' });
+          return;
+        }
+
+        const newAmendment: Amendment = {
+          date: new Date().toISOString(),
+          remarks: values.amendmentRemarks,
+        };
+        
         const updatedPO: PurchaseOrder = {
           ...poToEdit,
           ...values,
           poDate: values.poDate.toISOString(),
+          updatedAt: new Date().toISOString(),
+          amendments: [...(poToEdit.amendments || []), newAmendment],
         };
         setPurchaseOrders(purchaseOrders.map(p => (p.id === poToEdit.id ? updatedPO : p)));
         toast({ title: 'Success', description: 'Purchase Order updated.' });
         router.push(`/purchase-orders/${poToEdit.id}`);
       } else {
+        const now = new Date().toISOString();
         const newPO: PurchaseOrder = {
           id: crypto.randomUUID(),
           ...values,
           poDate: values.poDate.toISOString(),
+          createdAt: now,
+          updatedAt: now,
+          amendments: [],
         };
         setPurchaseOrders([...purchaseOrders, newPO]);
         toast({ title: 'Success', description: 'New Purchase Order created.' });
@@ -333,6 +362,29 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                 />
             </CardContent>
           </Card>
+
+           {poToEdit && (
+              <Card>
+                <CardHeader>
+                    <CardTitle>Amendment Details</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <FormField
+                    control={form.control}
+                    name="amendmentRemarks"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Amendment Remarks</FormLabel>
+                        <FormControl>
+                            <Textarea placeholder="Describe the changes made to this purchase order..." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                </CardContent>
+              </Card>
+            )}
 
           <Card>
              <CardHeader>
