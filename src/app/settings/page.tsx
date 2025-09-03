@@ -39,7 +39,6 @@ import { useRouter } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 
 const initialPermissions: Permissions = modules.reduce((acc, module) => {
     acc[module] = [];
@@ -192,25 +191,17 @@ export default function SettingsPage() {
       toast({ title: 'Error', description: 'Role name is required.', variant: 'destructive' });
       return;
     }
-    let newRoleId: string;
     if (editingRole) {
-      newRoleId = editingRole.id;
       const updatedRole: Role = { ...editingRole, name: roleName.trim(), permissions };
       setRoles(roles.map(r => (r.id === editingRole.id ? updatedRole : r)));
       toast({ title: 'Success', description: 'Role updated.' });
     } else {
-      newRoleId = crypto.randomUUID();
-      const newRole: Role = { id: newRoleId, name: roleName.trim(), permissions };
+      const newRole: Role = { id: crypto.randomUUID(), name: roleName.trim(), permissions };
       setRoles([...roles, newRole]);
       toast({ title: 'Success', description: 'New role created.' });
     }
     resetRoleForm();
     setIsRoleDialogOpen(false);
-
-    // If we're creating a new role from the user dialog, select it.
-    if (!editingRole && isUserDialogOpen) {
-        setUserRoleId(newRoleId);
-    }
   };
 
   const deleteRole = (id: string) => {
@@ -222,16 +213,8 @@ export default function SettingsPage() {
     toast({ title: 'Role Deleted', description: 'The role has been successfully deleted.' });
   };
   
-  const handleRoleSelection = (roleId: string) => {
-    if (roleId === 'CREATE_NEW') {
-      openAddRoleDialog();
-    } else {
-      setUserRoleId(roleId);
-    }
-  };
 
-
-  if (loading || !currentUser) {
+  if (loading || !currentUser || !isClient) {
     return (
       <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
         <div className="flex flex-col items-center gap-1 text-center"><h3 className="text-2xl font-bold tracking-tight">Loading...</h3></div>
@@ -280,17 +263,10 @@ export default function SettingsPage() {
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="role">Role</Label>
-                        <Select value={userRoleId} onValueChange={handleRoleSelection}>
+                        <Select value={userRoleId} onValueChange={setUserRoleId}>
                           <SelectTrigger id="role"><SelectValue placeholder="Select a role" /></SelectTrigger>
                           <SelectContent>
                             {roles.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
-                            <Separator className="my-1"/>
-                            <SelectItem value="CREATE_NEW" className="text-primary focus:text-primary">
-                                <div className="flex items-center gap-2">
-                                  <Plus className="h-4 w-4" />
-                                  <span>Create New Role</span>
-                                </div>
-                            </SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
