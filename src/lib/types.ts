@@ -153,6 +153,27 @@ export interface Membership {
     memberType: 'Vehicle' | 'Driver';
 }
 
+export const expenseCategories = ['Fuel', 'Maintenance', 'Insurance', 'Tires', 'Repairs', 'Tolls', 'Permits', 'Other'] as const;
+export type ExpenseCategory = typeof expenseCategories[number];
+
+export interface Expense {
+    id: string;
+    vehicleId: string;
+    date: string; // ISO string
+    category: ExpenseCategory;
+    amount: number;
+    description: string;
+}
+
+export interface Income {
+    id: string;
+    vehicleId: string;
+    date: string; // ISO string
+    source: string;
+    amount: number;
+    description: string;
+}
+
 
 // RBAC Types
 export const modules = ['dashboard', 'reports', 'products', 'purchaseOrders', 'rawMaterials', 'settings', 'hr', 'fleet'] as const;
