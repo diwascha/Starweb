@@ -213,6 +213,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
           ...values,
           poDate: values.poDate.toISOString(),
           updatedAt: new Date().toISOString(),
+          status: 'Amended' as const,
         };
 
         const { summary } = await summarizePurchaseOrderChanges(poToEdit, updatedPOData);
@@ -239,6 +240,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
           createdAt: now,
           updatedAt: now,
           amendments: [],
+          status: 'Ordered',
         };
         setPurchaseOrders([...purchaseOrders, newPO]);
         toast({ title: 'Success', description: 'New Purchase Order created.' });
@@ -589,7 +591,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                                     </FormItem>
                                                 )}
                                             />
-                                            {selectedMaterial && selectedMaterial.units && selectedMaterial.units.length > 0 && (
+                                            {selectedMaterial && Array.isArray(selectedMaterial.units) && selectedMaterial.units.length > 0 && (
                                                 <FormField
                                                     control={form.control}
                                                     name={`items.${index}.unit`}
@@ -769,4 +771,3 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     </div>
   );
 }
-

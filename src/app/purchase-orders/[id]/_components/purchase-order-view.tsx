@@ -3,7 +3,7 @@
 
 import { useEffect, useState, Fragment } from 'react';
 import useLocalStorage from '@/hooks/use-local-storage';
-import type { PurchaseOrder } from '@/lib/types';
+import type { PurchaseOrder, PurchaseOrderStatus } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,9 @@ import { Separator } from '@/components/ui/separator';
 import Image from 'next/image';
 import NepaliDate from 'nepali-date-converter';
 import { useRouter } from 'next/navigation';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
+import { differenceInDays } from 'date-fns';
 
 const paperTypes = ['Kraft Paper', 'Virgin Paper'];
 
@@ -50,11 +53,42 @@ export default function PurchaseOrderView({ poId }: { poId: string }) {
     return acc;
   }, {} as Record<string, typeof purchaseOrder.items>);
 
+  const getStatusBadgeVariant = (status: PurchaseOrderStatus) => {
+    switch (status) {
+      case 'Ordered':
+        return 'default';
+      case 'Amended':
+        return 'secondary';
+      case 'Delivered':
+        return 'outline';
+      case 'Canceled':
+        return 'destructive';
+      default:
+        return 'default';
+    }
+  };
+  
+  const leadTime = purchaseOrder.deliveryDate
+    ? differenceInDays(new Date(purchaseOrder.deliveryDate), new Date(purchaseOrder.poDate))
+    : null;
 
   return (
     <>
       <div className="flex justify-between items-center mb-8 print:hidden">
-        <h1 className="text-3xl font-bold">Purchase Order</h1>
+        <div>
+            <h1 className="text-3xl font-bold">Purchase Order</h1>
+            <div className="flex items-center gap-2 mt-2">
+                <Badge variant={getStatusBadgeVariant(purchaseOrder.status)} className="text-base">
+                  {purchaseOrder.status}
+                </Badge>
+                 {purchaseOrder.status === 'Delivered' && purchaseOrder.deliveryDate && (
+                    <p className="text-sm text-muted-foreground">
+                        Delivered on {new Date(purchaseOrder.deliveryDate).toLocaleDateString()}
+                        {leadTime !== null && ` (${leadTime} days lead time)`}
+                    </p>
+                )}
+            </div>
+        </div>
         <div className="flex gap-2">
             <Button variant="outline" onClick={() => router.push(`/purchase-orders/edit/${poId}`)}>Edit</Button>
             <Button onClick={() => window.print()}>

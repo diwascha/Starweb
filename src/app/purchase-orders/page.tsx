@@ -3,9 +3,9 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { PlusCircle, MoreHorizontal, Edit, Trash2, View, ArrowUpDown, Search } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Edit, Trash2, View, ArrowUpDown, Search, PackageCheck, Ban } from 'lucide-react';
 import useLocalStorage from '@/hooks/use-local-storage';
-import type { PurchaseOrder } from '@/lib/types';
+import type { PurchaseOrder, PurchaseOrderStatus } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import {
@@ -26,12 +26,26 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { useRouter } from 'next/navigation';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { CalendarIcon } from 'lucide-react';
+import { format } from 'date-fns';
 
-type SortKey = 'poNumber' | 'poDate' | 'companyName';
+type SortKey = 'poNumber' | 'poDate' | 'companyName' | 'status';
 type SortDirection = 'asc' | 'desc';
 
 export default function PurchaseOrdersPage() {
@@ -47,6 +61,11 @@ export default function PurchaseOrdersPage() {
   const [isClient, setIsClient] = useState(false);
   const router = useRouter();
 
+  const [deliveryDialogOpen, setDeliveryDialogOpen] = useState(false);
+  const [poToUpdate, setPoToUpdate] = useState<PurchaseOrder | null>(null);
+  const [deliveryDate, setDeliveryDate] = useState<Date | undefined>(new Date());
+
+
   useEffect(() => {
     setIsClient(true);
   }, []);
@@ -55,6 +74,33 @@ export default function PurchaseOrdersPage() {
     setPurchaseOrders(purchaseOrders.filter(po => po.id !== id));
     toast({ title: 'Purchase Order Deleted', description: 'The purchase order has been successfully deleted.' });
   };
+  
+  const updatePoStatus = (id: string, status: PurchaseOrderStatus, deliveryDate?: string) => {
+    setPurchaseOrders(prevPOs =>
+      prevPOs.map(po =>
+        po.id === id ? { ...po, status, deliveryDate: deliveryDate || po.deliveryDate } : po
+      )
+    );
+     toast({
+      title: 'Status Updated',
+      description: `Purchase Order status has been updated to ${status}.`,
+    });
+  };
+
+  const handleOpenDeliveryDialog = (po: PurchaseOrder) => {
+    setPoToUpdate(po);
+    setDeliveryDate(new Date());
+    setDeliveryDialogOpen(true);
+  };
+  
+  const handleConfirmDelivery = () => {
+    if (poToUpdate && deliveryDate) {
+      updatePoStatus(poToUpdate.id, 'Delivered', deliveryDate.toISOString());
+      setDeliveryDialogOpen(false);
+      setPoToUpdate(null);
+    }
+  };
+
 
   const requestSort = (key: SortKey) => {
     let direction: SortDirection = 'asc';
@@ -92,6 +138,21 @@ export default function PurchaseOrdersPage() {
     }
     return filtered;
   }, [purchaseOrders, sortConfig, searchQuery]);
+
+  const getStatusBadgeVariant = (status: PurchaseOrderStatus) => {
+    switch (status) {
+      case 'Ordered':
+        return 'default';
+      case 'Amended':
+        return 'secondary';
+      case 'Delivered':
+        return 'outline';
+      case 'Canceled':
+        return 'destructive';
+      default:
+        return 'default';
+    }
+  };
 
   const renderContent = () => {
     if (!isClient) {
@@ -140,6 +201,11 @@ export default function PurchaseOrdersPage() {
                     Company Name <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
                 </TableHead>
+                <TableHead>
+                    <Button variant="ghost" onClick={() => requestSort('status')}>
+                    Status <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
+                </TableHead>
                 <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
             </TableHeader>
@@ -149,6 +215,9 @@ export default function PurchaseOrdersPage() {
                     <TableCell className="font-medium">{po.poNumber}</TableCell>
                     <TableCell>{new Date(po.poDate).toLocaleDateString()}</TableCell>
                     <TableCell>{po.companyName}</TableCell>
+                    <TableCell>
+                        <Badge variant={getStatusBadgeVariant(po.status)}>{po.status}</Badge>
+                    </TableCell>
                     <TableCell className="text-right">
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -160,8 +229,15 @@ export default function PurchaseOrdersPage() {
                         <DropdownMenuItem onSelect={() => router.push(`/purchase-orders/${po.id}`)}>
                             <View className="mr-2 h-4 w-4" /> View
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => router.push(`/purchase-orders/edit/${po.id}`)}>
+                        <DropdownMenuItem onClick={() => router.push(`/purchase-orders/edit/${po.id}`)} disabled={po.status === 'Delivered' || po.status === 'Canceled'}>
                             <Edit className="mr-2 h-4 w-4" /> Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onSelect={() => handleOpenDeliveryDialog(po)} disabled={po.status === 'Delivered' || po.status === 'Canceled'}>
+                             <PackageCheck className="mr-2 h-4 w-4" /> Mark as Delivered
+                        </DropdownMenuItem>
+                         <DropdownMenuItem onSelect={() => updatePoStatus(po.id, 'Canceled')} disabled={po.status === 'Delivered' || po.status === 'Canceled'}>
+                            <Ban className="mr-2 h-4 w-4" /> Cancel Order
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <AlertDialog>
@@ -221,6 +297,40 @@ export default function PurchaseOrdersPage() {
         </div>
       </header>
       {renderContent()}
+       <Dialog open={deliveryDialogOpen} onOpenChange={setDeliveryDialogOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Confirm Delivery</DialogTitle>
+                <DialogDescription>
+                    Select the delivery date for PO #{poToUpdate?.poNumber}.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 flex justify-center">
+                 <Popover>
+                      <PopoverTrigger asChild>
+                        
+                          <Button variant="outline" className={cn("w-[280px] justify-start text-left font-normal", !deliveryDate && "text-muted-foreground")}>
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {deliveryDate ? format(deliveryDate, "PPP") : <span>Pick a date</span>}
+                          </Button>
+                        
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <Calendar
+                          mode="single"
+                          selected={deliveryDate}
+                          onSelect={setDeliveryDate}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setDeliveryDialogOpen(false)}>Cancel</Button>
+                <Button onClick={handleConfirmDelivery} disabled={!deliveryDate}>Confirm</Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

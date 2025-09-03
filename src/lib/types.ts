@@ -51,7 +51,7 @@ export interface RawMaterial {
   size: string;
   gsm: string;
   bf: string;
-  units: string[]; // Changed from unit: string to units: string[]
+  units: string[];
 }
 
 export interface PurchaseOrderItem {
@@ -70,6 +70,8 @@ export interface Amendment {
   remarks: string;
 }
 
+export type PurchaseOrderStatus = 'Ordered' | 'Amended' | 'Delivered' | 'Canceled';
+
 export interface PurchaseOrder {
   id: string;
   poNumber: string;
@@ -80,4 +82,6 @@ export interface PurchaseOrder {
   companyAddress: string;
   items: PurchaseOrderItem[];
   amendments?: Amendment[];
+  status: PurchaseOrderStatus;
+  deliveryDate?: string; // ISO string for delivery date
 }
