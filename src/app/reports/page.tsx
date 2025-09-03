@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { PlusCircle, FileText, MoreHorizontal, Edit, Trash2, View, Printer, ArrowUpDown } from 'lucide-react';
+import { PlusCircle, FileText, MoreHorizontal, Edit, Trash2, View, Printer, ArrowUpDown, Search } from 'lucide-react';
 import useLocalStorage from '@/hooks/use-local-storage';
 import type { Report } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
 import { useRouter } from 'next/navigation';
 
 type ReportSortKey = 'serialNumber' | 'productName' | 'taxInvoiceNumber' | 'challanNumber' | 'quantity';
@@ -35,6 +36,7 @@ type SortDirection = 'asc' | 'desc';
 
 export default function ReportsPage() {
   const [reports, setReports] = useLocalStorage<Report[]>('reports', []);
+  const [searchQuery, setSearchQuery] = useState('');
   
   const [reportSortConfig, setReportSortConfig] = useState<{ key: ReportSortKey; direction: SortDirection }>({
     key: 'serialNumber',
@@ -82,10 +84,21 @@ export default function ReportsPage() {
     setReportSortConfig({ key, direction });
   };
   
-  const sortedReports = useMemo(() => {
-    const sortableReports = [...reports];
+  const filteredAndSortedReports = useMemo(() => {
+    let filteredReports = [...reports];
+
+    if (searchQuery) {
+        const lowercasedQuery = searchQuery.toLowerCase();
+        filteredReports = filteredReports.filter(report =>
+            report.serialNumber.toLowerCase().includes(lowercasedQuery) ||
+            report.product.name.toLowerCase().includes(lowercasedQuery) ||
+            report.taxInvoiceNumber.toLowerCase().includes(lowercasedQuery) ||
+            report.challanNumber.toLowerCase().includes(lowercasedQuery)
+        );
+    }
+    
     if (reportSortConfig.key) {
-      sortableReports.sort((a, b) => {
+      filteredReports.sort((a, b) => {
         let aValue: string | number;
         let bValue: string | number;
   
@@ -122,8 +135,8 @@ export default function ReportsPage() {
         return 0;
       });
     }
-    return sortableReports;
-  }, [reports, reportSortConfig]);
+    return filteredReports;
+  }, [reports, reportSortConfig, searchQuery]);
 
 
   const renderContent = () => {
@@ -193,7 +206,7 @@ export default function ReportsPage() {
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {sortedReports.map(report => (
+                {filteredAndSortedReports.map(report => (
                 <TableRow key={report.id}>
                     <TableCell className="font-medium">{report.serialNumber}</TableCell>
                     <TableCell>{report.product.name}</TableCell>
@@ -256,7 +269,17 @@ export default function ReportsPage() {
             <h1 className="text-3xl font-bold tracking-tight">Reports</h1>
             <p className="text-muted-foreground">View and manage your test reports.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+            <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                    type="search"
+                    placeholder="Search reports..."
+                    className="pl-8 sm:w-[300px]"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                />
+            </div>
           <Button asChild>
             <Link href="/report/new">
               <PlusCircle className="mr-2 h-4 w-4" /> New Report
