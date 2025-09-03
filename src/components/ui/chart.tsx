@@ -4,7 +4,7 @@
 import * as React from "react"
 import {
   Label,
-  Pie,
+  Pie as RechartsPie,
   PieChart as RechartsPieChart,
   Sector,
   Tooltip as RechartsTooltip,
@@ -38,7 +38,7 @@ const ChartLegendContext = React.createContext<
 >(null)
 
 function useChartLegend() {
-  const context = React.useContext(ChartLegendContext)
+  const context = React.createContext(ChartLegendContext)
 
   if (!context) {
     throw new Error("useChartLegend must be used within a <Chart />")
@@ -71,7 +71,7 @@ const ChartLegend = React.forwardRef<
     >
       {legend.map(({ label, color, icon: Icon, value }, index) => (
         <div
-          key={label}
+          key={label as string}
           data-testid={`chart-legend-item-${index}`}
           className="flex items-center gap-1.5"
         >
@@ -211,7 +211,7 @@ const Pie = React.forwardRef<
         <Cell
           key={`cell-${index}`}
           fill={
-            config?.[entry.name]?.color ||
+            config?.[(entry as any).name]?.color ||
             `hsl(var(--chart-${index % 5}))`
           }
           data-testid={`pie-cell-${index}`}
@@ -291,5 +291,3 @@ export {
 
 // Re-export zod for convenience
 export *from "zod"
-
-    
