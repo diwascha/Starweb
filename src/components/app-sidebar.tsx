@@ -49,7 +49,7 @@ export function AppSidebar() {
           </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={pathname === '/report/new'}>
+          <SidebarMenuButton asChild isActive={pathname.startsWith('/report/new')}>
             <Link href="/report/new">
               <FileText />
               <span>New Report</span>
