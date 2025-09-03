@@ -1,8 +1,11 @@
+
 import type {Metadata} from 'next';
 import './globals.css';
 import {SidebarProvider, SidebarInset} from '@/components/ui/sidebar';
 import {AppSidebar} from '@/components/app-sidebar';
 import {Toaster} from '@/components/ui/toaster';
+import { AuthProvider, useAuth } from '@/hooks/use-auth';
+import AuthAwareLayout from '@/components/auth-aware-layout';
 
 export const metadata: Metadata = {
   title: 'Shivam QTR',
@@ -22,10 +25,11 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased bg-background">
-        <SidebarProvider>
-          <AppSidebar />
-          <SidebarInset>{children}</SidebarInset>
-        </SidebarProvider>
+        <AuthProvider>
+            <AuthAwareLayout>
+                {children}
+            </AuthAwareLayout>
+        </AuthProvider>
         <Toaster />
       </body>
     </html>

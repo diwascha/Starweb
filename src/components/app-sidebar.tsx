@@ -8,18 +8,38 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
+  SidebarFooter,
+  SidebarSeparator,
 } from '@/components/ui/sidebar';
-import { FileText, LayoutDashboard, TestTubeDiagonal, Package, FileSpreadsheet, ShoppingCart, Wrench } from 'lucide-react';
+import { FileText, LayoutDashboard, TestTubeDiagonal, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/use-auth';
+import { signOut } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { Button } from './ui/button';
+import { useToast } from '@/hooks/use-toast';
 
 export function AppSidebar() {
   const pathname = usePathname();
   const [isClient, setIsClient] = useState(false);
+  const { user } = useAuth();
+  const router = useRouter();
+  const { toast } = useToast();
 
   useEffect(() => {
     setIsClient(true);
   }, []);
+  
+  const handleSignOut = async () => {
+    try {
+        await signOut(auth);
+        toast({ title: 'Signed Out', description: 'You have been successfully signed out.'});
+        router.push('/login');
+    } catch (error) {
+        toast({ title: 'Error', description: 'Failed to sign out.', variant: 'destructive'});
+    }
+  };
 
   const getIsActive = (path: string, checkStartsWith: boolean = false) => {
     if (!isClient) {
@@ -38,6 +58,10 @@ export function AppSidebar() {
     }
     return pathname === path;
   };
+  
+  if (!user) {
+    return null;
+  }
 
   return (
     <Sidebar>
@@ -97,6 +121,18 @@ export function AppSidebar() {
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>
+       <SidebarFooter className="mt-auto">
+        <SidebarSeparator />
+         <div className="flex flex-col gap-2 p-2 text-sm">
+            <p className="font-medium text-sidebar-foreground truncate">{user.email}</p>
+         </div>
+        <SidebarMenuItem>
+            <Button variant="ghost" className="w-full justify-start gap-2" onClick={handleSignOut}>
+                <LogOut className="w-4 h-4" />
+                <span>Sign Out</span>
+            </Button>
+        </SidebarMenuItem>
+      </SidebarFooter>
     </Sidebar>
   );
 }
