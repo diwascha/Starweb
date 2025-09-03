@@ -33,7 +33,7 @@ export function AppSidebar() {
           </SidebarMenuButton>
         </SidebarMenuItem>
          <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={pathname.startsWith('/reports') || pathname === '/'}>
+          <SidebarMenuButton asChild isActive={pathname.startsWith('/reports')}>
             <Link href="/reports">
               <FileSpreadsheet />
               <span>Reports</span>
