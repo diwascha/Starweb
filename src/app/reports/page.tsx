@@ -3,12 +3,11 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { PlusCircle, FileText, MoreHorizontal, Edit, Trash2, View, Printer, ArrowUpDown } from 'lucide-react';
 import useLocalStorage from '@/hooks/use-local-storage';
-import type { Report, Product } from '@/lib/types';
+import type { Report } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,7 +35,6 @@ type SortDirection = 'asc' | 'desc';
 
 export default function ReportsPage() {
   const [reports, setReports] = useLocalStorage<Report[]>('reports', []);
-  const [products] = useLocalStorage<Product[]>('products', []);
   
   const [reportSortConfig, setReportSortConfig] = useState<{ key: ReportSortKey; direction: SortDirection }>({
     key: 'serialNumber',
@@ -254,12 +252,9 @@ export default function ReportsPage() {
   return (
     <div className="flex flex-col gap-8">
       <header className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Image src="/logo.png" alt="Company Logo" width={80} height={80} />
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Reports Dashboard</h1>
+        <div>
+            <h1 className="text-3xl font-bold tracking-tight">Reports</h1>
             <p className="text-muted-foreground">View and manage your test reports.</p>
-          </div>
         </div>
         <div className="flex gap-2">
           <Button asChild>
@@ -269,10 +264,7 @@ export default function ReportsPage() {
           </Button>
         </div>
       </header>
-
-      <div className="flex flex-col gap-8">
-        {renderContent()}
-      </div>
+      {renderContent()}
     </div>
   );
 }

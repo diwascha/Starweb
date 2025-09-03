@@ -3,13 +3,11 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown } from 'lucide-react';
 import useLocalStorage from '@/hooks/use-local-storage';
 import type { Report, Product, ProductSpecification } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { Card } from '@/components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,6 +40,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
 
 const initialSpecValues: ProductSpecification = {
   dimension: '',
@@ -292,12 +291,9 @@ export default function ProductsPage() {
   return (
     <div className="flex flex-col gap-8">
       <header className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Image src="/logo.png" alt="Company Logo" width={80} height={80} />
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Products Dashboard</h1>
+        <div>
+            <h1 className="text-3xl font-bold tracking-tight">Products</h1>
             <p className="text-muted-foreground">Add, view, and manage your products.</p>
-          </div>
         </div>
         <div className="flex gap-2">
           <Dialog open={isProductDialogOpen} onOpenChange={setIsProductDialogOpen}>
@@ -389,9 +385,7 @@ export default function ProductsPage() {
           </Dialog>
         </div>
       </header>
-      <div className="flex flex-col gap-8">
-        {renderContent()}
-      </div>
+      {renderContent()}
     </div>
   );
 }
