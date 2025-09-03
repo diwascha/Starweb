@@ -22,7 +22,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import NepaliDate from 'nepali-date-converter';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { summarizePurchaseOrderChanges } from '@/ai/flows/summarize-po-changes-flow';
 import { Loader2 } from 'lucide-react';
@@ -52,10 +52,14 @@ interface PurchaseOrderFormProps {
   poToEdit?: PurchaseOrder;
 }
 
+const materialTypesForAdd = [
+    'Kraft Paper', 'Virgin Paper', 'Gum', 'Ink', 'Stitching Wire', 'Strapping', 'Machinery Spare Parts', 'Other'
+];
+
 const paperTypes = ['Kraft Paper', 'Virgin Paper'];
 
 export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
-  const [rawMaterials] = useLocalStorage<RawMaterial[]>('rawMaterials', []);
+  const [rawMaterials, setRawMaterials] = useLocalStorage<RawMaterial[]>('rawMaterials', []);
   const [purchaseOrders, setPurchaseOrders] = useLocalStorage<PurchaseOrder[]>('purchaseOrders', []);
   const router = useRouter();
   const { toast } = useToast();
@@ -64,6 +68,8 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   const [editingCompany, setEditingCompany] = useState<{ oldName: string; newName: string; newAddress: string } | null>(null);
   const [itemFilterType, setItemFilterType] = useState<string>('All');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isQuickAddMaterialDialogOpen, setIsQuickAddMaterialDialogOpen] = useState(false);
+  const [quickAddMaterialSearch, setQuickAddMaterialSearch] = useState('');
 
   const defaultValues = useMemo(() => {
     if (poToEdit) {
@@ -177,7 +183,6 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
       })
     );
     
-    // Update current form if it was showing the old company name
     if (form.getValues('companyName') === oldName) {
         form.setValue('companyName', newName);
         form.setValue('companyAddress', newAddress);
@@ -253,6 +258,64 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   const title = poToEdit ? 'Edit Purchase Order' : 'Create New Purchase Order';
   const buttonText = poToEdit ? 'Save Changes' : 'Create Purchase Order';
   const showPaperColumns = itemFilterType === 'All' || paperTypes.includes(itemFilterType);
+
+  const [quickAddForm, setQuickAddForm] = useState({
+      type: '', name: '', size: '', gsm: '', bf: '', units: ''
+  });
+  
+  useEffect(() => {
+      setQuickAddForm(prev => ({ ...prev, type: itemFilterType !== 'All' ? itemFilterType : '' }));
+  }, [itemFilterType, isQuickAddMaterialDialogOpen]);
+
+
+  const generateMaterialName = (type: string, size: string, gsm: string, bf: string) => {
+    if (paperTypes.includes(type)) {
+        const parts = [type];
+        if (size) parts.push(`${size} inch`);
+        if (gsm) parts.push(`${gsm} GSM`);
+        if (bf) parts.push(`${bf} BF`);
+        return parts.join(' - ');
+    }
+    return '';
+  };
+  
+  const handleQuickAddMaterial = () => {
+    const { type, name, size, gsm, bf, units } = quickAddForm;
+    const isPaper = paperTypes.includes(type);
+
+    if (!type) {
+        toast({ title: 'Error', description: 'Please select a material type.', variant: 'destructive' });
+        return;
+    }
+    if (!units.trim()) {
+        toast({ title: 'Error', description: 'Please provide units.', variant: 'destructive' });
+        return;
+    }
+
+    const finalName = isPaper ? generateMaterialName(type, size, gsm, bf) : name;
+    if (!finalName) {
+        toast({ title: 'Error', description: 'Please fill out the material details.', variant: 'destructive' });
+        return;
+    }
+    
+    const newMaterial: RawMaterial = {
+        id: crypto.randomUUID(),
+        type,
+        name: finalName,
+        size: isPaper ? size : '',
+        gsm: isPaper ? gsm : '',
+        bf: isPaper ? bf : '',
+        units: units.split(',').map(u => u.trim()).filter(Boolean),
+    };
+    
+    setRawMaterials(prev => [...prev, newMaterial]);
+    toast({ title: 'Success', description: `Added "${finalName}".` });
+    setIsQuickAddMaterialDialogOpen(false);
+    setQuickAddForm({ type: '', name: '', size: '', gsm: '', bf: '', units: '' });
+  };
+  
+  const isQuickAddPaper = paperTypes.includes(quickAddForm.type);
+
 
   return (
     <div className="flex flex-col gap-8">
@@ -429,9 +492,20 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                                         </PopoverTrigger>
                                                         <PopoverContent className="p-0">
                                                             <Command>
-                                                                <CommandInput placeholder="Search material..." />
+                                                                <CommandInput 
+                                                                    placeholder="Search material..."
+                                                                    onValueChange={setQuickAddMaterialSearch}
+                                                                />
                                                                 <CommandList>
-                                                                    <CommandEmpty>No material found.</CommandEmpty>
+                                                                    <CommandEmpty>
+                                                                        <button
+                                                                            type="button"
+                                                                            className="w-full text-left p-2 text-sm"
+                                                                            onClick={() => setIsQuickAddMaterialDialogOpen(true)}
+                                                                        >
+                                                                            Add "{quickAddMaterialSearch}"
+                                                                        </button>
+                                                                    </CommandEmpty>
                                                                     <CommandGroup>
                                                                         {isClient && filteredRawMaterials.map(p => (
                                                                             <CommandItem
@@ -557,8 +631,72 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
             </DialogFooter>
         </DialogContent>
       </Dialog>
+
+       <Dialog open={isQuickAddMaterialDialogOpen} onOpenChange={setIsQuickAddMaterialDialogOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Quick Add Raw Material</DialogTitle>
+                <DialogDescription>Add a new material that is not in the list.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+                 <div className="space-y-2">
+                    <Label htmlFor="quick-add-type">Type</Label>
+                    <Select value={quickAddForm.type} onValueChange={value => setQuickAddForm(prev => ({...prev, type: value}))}>
+                        <SelectTrigger id="quick-add-type">
+                            <SelectValue placeholder="Select a type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {materialTypesForAdd.map(type => (
+                                <SelectItem key={type} value={type}>{type}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                 </div>
+                 {!isQuickAddPaper && quickAddForm.type && (
+                     <div className="space-y-2">
+                         <Label htmlFor="quick-add-name">Name / Description</Label>
+                         <Input
+                             id="quick-add-name"
+                             value={quickAddForm.name}
+                             onChange={e => setQuickAddForm(prev => ({...prev, name: e.target.value}))}
+                             placeholder="e.g. Corrugation Gum"
+                         />
+                     </div>
+                 )}
+                 {isQuickAddPaper && (
+                     <>
+                        <div className="space-y-2">
+                          <Label htmlFor="quick-add-size">Size (Inch)</Label>
+                          <Input id="quick-add-size" value={quickAddForm.size} onChange={e => setQuickAddForm(prev => ({...prev, size: e.target.value}))} placeholder="e.g. 42.5" />
+                        </div>
+                         <div className="space-y-2">
+                          <Label htmlFor="quick-add-gsm">GSM</Label>
+                          <Input id="quick-add-gsm" value={quickAddForm.gsm} onChange={e => setQuickAddForm(prev => ({...prev, gsm: e.target.value}))} placeholder="e.g. 150" />
+                        </div>
+                         <div className="space-y-2">
+                          <Label htmlFor="quick-add-bf">BF</Label>
+                          <Input id="quick-add-bf" value={quickAddForm.bf} onChange={e => setQuickAddForm(prev => ({...prev, bf: e.target.value}))} placeholder="e.g. 20" />
+                        </div>
+                     </>
+                 )}
+                 {quickAddForm.type && (
+                      <div className="space-y-2">
+                        <Label htmlFor="quick-add-units">Units of Measurement</Label>
+                        <Input
+                            id="quick-add-units"
+                            value={quickAddForm.units}
+                            onChange={e => setQuickAddForm(prev => ({...prev, units: e.target.value}))}
+                            placeholder="e.g., Kg, Ton, Ltr (comma-separated)"
+                        />
+                     </div>
+                 )}
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setIsQuickAddMaterialDialogOpen(false)}>Cancel</Button>
+                <Button onClick={handleQuickAddMaterial}>Add Material</Button>
+            </DialogFooter>
+        </DialogContent>
+       </Dialog>
     </div>
   );
 }
-
-    
