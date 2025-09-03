@@ -90,10 +90,10 @@ export default function ReportsPage() {
     if (searchQuery) {
         const lowercasedQuery = searchQuery.toLowerCase();
         filteredReports = filteredReports.filter(report =>
-            report.serialNumber.toLowerCase().includes(lowercasedQuery) ||
-            report.product.name.toLowerCase().includes(lowercasedQuery) ||
-            report.taxInvoiceNumber.toLowerCase().includes(lowercasedQuery) ||
-            report.challanNumber.toLowerCase().includes(lowercasedQuery)
+            (report.serialNumber || '').toLowerCase().includes(lowercasedQuery) ||
+            (report.product?.name || '').toLowerCase().includes(lowercasedQuery) ||
+            (report.taxInvoiceNumber || '').toLowerCase().includes(lowercasedQuery) ||
+            (report.challanNumber || '').toLowerCase().includes(lowercasedQuery)
         );
     }
     
