@@ -6,7 +6,7 @@ import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search } from 'lucide-
 import useLocalStorage from '@/hooks/use-local-storage';
 import type { RawMaterial } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,24 +39,25 @@ import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const materialTypes = [
     'Kraft Paper', 'Virgin Paper', 'Gum', 'Ink', 'Stitching Wire', 'Strapping', 'Machinery Spare Parts', 'Other'
 ];
 
+const paperTypes = ['Kraft Paper', 'Virgin Paper'];
+
 type RawMaterialSortKey = 'name' | 'type';
 type SortDirection = 'asc' | 'desc';
 
 const generateMaterialName = (type: string, size: string, gsm: string, bf: string) => {
-    if (type === 'Kraft Paper' || type === 'Virgin Paper') {
+    if (paperTypes.includes(type)) {
         const parts = [type];
         if (size) parts.push(`${size} inch`);
         if (gsm) parts.push(`${gsm} GSM`);
         if (bf) parts.push(`${bf} BF`);
         return parts.join(' - ');
     }
-    // For other types, this function will not be used to generate the final name,
-    // as the user provides it directly.
     return type;
 };
 
@@ -81,6 +82,7 @@ export default function RawMaterialsPage() {
   
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
+  const [activeTab, setActiveTab] = useState('All');
 
   useEffect(() => {
     setIsClient(true);
@@ -111,7 +113,7 @@ export default function RawMaterialsPage() {
   };
 
   const handleMaterialSubmit = () => {
-    const isPaper = newMaterialType === 'Kraft Paper' || newMaterialType === 'Virgin Paper';
+    const isPaper = paperTypes.includes(newMaterialType);
     
     if (newMaterialType.trim() === '') {
         toast({ title: 'Error', description: 'Please select a material type.', variant: 'destructive' });
@@ -136,9 +138,9 @@ export default function RawMaterialsPage() {
           ...editingMaterial,
           type: newMaterialType.trim(),
           name: finalName,
-          size: newMaterialSize.trim(),
-          gsm: newMaterialGsm.trim(),
-          bf: newMaterialBf.trim(),
+          size: isPaper ? newMaterialSize.trim() : '',
+          gsm: isPaper ? newMaterialGsm.trim() : '',
+          bf: isPaper ? newMaterialBf.trim() : '',
         };
         setRawMaterials(rawMaterials.map(m => (m.id === editingMaterial.id ? updatedMaterial : m)));
         toast({ title: 'Success', description: 'Raw material updated.' });
@@ -147,9 +149,9 @@ export default function RawMaterialsPage() {
           id: crypto.randomUUID(),
           type: newMaterialType.trim(),
           name: finalName,
-          size: newMaterialSize.trim(),
-          gsm: newMaterialGsm.trim(),
-          bf: newMaterialBf.trim(),
+          size: isPaper ? newMaterialSize.trim() : '',
+          gsm: isPaper ? newMaterialGsm.trim() : '',
+          bf: isPaper ? newMaterialBf.trim() : '',
         };
         setRawMaterials([...rawMaterials, newMaterial]);
         toast({ title: 'Success', description: 'New raw material added.' });
@@ -175,8 +177,17 @@ export default function RawMaterialsPage() {
     setSortConfig({ key, direction });
   };
   
+  const tabs = useMemo(() => {
+    const types = new Set(rawMaterials.map(m => m.type));
+    return ['All', ...Array.from(types).sort()];
+  }, [rawMaterials]);
+  
   const filteredAndSortedMaterials = useMemo(() => {
     let filtered = [...rawMaterials];
+    
+    if (activeTab !== 'All') {
+        filtered = filtered.filter(m => m.type === activeTab);
+    }
 
     if (searchQuery) {
         const lowercasedQuery = searchQuery.toLowerCase();
@@ -201,9 +212,9 @@ export default function RawMaterialsPage() {
       });
     }
     return filtered;
-  }, [rawMaterials, sortConfig, searchQuery]);
+  }, [rawMaterials, sortConfig, searchQuery, activeTab]);
   
-  const isPaper = newMaterialType === 'Kraft Paper' || newMaterialType === 'Virgin Paper';
+  const isPaperTypeSelectedInDialog = paperTypes.includes(newMaterialType);
 
   const renderContent = () => {
     if (!isClient) {
@@ -229,77 +240,91 @@ export default function RawMaterialsPage() {
           </div>
         );
       }
+    
+    const isCurrentTabPaper = paperTypes.includes(activeTab);
 
     return (
         <Card>
-            <Table>
-            <TableHeader>
-                <TableRow>
-                <TableHead>
-                    <Button variant="ghost" onClick={() => requestSort('name')}>
-                    Material Description
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                    </Button>
-                </TableHead>
-                <TableHead>
-                    <Button variant="ghost" onClick={() => requestSort('type')}>
-                    Type
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                    </Button>
-                </TableHead>
-                <TableHead>Size (Inch)</TableHead>
-                <TableHead>GSM</TableHead>
-                <TableHead>BF</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                {filteredAndSortedMaterials.map(material => (
-                <TableRow key={material.id}>
-                    <TableCell className="font-medium">{material.name}</TableCell>
-                    <TableCell>{material.type}</TableCell>
-                    <TableCell>{material.size || '-'}</TableCell>
-                    <TableCell>{material.gsm || '-'}</TableCell>
-                    <TableCell>{material.bf || '-'}</TableCell>
-                    <TableCell className="text-right">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreHorizontal className="h-4 w-4" />
+            <CardContent className="p-0">
+                <Table>
+                <TableHeader>
+                    <TableRow>
+                    <TableHead>
+                        <Button variant="ghost" onClick={() => requestSort('name')}>
+                        Material Description
+                        <ArrowUpDown className="ml-2 h-4 w-4" />
                         </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => openEditMaterialDialog(material)}>
-                            <Edit className="mr-2 h-4 w-4" /> Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                            <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                                <DropdownMenuItem onSelect={e => e.preventDefault()}>
-                                    <Trash2 className="mr-2 h-4 w-4 text-destructive" /> 
-                                    <span className="text-destructive">Delete</span>
-                                </DropdownMenuItem>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        This will permanently delete the raw material. This action cannot be undone.
-                                    </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => deleteMaterial(material.id)}>Delete</AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                    </TableCell>
-                </TableRow>
-                ))}
-            </TableBody>
-            </Table>
+                    </TableHead>
+                    {activeTab === 'All' &&
+                        <TableHead>
+                            <Button variant="ghost" onClick={() => requestSort('type')}>
+                            Type
+                            <ArrowUpDown className="ml-2 h-4 w-4" />
+                            </Button>
+                        </TableHead>
+                    }
+                    {isCurrentTabPaper && (
+                        <>
+                            <TableHead>Size (Inch)</TableHead>
+                            <TableHead>GSM</TableHead>
+                            <TableHead>BF</TableHead>
+                        </>
+                    )}
+                    <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {filteredAndSortedMaterials.map(material => (
+                    <TableRow key={material.id}>
+                        <TableCell className="font-medium">{material.name}</TableCell>
+                        {activeTab === 'All' && <TableCell>{material.type}</TableCell>}
+                        {isCurrentTabPaper && (
+                             <>
+                                <TableCell>{material.size || '-'}</TableCell>
+                                <TableCell>{material.gsm || '-'}</TableCell>
+                                <TableCell>{material.bf || '-'}</TableCell>
+                            </>
+                        )}
+                        <TableCell className="text-right">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                            <DropdownMenuItem onSelect={() => openEditMaterialDialog(material)}>
+                                <Edit className="mr-2 h-4 w-4" /> Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                                <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                                        <Trash2 className="mr-2 h-4 w-4 text-destructive" /> 
+                                        <span className="text-destructive">Delete</span>
+                                    </DropdownMenuItem>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This will permanently delete the raw material. This action cannot be undone.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => deleteMaterial(material.id)}>Delete</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                        </TableCell>
+                    </TableRow>
+                    ))}
+                </TableBody>
+                </Table>
+            </CardContent>
         </Card>
     );
   };
@@ -355,7 +380,7 @@ export default function RawMaterialsPage() {
                         </Select>
                     </div>
                     
-                    {!isPaper && (
+                    {!isPaperTypeSelectedInDialog && (
                         <div className="space-y-2">
                             <Label htmlFor="material-name">Name / Description</Label>
                             <Input
@@ -367,7 +392,7 @@ export default function RawMaterialsPage() {
                         </div>
                     )}
                     
-                    {isPaper && (
+                    {isPaperTypeSelectedInDialog && (
                         <>
                            <div className="space-y-2">
                              <Label htmlFor="material-size">Size (Inch)</Label>
@@ -407,7 +432,18 @@ export default function RawMaterialsPage() {
           </Dialog>
         </div>
       </header>
-      {renderContent()}
+       <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+            {tabs.map(tab => (
+                 <TabsTrigger key={tab} value={tab}>{tab}</TabsTrigger>
+            ))}
+        </TabsList>
+        {tabs.map(tab => (
+            <TabsContent key={tab} value={tab}>
+                {renderContent()}
+            </TabsContent>
+        ))}
+      </Tabs>
     </div>
   );
 }
