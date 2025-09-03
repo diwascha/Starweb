@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, Check, ChevronsUpDown } from 'lucide-react';
 import useLocalStorage from '@/hooks/use-local-storage';
 import type { Report, Product, ProductSpecification } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -41,6 +41,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { cn } from '@/lib/utils';
+
 
 const initialSpecValues: ProductSpecification = {
   dimension: '',
@@ -74,6 +78,8 @@ export default function ProductsPage() {
     key: 'name',
     direction: 'asc',
   });
+  
+  const [isCompanyPopoverOpen, setIsCompanyPopoverOpen] = useState(false);
 
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
@@ -82,6 +88,27 @@ export default function ProductsPage() {
     setIsClient(true);
   }, []);
 
+  const companies = useMemo(() => {
+    const companyMap = new Map<string, string>();
+    products.forEach(product => {
+        if (product.companyName && !companyMap.has(product.companyName.toLowerCase())) {
+            companyMap.set(product.companyName.toLowerCase(), product.companyName);
+        }
+    });
+    return Array.from(companyMap.values()).sort();
+  }, [products]);
+
+  const handleCompanySelect = (companyName: string) => {
+    setNewCompanyName(companyName);
+    const existingProduct = products.find(p => p.companyName.toLowerCase() === companyName.toLowerCase());
+    if (existingProduct) {
+        setNewAddress(existingProduct.address);
+    } else {
+        setNewAddress('');
+    }
+    setIsCompanyPopoverOpen(false);
+  };
+  
   const resetForm = () => {
     setNewProductName('');
     setNewMaterialCode('');
@@ -360,16 +387,62 @@ export default function ProductsPage() {
                       />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="company-name" className="text-right">
-                        Delivered To
-                      </Label>
-                      <Input
-                        id="company-name"
-                        value={newCompanyName}
-                        onChange={e => setNewCompanyName(e.target.value)}
-                        className="col-span-3"
-                      />
+                        <Label htmlFor="company-name" className="text-right">
+                            Delivered To
+                        </Label>
+                        <Popover open={isCompanyPopoverOpen} onOpenChange={setIsCompanyPopoverOpen}>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    role="combobox"
+                                    aria-expanded={isCompanyPopoverOpen}
+                                    className="col-span-3 justify-between"
+                                >
+                                    {newCompanyName || "Select or type a company..."}
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
+                                <Command>
+                                    <CommandInput 
+                                        placeholder="Search or add company..."
+                                        value={newCompanyName}
+                                        onValueChange={setNewCompanyName}
+                                    />
+                                    <CommandList>
+                                        <CommandEmpty>
+                                            <button 
+                                                className="w-full text-left p-2 text-sm"
+                                                onClick={() => handleCompanySelect(newCompanyName)}
+                                            >
+                                                Add "{newCompanyName}"
+                                            </button>
+                                        </CommandEmpty>
+                                        <CommandGroup>
+                                            {companies.map((company) => (
+                                                <CommandItem
+                                                    key={company}
+                                                    value={company}
+                                                    onSelect={(currentValue) => {
+                                                        handleCompanySelect(currentValue === newCompanyName.toLowerCase() ? '' : company)
+                                                    }}
+                                                >
+                                                    <Check
+                                                        className={cn(
+                                                        "mr-2 h-4 w-4",
+                                                        newCompanyName.toLowerCase() === company.toLowerCase() ? "opacity-100" : "opacity-0"
+                                                        )}
+                                                    />
+                                                    {company}
+                                                </CommandItem>
+                                            ))}
+                                        </CommandGroup>
+                                    </CommandList>
+                                </Command>
+                            </PopoverContent>
+                        </Popover>
                     </div>
+
                     <div className="grid grid-cols-4 items-start gap-4">
                       <Label htmlFor="address" className="text-right mt-2">
                         Address
