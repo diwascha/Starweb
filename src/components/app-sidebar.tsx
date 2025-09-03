@@ -39,9 +39,8 @@ export function AppSidebar() {
 
   const getIsActive = (path: string) => {
     if (!isClient) return false;
-    if (path === '/dashboard') {
-      return pathname === path;
-    }
+    // This logic ensures that parent routes are highlighted for their child routes
+    // e.g., /purchase-orders will be active for /purchase-orders/new
     return pathname.startsWith(path);
   };
   
@@ -60,7 +59,7 @@ export function AppSidebar() {
       <SidebarMenu>
         {hasPermission('dashboard', 'view') && (
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={getIsActive('/dashboard')}>
+            <SidebarMenuButton asChild isActive={pathname === '/dashboard'}>
               <Link href="/dashboard">
                 <LayoutDashboard />
                 <span>Dashboard</span>
@@ -80,7 +79,7 @@ export function AppSidebar() {
         )}
          {hasPermission('reports', 'view') && (
            <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={getIsActive('/reports') || getIsActive('/report/')}>
+            <SidebarMenuButton asChild isActive={getIsActive('/reports') || getIsActive('/report')}>
               <Link href="/reports">
                 <FileSpreadsheet />
                 <span>QT Reports Database</span>

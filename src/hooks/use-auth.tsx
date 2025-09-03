@@ -92,19 +92,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     if (user && !isAuthPage) {
-        let currentModule = pathname.split('/')[1] as Module;
+        const pathSegments = pathname.split('/').filter(Boolean);
+        let currentModule: Module | string = pathSegments[0] || 'dashboard';
 
-        // Handle special routing cases
+        // Handle special routing cases to match module names
         if (currentModule === 'report') {
             currentModule = 'reports';
         }
-        
-        // Root path should resolve to dashboard check
-        if (currentModule === '') {
-            currentModule = 'dashboard';
-        }
 
-        const canViewCurrentModule = modules.includes(currentModule) && hasPermission(currentModule, 'view');
+        const canViewCurrentModule = modules.includes(currentModule as Module) && hasPermission(currentModule as Module, 'view');
         
         if (!canViewCurrentModule) {
             // Find the first page the user has access to and redirect
@@ -114,8 +110,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 let redirectPath = `/${firstAllowedPage}`;
                 router.push(redirectPath);
             } else {
-                // If user has no view permissions at all, log them out or show an "access denied" page.
-                // For simplicity, we can log them out.
+                // If user has no view permissions at all, log them out.
                 logout();
             }
         }
