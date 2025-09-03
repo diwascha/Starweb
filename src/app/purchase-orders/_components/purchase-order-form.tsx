@@ -13,7 +13,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useEffect, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, PlusCircle, Trash2, Check, ChevronsUpDown } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Trash2, Check, ChevronsUpDown, Edit } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { cn, generateNextPONumber } from '@/lib/utils';
@@ -22,6 +22,8 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import NepaliDate from 'nepali-date-converter';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 
 const poItemSchema = z.object({
   rawMaterialId: z.string().min(1, 'Material is required.'),
@@ -54,6 +56,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
   const [isCompanyPopoverOpen, setIsCompanyPopoverOpen] = useState(false);
+  const [editingCompany, setEditingCompany] = useState<{ oldName: string; newName: string; newAddress: string } | null>(null);
 
   const defaultValues = useMemo(() => {
     if (poToEdit) {
@@ -128,6 +131,39 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         quantity: '',
       });
     }
+  };
+  
+  const handleEditCompany = (company: {name: string, address: string}) => {
+    setEditingCompany({ oldName: company.name, newName: company.name, newAddress: company.address });
+  };
+  
+  const handleUpdateCompany = () => {
+    if (!editingCompany) return;
+
+    const { oldName, newName, newAddress } = editingCompany;
+
+    if (!newName.trim() || !newAddress.trim()) {
+      toast({ title: 'Error', description: 'Company name and address cannot be empty.', variant: 'destructive' });
+      return;
+    }
+
+    setPurchaseOrders(prevPOs =>
+      prevPOs.map(po => {
+        if (po.companyName === oldName) {
+          return { ...po, companyName: newName, companyAddress: newAddress };
+        }
+        return po;
+      })
+    );
+    
+    // Update current form if it was showing the old company name
+    if (form.getValues('companyName') === oldName) {
+        form.setValue('companyName', newName);
+        form.setValue('companyAddress', newAddress);
+    }
+
+    toast({ title: 'Success', description: `Company "${oldName}" updated to "${newName}".` });
+    setEditingCompany(null);
   };
 
   const addNewItem = () => {
@@ -251,9 +287,14 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                     </CommandEmpty>
                                     <CommandGroup>
                                         {companies.map((company) => (
-                                            <CommandItem key={company.name} value={company.name} onSelect={() => handleCompanySelect(company.name)}>
-                                                <Check className={cn("mr-2 h-4 w-4", field.value?.toLowerCase() === company.name.toLowerCase() ? "opacity-100" : "opacity-0")} />
-                                                {company.name}
+                                            <CommandItem key={company.name} value={company.name} onSelect={() => handleCompanySelect(company.name)} className="flex justify-between items-center">
+                                                <div className="flex items-center">
+                                                    <Check className={cn("mr-2 h-4 w-4", field.value?.toLowerCase() === company.name.toLowerCase() ? "opacity-100" : "opacity-0")} />
+                                                    {company.name}
+                                                </div>
+                                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleEditCompany(company); }}>
+                                                    <Edit className="h-4 w-4"/>
+                                                </Button>
                                             </CommandItem>
                                         ))}
                                     </CommandGroup>
@@ -358,6 +399,38 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
           <Button type="submit">{buttonText}</Button>
         </form>
       </Form>
+      
+      <Dialog open={!!editingCompany} onOpenChange={() => setEditingCompany(null)}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Edit Company</DialogTitle>
+            </DialogHeader>
+            {editingCompany && (
+                <div className="grid gap-4 py-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="company-name-edit">Company Name</Label>
+                        <Input
+                            id="company-name-edit"
+                            value={editingCompany.newName}
+                            onChange={(e) => setEditingCompany(prev => prev ? { ...prev, newName: e.target.value } : null)}
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="company-address-edit">Company Address</Label>
+                        <Textarea
+                            id="company-address-edit"
+                            value={editingCompany.newAddress}
+                            onChange={(e) => setEditingCompany(prev => prev ? { ...prev, newAddress: e.target.value } : null)}
+                        />
+                    </div>
+                </div>
+            )}
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setEditingCompany(null)}>Cancel</Button>
+                <Button onClick={handleUpdateCompany}>Save Changes</Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
