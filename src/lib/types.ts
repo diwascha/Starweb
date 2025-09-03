@@ -132,6 +132,27 @@ export interface Driver {
     contactNumber: string;
 }
 
+export interface InsurancePolicy {
+    id: string;
+    vehicleId: string; // Link to a vehicle
+    provider: string;
+    policyNumber: string;
+    startDate: string; // ISO string
+    endDate: string; // ISO string
+    premium: number;
+}
+
+export interface Membership {
+    id: string;
+    organization: string;
+    membershipId: string;
+    startDate: string; // ISO string
+    endDate: string; // ISO string
+    cost: number;
+    memberId: string; // Can be vehicleId or driverId
+    memberType: 'Vehicle' | 'Driver';
+}
+
 
 // RBAC Types
 export const modules = ['dashboard', 'reports', 'products', 'purchaseOrders', 'rawMaterials', 'settings', 'hr', 'fleet'] as const;

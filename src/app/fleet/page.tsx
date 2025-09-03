@@ -2,7 +2,7 @@
 'use client';
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Truck, Users } from 'lucide-react';
+import { Truck, Users, ShieldCheck, Star } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
 
@@ -20,6 +20,22 @@ const fleetModules = [
         description: 'Manage driver records and assignments.',
         href: '/fleet/drivers',
         icon: Users,
+        permission: 'fleet',
+        action: 'view'
+    },
+    {
+        name: 'Insurance',
+        description: 'Track and manage vehicle insurance policies.',
+        href: '/fleet/insurance',
+        icon: ShieldCheck,
+        permission: 'fleet',
+        action: 'view'
+    },
+    {
+        name: 'Memberships',
+        description: 'Manage memberships and associations.',
+        href: '/fleet/memberships',
+        icon: Star,
         permission: 'fleet',
         action: 'view'
     },
