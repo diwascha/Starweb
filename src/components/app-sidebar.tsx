@@ -14,6 +14,7 @@ import { usePathname } from 'next/navigation';
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const isReportsActive = pathname === '/reports' || pathname.startsWith('/report/') || pathname === '/';
 
   return (
     <Sidebar>
@@ -41,7 +42,7 @@ export function AppSidebar() {
           </SidebarMenuButton>
         </SidebarMenuItem>
          <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={pathname === '/' || pathname.startsWith('/reports') || pathname.startsWith('/report/')}>
+          <SidebarMenuButton asChild isActive={isReportsActive}>
             <Link href="/reports">
               <FileSpreadsheet />
               <span>QT Reports Database</span>
