@@ -128,6 +128,7 @@ export interface Vehicle {
 export interface Driver {
     id: string;
     name: string;
+    nickname?: string;
     licenseNumber: string;
     contactNumber: string;
     dateOfBirth: string; // ISO string

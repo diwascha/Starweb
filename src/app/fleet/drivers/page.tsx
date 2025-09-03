@@ -39,7 +39,7 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 
-type DriverSortKey = 'name' | 'licenseNumber' | 'contactNumber' | 'dateOfBirth';
+type DriverSortKey = 'name' | 'nickname' | 'licenseNumber' | 'contactNumber' | 'dateOfBirth';
 type SortDirection = 'asc' | 'desc';
 
 export default function DriversPage() {
@@ -50,6 +50,7 @@ export default function DriversPage() {
     const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
     const [formState, setFormState] = useState<Omit<Driver, 'id'>>({
         name: '',
+        nickname: '',
         licenseNumber: '',
         contactNumber: '',
         dateOfBirth: new Date().toISOString(),
@@ -69,6 +70,7 @@ export default function DriversPage() {
         setEditingDriver(null);
         setFormState({
             name: '',
+            nickname: '',
             licenseNumber: '',
             contactNumber: '',
             dateOfBirth: new Date().toISOString(),
@@ -78,7 +80,7 @@ export default function DriversPage() {
     const handleOpenDialog = (driver: Driver | null = null) => {
         if (driver) {
             setEditingDriver(driver);
-            setFormState(driver);
+            setFormState({ ...driver, nickname: driver.nickname || '' });
         } else {
             resetForm();
         }
@@ -135,6 +137,7 @@ export default function DriversPage() {
             const lowercasedQuery = searchQuery.toLowerCase();
             filtered = filtered.filter(d =>
                 d.name.toLowerCase().includes(lowercasedQuery) ||
+                (d.nickname || '').toLowerCase().includes(lowercasedQuery) ||
                 d.licenseNumber.toLowerCase().includes(lowercasedQuery) ||
                 d.contactNumber.toLowerCase().includes(lowercasedQuery) ||
                 format(new Date(d.dateOfBirth), 'PPP').toLowerCase().includes(lowercasedQuery)
@@ -179,6 +182,7 @@ export default function DriversPage() {
                     <TableHeader>
                         <TableRow>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('name')}>Name <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('nickname')}>Nickname <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('licenseNumber')}>License Number <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('contactNumber')}>Contact Number <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                              <TableHead><Button variant="ghost" onClick={() => requestSort('dateOfBirth')}>Date of Birth <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
@@ -189,6 +193,7 @@ export default function DriversPage() {
                         {sortedAndFilteredDrivers.map(driver => (
                             <TableRow key={driver.id}>
                                 <TableCell>{driver.name}</TableCell>
+                                <TableCell>{driver.nickname}</TableCell>
                                 <TableCell>{driver.licenseNumber}</TableCell>
                                 <TableCell>{driver.contactNumber}</TableCell>
                                 <TableCell>{format(new Date(driver.dateOfBirth), 'PPP')}</TableCell>
@@ -256,9 +261,15 @@ export default function DriversPage() {
                     <DialogDescription>{editingDriver ? 'Update the details for this driver.' : 'Enter the details for the new driver.'}</DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="name">Driver Name</Label>
-                        <Input id="name" name="name" value={formState.name} onChange={handleFormChange} />
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="name">Driver Name</Label>
+                            <Input id="name" name="name" value={formState.name} onChange={handleFormChange} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="nickname">Nickname</Label>
+                            <Input id="nickname" name="nickname" value={formState.nickname} onChange={handleFormChange} />
+                        </div>
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="licenseNumber">License Number</Label>
