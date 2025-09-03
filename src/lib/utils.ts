@@ -1,6 +1,7 @@
+
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import type { Report, PurchaseOrder } from './types';
+import type { Report, PurchaseOrder, PurchaseOrderStatus } from './types';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -39,3 +40,20 @@ export const generateNextPONumber = (purchaseOrders: PurchaseOrder[]): string =>
     const nextNumber = maxNumber + 1;
     return `${poPrefix}${nextNumber.toString().padStart(3, '0')}`;
 };
+
+export const getStatusBadgeVariant = (status: PurchaseOrderStatus) => {
+    switch (status) {
+      case 'Ordered':
+        return 'default';
+      case 'Amended':
+        return 'secondary';
+      case 'Delivered':
+        return 'outline';
+      case 'Canceled':
+        return 'destructive';
+      default:
+        return 'default';
+    }
+};
+
+    
