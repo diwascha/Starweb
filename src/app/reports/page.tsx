@@ -266,7 +266,7 @@ export default function ReportsPage() {
     <div className="flex flex-col gap-8">
       <header className="flex items-center justify-between">
         <div>
-            <h1 className="text-3xl font-bold tracking-tight">Reports</h1>
+            <h1 className="text-3xl font-bold tracking-tight">QT Reports Database</h1>
             <p className="text-muted-foreground">View and manage your test reports.</p>
         </div>
         <div className="flex items-center gap-2">
