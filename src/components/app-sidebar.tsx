@@ -21,19 +21,20 @@ export function AppSidebar() {
     setIsClient(true);
   }, []);
 
-  const getIsActive = (path: string, checkStartsWith: boolean = false, checkRoot: boolean = false) => {
-    if (!isClient) return false;
+  const getIsActive = (path: string, checkStartsWith: boolean = false) => {
+    if (!isClient) {
+      return false;
+    }
     if (checkStartsWith) {
       return pathname.startsWith(path);
     }
-    if (checkRoot) {
-      return pathname === path || (path === '/reports' && pathname === '/');
+    // Handle root path matching for /reports as well
+    if (path === '/reports' && pathname === '/') {
+        return true;
     }
     return pathname === path;
   };
-  
-  const isReportsActive = getIsActive('/reports', true, true);
-  
+
   return (
     <Sidebar>
       <SidebarHeader>
@@ -60,7 +61,7 @@ export function AppSidebar() {
           </SidebarMenuButton>
         </SidebarMenuItem>
          <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={isReportsActive}>
+          <SidebarMenuButton asChild isActive={getIsActive('/reports', true)}>
             <Link href="/reports">
               <FileSpreadsheet />
               <span>QT Reports Database</span>
