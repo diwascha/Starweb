@@ -25,7 +25,7 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarMenu>
         <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={pathname.startsWith('/dashboard')}>
+          <SidebarMenuButton asChild isActive={pathname === '/dashboard'}>
             <Link href="/dashboard">
               <LayoutDashboard />
               <span>Dashboard</span>
@@ -33,7 +33,7 @@ export function AppSidebar() {
           </SidebarMenuButton>
         </SidebarMenuItem>
          <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={pathname.startsWith('/reports')}>
+          <SidebarMenuButton asChild isActive={pathname.startsWith('/reports') || pathname === '/'}>
             <Link href="/reports">
               <FileSpreadsheet />
               <span>Reports</span>
