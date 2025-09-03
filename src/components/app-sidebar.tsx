@@ -26,6 +26,10 @@ export function AppSidebar() {
       return false;
     }
     if (checkStartsWith) {
+      // Special case for reports, as /report/* should also activate this
+      if (path === '/reports' && (pathname.startsWith('/report/') || pathname.startsWith('/reports'))) {
+        return true;
+      }
       return pathname.startsWith(path);
     }
     // Handle root path matching for /reports as well
@@ -68,19 +72,19 @@ export function AppSidebar() {
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton asChild isActive={getIsActive('/products', true)}>
+            <Link href="/products">
+              <Package />
+              <span>QT Product</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
          <SidebarMenuItem>
           <SidebarMenuButton asChild isActive={getIsActive('/purchase-orders', true)}>
             <Link href="/purchase-orders">
               <ShoppingCart />
               <span>Purchase Orders</span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-        <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={getIsActive('/products', true)}>
-            <Link href="/products">
-              <Package />
-              <span>Products</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>

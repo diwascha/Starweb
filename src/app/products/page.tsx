@@ -331,7 +331,7 @@ export default function ProductsPage() {
     <div className="flex flex-col gap-8">
       <header className="flex items-center justify-between">
         <div>
-            <h1 className="text-3xl font-bold tracking-tight">Products</h1>
+            <h1 className="text-3xl font-bold tracking-tight">QT Products</h1>
             <p className="text-muted-foreground">Add, view, and manage your products.</p>
         </div>
         <div className="flex items-center gap-2">
