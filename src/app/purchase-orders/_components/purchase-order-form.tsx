@@ -24,6 +24,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import NepaliDate from 'nepali-date-converter';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { summarizePurchaseOrderChanges } from '@/ai/flows/summarize-po-changes-flow';
+import { Loader2 } from 'lucide-react';
 
 const poItemSchema = z.object({
   rawMaterialId: z.string().min(1, 'Material is required.'),
@@ -42,7 +44,6 @@ const purchaseOrderSchema = z.object({
   companyName: z.string().min(1, 'Company name is required.'),
   companyAddress: z.string().min(1, 'Company address is required.'),
   items: z.array(poItemSchema).min(1, 'At least one item is required.'),
-  amendmentRemarks: z.string().optional(),
 });
 
 type PurchaseOrderFormValues = z.infer<typeof purchaseOrderSchema>;
@@ -62,13 +63,13 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   const [isCompanyPopoverOpen, setIsCompanyPopoverOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<{ oldName: string; newName: string; newAddress: string } | null>(null);
   const [itemFilterType, setItemFilterType] = useState<string>('All');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const defaultValues = useMemo(() => {
     if (poToEdit) {
       return {
         ...poToEdit,
         poDate: new Date(poToEdit.poDate),
-        amendmentRemarks: '',
       };
     }
     return {
@@ -77,7 +78,6 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
       companyName: '',
       companyAddress: '',
       items: [],
-      amendmentRemarks: '',
     };
   }, [poToEdit]);
 
@@ -91,16 +91,6 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     name: "items",
   });
   
-  // Conditionally apply validation for amendmentRemarks
-  useEffect(() => {
-    if (poToEdit) {
-      form.register('amendmentRemarks', { required: 'Amendment remarks are required when editing.' });
-    } else {
-      form.unregister('amendmentRemarks');
-    }
-  }, [poToEdit, form]);
-
-
   useEffect(() => {
     setIsClient(true);
   }, []);
@@ -209,25 +199,28 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   }, [poDate]);
 
   async function onSubmit(values: PurchaseOrderFormValues) {
+    setIsSubmitting(true);
     try {
       if (poToEdit) {
-         if (!values.amendmentRemarks || values.amendmentRemarks.trim() === '') {
-          form.setError('amendmentRemarks', { type: 'manual', message: 'Amendment remarks are required when editing.' });
-          return;
-        }
-
-        const newAmendment: Amendment = {
-          date: new Date().toISOString(),
-          remarks: values.amendmentRemarks,
-        };
-        
-        const updatedPO: PurchaseOrder = {
+        const updatedPOData = {
           ...poToEdit,
           ...values,
           poDate: values.poDate.toISOString(),
           updatedAt: new Date().toISOString(),
+        };
+
+        const { summary } = await summarizePurchaseOrderChanges(poToEdit, updatedPOData);
+        
+        const newAmendment: Amendment = {
+          date: new Date().toISOString(),
+          remarks: summary || 'No specific changes were identified.',
+        };
+        
+        const updatedPO: PurchaseOrder = {
+          ...updatedPOData,
           amendments: [...(poToEdit.amendments || []), newAmendment],
         };
+
         setPurchaseOrders(purchaseOrders.map(p => (p.id === poToEdit.id ? updatedPO : p)));
         toast({ title: 'Success', description: 'Purchase Order updated.' });
         router.push(`/purchase-orders/${poToEdit.id}`);
@@ -252,6 +245,8 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         description: 'Failed to save purchase order. Please try again.',
         variant: 'destructive',
       });
+    } finally {
+        setIsSubmitting(false);
     }
   }
 
@@ -367,29 +362,6 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                 />
             </CardContent>
           </Card>
-
-           {poToEdit && (
-              <Card>
-                <CardHeader>
-                    <CardTitle>Amendment Details</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <FormField
-                    control={form.control}
-                    name="amendmentRemarks"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Amendment Remarks</FormLabel>
-                        <FormControl>
-                            <Textarea placeholder="Describe the changes made to this purchase order..." {...field} />
-                        </FormControl>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                    />
-                </CardContent>
-              </Card>
-            )}
 
           <Card>
              <CardHeader>
@@ -526,7 +498,10 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                 {form.formState.errors.items?.message && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.items.message}</p>}
             </CardContent>
           </Card>
-          <Button type="submit">{buttonText}</Button>
+          <Button type="submit" disabled={isSubmitting}>
+             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isSubmitting ? 'Saving...' : buttonText}
+          </Button>
         </form>
       </Form>
       
