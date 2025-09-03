@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, X, Check } from 'lucide-react';
 import useLocalStorage from '@/hooks/use-local-storage';
 import type { RawMaterial } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -40,6 +40,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 const materialTypes = [
     'Kraft Paper', 'Virgin Paper', 'Gum', 'Ink', 'Stitching Wire', 'Strapping', 'Machinery Spare Parts', 'Other'
@@ -70,7 +74,7 @@ export default function RawMaterialsPage() {
   const [newMaterialSize, setNewMaterialSize] = useState('');
   const [newMaterialGsm, setNewMaterialGsm] = useState('');
   const [newMaterialBf, setNewMaterialBf] = useState('');
-  const [newMaterialUnits, setNewMaterialUnits] = useState('');
+  const [newMaterialUnits, setNewMaterialUnits] = useState<string[]>([]);
   
   const [isMaterialDialogOpen, setIsMaterialDialogOpen] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<RawMaterial | null>(null);
@@ -84,6 +88,9 @@ export default function RawMaterialsPage() {
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
   const [activeTab, setActiveTab] = useState('All');
+  
+  const [unitInputValue, setUnitInputValue] = useState('');
+  const [isUnitPopoverOpen, setIsUnitPopoverOpen] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -95,7 +102,7 @@ export default function RawMaterialsPage() {
     setNewMaterialSize('');
     setNewMaterialGsm('');
     setNewMaterialBf('');
-    setNewMaterialUnits('');
+    setNewMaterialUnits([]);
     setEditingMaterial(null);
   };
 
@@ -111,7 +118,7 @@ export default function RawMaterialsPage() {
     setNewMaterialSize(material.size || '');
     setNewMaterialGsm(material.gsm || '');
     setNewMaterialBf(material.bf || '');
-    setNewMaterialUnits(Array.isArray(material.units) ? material.units.join(', ') : '');
+    setNewMaterialUnits(Array.isArray(material.units) ? material.units : []);
     setIsMaterialDialogOpen(true);
   };
 
@@ -123,7 +130,7 @@ export default function RawMaterialsPage() {
         return;
     }
 
-    if (newMaterialUnits.trim() === '') {
+    if (newMaterialUnits.length === 0) {
         toast({ title: 'Error', description: 'Please provide at least one unit of measurement.', variant: 'destructive' });
         return;
     }
@@ -142,8 +149,6 @@ export default function RawMaterialsPage() {
           )
         : newMaterialName.trim();
     
-    const unitsArray = newMaterialUnits.split(',').map(u => u.trim()).filter(u => u);
-
       if (editingMaterial) {
         const updatedMaterial: RawMaterial = {
           ...editingMaterial,
@@ -152,7 +157,7 @@ export default function RawMaterialsPage() {
           size: isPaper ? newMaterialSize.trim() : '',
           gsm: isPaper ? newMaterialGsm.trim() : '',
           bf: isPaper ? newMaterialBf.trim() : '',
-          units: unitsArray,
+          units: newMaterialUnits,
         };
         setRawMaterials(rawMaterials.map(m => (m.id === editingMaterial.id ? updatedMaterial : m)));
         toast({ title: 'Success', description: 'Raw material updated.' });
@@ -164,7 +169,7 @@ export default function RawMaterialsPage() {
           size: isPaper ? newMaterialSize.trim() : '',
           gsm: isPaper ? newMaterialGsm.trim() : '',
           bf: isPaper ? newMaterialBf.trim() : '',
-          units: unitsArray,
+          units: newMaterialUnits,
         };
         setRawMaterials([...rawMaterials, newMaterial]);
         toast({ title: 'Success', description: 'New raw material added.' });
@@ -229,6 +234,39 @@ export default function RawMaterialsPage() {
   }, [rawMaterials, sortConfig, searchQuery, activeTab]);
   
   const isPaperTypeSelectedInDialog = paperTypes.includes(newMaterialType);
+
+  const allUnits = useMemo(() => {
+    const unitsSet = new Set<string>();
+    rawMaterials.forEach(material => {
+      if (Array.isArray(material.units)) {
+        material.units.forEach(unit => unitsSet.add(unit));
+      }
+    });
+    return Array.from(unitsSet).sort();
+  }, [rawMaterials]);
+  
+  const handleUnitSelect = (unit: string) => {
+    if (!newMaterialUnits.includes(unit)) {
+        setNewMaterialUnits([...newMaterialUnits, unit]);
+    }
+    setUnitInputValue('');
+  };
+
+  const handleUnitRemove = (unit: string) => {
+    setNewMaterialUnits(newMaterialUnits.filter(u => u !== unit));
+  };
+
+  const handleUnitKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if ((e.key === 'Enter' || e.key === ',') && unitInputValue.trim()) {
+        e.preventDefault();
+        const newUnit = unitInputValue.trim();
+        if (!newMaterialUnits.find(u => u.toLowerCase() === newUnit.toLowerCase())) {
+            setNewMaterialUnits([...newMaterialUnits, newUnit]);
+        }
+        setUnitInputValue('');
+    }
+  };
+
 
   const renderContent = () => {
     if (!isClient) {
@@ -442,12 +480,47 @@ export default function RawMaterialsPage() {
                      {newMaterialType && (
                         <div className="space-y-2">
                             <Label htmlFor="material-units">Units of Measurement</Label>
-                            <Input
-                                id="material-units"
-                                value={newMaterialUnits}
-                                onChange={e => setNewMaterialUnits(e.target.value)}
-                                placeholder="e.g., Kg, Ton, Ltr (comma-separated)"
-                            />
+                             <Popover open={isUnitPopoverOpen} onOpenChange={setIsUnitPopoverOpen}>
+                                <PopoverTrigger asChild>
+                                    <div className="flex min-h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm flex-wrap gap-1">
+                                    {newMaterialUnits.map(unit => (
+                                        <Badge key={unit} variant="secondary" className="gap-1">
+                                            {unit}
+                                            <button onClick={() => handleUnitRemove(unit)} className="rounded-full hover:bg-background/50">
+                                                <X className="h-3 w-3" />
+                                            </button>
+                                        </Badge>
+                                    ))}
+                                    <input
+                                        placeholder={newMaterialUnits.length === 0 ? "e.g. Kg, Ton..." : ""}
+                                        value={unitInputValue}
+                                        onChange={e => setUnitInputValue(e.target.value)}
+                                        onKeyDown={handleUnitKeyDown}
+                                        className="bg-transparent outline-none flex-1 placeholder:text-muted-foreground text-sm"
+                                    />
+                                    </div>
+                                </PopoverTrigger>
+                                <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
+                                    <Command>
+                                        <CommandInput 
+                                            placeholder="Search or create unit..."
+                                            value={unitInputValue}
+                                            onValueChange={setUnitInputValue}
+                                        />
+                                        <CommandList>
+                                            <CommandEmpty>No results. Press Enter to add.</CommandEmpty>
+                                            <CommandGroup>
+                                                {allUnits.filter(u => !newMaterialUnits.includes(u)).map(unit => (
+                                                    <CommandItem key={unit} onSelect={() => handleUnitSelect(unit)}>
+                                                        <Check className={cn("mr-2 h-4 w-4", newMaterialUnits.includes(unit) ? "opacity-100" : "opacity-0")} />
+                                                        {unit}
+                                                    </CommandItem>
+                                                ))}
+                                            </CommandGroup>
+                                        </CommandList>
+                                    </Command>
+                                </PopoverContent>
+                            </Popover>
                         </div>
                     )}
                   </div>
@@ -467,7 +540,7 @@ export default function RawMaterialsPage() {
               ))}
           </TabsList>
           {tabs.map(tab => (
-              <TabsContent key={tab} value={tab}>
+              <TabsContent key={tab} value={tab} className="mt-4">
                   {renderContent()}
               </TabsContent>
           ))}
@@ -476,3 +549,4 @@ export default function RawMaterialsPage() {
     </div>
   );
 }
+

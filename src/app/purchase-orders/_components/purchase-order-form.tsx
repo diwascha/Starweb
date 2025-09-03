@@ -13,7 +13,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useEffect, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, PlusCircle, Trash2, Check, ChevronsUpDown, Edit } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Trash2, Check, ChevronsUpDown, Edit, X } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { cn, generateNextPONumber } from '@/lib/utils';
@@ -26,6 +26,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Label } from '@/components/ui/label';
 import { summarizePurchaseOrderChanges } from '@/ai/flows/summarize-po-changes-flow';
 import { Loader2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 const poItemSchema = z.object({
   rawMaterialId: z.string().min(1, 'Material is required.'),
@@ -260,11 +261,13 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   const showPaperColumns = itemFilterType === 'All' || paperTypes.includes(itemFilterType);
 
   const [quickAddForm, setQuickAddForm] = useState({
-      type: '', name: '', size: '', gsm: '', bf: '', units: ''
+      type: '', name: '', size: '', gsm: '', bf: '', units: [] as string[]
   });
+  const [quickAddUnitInput, setQuickAddUnitInput] = useState('');
+  const [isQuickAddUnitPopoverOpen, setIsQuickAddUnitPopoverOpen] = useState(false);
   
   useEffect(() => {
-      setQuickAddForm(prev => ({ ...prev, type: itemFilterType !== 'All' ? itemFilterType : '' }));
+      setQuickAddForm(prev => ({ ...prev, type: itemFilterType !== 'All' ? itemFilterType : '', name: '', size: '', gsm: '', bf: '', units: [] }));
   }, [itemFilterType, isQuickAddMaterialDialogOpen]);
 
 
@@ -287,7 +290,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         toast({ title: 'Error', description: 'Please select a material type.', variant: 'destructive' });
         return;
     }
-    if (!units.trim()) {
+    if (units.length === 0) {
         toast({ title: 'Error', description: 'Please provide units.', variant: 'destructive' });
         return;
     }
@@ -305,16 +308,47 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         size: isPaper ? size : '',
         gsm: isPaper ? gsm : '',
         bf: isPaper ? bf : '',
-        units: units.split(',').map(u => u.trim()).filter(Boolean),
+        units: units,
     };
     
     setRawMaterials(prev => [...prev, newMaterial]);
     toast({ title: 'Success', description: `Added "${finalName}".` });
     setIsQuickAddMaterialDialogOpen(false);
-    setQuickAddForm({ type: '', name: '', size: '', gsm: '', bf: '', units: '' });
   };
   
   const isQuickAddPaper = paperTypes.includes(quickAddForm.type);
+  
+  const allUnits = useMemo(() => {
+    const unitsSet = new Set<string>();
+    rawMaterials.forEach(material => {
+      if (Array.isArray(material.units)) {
+        material.units.forEach(unit => unitsSet.add(unit));
+      }
+    });
+    return Array.from(unitsSet).sort();
+  }, [rawMaterials]);
+  
+  const handleQuickAddUnitSelect = (unit: string) => {
+    if (!quickAddForm.units.includes(unit)) {
+        setQuickAddForm(prev => ({...prev, units: [...prev.units, unit]}));
+    }
+    setQuickAddUnitInput('');
+  };
+
+  const handleQuickAddUnitRemove = (unit: string) => {
+    setQuickAddForm(prev => ({...prev, units: prev.units.filter(u => u !== unit)}));
+  };
+
+  const handleQuickAddUnitKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if ((e.key === 'Enter' || e.key === ',') && quickAddUnitInput.trim()) {
+        e.preventDefault();
+        const newUnit = quickAddUnitInput.trim();
+        if (!quickAddForm.units.find(u => u.toLowerCase() === newUnit.toLowerCase())) {
+            setQuickAddForm(prev => ({...prev, units: [...prev.units, newUnit]}));
+        }
+        setQuickAddUnitInput('');
+    }
+  };
 
 
   return (
@@ -680,15 +714,50 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                      </>
                  )}
                  {quickAddForm.type && (
-                      <div className="space-y-2">
-                        <Label htmlFor="quick-add-units">Units of Measurement</Label>
-                        <Input
-                            id="quick-add-units"
-                            value={quickAddForm.units}
-                            onChange={e => setQuickAddForm(prev => ({...prev, units: e.target.value}))}
-                            placeholder="e.g., Kg, Ton, Ltr (comma-separated)"
-                        />
-                     </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="material-units">Units of Measurement</Label>
+                        <Popover open={isQuickAddUnitPopoverOpen} onOpenChange={setIsQuickAddUnitPopoverOpen}>
+                            <PopoverTrigger asChild>
+                                <div className="flex min-h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm flex-wrap gap-1">
+                                {quickAddForm.units.map(unit => (
+                                    <Badge key={unit} variant="secondary" className="gap-1">
+                                        {unit}
+                                        <button onClick={() => handleQuickAddUnitRemove(unit)} className="rounded-full hover:bg-background/50">
+                                            <X className="h-3 w-3" />
+                                        </button>
+                                    </Badge>
+                                ))}
+                                <input
+                                    placeholder={quickAddForm.units.length === 0 ? "e.g. Kg, Ton..." : ""}
+                                    value={quickAddUnitInput}
+                                    onChange={e => setQuickAddUnitInput(e.target.value)}
+                                    onKeyDown={handleQuickAddUnitKeyDown}
+                                    className="bg-transparent outline-none flex-1 placeholder:text-muted-foreground text-sm"
+                                />
+                                </div>
+                            </PopoverTrigger>
+                            <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
+                                <Command>
+                                    <CommandInput 
+                                        placeholder="Search or create unit..."
+                                        value={quickAddUnitInput}
+                                        onValueChange={setQuickAddUnitInput}
+                                    />
+                                    <CommandList>
+                                        <CommandEmpty>No results. Press Enter to add.</CommandEmpty>
+                                        <CommandGroup>
+                                            {allUnits.filter(u => !quickAddForm.units.includes(u)).map(unit => (
+                                                <CommandItem key={unit} onSelect={() => handleQuickAddUnitSelect(unit)}>
+                                                    <Check className={cn("mr-2 h-4 w-4", quickAddForm.units.includes(unit) ? "opacity-100" : "opacity-0")} />
+                                                    {unit}
+                                                </CommandItem>
+                                            ))}
+                                        </CommandGroup>
+                                    </CommandList>
+                                </Command>
+                            </PopoverContent>
+                        </Popover>
+                    </div>
                  )}
             </div>
             <DialogFooter>
@@ -700,3 +769,4 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     </div>
   );
 }
+
