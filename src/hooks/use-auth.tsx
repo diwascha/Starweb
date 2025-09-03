@@ -52,8 +52,8 @@ const kebabToCamel = (s: string): Module | string => {
 };
 
 const moduleToPath = (module: Module): string => {
-    if (module === 'hr') return '/hr/employees'; // Default HR page
     if (module === 'dashboard') return '/dashboard';
+    if (module === 'hr') return '/hr'; 
     
     const kebab = module.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`);
     return `/${kebab}`;
@@ -82,8 +82,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   
   const hasPermission = useCallback((module: Module, action: Action): boolean => {
     if (!user) return false;
-    if (module === 'dashboard' && action === 'view') return true;
     if (user.roleId === 'admin') return true;
+    if (module === 'dashboard' && action === 'view') return true;
     if (user.permissions) {
       const modulePermissions = user.permissions[module];
       return !!modulePermissions?.includes(action);

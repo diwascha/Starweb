@@ -14,7 +14,7 @@ import {
   SidebarGroupLabel,
   SidebarGroupContent,
 } from '@/components/ui/sidebar';
-import { FileText, LayoutDashboard, TestTubeDiagonal, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users, Calendar } from 'lucide-react';
+import { FileText, LayoutDashboard, TestTubeDiagonal, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users, Calendar, Award, Wallet, Building2 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
@@ -122,27 +122,51 @@ export function AppSidebar() {
         {hasPermission('hr', 'view') && <SidebarSeparator />}
 
         {hasPermission('hr', 'view') && (
-            <SidebarGroup className="p-2 pb-0">
-                <SidebarGroupLabel className="px-2">HR Management</SidebarGroupLabel>
-                <SidebarGroupContent>
-                     <SidebarMenuItem>
-                        <SidebarMenuButton asChild isActive={getIsActive('/hr/employees')}>
-                        <Link href="/hr/employees">
-                            <Users />
-                            <span>Employees</span>
-                        </Link>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton asChild isActive={getIsActive('/hr/attendance')}>
-                        <Link href="/hr/attendance">
-                            <Calendar />
-                            <span>Attendance</span>
-                        </Link>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                </SidebarGroupContent>
-            </SidebarGroup>
+          <SidebarGroup className="p-2 pb-0">
+            <SidebarGroupLabel className="px-2">HR Management</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={getIsActive('/hr/employees')}>
+                  <Link href="/hr/employees">
+                    <Users />
+                    <span>Employees</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={getIsActive('/hr/attendance')}>
+                  <Link href="/hr/attendance">
+                    <Calendar />
+                    <span>Attendance</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+               <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={getIsActive('/hr/payroll')} disabled>
+                  <Link href="/hr/payroll">
+                    <FileText />
+                    <span>Payroll</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+               <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={getIsActive('/hr/bonus')} disabled>
+                  <Link href="/hr/bonus">
+                    <Award />
+                    <span>Bonus</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+               <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={getIsActive('/hr/payslip')} disabled>
+                  <Link href="/hr/payslip">
+                    <Wallet />
+                    <span>Payslip</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarGroupContent>
+          </SidebarGroup>
         )}
         
         <SidebarSeparator />
