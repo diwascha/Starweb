@@ -16,11 +16,12 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { CalendarIcon, PlusCircle, Trash2, Check, ChevronsUpDown } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { cn, generateNextPONumber } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import NepaliDate from 'nepali-date-converter';
 
 const poItemSchema = z.object({
   productId: z.string().min(1, 'Product is required.'),
@@ -80,10 +81,16 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
 
   useEffect(() => {
     setIsClient(true);
-    if(poToEdit) {
-        form.reset(defaultValues);
+  }, []);
+  
+  useEffect(() => {
+    if(isClient && !poToEdit) {
+        form.setValue('poNumber', generateNextPONumber(purchaseOrders));
     }
-  }, [poToEdit, form, defaultValues]);
+    if (poToEdit) {
+      form.reset(defaultValues);
+    }
+  }, [isClient, poToEdit, purchaseOrders, form, defaultValues]);
 
   const companies = useMemo(() => {
     const companyMap = new Map<string, {name: string, address: string}>();
@@ -129,6 +136,12 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   };
   
   const totalAmount = form.watch('items').reduce((acc, item) => acc + (item.amount || 0), 0);
+  const poDate = form.watch('poDate');
+  const nepaliDateString = useMemo(() => {
+    if (!poDate) return '';
+    const nepaliDate = new NepaliDate(poDate);
+    return nepaliDate.format('YYYY/MM/DD');
+  }, [poDate]);
 
   async function onSubmit(values: PurchaseOrderFormValues) {
     try {
@@ -183,7 +196,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>PO Number</FormLabel>
-                    <FormControl><Input {...field} /></FormControl>
+                    <FormControl><Input {...field} readOnly={!poToEdit} className={!poToEdit ? "bg-muted/50" : ""} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -198,7 +211,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                       <PopoverTrigger asChild>
                         <FormControl>
                           <Button variant="outline" className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                            {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                            {field.value ? `${format(field.value, "PPP")} (${nepaliDateString} B.S.)` : <span>Pick a date</span>}
                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                           </Button>
                         </FormControl>
