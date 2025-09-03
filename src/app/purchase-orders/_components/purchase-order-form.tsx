@@ -149,7 +149,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         gsm: material.gsm,
         bf: material.bf,
         quantity: '',
-        unit: material.units[0] || '',
+        unit: (material.units && material.units[0]) || '',
       });
     }
   };
@@ -460,7 +460,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                                     </FormItem>
                                                 )}
                                             />
-                                            {selectedMaterial && selectedMaterial.units.length > 0 && (
+                                            {selectedMaterial && selectedMaterial.units && selectedMaterial.units.length > 0 && (
                                                 <FormField
                                                     control={form.control}
                                                     name={`items.${index}.unit`}
@@ -539,3 +539,5 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     </div>
   );
 }
+
+    
