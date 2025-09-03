@@ -160,7 +160,7 @@ export default function PurchaseOrdersPage() {
                         <DropdownMenuItem onSelect={() => router.push(`/purchase-orders/${po.id}`)}>
                             <View className="mr-2 h-4 w-4" /> View
                         </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => router.push(`/purchase-orders/edit/${po.id}`)}>
+                        <DropdownMenuItem onClick={() => router.push(`/purchase-orders/edit/${po.id}`)}>
                             <Edit className="mr-2 h-4 w-4" /> Edit
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
