@@ -55,9 +55,11 @@ export default function SettingsPage() {
 
   // Redirect if not admin
   useEffect(() => {
-    if (!loading && (!currentUser || currentUser.role !== 'Admin')) {
-      toast({ title: 'Access Denied', description: 'You do not have permission to view this page.', variant: 'destructive' });
-      router.push('/dashboard');
+    if (!loading) {
+      if (!currentUser || currentUser.role !== 'Admin') {
+        toast({ title: 'Access Denied', description: 'You do not have permission to view this page.', variant: 'destructive' });
+        router.push('/dashboard');
+      }
     }
   }, [currentUser, loading, router, toast]);
 
@@ -137,7 +139,7 @@ export default function SettingsPage() {
   const dialogDescription = editingUser ? 'Update the details for this user.' : 'Enter the details for the new user.';
   const dialogButtonText = editingUser ? 'Save Changes' : 'Add User';
   
-  if (loading || !currentUser || currentUser.role !== 'Admin') {
+  if (loading || !currentUser) {
     return (
         <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
           <div className="flex flex-col items-center gap-1 text-center">
@@ -145,6 +147,11 @@ export default function SettingsPage() {
           </div>
         </div>
       );
+  }
+
+  // This check is redundant due to the useEffect, but it's a good safeguard.
+  if (currentUser.role !== 'Admin') {
+    return null; // Or a more explicit "Access Denied" component
   }
 
   return (
