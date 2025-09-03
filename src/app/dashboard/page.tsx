@@ -9,7 +9,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from '
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, FileText, Package } from 'lucide-react';
+import { PlusCircle, FileText, Package, ShoppingCart } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { getStatusBadgeVariant } from '@/lib/utils';
@@ -119,8 +119,8 @@ export default function DashboardPage() {
             </Link>
           </Button>
           <Button asChild variant="outline">
-            <Link href="/products">
-              <Package className="mr-2 h-4 w-4" /> Add Product
+            <Link href="/purchase-orders/new">
+              <ShoppingCart className="mr-2 h-4 w-4" /> New Purchase Order
             </Link>
           </Button>
         </div>
