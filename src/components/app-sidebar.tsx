@@ -37,18 +37,12 @@ export function AppSidebar() {
     }
   };
 
-  const getIsActive = (path: string, checkStartsWith: boolean = false) => {
-    if (!isClient) {
-      return false;
-    }
-    if (checkStartsWith) {
-      // Special handling for reports since it has multiple sub-routes like /report/new, /report/edit/:id
-      if (path === '/reports') {
-        return pathname.startsWith('/report');
-      }
-      return pathname.startsWith(path);
-    }
-    return pathname === path;
+  const getIsActive = (path: string) => {
+    if (!isClient) return false;
+    // Handle exact match for dashboard
+    if (path === '/dashboard') return pathname === path;
+    // Handle path prefixes for all other routes
+    return pathname.startsWith(path);
   };
   
   if (!user) {
@@ -86,7 +80,7 @@ export function AppSidebar() {
         )}
          {hasPermission('reports', 'view') && (
            <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={getIsActive('/reports', true)}>
+            <SidebarMenuButton asChild isActive={pathname.startsWith('/report') && pathname !== '/report/new'}>
               <Link href="/reports">
                 <FileSpreadsheet />
                 <span>QT Reports Database</span>
@@ -96,7 +90,7 @@ export function AppSidebar() {
          )}
         {hasPermission('products', 'view') && (
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={getIsActive('/products', true)}>
+            <SidebarMenuButton asChild isActive={getIsActive('/products')}>
               <Link href="/products">
                 <Package />
                 <span>QT Products</span>
@@ -106,7 +100,7 @@ export function AppSidebar() {
         )}
         {hasPermission('purchaseOrders', 'view') && (
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={getIsActive('/purchase-orders', true)}>
+            <SidebarMenuButton asChild isActive={getIsActive('/purchase-orders')}>
               <Link href="/purchase-orders">
                 <ShoppingCart />
                 <span>Purchase Orders</span>
@@ -116,7 +110,7 @@ export function AppSidebar() {
         )}
         {hasPermission('rawMaterials', 'view') && (
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={getIsActive('/raw-materials', true)}>
+            <SidebarMenuButton asChild isActive={getIsActive('/raw-materials')}>
               <Link href="/raw-materials">
                 <Wrench />
                 <span>Raw Materials</span>
@@ -126,7 +120,7 @@ export function AppSidebar() {
         )}
         {hasPermission('settings', 'view') && (
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={getIsActive('/settings', true)}>
+            <SidebarMenuButton asChild isActive={getIsActive('/settings')}>
               <Link href="/settings">
                 <Settings />
                 <span>Settings</span>

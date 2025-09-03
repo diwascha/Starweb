@@ -3,7 +3,7 @@
 
 import { useState, useEffect, createContext, useContext, ReactNode, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import type { User, Permissions, Module, Action } from '@/lib/types';
+import type { User, Permissions, Module, Action, modules } from '@/lib/types';
 import useLocalStorage from './use-local-storage';
 
 interface UserSession {
@@ -29,6 +29,10 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 const USER_SESSION_KEY = 'user_session';
+
+// Define the order of pages for redirection logic
+const pageOrder: Module[] = ['dashboard', 'reports', 'products', 'purchaseOrders', 'rawMaterials', 'settings'];
+
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<UserSession | null>(null);
@@ -59,37 +63,66 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // For other users, check their specific permissions
     if (user.permissions) {
       const modulePermissions = user.permissions[module];
-      if (!modulePermissions) return false;
-      return modulePermissions.includes(action);
+      return !!modulePermissions?.includes(action);
     }
     
     return false;
   }, [user]);
 
   useEffect(() => {
-    if (!loading) {
-      const isAuthPage = pathname === '/login';
-      if (user && isAuthPage) {
-        router.push('/dashboard');
-      }
-      if (!user && !isAuthPage) {
+    if (loading) return;
+
+    const isAuthPage = pathname === '/login';
+
+    if (!user && !isAuthPage) {
         router.push('/login');
-      }
-      // Redirect if user tries to access a page they don't have view permission for
-      if (user && !isAuthPage) {
-        const currentModule = pathname.split('/')[1] as Module;
-        if (currentModule === 'report' || currentModule === 'purchase-orders' || currentModule === 'raw-materials' || currentModule === 'products') {
-            // These are sub-pages, we check the root module permission
-            const rootModule = (currentModule === 'report' ? 'reports' : currentModule) as Module;
-            if(!hasPermission(rootModule, 'view')) {
-                router.push('/dashboard');
-            }
-        } else if (currentModule && !hasPermission(currentModule, 'view')) {
-            router.push('/dashboard');
-        }
-      }
+        return;
     }
-  }, [user, loading, pathname, router, hasPermission]);
+
+    if (user && isAuthPage) {
+        router.push('/dashboard');
+        return;
+    }
+
+    if (user && !isAuthPage) {
+        let currentModule = pathname.split('/')[1] as Module;
+
+        // Handle special routing cases
+        if (currentModule === 'report') {
+            currentModule = 'reports';
+        }
+        
+        // Root path should resolve to dashboard check
+        if (currentModule === '') {
+            currentModule = 'dashboard';
+        }
+
+        const canViewCurrentModule = modules.includes(currentModule) && hasPermission(currentModule, 'view');
+        
+        if (!canViewCurrentModule) {
+            // Find the first page the user has access to and redirect
+            const firstAllowedPage = pageOrder.find(module => hasPermission(module, 'view'));
+            
+            if (firstAllowedPage) {
+                let redirectPath = `/${firstAllowedPage}`;
+                // Special case for reports database
+                if (firstAllowedPage === 'reports') {
+                    if(hasPermission('reports', 'create')) {
+                        redirectPath = '/report/new';
+                    } else {
+                        redirectPath = '/reports';
+                    }
+                }
+                router.push(redirectPath);
+            } else {
+                // If user has no view permissions at all, log them out or show an "access denied" page.
+                // For simplicity, we can log them out.
+                logout();
+            }
+        }
+    }
+}, [user, loading, pathname, router, hasPermission]);
+
 
   const login = useCallback(async (userToLogin: UserSession) => {
     let sessionToStore: UserSession;
