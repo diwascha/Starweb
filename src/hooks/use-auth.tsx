@@ -99,10 +99,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         roleId: 'admin',
       };
     } else {
+       const latestUsers = JSON.parse(localStorage.getItem('users') || '[]') as User[];
+       const freshUser = latestUsers.find(u => u.id === userToLogin.id);
        sessionToStore = {
-          username: userToLogin.username,
+          username: freshUser?.username || userToLogin.username,
           roleId: 'user',
-          permissions: userToLogin.permissions,
+          permissions: freshUser?.permissions,
        };
     }
     sessionStorage.setItem(USER_SESSION_KEY, JSON.stringify(sessionToStore));
@@ -136,6 +138,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         const mainSegment = pathSegments[0];
         const currentModuleAttempt = kebabToCamel(mainSegment);
+        
+        // This is the fix: check if the current path is already the dashboard of a permitted module
+        const isAlreadyOnPermittedModuleDashboard = pathSegments.length === 1 && modules.includes(currentModuleAttempt as Module) && hasPermission(currentModuleAttempt as Module, 'view');
+        if (isAlreadyOnPermittedModuleDashboard) {
+            return; // No redirect needed
+        }
 
         if (modules.includes(currentModuleAttempt as Module)) {
             const currentModule = currentModuleAttempt as Module;
