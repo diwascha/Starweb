@@ -33,6 +33,7 @@ const poItemSchema = z.object({
   gsm: z.string(),
   bf: z.string(),
   quantity: z.string().min(1, 'Quantity is required.'),
+  unit: z.string(),
 });
 
 const purchaseOrderSchema = z.object({
@@ -158,6 +159,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         gsm: material.gsm,
         bf: material.bf,
         quantity: '',
+        unit: material.unit,
       });
     }
   };
@@ -196,7 +198,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   };
 
   const addNewItem = () => {
-    append({ rawMaterialId: '', rawMaterialName: '', rawMaterialType: '', size: '', gsm: '', bf: '', quantity: '' });
+    append({ rawMaterialId: '', rawMaterialName: '', rawMaterialType: '', size: '', gsm: '', bf: '', quantity: '', unit: '' });
   };
   
   const poDate = form.watch('poDate');
@@ -429,7 +431,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                         <TableHead>BF</TableHead>
                                     </>
                                 )}
-                                <TableHead>Quantity (Ton)</TableHead>
+                                <TableHead>Quantity</TableHead>
                                 <TableHead className="w-[50px]"> </TableHead>
                             </TableRow>
                         </TableHeader>
@@ -472,7 +474,15 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                             control={form.control}
                                             name={`items.${index}.quantity`}
                                             render={({ field }) => (
-                                                <FormItem><FormControl><Input placeholder="e.g. 5" {...field} /></FormControl><FormMessage /></FormItem>
+                                                <FormItem>
+                                                    <FormControl>
+                                                        <Input 
+                                                            placeholder={item.unit ? `e.g. 5 ${item.unit}`: "e.g. 5"}
+                                                            {...field} 
+                                                        />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
                                             )}
                                         />
                                     </TableCell>
@@ -527,5 +537,3 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     </div>
   );
 }
-
-    

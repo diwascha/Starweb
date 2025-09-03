@@ -104,25 +104,27 @@ export default function PurchaseOrderView({ poId }: { poId: string }) {
                   <TableHeader>
                     <TableRow className="border-b-gray-300">
                       <TableHead className="text-black font-semibold">S.N.</TableHead>
+                      <TableHead className="text-black font-semibold">Description</TableHead>
                       <TableHead className="text-black font-semibold">Size (Inch)</TableHead>
                       <TableHead className="text-black font-semibold">GSM</TableHead>
                       <TableHead className="text-black font-semibold">BF</TableHead>
-                      <TableHead className="text-black font-semibold text-right">Wt. (Ton)</TableHead>
+                      <TableHead className="text-black font-semibold text-right">Quantity</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                      {Object.entries(groupedItems).map(([type, items]) => (
                         <Fragment key={type}>
                             <TableRow className="border-b-gray-300">
-                                <TableCell colSpan={5} className="font-bold">{type}</TableCell>
+                                <TableCell colSpan={6} className="font-bold">{type}</TableCell>
                             </TableRow>
                             {items.map((item, index) => (
                               <TableRow key={`${item.rawMaterialId}-${index}`} className="border-b-gray-300">
                                 <TableCell>{index + 1}</TableCell>
+                                <TableCell>{item.rawMaterialName}</TableCell>
                                 <TableCell>{item.size || '-'}</TableCell>
                                 <TableCell>{item.gsm || '-'}</TableCell>
                                 <TableCell>{item.bf || '-'}</TableCell>
-                                <TableCell className="text-right">{item.quantity}</TableCell>
+                                <TableCell className="text-right">{item.quantity} {item.unit}</TableCell>
                               </TableRow>
                             ))}
                         </Fragment>

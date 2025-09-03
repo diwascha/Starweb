@@ -48,9 +48,10 @@ export interface RawMaterial {
   id: string;
   type: string;
   name: string;
-  size: string; // Optional, mainly for paper
-  gsm: string;  // Optional, mainly for paper
-  bf: string;   // Optional, mainly for paper
+  size: string;
+  gsm: string;
+  bf: string;
+  unit: string;
 }
 
 export interface PurchaseOrderItem {
@@ -61,6 +62,7 @@ export interface PurchaseOrderItem {
   gsm: string;
   bf: string;
   quantity: string;
+  unit: string;
 }
 
 export interface Amendment {

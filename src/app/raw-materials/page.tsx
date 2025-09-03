@@ -58,7 +58,7 @@ const generateMaterialName = (type: string, size: string, gsm: string, bf: strin
         if (bf) parts.push(`${bf} BF`);
         return parts.join(' - ');
     }
-    return type;
+    return '';
 };
 
 
@@ -70,6 +70,7 @@ export default function RawMaterialsPage() {
   const [newMaterialSize, setNewMaterialSize] = useState('');
   const [newMaterialGsm, setNewMaterialGsm] = useState('');
   const [newMaterialBf, setNewMaterialBf] = useState('');
+  const [newMaterialUnit, setNewMaterialUnit] = useState('');
   
   const [isMaterialDialogOpen, setIsMaterialDialogOpen] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<RawMaterial | null>(null);
@@ -94,6 +95,7 @@ export default function RawMaterialsPage() {
     setNewMaterialSize('');
     setNewMaterialGsm('');
     setNewMaterialBf('');
+    setNewMaterialUnit('');
     setEditingMaterial(null);
   };
 
@@ -109,6 +111,7 @@ export default function RawMaterialsPage() {
     setNewMaterialSize(material.size);
     setNewMaterialGsm(material.gsm);
     setNewMaterialBf(material.bf);
+    setNewMaterialUnit(material.unit);
     setIsMaterialDialogOpen(true);
   };
 
@@ -119,6 +122,12 @@ export default function RawMaterialsPage() {
         toast({ title: 'Error', description: 'Please select a material type.', variant: 'destructive' });
         return;
     }
+
+    if (newMaterialUnit.trim() === '') {
+        toast({ title: 'Error', description: 'Please provide a unit of measurement.', variant: 'destructive' });
+        return;
+    }
+
     if (!isPaper && newMaterialName.trim() === '') {
       toast({ title: 'Error', description: 'Please provide a name/description.', variant: 'destructive' });
       return;
@@ -141,6 +150,7 @@ export default function RawMaterialsPage() {
           size: isPaper ? newMaterialSize.trim() : '',
           gsm: isPaper ? newMaterialGsm.trim() : '',
           bf: isPaper ? newMaterialBf.trim() : '',
+          unit: newMaterialUnit.trim(),
         };
         setRawMaterials(rawMaterials.map(m => (m.id === editingMaterial.id ? updatedMaterial : m)));
         toast({ title: 'Success', description: 'Raw material updated.' });
@@ -152,6 +162,7 @@ export default function RawMaterialsPage() {
           size: isPaper ? newMaterialSize.trim() : '',
           gsm: isPaper ? newMaterialGsm.trim() : '',
           bf: isPaper ? newMaterialBf.trim() : '',
+          unit: newMaterialUnit.trim(),
         };
         setRawMaterials([...rawMaterials, newMaterial]);
         toast({ title: 'Success', description: 'New raw material added.' });
@@ -270,6 +281,7 @@ export default function RawMaterialsPage() {
                             <TableHead>BF</TableHead>
                         </>
                     )}
+                    <TableHead>Unit</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -285,6 +297,7 @@ export default function RawMaterialsPage() {
                                 <TableCell>{material.bf || '-'}</TableCell>
                             </>
                         )}
+                        <TableCell>{material.unit}</TableCell>
                         <TableCell className="text-right">
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -380,7 +393,7 @@ export default function RawMaterialsPage() {
                         </Select>
                     </div>
                     
-                    {!isPaperTypeSelectedInDialog && (
+                    {!isPaperTypeSelectedInDialog && newMaterialType && (
                         <div className="space-y-2">
                             <Label htmlFor="material-name">Name / Description</Label>
                             <Input
@@ -423,6 +436,17 @@ export default function RawMaterialsPage() {
                            </div>
                         </>
                     )}
+                     {newMaterialType && (
+                        <div className="space-y-2">
+                            <Label htmlFor="material-unit">Unit of Measurement</Label>
+                            <Input
+                                id="material-unit"
+                                value={newMaterialUnit}
+                                onChange={e => setNewMaterialUnit(e.target.value)}
+                                placeholder="e.g., Kg, Ton, Ltr, Pcs"
+                            />
+                        </div>
+                    )}
                   </div>
               </form>
               <DialogFooter>
@@ -447,5 +471,3 @@ export default function RawMaterialsPage() {
     </div>
   );
 }
-
-    
