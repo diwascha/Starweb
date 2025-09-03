@@ -57,6 +57,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   const [isClient, setIsClient] = useState(false);
   const [isCompanyPopoverOpen, setIsCompanyPopoverOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<{ oldName: string; newName: string; newAddress: string } | null>(null);
+  const [itemFilterType, setItemFilterType] = useState<string>('All');
 
   const defaultValues = useMemo(() => {
     if (poToEdit) {
@@ -106,6 +107,19 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     });
     return Array.from(companyMap.values()).sort((a,b) => a.name.localeCompare(b.name));
   }, [purchaseOrders]);
+
+  const materialTypesForFilter = useMemo(() => {
+    const types = new Set(rawMaterials.map(m => m.type));
+    return ['All', ...Array.from(types).sort()];
+  }, [rawMaterials]);
+
+  const filteredRawMaterials = useMemo(() => {
+    if (itemFilterType === 'All') {
+      return rawMaterials;
+    }
+    return rawMaterials.filter(m => m.type === itemFilterType);
+  }, [rawMaterials, itemFilterType]);
+
 
   const handleCompanySelect = (companyName: string) => {
     form.setValue('companyName', companyName);
@@ -321,14 +335,30 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
           </Card>
 
           <Card>
-            <CardHeader>
-                <div className="flex justify-between items-center">
-                    <CardTitle>Items</CardTitle>
-                    <Button type="button" size="sm" onClick={addNewItem}>
-                        <PlusCircle className="mr-2 h-4 w-4" /> Add Item
-                    </Button>
+             <CardHeader>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div className="space-y-1.5">
+                        <CardTitle>Items</CardTitle>
+                        <CardDescription>Add raw materials to the purchase order.</CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2">
+                         <div className="w-full sm:w-auto">
+                           <Select value={itemFilterType} onValueChange={setItemFilterType}>
+                               <SelectTrigger className="w-full sm:w-[180px]">
+                                   <SelectValue placeholder="Filter by type..." />
+                               </SelectTrigger>
+                               <SelectContent>
+                                   {materialTypesForFilter.map(type => (
+                                        <SelectItem key={type} value={type}>{type}</SelectItem>
+                                   ))}
+                               </SelectContent>
+                           </Select>
+                         </div>
+                        <Button type="button" size="sm" onClick={addNewItem} className="w-full sm:w-auto">
+                            <PlusCircle className="mr-2 h-4 w-4" /> Add Item
+                        </Button>
+                    </div>
                 </div>
-                <CardDescription>Add raw materials to the purchase order.</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="overflow-x-auto">
@@ -360,7 +390,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                                             </SelectTrigger>
                                                         </FormControl>
                                                         <SelectContent>
-                                                            {isClient && rawMaterials.map(p => (
+                                                            {isClient && filteredRawMaterials.map(p => (
                                                                 <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                                                             ))}
                                                         </SelectContent>
