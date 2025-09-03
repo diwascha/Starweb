@@ -47,7 +47,7 @@ export interface Report {
 export interface RawMaterial {
   id: string;
   type: string; // e.g., 'Kraft Paper', 'Virgin Paper', 'Gum'
-  name: string; // e.g., '150 GSM 20 BF', or 'Pesting Gum'
+  name: string; // Auto-generated: e.g., 'Kraft Paper - 42.5 inch, 150 GSM, 20 BF'
   size: string;
   gsm: string;
   bf: string;

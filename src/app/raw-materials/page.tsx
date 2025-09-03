@@ -47,11 +47,22 @@ const materialTypes = [
 type RawMaterialSortKey = 'name' | 'type';
 type SortDirection = 'asc' | 'desc';
 
+const generateMaterialName = (type: string, size: string, gsm: string, bf: string) => {
+    if (type === 'Kraft Paper' || type === 'Virgin Paper') {
+        const parts = [type];
+        if (size) parts.push(`${size} inch`);
+        if (gsm) parts.push(`${gsm} GSM`);
+        if (bf) parts.push(`${bf} BF`);
+        return parts.join(' - ');
+    }
+    return type;
+};
+
+
 export default function RawMaterialsPage() {
   const [rawMaterials, setRawMaterials] = useLocalStorage<RawMaterial[]>('rawMaterials', []);
   
   const [newMaterialType, setNewMaterialType] = useState('');
-  const [newMaterialName, setNewMaterialName] = useState('');
   const [newMaterialSize, setNewMaterialSize] = useState('');
   const [newMaterialGsm, setNewMaterialGsm] = useState('');
   const [newMaterialBf, setNewMaterialBf] = useState('');
@@ -74,7 +85,6 @@ export default function RawMaterialsPage() {
   
   const resetForm = () => {
     setNewMaterialType('');
-    setNewMaterialName('');
     setNewMaterialSize('');
     setNewMaterialGsm('');
     setNewMaterialBf('');
@@ -89,7 +99,6 @@ export default function RawMaterialsPage() {
   const openEditMaterialDialog = (material: RawMaterial) => {
     setEditingMaterial(material);
     setNewMaterialType(material.type);
-    setNewMaterialName(material.name);
     setNewMaterialSize(material.size);
     setNewMaterialGsm(material.gsm);
     setNewMaterialBf(material.bf);
@@ -97,12 +106,14 @@ export default function RawMaterialsPage() {
   };
 
   const handleMaterialSubmit = () => {
-    if (newMaterialType.trim() !== '' && newMaterialName.trim() !== '') {
+    if (newMaterialType.trim() !== '') {
+        const generatedName = generateMaterialName(newMaterialType.trim(), newMaterialSize.trim(), newMaterialGsm.trim(), newMaterialBf.trim());
+
       if (editingMaterial) {
         const updatedMaterial: RawMaterial = {
           ...editingMaterial,
           type: newMaterialType.trim(),
-          name: newMaterialName.trim(),
+          name: generatedName,
           size: newMaterialSize.trim(),
           gsm: newMaterialGsm.trim(),
           bf: newMaterialBf.trim(),
@@ -113,7 +124,7 @@ export default function RawMaterialsPage() {
         const newMaterial: RawMaterial = {
           id: crypto.randomUUID(),
           type: newMaterialType.trim(),
-          name: newMaterialName.trim(),
+          name: generatedName,
           size: newMaterialSize.trim(),
           gsm: newMaterialGsm.trim(),
           bf: newMaterialBf.trim(),
@@ -124,7 +135,7 @@ export default function RawMaterialsPage() {
       resetForm();
       setIsMaterialDialogOpen(false);
     } else {
-      toast({ title: 'Error', description: 'Please fill Type and Name.', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Please select a Type.', variant: 'destructive' });
     }
   };
   
@@ -207,7 +218,7 @@ export default function RawMaterialsPage() {
                 <TableRow>
                 <TableHead>
                     <Button variant="ghost" onClick={() => requestSort('name')}>
-                    Material Name
+                    Material Description
                     <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
                 </TableHead>
@@ -228,9 +239,9 @@ export default function RawMaterialsPage() {
                 <TableRow key={material.id}>
                     <TableCell className="font-medium">{material.name}</TableCell>
                     <TableCell>{material.type}</TableCell>
-                    <TableCell>{material.size}</TableCell>
-                    <TableCell>{material.gsm}</TableCell>
-                    <TableCell>{material.bf}</TableCell>
+                    <TableCell>{material.size || '-'}</TableCell>
+                    <TableCell>{material.gsm || '-'}</TableCell>
+                    <TableCell>{material.bf || '-'}</TableCell>
                     <TableCell className="text-right">
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -324,15 +335,6 @@ export default function RawMaterialsPage() {
                             </SelectContent>
                         </Select>
                     </div>
-                     <div className="space-y-2">
-                      <Label htmlFor="material-name">Name / Description</Label>
-                      <Input
-                        id="material-name"
-                        value={newMaterialName}
-                        onChange={e => setNewMaterialName(e.target.value)}
-                        placeholder={isPaper ? "e.g. 150 GSM 20 BF Paper" : "e.g. Pesting Gum"}
-                      />
-                    </div>
                     {isPaper && (
                         <>
                            <div className="space-y-2">
@@ -377,5 +379,3 @@ export default function RawMaterialsPage() {
     </div>
   );
 }
-
-    
