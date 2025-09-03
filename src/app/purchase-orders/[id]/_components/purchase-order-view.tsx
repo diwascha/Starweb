@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Fragment } from 'react';
 import useLocalStorage from '@/hooks/use-local-storage';
 import type { PurchaseOrder } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -97,8 +97,8 @@ export default function PurchaseOrderView({ poId }: { poId: string }) {
                   </TableHeader>
                   <TableBody>
                      {Object.entries(groupedItems).map(([type, items]) => (
-                        <>
-                            <TableRow key={type} className="border-b-gray-300">
+                        <Fragment key={type}>
+                            <TableRow className="border-b-gray-300">
                                 <TableCell colSpan={5} className="font-bold">{type}</TableCell>
                             </TableRow>
                             {items.map((item, index) => (
@@ -110,7 +110,7 @@ export default function PurchaseOrderView({ poId }: { poId: string }) {
                                 <TableCell className="text-right">{item.quantity}</TableCell>
                               </TableRow>
                             ))}
-                        </>
+                        </Fragment>
                     ))}
                   </TableBody>
                 </Table>
