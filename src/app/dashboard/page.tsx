@@ -26,7 +26,10 @@ export default function DashboardPage() {
     setIsClient(true);
   }, []);
   
-  const poStatusData = isClient ? 
+  const canViewPOs = hasPermission('purchaseOrders', 'view');
+  const canViewReports = hasPermission('reports', 'view');
+  
+  const poStatusData = isClient && canViewPOs ? 
     Object.entries(
       purchaseOrders.reduce((acc, po) => {
         acc[po.status] = (acc[po.status] || 0) + 1;
@@ -35,7 +38,7 @@ export default function DashboardPage() {
     ).map(([name, count]) => ({ name, count }))
     : [];
     
-  const productTestData = isClient ?
+  const productTestData = isClient && canViewReports ?
     Object.entries(
         reports.reduce((acc, report) => {
             const productName = report.product.name;
@@ -47,13 +50,13 @@ export default function DashboardPage() {
     
    const recentActivities = isClient ? 
     [
-        ...purchaseOrders.map(po => ({ type: 'PO', ...po, date: po.createdAt })),
-        ...reports.map(r => ({ type: 'Report', ...r }))
+        ...(canViewPOs ? purchaseOrders.map(po => ({ type: 'PO', ...po, date: po.createdAt })) : []),
+        ...(canViewReports ? reports.map(r => ({ type: 'Report', ...r })) : [])
     ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 10)
     : [];
 
-   const { avgLeadTime, companyLeadTimeData } = isClient ? (() => {
+   const { avgLeadTime, companyLeadTimeData } = isClient && canViewPOs ? (() => {
     const deliveredPOs = purchaseOrders.filter(po => po.status === 'Delivered' && po.deliveryDate);
     
     if (deliveredPOs.length === 0) {
@@ -107,13 +110,13 @@ export default function DashboardPage() {
       );
   }
 
-  // Check if user has any view permissions at all.
-  const hasAnyViewPermission = [
+  // Check if user has any permissions at all.
+  const hasAnyPermission = [
     'dashboard', 'reports', 'products', 'purchaseOrders', 'rawMaterials', 'settings'
   ].some(module => hasPermission(module as any, 'view'));
 
 
-  if (!hasAnyViewPermission) {
+  if (!hasAnyPermission) {
     return (
       <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
         <div className="flex flex-col items-center gap-1 text-center">
@@ -151,110 +154,122 @@ export default function DashboardPage() {
       </header>
       
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <Card>
-            <CardHeader>
-                <CardTitle>Total Purchase Orders</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <p className="text-4xl font-bold">{purchaseOrders.length}</p>
-            </CardContent>
-        </Card>
-        <Card>
-            <CardHeader>
-                <CardTitle>Total Test Reports</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <p className="text-4xl font-bold">{reports.length}</p>
-            </CardContent>
-        </Card>
-        <Card>
-            <CardHeader>
-                <CardTitle>Average PO Lead Time</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <p className="text-4xl font-bold">{avgLeadTime} <span className="text-lg font-medium text-muted-foreground">days</span></p>
-            </CardContent>
-        </Card>
+        {canViewPOs && (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Total Purchase Orders</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-4xl font-bold">{purchaseOrders.length}</p>
+                </CardContent>
+            </Card>
+        )}
+        {canViewReports && (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Total Test Reports</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-4xl font-bold">{reports.length}</p>
+                </CardContent>
+            </Card>
+        )}
+        {canViewPOs && (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Average PO Lead Time</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-4xl font-bold">{avgLeadTime} <span className="text-lg font-medium text-muted-foreground">days</span></p>
+                </CardContent>
+            </Card>
+        )}
       </div>
 
       <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Purchase Order Status</CardTitle>
-            <CardDescription>A breakdown of all purchase orders by their current status.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {poStatusData.length > 0 ? (
-                <ChartContainer config={chartConfig} className="h-[250px] w-full">
-                <ResponsiveContainer>
-                    <BarChart data={poStatusData} margin={{ top: 20, right: 20, left: -10, bottom: 5 }}>
-                    <CartesianGrid vertical={false} />
-                    <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} />
-                    <YAxis />
-                    <Tooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="count" fill="var(--color-count)" radius={4} />
-                    </BarChart>
-                </ResponsiveContainer>
-                </ChartContainer>
-            ) : (
-                <div className="flex h-[250px] items-center justify-center text-muted-foreground">
-                    No purchase order data available.
-                </div>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Product Test Frequency</CardTitle>
-            <CardDescription>Number of test reports generated per product.</CardDescription>
-          </CardHeader>
-          <CardContent>
-             {productTestData.length > 0 ? (
-                <ChartContainer config={chartConfig} className="h-[250px] w-full">
-                <ResponsiveContainer>
-                    <BarChart data={productTestData} layout="vertical" margin={{ top: 20, right: 20, left: 30, bottom: 5 }}>
-                        <CartesianGrid horizontal={false} />
-                        <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} width={100} className="text-xs truncate"/>
-                        <XAxis type="number" />
-                        <Tooltip cursor={{fill: 'hsl(var(--muted))'}} content={<ChartTooltipContent />} />
-                        <Bar dataKey="count" fill="var(--color-count)" radius={4} layout="vertical" />
-                    </BarChart>
-                </ResponsiveContainer>
-                </ChartContainer>
-             ) : (
-                <div className="flex h-[250px] items-center justify-center text-muted-foreground">
-                    No test report data available.
-                </div>
-             )}
-          </CardContent>
-        </Card>
+        {canViewPOs && (
+            <Card>
+            <CardHeader>
+                <CardTitle>Purchase Order Status</CardTitle>
+                <CardDescription>A breakdown of all purchase orders by their current status.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                {poStatusData.length > 0 ? (
+                    <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                    <ResponsiveContainer>
+                        <BarChart data={poStatusData} margin={{ top: 20, right: 20, left: -10, bottom: 5 }}>
+                        <CartesianGrid vertical={false} />
+                        <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} />
+                        <YAxis />
+                        <Tooltip content={<ChartTooltipContent />} />
+                        <Bar dataKey="count" fill="var(--color-count)" radius={4} />
+                        </BarChart>
+                    </ResponsiveContainer>
+                    </ChartContainer>
+                ) : (
+                    <div className="flex h-[250px] items-center justify-center text-muted-foreground">
+                        No purchase order data available.
+                    </div>
+                )}
+            </CardContent>
+            </Card>
+        )}
+        {canViewReports && (
+            <Card>
+            <CardHeader>
+                <CardTitle>Product Test Frequency</CardTitle>
+                <CardDescription>Number of test reports generated per product.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                {productTestData.length > 0 ? (
+                    <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                    <ResponsiveContainer>
+                        <BarChart data={productTestData} layout="vertical" margin={{ top: 20, right: 20, left: 30, bottom: 5 }}>
+                            <CartesianGrid horizontal={false} />
+                            <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} width={100} className="text-xs truncate"/>
+                            <XAxis type="number" />
+                            <Tooltip cursor={{fill: 'hsl(var(--muted))'}} content={<ChartTooltipContent />} />
+                            <Bar dataKey="count" fill="var(--color-count)" radius={4} layout="vertical" />
+                        </BarChart>
+                    </ResponsiveContainer>
+                    </ChartContainer>
+                ) : (
+                    <div className="flex h-[250px] items-center justify-center text-muted-foreground">
+                        No test report data available.
+                    </div>
+                )}
+            </CardContent>
+            </Card>
+        )}
       </div>
 
-       <Card>
-          <CardHeader>
-            <CardTitle>Average Lead Time by Supplier</CardTitle>
-            <CardDescription>Average number of days between order and delivery for each supplier.</CardDescription>
-          </CardHeader>
-          <CardContent>
-             {companyLeadTimeData.length > 0 ? (
-                <ChartContainer config={chartConfig} className="h-[300px] w-full">
-                  <ResponsiveContainer>
-                      <BarChart data={companyLeadTimeData} layout="vertical" margin={{ top: 20, right: 20, left: 30, bottom: 5 }}>
-                          <CartesianGrid horizontal={false} />
-                          <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} width={150} className="text-xs truncate"/>
-                          <XAxis type="number" dataKey="avgLeadTime" />
-                          <Tooltip cursor={{fill: 'hsl(var(--muted))'}} content={<ChartTooltipContent />} />
-                          <Bar dataKey="avgLeadTime" fill="var(--color-avgLeadTime)" radius={4} layout="vertical" />
-                      </BarChart>
-                  </ResponsiveContainer>
-                </ChartContainer>
-             ) : (
-                <div className="flex h-[300px] items-center justify-center text-muted-foreground">
-                    No delivered purchase order data available.
-                </div>
-             )}
-          </CardContent>
-        </Card>
+       {canViewPOs && (
+        <Card>
+            <CardHeader>
+                <CardTitle>Average Lead Time by Supplier</CardTitle>
+                <CardDescription>Average number of days between order and delivery for each supplier.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                {companyLeadTimeData.length > 0 ? (
+                    <ChartContainer config={chartConfig} className="h-[300px] w-full">
+                    <ResponsiveContainer>
+                        <BarChart data={companyLeadTimeData} layout="vertical" margin={{ top: 20, right: 20, left: 30, bottom: 5 }}>
+                            <CartesianGrid horizontal={false} />
+                            <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} width={150} className="text-xs truncate"/>
+                            <XAxis type="number" dataKey="avgLeadTime" />
+                            <Tooltip cursor={{fill: 'hsl(var(--muted))'}} content={<ChartTooltipContent />} />
+                            <Bar dataKey="avgLeadTime" fill="var(--color-avgLeadTime)" radius={4} layout="vertical" />
+                        </BarChart>
+                    </ResponsiveContainer>
+                    </ChartContainer>
+                ) : (
+                    <div className="flex h-[300px] items-center justify-center text-muted-foreground">
+                        No delivered purchase order data available.
+                    </div>
+                )}
+            </CardContent>
+            </Card>
+       )}
 
       <Card>
         <CardHeader>
@@ -306,3 +321,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    

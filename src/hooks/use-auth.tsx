@@ -35,12 +35,15 @@ const pageOrder: Module[] = ['dashboard', 'reports', 'products', 'purchaseOrders
 
 // Function to convert kebab-case to camelCase
 const kebabToCamel = (s: string): Module => {
-  const camelCase = s.replace(/-./g, x => x[1].toUpperCase());
-   if (camelCase === 'purchaseOrder') return 'purchaseOrders';
-  if (camelCase === 'rawMaterial') return 'rawMaterials';
-  if (camelCase === 'report') return 'reports';
-  return camelCase as Module;
+    const cameled = s.replace(/-./g, x => x[1].toUpperCase());
+    // Handle specific pluralization cases from URLs
+    if (cameled === 'purchaseOrder') return 'purchaseOrders';
+    if (cameled === 'rawMaterial') return 'rawMaterials';
+    if (cameled === 'report') return 'reports';
+    if (cameled === 'product') return 'products';
+    return cameled as Module;
 };
+
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<UserSession | null>(null);
@@ -64,6 +67,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   
   const hasPermission = useCallback((module: Module, action: Action): boolean => {
     if (!user) return false;
+    // All users can view the dashboard
+    if (module === 'dashboard' && action === 'view') return true;
     if (user.roleId === 'admin') return true;
     if (user.permissions) {
       const modulePermissions = user.permissions[module];
@@ -114,15 +119,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     if (user && !isAuthPage) {
         const pathSegments = pathname.split('/').filter(Boolean);
+        // Default to dashboard if no path segments
         const pathModuleKebab = pathSegments[0] || 'dashboard';
         const currentModule = kebabToCamel(pathModuleKebab);
 
         const canViewCurrentModule = modules.includes(currentModule) && hasPermission(currentModule, 'view');
         
         if (!canViewCurrentModule) {
+            // Find the first page the user has access to and redirect
             const firstAllowedPage = pageOrder.find(module => hasPermission(module, 'view'));
             
             if (firstAllowedPage) {
+                // Convert camelCase module name to kebab-case path
                 const redirectPath = `/${firstAllowedPage.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`)}`;
                 if (pathname !== redirectPath) {
                     router.push(redirectPath);
@@ -136,7 +144,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             }
         }
     }
-}, [user, loading, pathname, router, hasPermission, logout]);
+}, [user, loading, pathname, router, hasPermission]);
   
   return (
     <AuthContext.Provider value={{ user, loading, login, logout, hasPermission }}>
@@ -146,3 +154,5 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 };
 
 export const useAuth = () => useContext(AuthContext);
+
+    
