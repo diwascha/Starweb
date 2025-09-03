@@ -50,6 +50,8 @@ interface PurchaseOrderFormProps {
   poToEdit?: PurchaseOrder;
 }
 
+const paperTypes = ['Kraft Paper', 'Virgin Paper'];
+
 export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   const [rawMaterials] = useLocalStorage<RawMaterial[]>('rawMaterials', []);
   const [purchaseOrders, setPurchaseOrders] = useLocalStorage<PurchaseOrder[]>('purchaseOrders', []);
@@ -253,6 +255,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
 
   const title = poToEdit ? 'Edit Purchase Order' : 'Create New Purchase Order';
   const buttonText = poToEdit ? 'Save Changes' : 'Create Purchase Order';
+  const showPaperColumns = itemFilterType === 'All' || paperTypes.includes(itemFilterType);
 
   return (
     <div className="flex flex-col gap-8">
@@ -418,10 +421,14 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                         <TableHeader>
                             <TableRow>
                                 <TableHead className="w-[300px]">Material</TableHead>
-                                <TableHead>Type</TableHead>
-                                <TableHead>Size (Inch)</TableHead>
-                                <TableHead>GSM</TableHead>
-                                <TableHead>BF</TableHead>
+                                {itemFilterType === 'All' && <TableHead>Type</TableHead>}
+                                {showPaperColumns && (
+                                    <>
+                                        <TableHead>Size (Inch)</TableHead>
+                                        <TableHead>GSM</TableHead>
+                                        <TableHead>BF</TableHead>
+                                    </>
+                                )}
                                 <TableHead>Quantity (Ton)</TableHead>
                                 <TableHead className="w-[50px]"> </TableHead>
                             </TableRow>
@@ -452,10 +459,14 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                             )}
                                         />
                                     </TableCell>
-                                    <TableCell>{item.rawMaterialType || '-'}</TableCell>
-                                    <TableCell>{item.size || '-'}</TableCell>
-                                    <TableCell>{item.gsm || '-'}</TableCell>
-                                    <TableCell>{item.bf || '-'}</TableCell>
+                                    {itemFilterType === 'All' && <TableCell>{item.rawMaterialType || '-'}</TableCell>}
+                                    {showPaperColumns && (
+                                        <>
+                                            <TableCell>{item.size || '-'}</TableCell>
+                                            <TableCell>{item.gsm || '-'}</TableCell>
+                                            <TableCell>{item.bf || '-'}</TableCell>
+                                        </>
+                                    )}
                                     <TableCell>
                                         <FormField
                                             control={form.control}
@@ -516,3 +527,5 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     </div>
   );
 }
+
+    
