@@ -398,7 +398,7 @@ export default function RawMaterialsPage() {
                             <Label htmlFor="material-name">Name / Description</Label>
                             <Input
                             id="material-name"
-                            value={newMaterialName}
+                            value={newMaterialName || ''}
                             onChange={e => setNewMaterialName(e.target.value)}
                             placeholder={"e.g. Corrugation Gum"}
                             />
@@ -411,7 +411,7 @@ export default function RawMaterialsPage() {
                              <Label htmlFor="material-size">Size (Inch)</Label>
                              <Input
                                 id="material-size"
-                                value={newMaterialSize}
+                                value={newMaterialSize || ''}
                                 onChange={e => setNewMaterialSize(e.target.value)}
                                 placeholder="e.g. 42.5"
                               />
@@ -420,7 +420,7 @@ export default function RawMaterialsPage() {
                              <Label htmlFor="material-gsm">GSM</Label>
                              <Input
                                 id="material-gsm"
-                                value={newMaterialGsm}
+                                value={newMaterialGsm || ''}
                                 onChange={e => setNewMaterialGsm(e.target.value)}
                                 placeholder="e.g. 150"
                               />
@@ -429,7 +429,7 @@ export default function RawMaterialsPage() {
                              <Label htmlFor="material-bf">BF</Label>
                              <Input
                                 id="material-bf"
-                                value={newMaterialBf}
+                                value={newMaterialBf || ''}
                                 onChange={e => setNewMaterialBf(e.target.value)}
                                 placeholder="e.g. 20"
                               />
@@ -441,7 +441,7 @@ export default function RawMaterialsPage() {
                             <Label htmlFor="material-unit">Unit of Measurement</Label>
                             <Input
                                 id="material-unit"
-                                value={newMaterialUnit}
+                                value={newMaterialUnit || ''}
                                 onChange={e => setNewMaterialUnit(e.target.value)}
                                 placeholder="e.g., Kg, Ton, Ltr, Pcs"
                             />
