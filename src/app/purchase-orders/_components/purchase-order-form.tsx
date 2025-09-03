@@ -33,7 +33,7 @@ const poItemSchema = z.object({
   gsm: z.string(),
   bf: z.string(),
   quantity: z.string().min(1, 'Quantity is required.'),
-  unit: z.string(),
+  unit: z.string().min(1, 'Unit is required.'),
 });
 
 const purchaseOrderSchema = z.object({
@@ -159,7 +159,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         gsm: material.gsm,
         bf: material.bf,
         quantity: '',
-        unit: material.unit,
+        unit: material.units[0] || '',
       });
     }
   };
@@ -431,12 +431,14 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                         <TableHead>BF</TableHead>
                                     </>
                                 )}
-                                <TableHead>Quantity</TableHead>
+                                <TableHead className="w-[200px]">Quantity</TableHead>
                                 <TableHead className="w-[50px]"> </TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {fields.map((item, index) => (
+                            {fields.map((item, index) => {
+                                const selectedMaterial = rawMaterials.find(m => m.id === item.rawMaterialId);
+                                return (
                                 <TableRow key={item.id}>
                                     <TableCell>
                                         <FormField
@@ -470,21 +472,46 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                         </>
                                     )}
                                     <TableCell>
-                                        <FormField
-                                            control={form.control}
-                                            name={`items.${index}.quantity`}
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormControl>
-                                                        <Input 
-                                                            placeholder={item.unit ? `e.g. 5 ${item.unit}`: "e.g. 5"}
-                                                            {...field} 
-                                                        />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
+                                        <div className="flex gap-2">
+                                            <FormField
+                                                control={form.control}
+                                                name={`items.${index}.quantity`}
+                                                render={({ field }) => (
+                                                    <FormItem className="flex-1">
+                                                        <FormControl>
+                                                            <Input 
+                                                                placeholder="e.g. 5"
+                                                                {...field} 
+                                                            />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                            {selectedMaterial && selectedMaterial.units.length > 0 && (
+                                                <FormField
+                                                    control={form.control}
+                                                    name={`items.${index}.unit`}
+                                                    render={({ field }) => (
+                                                        <FormItem className="w-[100px]">
+                                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                                <FormControl>
+                                                                    <SelectTrigger>
+                                                                        <SelectValue placeholder="Unit" />
+                                                                    </SelectTrigger>
+                                                                </FormControl>
+                                                                <SelectContent>
+                                                                    {selectedMaterial.units.map(u => (
+                                                                        <SelectItem key={u} value={u}>{u}</SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
                                             )}
-                                        />
+                                        </div>
                                     </TableCell>
                                     <TableCell>
                                         <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
@@ -492,7 +519,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                         </Button>
                                     </TableCell>
                                 </TableRow>
-                            ))}
+                            )})}
                         </TableBody>
                     </Table>
                 </div>

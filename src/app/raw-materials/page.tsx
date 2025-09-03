@@ -70,7 +70,7 @@ export default function RawMaterialsPage() {
   const [newMaterialSize, setNewMaterialSize] = useState('');
   const [newMaterialGsm, setNewMaterialGsm] = useState('');
   const [newMaterialBf, setNewMaterialBf] = useState('');
-  const [newMaterialUnit, setNewMaterialUnit] = useState('');
+  const [newMaterialUnits, setNewMaterialUnits] = useState('');
   
   const [isMaterialDialogOpen, setIsMaterialDialogOpen] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<RawMaterial | null>(null);
@@ -95,7 +95,7 @@ export default function RawMaterialsPage() {
     setNewMaterialSize('');
     setNewMaterialGsm('');
     setNewMaterialBf('');
-    setNewMaterialUnit('');
+    setNewMaterialUnits('');
     setEditingMaterial(null);
   };
 
@@ -111,7 +111,7 @@ export default function RawMaterialsPage() {
     setNewMaterialSize(material.size);
     setNewMaterialGsm(material.gsm);
     setNewMaterialBf(material.bf);
-    setNewMaterialUnit(material.unit);
+    setNewMaterialUnits(material.units.join(', '));
     setIsMaterialDialogOpen(true);
   };
 
@@ -123,8 +123,8 @@ export default function RawMaterialsPage() {
         return;
     }
 
-    if (newMaterialUnit.trim() === '') {
-        toast({ title: 'Error', description: 'Please provide a unit of measurement.', variant: 'destructive' });
+    if (newMaterialUnits.trim() === '') {
+        toast({ title: 'Error', description: 'Please provide at least one unit of measurement.', variant: 'destructive' });
         return;
     }
 
@@ -141,6 +141,8 @@ export default function RawMaterialsPage() {
             newMaterialBf.trim()
           )
         : newMaterialName.trim();
+    
+    const unitsArray = newMaterialUnits.split(',').map(u => u.trim()).filter(u => u);
 
       if (editingMaterial) {
         const updatedMaterial: RawMaterial = {
@@ -150,7 +152,7 @@ export default function RawMaterialsPage() {
           size: isPaper ? newMaterialSize.trim() : '',
           gsm: isPaper ? newMaterialGsm.trim() : '',
           bf: isPaper ? newMaterialBf.trim() : '',
-          unit: newMaterialUnit.trim(),
+          units: unitsArray,
         };
         setRawMaterials(rawMaterials.map(m => (m.id === editingMaterial.id ? updatedMaterial : m)));
         toast({ title: 'Success', description: 'Raw material updated.' });
@@ -162,7 +164,7 @@ export default function RawMaterialsPage() {
           size: isPaper ? newMaterialSize.trim() : '',
           gsm: isPaper ? newMaterialGsm.trim() : '',
           bf: isPaper ? newMaterialBf.trim() : '',
-          unit: newMaterialUnit.trim(),
+          units: unitsArray,
         };
         setRawMaterials([...rawMaterials, newMaterial]);
         toast({ title: 'Success', description: 'New raw material added.' });
@@ -282,7 +284,7 @@ export default function RawMaterialsPage() {
                             <TableHead>BF</TableHead>
                         </>
                     )}
-                    <TableHead>Unit</TableHead>
+                    <TableHead>Units</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -298,7 +300,7 @@ export default function RawMaterialsPage() {
                                 <TableCell>{material.bf || '-'}</TableCell>
                             </>
                         )}
-                        <TableCell>{material.unit}</TableCell>
+                        <TableCell>{material.units.join(', ')}</TableCell>
                         <TableCell className="text-right">
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -399,7 +401,7 @@ export default function RawMaterialsPage() {
                             <Label htmlFor="material-name">Name / Description</Label>
                             <Input
                             id="material-name"
-                            value={newMaterialName || ''}
+                            value={newMaterialName}
                             onChange={e => setNewMaterialName(e.target.value)}
                             placeholder={"e.g. Corrugation Gum"}
                             />
@@ -412,7 +414,7 @@ export default function RawMaterialsPage() {
                              <Label htmlFor="material-size">Size (Inch)</Label>
                              <Input
                                 id="material-size"
-                                value={newMaterialSize || ''}
+                                value={newMaterialSize}
                                 onChange={e => setNewMaterialSize(e.target.value)}
                                 placeholder="e.g. 42.5"
                               />
@@ -421,7 +423,7 @@ export default function RawMaterialsPage() {
                              <Label htmlFor="material-gsm">GSM</Label>
                              <Input
                                 id="material-gsm"
-                                value={newMaterialGsm || ''}
+                                value={newMaterialGsm}
                                 onChange={e => setNewMaterialGsm(e.target.value)}
                                 placeholder="e.g. 150"
                               />
@@ -430,7 +432,7 @@ export default function RawMaterialsPage() {
                              <Label htmlFor="material-bf">BF</Label>
                              <Input
                                 id="material-bf"
-                                value={newMaterialBf || ''}
+                                value={newMaterialBf}
                                 onChange={e => setNewMaterialBf(e.target.value)}
                                 placeholder="e.g. 20"
                               />
@@ -439,12 +441,12 @@ export default function RawMaterialsPage() {
                     )}
                      {newMaterialType && (
                         <div className="space-y-2">
-                            <Label htmlFor="material-unit">Unit of Measurement</Label>
+                            <Label htmlFor="material-units">Units of Measurement</Label>
                             <Input
-                                id="material-unit"
-                                value={newMaterialUnit || ''}
-                                onChange={e => setNewMaterialUnit(e.target.value)}
-                                placeholder="e.g., Kg, Ton, Ltr, Pcs"
+                                id="material-units"
+                                value={newMaterialUnits}
+                                onChange={e => setNewMaterialUnits(e.target.value)}
+                                placeholder="e.g., Kg, Ton, Ltr (comma-separated)"
                             />
                         </div>
                     )}
@@ -457,7 +459,7 @@ export default function RawMaterialsPage() {
           </Dialog>
         </div>
       </header>
-       {isClient && (
+       {isClient ? (
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
               {tabs.map(tab => (
@@ -470,8 +472,7 @@ export default function RawMaterialsPage() {
               </TabsContent>
           ))}
         </Tabs>
-       )}
-       {!isClient && renderContent()}
+       ) : renderContent()}
     </div>
   );
 }

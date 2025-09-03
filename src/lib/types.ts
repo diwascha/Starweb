@@ -51,7 +51,7 @@ export interface RawMaterial {
   size: string;
   gsm: string;
   bf: string;
-  unit: string;
+  units: string[]; // Changed from unit: string to units: string[]
 }
 
 export interface PurchaseOrderItem {
