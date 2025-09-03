@@ -70,7 +70,8 @@ export default function ReportsPage() {
         const printWindow = window.open(`/report/${report.id}`, '_blank');
         if (printWindow) {
             printWindow.onload = () => {
-                printWindow.print();
+                // A short delay for content to render before printing
+                setTimeout(() => printWindow.print(), 500);
             };
         }
     }, 100);
