@@ -108,10 +108,10 @@ export default function RawMaterialsPage() {
     setEditingMaterial(material);
     setNewMaterialType(material.type);
     setNewMaterialName(material.name);
-    setNewMaterialSize(material.size);
-    setNewMaterialGsm(material.gsm);
-    setNewMaterialBf(material.bf);
-    setNewMaterialUnits(material.units.join(', '));
+    setNewMaterialSize(material.size || '');
+    setNewMaterialGsm(material.gsm || '');
+    setNewMaterialBf(material.bf || '');
+    setNewMaterialUnits(Array.isArray(material.units) ? material.units.join(', ') : '');
     setIsMaterialDialogOpen(true);
   };
 
@@ -213,8 +213,8 @@ export default function RawMaterialsPage() {
 
     if (sortConfig.key) {
       filtered.sort((a, b) => {
-        const aValue = a[sortConfig.key].toLowerCase();
-        const bValue = b[sortConfig.key].toLowerCase();
+        const aValue = (a[sortConfig.key] || '').toLowerCase();
+        const bValue = (b[sortConfig.key] || '').toLowerCase();
 
         if (aValue < bValue) {
           return sortConfig.direction === 'asc' ? -1 : 1;
@@ -300,7 +300,7 @@ export default function RawMaterialsPage() {
                                 <TableCell>{material.bf || '-'}</TableCell>
                             </>
                         )}
-                        <TableCell>{material.units.join(', ')}</TableCell>
+                        <TableCell>{Array.isArray(material.units) ? material.units.join(', ') : ''}</TableCell>
                         <TableCell className="text-right">
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
