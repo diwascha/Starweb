@@ -1,6 +1,7 @@
 
 'use client';
 
+import { useState, useEffect } from 'react';
 import {
   Sidebar,
   SidebarHeader,
@@ -14,8 +15,25 @@ import { usePathname } from 'next/navigation';
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const isReportsActive = pathname === '/reports' || pathname.startsWith('/report/') || pathname === '/';
+  const [isClient, setIsClient] = useState(false);
 
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  const getIsActive = (path: string, checkStartsWith: boolean = false, checkRoot: boolean = false) => {
+    if (!isClient) return false;
+    if (checkStartsWith) {
+      return pathname.startsWith(path);
+    }
+    if (checkRoot) {
+      return pathname === path || (path === '/reports' && pathname === '/');
+    }
+    return pathname === path;
+  };
+  
+  const isReportsActive = getIsActive('/reports', true, true);
+  
   return (
     <Sidebar>
       <SidebarHeader>
@@ -26,7 +44,7 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarMenu>
         <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={pathname === '/dashboard'}>
+          <SidebarMenuButton asChild isActive={getIsActive('/dashboard')}>
             <Link href="/dashboard">
               <LayoutDashboard />
               <span>Dashboard</span>
@@ -34,7 +52,7 @@ export function AppSidebar() {
           </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={pathname === '/report/new'}>
+          <SidebarMenuButton asChild isActive={getIsActive('/report/new')}>
             <Link href="/report/new">
               <FileText />
               <span>New QT Report</span>
@@ -50,7 +68,7 @@ export function AppSidebar() {
           </SidebarMenuButton>
         </SidebarMenuItem>
          <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={pathname.startsWith('/purchase-orders')}>
+          <SidebarMenuButton asChild isActive={getIsActive('/purchase-orders', true)}>
             <Link href="/purchase-orders">
               <ShoppingCart />
               <span>Purchase Orders</span>
@@ -58,7 +76,7 @@ export function AppSidebar() {
           </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={pathname.startsWith('/products')}>
+          <SidebarMenuButton asChild isActive={getIsActive('/products', true)}>
             <Link href="/products">
               <Package />
               <span>Products</span>
@@ -66,7 +84,7 @@ export function AppSidebar() {
           </SidebarMenuButton>
         </SidebarMenuItem>
          <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={pathname.startsWith('/raw-materials')}>
+          <SidebarMenuButton asChild isActive={getIsActive('/raw-materials', true)}>
             <Link href="/raw-materials">
               <Wrench />
               <span>Raw Materials</span>
