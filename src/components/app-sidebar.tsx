@@ -11,7 +11,7 @@ import {
   SidebarFooter,
   SidebarSeparator,
 } from '@/components/ui/sidebar';
-import { FileText, LayoutDashboard, TestTubeDiagonal, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users } from 'lucide-react';
+import { FileText, LayoutDashboard, TestTubeDiagonal, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users, Calendar } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
@@ -116,14 +116,26 @@ export function AppSidebar() {
           </SidebarMenuItem>
         )}
         {hasPermission('hr', 'view') && (
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={getIsActive('/hr')}>
-              <Link href="/hr">
-                <Users />
-                <span>HR Management</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+          <>
+            <SidebarSeparator />
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive={getIsActive('/hr/employees')}>
+                <Link href="/hr/employees">
+                  <Users />
+                  <span>Employees</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive={getIsActive('/hr/attendance')}>
+                <Link href="/hr/attendance">
+                  <Calendar />
+                  <span>Attendance</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarSeparator />
+          </>
         )}
         {hasPermission('settings', 'view') && (
           <SidebarMenuItem>

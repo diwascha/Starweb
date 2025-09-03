@@ -1,60 +1,30 @@
 
 'use client';
 
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Users, Calendar, FileText } from "lucide-react";
-import Link from "next/link";
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 
+// This page now simply redirects to the default HR sub-page.
 export default function HRPage() {
+  const router = useRouter();
   const { hasPermission } = useAuth();
   
+  useEffect(() => {
+    // Redirect to the first available HR page based on permissions
+    if (hasPermission('hr', 'view')) {
+      router.replace('/hr/employees');
+    } else {
+      // If they somehow land here without permission, send them to dashboard
+      router.replace('/dashboard');
+    }
+  }, [router, hasPermission]);
+  
   return (
-    <div className="flex flex-col gap-8">
-      <header>
-        <h1 className="text-3xl font-bold tracking-tight">HR Management</h1>
-        <p className="text-muted-foreground">Manage employees, attendance, and payroll.</p>
-      </header>
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {hasPermission('hr', 'view') && (
-            <Link href="/hr/employees">
-                <Card className="hover:bg-accent hover:text-accent-foreground transition-colors">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Users className="h-6 w-6"/>
-                            <span>Employees</span>
-                        </CardTitle>
-                        <CardDescription>Manage employee records and wage information.</CardDescription>
-                    </CardHeader>
-                </Card>
-            </Link>
-        )}
-         {hasPermission('hr', 'view') && (
-            <Link href="/hr/attendance">
-                <Card className="hover:bg-accent hover:text-accent-foreground transition-colors">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Calendar className="h-6 w-6"/>
-                            <span>Attendance</span>
-                        </CardTitle>
-                        <CardDescription>Record and track daily employee attendance.</CardDescription>
-                    </CardHeader>
-                </Card>
-            </Link>
-        )}
-         {hasPermission('hr', 'view') && (
-            <Link href="#">
-                <Card className="hover:bg-accent hover:text-accent-foreground transition-colors opacity-50 cursor-not-allowed">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <FileText className="h-6 w-6"/>
-                            <span>Payroll</span>
-                        </CardTitle>
-                        <CardDescription>Generate and manage payroll reports. (Coming Soon)</CardDescription>
-                    </CardHeader>
-                </Card>
-            </Link>
-        )}
+    <div className="flex flex-1 items-center justify-center">
+      <div className="flex flex-col items-center gap-1 text-center">
+        <h3 className="text-2xl font-bold tracking-tight">Redirecting...</h3>
+        <p className="text-sm text-muted-foreground">Please wait.</p>
       </div>
     </div>
   );
