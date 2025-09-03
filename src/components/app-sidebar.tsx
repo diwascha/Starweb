@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -24,10 +25,10 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarMenu>
         <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={pathname.startsWith('/reports')}>
+          <SidebarMenuButton asChild isActive={pathname.startsWith('/reports') || pathname === '/'}>
             <Link href="/reports">
               <LayoutDashboard />
-              <span>Reports</span>
+              <span>Dashboard</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
