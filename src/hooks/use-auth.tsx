@@ -3,18 +3,18 @@
 
 import { useState, useEffect, createContext, useContext, ReactNode, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import type { UserRole } from '@/lib/types';
 
 // Mock user object
-interface User {
+interface UserSession {
   username: string;
-  // We can add roles here later
-  role?: string;
+  role: UserRole;
 }
 
 interface AuthContextType {
-  user: User | null;
+  user: UserSession | null;
   loading: boolean;
-  login: (username: string) => Promise<void>;
+  login: (user: UserSession) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -28,7 +28,7 @@ const AuthContext = createContext<AuthContextType>({
 const USER_SESSION_KEY = 'user_session';
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<UserSession | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
@@ -59,11 +59,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [user, loading, pathname, router]);
 
 
-  const login = useCallback(async (username: string) => {
-    // In a real app, you might fetch user details here
-    const userToStore: User = { username, role: 'Administrator' };
-    sessionStorage.setItem(USER_SESSION_KEY, JSON.stringify(userToStore));
-    setUser(userToStore);
+  const login = useCallback(async (userToLogin: UserSession) => {
+    sessionStorage.setItem(USER_SESSION_KEY, JSON.stringify(userToLogin));
+    setUser(userToLogin);
   }, []);
 
   const logout = useCallback(async () => {

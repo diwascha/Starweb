@@ -85,3 +85,12 @@ export interface PurchaseOrder {
   status: PurchaseOrderStatus;
   deliveryDate?: string; // ISO string for delivery date
 }
+
+export type UserRole = 'Admin' | 'User';
+
+export interface User {
+  id: string;
+  username: string;
+  password?: string; // Optional because we don't want to expose it everywhere
+  role: UserRole;
+}

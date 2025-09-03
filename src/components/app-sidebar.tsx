@@ -11,9 +11,9 @@ import {
   SidebarFooter,
   SidebarSeparator,
 } from '@/components/ui/sidebar';
-import { FileText, LayoutDashboard, TestTubeDiagonal, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut } from 'lucide-react';
+import { FileText, LayoutDashboard, TestTubeDiagonal, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from './ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -22,7 +22,6 @@ export function AppSidebar() {
   const pathname = usePathname();
   const [isClient, setIsClient] = useState(false);
   const { user, logout } = useAuth();
-  const router = useRouter();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -43,13 +42,14 @@ export function AppSidebar() {
       return false;
     }
     if (checkStartsWith) {
-      // Special case for reports, as /report/* should also activate this
       if (path === '/reports' && (pathname.startsWith('/report/') || pathname.startsWith('/reports'))) {
+        return true;
+      }
+       if (path === '/purchase-orders' && (pathname.startsWith('/purchase-orders') || pathname.startsWith('/purchase-orders'))) {
         return true;
       }
       return pathname.startsWith(path);
     }
-    // Handle root path matching for /reports as well
     if (path === '/reports' && pathname === '/') {
         return true;
     }
@@ -117,6 +117,16 @@ export function AppSidebar() {
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
+        {user.role === 'Admin' && (
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={getIsActive('/settings', true)}>
+              <Link href="/settings">
+                <Settings />
+                <span>Settings</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        )}
       </SidebarMenu>
        <SidebarFooter className="mt-auto">
         <SidebarSeparator />

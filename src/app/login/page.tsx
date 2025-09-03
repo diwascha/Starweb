@@ -13,6 +13,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, TestTubeDiagonal } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
+import useLocalStorage from '@/hooks/use-local-storage';
+import type { User } from '@/lib/types';
 
 const loginSchema = z.object({
   username: z.string().min(1, { message: 'Username is required' }),
@@ -26,6 +28,7 @@ export default function LoginPage() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
+  const [users] = useLocalStorage<User[]>('users', []);
 
   const {
     register,
@@ -38,9 +41,24 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
     try {
-      // Hardcoded login logic
+      // Check for hardcoded administrator first
       if (data.username === 'Administrator' && data.password === 'Admin') {
-        await login(data.username);
+        await login({ username: data.username, role: 'Admin' });
+        toast({
+          title: 'Success',
+          description: 'Logged in successfully.',
+        });
+        router.push('/dashboard');
+        return;
+      }
+
+      // Check against users in local storage
+      const foundUser = users.find(
+        (user) => user.username === data.username && user.password === data.password
+      );
+
+      if (foundUser) {
+        await login({ username: foundUser.username, role: foundUser.role });
         toast({
           title: 'Success',
           description: 'Logged in successfully.',
