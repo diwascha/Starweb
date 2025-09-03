@@ -24,6 +24,9 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  env: {
+    NEXT_PUBLIC_FIREBASE_PROJECT_ID: 'testreportgen',
+  },
 };
 
 export default nextConfig;

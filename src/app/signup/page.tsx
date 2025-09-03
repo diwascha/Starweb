@@ -15,6 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { Loader2, TestTubeDiagonal } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const signupSchema = z.object({
   email: z.string().email({ message: 'Invalid email address' }),
@@ -27,6 +28,7 @@ export default function SignupPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [firebaseError, setFirebaseError] = useState<string | null>(null);
 
   const {
     register,
@@ -38,9 +40,8 @@ export default function SignupPage() {
 
   const onSubmit = async (data: SignupFormValues) => {
     setIsLoading(true);
+    setFirebaseError(null);
     try {
-      // For now, new users are created without a specific role.
-      // Role management would be a next step, likely managed by an admin.
       await createUserWithEmailAndPassword(auth, data.email, data.password);
       toast({
         title: 'Account Created',
@@ -48,11 +49,16 @@ export default function SignupPage() {
       });
       router.push('/dashboard');
     } catch (error: any) {
+        let errorMessage = error.message;
+        if (error.code === 'auth/operation-not-allowed') {
+            errorMessage = 'Email/Password sign-up is not enabled in the Firebase Console.';
+        }
       toast({
         title: 'Signup Failed',
-        description: error.message,
+        description: errorMessage,
         variant: 'destructive',
       });
+      setFirebaseError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -71,6 +77,29 @@ export default function SignupPage() {
             <CardDescription>Create a new account to get started.</CardDescription>
           </CardHeader>
           <CardContent>
+            {firebaseError && (
+                 <Alert variant="destructive" className="mb-4">
+                    <AlertTitle>Signup Error</AlertTitle>
+                    <AlertDescription>
+                        {firebaseError}
+                        {firebaseError.includes('not enabled') && (
+                            <>
+                                <br />
+                                Please enable it in the{' '}
+                                <a
+                                href={`https://console.firebase.google.com/project/${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}/authentication/providers`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="underline"
+                                >
+                                Firebase Console
+                                </a>
+                                .
+                            </>
+                        )}
+                    </AlertDescription>
+                </Alert>
+            )}
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
