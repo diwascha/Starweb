@@ -42,16 +42,11 @@ export function AppSidebar() {
       return false;
     }
     if (checkStartsWith) {
-      if (path === '/reports' && (pathname.startsWith('/report/') || pathname.startsWith('/reports'))) {
-        return true;
-      }
-       if (path === '/purchase-orders' && (pathname.startsWith('/purchase-orders') || pathname.startsWith('/purchase-orders'))) {
-        return true;
+      // Special handling for reports since it has multiple sub-routes like /report/new, /report/edit/:id
+      if (path === '/reports') {
+        return pathname.startsWith('/report');
       }
       return pathname.startsWith(path);
-    }
-    if (path === '/reports' && pathname === '/') {
-        return true;
     }
     return pathname === path;
   };
