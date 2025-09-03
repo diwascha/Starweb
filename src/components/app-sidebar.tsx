@@ -33,7 +33,7 @@ export function AppSidebar() {
           </SidebarMenuButton>
         </SidebarMenuItem>
          <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={pathname.startsWith('/reports') || pathname === '/'}>
+          <SidebarMenuButton asChild isActive={pathname.startsWith('/reports') || pathname === '/' || pathname.startsWith('/report/')}>
             <Link href="/reports">
               <FileSpreadsheet />
               <span>QT Reports Database</span>
@@ -65,7 +65,7 @@ export function AppSidebar() {
           </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={pathname.startsWith('/report/new')}>
+          <SidebarMenuButton asChild isActive={pathname === '/report/new'}>
             <Link href="/report/new">
               <FileText />
               <span>New Report</span>
