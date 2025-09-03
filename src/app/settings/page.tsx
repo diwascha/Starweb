@@ -39,6 +39,7 @@ import { useRouter } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 
 const initialPermissions: Permissions = modules.reduce((acc, module) => {
     acc[module] = [];
@@ -71,7 +72,11 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
-    if (!loading && !hasPermission('settings', 'view')) {
+    if (!loading && !currentUser) {
+      router.push('/login');
+      return;
+    }
+    if (!loading && currentUser && !hasPermission('settings', 'view')) {
       toast({ title: 'Access Denied', description: 'You do not have permission to view this page.', variant: 'destructive' });
       router.push('/dashboard');
     }
@@ -187,17 +192,25 @@ export default function SettingsPage() {
       toast({ title: 'Error', description: 'Role name is required.', variant: 'destructive' });
       return;
     }
+    let newRoleId: string;
     if (editingRole) {
+      newRoleId = editingRole.id;
       const updatedRole: Role = { ...editingRole, name: roleName.trim(), permissions };
       setRoles(roles.map(r => (r.id === editingRole.id ? updatedRole : r)));
       toast({ title: 'Success', description: 'Role updated.' });
     } else {
-      const newRole: Role = { id: crypto.randomUUID(), name: roleName.trim(), permissions };
+      newRoleId = crypto.randomUUID();
+      const newRole: Role = { id: newRoleId, name: roleName.trim(), permissions };
       setRoles([...roles, newRole]);
       toast({ title: 'Success', description: 'New role created.' });
     }
     resetRoleForm();
     setIsRoleDialogOpen(false);
+
+    // If we're creating a new role from the user dialog, select it.
+    if (!editingRole && isUserDialogOpen) {
+        setUserRoleId(newRoleId);
+    }
   };
 
   const deleteRole = (id: string) => {
@@ -208,6 +221,15 @@ export default function SettingsPage() {
     setRoles(roles.filter(r => r.id !== id));
     toast({ title: 'Role Deleted', description: 'The role has been successfully deleted.' });
   };
+  
+  const handleRoleSelection = (roleId: string) => {
+    if (roleId === 'CREATE_NEW') {
+      openAddRoleDialog();
+    } else {
+      setUserRoleId(roleId);
+    }
+  };
+
 
   if (loading || !currentUser) {
     return (
@@ -258,10 +280,18 @@ export default function SettingsPage() {
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="role">Role</Label>
-                        <Select value={userRoleId} onValueChange={setUserRoleId}>
+                        <Select value={userRoleId} onValueChange={handleRoleSelection}>
                           <SelectTrigger id="role"><SelectValue placeholder="Select a role" /></SelectTrigger>
                           <SelectContent>
                             {roles.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
+                            <Separator className="my-1"/>
+                             <button
+                                onClick={() => handleRoleSelection('CREATE_NEW')}
+                                className="relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+                            >
+                                <Plus className="absolute left-2 h-4 w-4" />
+                                Create New Role
+                            </button>
                           </SelectContent>
                         </Select>
                       </div>
@@ -397,3 +427,5 @@ export default function SettingsPage() {
     </div>
   );
 }
+
+  
