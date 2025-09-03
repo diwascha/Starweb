@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import useLocalStorage from '@/hooks/use-local-storage';
-import type { Report } from '@/lib/types';
+import type { Report, ProductSpecification } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -33,7 +33,6 @@ export default function ReportView({ reportId }: { reportId: string }) {
       setReports(updatedReports);
       setReport(updatedReport); 
       
-      // We use a timeout to ensure the state update is processed before printing
       setTimeout(() => {
         window.print();
       }, 0);
@@ -122,13 +121,17 @@ export default function ReportView({ reportId }: { reportId: string }) {
                       <TableHead className="text-black font-semibold">Parameter</TableHead>
                       <TableHead className="text-black font-semibold">Standard</TableHead>
                       <TableHead className="text-black font-semibold">Result</TableHead>
+                      <TableHead className="text-black font-semibold">Remarks</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {Object.keys(report.product.specification).map((key) => {
-                      const specKey = key as keyof typeof report.product.specification;
+                      const specKey = key as keyof ProductSpecification;
                       const standardValue = report.product.specification[specKey];
-                      const resultValue = report.testData[specKey];
+                      const testResult = report.testData[specKey];
+                      
+                      const resultValue = typeof testResult === 'object' && testResult !== null ? testResult.value : testResult;
+                      const remarkValue = typeof testResult === 'object' && testResult !== null ? testResult.remark : '';
                       
                       let displayStandard = standardValue;
                       let displayResult = resultValue;
@@ -151,6 +154,7 @@ export default function ReportView({ reportId }: { reportId: string }) {
                           </TableCell>
                           <TableCell>{displayStandard}</TableCell>
                           <TableCell>{displayResult}</TableCell>
+                          <TableCell>{remarkValue}</TableCell>
                         </TableRow>
                       );
                     })}

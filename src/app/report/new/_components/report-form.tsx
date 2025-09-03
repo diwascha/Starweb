@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import useLocalStorage from '@/hooks/use-local-storage';
-import type { Product, Report, TestResultData } from '@/lib/types';
+import type { Product, Report, TestResultData, ProductSpecification } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
@@ -23,20 +23,25 @@ import { generateNextSerialNumber } from '@/lib/utils';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { RefreshCw } from 'lucide-react';
 
+const testResultSchema = z.object({
+  value: z.string().min(1, { message: 'Result is required.' }),
+  remark: z.string().optional(),
+});
+
 const reportFormSchema = z.object({
   productId: z.string().min(1, { message: 'Product is required.' }),
   taxInvoiceNumber: z.string().optional(),
   challanNumber: z.string().optional(),
   quantity: z.string().optional(),
-  dimension: z.string().min(1, { message: 'Dimension result is required.' }),
-  ply: z.string().min(1, { message: 'Ply result is required.' }),
-  gsm: z.string().min(1, { message: 'GSM result is required.' }),
-  stapleWidth: z.string().min(1, { message: 'Staple Width result is required.' }),
-  stapling: z.string().min(1, { message: 'Stapling result is required.' }),
-  overlapWidth: z.string().min(1, { message: 'Overlap Width result is required.' }),
-  printing: z.string().min(1, { message: 'Printing result is required.' }),
-  moisture: z.string().min(1, { message: 'Moisture result is required.' }),
-  load: z.string().min(1, { message: 'Load result is required.' }),
+  dimension: testResultSchema,
+  ply: testResultSchema,
+  gsm: testResultSchema,
+  stapleWidth: testResultSchema,
+  stapling: testResultSchema,
+  overlapWidth: testResultSchema,
+  printing: testResultSchema,
+  moisture: testResultSchema,
+  load: testResultSchema,
 });
 
 type ReportFormValues = z.infer<typeof reportFormSchema>;
@@ -45,14 +50,25 @@ interface ReportFormProps {
     reportToEdit?: Report;
 }
 
-const staticFields: (keyof TestResultData)[] = ['dimension', 'ply', 'stapleWidth', 'stapling', 'overlapWidth', 'printing'];
-const dynamicFields: (keyof TestResultData)[] = ['gsm', 'moisture', 'load'];
+const testDataKeys: (keyof ProductSpecification)[] = [
+  'dimension',
+  'ply',
+  'gsm',
+  'stapleWidth',
+  'stapling',
+  'overlapWidth',
+  'printing',
+  'moisture',
+  'load',
+];
+
+const staticFields: (keyof ProductSpecification)[] = ['dimension', 'ply', 'stapleWidth', 'stapling', 'overlapWidth', 'printing'];
+const dynamicFields: (keyof ProductSpecification)[] = ['gsm', 'moisture', 'load'];
 
 type BoxType = 'Wet' | 'Dry' | 'Normal';
 
 const parseSpecValue = (specStr: string): { min: number; max: number | null } => {
     if (!specStr) return { min: 0, max: null };
-    // This regex finds all decimal or integer numbers in the string, ignoring text.
     const numbers = specStr.match(/\d+(\.\d+)?/g);
     if (!numbers) return { min: 0, max: null };
 
@@ -100,15 +116,15 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
       taxInvoiceNumber: '',
       challanNumber: '',
       quantity: '',
-      dimension: '',
-      ply: '',
-      gsm: '',
-      stapleWidth: '',
-      stapling: '',
-      overlapWidth: '',
-      printing: '',
-      moisture: '',
-      load: '',
+      dimension: { value: '', remark: '' },
+      ply: { value: '', remark: '' },
+      gsm: { value: '', remark: '' },
+      stapleWidth: { value: '', remark: '' },
+      stapling: { value: '', remark: '' },
+      overlapWidth: { value: '', remark: '' },
+      printing: { value: '', remark: '' },
+      moisture: { value: '', remark: '' },
+      load: { value: '', remark: '' },
     },
   });
 
@@ -166,16 +182,12 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
     const moisturePercentage = Math.max(0, (moistureResult - moistureBaseForGsm) / (moistureHigh - moistureBaseForGsm));
 
     if (gsmSpec.max === null || gsmSpec.max === gsmSpec.min) {
-        // Handle single value spec: add a small variation based on moisture
-        // The variation is a percentage of the moisture effect, applied to a small range (e.g., 10% of base)
-        const gsmVariation = gsmSpec.min * 0.10; // Allow 10% variation
+        const gsmVariation = gsmSpec.min * 0.10;
         gsmResult = gsmSpec.min + (moisturePercentage * gsmVariation);
     } else {
-        // Handle range spec: linear interpolation
         gsmResult = gsmSpec.min + moisturePercentage * (gsmSpec.max - gsmSpec.min);
     }
     
-    // Ensure GSM result is at least 5 above minimum, but not exceeding max if it exists.
     const safeMinGsm = gsmSpec.min + 5;
     gsmResult = Math.max(gsmResult, safeMinGsm);
     
@@ -183,9 +195,9 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
       gsmResult = Math.min(gsmResult, gsmSpec.max);
     }
     
-    form.setValue('moisture', String(parseFloat(moistureResult.toFixed(2))));
-    form.setValue('gsm', String(parseFloat(gsmResult.toFixed(2))));
-    form.setValue('load', String(Math.max(loadMin, parseFloat(loadResult.toFixed(2)))));
+    form.setValue('moisture.value', String(parseFloat(moistureResult.toFixed(2))));
+    form.setValue('gsm.value', String(parseFloat(gsmResult.toFixed(2))));
+    form.setValue('load.value', String(Math.max(loadMin, parseFloat(loadResult.toFixed(2)))));
   };
 
 
@@ -193,7 +205,6 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
     if (selectedProduct && !reportToEdit) {
       handleProductChange(selectedProduct.id);
     }
-    // eslint-disable--next-line react-hooks/exhaustive-deps
   }, [selectedProduct, reportToEdit]);
 
   const handleProductChange = (productId: string) => {
@@ -202,15 +213,21 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
     if (product) {
       setSelectedProduct(product);
       staticFields.forEach(field => {
-        form.setValue(field, product.specification[field]);
+        form.setValue(`${field}.value`, product.specification[field]);
+        form.setValue(`${field}.remark`, '');
+      });
+      dynamicFields.forEach(field => {
+        form.setValue(`${field}.remark`, '');
       });
       const defaultBoxType = 'Normal';
       setSelectedBoxType(defaultBoxType);
       calculateAndSetValues(defaultBoxType);
     } else {
       setSelectedProduct(null);
-       dynamicFields.forEach(field => form.setValue(field, ''));
-       staticFields.forEach(field => form.setValue(field, ''));
+       testDataKeys.forEach(field => {
+         form.setValue(`${field}.value`, '');
+         form.setValue(`${field}.remark`, '');
+       });
     }
   };
 
@@ -236,7 +253,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
     setIsSubmitting(true);
     try {
       const { productId, taxInvoiceNumber, challanNumber, quantity, ...testDataValues } = values;
-      const testData: TestResultData = testDataValues;
+      const testData: TestResultData = testDataValues as TestResultData;
       
       let newReportId = reportToEdit ? reportToEdit.id : crypto.randomUUID();
 
@@ -434,43 +451,43 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
                     />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {dynamicFields.map(key => (
-                    <FormField
-                        key={key}
-                        control={form.control}
-                        name={key}
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>{formatLabel(key)}</FormLabel>
-                            <FormControl>
-                            <Input placeholder={`Enter result for ${formatLabel(key)}`} {...field} />
-                            </FormControl>
-                            <FormDescription>
-                            Standard: {selectedProduct.specification[key]}
-                            </FormDescription>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
-                    ))}
-                    {staticFields.map(key => (
-                      <FormField
-                          key={key}
+                  {testDataKeys.map(key => (
+                      <div key={key} className="space-y-4">
+                        <FormField
                           control={form.control}
-                          name={key}
+                          name={`${key}.value`}
                           render={({ field }) => (
-                          <FormItem>
+                            <FormItem>
                               <FormLabel>{formatLabel(key)}</FormLabel>
                               <FormControl>
-                              <Input {...field} readOnly className="bg-muted/50 cursor-not-allowed"/>
+                                <Input
+                                  placeholder={`Result for ${formatLabel(key)}`}
+                                  {...field}
+                                  readOnly={staticFields.includes(key)}
+                                  className={staticFields.includes(key) ? "bg-muted/50 cursor-not-allowed" : ""}
+                                />
                               </FormControl>
                               <FormDescription>
-                              Standard: {selectedProduct.specification[key]}
+                                Standard: {selectedProduct.specification[key]}
                               </FormDescription>
                               <FormMessage />
-                          </FormItem>
+                            </FormItem>
                           )}
-                      />
+                        />
+                        <FormField
+                          control={form.control}
+                          name={`${key}.remark`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Remark for {formatLabel(key)}</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Enter remark (optional)" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
                     ))}
                 </div>
               </>

@@ -19,7 +19,12 @@ export interface Product {
   specification: ProductSpecification;
 }
 
-export type TestResultData = Record<keyof ProductSpecification, string>;
+export interface TestResult {
+  value: string;
+  remark?: string;
+}
+
+export type TestResultData = Record<keyof ProductSpecification, TestResult>;
 
 export interface PrintLogEntry {
   date: string;
