@@ -31,9 +31,12 @@ const AuthContext = createContext<AuthContextType>({
 
 const USER_SESSION_KEY = 'user_session';
 
-// Define the order of pages for redirection logic
 const pageOrder: Module[] = ['dashboard', 'reports', 'products', 'purchaseOrders', 'rawMaterials', 'settings'];
 
+// Function to convert kebab-case to camelCase
+const kebabToCamel = (s: string): string => {
+  return s.replace(/-./g, x => x[1].toUpperCase());
+};
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<UserSession | null>(null);
@@ -57,18 +60,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   
   const hasPermission = useCallback((module: Module, action: Action): boolean => {
     if (!user) return false;
-    
-    // Administrator has all permissions
     if (user.roleId === 'admin') return true;
-
-    // For other users, check their specific permissions
     if (user.permissions) {
       const modulePermissions = user.permissions[module];
       return !!modulePermissions?.includes(action);
     }
-    
     return false;
   }, [user]);
+
+  const login = useCallback(async (userToLogin: UserSession) => {
+    let sessionToStore: UserSession;
+    if (userToLogin.username === 'Administrator') {
+      sessionToStore = {
+        username: userToLogin.username,
+        roleId: 'admin',
+      };
+    } else {
+       const foundUser = users.find(u => u.username === userToLogin.username);
+       sessionToStore = {
+          username: userToLogin.username,
+          roleId: 'user',
+          permissions: foundUser?.permissions,
+       };
+    }
+    sessionStorage.setItem(USER_SESSION_KEY, JSON.stringify(sessionToStore));
+    setUser(sessionToStore);
+  }, [users]);
 
   const logout = useCallback(async () => {
     sessionStorage.removeItem(USER_SESSION_KEY);
@@ -93,49 +110,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     if (user && !isAuthPage) {
         const pathSegments = pathname.split('/').filter(Boolean);
-        let currentModule: Module | string = pathSegments[0] || 'dashboard';
+        let pathModule = pathSegments[0] || 'dashboard';
 
-        // Handle special routing cases to match module names
-        if (currentModule === 'report') {
-            currentModule = 'reports';
+        if (pathModule === 'report') {
+            pathModule = 'reports';
         }
+        
+        const currentModule = kebabToCamel(pathModule) as Module;
 
-        const canViewCurrentModule = modules.includes(currentModule as Module) && hasPermission(currentModule as Module, 'view');
+        const canViewCurrentModule = modules.includes(currentModule) && hasPermission(currentModule, 'view');
         
         if (!canViewCurrentModule) {
-            // Find the first page the user has access to and redirect
             const firstAllowedPage = pageOrder.find(module => hasPermission(module, 'view'));
             
             if (firstAllowedPage) {
-                let redirectPath = `/${firstAllowedPage}`;
+                // Convert camelCase module name back to kebab-case for URL path
+                const redirectPath = `/${firstAllowedPage.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`)}`;
                 router.push(redirectPath);
             } else {
-                // If user has no view permissions at all, log them out.
                 logout();
             }
         }
     }
 }, [user, loading, pathname, router, hasPermission, logout]);
-
-
-  const login = useCallback(async (userToLogin: UserSession) => {
-    let sessionToStore: UserSession;
-    if (userToLogin.username === 'Administrator') {
-      sessionToStore = {
-        username: userToLogin.username,
-        roleId: 'admin',
-      };
-    } else {
-       const foundUser = users.find(u => u.username === userToLogin.username);
-       sessionToStore = {
-          username: userToLogin.username,
-          roleId: 'user',
-          permissions: foundUser?.permissions,
-       };
-    }
-    sessionStorage.setItem(USER_SESSION_KEY, JSON.stringify(sessionToStore));
-    setUser(sessionToStore);
-  }, [users]);
   
   return (
     <AuthContext.Provider value={{ user, loading, login, logout, hasPermission }}>
