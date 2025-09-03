@@ -39,9 +39,12 @@ const kebabToCamel = (s: string): Module | string => {
       'report': 'reports',
       'products': 'products',
       'purchase-orders': 'purchaseOrders',
+      'purchase-orders/list': 'purchaseOrders',
       'raw-materials': 'rawMaterials',
       'settings': 'settings',
       'hr': 'hr',
+      'hr/employees': 'hr',
+      'hr/attendance': 'hr',
       'dashboard': 'dashboard',
     };
     if (specialCases[s]) {
@@ -53,7 +56,6 @@ const kebabToCamel = (s: string): Module | string => {
 
 const moduleToPath = (module: Module): string => {
     if (module === 'dashboard') return '/dashboard';
-    if (module === 'hr') return '/hr'; 
     
     const kebab = module.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`);
     return `/${kebab}`;
@@ -136,11 +138,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const pathSegments = pathname.split('/').filter(Boolean);
         if (pathSegments.length === 0) return; // Root page is handled by page.tsx
 
-        const mainSegment = pathSegments[0];
+        const mainSegment = pathSegments.join('/');
         const currentModuleAttempt = kebabToCamel(mainSegment);
         
-        // This is the fix: check if the current path is already the dashboard of a permitted module
-        const isAlreadyOnPermittedModuleDashboard = pathSegments.length === 1 && modules.includes(currentModuleAttempt as Module) && hasPermission(currentModuleAttempt as Module, 'view');
+        const isAlreadyOnPermittedModuleDashboard = modules.includes(currentModuleAttempt as Module) && hasPermission(currentModuleAttempt as Module, 'view');
         if (isAlreadyOnPermittedModuleDashboard) {
             return; // No redirect needed
         }
