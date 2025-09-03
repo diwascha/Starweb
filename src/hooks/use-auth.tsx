@@ -3,7 +3,8 @@
 
 import { useState, useEffect, createContext, useContext, ReactNode, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import type { User, Permissions, Module, Action, modules } from '@/lib/types';
+import type { User, Permissions, Module, Action } from '@/lib/types';
+import { modules } from '@/lib/types';
 import useLocalStorage from './use-local-storage';
 
 interface UserSession {
@@ -69,6 +70,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return false;
   }, [user]);
 
+  const logout = useCallback(async () => {
+    sessionStorage.removeItem(USER_SESSION_KEY);
+    setUser(null);
+    router.push('/login');
+  }, [router]);
+
   useEffect(() => {
     if (loading) return;
 
@@ -105,14 +112,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             
             if (firstAllowedPage) {
                 let redirectPath = `/${firstAllowedPage}`;
-                // Special case for reports database
-                if (firstAllowedPage === 'reports') {
-                    if(hasPermission('reports', 'create')) {
-                        redirectPath = '/report/new';
-                    } else {
-                        redirectPath = '/reports';
-                    }
-                }
                 router.push(redirectPath);
             } else {
                 // If user has no view permissions at all, log them out or show an "access denied" page.
@@ -121,7 +120,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             }
         }
     }
-}, [user, loading, pathname, router, hasPermission]);
+}, [user, loading, pathname, router, hasPermission, logout]);
 
 
   const login = useCallback(async (userToLogin: UserSession) => {
@@ -142,12 +141,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     sessionStorage.setItem(USER_SESSION_KEY, JSON.stringify(sessionToStore));
     setUser(sessionToStore);
   }, [users]);
-
-  const logout = useCallback(async () => {
-    sessionStorage.removeItem(USER_SESSION_KEY);
-    setUser(null);
-    router.push('/login');
-  }, [router]);
   
   return (
     <AuthContext.Provider value={{ user, loading, login, logout, hasPermission }}>
