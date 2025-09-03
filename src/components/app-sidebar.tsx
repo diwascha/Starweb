@@ -12,7 +12,7 @@ import {
   SidebarSeparator,
   SidebarContent,
 } from '@/components/ui/sidebar';
-import { FileText, LayoutDashboard, TestTubeDiagonal, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users, Calendar, Award, Wallet, Building2 } from 'lucide-react';
+import { FileText, LayoutDashboard, TestTubeDiagonal, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users, Calendar, Award, Wallet, Building2, PlusCircle } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
@@ -41,7 +41,8 @@ export function AppSidebar() {
   const getIsActive = (path: string) => {
     if (!isClient) return false;
     if (path === '/dashboard') return pathname === path;
-    return pathname.startsWith(path);
+    if (path.endsWith('/new')) return pathname === path;
+    return pathname.startsWith(path) && (pathname[path.length] === '/' || pathname.length === path.length);
   };
   
   if (!user) {
@@ -68,35 +69,51 @@ export function AppSidebar() {
                 </SidebarMenuButton>
             </SidebarMenuItem>
             )}
-            {hasPermission('reports', 'create') && (
-            <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={getIsActive('/report/new')}>
-                <Link href="/report/new">
-                    <FileText />
-                    <span>New QT Reports</span>
-                </Link>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
-            )}
-            {hasPermission('reports', 'view') && (
-            <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={getIsActive('/reports') || getIsActive('/report/')}>
-                <Link href="/reports">
-                    <FileSpreadsheet />
-                    <span>QT Reports Database</span>
-                </Link>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
-            )}
-            {hasPermission('products', 'view') && (
-            <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={getIsActive('/products')}>
-                <Link href="/products">
-                    <Package />
-                    <span>QT Products</span>
-                </Link>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
+
+            {(hasPermission('reports', 'view') || hasPermission('products', 'view')) && (
+                 <>
+                    <SidebarSeparator />
+                     <SidebarMenuItem>
+                        <SidebarMenuButton asChild isActive={getIsActive('/reports')}>
+                        <Link href="/reports">
+                            <FileText />
+                            <span>Test Report Mgmt</span>
+                        </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <div className="ml-4">
+                        {hasPermission('reports', 'create') && (
+                            <SidebarMenuItem>
+                                <SidebarMenuButton asChild isActive={getIsActive('/report/new')}>
+                                <Link href="/report/new">
+                                    <PlusCircle />
+                                    <span>New QT Reports</span>
+                                </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                        )}
+                        {hasPermission('reports', 'view') && (
+                            <SidebarMenuItem>
+                                <SidebarMenuButton asChild isActive={getIsActive('/reports/list')}>
+                                <Link href="/reports/list">
+                                    <FileSpreadsheet />
+                                    <span>QT Reports Database</span>
+                                </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                        )}
+                        {hasPermission('products', 'view') && (
+                             <SidebarMenuItem>
+                                <SidebarMenuButton asChild isActive={getIsActive('/products')}>
+                                <Link href="/products">
+                                    <Package />
+                                    <span>QT Products</span>
+                                </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                        )}
+                    </div>
+                </>
             )}
             
             {(hasPermission('purchaseOrders', 'view') || hasPermission('rawMaterials', 'view')) && (

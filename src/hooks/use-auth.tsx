@@ -37,6 +37,7 @@ const pageOrder: Module[] = ['dashboard', 'reports', 'products', 'purchaseOrders
 const kebabToCamel = (s: string): Module | string => {
     const specialCases: Record<string, Module> = {
       'report': 'reports',
+      'reports/list': 'reports',
       'products': 'products',
       'purchase-orders': 'purchaseOrders',
       'purchase-orders/list': 'purchaseOrders',
