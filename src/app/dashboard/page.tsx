@@ -115,7 +115,7 @@ export default function DashboardPage() {
         <div className="flex items-center gap-2">
           <Button asChild>
             <Link href="/report/new">
-              <PlusCircle className="mr-2 h-4 w-4" /> New Report
+              <PlusCircle className="mr-2 h-4 w-4" /> New QT Reports
             </Link>
           </Button>
           <Button asChild variant="outline">

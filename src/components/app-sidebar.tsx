@@ -60,7 +60,7 @@ export function AppSidebar() {
           <SidebarMenuButton asChild isActive={getIsActive('/report/new')}>
             <Link href="/report/new">
               <FileText />
-              <span>New QT Report</span>
+              <span>New QT Reports</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>

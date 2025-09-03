@@ -160,7 +160,7 @@ export default function ReportsPage() {
               <p className="text-sm text-muted-foreground">Get started by creating a new report.</p>
               <Button className="mt-4" asChild>
                 <Link href="/report/new">
-                  <PlusCircle className="mr-2 h-4 w-4" /> New Report
+                  <PlusCircle className="mr-2 h-4 w-4" /> New QT Reports
                 </Link>
               </Button>
             </div>
@@ -283,7 +283,7 @@ export default function ReportsPage() {
             </div>
           <Button asChild>
             <Link href="/report/new">
-              <PlusCircle className="mr-2 h-4 w-4" /> New Report
+              <PlusCircle className="mr-2 h-4 w-4" /> New QT Reports
             </Link>
           </Button>
         </div>
