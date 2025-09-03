@@ -1,14 +1,15 @@
 
 'use client';
 
-import { useState, useEffect, createContext, useContext, ReactNode, useCallback, useMemo } from 'react';
+import { useState, useEffect, createContext, useContext, ReactNode, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import type { User, Role, Permissions } from '@/lib/types';
+import type { User, Permissions, Module, Action } from '@/lib/types';
 import useLocalStorage from './use-local-storage';
 
 interface UserSession {
   username: string;
-  roleId: string;
+  roleId: string; // 'admin' or 'user'
+  permissions?: Permissions;
 }
 
 interface AuthContextType {
@@ -16,7 +17,7 @@ interface AuthContextType {
   loading: boolean;
   login: (user: UserSession) => Promise<void>;
   logout: () => Promise<void>;
-  hasPermission: (module: keyof Permissions, action: 'view' | 'create' | 'edit' | 'delete') => boolean;
+  hasPermission: (module: Module, action: Action) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -32,7 +33,7 @@ const USER_SESSION_KEY = 'user_session';
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<UserSession | null>(null);
   const [loading, setLoading] = useState(true);
-  const [roles] = useLocalStorage<Role[]>('roles', []);
+  const [users] = useLocalStorage<User[]>('users', []);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -62,9 +63,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [user, loading, pathname, router]);
 
   const login = useCallback(async (userToLogin: UserSession) => {
-    sessionStorage.setItem(USER_SESSION_KEY, JSON.stringify(userToLogin));
-    setUser(userToLogin);
-  }, []);
+    const foundUser = users.find(u => u.username === userToLogin.username);
+    const sessionToStore: UserSession = {
+      username: userToLogin.username,
+      roleId: userToLogin.username === 'Administrator' ? 'admin' : 'user',
+      permissions: foundUser?.permissions,
+    };
+    sessionStorage.setItem(USER_SESSION_KEY, JSON.stringify(sessionToStore));
+    setUser(sessionToStore);
+  }, [users]);
 
   const logout = useCallback(async () => {
     sessionStorage.removeItem(USER_SESSION_KEY);
@@ -72,22 +79,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     router.push('/login');
   }, [router]);
 
-  const hasPermission = useCallback((module: keyof Permissions, action: 'view' | 'create' | 'edit' | 'delete'): boolean => {
+  const hasPermission = useCallback((module: Module, action: Action): boolean => {
     if (!user) return false;
     
-    // Hardcoded full access for Administrator
-    if (user.username === 'Administrator') return true;
+    // Administrator has all permissions
+    if (user.roleId === 'admin') return true;
 
-    const userRole = roles.find(r => r.id === user.roleId);
-    if (!userRole) return false;
-
-    const modulePermissions = userRole.permissions[module];
-    if (!modulePermissions) return false;
-
-    return modulePermissions.includes(action);
-  }, [user, roles]);
+    // For other users, check their specific permissions
+    if (user.permissions) {
+      const modulePermissions = user.permissions[module];
+      if (!modulePermissions) return false;
+      return modulePermissions.includes(action);
+    }
+    
+    return false;
+  }, [user]);
   
-
   return (
     <AuthContext.Provider value={{ user, loading, login, logout, hasPermission }}>
       {children}
@@ -96,3 +103,5 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 };
 
 export const useAuth = () => useContext(AuthContext);
+
+    

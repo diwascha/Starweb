@@ -58,7 +58,7 @@ export default function LoginPage() {
       );
 
       if (foundUser) {
-        await login({ username: foundUser.username, roleId: foundUser.roleId });
+        await login({ username: foundUser.username, roleId: foundUser.roleId, permissions: foundUser.permissions });
         toast({
           title: 'Success',
           description: 'Logged in successfully.',
@@ -119,3 +119,5 @@ export default function LoginPage() {
     </div>
   );
 }
+
+    
