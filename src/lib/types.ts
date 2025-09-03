@@ -97,6 +97,20 @@ export interface Employee {
   wageAmount: number;
 }
 
+export type AttendanceStatus = 'Present' | 'Absent' | 'Public Holiday' | 'Saturday';
+
+export interface AttendanceRecord {
+    id: string;
+    date: string; // AD Date as ISO string
+    bsDate: string;
+    employeeName: string;
+    onDuty: string | null;
+    offDuty: string | null;
+    clockIn: string | null;
+    clockOut: string | null;
+    status: AttendanceStatus;
+}
+
 // RBAC Types
 export const modules = ['dashboard', 'reports', 'products', 'purchaseOrders', 'rawMaterials', 'settings', 'hr'] as const;
 export type Module = typeof modules[number];
@@ -121,5 +135,3 @@ export interface User {
   roleId: string; // 'admin' or 'user'
   permissions?: Permissions;
 }
-
-    

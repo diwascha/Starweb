@@ -30,14 +30,14 @@ export default function HRPage() {
             </Link>
         )}
          {hasPermission('hr', 'view') && (
-            <Link href="#">
-                <Card className="hover:bg-accent hover:text-accent-foreground transition-colors opacity-50 cursor-not-allowed">
+            <Link href="/hr/attendance">
+                <Card className="hover:bg-accent hover:text-accent-foreground transition-colors">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <Calendar className="h-6 w-6"/>
                             <span>Attendance</span>
                         </CardTitle>
-                        <CardDescription>Record and track daily employee attendance. (Coming Soon)</CardDescription>
+                        <CardDescription>Record and track daily employee attendance.</CardDescription>
                     </CardHeader>
                 </Card>
             </Link>
