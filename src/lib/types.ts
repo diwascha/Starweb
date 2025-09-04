@@ -134,12 +134,9 @@ export interface Driver {
     dateOfBirth: string; // ISO string
 }
 
-export type PolicyType = 'Insurance' | 'Membership' | 'Other';
-
 export interface PolicyOrMembership {
     id: string;
-    type: PolicyType;
-    otherTypeDescription?: string;
+    type: string;
     provider: string; // e.g., Insurance company or Membership organization
     policyNumber: string; // Policy or Membership ID
     startDate: string; // ISO string

@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import useLocalStorage from '@/hooks/use-local-storage';
-import type { PolicyOrMembership, PolicyType, Vehicle, Driver } from '@/lib/types';
+import type { PolicyOrMembership, Vehicle, Driver } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, CalendarIcon, Check, ChevronsUpDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -38,10 +38,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { format } from 'date-fns';
 import { cn, toNepaliDate } from '@/lib/utils';
-import { Textarea } from '@/components/ui/textarea';
 import { DualCalendar } from '@/components/ui/dual-calendar';
-
-const policyTypes: PolicyType[] = ['Insurance', 'Membership', 'Other'];
 
 type PolicySortKey = 'type' | 'provider' | 'policyNumber' | 'endDate' | 'memberName';
 type SortDirection = 'asc' | 'desc';
@@ -56,7 +53,6 @@ export default function PoliciesPage() {
     const [editingPolicy, setEditingPolicy] = useState<PolicyOrMembership | null>(null);
     const [formState, setFormState] = useState<Omit<PolicyOrMembership, 'id'>>({
         type: 'Insurance',
-        otherTypeDescription: '',
         provider: '',
         policyNumber: '',
         startDate: new Date().toISOString(),
@@ -68,8 +64,12 @@ export default function PoliciesPage() {
     
     const [searchQuery, setSearchQuery] = useState('');
     const [sortConfig, setSortConfig] = useState<{ key: PolicySortKey; direction: SortDirection }>({ key: 'endDate', direction: 'asc' });
+    
     const [isProviderPopoverOpen, setIsProviderPopoverOpen] = useState(false);
     const [editingProvider, setEditingProvider] = useState<{ oldName: string; newName: string } | null>(null);
+    const [isTypePopoverOpen, setIsTypePopoverOpen] = useState(false);
+    const [editingType, setEditingType] = useState<{ oldName: string; newName: string } | null>(null);
+
 
     const { toast } = useToast();
     const { hasPermission } = useAuth();
@@ -84,18 +84,15 @@ export default function PoliciesPage() {
     useEffect(() => {
         setIsClient(true);
     }, []);
+    
+    const providers = useMemo(() => Array.from(new Set(policies.map(p => p.provider))).sort(), [policies]);
+    const policyTypes = useMemo(() => Array.from(new Set(policies.map(p => p.type))).sort(), [policies]);
 
-    const providers = useMemo(() => {
-        const providerSet = new Set<string>();
-        policies.forEach(p => providerSet.add(p.provider));
-        return Array.from(providerSet).sort();
-    }, [policies]);
 
     const resetForm = () => {
         setEditingPolicy(null);
         setFormState({
             type: 'Insurance',
-            otherTypeDescription: '',
             provider: '',
             policyNumber: '',
             startDate: new Date().toISOString(),
@@ -109,17 +106,14 @@ export default function PoliciesPage() {
     const handleOpenDialog = (policy: PolicyOrMembership | null = null) => {
         if (policy) {
             setEditingPolicy(policy);
-            setFormState({
-                ...policy,
-                otherTypeDescription: policy.otherTypeDescription || '',
-            });
+            setFormState(policy);
         } else {
             resetForm();
         }
         setIsDialogOpen(true);
     };
 
-    const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         setFormState(prev => ({ ...prev, [name]: name === 'cost' ? parseFloat(value) || 0 : value }));
     };
@@ -166,11 +160,41 @@ export default function PoliciesPage() {
         toast({ title: 'Success', description: `Provider "${oldName}" updated to "${newName}".` });
         setEditingProvider(null);
     };
+    
+    const handleTypeSelect = (type: string) => {
+        setFormState(prev => ({ ...prev, type }));
+        setIsTypePopoverOpen(false);
+    };
+
+    const handleEditType = (typeName: string) => {
+        setEditingType({ oldName: typeName, newName: typeName });
+    };
+
+    const handleUpdateType = () => {
+        if (!editingType) return;
+        const { oldName, newName } = editingType;
+
+        if (!newName.trim()) {
+            toast({ title: 'Error', description: 'Type name cannot be empty.', variant: 'destructive' });
+            return;
+        }
+
+        setPolicies(prevPolicies =>
+            prevPolicies.map(p => (p.type === oldName ? { ...p, type: newName } : p))
+        );
+        
+        if (formState.type === oldName) {
+            setFormState(prev => ({ ...prev, type: newName }));
+        }
+
+        toast({ title: 'Success', description: `Type "${oldName}" updated to "${newName}".` });
+        setEditingType(null);
+    };
+
 
     const handleSubmit = () => {
-        const isOtherAndEmpty = formState.type === 'Other' && !formState.otherTypeDescription?.trim();
-        if (!formState.provider || !formState.policyNumber || !formState.memberId || isOtherAndEmpty) {
-            toast({ title: 'Error', description: 'Provider, Policy Number, associated Vehicle/Driver, and a description for "Other" type are required.', variant: 'destructive' });
+        if (!formState.type || !formState.provider || !formState.policyNumber || !formState.memberId) {
+            toast({ title: 'Error', description: 'Type, Provider, Policy Number, and associated Vehicle/Driver are required.', variant: 'destructive' });
             return;
         }
 
@@ -203,7 +227,6 @@ export default function PoliciesPage() {
     const sortedAndFilteredPolicies = useMemo(() => {
         let augmentedPolicies = policies.map(p => ({
             ...p,
-            displayType: p.type === 'Other' ? p.otherTypeDescription || 'Other' : p.type,
             memberName: membersById.get(`${p.memberType}-${p.memberId}`) || 'N/A'
         }));
 
@@ -213,7 +236,7 @@ export default function PoliciesPage() {
                 p.provider.toLowerCase().includes(lowercasedQuery) ||
                 p.policyNumber.toLowerCase().includes(lowercasedQuery) ||
                 p.memberName.toLowerCase().includes(lowercasedQuery) ||
-                (p.displayType || '').toLowerCase().includes(lowercasedQuery)
+                p.type.toLowerCase().includes(lowercasedQuery)
             );
         }
 
@@ -269,7 +292,7 @@ export default function PoliciesPage() {
                     <TableBody>
                         {sortedAndFilteredPolicies.map(policy => (
                             <TableRow key={policy.id}>
-                                <TableCell>{policy.displayType}</TableCell>
+                                <TableCell>{policy.type}</TableCell>
                                 <TableCell>{policy.provider}</TableCell>
                                 <TableCell>{policy.policyNumber}</TableCell>
                                 <TableCell>{policy.memberName}</TableCell>
@@ -339,60 +362,36 @@ export default function PoliciesPage() {
                         <DialogDescription>{editingPolicy ? 'Update the details for this record.' : 'Enter the details for the new policy or membership.'}</DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2 col-span-2">
+                         <div className="space-y-2 col-span-2">
                                 <Label htmlFor="type">Type</Label>
-                                <div className="flex gap-2">
-                                    <Select value={formState.type} onValueChange={(value: PolicyType) => handleSelectChange('type', value)}>
-                                        <SelectTrigger id="type" className={formState.type === 'Other' ? 'w-1/2' : 'w-full'}>
-                                            <SelectValue placeholder="Select type" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {policyTypes.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                    {formState.type === 'Other' && (
-                                        <Input
-                                            id="otherTypeDescription"
-                                            name="otherTypeDescription"
-                                            value={formState.otherTypeDescription}
-                                            onChange={handleFormChange}
-                                            placeholder='Specify "Other" type'
-                                            className="w-1/2"
-                                        />
-                                    )}
-                                </div>
-                            </div>
-                            <div className="space-y-2 col-span-2">
-                                <Label htmlFor="provider">Provider</Label>
-                                 <Popover open={isProviderPopoverOpen} onOpenChange={setIsProviderPopoverOpen}>
+                                 <Popover open={isTypePopoverOpen} onOpenChange={setIsTypePopoverOpen}>
                                     <PopoverTrigger asChild>
                                         <Button variant="outline" role="combobox" className="w-full justify-between">
-                                            {formState.provider || "Select or type..."}
+                                            {formState.type || "Select or type..."}
                                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="p-0">
                                         <Command>
                                             <CommandInput 
-                                                placeholder="Search or add provider..."
-                                                value={formState.provider}
-                                                onValueChange={(value) => setFormState(prev => ({...prev, provider: value}))}
+                                                placeholder="Search or add type..."
+                                                value={formState.type}
+                                                onValueChange={(value) => setFormState(prev => ({...prev, type: value}))}
                                             />
                                             <CommandList>
                                                 <CommandEmpty>
-                                                    <button type="button" className="w-full text-left p-2 text-sm" onClick={() => handleProviderSelect(formState.provider)}>
-                                                        Add "{formState.provider}"
+                                                    <button type="button" className="w-full text-left p-2 text-sm" onClick={() => handleTypeSelect(formState.type)}>
+                                                        Add "{formState.type}"
                                                     </button>
                                                 </CommandEmpty>
                                                 <CommandGroup>
-                                                    {providers.map((provider) => (
-                                                        <CommandItem key={provider} value={provider} onSelect={() => handleProviderSelect(provider)} className="flex justify-between items-center">
+                                                    {policyTypes.map((type) => (
+                                                        <CommandItem key={type} value={type} onSelect={() => handleTypeSelect(type)} className="flex justify-between items-center">
                                                             <div className="flex items-center">
-                                                                <Check className={cn("mr-2 h-4 w-4", formState.provider.toLowerCase() === provider.toLowerCase() ? "opacity-100" : "opacity-0")} />
-                                                                {provider}
+                                                                <Check className={cn("mr-2 h-4 w-4", formState.type.toLowerCase() === type.toLowerCase() ? "opacity-100" : "opacity-0")} />
+                                                                {type}
                                                             </div>
-                                                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleEditProvider(provider); }}>
+                                                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleEditType(type); }}>
                                                                 <Edit className="h-4 w-4"/>
                                                             </Button>
                                                         </CommandItem>
@@ -403,6 +402,45 @@ export default function PoliciesPage() {
                                     </PopoverContent>
                                 </Popover>
                             </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="provider">Provider</Label>
+                             <Popover open={isProviderPopoverOpen} onOpenChange={setIsProviderPopoverOpen}>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" role="combobox" className="w-full justify-between">
+                                        {formState.provider || "Select or type..."}
+                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="p-0">
+                                    <Command>
+                                        <CommandInput 
+                                            placeholder="Search or add provider..."
+                                            value={formState.provider}
+                                            onValueChange={(value) => setFormState(prev => ({...prev, provider: value}))}
+                                        />
+                                        <CommandList>
+                                            <CommandEmpty>
+                                                <button type="button" className="w-full text-left p-2 text-sm" onClick={() => handleProviderSelect(formState.provider)}>
+                                                    Add "{formState.provider}"
+                                                </button>
+                                            </CommandEmpty>
+                                            <CommandGroup>
+                                                {providers.map((provider) => (
+                                                    <CommandItem key={provider} value={provider} onSelect={() => handleProviderSelect(provider)} className="flex justify-between items-center">
+                                                        <div className="flex items-center">
+                                                            <Check className={cn("mr-2 h-4 w-4", formState.provider.toLowerCase() === provider.toLowerCase() ? "opacity-100" : "opacity-0")} />
+                                                            {provider}
+                                                        </div>
+                                                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleEditProvider(provider); }}>
+                                                            <Edit className="h-4 w-4"/>
+                                                        </Button>
+                                                    </CommandItem>
+                                                ))}
+                                            </CommandGroup>
+                                        </CommandList>
+                                    </Command>
+                                </PopoverContent>
+                            </Popover>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="policyNumber">Policy / ID Number</Label>
@@ -495,6 +533,30 @@ export default function PoliciesPage() {
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setEditingProvider(null)}>Cancel</Button>
                         <Button onClick={handleUpdateProvider}>Save Changes</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            
+            <Dialog open={!!editingType} onOpenChange={() => setEditingType(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Edit Type</DialogTitle>
+                    </DialogHeader>
+                    {editingType && (
+                        <div className="grid gap-4 py-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="type-name-edit">Type Name</Label>
+                                <Input
+                                    id="type-name-edit"
+                                    value={editingType.newName}
+                                    onChange={(e) => setEditingType(prev => prev ? { ...prev, newName: e.target.value } : null)}
+                                />
+                            </div>
+                        </div>
+                    )}
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setEditingType(null)}>Cancel</Button>
+                        <Button onClick={handleUpdateType}>Save Changes</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
