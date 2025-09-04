@@ -12,7 +12,7 @@ import {
   SidebarSeparator,
   SidebarContent,
 } from '@/components/ui/sidebar';
-import { FileText, LayoutDashboard, TestTubeDiagonal, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users, Calendar, Award, Wallet, Building2, PlusCircle, Truck, ShieldCheck, Star, CreditCard } from 'lucide-react';
+import { FileText, LayoutDashboard, TestTubeDiagonal, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users, Calendar, Award, Wallet, Building2, PlusCircle, Truck, ShieldCheck, CreditCard } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
@@ -235,18 +235,10 @@ export function AppSidebar() {
                             </SidebarMenuButton>
                         </SidebarMenuItem>
                         <SidebarMenuItem>
-                            <SidebarMenuButton asChild isActive={getIsActive('/fleet/insurance')}>
-                            <Link href="/fleet/insurance">
+                            <SidebarMenuButton asChild isActive={getIsActive('/fleet/policies')}>
+                            <Link href="/fleet/policies">
                                 <ShieldCheck />
-                                <span>Insurance</span>
-                            </Link>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
-                        <SidebarMenuItem>
-                            <SidebarMenuButton asChild isActive={getIsActive('/fleet/memberships')}>
-                            <Link href="/fleet/memberships">
-                                <Star />
-                                <span>Memberships</span>
+                                <span>Policies & Memberships</span>
                             </Link>
                             </SidebarMenuButton>
                         </SidebarMenuItem>

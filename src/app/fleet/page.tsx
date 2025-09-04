@@ -2,7 +2,7 @@
 'use client';
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Truck, Users, ShieldCheck, Star, CreditCard, Wrench } from 'lucide-react';
+import { Truck, Users, ShieldCheck, CreditCard } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
 
@@ -24,18 +24,10 @@ const fleetModules = [
         action: 'view'
     },
     {
-        name: 'Insurance',
-        description: 'Track and manage vehicle insurance policies.',
-        href: '/fleet/insurance',
+        name: 'Policies & Memberships',
+        description: 'Track insurance, memberships, and other policies.',
+        href: '/fleet/policies',
         icon: ShieldCheck,
-        permission: 'fleet',
-        action: 'view'
-    },
-    {
-        name: 'Memberships',
-        description: 'Manage memberships and associations.',
-        href: '/fleet/memberships',
-        icon: Star,
         permission: 'fleet',
         action: 'view'
     },

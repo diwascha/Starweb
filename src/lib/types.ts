@@ -134,23 +134,16 @@ export interface Driver {
     dateOfBirth: string; // ISO string
 }
 
-export interface InsurancePolicy {
-    id: string;
-    vehicleId: string; // Link to a vehicle
-    provider: string;
-    policyNumber: string;
-    startDate: string; // ISO string
-    endDate: string; // ISO string
-    premium: number;
-}
+export type PolicyType = 'Insurance' | 'Membership';
 
-export interface Membership {
+export interface PolicyOrMembership {
     id: string;
-    organization: string;
-    membershipId: string;
+    type: PolicyType;
+    provider: string; // e.g., Insurance company or Membership organization
+    policyNumber: string; // Policy or Membership ID
     startDate: string; // ISO string
     endDate: string; // ISO string
-    cost: number;
+    cost: number; // Premium or Membership fee
     memberId: string; // Can be vehicleId or driverId
     memberType: 'Vehicle' | 'Driver';
 }
