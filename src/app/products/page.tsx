@@ -132,7 +132,10 @@ export default function ProductsPage() {
     setNewMaterialCode(product.materialCode);
     setNewCompanyName(product.companyName);
     setNewAddress(product.address);
-    setNewSpec(product.specification);
+
+    const specsWithDefaults = { ...initialSpecValues, ...product.specification };
+    setNewSpec(specsWithDefaults);
+
     setIsProductDialogOpen(true);
   };
 
