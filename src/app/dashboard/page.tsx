@@ -12,6 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { getStatusBadgeVariant } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
+import Image from 'next/image';
 
 export default function DashboardPage() {
   const [reports] = useLocalStorage<Report[]>('reports', []);
@@ -64,10 +65,13 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <header className="flex items-center justify-between">
+      <div className="flex justify-center mb-6">
+          <Image src="/logo.png" alt="Company Logo" width={120} height={120} />
+      </div>
+      <header className="flex flex-col md:flex-row items-center justify-between text-center md:text-left gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground">An overview of your test reports and product data.</p>
+          <h1 className="text-3xl font-bold tracking-tight">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
+          <p className="text-muted-foreground">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
         </div>
         <div className="flex items-center gap-2">
             {hasPermission('reports', 'create') && (
@@ -93,7 +97,7 @@ export default function DashboardPage() {
             <CardDescription>A log of the most recent purchase orders and test reports created.</CardDescription>
         </CardHeader>
         <CardContent>
-             <ScrollArea className="h-[calc(100vh-20rem)]">
+             <ScrollArea className="h-[calc(100vh-28rem)]">
                 {recentActivities.length > 0 ? (
                     <div className="space-y-4">
                         {recentActivities.map((activity) => (
