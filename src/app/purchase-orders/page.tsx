@@ -44,8 +44,8 @@ export default function PurchaseOrderDashboardPage() {
    
    useEffect(() => { setIsClient(true) }, []);
    
-   const { totalPOs, totalRawMaterials, avgLeadTime, poStatusData } = useMemo(() => {
-        if (!isClient) return { totalPOs: 0, totalRawMaterials: 0, avgLeadTime: 0, poStatusData: [] };
+   const { totalPOs, totalRawMaterials, avgLeadTime, poStatusData, companyLeadTimeData } = useMemo(() => {
+        if (!isClient) return { totalPOs: 0, totalRawMaterials: 0, avgLeadTime: 0, poStatusData: [], companyLeadTimeData: [] };
         
         const deliveredPOs = purchaseOrders.filter(po => po.status === 'Delivered' && po.deliveryDate);
         
@@ -59,12 +59,28 @@ export default function PurchaseOrderDashboardPage() {
         }, {} as Record<string, number>);
         
         const statusData = Object.entries(statusCounts).map(([name, count]) => ({ name, count }));
+        
+        const companyData = deliveredPOs.reduce((acc, po) => {
+            const leadTime = differenceInDays(new Date(po.deliveryDate!), new Date(po.poDate));
+            if (!acc[po.companyName]) {
+                acc[po.companyName] = { total: 0, count: 0 };
+            }
+            acc[po.companyName].total += leadTime;
+            acc[po.companyName].count += 1;
+            return acc;
+        }, {} as Record<string, {total: number, count: number}>);
+        
+        const leadTimeData = Object.entries(companyData).map(([name, data]) => ({
+            name,
+            avgLeadTime: Math.round(data.total / data.count)
+        }));
 
         return {
             totalPOs: purchaseOrders.length,
             totalRawMaterials: rawMaterials.length,
             avgLeadTime: deliveredPOs.length > 0 ? Math.round(totalLeadTime / deliveredPOs.length) : 0,
-            poStatusData: statusData
+            poStatusData: statusData,
+            companyLeadTimeData: leadTimeData,
         };
    }, [isClient, purchaseOrders, rawMaterials]);
    
@@ -77,6 +93,7 @@ export default function PurchaseOrderDashboardPage() {
    
    const chartConfig: ChartConfig = {
         count: { label: 'Count', color: 'hsl(var(--chart-1))' },
+        avgLeadTime: { label: 'Avg. Lead Time (Days)', color: 'hsl(var(--chart-2))' },
    };
 
   if (!isClient) {
@@ -179,6 +196,32 @@ export default function PurchaseOrderDashboardPage() {
                 </CardContent>
             </Card>
        </div>
+       
+       <Card>
+            <CardHeader>
+                <CardTitle>Average Lead Time by Supplier</CardTitle>
+                <CardDescription>Average number of days between order and delivery for each supplier.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                {companyLeadTimeData.length > 0 ? (
+                    <ChartContainer config={chartConfig} className="h-[300px] w-full">
+                    <ResponsiveContainer>
+                        <BarChart data={companyLeadTimeData} layout="vertical" margin={{ top: 20, right: 20, left: 30, bottom: 5 }}>
+                            <CartesianGrid horizontal={false} />
+                            <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} width={150} className="text-xs truncate"/>
+                            <XAxis type="number" dataKey="avgLeadTime" />
+                            <Tooltip cursor={{fill: 'hsl(var(--muted))'}} content={<ChartTooltipContent />} />
+                            <Bar dataKey="avgLeadTime" fill="var(--color-avgLeadTime)" radius={4} layout="vertical" />
+                        </BarChart>
+                    </ResponsiveContainer>
+                    </ChartContainer>
+                ) : (
+                    <div className="flex h-[300px] items-center justify-center text-muted-foreground">
+                        No delivered purchase order data available.
+                    </div>
+                )}
+            </CardContent>
+       </Card>
 
       <div>
         <h2 className="text-xl font-bold tracking-tight mb-4">Quick Access</h2>
