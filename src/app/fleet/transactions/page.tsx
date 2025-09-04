@@ -36,11 +36,13 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/use-auth';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { format, startOfToday } from 'date-fns';
+import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { cn, toNepaliDate } from '@/lib/utils';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import type { DateRange } from 'react-day-picker';
 
 
 type TransactionSortKey = 'date' | 'vehicleName' | 'type' | 'category' | 'amount';
@@ -65,6 +67,7 @@ export default function TransactionsPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [sortConfig, setSortConfig] = useState<{ key: TransactionSortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
     const [filterVehicleId, setFilterVehicleId] = useState<string>('All');
+    const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     
     const { toast } = useToast();
     const { hasPermission } = useAuth();
@@ -169,6 +172,14 @@ export default function TransactionsPage() {
         if (filterVehicleId !== 'All') {
             augmented = augmented.filter(t => t.vehicleId === filterVehicleId);
         }
+
+        if (dateRange?.from && dateRange?.to) {
+            const interval = {
+                start: startOfDay(dateRange.from),
+                end: endOfDay(dateRange.to),
+            };
+            augmented = augmented.filter(t => isWithinInterval(new Date(t.date), interval));
+        }
         
         augmented.sort((a, b) => {
             const aVal = a[sortConfig.key];
@@ -178,7 +189,7 @@ export default function TransactionsPage() {
             return 0;
         });
         return augmented;
-    }, [transactions, searchQuery, sortConfig, vehiclesById, filterVehicleId]);
+    }, [transactions, searchQuery, sortConfig, vehiclesById, filterVehicleId, dateRange]);
 
     const { totalIncome, totalExpense } = useMemo(() => {
         return sortedAndFilteredTransactions.reduce((acc, txn) => {
@@ -302,15 +313,53 @@ export default function TransactionsPage() {
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
                             </div>
-                            <Select value={filterVehicleId} onValueChange={setFilterVehicleId}>
-                                <SelectTrigger className="w-full md:w-[250px]">
-                                    <SelectValue placeholder="Filter by vehicle..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="All">All Vehicles</SelectItem>
-                                    {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
+                            <div className="flex gap-2">
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            id="date"
+                                            variant={"outline"}
+                                            className={cn(
+                                            "w-full md:w-[300px] justify-start text-left font-normal",
+                                            !dateRange && "text-muted-foreground"
+                                            )}
+                                        >
+                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                            {dateRange?.from ? (
+                                            dateRange.to ? (
+                                                <>
+                                                {format(dateRange.from, "LLL dd, y")} -{" "}
+                                                {format(dateRange.to, "LLL dd, y")}
+                                                </>
+                                            ) : (
+                                                format(dateRange.from, "LLL dd, y")
+                                            )
+                                            ) : (
+                                            <span>Pick a date range</span>
+                                            )}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="end">
+                                        <CalendarComponent
+                                            initialFocus
+                                            mode="range"
+                                            defaultMonth={dateRange?.from}
+                                            selected={dateRange}
+                                            onSelect={setDateRange}
+                                            numberOfMonths={2}
+                                        />
+                                    </PopoverContent>
+                                </Popover>
+                                <Select value={filterVehicleId} onValueChange={setFilterVehicleId}>
+                                    <SelectTrigger className="w-full md:w-[250px]">
+                                        <SelectValue placeholder="Filter by vehicle..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="All">All Vehicles</SelectItem>
+                                        {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
                         <div className="grid gap-4 md:grid-cols-3">
                             <Card>
@@ -411,3 +460,5 @@ export default function TransactionsPage() {
         </Dialog>
     );
 }
+
+    
