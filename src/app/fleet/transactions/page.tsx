@@ -64,6 +64,7 @@ export default function TransactionsPage() {
     
     const [searchQuery, setSearchQuery] = useState('');
     const [sortConfig, setSortConfig] = useState<{ key: TransactionSortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
+    const [filterVehicleId, setFilterVehicleId] = useState<string>('All');
     
     const { toast } = useToast();
     const { hasPermission } = useAuth();
@@ -165,6 +166,10 @@ export default function TransactionsPage() {
             );
         }
         
+        if (filterVehicleId !== 'All') {
+            augmented = augmented.filter(t => t.vehicleId === filterVehicleId);
+        }
+        
         augmented.sort((a, b) => {
             const aVal = a[sortConfig.key];
             const bVal = b[sortConfig.key];
@@ -173,15 +178,15 @@ export default function TransactionsPage() {
             return 0;
         });
         return augmented;
-    }, [transactions, searchQuery, sortConfig, vehiclesById]);
+    }, [transactions, searchQuery, sortConfig, vehiclesById, filterVehicleId]);
 
     const { totalIncome, totalExpense } = useMemo(() => {
-        return transactions.reduce((acc, txn) => {
+        return sortedAndFilteredTransactions.reduce((acc, txn) => {
             if (txn.type === 'Income') acc.totalIncome += txn.amount;
             else acc.totalExpense += txn.amount;
             return acc;
         }, { totalIncome: 0, totalExpense: 0 });
-    }, [transactions]);
+    }, [sortedAndFilteredTransactions]);
     
     const netTotal = totalIncome - totalExpense;
 
@@ -274,19 +279,7 @@ export default function TransactionsPage() {
                         <h1 className="text-3xl font-bold tracking-tight">Transactions</h1>
                         <p className="text-muted-foreground">Manage your vehicle income and expense records.</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                         {isClient && transactions.length > 0 && (
-                            <div className="relative">
-                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    type="search"
-                                    placeholder="Search transactions..."
-                                    className="pl-8 sm:w-[300px]"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                />
-                            </div>
-                        )}
+                     <div className="flex items-center gap-2">
                         {hasPermission('fleet', 'create') && (
                             <DialogTrigger asChild>
                                 <Button onClick={() => handleOpenDialog()}>
@@ -297,35 +290,58 @@ export default function TransactionsPage() {
                     </div>
                 </header>
                  {isClient && transactions.length > 0 && (
-                    <div className="grid gap-4 md:grid-cols-3">
-                        <Card>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">Total Income</CardTitle>
-                                <Landmark className="h-4 w-4 text-muted-foreground" />
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold text-green-600">{totalIncome.toLocaleString()}</div>
-                            </CardContent>
-                        </Card>
-                         <Card>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">Total Expense</CardTitle>
-                                <Wrench className="h-4 w-4 text-muted-foreground" />
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold text-red-600">{totalExpense.toLocaleString()}</div>
-                            </CardContent>
-                        </Card>
-                         <Card>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">Net Total</CardTitle>
-                                <ArrowRightLeft className="h-4 w-4 text-muted-foreground" />
-                            </CardHeader>
-                            <CardContent>
-                                <div className={cn("text-2xl font-bold", netTotal >= 0 ? 'text-green-600' : 'text-red-600' )}>{netTotal.toLocaleString()}</div>
-                            </CardContent>
-                        </Card>
-                    </div>
+                    <>
+                        <div className="flex flex-col md:flex-row gap-2">
+                            <div className="relative flex-1">
+                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    type="search"
+                                    placeholder="Search transactions..."
+                                    className="pl-8 w-full"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
+                            </div>
+                            <Select value={filterVehicleId} onValueChange={setFilterVehicleId}>
+                                <SelectTrigger className="w-full md:w-[250px]">
+                                    <SelectValue placeholder="Filter by vehicle..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="All">All Vehicles</SelectItem>
+                                    {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="grid gap-4 md:grid-cols-3">
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-sm font-medium">Total Income</CardTitle>
+                                    <Landmark className="h-4 w-4 text-muted-foreground" />
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-2xl font-bold text-green-600">{totalIncome.toLocaleString()}</div>
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-sm font-medium">Total Expense</CardTitle>
+                                    <Wrench className="h-4 w-4 text-muted-foreground" />
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-2xl font-bold text-red-600">{totalExpense.toLocaleString()}</div>
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-sm font-medium">Net Total</CardTitle>
+                                    <ArrowRightLeft className="h-4 w-4 text-muted-foreground" />
+                                </CardHeader>
+                                <CardContent>
+                                    <div className={cn("text-2xl font-bold", netTotal >= 0 ? 'text-green-600' : 'text-red-600' )}>{netTotal.toLocaleString()}</div>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </>
                 )}
                 {renderContent()}
             </div>
