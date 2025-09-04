@@ -8,7 +8,7 @@ import { AuthProvider, useAuth } from '@/hooks/use-auth';
 import AuthAwareLayout from '@/components/auth-aware-layout';
 
 export const metadata: Metadata = {
-  title: 'Shivam QTR',
+  title: 'STARWEB',
   description: 'Generate test reports for multiple products.',
 };
 

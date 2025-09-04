@@ -85,7 +85,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
          <div className="flex justify-center items-center gap-2 mb-6">
             <TestTubeDiagonal className="w-8 h-8 text-primary" />
-            <h1 className="text-3xl font-semibold">Shivam QTR</h1>
+            <h1 className="text-3xl font-semibold">STARWEB</h1>
         </div>
         <Card>
           <CardHeader>

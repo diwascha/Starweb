@@ -54,7 +54,7 @@ export function AppSidebar() {
       <SidebarHeader>
         <div className="flex items-center gap-2">
           <TestTubeDiagonal className="w-6 h-6 text-primary" />
-          <h1 className="text-xl font-semibold">Shivam QTR</h1>
+          <h1 className="text-xl font-semibold">STARWEB</h1>
         </div>
       </SidebarHeader>
       <SidebarContent>
