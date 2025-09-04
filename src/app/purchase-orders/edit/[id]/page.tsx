@@ -1,3 +1,5 @@
+export const runtime = 'edge';
+
 'use client';
 
 import { PurchaseOrderForm } from '@/app/purchase-orders/_components/purchase-order-form';
