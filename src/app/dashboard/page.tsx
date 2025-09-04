@@ -65,7 +65,7 @@ export default function DashboardPage() {
 
   // Check if user has any permissions at all.
   const hasAnyPermission = [
-    'dashboard', 'reports', 'products', 'purchaseOrders', 'rawMaterials', 'settings'
+    'dashboard', 'reports', 'products', 'purchaseOrders', 'rawMaterials', 'settings', 'hr', 'fleet'
   ].some(module => hasPermission(module as any, 'view'));
 
 
@@ -113,15 +113,13 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <div className="flex-grow"></div>
-
       <Card>
         <CardHeader>
             <CardTitle>Recent Activity</CardTitle>
             <CardDescription>A log of the most recent purchase orders and test reports created.</CardDescription>
         </CardHeader>
         <CardContent>
-             <ScrollArea className="h-[calc(100vh-42rem)]">
+             <ScrollArea className="h-[calc(100vh-24rem)]">
                 {recentActivities.length > 0 ? (
                     <div className="space-y-4">
                         {recentActivities.map((activity) => (
@@ -162,6 +160,9 @@ export default function DashboardPage() {
              </ScrollArea>
         </CardContent>
       </Card>
+      
+      <div className="flex-grow"></div>
+
     </div>
   );
 }
