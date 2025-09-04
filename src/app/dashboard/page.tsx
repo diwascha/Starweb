@@ -7,7 +7,7 @@ import type { Report, PurchaseOrder } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, FileText, Package, ShoppingCart, Users, Truck } from 'lucide-react';
+import { PlusCircle, FileText, Package, ShoppingCart, Users, Truck, Building2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { getStatusBadgeVariant, toNepaliDate } from '@/lib/utils';
@@ -31,6 +31,14 @@ function LiveDateTime() {
     </div>
   );
 }
+
+const mainModules = [
+    { name: 'Test Report Mgmt', href: '/reports', icon: FileText, permission: 'reports' },
+    { name: 'Purchase Order Mgmt', href: '/purchase-orders', icon: ShoppingCart, permission: 'purchaseOrders' },
+    { name: 'HR Management', href: '/hr', icon: Building2, permission: 'hr' },
+    { name: 'Fleet Management', href: '/fleet', icon: Truck, permission: 'fleet' },
+];
+
 
 export default function DashboardPage() {
   const [reports] = useLocalStorage<Report[]>('reports', []);
@@ -113,13 +121,31 @@ export default function DashboardPage() {
         </div>
       </header>
 
+       <div className="flex-grow">
+          <h2 className="text-xl font-bold tracking-tight mb-4">Quick Access</h2>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+                {mainModules
+                    .filter(module => hasPermission(module.permission as any, 'view'))
+                    .map((module) => (
+                    <Link href={module.href} key={module.name}>
+                        <Card className="h-full transition-all hover:shadow-md">
+                        <CardHeader className="flex flex-row items-center gap-4 space-y-0">
+                            <module.icon className="h-6 w-6 text-muted-foreground" />
+                            <CardTitle className="text-lg font-medium">{module.name}</CardTitle>
+                        </CardHeader>
+                        </Card>
+                    </Link>
+                ))}
+            </div>
+       </div>
+
       <Card>
         <CardHeader>
             <CardTitle>Recent Activity</CardTitle>
             <CardDescription>A log of the most recent purchase orders and test reports created.</CardDescription>
         </CardHeader>
         <CardContent>
-             <ScrollArea className="h-[calc(100vh-24rem)]">
+             <ScrollArea className="h-[calc(100vh-32rem)]">
                 {recentActivities.length > 0 ? (
                     <div className="space-y-4">
                         {recentActivities.map((activity) => (
@@ -160,9 +186,6 @@ export default function DashboardPage() {
              </ScrollArea>
         </CardContent>
       </Card>
-      
-      <div className="flex-grow"></div>
-
     </div>
   );
 }
