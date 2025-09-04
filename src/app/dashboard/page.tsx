@@ -77,8 +77,8 @@ export default function DashboardPage() {
     
    const recentActivities = isClient ? 
     [
-        ...(canViewPOs ? purchaseOrders.map(po => ({ type: 'PO', ...po, date: po.createdAt })) : []),
-        ...(canViewReports ? reports.map(r => ({ type: 'Report', ...r })) : [])
+        ...(canViewPOs ? purchaseOrders.map(po => ({ type: 'PO', ...po, date: po.updatedAt || po.createdAt })) : []),
+        ...(canViewReports ? reports.map(r => ({ type: 'Report', ...r, date: r.date })) : [])
     ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 10)
     : [];
@@ -150,7 +150,7 @@ export default function DashboardPage() {
       <Card>
         <CardHeader>
             <CardTitle>Recent Activity</CardTitle>
-            <CardDescription>A log of the most recent purchase orders and test reports created.</CardDescription>
+            <CardDescription>A log of the most recent purchase orders and test reports created or modified.</CardDescription>
         </CardHeader>
         <CardContent>
              <ScrollArea className="h-[calc(100vh-32rem)]">
@@ -185,11 +185,12 @@ export default function DashboardPage() {
                                             <TooltipTrigger>
                                                 <div className="flex items-center gap-1 text-sm text-muted-foreground">
                                                     <User className="h-3 w-3" />
-                                                    <span>{activity.createdBy}</span>
+                                                    <span>{activity.lastModifiedBy || activity.createdBy}</span>
                                                 </div>
                                             </TooltipTrigger>
                                             <TooltipContent>
-                                                <p>Created by {activity.createdBy}</p>
+                                                <p>Created by: {activity.createdBy}</p>
+                                                {activity.lastModifiedBy && <p>Last modified by: {activity.lastModifiedBy}</p>}
                                             </TooltipContent>
                                         </Tooltip>
                                     </TooltipProvider>
