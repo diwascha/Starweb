@@ -43,16 +43,18 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
     try {
-      // Hardcoded check for Administrator
-      if (data.username === 'Administrator' && data.password === 'admin') {
-        const adminCreds = getAdminCredentials(); // Still get this to check for passwordLastUpdated
-        await login({ id: 'admin', username: 'Administrator', permissions: {}, passwordLastUpdated: adminCreds.passwordLastUpdated });
-        toast({
-          title: 'Success',
-          description: 'Logged in successfully as Administrator.',
-        });
-        router.push('/dashboard');
-        return;
+      // Check for Administrator
+      if (data.username === 'Administrator') {
+        const adminCreds = getAdminCredentials();
+        if (data.password === adminCreds.password) {
+            await login({ id: 'admin', username: 'Administrator', permissions: {}, passwordLastUpdated: adminCreds.passwordLastUpdated });
+            toast({
+              title: 'Success',
+              description: 'Logged in successfully as Administrator.',
+            });
+            router.push('/dashboard');
+            return;
+        }
       }
       
       // Then, check against users in local storage for non-admin users

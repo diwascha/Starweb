@@ -84,6 +84,7 @@ export default function SettingsPage() {
   const [password, setPassword] = useState('');
   const [userPermissions, setUserPermissions] = useState<Permissions>(initialPermissions);
   const [showPassword, setShowPassword] = useState(false);
+  const canEditSettings = hasPermission('settings', 'edit');
 
   useEffect(() => { setIsClient(true) }, []);
   
@@ -134,6 +135,11 @@ export default function SettingsPage() {
   };
 
   const handleUserSubmit = () => {
+    if (!canEditSettings) {
+        toast({ title: 'Permission Denied', description: 'You do not have permission to perform this action.', variant: 'destructive' });
+        return;
+    }
+
     if (username.trim() === '') {
       toast({ title: 'Error', description: 'Username is required.', variant: 'destructive' });
       return;
@@ -179,6 +185,10 @@ export default function SettingsPage() {
   };
 
   const deleteUser = (id: string) => {
+     if (!canEditSettings) {
+        toast({ title: 'Permission Denied', description: 'You do not have permission to delete users.', variant: 'destructive' });
+        return;
+    }
     setUsers(users.filter(user => user.id !== id));
     toast({ title: 'User Deleted', description: 'The user has been successfully deleted.' });
   };
@@ -227,6 +237,7 @@ export default function SettingsPage() {
             <p className="text-muted-foreground">Manage user accounts and system settings.</p>
         </header>
         
+        {currentUser.is_admin && (
         <Card>
             <CardHeader>
                 <CardTitle>Administrator Settings</CardTitle>
@@ -263,6 +274,7 @@ export default function SettingsPage() {
                 </Dialog>
             </CardContent>
         </Card>
+        )}
 
         {/* Users Section */}
         <Card>
@@ -272,69 +284,71 @@ export default function SettingsPage() {
                         <CardTitle>User Management</CardTitle>
                         <CardDescription>A list of all users in the system.</CardDescription>
                     </div>
-                    <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
-                        <DialogTrigger asChild>
-                            <Button onClick={openAddUserDialog}><Plus className="mr-2 h-4 w-4" /> Add User</Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-3xl">
-                            <DialogHeader>
-                                <DialogTitle>{editingUser ? 'Edit User' : 'Add New User'}</DialogTitle>
-                            </DialogHeader>
-                            <div className="grid gap-4 py-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="username">Username</Label>
-                                        <Input id="username" value={username} onChange={e => setUsername(e.target.value)} />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="password">Password</Label>
-                                        <div className="relative">
-                                            <Input id="password" type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} placeholder={editingUser ? 'Leave blank to keep current' : ''} />
-                                            <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowPassword(!showPassword)}>
-                                                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                            </Button>
+                    {canEditSettings && (
+                        <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
+                            <DialogTrigger asChild>
+                                <Button onClick={openAddUserDialog}><Plus className="mr-2 h-4 w-4" /> Add User</Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-3xl">
+                                <DialogHeader>
+                                    <DialogTitle>{editingUser ? 'Edit User' : 'Add New User'}</DialogTitle>
+                                </DialogHeader>
+                                <div className="grid gap-4 py-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="username">Username</Label>
+                                            <Input id="username" value={username} onChange={e => setUsername(e.target.value)} />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="password">Password</Label>
+                                            <div className="relative">
+                                                <Input id="password" type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} placeholder={editingUser ? 'Leave blank to keep current' : ''} />
+                                                <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowPassword(!showPassword)}>
+                                                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                                </Button>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Permissions</Label>
-                                    <ScrollArea className="h-72 w-full rounded-md border p-4">
-                                    <div className="space-y-6">
-                                        {permissionGroups.map((group, groupIndex) => (
-                                            <div key={group.name} className="space-y-4">
-                                                <h3 className="text-lg font-semibold">{group.name}</h3>
-                                                {group.modules.map(module => (
-                                                <div key={module}>
-                                                    <h4 className="font-medium mb-2">{formatModuleName(module)}</h4>
-                                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-2">
-                                                    {actions.map(action => (
-                                                        <div key={action} className="flex items-center space-x-2">
-                                                        <Checkbox
-                                                            id={`${module}-${action}`}
-                                                            checked={userPermissions[module]?.includes(action)}
-                                                            onCheckedChange={(checked) => handlePermissionChange(module, action, !!checked)}
-                                                        />
-                                                        <label htmlFor={`${module}-${action}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                                                            {action.charAt(0).toUpperCase() + action.slice(1)}
-                                                        </label>
+                                    <div className="space-y-2">
+                                        <Label>Permissions</Label>
+                                        <ScrollArea className="h-72 w-full rounded-md border p-4">
+                                        <div className="space-y-6">
+                                            {permissionGroups.map((group, groupIndex) => (
+                                                <div key={group.name} className="space-y-4">
+                                                    <h3 className="text-lg font-semibold">{group.name}</h3>
+                                                    {group.modules.map(module => (
+                                                    <div key={module}>
+                                                        <h4 className="font-medium mb-2">{formatModuleName(module)}</h4>
+                                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-2">
+                                                        {actions.map(action => (
+                                                            <div key={action} className="flex items-center space-x-2">
+                                                            <Checkbox
+                                                                id={`${module}-${action}`}
+                                                                checked={userPermissions[module]?.includes(action)}
+                                                                onCheckedChange={(checked) => handlePermissionChange(module, action, !!checked)}
+                                                            />
+                                                            <label htmlFor={`${module}-${action}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                                                {action.charAt(0).toUpperCase() + action.slice(1)}
+                                                            </label>
+                                                            </div>
+                                                        ))}
                                                         </div>
-                                                    ))}
                                                     </div>
+                                                    ))}
+                                                    {groupIndex < permissionGroups.length -1 && <Separator className="mt-6"/>}
                                                 </div>
-                                                ))}
-                                                {groupIndex < permissionGroups.length -1 && <Separator className="mt-6"/>}
-                                            </div>
-                                        ))}
+                                            ))}
+                                        </div>
+                                        </ScrollArea>
                                     </div>
-                                    </ScrollArea>
                                 </div>
-                            </div>
-                            <DialogFooter>
-                                <Button variant="outline" onClick={() => setIsUserDialogOpen(false)}>Cancel</Button>
-                                <Button onClick={handleUserSubmit}>{editingUser ? 'Save Changes' : 'Add User'}</Button>
-                            </DialogFooter>
-                        </DialogContent>
-                    </Dialog>
+                                <DialogFooter>
+                                    <Button variant="outline" onClick={() => setIsUserDialogOpen(false)}>Cancel</Button>
+                                    <Button onClick={handleUserSubmit}>{editingUser ? 'Save Changes' : 'Add User'}</Button>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
+                    )}
                 </div>
             </CardHeader>
             <CardContent>
@@ -348,6 +362,7 @@ export default function SettingsPage() {
                                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditUserDialog(user)}>
                                         <Edit className="h-4 w-4" />
                                     </Button>
+                                    {canEditSettings && (
                                     <AlertDialog>
                                         <AlertDialogTrigger asChild>
                                             <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
@@ -359,6 +374,7 @@ export default function SettingsPage() {
                                             <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => deleteUser(user.id)}>Delete</AlertDialogAction></AlertDialogFooter>
                                         </AlertDialogContent>
                                     </AlertDialog>
+                                    )}
                                 </TableCell>
                             </TableRow>
                         ))}
@@ -369,5 +385,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
-    
