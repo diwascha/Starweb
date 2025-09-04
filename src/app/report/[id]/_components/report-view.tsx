@@ -64,35 +64,35 @@ export default function ReportView({ reportId }: { reportId: string }) {
         </Button>
       </div>
 
-      <div className="printable-area space-y-8 p-4 border rounded-lg bg-white text-black">
-        <header className="text-center space-y-2 mb-8 relative">
+      <div className="printable-area space-y-4 p-4 border rounded-lg bg-white text-black">
+        <header className="text-center space-y-1 mb-4 relative">
             <div className="absolute top-0 left-1/2 -translate-x-1/2">
-              <Image src="/logo.png" alt="Company Logo" width={100} height={100} />
+              <Image src="/logo.png" alt="Company Logo" width={80} height={80} />
             </div>
-            <div className="pt-28">
-              <h1 className="text-2xl font-bold">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
-              <p>HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
-              <h2 className="text-xl font-semibold underline mt-2">TEST REPORT</h2>
+            <div className="pt-24">
+              <h1 className="text-xl font-bold">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
+              <p className="text-sm">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
+              <h2 className="text-lg font-semibold underline mt-1">TEST REPORT</h2>
             </div>
         </header>
         
-        <div className="grid grid-cols-2 text-sm mb-4 gap-x-4 gap-y-2">
+        <div className="grid grid-cols-2 text-xs mb-2 gap-x-4">
             <div><span className="font-semibold">Test Serial No:</span> {report.serialNumber}</div>
             <div className="text-right"><span className="font-semibold">Date:</span> {nepaliDateString} B.S. ({new Date(report.date).toLocaleDateString('en-CA')})</div>
             <div><span className="font-semibold">Tax Invoice No:</span> {report.taxInvoiceNumber}</div>
             <div className="text-right"><span className="font-semibold">Challan No:</span> {report.challanNumber}</div>
         </div>
         
-        <Separator className="my-4 bg-gray-300"/>
+        <Separator className="my-2 bg-gray-300"/>
 
         <Card className="shadow-none border-gray-300">
-          <CardHeader>
-            <CardTitle>Product Test Report</CardTitle>
+          <CardHeader className="p-2">
+            <CardTitle className="text-base">Product Test Report</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-4 p-2">
              <section>
-                <h2 className="text-xl font-semibold mb-2">Product Information</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <h2 className="text-base font-semibold mb-1">Product Information</h2>
+                <div className="grid grid-cols-2 gap-x-4 text-xs">
                     <div>
                         <span className="font-medium">Product Name: </span>
                         <span>{report.product.name}</span>
@@ -111,17 +111,17 @@ export default function ReportView({ reportId }: { reportId: string }) {
                     </div>
                 </div>
             </section>
-            <Separator className="bg-gray-300"/>
+            <Separator className="my-2 bg-gray-300"/>
             <section>
-              <h2 className="text-xl font-semibold mb-2">Test Parameters & Results</h2>
+              <h2 className="text-base font-semibold mb-1">Test Parameters & Results</h2>
               <div className="border rounded-lg border-gray-300">
                 <Table>
                   <TableHeader>
                     <TableRow className="border-b-gray-300">
-                      <TableHead className="text-black font-semibold">Parameter</TableHead>
-                      <TableHead className="text-black font-semibold">Standard</TableHead>
-                      <TableHead className="text-black font-semibold">Result</TableHead>
-                      <TableHead className="text-black font-semibold">Remarks</TableHead>
+                      <TableHead className="text-black font-semibold h-8 px-2 text-xs">Parameter</TableHead>
+                      <TableHead className="text-black font-semibold h-8 px-2 text-xs">Standard</TableHead>
+                      <TableHead className="text-black font-semibold h-8 px-2 text-xs">Result</TableHead>
+                      <TableHead className="text-black font-semibold h-8 px-2 text-xs">Remarks</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -153,12 +153,12 @@ export default function ReportView({ reportId }: { reportId: string }) {
                       
                       return (
                         <TableRow key={key} className="border-b-gray-300">
-                          <TableCell className="font-medium">
+                          <TableCell className="font-medium px-2 py-1 text-xs">
                             {formatLabel(key)}
                           </TableCell>
-                          <TableCell>{displayStandard}</TableCell>
-                          <TableCell>{displayResult}</TableCell>
-                          <TableCell>{remarkValue}</TableCell>
+                          <TableCell className="px-2 py-1 text-xs">{displayStandard}</TableCell>
+                          <TableCell className="px-2 py-1 text-xs">{displayResult}</TableCell>
+                          <TableCell className="px-2 py-1 text-xs">{remarkValue}</TableCell>
                         </TableRow>
                       );
                     })}
@@ -166,21 +166,21 @@ export default function ReportView({ reportId }: { reportId: string }) {
                 </Table>
               </div>
             </section>
-            <div className="mt-16 grid grid-cols-2 gap-8 pt-12 text-sm">
+            <div className="mt-8 grid grid-cols-2 gap-8 pt-8 text-xs">
               <div className="text-center">
-                <div className="border-t border-black w-48 mx-auto"></div>
-                <p className="font-semibold mt-2">Prepared by</p>
+                <div className="border-t border-black w-36 mx-auto"></div>
+                <p className="font-semibold mt-1">Prepared by</p>
               </div>
               <div className="text-center">
-                <div className="border-t border-black w-48 mx-auto"></div>
-                <p className="font-semibold mt-2">Approved by</p>
+                <div className="border-t border-black w-36 mx-auto"></div>
+                <p className="font-semibold mt-1">Approved by</p>
               </div>
             </div>
           </CardContent>
         </Card>
         
         {report.printLog && report.printLog.length > 0 && (
-           <Card className="print:hidden">
+           <Card className="print:hidden mt-8">
              <CardHeader>
                <CardTitle>Print History</CardTitle>
                <CardDescription>This report has been printed {report.printLog.length} time(s).</CardDescription>
@@ -208,6 +208,14 @@ export default function ReportView({ reportId }: { reportId: string }) {
       </div>
       <style jsx global>{`
         @media print {
+          @page {
+            size: A4;
+            margin: 0;
+          }
+          body {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
           body * {
             visibility: hidden;
           }
@@ -219,10 +227,11 @@ export default function ReportView({ reportId }: { reportId: string }) {
             left: 0;
             top: 0;
             width: 100%;
-            height: 50vh;
+            height: 50vh; /* Aims for half of an A4 page */
             margin: 0;
-            padding: 0;
+            padding: 1rem;
             border: none;
+            font-size: 10px; /* Smaller base font size for print */
           }
            .print\:hidden {
               display: none;
