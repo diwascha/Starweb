@@ -129,7 +129,6 @@ export default function ReportView({ reportId }: { reportId: string }) {
                       const specKey = key as keyof ProductSpecification;
                       const standardValue = report.product.specification[specKey];
                       
-                      // Only render the row if a standard value is provided for the parameter
                       if (!standardValue || standardValue.trim() === '') {
                         return null;
                       }
@@ -209,24 +208,22 @@ export default function ReportView({ reportId }: { reportId: string }) {
       </div>
       <style jsx global>{`
         @media print {
-          body {
-            background-color: #fff;
+          body * {
+            visibility: hidden;
+          }
+          .printable-area, .printable-area * {
+            visibility: visible;
           }
           .printable-area {
-            visibility: visible;
             position: absolute;
             left: 0;
             top: 0;
             width: 100%;
+            height: 50vh;
             margin: 0;
-            padding: 1.5rem;
+            padding: 0;
             border: none;
-            color: #000;
           }
-           .printable-area * {
-            visibility: visible;
-            font-family: 'Times New Roman', Times, serif;
-           }
            .print\:hidden {
               display: none;
            }
