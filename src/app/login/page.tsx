@@ -11,10 +11,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, TestTubeDiagonal } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import useLocalStorage from '@/hooks/use-local-storage';
 import type { User } from '@/lib/types';
+import Image from 'next/image';
 
 const loginSchema = z.object({
   username: z.string().min(1, { message: 'Username is required' }),
@@ -84,7 +85,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-md">
          <div className="flex justify-center items-center gap-2 mb-6">
-            <TestTubeDiagonal className="w-8 h-8 text-primary" />
+            <Image src="/logo.png" alt="STARWEB logo" width={32} height={32} className="w-8 h-8" />
             <h1 className="text-3xl font-semibold">STARWEB</h1>
         </div>
         <Card>

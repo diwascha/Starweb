@@ -12,12 +12,13 @@ import {
   SidebarSeparator,
   SidebarContent,
 } from '@/components/ui/sidebar';
-import { FileText, LayoutDashboard, TestTubeDiagonal, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users, Calendar, Award, Wallet, Building2, PlusCircle, Truck, ShieldCheck, CreditCard } from 'lucide-react';
+import { FileText, LayoutDashboard, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users, Calendar, Award, Wallet, Building2, PlusCircle, Truck, ShieldCheck, CreditCard } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from './ui/button';
 import { useToast } from '@/hooks/use-toast';
+import Image from 'next/image';
 
 export function AppSidebar() {
   const pathname = usePathname();
@@ -53,7 +54,7 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader>
         <div className="flex items-center gap-2">
-          <TestTubeDiagonal className="w-6 h-6 text-primary" />
+          <Image src="/logo.png" alt="STARWEB logo" width={24} height={24} className="w-6 h-6" />
           <h1 className="text-xl font-semibold">STARWEB</h1>
         </div>
       </SidebarHeader>
