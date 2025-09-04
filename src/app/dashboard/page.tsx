@@ -10,9 +10,28 @@ import { Button } from '@/components/ui/button';
 import { PlusCircle, FileText, Package, ShoppingCart } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { getStatusBadgeVariant } from '@/lib/utils';
+import { getStatusBadgeVariant, toNepaliDate } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
 import Image from 'next/image';
+import { format } from 'date-fns';
+
+function LiveDateTime() {
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="text-sm text-muted-foreground text-right">
+      <p>{format(now, 'EEEE, MMMM d, yyyy')}</p>
+      <p>{toNepaliDate(now.toISOString())} B.S.</p>
+      <p>{format(now, 'h:mm:ss a')}</p>
+    </div>
+  );
+}
+
 
 export default function DashboardPage() {
   const [reports] = useLocalStorage<Report[]>('reports', []);
@@ -65,17 +84,19 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <header className="flex flex-col md:flex-row items-center justify-between text-center md:text-left gap-4">
-        <div className="flex flex-col items-center w-full">
-          <h1 className="text-3xl font-bold tracking-tight">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
-          <h2 className="text-2xl font-semibold mt-1">शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.</h2>
-          <p className="text-muted-foreground mt-2">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
-          <div className="mt-4">
-            <Image src="/logo.png" alt="Company Logo" width={120} height={120} />
+      <header className="flex items-start justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Image src="/logo.png" alt="Company Logo" width={80} height={80} />
+          <div>
+            <h1 className="text-xl font-bold tracking-tight">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
+            <h2 className="text-lg font-semibold">शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.</h2>
+            <p className="text-sm text-muted-foreground mt-1">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
           </div>
         </div>
+        {isClient && <LiveDateTime />}
       </header>
-       <div className="flex items-center justify-center gap-2 mt-4">
+
+      <div className="flex items-center justify-center gap-2 mt-4">
             {hasPermission('reports', 'create') && (
               <Button asChild>
                 <Link href="/report/new">
@@ -90,7 +111,7 @@ export default function DashboardPage() {
                 </Link>
               </Button>
             )}
-        </div>
+      </div>
       
       <Card className="mt-8">
         <CardHeader>
