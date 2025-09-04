@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo } from 'react';
 import useLocalStorage from '@/hooks/use-local-storage';
 import type { PolicyOrMembership, PolicyType, Vehicle, Driver } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, CalendarIcon } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, CalendarIcon, Check, ChevronsUpDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -35,6 +35,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/use-auth';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { format } from 'date-fns';
 import { cn, toNepaliDate } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
@@ -67,6 +68,8 @@ export default function PoliciesPage() {
     
     const [searchQuery, setSearchQuery] = useState('');
     const [sortConfig, setSortConfig] = useState<{ key: PolicySortKey; direction: SortDirection }>({ key: 'endDate', direction: 'asc' });
+    const [isProviderPopoverOpen, setIsProviderPopoverOpen] = useState(false);
+    const [editingProvider, setEditingProvider] = useState<{ oldName: string; newName: string } | null>(null);
 
     const { toast } = useToast();
     const { hasPermission } = useAuth();
@@ -81,6 +84,12 @@ export default function PoliciesPage() {
     useEffect(() => {
         setIsClient(true);
     }, []);
+
+    const providers = useMemo(() => {
+        const providerSet = new Set<string>();
+        policies.forEach(p => providerSet.add(p.provider));
+        return Array.from(providerSet).sort();
+    }, [policies]);
 
     const resetForm = () => {
         setEditingPolicy(null);
@@ -126,6 +135,36 @@ export default function PoliciesPage() {
         if (date) {
             setFormState(prev => ({ ...prev, [name]: date.toISOString() }));
         }
+    };
+    
+    const handleProviderSelect = (provider: string) => {
+        setFormState(prev => ({ ...prev, provider }));
+        setIsProviderPopoverOpen(false);
+    };
+
+    const handleEditProvider = (providerName: string) => {
+        setEditingProvider({ oldName: providerName, newName: providerName });
+    };
+
+    const handleUpdateProvider = () => {
+        if (!editingProvider) return;
+        const { oldName, newName } = editingProvider;
+
+        if (!newName.trim()) {
+            toast({ title: 'Error', description: 'Provider name cannot be empty.', variant: 'destructive' });
+            return;
+        }
+
+        setPolicies(prevPolicies =>
+            prevPolicies.map(p => (p.provider === oldName ? { ...p, provider: newName } : p))
+        );
+        
+        if (formState.provider === oldName) {
+            setFormState(prev => ({ ...prev, provider: newName }));
+        }
+
+        toast({ title: 'Success', description: `Provider "${oldName}" updated to "${newName}".` });
+        setEditingProvider(null);
     };
 
     const handleSubmit = () => {
@@ -262,133 +301,195 @@ export default function PoliciesPage() {
     };
 
     return (
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <div className="flex flex-col gap-8">
-                <header className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-3xl font-bold tracking-tight">Policies & Memberships</h1>
-                        <p className="text-muted-foreground">Manage your vehicle insurance and fleet memberships.</p>
+        <>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <div className="flex flex-col gap-8">
+                    <header className="flex items-center justify-between">
+                        <div>
+                            <h1 className="text-3xl font-bold tracking-tight">Policies & Memberships</h1>
+                            <p className="text-muted-foreground">Manage your vehicle insurance and fleet memberships.</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            {isClient && policies.length > 0 && (
+                                <div className="relative">
+                                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        type="search"
+                                        placeholder="Search records..."
+                                        className="pl-8 sm:w-[300px]"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                    />
+                                </div>
+                            )}
+                            {hasPermission('fleet', 'create') && (
+                                <DialogTrigger asChild>
+                                    <Button onClick={() => handleOpenDialog()}>
+                                        <Plus className="mr-2 h-4 w-4" /> Add Record
+                                    </Button>
+                                </DialogTrigger>
+                            )}
+                        </div>
+                    </header>
+                    {renderContent()}
+                </div>
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>{editingPolicy ? 'Edit Record' : 'Add New Record'}</DialogTitle>
+                        <DialogDescription>{editingPolicy ? 'Update the details for this record.' : 'Enter the details for the new policy or membership.'}</DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="type">Type</Label>
+                                <Select value={formState.type} onValueChange={(value: PolicyType) => handleSelectChange('type', value)}>
+                                    <SelectTrigger id="type"><SelectValue placeholder="Select type" /></SelectTrigger>
+                                    <SelectContent>
+                                        {policyTypes.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            {formState.type === 'Other' && (
+                                <div className="space-y-2">
+                                    <Label htmlFor="otherTypeDescription">Description for "Other"</Label>
+                                    <Input id="otherTypeDescription" name="otherTypeDescription" value={formState.otherTypeDescription} onChange={handleFormChange} />
+                                </div>
+                            )}
+                            <div className="space-y-2">
+                                <Label htmlFor="provider">Provider</Label>
+                                 <Popover open={isProviderPopoverOpen} onOpenChange={setIsProviderPopoverOpen}>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" role="combobox" className="w-full justify-between">
+                                            {formState.provider || "Select or type..."}
+                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="p-0">
+                                        <Command>
+                                            <CommandInput 
+                                                placeholder="Search or add provider..."
+                                                value={formState.provider}
+                                                onValueChange={(value) => setFormState(prev => ({...prev, provider: value}))}
+                                            />
+                                            <CommandList>
+                                                <CommandEmpty>
+                                                    <button type="button" className="w-full text-left p-2 text-sm" onClick={() => handleProviderSelect(formState.provider)}>
+                                                        Add "{formState.provider}"
+                                                    </button>
+                                                </CommandEmpty>
+                                                <CommandGroup>
+                                                    {providers.map((provider) => (
+                                                        <CommandItem key={provider} value={provider} onSelect={() => handleProviderSelect(provider)} className="flex justify-between items-center">
+                                                            <div className="flex items-center">
+                                                                <Check className={cn("mr-2 h-4 w-4", formState.provider.toLowerCase() === provider.toLowerCase() ? "opacity-100" : "opacity-0")} />
+                                                                {provider}
+                                                            </div>
+                                                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleEditProvider(provider); }}>
+                                                                <Edit className="h-4 w-4"/>
+                                                            </Button>
+                                                        </CommandItem>
+                                                    ))}
+                                                </CommandGroup>
+                                            </CommandList>
+                                        </Command>
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="policyNumber">Policy / ID Number</Label>
+                            <Input id="policyNumber" name="policyNumber" value={formState.policyNumber} onChange={handleFormChange} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="memberType">For</Label>
+                                <Select value={formState.memberType} onValueChange={(value: 'Vehicle' | 'Driver') => handleSelectChange('memberType', value)}>
+                                    <SelectTrigger id="memberType"><SelectValue placeholder="Select one" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Vehicle">Vehicle</SelectItem>
+                                        <SelectItem value="Driver">Driver</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="memberId">{formState.memberType}</Label>
+                                <Select value={formState.memberId} onValueChange={(value) => handleSelectChange('memberId', value)} disabled={!formState.memberType}>
+                                    <SelectTrigger id="memberId"><SelectValue placeholder={`Select a ${formState.memberType.toLowerCase()}`} /></SelectTrigger>
+                                    <SelectContent>
+                                        {formState.memberType === 'Vehicle' ? (
+                                            vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)
+                                        ) : (
+                                            drivers.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="startDate">Start Date</Label>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formState.startDate && "text-muted-foreground")}>
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {formState.startDate ? `${toNepaliDate(formState.startDate)} BS (${format(new Date(formState.startDate), "PPP")})` : <span>Pick a date</span>}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0">
+                                        <DualCalendar selected={new Date(formState.startDate)} onSelect={(d) => handleDateChange('startDate', d)} />
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="endDate">End Date</Label>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formState.endDate && "text-muted-foreground")}>
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {formState.endDate ? `${toNepaliDate(formState.endDate)} BS (${format(new Date(formState.endDate), "PPP")})` : <span>Pick a date</span>}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0">
+                                        <DualCalendar selected={new Date(formState.endDate)} onSelect={(d) => handleDateChange('endDate', d)} />
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="cost">Cost / Premium</Label>
+                            <Input id="cost" name="cost" type="number" value={formState.cost} onChange={handleFormChange} />
+                        </div>
                     </div>
-                     <div className="flex items-center gap-2">
-                        {isClient && policies.length > 0 && (
-                            <div className="relative">
-                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+                        <Button onClick={handleSubmit}>{editingPolicy ? 'Save Changes' : 'Add Record'}</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={!!editingProvider} onOpenChange={() => setEditingProvider(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Edit Provider</DialogTitle>
+                    </DialogHeader>
+                    {editingProvider && (
+                        <div className="grid gap-4 py-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="provider-name-edit">Provider Name</Label>
                                 <Input
-                                    type="search"
-                                    placeholder="Search records..."
-                                    className="pl-8 sm:w-[300px]"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    id="provider-name-edit"
+                                    value={editingProvider.newName}
+                                    onChange={(e) => setEditingProvider(prev => prev ? { ...prev, newName: e.target.value } : null)}
                                 />
                             </div>
-                        )}
-                        {hasPermission('fleet', 'create') && (
-                            <DialogTrigger asChild>
-                                <Button onClick={() => handleOpenDialog()}>
-                                    <Plus className="mr-2 h-4 w-4" /> Add Record
-                                </Button>
-                            </DialogTrigger>
-                        )}
-                    </div>
-                </header>
-                {renderContent()}
-            </div>
-             <DialogContent className="sm:max-w-lg">
-                <DialogHeader>
-                    <DialogTitle>{editingPolicy ? 'Edit Record' : 'Add New Record'}</DialogTitle>
-                    <DialogDescription>{editingPolicy ? 'Update the details for this record.' : 'Enter the details for the new policy or membership.'}</DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="type">Type</Label>
-                            <Select value={formState.type} onValueChange={(value: PolicyType) => handleSelectChange('type', value)}>
-                                <SelectTrigger id="type"><SelectValue placeholder="Select type" /></SelectTrigger>
-                                <SelectContent>
-                                    {policyTypes.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
                         </div>
-                        {formState.type === 'Other' && (
-                            <div className="space-y-2">
-                                <Label htmlFor="otherTypeDescription">Description for "Other"</Label>
-                                <Input id="otherTypeDescription" name="otherTypeDescription" value={formState.otherTypeDescription} onChange={handleFormChange} />
-                            </div>
-                        )}
-                        <div className="space-y-2">
-                            <Label htmlFor="provider">Provider</Label>
-                            <Input id="provider" name="provider" value={formState.provider} onChange={handleFormChange} />
-                        </div>
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="policyNumber">Policy / ID Number</Label>
-                        <Input id="policyNumber" name="policyNumber" value={formState.policyNumber} onChange={handleFormChange} />
-                    </div>
-                     <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="memberType">For</Label>
-                            <Select value={formState.memberType} onValueChange={(value: 'Vehicle' | 'Driver') => handleSelectChange('memberType', value)}>
-                                <SelectTrigger id="memberType"><SelectValue placeholder="Select one" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Vehicle">Vehicle</SelectItem>
-                                    <SelectItem value="Driver">Driver</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="memberId">{formState.memberType}</Label>
-                            <Select value={formState.memberId} onValueChange={(value) => handleSelectChange('memberId', value)} disabled={!formState.memberType}>
-                                <SelectTrigger id="memberId"><SelectValue placeholder={`Select a ${formState.memberType.toLowerCase()}`} /></SelectTrigger>
-                                <SelectContent>
-                                    {formState.memberType === 'Vehicle' ? (
-                                        vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)
-                                    ) : (
-                                        drivers.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)
-                                    )}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-                     <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="startDate">Start Date</Label>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formState.startDate && "text-muted-foreground")}>
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {formState.startDate ? `${toNepaliDate(formState.startDate)} BS (${format(new Date(formState.startDate), "PPP")})` : <span>Pick a date</span>}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0">
-                                    <DualCalendar selected={new Date(formState.startDate)} onSelect={(d) => handleDateChange('startDate', d)} />
-                                </PopoverContent>
-                            </Popover>
-                        </div>
-                         <div className="space-y-2">
-                            <Label htmlFor="endDate">End Date</Label>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formState.endDate && "text-muted-foreground")}>
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {formState.endDate ? `${toNepaliDate(formState.endDate)} BS (${format(new Date(formState.endDate), "PPP")})` : <span>Pick a date</span>}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0">
-                                     <DualCalendar selected={new Date(formState.endDate)} onSelect={(d) => handleDateChange('endDate', d)} />
-                                </PopoverContent>
-                            </Popover>
-                        </div>
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="cost">Cost / Premium</Label>
-                        <Input id="cost" name="cost" type="number" value={formState.cost} onChange={handleFormChange} />
-                    </div>
-                </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-                    <Button onClick={handleSubmit}>{editingPolicy ? 'Save Changes' : 'Add Record'}</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+                    )}
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setEditingProvider(null)}>Cancel</Button>
+                        <Button onClick={handleUpdateProvider}>Save Changes</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
     );
 }
