@@ -186,6 +186,5 @@ export interface User {
   id: string;
   username: string;
   password?: string;
-  roleId: string; // 'admin' or 'user'
-  permissions?: Permissions;
+  roleId: string; 
 }

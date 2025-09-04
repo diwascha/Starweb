@@ -3,13 +3,13 @@
 
 import { useState, useEffect, createContext, useContext, ReactNode, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import type { User, Permissions, Module, Action } from '@/lib/types';
+import type { User, Permissions, Module, Action, Role } from '@/lib/types';
 import { modules } from '@/lib/types';
 import useLocalStorage from './use-local-storage';
 
 interface UserSession {
   username: string;
-  roleId: string; // 'admin' or 'user'
+  roleId: string; // 'admin' or a role ID
   permissions?: Permissions;
 }
 
@@ -69,7 +69,7 @@ const moduleToPath = (module: Module): string => {
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<UserSession | null>(null);
   const [loading, setLoading] = useState(true);
-  const [users] = useLocalStorage<User[]>('users', []);
+  const [roles] = useLocalStorage<Role[]>('roles', []);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -105,12 +105,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         roleId: 'admin',
       };
     } else {
-       const latestUsers = JSON.parse(localStorage.getItem('users') || '[]') as User[];
-       const freshUser = latestUsers.find(u => u.id === userToLogin.id);
+       const latestRoles = JSON.parse(localStorage.getItem('roles') || '[]') as Role[];
+       const userRole = latestRoles.find(r => r.id === userToLogin.roleId);
        sessionToStore = {
-          username: freshUser?.username || userToLogin.username,
-          roleId: 'user',
-          permissions: freshUser?.permissions,
+          username: userToLogin.username,
+          roleId: userToLogin.roleId,
+          permissions: userRole?.permissions,
        };
     }
     sessionStorage.setItem(USER_SESSION_KEY, JSON.stringify(sessionToStore));

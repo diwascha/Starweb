@@ -38,6 +38,7 @@ import { useRouter } from 'next/navigation';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const initialPermissions: Permissions = modules.reduce((acc, module) => {
     acc[module] = [];
@@ -55,20 +56,28 @@ const permissionGroups: { name: string; modules: Module[] }[] = [
 export default function SettingsPage() {
   const { user: currentUser, loading, hasPermission } = useAuth();
   const router = useRouter();
+  const [roles, setRoles] = useLocalStorage<Role[]>('roles', []);
   const [users, setUsers] = useLocalStorage<User[]>('users', []);
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
   
-  // User Dialog State
+  // Dialog States
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
+  const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
+  
+  // User Form State
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [permissions, setPermissions] = useState<Permissions>(initialPermissions);
+  const [userRoleId, setUserRoleId] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
+  // Role Form State
+  const [editingRole, setEditingRole] = useState<Role | null>(null);
+  const [roleName, setRoleName] = useState('');
+  const [rolePermissions, setRolePermissions] = useState<Permissions>(initialPermissions);
   
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
+  useEffect(() => { setIsClient(true) }, []);
 
   useEffect(() => {
     if (!loading && !currentUser) {
@@ -80,40 +89,38 @@ export default function SettingsPage() {
       router.push('/dashboard');
     }
   }, [currentUser, loading, router, toast, hasPermission]);
+  
+  const formatModuleName = (name: string) => name.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
 
-  // --- User Management ---
-  const resetUserForm = () => {
-    setUsername('');
-    setPassword('');
-    setPermissions(JSON.parse(JSON.stringify(initialPermissions)));
-    setEditingUser(null);
+  // --- Role Management ---
+  const resetRoleForm = () => {
+    setRoleName('');
+    setRolePermissions(JSON.parse(JSON.stringify(initialPermissions)));
+    setEditingRole(null);
   };
 
-  const openAddUserDialog = () => {
-    resetUserForm();
-    setIsUserDialogOpen(true);
+  const openAddRoleDialog = () => {
+    resetRoleForm();
+    setIsRoleDialogOpen(true);
   };
-
-  const openEditUserDialog = (user: User) => {
-    setEditingUser(user);
-    setUsername(user.username);
-    setPassword('');
-    
-    // Deep copy to prevent state mutation issues
+  
+  const openEditRoleDialog = (role: Role) => {
+    setEditingRole(role);
+    setRoleName(role.name);
     const currentPermissions = JSON.parse(JSON.stringify(initialPermissions));
-     if (user.permissions) {
+     if (role.permissions) {
         for (const module of modules) {
-            if(user.permissions[module]) {
-                currentPermissions[module] = [...user.permissions[module]];
+            if(role.permissions[module]) {
+                currentPermissions[module] = [...role.permissions[module]];
             }
         }
     }
-    setPermissions(currentPermissions);
-    setIsUserDialogOpen(true);
+    setRolePermissions(currentPermissions);
+    setIsRoleDialogOpen(true);
   };
-
+  
   const handlePermissionChange = (module: Module, action: Action, checked: boolean) => {
-      setPermissions(prev => {
+      setRolePermissions(prev => {
           const newPermissions = { ...prev };
           const moduleActions = newPermissions[module] ? [...newPermissions[module]] : [];
           if (checked) {
@@ -127,9 +134,60 @@ export default function SettingsPage() {
       });
   };
 
+  const handleRoleSubmit = () => {
+    if (roleName.trim() === '') {
+      toast({ title: 'Error', description: 'Role name is required.', variant: 'destructive' });
+      return;
+    }
+
+    if (editingRole) {
+      const updatedRole: Role = { ...editingRole, name: roleName.trim(), permissions: rolePermissions };
+      setRoles(roles.map(r => (r.id === editingRole.id ? updatedRole : r)));
+      toast({ title: 'Success', description: 'Role updated successfully.' });
+    } else {
+      const newRole: Role = { id: crypto.randomUUID(), name: roleName.trim(), permissions: rolePermissions };
+      setRoles([...roles, newRole]);
+      toast({ title: 'Success', description: 'New role added successfully.' });
+    }
+    resetRoleForm();
+    setIsRoleDialogOpen(false);
+  };
+
+  const deleteRole = (id: string) => {
+    // Also need to handle users assigned to this role, maybe unassign them?
+    setRoles(roles.filter(role => role.id !== id));
+    setUsers(users.map(u => u.roleId === id ? {...u, roleId: ''} : u));
+    toast({ title: 'Role Deleted', description: 'The role has been deleted.' });
+  };
+  
+
+  // --- User Management ---
+  const resetUserForm = () => {
+    setUsername('');
+    setPassword('');
+    setUserRoleId('');
+    setEditingUser(null);
+    setIsChangingPassword(false);
+  };
+
+  const openAddUserDialog = () => {
+    resetUserForm();
+    setIsChangingPassword(true);
+    setIsUserDialogOpen(true);
+  };
+
+  const openEditUserDialog = (user: User) => {
+    setEditingUser(user);
+    setUsername(user.username);
+    setUserRoleId(user.roleId);
+    setPassword('');
+    setIsChangingPassword(false);
+    setIsUserDialogOpen(true);
+  };
+
   const handleUserSubmit = () => {
-    if (username.trim() === '') {
-      toast({ title: 'Error', description: 'Username is required.', variant: 'destructive' });
+    if (username.trim() === '' || userRoleId === '') {
+      toast({ title: 'Error', description: 'Username and Role are required.', variant: 'destructive' });
       return;
     }
 
@@ -137,8 +195,8 @@ export default function SettingsPage() {
       const updatedUser: User = {
         ...editingUser,
         username: username.trim(),
-        permissions,
-        ...(password.trim() !== '' && { password: password.trim() }),
+        roleId: userRoleId,
+        ...(isChangingPassword && password.trim() !== '' && { password: password.trim() }),
       };
       setUsers(users.map(u => (u.id === editingUser.id ? updatedUser : u)));
       toast({ title: 'Success', description: 'User updated successfully.' });
@@ -156,8 +214,7 @@ export default function SettingsPage() {
         id: crypto.randomUUID(),
         username: username.trim(),
         password: password.trim(),
-        roleId: 'user', // Simplified roleId
-        permissions,
+        roleId: userRoleId,
       };
       setUsers([...users, newUser]);
       toast({ title: 'Success', description: 'New user added successfully.' });
@@ -179,110 +236,180 @@ export default function SettingsPage() {
     );
   }
 
-  const formatModuleName = (name: string) => name.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-  
   return (
     <div className="flex flex-col gap-8">
-      <header>
-        <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground">Manage users and their permissions.</p>
-      </header>
+        <header>
+            <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
+            <p className="text-muted-foreground">Manage user roles and accounts.</p>
+        </header>
+
+        {/* Roles Section */}
         <Card>
-        <CardHeader>
-            <div className="flex justify-between items-center">
-            <div>
-                <CardTitle>User Management</CardTitle>
-                <CardDescription>A list of all users in the system.</CardDescription>
-            </div>
-            <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
-                <DialogTrigger asChild>
-                <Button onClick={openAddUserDialog}><Plus className="mr-2 h-4 w-4" /> Add User</Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-3xl">
-                <DialogHeader>
-                    <DialogTitle>{editingUser ? 'Edit User' : 'Add New User'}</DialogTitle>
-                </DialogHeader>
-                 <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="username">Username</Label>
-                            <Input id="username" value={username} onChange={e => setUsername(e.target.value)} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="password">Password</Label>
-                            <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder={editingUser ? "Leave blank to keep current" : ""}/>
-                        </div>
+            <CardHeader>
+                <div className="flex justify-between items-center">
+                    <div>
+                        <CardTitle>Role Management</CardTitle>
+                        <CardDescription>Define roles and assign permissions to them.</CardDescription>
                     </div>
-                    <div className="space-y-2">
-                        <Label>Permissions</Label>
-                        <ScrollArea className="h-72 w-full rounded-md border p-4">
-                        <div className="space-y-6">
-                            {permissionGroups.map((group, groupIndex) => (
-                                <div key={group.name} className="space-y-4">
-                                    <h3 className="text-lg font-semibold">{group.name}</h3>
-                                    {group.modules.map(module => (
-                                    <div key={module}>
-                                        <h4 className="font-medium mb-2">{formatModuleName(module)}</h4>
-                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-2">
-                                        {actions.map(action => (
-                                            <div key={action} className="flex items-center space-x-2">
-                                            <Checkbox
-                                                id={`${module}-${action}`}
-                                                checked={permissions[module]?.includes(action)}
-                                                onCheckedChange={(checked) => handlePermissionChange(module, action, !!checked)}
-                                            />
-                                            <label htmlFor={`${module}-${action}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                                                {action.charAt(0).toUpperCase() + action.slice(1)}
-                                            </label>
+                    <Dialog open={isRoleDialogOpen} onOpenChange={setIsRoleDialogOpen}>
+                        <DialogTrigger asChild>
+                            <Button onClick={openAddRoleDialog}><Plus className="mr-2 h-4 w-4" /> Add Role</Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-3xl">
+                            <DialogHeader>
+                                <DialogTitle>{editingRole ? 'Edit Role' : 'Add New Role'}</DialogTitle>
+                            </DialogHeader>
+                            <div className="grid gap-4 py-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="roleName">Role Name</Label>
+                                    <Input id="roleName" value={roleName} onChange={e => setRoleName(e.target.value)} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Permissions</Label>
+                                    <ScrollArea className="h-72 w-full rounded-md border p-4">
+                                    <div className="space-y-6">
+                                        {permissionGroups.map((group, groupIndex) => (
+                                            <div key={group.name} className="space-y-4">
+                                                <h3 className="text-lg font-semibold">{group.name}</h3>
+                                                {group.modules.map(module => (
+                                                <div key={module}>
+                                                    <h4 className="font-medium mb-2">{formatModuleName(module)}</h4>
+                                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-2">
+                                                    {actions.map(action => (
+                                                        <div key={action} className="flex items-center space-x-2">
+                                                        <Checkbox
+                                                            id={`${module}-${action}`}
+                                                            checked={rolePermissions[module]?.includes(action)}
+                                                            onCheckedChange={(checked) => handlePermissionChange(module, action, !!checked)}
+                                                        />
+                                                        <label htmlFor={`${module}-${action}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                                            {action.charAt(0).toUpperCase() + action.slice(1)}
+                                                        </label>
+                                                        </div>
+                                                    ))}
+                                                    </div>
+                                                </div>
+                                                ))}
+                                                {groupIndex < permissionGroups.length -1 && <Separator className="mt-6"/>}
                                             </div>
                                         ))}
-                                        </div>
                                     </div>
-                                    ))}
-                                    {groupIndex < permissionGroups.length -1 && <Separator className="mt-6"/>}
+                                    </ScrollArea>
                                 </div>
-                            ))}
-                        </div>
-                        </ScrollArea>
+                            </div>
+                            <DialogFooter>
+                                <Button variant="outline" onClick={() => setIsRoleDialogOpen(false)}>Cancel</Button>
+                                <Button onClick={handleRoleSubmit}>{editingRole ? 'Save Changes' : 'Add Role'}</Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                </div>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader><TableRow><TableHead>Role Name</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                    <TableBody>
+                        {isClient && roles.map(role => (
+                            <TableRow key={role.id}>
+                                <TableCell>{role.name}</TableCell>
+                                <TableCell className="text-right">
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onClick={() => openEditRoleDialog(role)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem></AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the role. Users with this role will have no permissions until assigned a new one.</AlertDialogDescription></AlertDialogHeader>
+                                                    <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => deleteRole(role.id)}>Delete</AlertDialogAction></AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+
+        {/* Users Section */}
+        <Card>
+            <CardHeader>
+                <div className="flex justify-between items-center">
+                    <div>
+                        <CardTitle>User Management</CardTitle>
+                        <CardDescription>A list of all users in the system.</CardDescription>
                     </div>
-                 </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsUserDialogOpen(false)}>Cancel</Button>
-                    <Button onClick={handleUserSubmit}>{editingUser ? 'Save Changes' : 'Add User'}</Button>
-                </DialogFooter>
-                </DialogContent>
-            </Dialog>
-            </div>
-        </CardHeader>
-        <CardContent>
-            <Table>
-            <TableHeader><TableRow><TableHead>Username</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
-            <TableBody>
-                {isClient && users.map(user => (
-                <TableRow key={user.id}>
-                    <TableCell>{user.username}</TableCell>
-                    <TableCell className="text-right">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openEditUserDialog(user)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
-                        <AlertDialog>
-                            <AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem></AlertDialogTrigger>
-                            <AlertDialogContent>
-                            <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the user account.</AlertDialogDescription></AlertDialogHeader>
-                            <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => deleteUser(user.id)}>Delete</AlertDialogAction></AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                    </TableCell>
-                </TableRow>
-                ))}
-                {!isClient && <TableRow><TableCell colSpan={2} className="text-center">Loading users...</TableCell></TableRow>}
-                {isClient && users.length === 0 && <TableRow><TableCell colSpan={2} className="text-center h-24">No users found.</TableCell></TableRow>}
-            </TableBody>
-            </Table>
-        </CardContent>
+                    <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
+                        <DialogTrigger asChild>
+                            <Button onClick={openAddUserDialog}><Plus className="mr-2 h-4 w-4" /> Add User</Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-md">
+                            <DialogHeader>
+                                <DialogTitle>{editingUser ? 'Edit User' : 'Add New User'}</DialogTitle>
+                            </DialogHeader>
+                            <div className="grid gap-4 py-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="username">Username</Label>
+                                    <Input id="username" value={username} onChange={e => setUsername(e.target.value)} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="roleId">Role</Label>
+                                    <Select value={userRoleId} onValueChange={setUserRoleId}>
+                                        <SelectTrigger><SelectValue placeholder="Select a role" /></SelectTrigger>
+                                        <SelectContent>
+                                            {roles.map(role => <SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                {editingUser && !isChangingPassword && (
+                                    <Button variant="outline" onClick={() => setIsChangingPassword(true)}>Change Password</Button>
+                                )}
+                                {isChangingPassword && (
+                                     <div className="space-y-2">
+                                        <Label htmlFor="password">Password</Label>
+                                        <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder={editingUser ? "Enter new password" : ""} />
+                                    </div>
+                                )}
+                            </div>
+                            <DialogFooter>
+                                <Button variant="outline" onClick={() => setIsUserDialogOpen(false)}>Cancel</Button>
+                                <Button onClick={handleUserSubmit}>{editingUser ? 'Save Changes' : 'Add User'}</Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                </div>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader><TableRow><TableHead>Username</TableHead><TableHead>Role</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                    <TableBody>
+                        {isClient && users.map(user => (
+                            <TableRow key={user.id}>
+                                <TableCell>{user.username}</TableCell>
+                                <TableCell>{roles.find(r => r.id === user.roleId)?.name || 'No Role'}</TableCell>
+                                <TableCell className="text-right">
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onClick={() => openEditUserDialog(user)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem></AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the user account.</AlertDialogDescription></AlertDialogHeader>
+                                                    <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => deleteUser(user.id)}>Delete</AlertDialogAction></AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </CardContent>
         </Card>
     </div>
   );
