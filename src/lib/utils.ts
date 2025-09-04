@@ -2,6 +2,7 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import type { Report, PurchaseOrder, PurchaseOrderStatus } from './types';
+import NepaliDate from 'nepali-date-converter';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -53,6 +54,16 @@ export const getStatusBadgeVariant = (status: PurchaseOrderStatus) => {
         return 'destructive';
       default:
         return 'default';
+    }
+};
+
+export const toNepaliDate = (isoDate: string): string => {
+    try {
+        const date = new Date(isoDate);
+        if (isNaN(date.getTime())) return "Invalid Date";
+        return new NepaliDate(date).format('YYYY/MM/DD');
+    } catch (e) {
+        return "Invalid Date";
     }
 };
 

@@ -34,9 +34,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/use-auth';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { cn, toNepaliDate } from '@/lib/utils';
+import NepaliDate from 'nepali-date-converter';
+import { DualCalendar } from '@/components/ui/dual-calendar';
 
 
 type DriverSortKey = 'name' | 'nickname' | 'licenseNumber' | 'contactNumber' | 'dateOfBirth';
@@ -140,6 +141,7 @@ export default function DriversPage() {
                 (d.nickname || '').toLowerCase().includes(lowercasedQuery) ||
                 d.licenseNumber.toLowerCase().includes(lowercasedQuery) ||
                 d.contactNumber.toLowerCase().includes(lowercasedQuery) ||
+                toNepaliDate(d.dateOfBirth).toLowerCase().includes(lowercasedQuery) ||
                 format(new Date(d.dateOfBirth), 'PPP').toLowerCase().includes(lowercasedQuery)
             );
         }
@@ -185,7 +187,7 @@ export default function DriversPage() {
                             <TableHead><Button variant="ghost" onClick={() => requestSort('nickname')}>Nickname <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('licenseNumber')}>License Number <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('contactNumber')}>Contact Number <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                             <TableHead><Button variant="ghost" onClick={() => requestSort('dateOfBirth')}>Date of Birth <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                             <TableHead><Button variant="ghost" onClick={() => requestSort('dateOfBirth')}>Date of Birth (BS) <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -196,7 +198,7 @@ export default function DriversPage() {
                                 <TableCell>{driver.nickname}</TableCell>
                                 <TableCell>{driver.licenseNumber}</TableCell>
                                 <TableCell>{driver.contactNumber}</TableCell>
-                                <TableCell>{format(new Date(driver.dateOfBirth), 'PPP')}</TableCell>
+                                <TableCell>{toNepaliDate(driver.dateOfBirth)}</TableCell>
                                 <TableCell className="text-right">
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
@@ -291,15 +293,13 @@ export default function DriversPage() {
                                 )}
                                 >
                                 <CalendarIcon className="mr-2 h-4 w-4" />
-                                {formState.dateOfBirth ? format(new Date(formState.dateOfBirth), "PPP") : <span>Pick a date</span>}
+                                {formState.dateOfBirth ? `${toNepaliDate(formState.dateOfBirth)} BS (${format(new Date(formState.dateOfBirth), "PPP")})` : <span>Pick a date</span>}
                                 </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0">
-                                <Calendar
-                                mode="single"
-                                selected={new Date(formState.dateOfBirth)}
-                                onSelect={handleDateChange}
-                                initialFocus
+                                <DualCalendar
+                                    selected={new Date(formState.dateOfBirth)}
+                                    onSelect={handleDateChange}
                                 />
                             </PopoverContent>
                         </Popover>
