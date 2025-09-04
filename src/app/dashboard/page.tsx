@@ -189,8 +189,8 @@ export default function DashboardPage() {
                                                 </div>
                                             </TooltipTrigger>
                                             <TooltipContent>
-                                                <p>Created by: {activity.createdBy}</p>
-                                                {activity.lastModifiedBy && <p>Last modified by: {activity.lastModifiedBy}</p>}
+                                                {activity.createdBy && <p>Created by: {activity.createdBy}</p>}
+                                                {activity.lastModifiedBy && activity.createdBy !== activity.lastModifiedBy && <p>Last modified by: {activity.lastModifiedBy}</p>}
                                             </TooltipContent>
                                         </Tooltip>
                                     </TooltipProvider>
