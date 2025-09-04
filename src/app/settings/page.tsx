@@ -37,11 +37,20 @@ import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 
 const initialPermissions: Permissions = modules.reduce((acc, module) => {
     acc[module] = [];
     return acc;
 }, {} as Permissions);
+
+const permissionGroups: { name: string; modules: Module[] }[] = [
+    { name: 'System Management', modules: ['dashboard', 'settings'] },
+    { name: 'Test Report Management', modules: ['reports', 'products'] },
+    { name: 'Purchase Order Management', modules: ['purchaseOrders', 'rawMaterials'] },
+    { name: 'HR Management', modules: ['hr'] },
+    { name: 'Fleet Management', modules: ['fleet'] },
+];
 
 export default function SettingsPage() {
   const { user: currentUser, loading, hasPermission } = useAuth();
@@ -189,7 +198,7 @@ export default function SettingsPage() {
                 <DialogTrigger asChild>
                 <Button onClick={openAddUserDialog}><Plus className="mr-2 h-4 w-4" /> Add User</Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-2xl">
+                <DialogContent className="sm:max-w-3xl">
                 <DialogHeader>
                     <DialogTitle>{editingUser ? 'Edit User' : 'Add New User'}</DialogTitle>
                 </DialogHeader>
@@ -207,25 +216,31 @@ export default function SettingsPage() {
                     <div className="space-y-2">
                         <Label>Permissions</Label>
                         <ScrollArea className="h-72 w-full rounded-md border p-4">
-                        <div className="space-y-4">
-                            {modules.map(module => (
-                            <div key={module}>
-                                <h4 className="font-semibold mb-2">{formatModuleName(module)}</h4>
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                                {actions.map(action => (
-                                    <div key={action} className="flex items-center space-x-2">
-                                    <Checkbox
-                                        id={`${module}-${action}`}
-                                        checked={permissions[module]?.includes(action)}
-                                        onCheckedChange={(checked) => handlePermissionChange(module, action, !!checked)}
-                                    />
-                                    <label htmlFor={`${module}-${action}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                                        {action.charAt(0).toUpperCase() + action.slice(1)}
-                                    </label>
+                        <div className="space-y-6">
+                            {permissionGroups.map((group, groupIndex) => (
+                                <div key={group.name} className="space-y-4">
+                                    <h3 className="text-lg font-semibold">{group.name}</h3>
+                                    {group.modules.map(module => (
+                                    <div key={module}>
+                                        <h4 className="font-medium mb-2">{formatModuleName(module)}</h4>
+                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-2">
+                                        {actions.map(action => (
+                                            <div key={action} className="flex items-center space-x-2">
+                                            <Checkbox
+                                                id={`${module}-${action}`}
+                                                checked={permissions[module]?.includes(action)}
+                                                onCheckedChange={(checked) => handlePermissionChange(module, action, !!checked)}
+                                            />
+                                            <label htmlFor={`${module}-${action}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                                {action.charAt(0).toUpperCase() + action.slice(1)}
+                                            </label>
+                                            </div>
+                                        ))}
+                                        </div>
                                     </div>
-                                ))}
+                                    ))}
+                                    {groupIndex < permissionGroups.length -1 && <Separator className="mt-6"/>}
                                 </div>
-                            </div>
                             ))}
                         </div>
                         </ScrollArea>
