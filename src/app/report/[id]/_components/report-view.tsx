@@ -206,7 +206,10 @@ export default function ReportView({ reportId }: { reportId: string }) {
         @media print {
           @page {
             size: A4;
-            margin: 0;
+            margin-top: 0.8in;
+            margin-left: 0.8in;
+            margin-right: 0.8in;
+            margin-bottom: 0;
           }
           body {
             -webkit-print-color-adjust: exact;
@@ -225,7 +228,7 @@ export default function ReportView({ reportId }: { reportId: string }) {
             width: 100%;
             height: 50vh; /* Aims for half of an A4 page */
             margin: 0;
-            padding: 1rem;
+            padding: 0;
             border: none;
             font-size: 10px; /* Smaller base font size for print */
           }
