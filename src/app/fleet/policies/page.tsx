@@ -340,22 +340,30 @@ export default function PoliciesPage() {
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
+                            <div className="space-y-2 col-span-2">
                                 <Label htmlFor="type">Type</Label>
-                                <Select value={formState.type} onValueChange={(value: PolicyType) => handleSelectChange('type', value)}>
-                                    <SelectTrigger id="type"><SelectValue placeholder="Select type" /></SelectTrigger>
-                                    <SelectContent>
-                                        {policyTypes.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            {formState.type === 'Other' && (
-                                <div className="space-y-2">
-                                    <Label htmlFor="otherTypeDescription">Description for "Other"</Label>
-                                    <Input id="otherTypeDescription" name="otherTypeDescription" value={formState.otherTypeDescription} onChange={handleFormChange} />
+                                <div className="flex gap-2">
+                                    <Select value={formState.type} onValueChange={(value: PolicyType) => handleSelectChange('type', value)}>
+                                        <SelectTrigger id="type" className={formState.type === 'Other' ? 'w-1/2' : 'w-full'}>
+                                            <SelectValue placeholder="Select type" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {policyTypes.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                    {formState.type === 'Other' && (
+                                        <Input
+                                            id="otherTypeDescription"
+                                            name="otherTypeDescription"
+                                            value={formState.otherTypeDescription}
+                                            onChange={handleFormChange}
+                                            placeholder='Specify "Other" type'
+                                            className="w-1/2"
+                                        />
+                                    )}
                                 </div>
-                            )}
-                            <div className="space-y-2">
+                            </div>
+                            <div className="space-y-2 col-span-2">
                                 <Label htmlFor="provider">Provider</Label>
                                  <Popover open={isProviderPopoverOpen} onOpenChange={setIsProviderPopoverOpen}>
                                     <PopoverTrigger asChild>
