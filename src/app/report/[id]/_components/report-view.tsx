@@ -67,6 +67,7 @@ export default function ReportView({ reportId }: { reportId: string }) {
         <header className="text-center space-y-1 mb-4 relative">
             <div className="pt-8">
               <h1 className="text-xl font-bold">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
+              <h2 className="text-lg font-semibold">शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.</h2>
               <p className="text-sm">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
               <h2 className="text-lg font-semibold underline mt-1">TEST REPORT</h2>
             </div>
@@ -206,7 +207,7 @@ export default function ReportView({ reportId }: { reportId: string }) {
         @media print {
           @page {
             size: A4;
-            margin-top: 0.8in;
+            margin-top: 0.3in;
             margin-left: 0.8in;
             margin-right: 0.8in;
             margin-bottom: 0;
@@ -214,6 +215,7 @@ export default function ReportView({ reportId }: { reportId: string }) {
           body {
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
+            background-color: #fff;
           }
           body * {
             visibility: hidden;
