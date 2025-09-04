@@ -60,7 +60,7 @@ const initialSpecValues: ProductSpecification = {
   load: '',
 };
 
-type ProductSortKey = 'name' | 'materialCode' | 'companyName';
+type ProductSortKey = 'name' | 'materialCode' | 'companyName' | 'createdBy' | 'lastModifiedBy';
 type SortDirection = 'asc' | 'desc';
 
 export default function ProductsPage() {
@@ -220,8 +220,8 @@ export default function ProductsPage() {
 
     if (productSortConfig.key) {
       filteredProducts.sort((a, b) => {
-        const aValue = a[productSortConfig.key].toLowerCase();
-        const bValue = b[productSortConfig.key].toLowerCase();
+        const aValue = (a[productSortConfig.key] || '').toLowerCase();
+        const bValue = (b[productSortConfig.key] || '').toLowerCase();
 
         if (aValue < bValue) {
           return productSortConfig.direction === 'asc' ? -1 : 1;
@@ -285,6 +285,18 @@ export default function ProductsPage() {
                     <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
                 </TableHead>
+                <TableHead>
+                    <Button variant="ghost" onClick={() => requestProductSort('createdBy')}>
+                    Created By
+                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
+                </TableHead>
+                <TableHead>
+                    <Button variant="ghost" onClick={() => requestProductSort('lastModifiedBy')}>
+                    Last Modified By
+                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
+                </TableHead>
                 <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
             </TableHeader>
@@ -294,6 +306,8 @@ export default function ProductsPage() {
                     <TableCell className="font-medium">{product.name}</TableCell>
                     <TableCell>{product.materialCode}</TableCell>
                     <TableCell>{product.companyName}</TableCell>
+                    <TableCell>{product.createdBy}</TableCell>
+                    <TableCell>{product.lastModifiedBy || 'N/A'}</TableCell>
                     <TableCell className="text-right">
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -423,6 +437,7 @@ export default function ProductsPage() {
                                             <CommandList>
                                                 <CommandEmpty>
                                                     <button 
+                                                        type="button"
                                                         className="w-full text-left p-2 text-sm"
                                                         onClick={() => handleCompanySelect(newCompanyName)}
                                                     >
