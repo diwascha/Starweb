@@ -9,7 +9,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Printer } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
-import Image from 'next/image';
 import NepaliDate from 'nepali-date-converter';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
@@ -100,10 +99,7 @@ export default function PurchaseOrderView({ poId }: { poId: string }) {
 
       <div className="printable-area space-y-8 p-4 border rounded-lg bg-white text-black">
         <header className="text-center space-y-2 mb-8 relative">
-            <div className="absolute top-0 left-1/2 -translate-x-1/2">
-              <Image src="/logo.png" alt="Company Logo" width={100} height={100} />
-            </div>
-            <div className="pt-28">
+            <div className="pt-8">
               <h1 className="text-2xl font-bold">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
               <p>HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
               <h2 className="text-xl font-semibold underline mt-2">PURCHASE ORDER</h2>

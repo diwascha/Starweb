@@ -12,7 +12,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { getStatusBadgeVariant, toNepaliDate } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
-import Image from 'next/image';
 import { format, differenceInDays } from 'date-fns';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -114,13 +113,10 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col flex-1 h-full">
       <header className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <Image src="/logo.png" alt="Company Logo" width={80} height={80} />
-          <div>
+        <div>
             <h1 className="text-xl font-bold tracking-tight">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
             <h2 className="text-lg font-semibold">शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.</h2>
             <p className="text-sm text-muted-foreground mt-1">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
-          </div>
         </div>
         <div className="flex flex-col items-end gap-2">
             {isClient && <LiveDateTime />}

@@ -18,7 +18,6 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from './ui/button';
 import { useToast } from '@/hooks/use-toast';
-import Image from 'next/image';
 
 export function AppSidebar() {
   const pathname = usePathname();
@@ -54,7 +53,6 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader>
         <div className="flex items-center gap-2">
-          <Image src="/logo.png" alt="STARWEB logo" width={24} height={24} className="w-6 h-6" />
           <h1 className="text-xl font-semibold">STARWEB</h1>
         </div>
       </SidebarHeader>
