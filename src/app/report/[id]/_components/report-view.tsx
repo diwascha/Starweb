@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Printer } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import NepaliDate from 'nepali-date-converter';
+import Image from 'next/image';
 
 export default function ReportView({ reportId }: { reportId: string }) {
   const [reports, setReports] = useLocalStorage<Report[]>('reports', []);
@@ -65,6 +66,9 @@ export default function ReportView({ reportId }: { reportId: string }) {
 
       <div className="printable-area space-y-4 p-4 border rounded-lg bg-white text-black">
         <header className="text-center space-y-1 mb-4 relative">
+            <div className="absolute top-0 left-1/2 -translate-x-1/2">
+                <Image src="/logo.png" alt="Company Logo" width={100} height={100} className="mx-auto" />
+            </div>
             <div className="pt-8">
               <h1 className="text-xl font-bold">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
               <p className="text-sm">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
