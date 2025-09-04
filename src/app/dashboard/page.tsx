@@ -93,26 +93,27 @@ export default function DashboardPage() {
             <p className="text-sm text-muted-foreground mt-1">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
           </div>
         </div>
-        {isClient && <LiveDateTime />}
+        <div className="flex flex-col items-end gap-2">
+            {isClient && <LiveDateTime />}
+            <div className="flex items-center justify-end gap-2 mt-2">
+                {hasPermission('reports', 'create') && (
+                  <Button asChild>
+                    <Link href="/report/new">
+                      <PlusCircle className="mr-2 h-4 w-4" /> New QT Reports
+                    </Link>
+                  </Button>
+                )}
+                {hasPermission('purchaseOrders', 'create') && (
+                  <Button asChild variant="outline">
+                    <Link href="/purchase-orders/new">
+                      <ShoppingCart className="mr-2 h-4 w-4" /> New Purchase Order
+                    </Link>
+                  </Button>
+                )}
+            </div>
+        </div>
       </header>
 
-      <div className="flex items-center justify-center gap-2 mt-4">
-            {hasPermission('reports', 'create') && (
-              <Button asChild>
-                <Link href="/report/new">
-                  <PlusCircle className="mr-2 h-4 w-4" /> New QT Reports
-                </Link>
-              </Button>
-            )}
-            {hasPermission('purchaseOrders', 'create') && (
-              <Button asChild variant="outline">
-                <Link href="/purchase-orders/new">
-                  <ShoppingCart className="mr-2 h-4 w-4" /> New Purchase Order
-                </Link>
-              </Button>
-            )}
-      </div>
-      
       <Card className="mt-8">
         <CardHeader>
             <CardTitle>Recent Activity</CardTitle>
