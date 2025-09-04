@@ -71,7 +71,7 @@ export function DualCalendar({ selected, onSelect }: DualCalendarProps) {
   const calendarGrid = useMemo(() => {
     const firstDayOfMonth = new NepaliDate(displayYearBS, displayMonthBS, 1);
     const startingDayOfWeek = firstDayOfMonth.getDay(); // 0 for Sunday
-    const daysInMonth = firstDayOfMonth.getDaysInMonth();
+    const daysInMonth = NepaliDate.getDaysInMonth(displayYearBS, displayMonthBS);
 
     const grid = [];
     let day = 1;
