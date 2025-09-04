@@ -9,7 +9,8 @@ import { Calendar } from "@/components/ui/calendar"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { ChevronLeft, ChevronRight } from "lucide-react"
-import { DateRange, DayPickerRangeProps } from "react-day-picker"
+import { DateRange } from "react-day-picker"
+import { addDay, isAfter, isBefore, isEqual, startOfDay } from "date-fns"
 
 const nepaliMonths = [
   "Baishakh", "Jestha", "Ashadh", "Shrawan", "Bhadra", "Ashwin",
@@ -27,6 +28,7 @@ export function DualDateRangePicker({ selected, onSelect }: DualDateRangePickerP
   
   const initialDate = selected?.from || new Date();
   const [displayDateAD, setDisplayDateAD] = useState(initialDate);
+  const [hoveredDate, setHoveredDate] = useState<Date | null>(null);
 
   const nepaliDate = useMemo(() => new NepaliDate(displayDateAD), [displayDateAD]);
   const [displayYearBS, setDisplayYearBS] = useState(nepaliDate.getYear());
@@ -41,30 +43,41 @@ export function DualDateRangePicker({ selected, onSelect }: DualDateRangePickerP
       setDisplayMonthBS(newNepaliDate.getMonth());
     }
   };
-  
+
   const handleBSSelect = (day: number) => {
     try {
-        const date = new NepaliDate(displayYearBS, displayMonthBS, day);
-        const adDate = date.toJsDate();
-        const newRange: DateRange = { from: adDate, to: adDate };
-        
-        if (selected?.from && !selected.to) {
-            if (adDate > selected.from) {
-                newRange.from = selected.from;
-                newRange.to = adDate;
-            } else {
-                newRange.from = adDate;
-                newRange.to = selected.from;
-            }
+      const clickedADDate = new NepaliDate(displayYearBS, displayMonthBS, day).toJsDate();
+      
+      if (!selected?.from || selected.to) {
+        // Start a new range
+        onSelect({ from: clickedADDate, to: undefined });
+      } else {
+        // Complete the range
+        if (isBefore(clickedADDate, selected.from)) {
+          onSelect({ from: clickedADDate, to: selected.from });
+        } else {
+          onSelect({ from: selected.from, to: clickedADDate });
         }
-        
-        onSelect(newRange);
-        setDisplayDateAD(adDate);
-
+      }
+      setDisplayDateAD(clickedADDate);
     } catch (e) {
-        console.error("Invalid Nepali date selected", e);
+      console.error("Invalid Nepali date selected", e);
     }
   };
+  
+  const handleBSHover = (day: number | null) => {
+    if (!day) {
+        setHoveredDate(null);
+        return;
+    }
+    try {
+        const hovered = new NepaliDate(displayYearBS, displayMonthBS, day).toJsDate();
+        setHoveredDate(hovered);
+    } catch {
+        setHoveredDate(null);
+    }
+  };
+
 
   const changeMonthBS = (increment: number) => {
     let newMonth = displayMonthBS + increment;
@@ -86,8 +99,7 @@ export function DualDateRangePicker({ selected, onSelect }: DualDateRangePickerP
     const startingDayOfWeek = firstDayOfMonth.getDay();
     
     const nextMonthFirstDay = new NepaliDate(displayMonthBS === 11 ? displayYearBS + 1 : displayYearBS, (displayMonthBS + 1) % 12, 1);
-    nextMonthFirstDay.setDate(nextMonthFirstDay.getDate() - 1);
-    const daysInMonth = nextMonthFirstDay.getDate();
+    const daysInMonth = (nextMonthFirstDay.getTime() - firstDayOfMonth.getTime()) / (1000 * 60 * 60 * 24);
 
     const grid = [];
     let day = 1;
@@ -109,18 +121,36 @@ export function DualDateRangePicker({ selected, onSelect }: DualDateRangePickerP
     return grid;
   }, [displayYearBS, displayMonthBS]);
 
-  const selectedFromBS = selected?.from ? new NepaliDate(selected.from) : null;
-  const selectedToBS = selected?.to ? new NepaliDate(selected.to) : null;
-
-  const isDayInRange = (day: number) => {
-      if (!selectedFromBS || !selectedToBS) return false;
+  const getDayState = (day: number) => {
       try {
-          const currentDate = new NepaliDate(displayYearBS, displayMonthBS, day);
-          return currentDate.getTime() >= selectedFromBS.getTime() && currentDate.getTime() <= selectedToBS.getTime();
+        const currentDate = startOfDay(new NepaliDate(displayYearBS, displayMonthBS, day).toJsDate());
+        const from = selected?.from ? startOfDay(selected.from) : null;
+        const to = selected?.to ? startOfDay(selected.to) : null;
+        const hover = hoveredDate ? startOfDay(hoveredDate) : null;
+
+        const isFrom = from && isEqual(currentDate, from);
+        const isTo = to && isEqual(currentDate, to);
+
+        if (isFrom && isTo) return { variant: "default", text: "default" };
+        if (isFrom) return { variant: "default", text: "default" };
+        if (isTo) return { variant: "default", text: "default" };
+        
+        const inRange = from && to && isAfter(currentDate, from) && isBefore(currentDate, to);
+        if (inRange) return { variant: "secondary", text: "secondary" };
+
+        const inHoverRange = from && !to && hover && (
+            (isAfter(currentDate, from) && isBefore(currentDate, hover)) ||
+            (isBefore(currentDate, from) && isAfter(currentDate, hover))
+        );
+        if (inHoverRange) return { variant: "ghost", text: "muted-foreground" };
+
+        return { variant: "ghost", text: "foreground" };
+
       } catch {
-          return false;
+          return { variant: "ghost", text: "foreground" };
       }
-  }
+  };
+
 
   return (
     <div className="p-3">
@@ -163,20 +193,15 @@ export function DualDateRangePicker({ selected, onSelect }: DualDateRangePickerP
                         ))}
                     </tr>
                 </thead>
-                <tbody>
+                <tbody onMouseLeave={() => handleBSHover(null)}>
                     {calendarGrid.map((week, i) => (
                         <tr key={i} className="flex w-full mt-2">
                             {week.map((day, j) => (
-                                <td key={j} className="h-9 w-9 text-center text-sm p-0 relative">
+                                <td key={j} className="h-9 w-9 text-center text-sm p-0 relative" onMouseEnter={() => handleBSHover(day)}>
                                     {day && (
                                         <Button
-                                            variant={
-                                                (selectedFromBS?.getDate() === day && selectedFromBS?.getMonth() === displayMonthBS && selectedFromBS?.getYear() === displayYearBS) ||
-                                                (selectedToBS?.getDate() === day && selectedToBS?.getMonth() === displayMonthBS && selectedToBS?.getYear() === displayYearBS)
-                                                    ? 'default'
-                                                    : isDayInRange(day) ? 'secondary' : 'ghost'
-                                            }
-                                            className="h-9 w-9 p-0 font-normal"
+                                            variant={getDayState(day).variant as any}
+                                            className={`h-9 w-9 p-0 font-normal text-${getDayState(day).text}`}
                                             onClick={() => handleBSSelect(day)}
                                         >
                                             {day}
