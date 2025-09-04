@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 
 import PurchaseOrderView from './_components/purchase-order-view';
 

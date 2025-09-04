@@ -1,3 +1,5 @@
+export const runtime = 'edge';
+
 'use client';
 
 import { ReportForm } from '@/app/report/new/_components/report-form';
