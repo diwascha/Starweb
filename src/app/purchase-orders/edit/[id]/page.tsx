@@ -4,9 +4,11 @@ import { PurchaseOrderForm } from '@/app/purchase-orders/_components/purchase-or
 import useLocalStorage from '@/hooks/use-local-storage';
 import type { PurchaseOrder } from '@/lib/types';
 import { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
 
-export default function EditPurchaseOrderPage({ params }: { params: { id: string } }) {
-  const poId = params.id;
+export default function EditPurchaseOrderPage() {
+  const params = useParams();
+  const poId = Array.isArray(params.id) ? params.id[0] : params.id;
   const [purchaseOrders] = useLocalStorage<PurchaseOrder[]>('purchaseOrders', []);
   const [purchaseOrder, setPurchaseOrder] = useState<PurchaseOrder | null>(null);
   const [isLoading, setIsLoading] = useState(true);
