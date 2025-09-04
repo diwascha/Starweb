@@ -32,14 +32,6 @@ function LiveDateTime() {
   );
 }
 
-const quickAccessModules = [
-    { name: 'Test Report Mgmt', href: '/reports', icon: FileText, permission: 'reports' },
-    { name: 'Purchase Order Mgmt', href: '/purchase-orders', icon: ShoppingCart, permission: 'purchaseOrders' },
-    { name: 'HR Management', href: '/hr', icon: Users, permission: 'hr' },
-    { name: 'Fleet Management', href: '/fleet', icon: Truck, permission: 'fleet' },
-];
-
-
 export default function DashboardPage() {
   const [reports] = useLocalStorage<Report[]>('reports', []);
   const [purchaseOrders] = useLocalStorage<PurchaseOrder[]>('purchaseOrders', []);
@@ -121,22 +113,7 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <div>
-         <h2 className="text-xl font-bold tracking-tight mb-4">Quick Access</h2>
-         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            {quickAccessModules.filter(m => hasPermission(m.permission as any, 'view')).map((module) => (
-              <Link href={module.href} key={module.name}>
-                <Card className="h-full transition-all hover:shadow-md">
-                  <CardHeader className="flex flex-row items-center gap-4 space-y-0">
-                    <module.icon className="h-6 w-6 text-muted-foreground" />
-                    <CardTitle className="text-lg font-medium">{module.name}</CardTitle>
-                  </CardHeader>
-                </Card>
-              </Link>
-            ))}
-          </div>
-      </div>
-
+      <div className="flex-grow"></div>
 
       <Card>
         <CardHeader>
