@@ -117,7 +117,6 @@ export type VehicleStatus = 'Active' | 'In Maintenance' | 'Decommissioned';
 export interface Vehicle {
   id: string;
   name: string;
-  licensePlate: string;
   make: string;
   model: string;
   year: number;

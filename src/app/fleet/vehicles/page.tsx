@@ -37,7 +37,7 @@ import { useAuth } from '@/hooks/use-auth';
 
 const vehicleStatuses: VehicleStatus[] = ['Active', 'In Maintenance', 'Decommissioned'];
 
-type VehicleSortKey = 'name' | 'licensePlate' | 'make' | 'model' | 'status' | 'driverName';
+type VehicleSortKey = 'name' | 'make' | 'model' | 'status' | 'driverName';
 type SortDirection = 'asc' | 'desc';
 
 export default function VehiclesPage() {
@@ -49,7 +49,6 @@ export default function VehiclesPage() {
     const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
     const [formState, setFormState] = useState<Omit<Vehicle, 'id'>>({
         name: '',
-        licensePlate: '',
         make: '',
         model: '',
         year: new Date().getFullYear(),
@@ -74,7 +73,6 @@ export default function VehiclesPage() {
         setEditingVehicle(null);
         setFormState({
             name: '',
-            licensePlate: '',
             make: '',
             model: '',
             year: new Date().getFullYear(),
@@ -104,8 +102,8 @@ export default function VehiclesPage() {
     };
 
     const handleSubmit = () => {
-        if (!formState.name || !formState.licensePlate) {
-            toast({ title: 'Error', description: 'Vehicle Name and License Plate are required.', variant: 'destructive' });
+        if (!formState.name) {
+            toast({ title: 'Error', description: 'Vehicle Name / Number is required.', variant: 'destructive' });
             return;
         }
 
@@ -145,7 +143,6 @@ export default function VehiclesPage() {
             const lowercasedQuery = searchQuery.toLowerCase();
             augmentedVehicles = augmentedVehicles.filter(v =>
                 v.name.toLowerCase().includes(lowercasedQuery) ||
-                v.licensePlate.toLowerCase().includes(lowercasedQuery) ||
                 v.make.toLowerCase().includes(lowercasedQuery) ||
                 v.model.toLowerCase().includes(lowercasedQuery) ||
                 v.driverName.toLowerCase().includes(lowercasedQuery)
@@ -193,8 +190,7 @@ export default function VehiclesPage() {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('name')}>Name <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('licensePlate')}>License Plate <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('name')}>Name / Number <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('make')}>Make <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('model')}>Model <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('driverName')}>Assigned Driver <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
@@ -206,7 +202,6 @@ export default function VehiclesPage() {
                         {sortedAndFilteredVehicles.map(vehicle => (
                             <TableRow key={vehicle.id}>
                                 <TableCell>{vehicle.name}</TableCell>
-                                <TableCell>{vehicle.licensePlate}</TableCell>
                                 <TableCell>{vehicle.make}</TableCell>
                                 <TableCell>{vehicle.model}</TableCell>
                                 <TableCell>{vehicle.driverName}</TableCell>
@@ -275,15 +270,9 @@ export default function VehiclesPage() {
                     <DialogDescription>{editingVehicle ? 'Update the details for this vehicle.' : 'Enter the details for the new vehicle.'}</DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="name">Vehicle Name</Label>
-                            <Input id="name" name="name" value={formState.name} onChange={handleFormChange} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="licensePlate">License Plate</Label>
-                            <Input id="licensePlate" name="licensePlate" value={formState.licensePlate} onChange={handleFormChange} />
-                        </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="name">Vehicle Name / Number</Label>
+                        <Input id="name" name="name" value={formState.name} onChange={handleFormChange} />
                     </div>
                      <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
