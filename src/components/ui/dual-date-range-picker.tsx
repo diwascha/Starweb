@@ -98,8 +98,9 @@ export function DualDateRangePicker({ selected, onSelect }: DualDateRangePickerP
     const firstDayOfMonth = new NepaliDate(displayYearBS, displayMonthBS, 1);
     const startingDayOfWeek = firstDayOfMonth.getDay();
     
-    const nextMonthFirstDay = new NepaliDate(displayMonthBS === 11 ? displayYearBS + 1 : displayYearBS, (displayMonthBS + 1) % 12, 1);
-    const daysInMonth = (nextMonthFirstDay.getTime() - firstDayOfMonth.getTime()) / (1000 * 60 * 60 * 24);
+    // Get the number of days in the month using the library's functionality.
+    const tempDate = new NepaliDate(displayYearBS, displayMonthBS, 1);
+    const daysInMonth = tempDate.getMonthDays();
 
     const grid = [];
     let day = 1;
