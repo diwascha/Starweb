@@ -16,7 +16,6 @@ import { useAuth } from '@/hooks/use-auth';
 import useLocalStorage from '@/hooks/use-local-storage';
 import type { User } from '@/lib/types';
 import { getAdminCredentials } from '@/lib/utils';
-import Image from 'next/image';
 
 const loginSchema = z.object({
   username: z.string().min(1, { message: 'Username is required' }),
@@ -92,7 +91,6 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-md">
          <div className="flex justify-center items-center gap-2 mb-6">
-            <Image src="/logo.png" alt="Company Logo" width={60} height={60} />
             <h1 className="text-3xl font-semibold">STARWEB</h1>
         </div>
         <Card>

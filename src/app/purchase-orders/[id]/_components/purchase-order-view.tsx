@@ -14,7 +14,6 @@ import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { differenceInDays } from 'date-fns';
-import Image from 'next/image';
 
 const paperTypes = ['Kraft Paper', 'Virgin Paper'];
 
@@ -100,9 +99,6 @@ export default function PurchaseOrderView({ poId }: { poId: string }) {
 
       <div className="printable-area space-y-8 p-4 border rounded-lg bg-white text-black">
         <header className="text-center space-y-2 mb-8 relative">
-            <div className="absolute top-0 left-1/2 -translate-x-1/2">
-                <Image src="/logo.png" alt="Company Logo" width={100} height={100} className="mx-auto" />
-            </div>
             <div className="pt-8">
               <h1 className="text-2xl font-bold">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
               <p>HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
