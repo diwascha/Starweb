@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import useLocalStorage from '@/hooks/use-local-storage';
-import type { Vehicle, VehicleStatus } from '@/lib/types';
+import type { Vehicle, VehicleStatus, Driver } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -37,11 +37,12 @@ import { useAuth } from '@/hooks/use-auth';
 
 const vehicleStatuses: VehicleStatus[] = ['Active', 'In Maintenance', 'Decommissioned'];
 
-type VehicleSortKey = 'name' | 'licensePlate' | 'make' | 'model' | 'status';
+type VehicleSortKey = 'name' | 'licensePlate' | 'make' | 'model' | 'status' | 'driverName';
 type SortDirection = 'asc' | 'desc';
 
 export default function VehiclesPage() {
     const [vehicles, setVehicles] = useLocalStorage<Vehicle[]>('vehicles', []);
+    const [drivers] = useLocalStorage<Driver[]>('drivers', []);
     const [isClient, setIsClient] = useState(false);
     
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -54,6 +55,7 @@ export default function VehiclesPage() {
         year: new Date().getFullYear(),
         vin: '',
         status: 'Active',
+        driverId: undefined,
     });
     
     const [searchQuery, setSearchQuery] = useState('');
@@ -61,6 +63,8 @@ export default function VehiclesPage() {
 
     const { toast } = useToast();
     const { hasPermission } = useAuth();
+    
+    const driversById = useMemo(() => new Map(drivers.map(d => [d.id, d.name])), [drivers]);
 
     useEffect(() => {
         setIsClient(true);
@@ -76,6 +80,7 @@ export default function VehiclesPage() {
             year: new Date().getFullYear(),
             vin: '',
             status: 'Active',
+            driverId: undefined,
         });
     };
 
@@ -131,23 +136,31 @@ export default function VehiclesPage() {
     };
 
     const sortedAndFilteredVehicles = useMemo(() => {
-        let filtered = [...vehicles];
+        let augmentedVehicles = vehicles.map(v => ({
+            ...v,
+            driverName: v.driverId ? (driversById.get(v.driverId) || 'Unassigned') : 'Unassigned'
+        }));
+
         if (searchQuery) {
             const lowercasedQuery = searchQuery.toLowerCase();
-            filtered = filtered.filter(v =>
+            augmentedVehicles = augmentedVehicles.filter(v =>
                 v.name.toLowerCase().includes(lowercasedQuery) ||
                 v.licensePlate.toLowerCase().includes(lowercasedQuery) ||
                 v.make.toLowerCase().includes(lowercasedQuery) ||
-                v.model.toLowerCase().includes(lowercasedQuery)
+                v.model.toLowerCase().includes(lowercasedQuery) ||
+                v.driverName.toLowerCase().includes(lowercasedQuery)
             );
         }
-        filtered.sort((a, b) => {
-            if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
-            if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'asc' ? 1 : -1;
+
+        augmentedVehicles.sort((a, b) => {
+            const aVal = a[sortConfig.key];
+            const bVal = b[sortConfig.key];
+            if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
             return 0;
         });
-        return filtered;
-    }, [vehicles, searchQuery, sortConfig]);
+        return augmentedVehicles;
+    }, [vehicles, searchQuery, sortConfig, driversById]);
 
 
     const renderContent = () => {
@@ -184,6 +197,7 @@ export default function VehiclesPage() {
                             <TableHead><Button variant="ghost" onClick={() => requestSort('licensePlate')}>License Plate <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('make')}>Make <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('model')}>Model <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('driverName')}>Assigned Driver <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('status')}>Status <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
@@ -195,6 +209,7 @@ export default function VehiclesPage() {
                                 <TableCell>{vehicle.licensePlate}</TableCell>
                                 <TableCell>{vehicle.make}</TableCell>
                                 <TableCell>{vehicle.model}</TableCell>
+                                <TableCell>{vehicle.driverName}</TableCell>
                                 <TableCell>{vehicle.status}</TableCell>
                                 <TableCell className="text-right">
                                     <DropdownMenu>
@@ -228,7 +243,7 @@ export default function VehiclesPage() {
                 <header className="flex items-center justify-between">
                     <div>
                         <h1 className="text-3xl font-bold tracking-tight">Vehicles</h1>
-                        <p className="text-muted-foreground">Manage your fleet of vehicles.</p>
+                        <p className="text-muted-foreground">Manage your fleet of vehicles and driver assignments.</p>
                     </div>
                     <div className="flex items-center gap-2">
                         {isClient && vehicles.length > 0 && (
@@ -254,7 +269,7 @@ export default function VehiclesPage() {
                 </header>
                 {renderContent()}
             </div>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
                     <DialogTitle>{editingVehicle ? 'Edit Vehicle' : 'Add New Vehicle'}</DialogTitle>
                     <DialogDescription>{editingVehicle ? 'Update the details for this vehicle.' : 'Enter the details for the new vehicle.'}</DialogDescription>
@@ -290,15 +305,27 @@ export default function VehiclesPage() {
                             <Input id="vin" name="vin" value={formState.vin} onChange={handleFormChange} />
                         </div>
                     </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="status">Status</Label>
-                        <Select value={formState.status} onValueChange={(value: VehicleStatus) => handleSelectChange('status', value)}>
-                            <SelectTrigger id="status"><SelectValue placeholder="Select status" /></SelectTrigger>
-                            <SelectContent>
-                                {vehicleStatuses.map(status => <SelectItem key={status} value={status}>{status}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                    </div>
+                     <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="driverId">Assigned Driver</Label>
+                            <Select value={formState.driverId} onValueChange={(value) => handleSelectChange('driverId', value)}>
+                                <SelectTrigger id="driverId"><SelectValue placeholder="Select a driver" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="">Unassigned</SelectItem>
+                                    {drivers.map(driver => <SelectItem key={driver.id} value={driver.id}>{driver.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="status">Status</Label>
+                            <Select value={formState.status} onValueChange={(value: VehicleStatus) => handleSelectChange('status', value)}>
+                                <SelectTrigger id="status"><SelectValue placeholder="Select status" /></SelectTrigger>
+                                <SelectContent>
+                                    {vehicleStatuses.map(status => <SelectItem key={status} value={status}>{status}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                     </div>
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>

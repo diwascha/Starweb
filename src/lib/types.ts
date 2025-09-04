@@ -123,6 +123,7 @@ export interface Vehicle {
   year: number;
   vin: string;
   status: VehicleStatus;
+  driverId?: string;
 }
 
 export interface Driver {
