@@ -81,7 +81,7 @@ const ADMIN_CREDS_KEY = 'admin_credentials';
 
 const defaultAdminCreds = { 
   username: 'Administrator', 
-  password: 'Admin@user1',
+  password: 'B#akt@pur10',
   passwordLastUpdated: new Date().toISOString(),
 };
 
@@ -144,3 +144,5 @@ export const validatePassword = (password: string, isRequired: boolean = true): 
     }
     return { isValid: true };
 }
+
+    

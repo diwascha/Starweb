@@ -96,7 +96,7 @@ export default function SettingsPage() {
       router.push('/login');
       return;
     }
-    if (!loading && currentUser && !hasPermission('settings', 'view')) {
+    if (!loading && currentUser && !currentUser.is_admin && !hasPermission('settings', 'view')) {
       toast({ title: 'Access Denied', description: 'You do not have permission to view this page.', variant: 'destructive' });
       router.push('/dashboard');
     }
@@ -369,3 +369,5 @@ export default function SettingsPage() {
     </div>
   );
 }
+
+    

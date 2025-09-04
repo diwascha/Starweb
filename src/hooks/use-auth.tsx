@@ -145,6 +145,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     if (user && !isAuthPage) {
+        // Admins can see all pages
+        if (user.is_admin) {
+            return;
+        }
+
         const pathSegments = pathname.split('/').filter(Boolean);
         if (pathSegments.length === 0) return; // Root page is handled by page.tsx
 
@@ -186,3 +191,5 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 };
 
 export const useAuth = () => useContext(AuthContext);
+
+    
