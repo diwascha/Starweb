@@ -43,13 +43,10 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
     try {
-      // Check for administrator first.
-      const adminCreds = getAdminCredentials();
-      const defaultAdminPassword = 'admin'; // Hardcoded default for initial login
-      const currentAdminPassword = adminCreds.password || defaultAdminPassword;
-
-      if (data.username === adminCreds.username && data.password === currentAdminPassword) {
-        await login({ id: 'admin', username: data.username, permissions: {} });
+      // Hardcoded check for Administrator
+      if (data.username === 'Administrator' && data.password === 'admin') {
+        const adminCreds = getAdminCredentials(); // Still get this to check for passwordLastUpdated
+        await login({ id: 'admin', username: 'Administrator', permissions: {}, passwordLastUpdated: adminCreds.passwordLastUpdated });
         toast({
           title: 'Success',
           description: 'Logged in successfully as Administrator.',
@@ -58,7 +55,7 @@ export default function LoginPage() {
         return;
       }
       
-      // Then, check against users in local storage
+      // Then, check against users in local storage for non-admin users
       const foundUser = users.find(
         (user) => user.username === data.username && user.password === data.password
       );
