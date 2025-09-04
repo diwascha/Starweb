@@ -81,7 +81,7 @@ const ADMIN_CREDS_KEY = 'admin_credentials';
 
 const defaultAdminCreds = { 
   username: 'Administrator', 
-  password: 'B#akt@pur10',
+  password: 'Admin@123',
   passwordLastUpdated: new Date().toISOString(),
 };
 
