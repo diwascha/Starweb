@@ -32,7 +32,7 @@ import { Input } from '@/components/ui/input';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 
-type ReportSortKey = 'serialNumber' | 'productName' | 'taxInvoiceNumber' | 'challanNumber' | 'quantity';
+type ReportSortKey = 'serialNumber' | 'productName' | 'taxInvoiceNumber' | 'challanNumber' | 'quantity' | 'createdBy' | 'lastModifiedBy';
 type SortDirection = 'asc' | 'desc';
 
 export default function ReportsListPage() {
@@ -122,6 +122,14 @@ export default function ReportsListPage() {
             aValue = a.quantity.toLowerCase();
             bValue = b.quantity.toLowerCase();
             break;
+          case 'createdBy':
+            aValue = (a.createdBy || '').toLowerCase();
+            bValue = (b.createdBy || '').toLowerCase();
+            break;
+          case 'lastModifiedBy':
+            aValue = (a.lastModifiedBy || '').toLowerCase();
+            bValue = (b.lastModifiedBy || '').toLowerCase();
+            break;
           case 'serialNumber':
           default:
             aValue = parseInt((a.serialNumber || '0').split('-')[1] || '0', 10);
@@ -207,6 +215,18 @@ export default function ReportsListPage() {
                     <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
                 </TableHead>
+                <TableHead>
+                    <Button variant="ghost" onClick={() => requestReportSort('createdBy')}>
+                    Created By
+                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
+                </TableHead>
+                 <TableHead>
+                    <Button variant="ghost" onClick={() => requestReportSort('lastModifiedBy')}>
+                    Last Modified By
+                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
+                </TableHead>
                 <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
             </TableHeader>
@@ -218,6 +238,8 @@ export default function ReportsListPage() {
                     <TableCell>{report.taxInvoiceNumber}</TableCell>
                     <TableCell>{report.challanNumber}</TableCell>
                     <TableCell>{report.quantity}</TableCell>
+                    <TableCell>{report.createdBy}</TableCell>
+                    <TableCell>{report.lastModifiedBy || 'N/A'}</TableCell>
                     <TableCell className="text-right">
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
