@@ -65,15 +65,17 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex justify-center mb-6">
-          <Image src="/logo.png" alt="Company Logo" width={120} height={120} />
-      </div>
       <header className="flex flex-col md:flex-row items-center justify-between text-center md:text-left gap-4">
-        <div>
+        <div className="flex flex-col items-center w-full">
           <h1 className="text-3xl font-bold tracking-tight">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
-          <p className="text-muted-foreground">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
+          <h2 className="text-2xl font-semibold mt-1">शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.</h2>
+          <p className="text-muted-foreground mt-2">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
+          <div className="mt-4">
+            <Image src="/logo.png" alt="Company Logo" width={120} height={120} />
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+      </header>
+       <div className="flex items-center justify-center gap-2 mt-4">
             {hasPermission('reports', 'create') && (
               <Button asChild>
                 <Link href="/report/new">
@@ -89,15 +91,14 @@ export default function DashboardPage() {
               </Button>
             )}
         </div>
-      </header>
       
-      <Card>
+      <Card className="mt-8">
         <CardHeader>
             <CardTitle>Recent Activity</CardTitle>
             <CardDescription>A log of the most recent purchase orders and test reports created.</CardDescription>
         </CardHeader>
         <CardContent>
-             <ScrollArea className="h-[calc(100vh-28rem)]">
+             <ScrollArea className="h-[calc(100vh-32rem)]">
                 {recentActivities.length > 0 ? (
                     <div className="space-y-4">
                         {recentActivities.map((activity) => (
