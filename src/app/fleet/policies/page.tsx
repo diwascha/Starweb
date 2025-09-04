@@ -36,9 +36,11 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/use-auth';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { format } from 'date-fns';
+import { format, differenceInDays, startOfToday } from 'date-fns';
 import { cn, toNepaliDate } from '@/lib/utils';
 import { DualCalendar } from '@/components/ui/dual-calendar';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
 
 type PolicySortKey = 'type' | 'provider' | 'policyNumber' | 'endDate' | 'memberName';
 type SortDirection = 'asc' | 'desc';
@@ -230,11 +232,30 @@ export default function PoliciesPage() {
         }
         setSortConfig({ key, direction });
     };
+    
+    const getExpiryStatus = (endDate: string) => {
+        const today = startOfToday();
+        const expiryDate = new Date(endDate);
+        const daysRemaining = differenceInDays(expiryDate, today);
+
+        if (daysRemaining < 0) {
+            return { text: `Expired ${-daysRemaining} days ago`, color: 'bg-red-500', days: daysRemaining };
+        }
+        if (daysRemaining <= 7) {
+            return { text: `Expires in ${daysRemaining} days`, color: 'bg-orange-500', days: daysRemaining };
+        }
+        if (daysRemaining <= 30) {
+            return { text: `Expires in ${daysRemaining} days`, color: 'bg-yellow-500', days: daysRemaining };
+        }
+        return { text: `Expires in ${daysRemaining} days`, color: 'bg-green-500', days: daysRemaining };
+    };
+
 
     const sortedAndFilteredPolicies = useMemo(() => {
         let augmentedPolicies = policies.map(p => ({
             ...p,
-            memberName: membersById.get(`${p.memberType}-${p.memberId}`) || 'N/A'
+            memberName: membersById.get(`${p.memberType}-${p.memberId}`) || 'N/A',
+            expiryStatus: getExpiryStatus(p.endDate)
         }));
 
         if (searchQuery) {
@@ -254,8 +275,16 @@ export default function PoliciesPage() {
             }
         }
 
-
         augmentedPolicies.sort((a, b) => {
+            if (sortConfig.key === 'endDate') {
+                // Special sorting for expiryStatus
+                const aDays = a.expiryStatus.days;
+                const bDays = b.expiryStatus.days;
+                if (aDays < bDays) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (aDays > bDays) return sortConfig.direction === 'asc' ? 1 : -1;
+                return 0;
+            }
+
             const aVal = a[sortConfig.key];
             const bVal = b[sortConfig.key];
             if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
@@ -301,6 +330,7 @@ export default function PoliciesPage() {
                             <TableHead><Button variant="ghost" onClick={() => requestSort('policyNumber')}>Policy/ID Number <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('memberName')}>For <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('endDate')}>Expiry Date (BS) <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                            <TableHead>Status</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -312,6 +342,21 @@ export default function PoliciesPage() {
                                 <TableCell>{policy.policyNumber}</TableCell>
                                 <TableCell>{policy.memberName}</TableCell>
                                 <TableCell>{toNepaliDate(policy.endDate)}</TableCell>
+                                <TableCell>
+                                     <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger>
+                                                <div className="flex items-center gap-2">
+                                                    <span className={cn("h-2 w-2 rounded-full", policy.expiryStatus.color)}></span>
+                                                    <span>{policy.expiryStatus.text}</span>
+                                                </div>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Expires on {format(new Date(policy.endDate), "PPP")}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                     </TooltipProvider>
+                                </TableCell>
                                 <TableCell className="text-right">
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
@@ -401,7 +446,7 @@ export default function PoliciesPage() {
                         <DialogDescription>{editingPolicy ? 'Update the details for this record.' : 'Enter the details for the new policy or membership.'}</DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-6 py-4">
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                              <div className="space-y-2">
                                 <Label htmlFor="type">Type</Label>
                                  <Popover open={isTypePopoverOpen} onOpenChange={setIsTypePopoverOpen}>
@@ -487,7 +532,7 @@ export default function PoliciesPage() {
                             <Label htmlFor="policyNumber">Policy / ID Number</Label>
                             <Input id="policyNumber" name="policyNumber" value={formState.policyNumber} onChange={handleFormChange} />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="memberType">For</Label>
                                 <Select value={formState.memberType} onValueChange={(value: 'Vehicle' | 'Driver') => handleSelectChange('memberType', value)}>
@@ -512,7 +557,7 @@ export default function PoliciesPage() {
                                 </Select>
                             </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="startDate">Start Date</Label>
                                 <Popover>
