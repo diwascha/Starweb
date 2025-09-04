@@ -202,9 +202,11 @@ export default function TransactionsPage() {
                     <h3 className="text-2xl font-bold tracking-tight">No transactions found</h3>
                     <p className="text-sm text-muted-foreground">Get started by adding a new income or expense record.</p>
                     {hasPermission('fleet', 'create') && (
-                        <Button className="mt-4" onClick={() => handleOpenDialog()}>
-                            <Plus className="mr-2 h-4 w-4" /> Add Transaction
-                        </Button>
+                        <DialogTrigger asChild>
+                            <Button className="mt-4" onClick={() => handleOpenDialog()}>
+                                <Plus className="mr-2 h-4 w-4" /> Add Transaction
+                            </Button>
+                        </DialogTrigger>
                     )}
                   </div>
                 </div>
@@ -286,9 +288,11 @@ export default function TransactionsPage() {
                             </div>
                         )}
                         {hasPermission('fleet', 'create') && (
-                            <Button onClick={() => handleOpenDialog()}>
-                                <Plus className="mr-2 h-4 w-4" /> Add Transaction
-                            </Button>
+                            <DialogTrigger asChild>
+                                <Button onClick={() => handleOpenDialog()}>
+                                    <Plus className="mr-2 h-4 w-4" /> Add Transaction
+                                </Button>
+                            </DialogTrigger>
                         )}
                     </div>
                 </header>
