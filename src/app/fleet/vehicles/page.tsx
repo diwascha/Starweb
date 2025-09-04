@@ -100,7 +100,7 @@ export default function VehiclesPage() {
     };
     
     const handleSelectChange = (name: keyof Omit<Vehicle, 'id'>, value: string) => {
-        setFormState(prev => ({ ...prev, [name]: value }));
+        setFormState(prev => ({ ...prev, [name]: value === 'unassigned' ? undefined : value }));
     };
 
     const handleSubmit = () => {
@@ -308,10 +308,10 @@ export default function VehiclesPage() {
                      <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="driverId">Assigned Driver</Label>
-                            <Select value={formState.driverId} onValueChange={(value) => handleSelectChange('driverId', value)}>
+                            <Select value={formState.driverId || 'unassigned'} onValueChange={(value) => handleSelectChange('driverId', value)}>
                                 <SelectTrigger id="driverId"><SelectValue placeholder="Select a driver" /></SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">Unassigned</SelectItem>
+                                    <SelectItem value="unassigned">Unassigned</SelectItem>
                                     {drivers.map(driver => <SelectItem key={driver.id} value={driver.id}>{driver.name}</SelectItem>)}
                                 </SelectContent>
                             </Select>

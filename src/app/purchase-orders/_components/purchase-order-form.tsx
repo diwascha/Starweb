@@ -626,7 +626,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                         </TableBody>
                     </Table>
                 </div>
-                {form.formState.errors.items?.message && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.items.message}</p>}
+                {form.formState.errors.items?.root?.message && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.items.root.message}</p>}
             </CardContent>
           </Card>
           <Button type="submit" disabled={isSubmitting}>
