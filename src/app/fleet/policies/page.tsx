@@ -40,7 +40,7 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 
-const policyTypes: PolicyType[] = ['Insurance', 'Membership'];
+const policyTypes: PolicyType[] = ['Insurance', 'Membership', 'Other'];
 
 type PolicySortKey = 'type' | 'provider' | 'policyNumber' | 'endDate' | 'memberName';
 type SortDirection = 'asc' | 'desc';
@@ -55,6 +55,7 @@ export default function PoliciesPage() {
     const [editingPolicy, setEditingPolicy] = useState<PolicyOrMembership | null>(null);
     const [formState, setFormState] = useState<Omit<PolicyOrMembership, 'id'>>({
         type: 'Insurance',
+        otherTypeDescription: '',
         provider: '',
         policyNumber: '',
         startDate: new Date().toISOString(),
@@ -85,6 +86,7 @@ export default function PoliciesPage() {
         setEditingPolicy(null);
         setFormState({
             type: 'Insurance',
+            otherTypeDescription: '',
             provider: '',
             policyNumber: '',
             startDate: new Date().toISOString(),
@@ -98,7 +100,10 @@ export default function PoliciesPage() {
     const handleOpenDialog = (policy: PolicyOrMembership | null = null) => {
         if (policy) {
             setEditingPolicy(policy);
-            setFormState(policy);
+            setFormState({
+                ...policy,
+                otherTypeDescription: policy.otherTypeDescription || '',
+            });
         } else {
             resetForm();
         }
@@ -124,8 +129,9 @@ export default function PoliciesPage() {
     };
 
     const handleSubmit = () => {
-        if (!formState.provider || !formState.policyNumber || !formState.memberId) {
-            toast({ title: 'Error', description: 'Provider, Policy Number, and associated Vehicle/Driver are required.', variant: 'destructive' });
+        const isOtherAndEmpty = formState.type === 'Other' && !formState.otherTypeDescription?.trim();
+        if (!formState.provider || !formState.policyNumber || !formState.memberId || isOtherAndEmpty) {
+            toast({ title: 'Error', description: 'Provider, Policy Number, associated Vehicle/Driver, and a description for "Other" type are required.', variant: 'destructive' });
             return;
         }
 
@@ -158,6 +164,7 @@ export default function PoliciesPage() {
     const sortedAndFilteredPolicies = useMemo(() => {
         let augmentedPolicies = policies.map(p => ({
             ...p,
+            displayType: p.type === 'Other' ? p.otherTypeDescription || 'Other' : p.type,
             memberName: membersById.get(`${p.memberType}-${p.memberId}`) || 'N/A'
         }));
 
@@ -166,7 +173,8 @@ export default function PoliciesPage() {
             augmentedPolicies = augmentedPolicies.filter(p =>
                 p.provider.toLowerCase().includes(lowercasedQuery) ||
                 p.policyNumber.toLowerCase().includes(lowercasedQuery) ||
-                p.memberName.toLowerCase().includes(lowercasedQuery)
+                p.memberName.toLowerCase().includes(lowercasedQuery) ||
+                (p.displayType || '').toLowerCase().includes(lowercasedQuery)
             );
         }
 
@@ -222,7 +230,7 @@ export default function PoliciesPage() {
                     <TableBody>
                         {sortedAndFilteredPolicies.map(policy => (
                             <TableRow key={policy.id}>
-                                <TableCell>{policy.type}</TableCell>
+                                <TableCell>{policy.displayType}</TableCell>
                                 <TableCell>{policy.provider}</TableCell>
                                 <TableCell>{policy.policyNumber}</TableCell>
                                 <TableCell>{policy.memberName}</TableCell>
@@ -301,6 +309,12 @@ export default function PoliciesPage() {
                                 </SelectContent>
                             </Select>
                         </div>
+                        {formState.type === 'Other' && (
+                            <div className="space-y-2">
+                                <Label htmlFor="otherTypeDescription">Description for "Other"</Label>
+                                <Input id="otherTypeDescription" name="otherTypeDescription" value={formState.otherTypeDescription} onChange={handleFormChange} />
+                            </div>
+                        )}
                         <div className="space-y-2">
                             <Label htmlFor="provider">Provider</Label>
                             <Input id="provider" name="provider" value={formState.provider} onChange={handleFormChange} />
@@ -374,5 +388,3 @@ export default function PoliciesPage() {
         </Dialog>
     );
 }
-
-    
