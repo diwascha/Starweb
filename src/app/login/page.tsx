@@ -43,13 +43,16 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
     try {
-      const { username: adminUsername, password: adminPassword } = getAdminCredentials();
-       // First, check for administrator
-      if (data.username === adminUsername && data.password === adminPassword) {
+      // Check for administrator first.
+      const adminCreds = getAdminCredentials();
+      const defaultAdminPassword = 'admin'; // Hardcoded default for initial login
+      const currentAdminPassword = adminCreds.password || defaultAdminPassword;
+
+      if (data.username === adminCreds.username && data.password === currentAdminPassword) {
         await login({ id: 'admin', username: data.username, permissions: {} });
         toast({
           title: 'Success',
-          description: 'Logged in successfully.',
+          description: 'Logged in successfully as Administrator.',
         });
         router.push('/dashboard');
         return;
