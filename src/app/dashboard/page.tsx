@@ -7,7 +7,7 @@ import type { Report, PurchaseOrder } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, FileText, Package, ShoppingCart, Users, Truck, Building2 } from 'lucide-react';
+import { PlusCircle, FileText, Package, ShoppingCart } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { getStatusBadgeVariant, toNepaliDate } from '@/lib/utils';

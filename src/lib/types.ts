@@ -176,15 +176,9 @@ export type Permissions = {
   [key in Module]?: Action[];
 };
 
-export interface Role {
-  id: string;
-  name: string;
-  permissions: Permissions;
-}
-
 export interface User {
   id: string;
   username: string;
   password?: string;
-  roleId: string; 
+  permissions: Permissions;
 }

@@ -77,4 +77,55 @@ export const toNepaliDate = (isoDate: string): string => {
     }
 };
 
-    
+const ADMIN_CREDS_KEY = 'admin_credentials';
+
+export const getAdminCredentials = (): { username: string, password?: string } => {
+  if (typeof window === 'undefined') {
+    return { username: 'Administrator', password: 'Admin@user1' };
+  }
+  const storedCreds = localStorage.getItem(ADMIN_CREDS_KEY);
+  if (storedCreds) {
+    try {
+      return JSON.parse(storedCreds);
+    } catch {
+      // Fallback if parsing fails
+      return { username: 'Administrator', password: 'Admin@user1' };
+    }
+  }
+  return { username: 'Administrator', password: 'Admin@user1' };
+};
+
+export const setAdminPassword = (newPassword: string): void => {
+  if (typeof window !== 'undefined') {
+    const creds = getAdminCredentials();
+    creds.password = newPassword;
+    localStorage.setItem(ADMIN_CREDS_KEY, JSON.stringify(creds));
+  }
+};
+
+export const validatePassword = (password: string, isRequired: boolean = true): { isValid: boolean, error?: string } => {
+    if (!isRequired && !password) {
+        return { isValid: true };
+    }
+
+    if (isRequired && !password) {
+        return { isValid: false, error: 'Password is required.' };
+    }
+
+    if (password.length < 8) {
+        return { isValid: false, error: 'Password must be at least 8 characters long.' };
+    }
+    if (!/[a-z]/.test(password)) {
+        return { isValid: false, error: 'Password must contain a lowercase letter.' };
+    }
+    if (!/[A-Z]/.test(password)) {
+        return { isValid: false, error: 'Password must contain an uppercase letter.' };
+    }
+    if (!/[0-9]/.test(password)) {
+        return { isValid: false, error: 'Password must contain a number.' };
+    }
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+        return { isValid: false, error: 'Password must contain a special character.' };
+    }
+    return { isValid: true };
+}

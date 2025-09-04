@@ -16,6 +16,7 @@ import { useAuth } from '@/hooks/use-auth';
 import useLocalStorage from '@/hooks/use-local-storage';
 import type { User } from '@/lib/types';
 import Image from 'next/image';
+import { getAdminCredentials } from '@/lib/utils';
 
 const loginSchema = z.object({
   username: z.string().min(1, { message: 'Username is required' }),
@@ -42,9 +43,10 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
     try {
-       // First, check for hardcoded administrator
-      if (data.username === 'Administrator' && data.password === 'Admin') {
-        await login({ id: 'admin', username: data.username, roleId: 'admin' });
+      const { username: adminUsername, password: adminPassword } = getAdminCredentials();
+       // First, check for administrator
+      if (data.username === adminUsername && data.password === adminPassword) {
+        await login({ id: 'admin', username: data.username, permissions: {} });
         toast({
           title: 'Success',
           description: 'Logged in successfully.',

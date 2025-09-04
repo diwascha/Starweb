@@ -3,14 +3,14 @@
 
 import { useState, useEffect, createContext, useContext, ReactNode, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import type { User, Permissions, Module, Action, Role } from '@/lib/types';
+import type { User, Permissions, Module, Action } from '@/lib/types';
 import { modules } from '@/lib/types';
 import useLocalStorage from './use-local-storage';
 
 interface UserSession {
   username: string;
-  roleId: string; // 'admin' or a role ID
-  permissions?: Permissions;
+  is_admin: boolean;
+  permissions: Permissions;
 }
 
 interface AuthContextType {
@@ -69,7 +69,6 @@ const moduleToPath = (module: Module): string => {
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<UserSession | null>(null);
   const [loading, setLoading] = useState(true);
-  const [roles] = useLocalStorage<Role[]>('roles', []);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -88,7 +87,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   
   const hasPermission = useCallback((module: Module, action: Action): boolean => {
     if (!user) return false;
-    if (user.roleId === 'admin') return true;
+    if (user.is_admin) return true;
     if (module === 'dashboard' && action === 'view') return true;
     if (user.permissions) {
       const modulePermissions = user.permissions[module];
@@ -99,20 +98,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = useCallback(async (userToLogin: User) => {
     let sessionToStore: UserSession;
-    if (userToLogin.username === 'Administrator' && userToLogin.roleId === 'admin') {
-      sessionToStore = {
+    const isAdmin = userToLogin.id === 'admin';
+
+    sessionToStore = {
         username: userToLogin.username,
-        roleId: 'admin',
-      };
-    } else {
-       const latestRoles = JSON.parse(localStorage.getItem('roles') || '[]') as Role[];
-       const userRole = latestRoles.find(r => r.id === userToLogin.roleId);
-       sessionToStore = {
-          username: userToLogin.username,
-          roleId: userToLogin.roleId,
-          permissions: userRole?.permissions,
-       };
-    }
+        is_admin: isAdmin,
+        permissions: userToLogin.permissions,
+    };
+    
     sessionStorage.setItem(USER_SESSION_KEY, JSON.stringify(sessionToStore));
     setUser(sessionToStore);
   }, []);
