@@ -22,6 +22,7 @@ import { useToast } from '@/hooks/use-toast';
 import { generateNextSerialNumber } from '@/lib/utils';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { RefreshCw } from 'lucide-react';
+import { useAuth } from '@/hooks/use-auth';
 
 const testResultSchema = z.object({
   value: z.string().min(1, { message: 'Result is required.' }),
@@ -90,6 +91,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
   const [products] = useLocalStorage<Product[]>('products', []);
   const [reports, setReports] = useLocalStorage<Report[]>('reports', []);
   const router = useRouter();
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
@@ -251,6 +253,10 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
       toast({ title: 'Error', description: 'Please select a product.', variant: 'destructive' });
       return;
     }
+    if (!user) {
+      toast({ title: 'Error', description: 'You must be logged in to perform this action.', variant: 'destructive' });
+      return;
+    }
     setIsSubmitting(true);
     try {
       const { productId, taxInvoiceNumber, challanNumber, quantity, ...testDataValues } = values;
@@ -266,6 +272,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
               challanNumber: challanNumber || 'N/A',
               quantity: quantity || 'N/A',
               testData,
+              lastModifiedBy: user.username,
           };
           setReports(reports.map(r => r.id === reportToEdit.id ? updatedReport : r));
           toast({ title: 'Success', description: 'Report updated successfully.' });
@@ -278,6 +285,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
             date: new Date().toISOString(),
             testData,
             printLog: [],
+            createdBy: user.username,
         };
 
         const tempReport: Report = {

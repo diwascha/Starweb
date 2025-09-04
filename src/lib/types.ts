@@ -20,6 +20,8 @@ export interface Product {
   companyName: string;
   address: string;
   specification: ProductSpecification;
+  createdBy: string;
+  lastModifiedBy?: string;
 }
 
 export interface TestResult {
@@ -43,6 +45,8 @@ export interface Report {
   date: string;
   testData: TestResultData;
   printLog?: PrintLogEntry[];
+  createdBy: string;
+  lastModifiedBy?: string;
 }
 
 export interface RawMaterial {
@@ -53,6 +57,8 @@ export interface RawMaterial {
   gsm: string;
   bf: string;
   units: string[];
+  createdBy: string;
+  lastModifiedBy?: string;
 }
 
 export interface PurchaseOrderItem {
@@ -69,6 +75,7 @@ export interface PurchaseOrderItem {
 export interface Amendment {
   date: string; // ISO string
   remarks: string;
+  amendedBy: string;
 }
 
 export type PurchaseOrderStatus = 'Ordered' | 'Amended' | 'Delivered' | 'Canceled';
@@ -85,6 +92,8 @@ export interface PurchaseOrder {
   amendments?: Amendment[];
   status: PurchaseOrderStatus;
   deliveryDate?: string; // ISO string for delivery date
+  createdBy: string;
+  lastModifiedBy?: string;
 }
 
 // --- HR Module Types ---
@@ -95,6 +104,8 @@ export interface Employee {
   name: string;
   wageBasis: WageBasis;
   wageAmount: number;
+  createdBy: string;
+  lastModifiedBy?: string;
 }
 
 export type AttendanceStatus = 'Present' | 'Absent' | 'Public Holiday' | 'Saturday';
@@ -109,6 +120,7 @@ export interface AttendanceRecord {
     clockIn: string | null;
     clockOut: string | null;
     status: AttendanceStatus;
+    importedBy: string;
 }
 
 // --- Fleet Management Types ---
@@ -123,6 +135,8 @@ export interface Vehicle {
   vin: string;
   status: VehicleStatus;
   driverId?: string;
+  createdBy: string;
+  lastModifiedBy?: string;
 }
 
 export interface Driver {
@@ -132,6 +146,8 @@ export interface Driver {
     licenseNumber: string;
     contactNumber: string;
     dateOfBirth: string; // ISO string
+    createdBy: string;
+    lastModifiedBy?: string;
 }
 
 export interface PolicyOrMembership {
@@ -144,6 +160,8 @@ export interface PolicyOrMembership {
     cost: number; // Premium or Membership fee
     memberId: string; // Can be vehicleId or driverId
     memberType: 'Vehicle' | 'Driver';
+    createdBy: string;
+    lastModifiedBy?: string;
 }
 
 export const expenseCategories = ['Fuel', 'Maintenance', 'Insurance', 'Tires', 'Repairs', 'Tolls', 'Permits', 'Other'] as const;
@@ -162,6 +180,8 @@ export interface Transaction {
     category: ExpenseCategory | IncomeSource;
     amount: number;
     description: string;
+    createdBy: string;
+    lastModifiedBy?: string;
 }
 
 

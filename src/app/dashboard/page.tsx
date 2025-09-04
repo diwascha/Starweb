@@ -7,7 +7,7 @@ import type { Report, PurchaseOrder } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, FileText, Package, ShoppingCart, AlertTriangle } from 'lucide-react';
+import { PlusCircle, FileText, Package, ShoppingCart, AlertTriangle, User } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { getStatusBadgeVariant, toNepaliDate } from '@/lib/utils';
@@ -15,6 +15,8 @@ import { useAuth } from '@/hooks/use-auth';
 import Image from 'next/image';
 import { format, differenceInDays } from 'date-fns';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
 
 function LiveDateTime() {
   const [now, setNow] = useState(new Date());
@@ -177,9 +179,24 @@ export default function DashboardPage() {
                                         )}
                                     </div>
                                 </div>
-                                <div className="text-right">
-                                    <p className="text-sm text-muted-foreground">{new Date(activity.date).toLocaleDateString()}</p>
-                                    <p className="text-sm text-muted-foreground">{new Date(activity.date).toLocaleTimeString()}</p>
+                                <div className="text-right flex items-center gap-2">
+                                     <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger>
+                                                <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                                                    <User className="h-3 w-3" />
+                                                    <span>{activity.createdBy}</span>
+                                                </div>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Created by {activity.createdBy}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                    <div>
+                                        <p className="text-sm text-muted-foreground">{new Date(activity.date).toLocaleDateString()}</p>
+                                        <p className="text-sm text-muted-foreground">{new Date(activity.date).toLocaleTimeString()}</p>
+                                    </div>
                                 </div>
                             </div>
                         ))}

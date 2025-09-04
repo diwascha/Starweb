@@ -27,6 +27,7 @@ import { Label } from '@/components/ui/label';
 import { summarizePurchaseOrderChanges } from '@/ai/flows/summarize-po-changes-flow';
 import { Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/hooks/use-auth';
 
 const poItemSchema = z.object({
   rawMaterialId: z.string().min(1, 'Material is required.'),
@@ -64,6 +65,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   const [purchaseOrders, setPurchaseOrders] = useLocalStorage<PurchaseOrder[]>('purchaseOrders', []);
   const router = useRouter();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isClient, setIsClient] = useState(false);
   const [isCompanyPopoverOpen, setIsCompanyPopoverOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<{ oldName: string; newName: string; newAddress: string } | null>(null);
@@ -198,6 +200,10 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   };
 
   async function onSubmit(values: PurchaseOrderFormValues) {
+    if (!user) {
+        toast({ title: 'Error', description: 'You must be logged in to perform this action.', variant: 'destructive' });
+        return;
+    }
     setIsSubmitting(true);
     try {
       if (poToEdit) {
@@ -207,6 +213,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
           poDate: values.poDate.toISOString(),
           updatedAt: new Date().toISOString(),
           status: 'Amended' as const,
+          lastModifiedBy: user.username,
         };
 
         const { summary } = await summarizePurchaseOrderChanges(poToEdit, updatedPOData);
@@ -214,6 +221,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         const newAmendment: Amendment = {
           date: new Date().toISOString(),
           remarks: summary || 'No specific changes were identified.',
+          amendedBy: user.username,
         };
         
         const updatedPO: PurchaseOrder = {
@@ -234,6 +242,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
           updatedAt: now,
           amendments: [],
           status: 'Ordered',
+          createdBy: user.username,
         };
         setPurchaseOrders([...purchaseOrders, newPO]);
         toast({ title: 'Success', description: 'New Purchase Order created.' });
@@ -304,6 +313,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         gsm: isPaper ? gsm : '',
         bf: isPaper ? bf : '',
         units: units,
+        createdBy: user?.username || 'System',
     };
     
     setRawMaterials(prev => [...prev, newMaterial]);

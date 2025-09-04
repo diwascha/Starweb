@@ -85,7 +85,7 @@ export default function ProductsPage() {
 
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
-  const { hasPermission } = useAuth();
+  const { hasPermission, user } = useAuth();
 
   useEffect(() => {
     setIsClient(true);
@@ -137,6 +137,10 @@ export default function ProductsPage() {
   };
 
   const handleProductSubmit = () => {
+    if (!user) {
+        toast({ title: 'Error', description: 'You must be logged in to perform this action.', variant: 'destructive' });
+        return;
+    }
     const isSpecFilled = Object.values(newSpec).every(val => val.trim() !== '');
     if (newProductName.trim() !== '' && newMaterialCode.trim() !== '' && newCompanyName.trim() !== '' && newAddress.trim() !== '' && isSpecFilled) {
       if (editingProduct) {
@@ -148,6 +152,7 @@ export default function ProductsPage() {
           companyName: newCompanyName.trim(),
           address: newAddress.trim(),
           specification: newSpec,
+          lastModifiedBy: user.username,
         };
         setProducts(products.map(p => (p.id === editingProduct.id ? updatedProduct : p)));
         // Also update the product details in any existing reports
@@ -162,6 +167,7 @@ export default function ProductsPage() {
           companyName: newCompanyName.trim(),
           address: newAddress.trim(),
           specification: newSpec,
+          createdBy: user.username,
         };
         setProducts([...products, newProduct]);
         toast({ title: 'Success', description: 'New product added.' });

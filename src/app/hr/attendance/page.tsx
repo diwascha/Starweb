@@ -27,7 +27,7 @@ export default function AttendancePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
-  const { hasPermission } = useAuth();
+  const { hasPermission, user } = useAuth();
   
   useEffect(() => {
     setIsClient(true);
@@ -84,6 +84,10 @@ export default function AttendancePage() {
   
 
   const parseAndStoreAttendance = (rows: any[][]) => {
+    if (!user) {
+        toast({ title: 'Error', description: 'You must be logged in to import attendance.', variant: 'destructive' });
+        return;
+    }
     const newRecords: AttendanceRecord[] = [];
     const employeeNames = new Set(employees.map(e => e.name.toLowerCase()));
     
@@ -125,6 +129,7 @@ export default function AttendancePage() {
         clockIn: parseTime(clockIn),
         clockOut: parseTime(clockOut),
         status,
+        importedBy: user.username,
       };
       newRecords.push(record);
     });
