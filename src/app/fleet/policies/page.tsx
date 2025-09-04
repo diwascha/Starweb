@@ -69,6 +69,9 @@ export default function PoliciesPage() {
     const [editingProvider, setEditingProvider] = useState<{ oldName: string; newName: string } | null>(null);
     const [isTypePopoverOpen, setIsTypePopoverOpen] = useState(false);
     const [editingType, setEditingType] = useState<{ oldName: string; newName: string } | null>(null);
+    
+    const [filterMemberType, setFilterMemberType] = useState<'All' | 'Vehicle' | 'Driver'>('All');
+    const [filterMemberId, setFilterMemberId] = useState<string>('All');
 
 
     const { toast } = useToast();
@@ -85,6 +88,10 @@ export default function PoliciesPage() {
         setIsClient(true);
     }, []);
     
+    useEffect(() => {
+        setFilterMemberId('All');
+    }, [filterMemberType]);
+
     const providers = useMemo(() => Array.from(new Set(policies.map(p => p.provider))).sort(), [policies]);
     const policyTypes = useMemo(() => Array.from(new Set(policies.map(p => p.type))).sort(), [policies]);
 
@@ -239,6 +246,14 @@ export default function PoliciesPage() {
                 p.type.toLowerCase().includes(lowercasedQuery)
             );
         }
+        
+        if (filterMemberType !== 'All') {
+            augmentedPolicies = augmentedPolicies.filter(p => p.memberType === filterMemberType);
+             if (filterMemberId !== 'All') {
+                augmentedPolicies = augmentedPolicies.filter(p => p.memberId === filterMemberId);
+            }
+        }
+
 
         augmentedPolicies.sort((a, b) => {
             const aVal = a[sortConfig.key];
@@ -248,7 +263,7 @@ export default function PoliciesPage() {
             return 0;
         });
         return augmentedPolicies;
-    }, [policies, searchQuery, sortConfig, membersById]);
+    }, [policies, searchQuery, sortConfig, membersById, filterMemberType, filterMemberId]);
 
 
     const renderContent = () => {
@@ -333,18 +348,6 @@ export default function PoliciesPage() {
                             <p className="text-muted-foreground">Manage your vehicle insurance and fleet memberships.</p>
                         </div>
                         <div className="flex items-center gap-2">
-                            {isClient && policies.length > 0 && (
-                                <div className="relative">
-                                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                        type="search"
-                                        placeholder="Search records..."
-                                        className="pl-8 sm:w-[300px]"
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                    />
-                                </div>
-                            )}
                             {hasPermission('fleet', 'create') && (
                                 <DialogTrigger asChild>
                                     <Button onClick={() => handleOpenDialog()}>
@@ -354,6 +357,42 @@ export default function PoliciesPage() {
                             )}
                         </div>
                     </header>
+                     {isClient && policies.length > 0 && (
+                        <div className="flex flex-col md:flex-row gap-2">
+                            <div className="relative flex-1">
+                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    type="search"
+                                    placeholder="Search records..."
+                                    className="pl-8 w-full"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
+                            </div>
+                            <div className="flex gap-2">
+                                <Select value={filterMemberType} onValueChange={(value: 'All' | 'Vehicle' | 'Driver') => setFilterMemberType(value)}>
+                                    <SelectTrigger className="w-full md:w-[150px]">
+                                        <SelectValue placeholder="Filter by type..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="All">All Types</SelectItem>
+                                        <SelectItem value="Vehicle">Vehicles</SelectItem>
+                                        <SelectItem value="Driver">Drivers</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <Select value={filterMemberId} onValueChange={setFilterMemberId} disabled={filterMemberType === 'All'}>
+                                    <SelectTrigger className="w-full md:w-[200px]">
+                                        <SelectValue placeholder={`Filter ${filterMemberType}...`} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="All">All {filterMemberType}s</SelectItem>
+                                        {filterMemberType === 'Vehicle' && vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
+                                        {filterMemberType === 'Driver' && drivers.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                    )}
                     {renderContent()}
                 </div>
                 <DialogContent className="sm:max-w-xl">
