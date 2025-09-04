@@ -1,5 +1,4 @@
 'use client';
-export const runtime = 'edge';
 
 import { ReportForm } from '@/app/report/new/_components/report-form';
 import useLocalStorage from '@/hooks/use-local-storage';
