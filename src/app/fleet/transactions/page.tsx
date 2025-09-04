@@ -41,8 +41,8 @@ import { cn, toNepaliDate } from '@/lib/utils';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import type { DateRange } from 'react-day-picker';
+import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 
 
 type TransactionSortKey = 'date' | 'vehicleName' | 'type' | 'category' | 'amount';
@@ -173,10 +173,10 @@ export default function TransactionsPage() {
             augmented = augmented.filter(t => t.vehicleId === filterVehicleId);
         }
 
-        if (dateRange?.from && dateRange?.to) {
+        if (dateRange?.from) {
             const interval = {
                 start: startOfDay(dateRange.from),
-                end: endOfDay(dateRange.to),
+                end: endOfDay(dateRange.to || dateRange.from),
             };
             augmented = augmented.filter(t => isWithinInterval(new Date(t.date), interval));
         }
@@ -340,13 +340,9 @@ export default function TransactionsPage() {
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0" align="end">
-                                        <CalendarComponent
-                                            initialFocus
-                                            mode="range"
-                                            defaultMonth={dateRange?.from}
+                                        <DualDateRangePicker
                                             selected={dateRange}
                                             onSelect={setDateRange}
-                                            numberOfMonths={2}
                                         />
                                     </PopoverContent>
                                 </Popover>
