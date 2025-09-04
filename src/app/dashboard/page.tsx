@@ -78,7 +78,7 @@ export default function DashboardPage() {
    const recentActivities = isClient ? 
     [
         ...(canViewPOs ? purchaseOrders.map(po => ({ type: 'PO', ...po, date: po.updatedAt || po.createdAt })) : []),
-        ...(canViewReports ? reports.map(r => ({ type: 'Report', ...r, date: r.date })) : [])
+        ...(canViewReports ? reports.map(r => ({ type: 'Report', ...r, date: r.date, lastModifiedBy: r.lastModifiedBy, createdBy: r.createdBy })) : [])
     ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 10)
     : [];
@@ -190,7 +190,9 @@ export default function DashboardPage() {
                                             </TooltipTrigger>
                                             <TooltipContent>
                                                 {activity.createdBy && <p>Created by: {activity.createdBy}</p>}
-                                                {activity.lastModifiedBy && activity.createdBy !== activity.lastModifiedBy && <p>Last modified by: {activity.lastModifiedBy}</p>}
+                                                {activity.lastModifiedBy && activity.lastModifiedBy !== activity.createdBy && (
+                                                  <p>Last modified by: {activity.lastModifiedBy}</p>
+                                                )}
                                             </TooltipContent>
                                         </Tooltip>
                                     </TooltipProvider>
