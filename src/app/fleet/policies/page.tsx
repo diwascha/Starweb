@@ -35,10 +35,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/use-auth';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { cn, toNepaliDate } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
+import { DualCalendar } from '@/components/ui/dual-calendar';
 
 const policyTypes: PolicyType[] = ['Insurance', 'Membership', 'Other'];
 
@@ -223,7 +223,7 @@ export default function PoliciesPage() {
                             <TableHead><Button variant="ghost" onClick={() => requestSort('provider')}>Provider <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('policyNumber')}>Policy/ID Number <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('memberName')}>For <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('endDate')}>Expiry Date <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('endDate')}>Expiry Date (BS) <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -234,7 +234,7 @@ export default function PoliciesPage() {
                                 <TableCell>{policy.provider}</TableCell>
                                 <TableCell>{policy.policyNumber}</TableCell>
                                 <TableCell>{policy.memberName}</TableCell>
-                                <TableCell>{format(new Date(policy.endDate), 'PPP')}</TableCell>
+                                <TableCell>{toNepaliDate(policy.endDate)}</TableCell>
                                 <TableCell className="text-right">
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
@@ -352,26 +352,30 @@ export default function PoliciesPage() {
                      <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="startDate">Start Date</Label>
-                             <Popover>
+                            <Popover>
                                 <PopoverTrigger asChild>
                                     <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formState.startDate && "text-muted-foreground")}>
                                     <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {formState.startDate ? format(new Date(formState.startDate), "PPP") : <span>Pick a date</span>}
+                                    {formState.startDate ? `${toNepaliDate(formState.startDate)} BS (${format(new Date(formState.startDate), "PPP")})` : <span>Pick a date</span>}
                                     </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={new Date(formState.startDate)} onSelect={(d) => handleDateChange('startDate', d)} initialFocus /></PopoverContent>
+                                <PopoverContent className="w-auto p-0">
+                                    <DualCalendar selected={new Date(formState.startDate)} onSelect={(d) => handleDateChange('startDate', d)} />
+                                </PopoverContent>
                             </Popover>
                         </div>
                          <div className="space-y-2">
                             <Label htmlFor="endDate">End Date</Label>
-                             <Popover>
+                            <Popover>
                                 <PopoverTrigger asChild>
                                     <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formState.endDate && "text-muted-foreground")}>
                                     <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {formState.endDate ? format(new Date(formState.endDate), "PPP") : <span>Pick a date</span>}
+                                    {formState.endDate ? `${toNepaliDate(formState.endDate)} BS (${format(new Date(formState.endDate), "PPP")})` : <span>Pick a date</span>}
                                     </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={new Date(formState.endDate)} onSelect={(d) => handleDateChange('endDate', d)} initialFocus /></PopoverContent>
+                                <PopoverContent className="w-auto p-0">
+                                     <DualCalendar selected={new Date(formState.endDate)} onSelect={(d) => handleDateChange('endDate', d)} />
+                                </PopoverContent>
                             </Popover>
                         </div>
                     </div>
