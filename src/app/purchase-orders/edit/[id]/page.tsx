@@ -1,6 +1,6 @@
-export const runtime = 'edge';
-
 'use client';
+
+export const runtime = 'edge';
 
 import { PurchaseOrderForm } from '@/app/purchase-orders/_components/purchase-order-form';
 import useLocalStorage from '@/hooks/use-local-storage';
