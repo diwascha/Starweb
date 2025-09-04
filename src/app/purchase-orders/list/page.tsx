@@ -39,8 +39,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
-import { Calendar } from '@/components/ui/calendar';
+import { cn, toNepaliDate } from '@/lib/utils';
+import { DualCalendar } from '@/components/ui/dual-calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
@@ -331,19 +331,15 @@ export default function PurchaseOrdersListPage() {
             <div className="py-4 flex justify-center">
                  <Popover>
                       <PopoverTrigger asChild>
-                        
-                          <Button variant="outline" className={cn("w-[280px] justify-start text-left font-normal", !deliveryDate && "text-muted-foreground")}>
+                          <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !deliveryDate && "text-muted-foreground")}>
                             <CalendarIcon className="mr-2 h-4 w-4" />
-                            {deliveryDate ? format(deliveryDate, "PPP") : <span>Pick a date</span>}
+                            {deliveryDate ? `${toNepaliDate(deliveryDate.toISOString())} BS (${format(deliveryDate, "PPP")})` : <span>Pick a date</span>}
                           </Button>
-                        
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0">
-                        <Calendar
-                          mode="single"
+                        <DualCalendar
                           selected={deliveryDate}
                           onSelect={setDeliveryDate}
-                          initialFocus
                         />
                       </PopoverContent>
                     </Popover>

@@ -14,9 +14,9 @@ import { useState, useEffect, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, PlusCircle, Trash2, Check, ChevronsUpDown, Edit, X } from 'lucide-react';
-import { Calendar } from '@/components/ui/calendar';
+import { DualCalendar } from '@/components/ui/dual-calendar';
 import { format } from 'date-fns';
-import { cn, generateNextPONumber } from '@/lib/utils';
+import { cn, generateNextPONumber, toNepaliDate } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -196,13 +196,6 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   const addNewItem = () => {
     append({ rawMaterialId: '', rawMaterialName: '', rawMaterialType: '', size: '', gsm: '', bf: '', quantity: '', unit: '' });
   };
-  
-  const poDate = form.watch('poDate');
-  const nepaliDateString = useMemo(() => {
-    if (!poDate) return '';
-    const nepaliDate = new NepaliDate(poDate);
-    return nepaliDate.format('YYYY/MM/DD');
-  }, [poDate]);
 
   async function onSubmit(values: PurchaseOrderFormValues) {
     setIsSubmitting(true);
@@ -386,13 +379,13 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                       <PopoverTrigger asChild>
                         <FormControl>
                           <Button variant="outline" className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                            {field.value ? `${format(field.value, "PPP")} (${nepaliDateString} B.S.)` : <span>Pick a date</span>}
+                            {field.value ? `${toNepaliDate(field.value.toISOString())} BS (${format(field.value, "PPP")})` : <span>Pick a date</span>}
                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                           </Button>
                         </FormControl>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date > new Date() || date < new Date("1900-01-01")} initialFocus />
+                        <DualCalendar selected={field.value} onSelect={field.onChange} />
                       </PopoverContent>
                     </Popover>
                     <FormMessage />
