@@ -237,20 +237,19 @@ export default function SettingsPage() {
             <p className="text-muted-foreground">Manage user accounts and system settings.</p>
         </header>
         
-        {currentUser.is_admin && (
         <Card>
             <CardHeader>
-                <CardTitle>Administrator Settings</CardTitle>
-                <CardDescription>Manage administrator account.</CardDescription>
+                <CardTitle>Account Settings</CardTitle>
+                <CardDescription>Manage your account password.</CardDescription>
             </CardHeader>
             <CardContent>
                 <Dialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
                     <DialogTrigger asChild>
-                        <Button>Change Administrator Password</Button>
+                        <Button>Change Password</Button>
                     </DialogTrigger>
                     <DialogContent>
                         <DialogHeader>
-                            <DialogTitle>Change Administrator Password</DialogTitle>
+                            <DialogTitle>Change Password</DialogTitle>
                         </DialogHeader>
                         <form onSubmit={handleSubmit(handleAdminPasswordChange)}>
                             <div className="grid gap-4 py-4">
@@ -274,114 +273,124 @@ export default function SettingsPage() {
                 </Dialog>
             </CardContent>
         </Card>
-        )}
 
-        {/* Users Section */}
-        <Card>
-            <CardHeader>
-                <div className="flex justify-between items-center">
-                    <div>
-                        <CardTitle>User Management</CardTitle>
-                        <CardDescription>A list of all users in the system.</CardDescription>
-                    </div>
-                    {canEditSettings && (
-                        <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
-                            <DialogTrigger asChild>
-                                <Button onClick={openAddUserDialog}><Plus className="mr-2 h-4 w-4" /> Add User</Button>
-                            </DialogTrigger>
-                            <DialogContent className="sm:max-w-3xl">
-                                <DialogHeader>
-                                    <DialogTitle>{editingUser ? 'Edit User' : 'Add New User'}</DialogTitle>
-                                </DialogHeader>
-                                <div className="grid gap-4 py-4">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="username">Username</Label>
-                                            <Input id="username" value={username} onChange={e => setUsername(e.target.value)} />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="password">Password</Label>
-                                            <div className="relative">
-                                                <Input id="password" type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} placeholder={editingUser ? 'Leave blank to keep current' : ''} />
-                                                <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowPassword(!showPassword)}>
-                                                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                                </Button>
+        {/* Users Section - Only for Admins */}
+        {currentUser.is_admin && (
+            <Card>
+                <CardHeader>
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <CardTitle>User Management</CardTitle>
+                            <CardDescription>A list of all users in the system.</CardDescription>
+                        </div>
+                        {canEditSettings && (
+                            <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
+                                <DialogTrigger asChild>
+                                    <Button onClick={openAddUserDialog}><Plus className="mr-2 h-4 w-4" /> Add User</Button>
+                                </DialogTrigger>
+                                <DialogContent className="sm:max-w-3xl">
+                                    <DialogHeader>
+                                        <DialogTitle>{editingUser ? 'Edit User' : 'Add New User'}</DialogTitle>
+                                    </DialogHeader>
+                                    <div className="grid gap-4 py-4">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="username">Username</Label>
+                                                <Input id="username" value={username} onChange={e => setUsername(e.target.value)} />
+                                            </div>
+                                             <div className="space-y-2">
+                                                <Label htmlFor="password">Password</Label>
+                                                <div className="relative">
+                                                    <Input 
+                                                        id="password" 
+                                                        type={showPassword ? 'text' : 'password'} 
+                                                        value={password} 
+                                                        onChange={e => setPassword(e.target.value)} 
+                                                        placeholder={editingUser ? 'Leave blank to keep current' : ''} 
+                                                    />
+                                                    <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowPassword(!showPassword)}>
+                                                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                                    </Button>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>Permissions</Label>
-                                        <ScrollArea className="h-72 w-full rounded-md border p-4">
-                                        <div className="space-y-6">
-                                            {permissionGroups.map((group, groupIndex) => (
-                                                <div key={group.name} className="space-y-4">
-                                                    <h3 className="text-lg font-semibold">{group.name}</h3>
-                                                    {group.modules.map(module => (
-                                                    <div key={module}>
-                                                        <h4 className="font-medium mb-2">{formatModuleName(module)}</h4>
-                                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-2">
-                                                        {actions.map(action => (
-                                                            <div key={action} className="flex items-center space-x-2">
-                                                            <Checkbox
-                                                                id={`${module}-${action}`}
-                                                                checked={userPermissions[module]?.includes(action)}
-                                                                onCheckedChange={(checked) => handlePermissionChange(module, action, !!checked)}
-                                                            />
-                                                            <label htmlFor={`${module}-${action}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                                                                {action.charAt(0).toUpperCase() + action.slice(1)}
-                                                            </label>
+                                        <div className="space-y-2">
+                                            <Label>Permissions</Label>
+                                            <ScrollArea className="h-72 w-full rounded-md border p-4">
+                                            <div className="space-y-6">
+                                                {permissionGroups.map((group, groupIndex) => (
+                                                    <div key={group.name} className="space-y-4">
+                                                        <h3 className="text-lg font-semibold">{group.name}</h3>
+                                                        {group.modules.map(module => (
+                                                        <div key={module}>
+                                                            <h4 className="font-medium mb-2">{formatModuleName(module)}</h4>
+                                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-2">
+                                                            {actions.map(action => (
+                                                                <div key={action} className="flex items-center space-x-2">
+                                                                <Checkbox
+                                                                    id={`${module}-${action}`}
+                                                                    checked={userPermissions[module]?.includes(action)}
+                                                                    onCheckedChange={(checked) => handlePermissionChange(module, action, !!checked)}
+                                                                />
+                                                                <label htmlFor={`${module}-${action}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                                                    {action.charAt(0).toUpperCase() + action.slice(1)}
+                                                                </label>
+                                                                </div>
+                                                            ))}
                                                             </div>
-                                                        ))}
                                                         </div>
+                                                        ))}
+                                                        {groupIndex < permissionGroups.length -1 && <Separator className="mt-6"/>}
                                                     </div>
-                                                    ))}
-                                                    {groupIndex < permissionGroups.length -1 && <Separator className="mt-6"/>}
-                                                </div>
-                                            ))}
+                                                ))}
+                                            </div>
+                                            </ScrollArea>
                                         </div>
-                                        </ScrollArea>
                                     </div>
-                                </div>
-                                <DialogFooter>
-                                    <Button variant="outline" onClick={() => setIsUserDialogOpen(false)}>Cancel</Button>
-                                    <Button onClick={handleUserSubmit}>{editingUser ? 'Save Changes' : 'Add User'}</Button>
-                                </DialogFooter>
-                            </DialogContent>
-                        </Dialog>
-                    )}
-                </div>
-            </CardHeader>
-            <CardContent>
-                <Table>
-                    <TableHeader><TableRow><TableHead>Username</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
-                    <TableBody>
-                        {isClient && users.map(user => (
-                            <TableRow key={user.id}>
-                                <TableCell>{user.username}</TableCell>
-                                <TableCell className="text-right">
-                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditUserDialog(user)}>
-                                        <Edit className="h-4 w-4" />
-                                    </Button>
-                                    {canEditSettings && (
-                                    <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
-                                                <Trash2 className="h-4 w-4" />
+                                    <DialogFooter>
+                                        <Button variant="outline" onClick={() => setIsUserDialogOpen(false)}>Cancel</Button>
+                                        <Button onClick={handleUserSubmit}>{editingUser ? 'Save Changes' : 'Add User'}</Button>
+                                    </DialogFooter>
+                                </DialogContent>
+                            </Dialog>
+                        )}
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader><TableRow><TableHead>Username</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                        <TableBody>
+                            {isClient && users.map(user => (
+                                <TableRow key={user.id}>
+                                    <TableCell>{user.username}</TableCell>
+                                    <TableCell className="text-right">
+                                        {canEditSettings ? (
+                                        <>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditUserDialog(user)}>
+                                                <Edit className="h-4 w-4" />
                                             </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                            <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the user account.</AlertDialogDescription></AlertDialogHeader>
-                                            <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => deleteUser(user.id)}>Delete</AlertDialogAction></AlertDialogFooter>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
-                                    )}
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </CardContent>
-        </Card>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the user account.</AlertDialogDescription></AlertDialogHeader>
+                                                    <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => deleteUser(user.id)}>Delete</AlertDialogAction></AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </>
+                                        ) : null}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+        )}
     </div>
   );
 }
+
