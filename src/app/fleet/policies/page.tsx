@@ -356,146 +356,152 @@ export default function PoliciesPage() {
                     </header>
                     {renderContent()}
                 </div>
-                <DialogContent className="sm:max-w-md">
+                <DialogContent className="sm:max-w-xl">
                     <DialogHeader>
                         <DialogTitle>{editingPolicy ? 'Edit Record' : 'Add New Record'}</DialogTitle>
                         <DialogDescription>{editingPolicy ? 'Update the details for this record.' : 'Enter the details for the new policy or membership.'}</DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-6 py-4">
-                         <div className="space-y-2">
-                            <Label htmlFor="type">Type</Label>
-                             <Popover open={isTypePopoverOpen} onOpenChange={setIsTypePopoverOpen}>
-                                <PopoverTrigger asChild>
-                                    <Button variant="outline" role="combobox" className="w-full justify-between">
-                                        {formState.type || "Select or type..."}
-                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="p-0">
-                                    <Command>
-                                        <CommandInput 
-                                            placeholder="Search or add type..."
-                                            value={formState.type}
-                                            onValueChange={(value) => setFormState(prev => ({...prev, type: value}))}
-                                        />
-                                        <CommandList>
-                                            <CommandEmpty>
-                                                <button type="button" className="w-full text-left p-2 text-sm" onClick={() => handleTypeSelect(formState.type)}>
-                                                    Add "{formState.type}"
-                                                </button>
-                                            </CommandEmpty>
-                                            <CommandGroup>
-                                                {policyTypes.map((type) => (
-                                                    <CommandItem key={type} value={type} onSelect={() => handleTypeSelect(type)} className="flex justify-between items-center">
-                                                        <div className="flex items-center">
-                                                            <Check className={cn("mr-2 h-4 w-4", formState.type.toLowerCase() === type.toLowerCase() ? "opacity-100" : "opacity-0")} />
-                                                            {type}
-                                                        </div>
-                                                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleEditType(type); }}>
-                                                            <Edit className="h-4 w-4"/>
-                                                        </Button>
-                                                    </CommandItem>
-                                                ))}
-                                            </CommandGroup>
-                                        </CommandList>
-                                    </Command>
-                                </PopoverContent>
-                            </Popover>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="provider">Provider</Label>
-                             <Popover open={isProviderPopoverOpen} onOpenChange={setIsProviderPopoverOpen}>
-                                <PopoverTrigger asChild>
-                                    <Button variant="outline" role="combobox" className="w-full justify-between">
-                                        {formState.provider || "Select or type..."}
-                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="p-0">
-                                    <Command>
-                                        <CommandInput 
-                                            placeholder="Search or add provider..."
-                                            value={formState.provider}
-                                            onValueChange={(value) => setFormState(prev => ({...prev, provider: value}))}
-                                        />
-                                        <CommandList>
-                                            <CommandEmpty>
-                                                <button type="button" className="w-full text-left p-2 text-sm" onClick={() => handleProviderSelect(formState.provider)}>
-                                                    Add "{formState.provider}"
-                                                </button>
-                                            </CommandEmpty>
-                                            <CommandGroup>
-                                                {providers.map((provider) => (
-                                                    <CommandItem key={provider} value={provider} onSelect={() => handleProviderSelect(provider)} className="flex justify-between items-center">
-                                                        <div className="flex items-center">
-                                                            <Check className={cn("mr-2 h-4 w-4", formState.provider.toLowerCase() === provider.toLowerCase() ? "opacity-100" : "opacity-0")} />
-                                                            {provider}
-                                                        </div>
-                                                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleEditProvider(provider); }}>
-                                                            <Edit className="h-4 w-4"/>
-                                                        </Button>
-                                                    </CommandItem>
-                                                ))}
-                                            </CommandGroup>
-                                        </CommandList>
-                                    </Command>
-                                </PopoverContent>
-                            </Popover>
+                        <div className="grid grid-cols-2 gap-4">
+                             <div className="space-y-2">
+                                <Label htmlFor="type">Type</Label>
+                                 <Popover open={isTypePopoverOpen} onOpenChange={setIsTypePopoverOpen}>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" role="combobox" className="w-full justify-between">
+                                            {formState.type || "Select or type..."}
+                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="p-0">
+                                        <Command>
+                                            <CommandInput 
+                                                placeholder="Search or add type..."
+                                                value={formState.type}
+                                                onValueChange={(value) => setFormState(prev => ({...prev, type: value}))}
+                                            />
+                                            <CommandList>
+                                                <CommandEmpty>
+                                                    <button type="button" className="w-full text-left p-2 text-sm" onClick={() => handleTypeSelect(formState.type)}>
+                                                        Add "{formState.type}"
+                                                    </button>
+                                                </CommandEmpty>
+                                                <CommandGroup>
+                                                    {policyTypes.map((type) => (
+                                                        <CommandItem key={type} value={type} onSelect={() => handleTypeSelect(type)} className="flex justify-between items-center">
+                                                            <div className="flex items-center">
+                                                                <Check className={cn("mr-2 h-4 w-4", formState.type.toLowerCase() === type.toLowerCase() ? "opacity-100" : "opacity-0")} />
+                                                                {type}
+                                                            </div>
+                                                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleEditType(type); }}>
+                                                                <Edit className="h-4 w-4"/>
+                                                            </Button>
+                                                        </CommandItem>
+                                                    ))}
+                                                </CommandGroup>
+                                            </CommandList>
+                                        </Command>
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="provider">Provider</Label>
+                                 <Popover open={isProviderPopoverOpen} onOpenChange={setIsProviderPopoverOpen}>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" role="combobox" className="w-full justify-between">
+                                            {formState.provider || "Select or type..."}
+                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="p-0">
+                                        <Command>
+                                            <CommandInput 
+                                                placeholder="Search or add provider..."
+                                                value={formState.provider}
+                                                onValueChange={(value) => setFormState(prev => ({...prev, provider: value}))}
+                                            />
+                                            <CommandList>
+                                                <CommandEmpty>
+                                                    <button type="button" className="w-full text-left p-2 text-sm" onClick={() => handleProviderSelect(formState.provider)}>
+                                                        Add "{formState.provider}"
+                                                    </button>
+                                                </CommandEmpty>
+                                                <CommandGroup>
+                                                    {providers.map((provider) => (
+                                                        <CommandItem key={provider} value={provider} onSelect={() => handleProviderSelect(provider)} className="flex justify-between items-center">
+                                                            <div className="flex items-center">
+                                                                <Check className={cn("mr-2 h-4 w-4", formState.provider.toLowerCase() === provider.toLowerCase() ? "opacity-100" : "opacity-0")} />
+                                                                {provider}
+                                                            </div>
+                                                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleEditProvider(provider); }}>
+                                                                <Edit className="h-4 w-4"/>
+                                                            </Button>
+                                                        </CommandItem>
+                                                    ))}
+                                                </CommandGroup>
+                                            </CommandList>
+                                        </Command>
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="policyNumber">Policy / ID Number</Label>
                             <Input id="policyNumber" name="policyNumber" value={formState.policyNumber} onChange={handleFormChange} />
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="memberType">For</Label>
-                            <Select value={formState.memberType} onValueChange={(value: 'Vehicle' | 'Driver') => handleSelectChange('memberType', value)}>
-                                <SelectTrigger id="memberType"><SelectValue placeholder="Select one" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Vehicle">Vehicle</SelectItem>
-                                    <SelectItem value="Driver">Driver</SelectItem>
-                                </SelectContent>
-                            </Select>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="memberType">For</Label>
+                                <Select value={formState.memberType} onValueChange={(value: 'Vehicle' | 'Driver') => handleSelectChange('memberType', value)}>
+                                    <SelectTrigger id="memberType"><SelectValue placeholder="Select one" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Vehicle">Vehicle</SelectItem>
+                                        <SelectItem value="Driver">Driver</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="memberId">{formState.memberType}</Label>
+                                <Select value={formState.memberId} onValueChange={(value) => handleSelectChange('memberId', value)} disabled={!formState.memberType}>
+                                    <SelectTrigger id="memberId"><SelectValue placeholder={`Select a ${formState.memberType.toLowerCase()}`} /></SelectTrigger>
+                                    <SelectContent>
+                                        {formState.memberType === 'Vehicle' ? (
+                                            vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)
+                                        ) : (
+                                            drivers.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="memberId">{formState.memberType}</Label>
-                            <Select value={formState.memberId} onValueChange={(value) => handleSelectChange('memberId', value)} disabled={!formState.memberType}>
-                                <SelectTrigger id="memberId"><SelectValue placeholder={`Select a ${formState.memberType.toLowerCase()}`} /></SelectTrigger>
-                                <SelectContent>
-                                    {formState.memberType === 'Vehicle' ? (
-                                        vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)
-                                    ) : (
-                                        drivers.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)
-                                    )}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="startDate">Start Date</Label>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formState.startDate && "text-muted-foreground")}>
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {formState.startDate ? `${toNepaliDate(formState.startDate)} BS (${format(new Date(formState.startDate), "PPP")})` : <span>Pick a date</span>}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0">
-                                    <DualCalendar selected={new Date(formState.startDate)} onSelect={(d) => handleDateChange('startDate', d)} />
-                                </PopoverContent>
-                            </Popover>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="endDate">End Date</Label>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formState.endDate && "text-muted-foreground")}>
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {formState.endDate ? `${toNepaliDate(formState.endDate)} BS (${format(new Date(formState.endDate), "PPP")})` : <span>Pick a date</span>}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0">
-                                    <DualCalendar selected={new Date(formState.endDate)} onSelect={(d) => handleDateChange('endDate', d)} />
-                                </PopoverContent>
-                            </Popover>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="startDate">Start Date</Label>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formState.startDate && "text-muted-foreground")}>
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {formState.startDate ? `${toNepaliDate(formState.startDate)} BS (${format(new Date(formState.startDate), "PPP")})` : <span>Pick a date</span>}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0">
+                                        <DualCalendar selected={new Date(formState.startDate)} onSelect={(d) => handleDateChange('startDate', d)} />
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="endDate">End Date</Label>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formState.endDate && "text-muted-foreground")}>
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {formState.endDate ? `${toNepaliDate(formState.endDate)} BS (${format(new Date(formState.endDate), "PPP")})` : <span>Pick a date</span>}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0">
+                                        <DualCalendar selected={new Date(formState.endDate)} onSelect={(d) => handleDateChange('endDate', d)} />
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="cost">Cost / Premium</Label>
