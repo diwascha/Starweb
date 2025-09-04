@@ -7,13 +7,14 @@ import type { Report, PurchaseOrder } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, FileText, Package, ShoppingCart } from 'lucide-react';
+import { PlusCircle, FileText, Package, ShoppingCart, AlertTriangle } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { getStatusBadgeVariant, toNepaliDate } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
 import Image from 'next/image';
-import { format } from 'date-fns';
+import { format, differenceInDays } from 'date-fns';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 function LiveDateTime() {
   const [now, setNow] = useState(new Date());
@@ -30,6 +31,33 @@ function LiveDateTime() {
       <p>{format(now, 'h:mm:ss a')}</p>
     </div>
   );
+}
+
+function PasswordExpiryReminder() {
+    const { user } = useAuth();
+
+    if (!user || !user.passwordLastUpdated) {
+        return null;
+    }
+    
+    const daysSinceUpdate = differenceInDays(new Date(), new Date(user.passwordLastUpdated));
+    
+    if (daysSinceUpdate > 30) {
+        return (
+            <Alert variant="destructive" className="mb-8">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Password Expired</AlertTitle>
+                <AlertDescription>
+                    Your password is more than 30 days old. For security, please {' '}
+                    <Link href="/settings" className="font-bold underline">
+                        change your password
+                    </Link>.
+                </AlertDescription>
+            </Alert>
+        );
+    }
+    
+    return null;
 }
 
 export default function DashboardPage() {
@@ -114,6 +142,8 @@ export default function DashboardPage() {
       </header>
 
       <div className="flex-grow" />
+      
+      {isClient && <PasswordExpiryReminder />}
 
       <Card>
         <CardHeader>

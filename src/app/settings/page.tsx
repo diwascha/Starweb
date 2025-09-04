@@ -27,7 +27,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, MoreHorizontal, Eye, EyeOff } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, EyeOff } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
@@ -68,7 +68,7 @@ const passwordSchema = z.object({
 type PasswordFormValues = z.infer<typeof passwordSchema>;
 
 export default function SettingsPage() {
-  const { user: currentUser, loading, hasPermission } = useAuth();
+  const { user: currentUser, loading, hasPermission, login } = useAuth();
   const router = useRouter();
   const [users, setUsers] = useLocalStorage<User[]>('users', []);
   const { toast } = useToast();
@@ -139,26 +139,26 @@ export default function SettingsPage() {
       return;
     }
 
-    const { error } = validatePassword(password, true);
-    if(error){
+    const isPasswordRequired = !editingUser; // Required for new user
+    const { isValid, error } = validatePassword(password, isPasswordRequired);
+    if(!isValid){
         toast({ title: 'Error', description: error, variant: 'destructive' });
         return;
     }
+
+    const passwordLastUpdated = new Date().toISOString();
 
     if (editingUser) {
       const updatedUser: User = {
         ...editingUser,
         username: username.trim(),
-        password: password.trim(),
+        password: password.trim() || editingUser.password, // Keep old password if new one is empty
+        passwordLastUpdated: password.trim() ? passwordLastUpdated : editingUser.passwordLastUpdated,
         permissions: userPermissions,
       };
       setUsers(users.map(u => (u.id === editingUser.id ? updatedUser : u)));
       toast({ title: 'Success', description: 'User updated successfully.' });
     } else {
-      if (password.trim() === '') {
-        toast({ title: 'Error', description: 'Password is required for new users.', variant: 'destructive' });
-        return;
-      }
       if (users.some(u => u.username.toLowerCase() === username.trim().toLowerCase())) {
         toast({ title: 'Error', description: 'Username already exists.', variant: 'destructive' });
         return;
@@ -168,6 +168,7 @@ export default function SettingsPage() {
         id: crypto.randomUUID(),
         username: username.trim(),
         password: password.trim(),
+        passwordLastUpdated,
         permissions: userPermissions,
       };
       setUsers([...users, newUser]);
@@ -198,8 +199,15 @@ export default function SettingsPage() {
   };
   
   const handleAdminPasswordChange = (data: PasswordFormValues) => {
-    setAdminPassword(data.newPassword);
+    const passwordLastUpdated = new Date().toISOString();
+    setAdminPassword(data.newPassword, passwordLastUpdated);
     toast({ title: "Success", description: "Administrator password updated."});
+    
+    // Re-login to update session
+    if (currentUser?.is_admin) {
+        login({ id: 'admin', username: 'Administrator', permissions: {}, passwordLastUpdated });
+    }
+    
     setIsPasswordDialogOpen(false);
     reset();
   };
@@ -281,9 +289,9 @@ export default function SettingsPage() {
                                     <div className="space-y-2">
                                         <Label htmlFor="password">Password</Label>
                                         <div className="relative">
-                                            <Input id="password" type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} />
+                                            <Input id="password" type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} placeholder={editingUser ? 'Leave blank to keep current' : ''} />
                                             <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowPassword(!showPassword)}>
-                                                {showPassword ? <EyeOff /> : <Eye />}
+                                                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                                             </Button>
                                         </div>
                                     </div>

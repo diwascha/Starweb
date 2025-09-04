@@ -181,4 +181,5 @@ export interface User {
   username: string;
   password?: string;
   permissions: Permissions;
+  passwordLastUpdated?: string; // ISO Date string
 }

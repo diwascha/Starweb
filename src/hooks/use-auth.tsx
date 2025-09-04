@@ -5,12 +5,14 @@ import { useState, useEffect, createContext, useContext, ReactNode, useCallback 
 import { useRouter, usePathname } from 'next/navigation';
 import type { User, Permissions, Module, Action } from '@/lib/types';
 import { modules } from '@/lib/types';
-import useLocalStorage from './use-local-storage';
+import { getAdminCredentials } from '@/lib/utils';
+
 
 interface UserSession {
   username: string;
   is_admin: boolean;
   permissions: Permissions;
+  passwordLastUpdated?: string;
 }
 
 interface AuthContextType {
@@ -100,11 +102,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     let sessionToStore: UserSession;
     const isAdmin = userToLogin.id === 'admin';
 
-    sessionToStore = {
-        username: userToLogin.username,
-        is_admin: isAdmin,
-        permissions: userToLogin.permissions,
-    };
+    if (isAdmin) {
+        const adminCreds = getAdminCredentials();
+        sessionToStore = {
+            username: userToLogin.username,
+            is_admin: true,
+            permissions: {},
+            passwordLastUpdated: adminCreds.passwordLastUpdated,
+        };
+    } else {
+        sessionToStore = {
+            username: userToLogin.username,
+            is_admin: false,
+            permissions: userToLogin.permissions,
+            passwordLastUpdated: userToLogin.passwordLastUpdated,
+        };
+    }
     
     sessionStorage.setItem(USER_SESSION_KEY, JSON.stringify(sessionToStore));
     setUser(sessionToStore);

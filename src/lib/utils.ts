@@ -79,26 +79,41 @@ export const toNepaliDate = (isoDate: string): string => {
 
 const ADMIN_CREDS_KEY = 'admin_credentials';
 
-export const getAdminCredentials = (): { username: string, password?: string } => {
+const defaultAdminCreds = { 
+  username: 'Administrator', 
+  password: 'Admin@user1',
+  passwordLastUpdated: new Date().toISOString(),
+};
+
+export const getAdminCredentials = (): { username: string, password?: string, passwordLastUpdated?: string } => {
   if (typeof window === 'undefined') {
-    return { username: 'Administrator', password: 'Admin@user1' };
+    return defaultAdminCreds;
   }
   const storedCreds = localStorage.getItem(ADMIN_CREDS_KEY);
   if (storedCreds) {
     try {
-      return JSON.parse(storedCreds);
+      const parsed = JSON.parse(storedCreds);
+      // Ensure passwordLastUpdated exists
+      if (!parsed.passwordLastUpdated) {
+        parsed.passwordLastUpdated = new Date().toISOString();
+        localStorage.setItem(ADMIN_CREDS_KEY, JSON.stringify(parsed));
+      }
+      return parsed;
     } catch {
       // Fallback if parsing fails
-      return { username: 'Administrator', password: 'Admin@user1' };
+      localStorage.setItem(ADMIN_CREDS_KEY, JSON.stringify(defaultAdminCreds));
+      return defaultAdminCreds;
     }
   }
-  return { username: 'Administrator', password: 'Admin@user1' };
+  localStorage.setItem(ADMIN_CREDS_KEY, JSON.stringify(defaultAdminCreds));
+  return defaultAdminCreds;
 };
 
-export const setAdminPassword = (newPassword: string): void => {
+export const setAdminPassword = (newPassword: string, passwordLastUpdated: string): void => {
   if (typeof window !== 'undefined') {
     const creds = getAdminCredentials();
     creds.password = newPassword;
+    creds.passwordLastUpdated = passwordLastUpdated;
     localStorage.setItem(ADMIN_CREDS_KEY, JSON.stringify(creds));
   }
 };
