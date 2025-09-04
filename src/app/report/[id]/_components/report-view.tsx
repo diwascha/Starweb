@@ -128,8 +128,13 @@ export default function ReportView({ reportId }: { reportId: string }) {
                     {Object.keys(report.product.specification).map((key) => {
                       const specKey = key as keyof ProductSpecification;
                       const standardValue = report.product.specification[specKey];
-                      const testResult = report.testData[specKey];
                       
+                      // Only render the row if a standard value is provided for the parameter
+                      if (!standardValue || standardValue.trim() === '') {
+                        return null;
+                      }
+                      
+                      const testResult = report.testData[specKey];
                       const resultValue = typeof testResult === 'object' && testResult !== null ? testResult.value : testResult;
                       const remarkValue = typeof testResult === 'object' && testResult !== null ? testResult.remark : '';
                       
