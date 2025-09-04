@@ -1,7 +1,7 @@
 
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import type { Report, PurchaseOrder, PurchaseOrderStatus, AttendanceStatus } from './types';
+import type { Report, PurchaseOrder, PurchaseOrderStatus, AttendanceStatus, User } from './types';
 import NepaliDate from 'nepali-date-converter';
 
 export function cn(...inputs: ClassValue[]) {
@@ -81,7 +81,7 @@ const ADMIN_CREDS_KEY = 'admin_credentials';
 
 const defaultAdminCreds = { 
   username: 'Administrator', 
-  password: 'admin',
+  password: 'Admin@123',
   passwordLastUpdated: new Date().toISOString(),
 };
 
@@ -93,9 +93,9 @@ export const getAdminCredentials = (): { username: string, password?: string, pa
   if (storedCreds) {
     try {
       const parsed = JSON.parse(storedCreds);
-      // Ensure passwordLastUpdated exists
-      if (!parsed.passwordLastUpdated) {
-        parsed.passwordLastUpdated = new Date().toISOString();
+      // Ensure password exists, fallback to default if not.
+      if (!parsed.password) {
+        parsed.password = defaultAdminCreds.password;
         localStorage.setItem(ADMIN_CREDS_KEY, JSON.stringify(parsed));
       }
       return parsed;
@@ -144,5 +144,3 @@ export const validatePassword = (password: string, isRequired: boolean = true): 
     }
     return { isValid: true };
 }
-
-    
