@@ -1,7 +1,7 @@
 
 import type {Metadata} from 'next';
 import './globals.css';
-import {SidebarProvider, SidebarInset} from '@/components/ui/sidebar';
+import {SidebarProvider, SidebarInset, SidebarTrigger} from '@/components/ui/sidebar';
 import {AppSidebar} from '@/components/app-sidebar';
 import {Toaster} from '@/components/ui/toaster';
 import { AuthProvider, useAuth } from '@/hooks/use-auth';

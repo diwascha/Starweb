@@ -2,6 +2,8 @@
 import { db } from '@/lib/firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import type { Driver } from '@/lib/types';
+import { deleteFile } from './storage-service';
+
 
 const driversCollection = collection(db, 'drivers');
 
@@ -14,6 +16,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Driver =>
         licenseNumber: data.licenseNumber,
         contactNumber: data.contactNumber,
         dateOfBirth: data.dateOfBirth,
+        photoURL: data.photoURL,
         createdBy: data.createdBy,
         createdAt: data.createdAt,
         lastModifiedBy: data.lastModifiedBy,
@@ -43,7 +46,14 @@ export const updateDriver = async (id: string, driver: Partial<Omit<Driver, 'id'
     });
 };
 
-export const deleteDriver = async (id: string): Promise<void> => {
+export const deleteDriver = async (id: string, photoURL?: string): Promise<void> => {
+    if (photoURL) {
+        try {
+            await deleteFile(photoURL);
+        } catch (error) {
+            console.error("Failed to delete driver photo from storage:", error);
+        }
+    }
     const driverDoc = doc(db, 'drivers', id);
     await deleteDoc(driverDoc);
 };

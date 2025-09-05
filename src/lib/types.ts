@@ -156,6 +156,7 @@ export interface Driver {
     licenseNumber: string;
     contactNumber: string;
     dateOfBirth: string; // ISO string
+    photoURL?: string;
     createdBy: string;
     createdAt: string; // ISO string
     lastModifiedBy?: string;
