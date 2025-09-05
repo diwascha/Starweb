@@ -289,9 +289,10 @@ export default function RawMaterialsPage() {
   };
 
   const handleUnitKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if ((e.key === 'Enter' || e.key === ',') && unitInputValue.trim()) {
+    const value = e.currentTarget.value;
+    if ((e.key === 'Enter' || e.key === ',' || e.key === '.') && value.trim()) {
         e.preventDefault();
-        const newUnit = unitInputValue.trim();
+        const newUnit = value.trim();
         if (!newMaterialUnits.find(u => u.toLowerCase() === newUnit.toLowerCase())) {
             setNewMaterialUnits([...newMaterialUnits, newUnit]);
         }
@@ -387,15 +388,17 @@ export default function RawMaterialsPage() {
                                         <span>{material.lastModifiedBy || material.createdBy}</span>
                                     </TooltipTrigger>
                                     <TooltipContent>
-                                        <p>
-                                          Created by: {material.createdBy}
-                                          {material.createdAt ? ` on ${format(new Date(material.createdAt), "PP")}` : ''}
-                                        </p>
+                                        {material.createdBy && (
+                                            <p>
+                                            Created by: {material.createdBy}
+                                            {material.createdAt ? ` on ${format(new Date(material.createdAt), "PP")}` : ''}
+                                            </p>
+                                        )}
                                         {material.lastModifiedBy && (
-                                          <p>
+                                        <p>
                                             Modified by: {material.lastModifiedBy}
                                             {material.lastModifiedAt ? ` on ${format(new Date(material.lastModifiedAt), "PP")}` : ''}
-                                          </p>
+                                        </p>
                                         )}
                                     </TooltipContent>
                                 </Tooltip>
