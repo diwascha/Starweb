@@ -106,7 +106,6 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
         if (reportToEdit) {
             const product = productsData.find(p => p.id === reportToEdit.product.id);
             setSelectedProduct(product || null);
-            setSelectedBoxType('Normal');
         }
     }
     fetchProducts();
@@ -215,7 +214,21 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
     if (selectedProduct && !reportToEdit) {
       handleProductChange(selectedProduct.id);
     }
-  }, [selectedProduct, reportToEdit]);
+  }, [selectedProduct]);
+
+  useEffect(() => {
+    if (reportToEdit && products.length > 0) {
+      const product = products.find(p => p.id === reportToEdit.product.id);
+      setSelectedProduct(product || null);
+      form.reset({
+        productId: reportToEdit.product.id,
+        taxInvoiceNumber: reportToEdit.taxInvoiceNumber,
+        challanNumber: reportToEdit.challanNumber,
+        quantity: reportToEdit.quantity,
+        ...reportToEdit.testData
+      });
+    }
+  }, [reportToEdit, products, form]);
 
   const handleProductChange = (productId: string) => {
     form.setValue('productId', productId);
