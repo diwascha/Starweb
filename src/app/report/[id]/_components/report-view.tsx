@@ -11,6 +11,19 @@ import { Separator } from '@/components/ui/separator';
 import NepaliDate from 'nepali-date-converter';
 import { getReport, updateReport } from '@/services/report-service';
 
+const orderedSpecificationKeys: (keyof ProductSpecification)[] = [
+  'dimension',
+  'ply',
+  'weightOfBox',
+  'gsm',
+  'stapleWidth',
+  'stapling',
+  'overlapWidth',
+  'printing',
+  'moisture',
+  'load',
+];
+
 export default function ReportView({ reportId }: { reportId: string }) {
   const [report, setReport] = useState<Report | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -120,6 +133,10 @@ export default function ReportView({ reportId }: { reportId: string }) {
                         <span className="font-medium">Address: </span>
                         <span>{report.product.address}</span>
                     </div>
+                    <div>
+                        <span className="font-medium">Supplied Quantities: </span>
+                        <span>{report.quantity}</span>
+                    </div>
                 </div>
             </section>
             <Separator className="my-2 bg-gray-300"/>
@@ -136,7 +153,7 @@ export default function ReportView({ reportId }: { reportId: string }) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {Object.keys(report.product.specification).map((key) => {
+                    {orderedSpecificationKeys.map((key) => {
                       const specKey = key as keyof ProductSpecification;
                       const standardValue = report.product.specification[specKey];
                       
