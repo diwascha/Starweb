@@ -44,7 +44,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
-import { onPurchaseOrdersUpdate, deletePurchaseOrder, updatePurchaseOrder } from '@/services/purchase-order-service';
+import { getPurchaseOrders, deletePurchaseOrder, updatePurchaseOrder } from '@/services/purchase-order-service';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 
@@ -61,7 +61,7 @@ export default function PurchaseOrdersListPage() {
   });
 
   const { toast } = useToast();
-  const [isClient, setIsClient] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const { hasPermission } = useAuth();
 
@@ -71,14 +71,24 @@ export default function PurchaseOrdersListPage() {
 
 
   useEffect(() => {
-    setIsClient(true);
-    const unsubscribe = onPurchaseOrdersUpdate(setPurchaseOrders);
-    return () => unsubscribe();
-  }, []);
+    async function fetchData() {
+        setIsLoading(true);
+        try {
+            const poData = await getPurchaseOrders();
+            setPurchaseOrders(poData);
+        } catch (error) {
+            toast({ title: 'Error', description: 'Failed to fetch purchase orders.', variant: 'destructive' });
+        } finally {
+            setIsLoading(false);
+        }
+    }
+    fetchData();
+  }, [toast]);
   
   const handleDeletePurchaseOrder = async (id: string) => {
     try {
       await deletePurchaseOrder(id);
+      setPurchaseOrders(prev => prev.filter(po => po.id !== id));
       toast({ title: 'Purchase Order Deleted', description: 'The purchase order has been successfully deleted.' });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to delete purchase order.', variant: 'destructive' });
@@ -88,6 +98,7 @@ export default function PurchaseOrdersListPage() {
   const updatePoStatus = async (id: string, status: PurchaseOrderStatus, deliveryDate?: string) => {
     try {
       await updatePurchaseOrder(id, { status, deliveryDate: deliveryDate || poToUpdate?.deliveryDate });
+      setPurchaseOrders(prev => prev.map(po => po.id === id ? { ...po, status, deliveryDate: deliveryDate || po.deliveryDate } : po));
       toast({
         title: 'Status Updated',
         description: `Purchase Order status has been updated to ${status}.`,
@@ -183,7 +194,7 @@ export default function PurchaseOrdersListPage() {
   };
 
   const renderContent = () => {
-    if (!isClient) {
+    if (isLoading) {
       return (
         <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
           <div className="flex flex-col items-center gap-1 text-center">

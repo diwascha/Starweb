@@ -22,7 +22,7 @@ import { generateNextSerialNumber } from '@/lib/utils';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { RefreshCw } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
-import { onProductsUpdate } from '@/services/product-service';
+import { getProducts } from '@/services/product-service';
 import { addReport, updateReport, getReports } from '@/services/report-service';
 
 const testResultSchema = z.object({
@@ -100,15 +100,17 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
 
   useEffect(() => {
     setIsClient(true);
-    const unsubscribe = onProductsUpdate(setProducts);
-    
-    if (reportToEdit) {
-        const product = products.find(p => p.id === reportToEdit.product.id);
-        setSelectedProduct(product || null);
-        setSelectedBoxType('Normal');
+    async function fetchProducts() {
+        const productsData = await getProducts();
+        setProducts(productsData);
+        if (reportToEdit) {
+            const product = productsData.find(p => p.id === reportToEdit.product.id);
+            setSelectedProduct(product || null);
+            setSelectedBoxType('Normal');
+        }
     }
-    return () => unsubscribe();
-  }, [reportToEdit, products]);
+    fetchProducts();
+  }, [reportToEdit]);
   
   const form = useForm<ReportFormValues>({
     resolver: zodResolver(reportFormSchema),

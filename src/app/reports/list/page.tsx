@@ -30,7 +30,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
-import { onReportsUpdate, deleteReport, updateReport } from '@/services/report-service';
+import { getReports, deleteReport, updateReport } from '@/services/report-service';
 
 type ReportSortKey = 'serialNumber' | 'productName' | 'taxInvoiceNumber' | 'challanNumber' | 'quantity' | 'createdBy' | 'lastModifiedBy';
 type SortDirection = 'asc' | 'desc';
@@ -50,16 +50,24 @@ export default function ReportsListPage() {
   const { hasPermission } = useAuth();
 
   useEffect(() => {
-    const unsubscribe = onReportsUpdate((reports) => {
-      setReports(reports);
-      setIsLoading(false);
-    });
-    return () => unsubscribe();
-  }, []);
+    async function fetchReports() {
+        setIsLoading(true);
+        try {
+            const reportsData = await getReports();
+            setReports(reportsData);
+        } catch (error) {
+            toast({ title: 'Error', description: 'Failed to fetch reports.', variant: 'destructive' });
+        } finally {
+            setIsLoading(false);
+        }
+    }
+    fetchReports();
+  }, [toast]);
   
   const handleDeleteReport = async (id: string) => {
     try {
       await deleteReport(id);
+      setReports(prev => prev.filter(r => r.id !== id));
       toast({ title: 'Report Deleted', description: 'The report has been successfully deleted.' });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to delete report.', variant: 'destructive' });
