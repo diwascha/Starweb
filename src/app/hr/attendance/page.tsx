@@ -2,7 +2,6 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import useLocalStorage from '@/hooks/use-local-storage';
 import type { AttendanceRecord, Employee } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
@@ -16,12 +15,13 @@ import { useAuth } from '@/hooks/use-auth';
 import { Badge } from '@/components/ui/badge';
 import { format, parse } from 'date-fns';
 import { onEmployeesUpdate } from '@/services/employee-service';
+import { onAttendanceUpdate, addAttendanceRecords } from '@/services/attendance-service';
 
 type SortKey = 'date' | 'employeeName' | 'status';
 type SortDirection = 'asc' | 'desc';
 
 export default function AttendancePage() {
-  const [attendance, setAttendance] = useLocalStorage<AttendanceRecord[]>('attendance', []);
+  const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
@@ -32,8 +32,12 @@ export default function AttendancePage() {
   
   useEffect(() => {
     setIsClient(true);
-    const unsub = onEmployeesUpdate(setEmployees);
-    return () => unsub();
+    const unsubEmployees = onEmployeesUpdate(setEmployees);
+    const unsubAttendance = onAttendanceUpdate(setAttendance);
+    return () => {
+        unsubEmployees();
+        unsubAttendance();
+    };
   }, []);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -50,7 +54,6 @@ export default function AttendancePage() {
         const jsonData = XLSX.utils.sheet_to_json<any>(worksheet, { header: 1 });
         
         parseAndStoreAttendance(jsonData.slice(1)); // Assuming first row is header
-        toast({ title: 'Success', description: 'Attendance data imported successfully.' });
       } catch (error) {
         console.error("File parsing error:", error);
         toast({ title: 'Error', description: 'Failed to parse the Excel file.', variant: 'destructive' });
@@ -86,12 +89,12 @@ export default function AttendancePage() {
   };
   
 
-  const parseAndStoreAttendance = (rows: any[][]) => {
+  const parseAndStoreAttendance = async (rows: any[][]) => {
     if (!user) {
         toast({ title: 'Error', description: 'You must be logged in to import attendance.', variant: 'destructive' });
         return;
     }
-    const newRecords: AttendanceRecord[] = [];
+    const newRecords: Omit<AttendanceRecord, 'id'>[] = [];
     const employeeNames = new Set(employees.map(e => e.name.toLowerCase()));
     
     rows.forEach((row, index) => {
@@ -122,8 +125,7 @@ export default function AttendancePage() {
           status = 'Saturday';
       }
       
-      const record: AttendanceRecord = {
-        id: `${dateStr}-${employeeName}`,
+      const record: Omit<AttendanceRecord, 'id'> = {
         date: dateStr,
         bsDate,
         employeeName,
@@ -137,11 +139,17 @@ export default function AttendancePage() {
       newRecords.push(record);
     });
     
-    setAttendance(prev => {
-        const existingRecordMap = new Map(prev.map(r => [r.id, r]));
-        newRecords.forEach(r => existingRecordMap.set(r.id, r));
-        return Array.from(existingRecordMap.values());
-    });
+    if (newRecords.length > 0) {
+        try {
+            await addAttendanceRecords(newRecords);
+            toast({ title: 'Success', description: `${newRecords.length} attendance records imported successfully.` });
+        } catch (error) {
+            console.error("Firestore import error:", error);
+            toast({ title: 'Error', description: 'Failed to save attendance data to the database.', variant: 'destructive' });
+        }
+    } else {
+        toast({ title: 'Info', description: 'No new valid attendance records found to import.' });
+    }
   };
   
   const requestSort = (key: SortKey) => {

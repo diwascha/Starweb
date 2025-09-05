@@ -5,7 +5,6 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Users, Calendar, FileText, Award, Wallet, CheckCircle, XCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
-import useLocalStorage from '@/hooks/use-local-storage';
 import { useState, useEffect, useMemo } from 'react';
 import type { Employee, AttendanceRecord } from '@/lib/types';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from '@/components/ui/chart';
@@ -15,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { getAttendanceBadgeVariant } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { onEmployeesUpdate } from '@/services/employee-service';
+import { onAttendanceUpdate } from '@/services/attendance-service';
 
 
 const hrModules = [
@@ -68,12 +68,16 @@ export default function HRPage() {
    const [isClient, setIsClient] = useState(false);
    
    const [employees, setEmployees] = useState<Employee[]>([]);
-   const [attendance] = useLocalStorage<AttendanceRecord[]>('attendance', []);
+   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
    
    useEffect(() => { 
        setIsClient(true);
-       const unsub = onEmployeesUpdate(setEmployees);
-       return () => unsub();
+       const unsubEmployees = onEmployeesUpdate(setEmployees);
+       const unsubAttendance = onAttendanceUpdate(setAttendance);
+       return () => {
+            unsubEmployees();
+            unsubAttendance();
+       };
     }, []);
    
    const { totalEmployees, presentToday, absentToday, monthlyAttendanceData, wageBasisData } = useMemo(() => {
