@@ -153,7 +153,7 @@ export default function ReportView({ reportId }: { reportId: string }) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {orderedSpecificationKeys.map((key) => {
+                    {report.product.specification && orderedSpecificationKeys.map((key) => {
                       const specKey = key as keyof ProductSpecification;
                       const standardValue = report.product.specification[specKey];
                       
