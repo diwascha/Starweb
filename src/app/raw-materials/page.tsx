@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, X, Check } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, X, Check, User } from 'lucide-react';
 import type { RawMaterial } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -44,6 +44,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { onRawMaterialsUpdate, addRawMaterial, updateRawMaterial, deleteRawMaterial } from '@/services/raw-material-service';
 
 
@@ -344,16 +345,28 @@ export default function RawMaterialsPage() {
                     )}
                     <TableHead>Units</TableHead>
                     <TableHead>
-                        <Button variant="ghost" onClick={() => requestSort('createdBy')}>
-                            Created By
-                            <ArrowUpDown className="ml-2 h-4 w-4" />
-                        </Button>
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button variant="ghost" onClick={() => requestSort('createdBy')}>
+                                        Created <ArrowUpDown className="ml-2 h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent><p>Created By</p></TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
                     </TableHead>
                     <TableHead>
-                        <Button variant="ghost" onClick={() => requestSort('lastModifiedBy')}>
-                            Last Modified By
-                            <ArrowUpDown className="ml-2 h-4 w-4" />
-                        </Button>
+                         <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button variant="ghost" onClick={() => requestSort('lastModifiedBy')}>
+                                        Modified <ArrowUpDown className="ml-2 h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent><p>Last Modified By</p></TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
                     </TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -371,8 +384,32 @@ export default function RawMaterialsPage() {
                             </>
                         )}
                         <TableCell>{Array.isArray(material.units) ? material.units.join(', ') : ''}</TableCell>
-                        <TableCell>{material.createdBy}</TableCell>
-                        <TableCell>{material.lastModifiedBy || 'N/A'}</TableCell>
+                        <TableCell>
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger>
+                                        <User className="h-4 w-4 text-muted-foreground" />
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>{material.createdBy}</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        </TableCell>
+                        <TableCell>
+                            {material.lastModifiedBy ? (
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger>
+                                            <User className="h-4 w-4 text-muted-foreground" />
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>{material.lastModifiedBy}</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            ) : 'N/A'}
+                        </TableCell>
                         <TableCell className="text-right">
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
