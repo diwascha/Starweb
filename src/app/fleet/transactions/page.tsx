@@ -2,7 +2,6 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import useLocalStorage from '@/hooks/use-local-storage';
 import type { Transaction, Vehicle, TransactionType, ExpenseCategory, IncomeSource } from '@/lib/types';
 import { expenseCategories, incomeSources } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -43,19 +42,20 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import type { DateRange } from 'react-day-picker';
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
-
+import { onTransactionsUpdate, addTransaction, updateTransaction, deleteTransaction } from '@/services/transaction-service';
+import { onVehiclesUpdate } from '@/services/vehicle-service';
 
 type TransactionSortKey = 'date' | 'vehicleName' | 'type' | 'category' | 'amount';
 type SortDirection = 'asc' | 'desc';
 
 export default function TransactionsPage() {
-    const [transactions, setTransactions] = useLocalStorage<Transaction[]>('transactions', []);
-    const [vehicles] = useLocalStorage<Vehicle[]>('vehicles', []);
-    const [isClient, setIsClient] = useState(false);
+    const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
-    const [formState, setFormState] = useState<Omit<Transaction, 'id'>>({
+    const [formState, setFormState] = useState<Omit<Transaction, 'id' | 'createdBy' | 'lastModifiedBy'>>({
         vehicleId: '',
         date: new Date().toISOString(),
         type: 'Expense',
@@ -70,14 +70,20 @@ export default function TransactionsPage() {
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     
     const { toast } = useToast();
-    const { hasPermission } = useAuth();
+    const { hasPermission, user } = useAuth();
     
     const vehiclesById = useMemo(() => new Map(vehicles.map(v => [v.id, v.name])), [vehicles]);
     
     const categoryOptions = formState.type === 'Income' ? incomeSources : expenseCategories;
 
     useEffect(() => {
-        setIsClient(true);
+        const unsubTxns = onTransactionsUpdate(setTransactions);
+        const unsubVehicles = onVehiclesUpdate(setVehicles);
+        setIsLoading(false);
+        return () => {
+            unsubTxns();
+            unsubVehicles();
+        };
     }, []);
 
     const resetForm = () => {
@@ -122,28 +128,37 @@ export default function TransactionsPage() {
         }
     };
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
+        if (!user) return;
         if (!formState.vehicleId || !formState.category || formState.amount <= 0) {
             toast({ title: 'Error', description: 'Vehicle, Category, and a valid Amount are required.', variant: 'destructive' });
             return;
         }
 
-        if (editingTransaction) {
-            const updatedTxn = { ...editingTransaction, ...formState };
-            setTransactions(transactions.map(t => t.id === editingTransaction.id ? updatedTxn : t));
-            toast({ title: 'Success', description: 'Transaction updated.' });
-        } else {
-            const newTxn: Transaction = { id: crypto.randomUUID(), ...formState };
-            setTransactions([...transactions, newTxn]);
-            toast({ title: 'Success', description: 'New transaction recorded.' });
+        try {
+            if (editingTransaction) {
+                const updatedData: Partial<Omit<Transaction, 'id'>> = { ...formState, lastModifiedBy: user.username };
+                await updateTransaction(editingTransaction.id, updatedData);
+                toast({ title: 'Success', description: 'Transaction updated.' });
+            } else {
+                const newData: Omit<Transaction, 'id'> = { ...formState, createdBy: user.username };
+                await addTransaction(newData);
+                toast({ title: 'Success', description: 'New transaction recorded.' });
+            }
+            setIsDialogOpen(false);
+            resetForm();
+        } catch (error) {
+             toast({ title: 'Error', description: 'Failed to save transaction.', variant: 'destructive' });
         }
-        setIsDialogOpen(false);
-        resetForm();
     };
 
-    const handleDelete = (id: string) => {
-        setTransactions(transactions.filter(t => t.id !== id));
-        toast({ title: 'Success', description: 'Transaction deleted.' });
+    const handleDelete = async (id: string) => {
+        try {
+            await deleteTransaction(id);
+            toast({ title: 'Success', description: 'Transaction deleted.' });
+        } catch (error) {
+             toast({ title: 'Error', description: 'Failed to delete transaction.', variant: 'destructive' });
+        }
     };
     
     const requestSort = (key: TransactionSortKey) => {
@@ -203,7 +218,7 @@ export default function TransactionsPage() {
 
 
     const renderContent = () => {
-        if (!isClient) {
+        if (isLoading) {
             return (
                 <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
                   <h3 className="text-2xl font-bold tracking-tight">Loading...</h3>
@@ -300,7 +315,7 @@ export default function TransactionsPage() {
                         )}
                     </div>
                 </header>
-                 {isClient && transactions.length > 0 && (
+                 {transactions.length > 0 && (
                     <>
                         <div className="flex flex-col md:flex-row gap-2">
                             <div className="relative flex-1">
@@ -411,7 +426,7 @@ export default function TransactionsPage() {
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="vehicleId">Vehicle</Label>
-                        <Select value={formState.vehicleId} onValueChange={(value) => handleSelectChange('vehicleId', value)}>
+                        <Select value={formState.vehicleId} onValueChange={(value) => handleSelectChange('vehicleId' as any, value)}>
                             <SelectTrigger id="vehicleId"><SelectValue placeholder="Select a vehicle" /></SelectTrigger>
                             <SelectContent>
                                 {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
@@ -421,7 +436,7 @@ export default function TransactionsPage() {
                      <div className="grid grid-cols-2 gap-4">
                          <div className="space-y-2">
                             <Label htmlFor="type">Type</Label>
-                            <Select value={formState.type} onValueChange={(value: TransactionType) => handleSelectChange('type', value)}>
+                            <Select value={formState.type} onValueChange={(value: TransactionType) => handleSelectChange('type' as any, value)}>
                                 <SelectTrigger id="type"><SelectValue placeholder="Select type" /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="Income">Income</SelectItem>
@@ -431,7 +446,7 @@ export default function TransactionsPage() {
                         </div>
                          <div className="space-y-2">
                             <Label htmlFor="category">Category</Label>
-                            <Select value={formState.category} onValueChange={(value) => handleSelectChange('category', value)}>
+                            <Select value={formState.category} onValueChange={(value) => handleSelectChange('category' as any, value)}>
                                 <SelectTrigger id="category"><SelectValue placeholder="Select category" /></SelectTrigger>
                                 <SelectContent>
                                     {categoryOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
@@ -456,5 +471,3 @@ export default function TransactionsPage() {
         </Dialog>
     );
 }
-
-    

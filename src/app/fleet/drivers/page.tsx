@@ -2,7 +2,6 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import useLocalStorage from '@/hooks/use-local-storage';
 import type { Driver } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, CalendarIcon } from 'lucide-react';
@@ -36,20 +35,19 @@ import { useAuth } from '@/hooks/use-auth';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
 import { cn, toNepaliDate } from '@/lib/utils';
-import NepaliDate from 'nepali-date-converter';
 import { DualCalendar } from '@/components/ui/dual-calendar';
-
+import { onDriversUpdate, addDriver, updateDriver, deleteDriver } from '@/services/driver-service';
 
 type DriverSortKey = 'name' | 'nickname' | 'licenseNumber' | 'contactNumber' | 'dateOfBirth';
 type SortDirection = 'asc' | 'desc';
 
 export default function DriversPage() {
-    const [drivers, setDrivers] = useLocalStorage<Driver[]>('drivers', []);
-    const [isClient, setIsClient] = useState(false);
+    const [drivers, setDrivers] = useState<Driver[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
-    const [formState, setFormState] = useState<Omit<Driver, 'id'>>({
+    const [formState, setFormState] = useState<Omit<Driver, 'id' | 'createdBy' | 'lastModifiedBy'>>({
         name: '',
         nickname: '',
         licenseNumber: '',
@@ -61,10 +59,12 @@ export default function DriversPage() {
     const [sortConfig, setSortConfig] = useState<{ key: DriverSortKey; direction: SortDirection }>({ key: 'name', direction: 'asc' });
 
     const { toast } = useToast();
-    const { hasPermission } = useAuth();
+    const { hasPermission, user } = useAuth();
 
     useEffect(() => {
-        setIsClient(true);
+        const unsub = onDriversUpdate(setDrivers);
+        setIsLoading(false);
+        return () => unsub();
     }, []);
 
     const resetForm = () => {
@@ -99,29 +99,37 @@ export default function DriversPage() {
         }
     };
 
-
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
+        if (!user) return;
         if (!formState.name || !formState.licenseNumber) {
             toast({ title: 'Error', description: 'Driver Name and License Number are required.', variant: 'destructive' });
             return;
         }
 
-        if (editingDriver) {
-            const updatedDriver = { ...editingDriver, ...formState };
-            setDrivers(drivers.map(d => d.id === editingDriver.id ? updatedDriver : d));
-            toast({ title: 'Success', description: 'Driver updated.' });
-        } else {
-            const newDriver: Driver = { id: crypto.randomUUID(), ...formState };
-            setDrivers([...drivers, newDriver]);
-            toast({ title: 'Success', description: 'New driver added.' });
+        try {
+            if (editingDriver) {
+                const updatedData: Partial<Omit<Driver, 'id'>> = { ...formState, lastModifiedBy: user.username };
+                await updateDriver(editingDriver.id, updatedData);
+                toast({ title: 'Success', description: 'Driver updated.' });
+            } else {
+                const newData: Omit<Driver, 'id'> = { ...formState, createdBy: user.username };
+                await addDriver(newData);
+                toast({ title: 'Success', description: 'New driver added.' });
+            }
+            setIsDialogOpen(false);
+            resetForm();
+        } catch (error) {
+            toast({ title: 'Error', description: 'Failed to save driver.', variant: 'destructive' });
         }
-        setIsDialogOpen(false);
-        resetForm();
     };
 
-    const handleDelete = (id: string) => {
-        setDrivers(drivers.filter(d => d.id !== id));
-        toast({ title: 'Success', description: 'Driver deleted.' });
+    const handleDelete = async (id: string) => {
+        try {
+            await deleteDriver(id);
+            toast({ title: 'Success', description: 'Driver deleted.' });
+        } catch (error) {
+            toast({ title: 'Error', description: 'Failed to delete driver.', variant: 'destructive' });
+        }
     };
     
     const requestSort = (key: DriverSortKey) => {
@@ -154,7 +162,7 @@ export default function DriversPage() {
     }, [drivers, searchQuery, sortConfig]);
 
     const renderContent = () => {
-        if (!isClient) {
+        if (isLoading) {
             return (
                 <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
                   <h3 className="text-2xl font-bold tracking-tight">Loading...</h3>
@@ -234,7 +242,7 @@ export default function DriversPage() {
                         <p className="text-muted-foreground">Manage your driver records.</p>
                     </div>
                     <div className="flex items-center gap-2">
-                        {isClient && drivers.length > 0 && (
+                        {drivers.length > 0 && (
                             <div className="relative">
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input

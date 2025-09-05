@@ -5,7 +5,6 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Truck, Users, ShieldCheck, CreditCard, ArrowRight, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
-import useLocalStorage from '@/hooks/use-local-storage';
 import { useState, useEffect, useMemo } from 'react';
 import type { Vehicle, Driver, PolicyOrMembership, Transaction } from '@/lib/types';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from '@/components/ui/chart';
@@ -15,7 +14,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn, toNepaliDate } from '@/lib/utils';
 import { differenceInDays, startOfToday, startOfMonth, endOfMonth, subMonths, format } from 'date-fns';
-
+import { onVehiclesUpdate } from '@/services/vehicle-service';
+import { onDriversUpdate } from '@/services/driver-service';
+import { onPoliciesUpdate } from '@/services/policy-service';
+import { onTransactionsUpdate } from '@/services/transaction-service';
 
 const fleetModules = [
     { name: 'Vehicles', href: '/fleet/vehicles', icon: Truck },
@@ -26,17 +28,29 @@ const fleetModules = [
 
 export default function FleetDashboardPage() {
     const { hasPermission } = useAuth();
-    const [isClient, setIsClient] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
 
-    const [vehicles] = useLocalStorage<Vehicle[]>('vehicles', []);
-    const [drivers] = useLocalStorage<Driver[]>('drivers', []);
-    const [policies] = useLocalStorage<PolicyOrMembership[]>('policies', []);
-    const [transactions] = useLocalStorage<Transaction[]>('transactions', []);
+    const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+    const [drivers, setDrivers] = useState<Driver[]>([]);
+    const [policies, setPolicies] = useState<PolicyOrMembership[]>([]);
+    const [transactions, setTransactions] = useState<Transaction[]>([]);
     
-    useEffect(() => { setIsClient(true) }, []);
+    useEffect(() => {
+        const unsubVehicles = onVehiclesUpdate(setVehicles);
+        const unsubDrivers = onDriversUpdate(setDrivers);
+        const unsubPolicies = onPoliciesUpdate(setPolicies);
+        const unsubTxns = onTransactionsUpdate(setTransactions);
+        setIsLoading(false);
+        return () => {
+            unsubVehicles();
+            unsubDrivers();
+            unsubPolicies();
+            unsubTxns();
+        }
+    }, []);
     
     const { totalVehicles, totalDrivers, netThisMonth, vehicleStatusData } = useMemo(() => {
-        if (!isClient) return { totalVehicles: 0, totalDrivers: 0, netThisMonth: 0, vehicleStatusData: [] };
+        if (isLoading) return { totalVehicles: 0, totalDrivers: 0, netThisMonth: 0, vehicleStatusData: [] };
         
         const now = new Date();
         const start = startOfMonth(now);
@@ -63,10 +77,10 @@ export default function FleetDashboardPage() {
             netThisMonth: income - expense,
             vehicleStatusData: statusData
         };
-    }, [isClient, vehicles, drivers, transactions]);
+    }, [isLoading, vehicles, drivers, transactions]);
     
     const monthlyChartData = useMemo(() => {
-        if (!isClient) return [];
+        if (isLoading) return [];
         const data = [];
         for (let i = 5; i >= 0; i--) {
             const date = subMonths(new Date(), i);
@@ -88,24 +102,24 @@ export default function FleetDashboardPage() {
             });
         }
         return data;
-    }, [isClient, transactions]);
+    }, [isLoading, transactions]);
     
     const upcomingRenewals = useMemo(() => {
-        if (!isClient) return [];
+        if (isLoading) return [];
         const today = startOfToday();
         return policies
             .map(p => ({...p, daysRemaining: differenceInDays(new Date(p.endDate), today)}))
             .filter(p => p.daysRemaining >= 0 && p.daysRemaining <= 30)
             .sort((a, b) => a.daysRemaining - b.daysRemaining)
             .slice(0, 5);
-    }, [isClient, policies]);
+    }, [isLoading, policies, vehicles, drivers]);
     
     const recentTransactions = useMemo(() => {
-        if (!isClient) return [];
+        if (isLoading) return [];
         return [...transactions]
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
             .slice(0, 5);
-    }, [isClient, transactions]);
+    }, [isLoading, transactions]);
     
     const chartConfig: ChartConfig = {
         value: { label: 'Vehicles' },
@@ -116,7 +130,7 @@ export default function FleetDashboardPage() {
      const COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
 
 
-    if (!isClient) {
+    if (isLoading) {
       return (
           <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
               <h3 className="text-2xl font-bold tracking-tight">Loading Fleet Dashboard...</h3>

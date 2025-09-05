@@ -2,7 +2,6 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import useLocalStorage from '@/hooks/use-local-storage';
 import type { PolicyOrMembership, Vehicle, Driver } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, CalendarIcon, Check, ChevronsUpDown } from 'lucide-react';
@@ -40,20 +39,22 @@ import { format, differenceInDays, startOfToday } from 'date-fns';
 import { cn, toNepaliDate } from '@/lib/utils';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-
+import { onPoliciesUpdate, addPolicy, updatePolicy, deletePolicy } from '@/services/policy-service';
+import { onVehiclesUpdate } from '@/services/vehicle-service';
+import { onDriversUpdate } from '@/services/driver-service';
 
 type PolicySortKey = 'type' | 'provider' | 'policyNumber' | 'endDate' | 'memberName';
 type SortDirection = 'asc' | 'desc';
 
 export default function PoliciesPage() {
-    const [policies, setPolicies] = useLocalStorage<PolicyOrMembership[]>('policies', []);
-    const [vehicles] = useLocalStorage<Vehicle[]>('vehicles', []);
-    const [drivers] = useLocalStorage<Driver[]>('drivers', []);
-    const [isClient, setIsClient] = useState(false);
+    const [policies, setPolicies] = useState<PolicyOrMembership[]>([]);
+    const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+    const [drivers, setDrivers] = useState<Driver[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingPolicy, setEditingPolicy] = useState<PolicyOrMembership | null>(null);
-    const [formState, setFormState] = useState<Omit<PolicyOrMembership, 'id'>>({
+    const [formState, setFormState] = useState<Omit<PolicyOrMembership, 'id' | 'createdBy' | 'lastModifiedBy'>>({
         type: 'Insurance',
         provider: '',
         policyNumber: '',
@@ -75,9 +76,8 @@ export default function PoliciesPage() {
     const [filterMemberType, setFilterMemberType] = useState<'All' | 'Vehicle' | 'Driver'>('All');
     const [filterMemberId, setFilterMemberId] = useState<string>('All');
 
-
     const { toast } = useToast();
-    const { hasPermission } = useAuth();
+    const { hasPermission, user } = useAuth();
     
     const membersById = useMemo(() => {
         const map = new Map<string, string>();
@@ -87,7 +87,15 @@ export default function PoliciesPage() {
     }, [vehicles, drivers]);
 
     useEffect(() => {
-        setIsClient(true);
+        const unsubPolicies = onPoliciesUpdate(setPolicies);
+        const unsubVehicles = onVehiclesUpdate(setVehicles);
+        const unsubDrivers = onDriversUpdate(setDrivers);
+        setIsLoading(false);
+        return () => {
+            unsubPolicies();
+            unsubVehicles();
+            unsubDrivers();
+        };
     }, []);
     
     useEffect(() => {
@@ -157,17 +165,20 @@ export default function PoliciesPage() {
             toast({ title: 'Error', description: 'Provider name cannot be empty.', variant: 'destructive' });
             return;
         }
-
-        setPolicies(prevPolicies =>
-            prevPolicies.map(p => (p.provider === oldName ? { ...p, provider: newName } : p))
-        );
         
-        if (formState.provider === oldName) {
-            setFormState(prev => ({ ...prev, provider: newName }));
-        }
-
-        toast({ title: 'Success', description: `Provider "${oldName}" updated to "${newName}".` });
-        setEditingProvider(null);
+        const updates = policies
+            .filter(p => p.provider === oldName)
+            .map(p => updatePolicy(p.id, { provider: newName }));
+        
+        Promise.all(updates).then(() => {
+             if (formState.provider === oldName) {
+                setFormState(prev => ({ ...prev, provider: newName }));
+            }
+            toast({ title: 'Success', description: `Provider "${oldName}" updated to "${newName}".` });
+            setEditingProvider(null);
+        }).catch(() => {
+            toast({ title: 'Error', description: 'Failed to update providers.', variant: 'destructive' });
+        });
     };
     
     const handleTypeSelect = (type: string) => {
@@ -188,41 +199,53 @@ export default function PoliciesPage() {
             return;
         }
 
-        setPolicies(prevPolicies =>
-            prevPolicies.map(p => (p.type === oldName ? { ...p, type: newName } : p))
-        );
-        
-        if (formState.type === oldName) {
-            setFormState(prev => ({ ...prev, type: newName }));
-        }
+        const updates = policies
+            .filter(p => p.type === oldName)
+            .map(p => updatePolicy(p.id, { type: newName }));
 
-        toast({ title: 'Success', description: `Type "${oldName}" updated to "${newName}".` });
-        setEditingType(null);
+        Promise.all(updates).then(() => {
+            if (formState.type === oldName) {
+                setFormState(prev => ({ ...prev, type: newName }));
+            }
+            toast({ title: 'Success', description: `Type "${oldName}" updated to "${newName}".` });
+            setEditingType(null);
+        }).catch(() => {
+             toast({ title: 'Error', description: 'Failed to update types.', variant: 'destructive' });
+        });
     };
 
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
+        if (!user) return;
         if (!formState.type || !formState.provider || !formState.policyNumber || !formState.memberId) {
             toast({ title: 'Error', description: 'Type, Provider, Policy Number, and associated Vehicle/Driver are required.', variant: 'destructive' });
             return;
         }
 
-        if (editingPolicy) {
-            const updatedPolicy = { ...editingPolicy, ...formState };
-            setPolicies(policies.map(p => p.id === editingPolicy.id ? updatedPolicy : p));
-            toast({ title: 'Success', description: 'Record updated.' });
-        } else {
-            const newPolicy: PolicyOrMembership = { id: crypto.randomUUID(), ...formState };
-            setPolicies([...policies, newPolicy]);
-            toast({ title: 'Success', description: 'New record added.' });
+        try {
+            if (editingPolicy) {
+                const updatedData: Partial<Omit<PolicyOrMembership, 'id'>> = { ...formState, lastModifiedBy: user.username };
+                await updatePolicy(editingPolicy.id, updatedData);
+                toast({ title: 'Success', description: 'Record updated.' });
+            } else {
+                const newData: Omit<PolicyOrMembership, 'id'> = { ...formState, createdBy: user.username };
+                await addPolicy(newData);
+                toast({ title: 'Success', description: 'New record added.' });
+            }
+            setIsDialogOpen(false);
+            resetForm();
+        } catch (error) {
+            toast({ title: 'Error', description: 'Failed to save record.', variant: 'destructive' });
         }
-        setIsDialogOpen(false);
-        resetForm();
     };
 
-    const handleDelete = (id: string) => {
-        setPolicies(policies.filter(p => p.id !== id));
-        toast({ title: 'Success', description: 'Record deleted.' });
+    const handleDelete = async (id: string) => {
+        try {
+            await deletePolicy(id);
+            toast({ title: 'Success', description: 'Record deleted.' });
+        } catch (error) {
+            toast({ title: 'Error', description: 'Failed to delete record.', variant: 'destructive' });
+        }
     };
     
      const requestSort = (key: PolicySortKey) => {
@@ -285,8 +308,8 @@ export default function PoliciesPage() {
                 return 0;
             }
 
-            const aVal = a[sortConfig.key];
-            const bVal = b[sortConfig.key];
+            const aVal = a[sortConfig.key as keyof typeof a];
+            const bVal = b[sortConfig.key as keyof typeof b];
             if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
             if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
             return 0;
@@ -296,7 +319,7 @@ export default function PoliciesPage() {
 
 
     const renderContent = () => {
-        if (!isClient) {
+        if (isLoading) {
             return (
                 <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
                   <h3 className="text-2xl font-bold tracking-tight">Loading...</h3>
@@ -402,7 +425,7 @@ export default function PoliciesPage() {
                             )}
                         </div>
                     </header>
-                     {isClient && policies.length > 0 && (
+                     {policies.length > 0 && (
                         <div className="flex flex-col md:flex-row gap-2">
                             <div className="relative flex-1">
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -535,7 +558,7 @@ export default function PoliciesPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="memberType">For</Label>
-                                <Select value={formState.memberType} onValueChange={(value: 'Vehicle' | 'Driver') => handleSelectChange('memberType', value)}>
+                                <Select value={formState.memberType} onValueChange={(value: 'Vehicle' | 'Driver') => handleSelectChange('memberType' as any, value)}>
                                     <SelectTrigger id="memberType"><SelectValue placeholder="Select one" /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="Vehicle">Vehicle</SelectItem>
@@ -545,7 +568,7 @@ export default function PoliciesPage() {
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="memberId">{formState.memberType}</Label>
-                                <Select value={formState.memberId} onValueChange={(value) => handleSelectChange('memberId', value)} disabled={!formState.memberType}>
+                                <Select value={formState.memberId} onValueChange={(value) => handleSelectChange('memberId' as any, value)} disabled={!formState.memberType}>
                                     <SelectTrigger id="memberId"><SelectValue placeholder={`Select a ${formState.memberType.toLowerCase()}`} /></SelectTrigger>
                                     <SelectContent>
                                         {formState.memberType === 'Vehicle' ? (

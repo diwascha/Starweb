@@ -2,7 +2,6 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import useLocalStorage from '@/hooks/use-local-storage';
 import type { Vehicle, VehicleStatus, Driver } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search } from 'lucide-react';
@@ -34,6 +33,8 @@ import {
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/use-auth';
+import { onVehiclesUpdate, addVehicle, updateVehicle, deleteVehicle } from '@/services/vehicle-service';
+import { onDriversUpdate } from '@/services/driver-service';
 
 const vehicleStatuses: VehicleStatus[] = ['Active', 'In Maintenance', 'Decommissioned'];
 
@@ -41,13 +42,13 @@ type VehicleSortKey = 'name' | 'make' | 'model' | 'status' | 'driverName';
 type SortDirection = 'asc' | 'desc';
 
 export default function VehiclesPage() {
-    const [vehicles, setVehicles] = useLocalStorage<Vehicle[]>('vehicles', []);
-    const [drivers] = useLocalStorage<Driver[]>('drivers', []);
-    const [isClient, setIsClient] = useState(false);
+    const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+    const [drivers, setDrivers] = useState<Driver[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
-    const [formState, setFormState] = useState<Omit<Vehicle, 'id'>>({
+    const [formState, setFormState] = useState<Omit<Vehicle, 'id' | 'createdBy' | 'lastModifiedBy'>>({
         name: '',
         make: '',
         model: '',
@@ -61,12 +62,18 @@ export default function VehiclesPage() {
     const [sortConfig, setSortConfig] = useState<{ key: VehicleSortKey; direction: SortDirection }>({ key: 'name', direction: 'asc' });
 
     const { toast } = useToast();
-    const { hasPermission } = useAuth();
+    const { hasPermission, user } = useAuth();
     
     const driversById = useMemo(() => new Map(drivers.map(d => [d.id, d.name])), [drivers]);
 
     useEffect(() => {
-        setIsClient(true);
+        const unsubVehicles = onVehiclesUpdate(setVehicles);
+        const unsubDrivers = onDriversUpdate(setDrivers);
+        setIsLoading(false);
+        return () => {
+            unsubVehicles();
+            unsubDrivers();
+        };
     }, []);
 
     const resetForm = () => {
@@ -94,35 +101,44 @@ export default function VehiclesPage() {
 
     const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
-        setFormState(prev => ({ ...prev, [name]: value }));
+        setFormState(prev => ({ ...prev, [name]: name === 'year' ? parseInt(value) || 0 : value }));
     };
     
     const handleSelectChange = (name: keyof Omit<Vehicle, 'id'>, value: string) => {
         setFormState(prev => ({ ...prev, [name]: value === 'unassigned' ? undefined : value }));
     };
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
+        if (!user) return;
         if (!formState.name) {
             toast({ title: 'Error', description: 'Vehicle Name / Number is required.', variant: 'destructive' });
             return;
         }
 
-        if (editingVehicle) {
-            const updatedVehicle = { ...editingVehicle, ...formState };
-            setVehicles(vehicles.map(v => v.id === editingVehicle.id ? updatedVehicle : v));
-            toast({ title: 'Success', description: 'Vehicle updated.' });
-        } else {
-            const newVehicle: Vehicle = { id: crypto.randomUUID(), ...formState };
-            setVehicles([...vehicles, newVehicle]);
-            toast({ title: 'Success', description: 'New vehicle added.' });
+        try {
+            if (editingVehicle) {
+                const updatedData: Partial<Omit<Vehicle, 'id'>> = { ...formState, lastModifiedBy: user.username };
+                await updateVehicle(editingVehicle.id, updatedData);
+                toast({ title: 'Success', description: 'Vehicle updated.' });
+            } else {
+                const newData: Omit<Vehicle, 'id'> = { ...formState, createdBy: user.username };
+                await addVehicle(newData);
+                toast({ title: 'Success', description: 'New vehicle added.' });
+            }
+            setIsDialogOpen(false);
+            resetForm();
+        } catch (error) {
+            toast({ title: 'Error', description: 'Failed to save vehicle.', variant: 'destructive' });
         }
-        setIsDialogOpen(false);
-        resetForm();
     };
 
-    const handleDelete = (id: string) => {
-        setVehicles(vehicles.filter(v => v.id !== id));
-        toast({ title: 'Success', description: 'Vehicle deleted.' });
+    const handleDelete = async (id: string) => {
+        try {
+            await deleteVehicle(id);
+            toast({ title: 'Success', description: 'Vehicle deleted.' });
+        } catch (error) {
+            toast({ title: 'Error', description: 'Failed to delete vehicle.', variant: 'destructive' });
+        }
     };
     
      const requestSort = (key: VehicleSortKey) => {
@@ -161,7 +177,7 @@ export default function VehiclesPage() {
 
 
     const renderContent = () => {
-        if (!isClient) {
+        if (isLoading) {
             return (
                 <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
                   <h3 className="text-2xl font-bold tracking-tight">Loading...</h3>
@@ -241,7 +257,7 @@ export default function VehiclesPage() {
                         <p className="text-muted-foreground">Manage your fleet of vehicles and driver assignments.</p>
                     </div>
                     <div className="flex items-center gap-2">
-                        {isClient && vehicles.length > 0 && (
+                        {vehicles.length > 0 && (
                             <div className="relative">
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
@@ -297,7 +313,7 @@ export default function VehiclesPage() {
                      <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="driverId">Assigned Driver</Label>
-                            <Select value={formState.driverId || 'unassigned'} onValueChange={(value) => handleSelectChange('driverId', value)}>
+                            <Select value={formState.driverId || 'unassigned'} onValueChange={(value) => handleSelectChange('driverId' as any, value)}>
                                 <SelectTrigger id="driverId"><SelectValue placeholder="Select a driver" /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="unassigned">Unassigned</SelectItem>
@@ -307,7 +323,7 @@ export default function VehiclesPage() {
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="status">Status</Label>
-                            <Select value={formState.status} onValueChange={(value: VehicleStatus) => handleSelectChange('status', value)}>
+                            <Select value={formState.status} onValueChange={(value: VehicleStatus) => handleSelectChange('status' as any, value)}>
                                 <SelectTrigger id="status"><SelectValue placeholder="Select status" /></SelectTrigger>
                                 <SelectContent>
                                     {vehicleStatuses.map(status => <SelectItem key={status} value={status}>{status}</SelectItem>)}
