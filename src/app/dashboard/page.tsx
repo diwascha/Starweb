@@ -2,7 +2,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import useLocalStorage from '@/hooks/use-local-storage';
 import type { Report, PurchaseOrder } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import Link from 'next/link';
@@ -16,6 +15,7 @@ import { format, differenceInDays } from 'date-fns';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { onReportsUpdate } from '@/services/report-service';
+import { onPurchaseOrdersUpdate } from '@/services/purchase-order-service';
 
 
 function LiveDateTime() {
@@ -64,14 +64,18 @@ function PasswordExpiryReminder() {
 
 export default function DashboardPage() {
   const [reports, setReports] = useState<Report[]>([]);
-  const [purchaseOrders] = useLocalStorage<PurchaseOrder[]>('purchaseOrders', []);
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [isClient, setIsClient] = useState(false);
   const { hasPermission } = useAuth();
 
   useEffect(() => {
     setIsClient(true);
-    const unsubscribe = onReportsUpdate(setReports);
-    return () => unsubscribe();
+    const unsubReports = onReportsUpdate(setReports);
+    const unsubPOs = onPurchaseOrdersUpdate(setPurchaseOrders);
+    return () => {
+        unsubReports();
+        unsubPOs();
+    };
   }, []);
   
   const canViewPOs = hasPermission('purchaseOrders', 'view');

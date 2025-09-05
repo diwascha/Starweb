@@ -5,7 +5,6 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { ShoppingCart, Wrench, Package, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
-import useLocalStorage from '@/hooks/use-local-storage';
 import { useState, useEffect, useMemo } from 'react';
 import type { PurchaseOrder, RawMaterial } from '@/lib/types';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from '@/components/ui/chart';
@@ -14,6 +13,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { getStatusBadgeVariant } from '@/lib/utils';
 import { differenceInDays } from 'date-fns';
+import { onPurchaseOrdersUpdate } from '@/services/purchase-order-service';
+import { onRawMaterialsUpdate } from '@/services/raw-material-service';
 
 
 const poModules = [
@@ -39,10 +40,18 @@ export default function PurchaseOrderDashboardPage() {
    const { hasPermission } = useAuth();
    const [isClient, setIsClient] = useState(false);
    
-   const [purchaseOrders] = useLocalStorage<PurchaseOrder[]>('purchaseOrders', []);
-   const [rawMaterials] = useLocalStorage<RawMaterial[]>('rawMaterials', []);
+   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
+   const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([]);
    
-   useEffect(() => { setIsClient(true) }, []);
+   useEffect(() => {
+     setIsClient(true);
+     const unsubPOs = onPurchaseOrdersUpdate(setPurchaseOrders);
+     const unsubRMs = onRawMaterialsUpdate(setRawMaterials);
+     return () => {
+        unsubPOs();
+        unsubRMs();
+     };
+   }, []);
    
    const { totalPOs, totalRawMaterials, avgLeadTime, poStatusData, companyLeadTimeData } = useMemo(() => {
         if (!isClient) return { totalPOs: 0, totalRawMaterials: 0, avgLeadTime: 0, poStatusData: [], companyLeadTimeData: [] };

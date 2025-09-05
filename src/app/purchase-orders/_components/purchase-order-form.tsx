@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import useLocalStorage from '@/hooks/use-local-storage';
 import type { RawMaterial, PurchaseOrder, Amendment } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useMemo } from 'react';
@@ -21,14 +20,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import NepaliDate from 'nepali-date-converter';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { summarizePurchaseOrderChanges } from '@/ai/flows/summarize-po-changes-flow';
 import { Loader2 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/use-auth';
 import { onRawMaterialsUpdate, addRawMaterial } from '@/services/raw-material-service';
+import { onPurchaseOrdersUpdate, addPurchaseOrder, updatePurchaseOrder } from '@/services/purchase-order-service';
 
 const poItemSchema = z.object({
   rawMaterialId: z.string().min(1, 'Material is required.'),
@@ -63,7 +61,7 @@ const paperTypes = ['Kraft Paper', 'Virgin Paper'];
 
 export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([]);
-  const [purchaseOrders, setPurchaseOrders] = useLocalStorage<PurchaseOrder[]>('purchaseOrders', []);
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const router = useRouter();
   const { toast } = useToast();
   const { user } = useAuth();
@@ -103,8 +101,12 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   
   useEffect(() => {
     setIsClient(true);
-    const unsubscribe = onRawMaterialsUpdate(setRawMaterials);
-    return () => unsubscribe();
+    const unsubRawMaterials = onRawMaterialsUpdate(setRawMaterials);
+    const unsubPOs = onPurchaseOrdersUpdate(setPurchaseOrders);
+    return () => {
+      unsubRawMaterials();
+      unsubPOs();
+    };
   }, []);
   
   useEffect(() => {
@@ -170,7 +172,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     setEditingCompany({ oldName: company.name, newName: company.name, newAddress: company.address });
   };
   
-  const handleUpdateCompany = () => {
+  const handleUpdateCompany = async () => {
     if (!editingCompany) return;
 
     const { oldName, newName, newAddress } = editingCompany;
@@ -180,14 +182,14 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
       return;
     }
 
-    setPurchaseOrders(prevPOs =>
-      prevPOs.map(po => {
-        if (po.companyName === oldName) {
-          return { ...po, companyName: newName, companyAddress: newAddress };
-        }
-        return po;
-      })
-    );
+    // This part requires updating all relevant POs in Firestore.
+    // This is a complex operation and might be better handled with a backend function for larger datasets.
+    // For now, we update them one by one.
+    const updates = purchaseOrders
+      .filter(po => po.companyName === oldName)
+      .map(po => updatePurchaseOrder(po.id, { companyName: newName, companyAddress: newAddress }));
+      
+    await Promise.all(updates);
     
     if (form.getValues('companyName') === oldName) {
         form.setValue('companyName', newName);
@@ -210,16 +212,16 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     setIsSubmitting(true);
     try {
       if (poToEdit) {
-        const updatedPOData = {
+        const updatedPODataForAI: PurchaseOrder = {
           ...poToEdit,
           ...values,
           poDate: values.poDate.toISOString(),
           updatedAt: new Date().toISOString(),
-          status: 'Amended' as const,
+          status: 'Amended',
           lastModifiedBy: user.username,
         };
 
-        const { summary } = await summarizePurchaseOrderChanges(poToEdit, updatedPOData);
+        const { summary } = await summarizePurchaseOrderChanges(poToEdit, updatedPODataForAI);
         
         const newAmendment: Amendment = {
           date: new Date().toISOString(),
@@ -227,18 +229,21 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
           amendedBy: user.username,
         };
         
-        const updatedPO: PurchaseOrder = {
-          ...updatedPOData,
-          amendments: [...(poToEdit.amendments || []), newAmendment],
+        const updatedPOForFirestore: Partial<Omit<PurchaseOrder, 'id'>> = {
+            ...values,
+            poDate: values.poDate.toISOString(),
+            updatedAt: new Date().toISOString(),
+            status: 'Amended',
+            lastModifiedBy: user.username,
+            amendments: [...(poToEdit.amendments || []), newAmendment],
         };
 
-        setPurchaseOrders(purchaseOrders.map(p => (p.id === poToEdit.id ? updatedPO : p)));
+        await updatePurchaseOrder(poToEdit.id, updatedPOForFirestore);
         toast({ title: 'Success', description: 'Purchase Order updated.' });
         router.push(`/purchase-orders/${poToEdit.id}`);
       } else {
         const now = new Date().toISOString();
-        const newPO: PurchaseOrder = {
-          id: crypto.randomUUID(),
+        const newPO: Omit<PurchaseOrder, 'id'> = {
           ...values,
           poDate: values.poDate.toISOString(),
           createdAt: now,
@@ -247,9 +252,9 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
           status: 'Ordered',
           createdBy: user.username,
         };
-        setPurchaseOrders([...purchaseOrders, newPO]);
+        const newPOId = await addPurchaseOrder(newPO);
         toast({ title: 'Success', description: 'New Purchase Order created.' });
-        router.push(`/purchase-orders/${newPO.id}`);
+        router.push(`/purchase-orders/${newPOId}`);
       }
     } catch (error) {
       console.error('Failed to save purchase order:', error);

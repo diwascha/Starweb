@@ -4,7 +4,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { PlusCircle, MoreHorizontal, Edit, Trash2, View, ArrowUpDown, Search, PackageCheck, Ban } from 'lucide-react';
-import useLocalStorage from '@/hooks/use-local-storage';
 import type { PurchaseOrder, PurchaseOrderStatus } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -45,12 +44,13 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
+import { onPurchaseOrdersUpdate, deletePurchaseOrder, updatePurchaseOrder } from '@/services/purchase-order-service';
 
 type SortKey = 'poNumber' | 'poDate' | 'companyName' | 'status';
 type SortDirection = 'asc' | 'desc';
 
 export default function PurchaseOrdersListPage() {
-  const [purchaseOrders, setPurchaseOrders] = useLocalStorage<PurchaseOrder[]>('purchaseOrders', []);
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({
@@ -70,23 +70,29 @@ export default function PurchaseOrdersListPage() {
 
   useEffect(() => {
     setIsClient(true);
+    const unsubscribe = onPurchaseOrdersUpdate(setPurchaseOrders);
+    return () => unsubscribe();
   }, []);
   
-  const deletePurchaseOrder = (id: string) => {
-    setPurchaseOrders(purchaseOrders.filter(po => po.id !== id));
-    toast({ title: 'Purchase Order Deleted', description: 'The purchase order has been successfully deleted.' });
+  const handleDeletePurchaseOrder = async (id: string) => {
+    try {
+      await deletePurchaseOrder(id);
+      toast({ title: 'Purchase Order Deleted', description: 'The purchase order has been successfully deleted.' });
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to delete purchase order.', variant: 'destructive' });
+    }
   };
   
-  const updatePoStatus = (id: string, status: PurchaseOrderStatus, deliveryDate?: string) => {
-    setPurchaseOrders(prevPOs =>
-      prevPOs.map(po =>
-        po.id === id ? { ...po, status, deliveryDate: deliveryDate || po.deliveryDate } : po
-      )
-    );
-     toast({
-      title: 'Status Updated',
-      description: `Purchase Order status has been updated to ${status}.`,
-    });
+  const updatePoStatus = async (id: string, status: PurchaseOrderStatus, deliveryDate?: string) => {
+    try {
+      await updatePurchaseOrder(id, { status, deliveryDate: deliveryDate || poToUpdate?.deliveryDate });
+      toast({
+        title: 'Status Updated',
+        description: `Purchase Order status has been updated to ${status}.`,
+      });
+    } catch (error) {
+       toast({ title: 'Error', description: 'Failed to update status.', variant: 'destructive' });
+    }
   };
 
   const handleOpenDeliveryDialog = (po: PurchaseOrder) => {
@@ -276,7 +282,7 @@ export default function PurchaseOrdersListPage() {
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => deletePurchaseOrder(po.id)}>Delete</AlertDialogAction>
+                                    <AlertDialogAction onClick={() => handleDeletePurchaseOrder(po.id)}>Delete</AlertDialogAction>
                                 </AlertDialogFooter>
                                 </AlertDialogContent>
                             </AlertDialog>

@@ -2,7 +2,6 @@
 'use client';
 
 import { useEffect, useState, Fragment } from 'react';
-import useLocalStorage from '@/hooks/use-local-storage';
 import type { PurchaseOrder, PurchaseOrderStatus } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -14,18 +13,21 @@ import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { differenceInDays } from 'date-fns';
+import { onPurchaseOrdersUpdate } from '@/services/purchase-order-service';
 
 const paperTypes = ['Kraft Paper', 'Virgin Paper'];
 
 export default function PurchaseOrderView({ poId }: { poId: string }) {
-  const [purchaseOrders] = useLocalStorage<PurchaseOrder[]>('purchaseOrders', []);
   const [purchaseOrder, setPurchaseOrder] = useState<PurchaseOrder | null>(null);
   const router = useRouter();
 
   useEffect(() => {
-    const found = purchaseOrders.find(p => p.id === poId);
-    setPurchaseOrder(found || null);
-  }, [poId, purchaseOrders]);
+    const unsubscribe = onPurchaseOrdersUpdate((purchaseOrders) => {
+        const found = purchaseOrders.find(p => p.id === poId);
+        setPurchaseOrder(found || null);
+    });
+    return () => unsubscribe();
+  }, [poId]);
 
   if (!purchaseOrder) {
     return (
