@@ -1,5 +1,7 @@
 import ReportView from './_components/report-view';
+import { use } from 'react';
 
-export default function ReportPage({ params }: { params: { id: string } }) {
-  return <ReportView reportId={params.id} />;
+export default function ReportPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  return <ReportView reportId={id} />;
 }

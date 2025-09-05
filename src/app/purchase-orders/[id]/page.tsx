@@ -1,5 +1,7 @@
 import PurchaseOrderView from './_components/purchase-order-view';
+import { use } from 'react';
 
-export default function PurchaseOrderPage({ params }: { params: { id: string } }) {
-  return <PurchaseOrderView poId={params.id} />;
+export default function PurchaseOrderPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  return <PurchaseOrderView poId={id} />;
 }

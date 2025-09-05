@@ -1,36 +1,15 @@
-
-'use client';
-
 import { PurchaseOrderForm } from '@/app/purchase-orders/_components/purchase-order-form';
-import type { PurchaseOrder } from '@/lib/types';
-import { useEffect, useState } from 'react';
-import { onPurchaseOrdersUpdate } from '@/services/purchase-order-service';
+import { getPurchaseOrder } from '@/services/purchase-order-service';
+import { use } from 'react';
 
-export default function EditPurchaseOrderPage({ params }: { params: { id: string } }) {
-  const poId = params.id;
-  const [purchaseOrder, setPurchaseOrder] = useState<PurchaseOrder | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+// This is now a Server Component that fetches initial data
+export default function EditPurchaseOrderPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const initialPurchaseOrder = use(getPurchaseOrder(id));
 
-  useEffect(() => {
-    if (poId) {
-      const unsubscribe = onPurchaseOrdersUpdate((purchaseOrders) => {
-        const found = purchaseOrders.find(p => p.id === poId);
-        setPurchaseOrder(found || null);
-        setIsLoading(false);
-      });
-      return () => unsubscribe();
-    } else {
-      setIsLoading(false);
-    }
-  }, [poId]);
-
-  if (isLoading) {
-    return <div>Loading purchase order...</div>;
-  }
-
-  if (!purchaseOrder) {
+  if (!initialPurchaseOrder) {
     return <div>Purchase order not found.</div>;
   }
 
-  return <PurchaseOrderForm poToEdit={purchaseOrder} />;
+  return <PurchaseOrderForm poToEdit={initialPurchaseOrder} />;
 }

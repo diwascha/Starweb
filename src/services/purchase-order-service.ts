@@ -1,11 +1,11 @@
 
 import { db } from '@/lib/firebase';
-import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDoc } from 'firebase/firestore';
 import type { PurchaseOrder } from '@/lib/types';
 
 const purchaseOrdersCollection = collection(db, 'purchaseOrders');
 
-const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): PurchaseOrder => {
+const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentData): PurchaseOrder => {
     const data = snapshot.data();
     return {
         id: snapshot.id,
@@ -33,6 +33,17 @@ export const getPurchaseOrders = async (): Promise<PurchaseOrder[]> => {
     const snapshot = await getDocs(purchaseOrdersCollection);
     return snapshot.docs.map(fromFirestore);
 };
+
+export const getPurchaseOrder = async (id: string): Promise<PurchaseOrder | null> => {
+    const poDoc = doc(db, 'purchaseOrders', id);
+    const docSnap = await getDoc(poDoc);
+    if (docSnap.exists()) {
+        return fromFirestore(docSnap);
+    } else {
+        return null;
+    }
+};
+
 
 export const updatePurchaseOrder = async (id: string, po: Partial<Omit<PurchaseOrder, 'id'>>): Promise<void> => {
     const poDoc = doc(db, 'purchaseOrders', id);
