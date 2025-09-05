@@ -371,10 +371,10 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   };
 
   const handleQuickAddUnitKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if ((e.key === 'Enter' || e.key === ',' || e.key === '.') && quickAddUnitInput.trim()) {
+    if (e.key === ' ' && e.currentTarget.value.endsWith(' ')) {
         e.preventDefault();
-        const newUnit = quickAddUnitInput.trim();
-        if (!quickAddForm.units.find(u => u.toLowerCase() === newUnit.toLowerCase())) {
+        const newUnit = e.currentTarget.value.trim();
+        if (newUnit && !quickAddForm.units.find(u => u.toLowerCase() === newUnit.toLowerCase())) {
             setQuickAddForm(prev => ({...prev, units: [...prev.units, newUnit]}));
         }
         setQuickAddUnitInput('');
@@ -753,7 +753,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                 {quickAddForm.units.map(unit => (
                                     <Badge key={unit} variant="secondary" className="gap-1">
                                         {unit}
-                                        <button onClick={() => handleQuickAddUnitRemove(unit)} className="rounded-full hover:bg-background/50">
+                                        <button type="button" onClick={() => handleQuickAddUnitRemove(unit)} className="rounded-full hover:bg-background/50">
                                             <X className="h-3 w-3" />
                                         </button>
                                     </Badge>
@@ -770,12 +770,25 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                             <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
                                 <Command>
                                     <CommandInput 
-                                        placeholder="Search or create unit..."
+                                        placeholder="Search or add unit..."
                                         value={quickAddUnitInput}
                                         onValueChange={setQuickAddUnitInput}
+                                        onKeyDown={(e) => {
+                                             if (e.key === ' ' && e.currentTarget.value.endsWith(' ')) {
+                                                e.preventDefault();
+                                                const newUnit = e.currentTarget.value.trim();
+                                                if (newUnit) {
+                                                    handleQuickAddUnitSelect(newUnit);
+                                                }
+                                            }
+                                        }}
                                     />
                                     <CommandList>
-                                        <CommandEmpty>No results. Press Enter to add.</CommandEmpty>
+                                        <CommandEmpty>
+                                           <div className="p-2 text-sm text-center">
+                                                No results. Type and press space twice to add.
+                                            </div>
+                                        </CommandEmpty>
                                         <CommandGroup>
                                             {allUnits.filter(u => !quickAddForm.units.includes(u)).map(unit => (
                                                 <CommandItem key={unit} onSelect={() => handleQuickAddUnitSelect(unit)}>

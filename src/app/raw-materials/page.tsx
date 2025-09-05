@@ -241,9 +241,6 @@ export default function RawMaterialsPage() {
 
     if (sortConfig.key) {
       filtered.sort((a, b) => {
-        const aValue = (a[sortConfig.key as keyof RawMaterial] || '').toString().toLowerCase();
-        const bValue = (b[sortConfig.key as keyof RawMaterial] || '').toString().toLowerCase();
-
         if (sortConfig.key === 'authorship') {
              const aDate = a.lastModifiedAt || a.createdAt;
              const bDate = b.lastModifiedAt || b.createdAt;
@@ -252,6 +249,10 @@ export default function RawMaterialsPage() {
              if (aDate > bDate) return sortConfig.direction === 'asc' ? 1 : -1;
              return 0;
         }
+
+        const aValue = (a[sortConfig.key as keyof RawMaterial] || '').toString().toLowerCase();
+        const bValue = (b[sortConfig.key as keyof RawMaterial] || '').toString().toLowerCase();
+
 
         if (aValue < bValue) {
           return sortConfig.direction === 'asc' ? -1 : 1;
@@ -289,11 +290,10 @@ export default function RawMaterialsPage() {
   };
 
   const handleUnitKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    const value = e.currentTarget.value;
-    if ((e.key === 'Enter' || e.key === ',' || e.key === '.') && value.trim()) {
+    if (e.key === ' ' && e.currentTarget.value.endsWith(' ')) {
         e.preventDefault();
-        const newUnit = value.trim();
-        if (!newMaterialUnits.find(u => u.toLowerCase() === newUnit.toLowerCase())) {
+        const newUnit = e.currentTarget.value.trim();
+        if (newUnit && !newMaterialUnits.find(u => u.toLowerCase() === newUnit.toLowerCase())) {
             setNewMaterialUnits([...newMaterialUnits, newUnit]);
         }
         setUnitInputValue('');
@@ -394,7 +394,7 @@ export default function RawMaterialsPage() {
                                             {material.createdAt ? ` on ${format(new Date(material.createdAt), "PP")}` : ''}
                                             </p>
                                         )}
-                                        {material.lastModifiedBy && (
+                                        {material.lastModifiedBy && material.lastModifiedAt && (
                                         <p>
                                             Modified by: {material.lastModifiedBy}
                                             {material.lastModifiedAt ? ` on ${format(new Date(material.lastModifiedAt), "PP")}` : ''}
@@ -573,20 +573,23 @@ export default function RawMaterialsPage() {
                                     <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
                                         <Command>
                                             <CommandInput 
-                                                placeholder="Search or create unit..."
+                                                placeholder="Search or add unit..."
                                                 value={unitInputValue}
                                                 onValueChange={setUnitInputValue}
                                                 onKeyDown={(e) => {
-                                                    if (e.key === 'Enter' && unitInputValue.trim()) {
+                                                    if (e.key === ' ' && e.currentTarget.value.endsWith(' ')) {
                                                         e.preventDefault();
-                                                        handleUnitSelect(unitInputValue.trim());
+                                                        const newUnit = e.currentTarget.value.trim();
+                                                        if (newUnit) {
+                                                            handleUnitSelect(newUnit);
+                                                        }
                                                     }
                                                 }}
                                             />
                                             <CommandList>
                                                 <CommandEmpty>
                                                     <div className="p-2 text-sm text-center">
-                                                        No results. Press Enter to add.
+                                                        No results. Type and press space twice to add.
                                                     </div>
                                                 </CommandEmpty>
                                                 <CommandGroup>
@@ -630,4 +633,3 @@ export default function RawMaterialsPage() {
     </div>
   );
 }
-
