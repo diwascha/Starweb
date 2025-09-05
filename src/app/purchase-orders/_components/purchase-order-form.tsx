@@ -280,8 +280,17 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   const [isQuickAddUnitPopoverOpen, setIsQuickAddUnitPopoverOpen] = useState(false);
   
   useEffect(() => {
-      setQuickAddForm(prev => ({ ...prev, type: itemFilterType !== 'All' ? itemFilterType : '', name: '', size: '', gsm: '', bf: '', units: [] }));
-  }, [itemFilterType, isQuickAddMaterialDialogOpen]);
+    if (isQuickAddMaterialDialogOpen) {
+      setQuickAddForm({
+        type: itemFilterType !== 'All' ? itemFilterType : '',
+        name: quickAddMaterialSearch,
+        size: '',
+        gsm: '',
+        bf: '',
+        units: [],
+      });
+    }
+  }, [itemFilterType, isQuickAddMaterialDialogOpen, quickAddMaterialSearch]);
 
 
   const generateMaterialName = (type: string, size: string, gsm: string, bf: string) => {
