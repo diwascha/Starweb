@@ -265,9 +265,14 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
       const { productId, taxInvoiceNumber, challanNumber, quantity, ...testDataValues } = values;
       const testData: TestResultData = testDataValues as TestResultData;
       
+      const productForFirestore = {
+        ...selectedProduct,
+        lastModifiedBy: selectedProduct.lastModifiedBy || null,
+      };
+      
       if (reportToEdit) {
           const updatedReportData: Partial<Report> = {
-              product: selectedProduct,
+              product: productForFirestore,
               taxInvoiceNumber: taxInvoiceNumber || 'N/A',
               challanNumber: challanNumber || 'N/A',
               quantity: quantity || 'N/A',
@@ -286,11 +291,12 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
             taxInvoiceNumber: taxInvoiceNumber || 'N/A',
             challanNumber: challanNumber || 'N/A',
             quantity: quantity || 'N/A',
-            product: selectedProduct,
+            product: productForFirestore,
             date: new Date().toISOString(),
             testData,
             printLog: [],
             createdBy: user.username,
+            lastModifiedBy: null,
         };
 
         const newReportId = await addReport(newReportData);

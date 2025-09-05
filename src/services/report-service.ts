@@ -50,7 +50,13 @@ export const getReportsByProductId = async (productId: string): Promise<Report[]
 
 export const updateReport = async (id: string, report: Partial<Omit<Report, 'id'>>): Promise<void> => {
     const reportDoc = doc(db, 'reports', id);
-    await updateDoc(reportDoc, report);
+    await updateDoc(reportDoc, {
+        ...report,
+        product: {
+            ...report.product,
+            lastModifiedBy: report.product?.lastModifiedBy || null,
+        }
+    });
 };
 
 export const deleteReport = async (id: string): Promise<void> => {

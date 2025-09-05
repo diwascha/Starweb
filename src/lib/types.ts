@@ -21,7 +21,7 @@ export interface Product {
   address: string;
   specification: ProductSpecification;
   createdBy: string;
-  lastModifiedBy?: string;
+  lastModifiedBy?: string | null;
 }
 
 export interface TestResult {
@@ -46,7 +46,7 @@ export interface Report {
   testData: TestResultData;
   printLog?: PrintLogEntry[];
   createdBy: string;
-  lastModifiedBy?: string;
+  lastModifiedBy?: string | null;
 }
 
 export interface RawMaterial {
