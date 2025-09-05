@@ -3,8 +3,6 @@ import { db } from '@/lib/firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDoc, query, where } from 'firebase/firestore';
 import type { Report } from '@/lib/types';
 
-const reportsCollection = collection(db, 'reports');
-
 const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Report => {
     const data = snapshot.data();
     return {
@@ -22,6 +20,25 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Report =>
     };
 };
 
+// A dedicated function to handle single doc snapshot which might not be a QueryDocumentSnapshot
+const fromDocSnapshot = (docSnap: DocumentData): Report => {
+    const data = docSnap.data();
+    return {
+        id: docSnap.id,
+        serialNumber: data.serialNumber,
+        taxInvoiceNumber: data.taxInvoiceNumber,
+        challanNumber: data.challanNumber,
+        quantity: data.quantity,
+        product: data.product,
+        date: data.date,
+        testData: data.testData,
+        printLog: data.printLog,
+        createdBy: data.createdBy,
+        lastModifiedBy: data.lastModifiedBy,
+    };
+};
+
+
 export const addReport = async (report: Omit<Report, 'id'>): Promise<string> => {
     const docRef = await addDoc(reportsCollection, report);
     return docRef.id;
@@ -36,7 +53,7 @@ export const getReport = async (id: string): Promise<Report | null> => {
     const reportDoc = doc(db, 'reports', id);
     const docSnap = await getDoc(reportDoc);
     if (docSnap.exists()) {
-        return fromFirestore(docSnap as QueryDocumentSnapshot<DocumentData>);
+        return fromDocSnapshot(docSnap);
     } else {
         return null;
     }
