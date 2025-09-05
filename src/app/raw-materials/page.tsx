@@ -3,7 +3,6 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, X, Check } from 'lucide-react';
-import useLocalStorage from '@/hooks/use-local-storage';
 import type { RawMaterial } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -45,6 +44,8 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
+import { onRawMaterialsUpdate, addRawMaterial, updateRawMaterial, deleteRawMaterial } from '@/services/raw-material-service';
+
 
 const materialTypes = [
     'Kraft Paper', 'Virgin Paper', 'Gum', 'Ink', 'Stitching Wire', 'Strapping', 'Machinery Spare Parts', 'Other'
@@ -68,7 +69,8 @@ const generateMaterialName = (type: string, size: string, gsm: string, bf: strin
 
 
 export default function RawMaterialsPage() {
-  const [rawMaterials, setRawMaterials] = useLocalStorage<RawMaterial[]>('rawMaterials', []);
+  const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   
   const [newMaterialType, setNewMaterialType] = useState('');
   const [newMaterialName, setNewMaterialName] = useState('');
@@ -87,15 +89,18 @@ export default function RawMaterialsPage() {
   });
   
   const { toast } = useToast();
-  const [isClient, setIsClient] = useState(false);
   const [activeTab, setActiveTab] = useState('All');
-  const { hasPermission } = useAuth();
+  const { hasPermission, user } = useAuth();
   
   const [unitInputValue, setUnitInputValue] = useState('');
   const [isUnitPopoverOpen, setIsUnitPopoverOpen] = useState(false);
 
   useEffect(() => {
-    setIsClient(true);
+    const unsubscribe = onRawMaterialsUpdate((materials) => {
+        setRawMaterials(materials);
+        setIsLoading(false);
+    });
+    return () => unsubscribe();
   }, []);
   
   const resetForm = () => {
@@ -124,7 +129,11 @@ export default function RawMaterialsPage() {
     setIsMaterialDialogOpen(true);
   };
 
-  const handleMaterialSubmit = () => {
+  const handleMaterialSubmit = async () => {
+    if (!user) {
+        toast({ title: 'Error', description: 'You must be logged in.', variant: 'destructive' });
+        return;
+    }
     const isPaper = paperTypes.includes(newMaterialType);
     
     if (newMaterialType.trim() === '') {
@@ -151,38 +160,46 @@ export default function RawMaterialsPage() {
           )
         : newMaterialName.trim();
     
-      if (editingMaterial) {
-        const updatedMaterial: RawMaterial = {
-          ...editingMaterial,
-          type: newMaterialType.trim(),
-          name: finalName,
-          size: isPaper ? newMaterialSize.trim() : '',
-          gsm: isPaper ? newMaterialGsm.trim() : '',
-          bf: isPaper ? newMaterialBf.trim() : '',
-          units: newMaterialUnits,
-        };
-        setRawMaterials(rawMaterials.map(m => (m.id === editingMaterial.id ? updatedMaterial : m)));
-        toast({ title: 'Success', description: 'Raw material updated.' });
-      } else {
-        const newMaterial: RawMaterial = {
-          id: crypto.randomUUID(),
-          type: newMaterialType.trim(),
-          name: finalName,
-          size: isPaper ? newMaterialSize.trim() : '',
-          gsm: isPaper ? newMaterialGsm.trim() : '',
-          bf: isPaper ? newMaterialBf.trim() : '',
-          units: newMaterialUnits,
-        };
-        setRawMaterials([...rawMaterials, newMaterial]);
-        toast({ title: 'Success', description: 'New raw material added.' });
+      try {
+        if (editingMaterial) {
+          const updatedMaterialData: Partial<Omit<RawMaterial, 'id'>> = {
+            type: newMaterialType.trim(),
+            name: finalName,
+            size: isPaper ? newMaterialSize.trim() : '',
+            gsm: isPaper ? newMaterialGsm.trim() : '',
+            bf: isPaper ? newMaterialBf.trim() : '',
+            units: newMaterialUnits,
+            lastModifiedBy: user.username,
+          };
+          await updateRawMaterial(editingMaterial.id, updatedMaterialData);
+          toast({ title: 'Success', description: 'Raw material updated.' });
+        } else {
+          const newMaterialData: Omit<RawMaterial, 'id'> = {
+            type: newMaterialType.trim(),
+            name: finalName,
+            size: isPaper ? newMaterialSize.trim() : '',
+            gsm: isPaper ? newMaterialGsm.trim() : '',
+            bf: isPaper ? newMaterialBf.trim() : '',
+            units: newMaterialUnits,
+            createdBy: user.username,
+          };
+          await addRawMaterial(newMaterialData);
+          toast({ title: 'Success', description: 'New raw material added.' });
+        }
+        resetForm();
+        setIsMaterialDialogOpen(false);
+      } catch (error) {
+         toast({ title: 'Error', description: 'Failed to save raw material.', variant: 'destructive' });
       }
-      resetForm();
-      setIsMaterialDialogOpen(false);
   };
   
-  const deleteMaterial = (id: string) => {
-    setRawMaterials(rawMaterials.filter(material => material.id !== id));
-    toast({ title: 'Raw Material Deleted', description: 'The raw material has been deleted.' });
+  const handleDeleteMaterial = async (id: string) => {
+    try {
+        await deleteRawMaterial(id);
+        toast({ title: 'Raw Material Deleted', description: 'The raw material has been deleted.' });
+    } catch (error) {
+        toast({ title: 'Error', description: 'Failed to delete raw material.', variant: 'destructive' });
+    }
   };
 
   const dialogTitle = editingMaterial ? 'Edit Raw Material' : 'Add New Raw Material';
@@ -198,10 +215,9 @@ export default function RawMaterialsPage() {
   };
   
   const tabs = useMemo(() => {
-    if (!isClient) return ['All'];
     const types = new Set(rawMaterials.map(m => m.type));
     return ['All', ...Array.from(types).sort()];
-  }, [rawMaterials, isClient]);
+  }, [rawMaterials]);
   
   const filteredAndSortedMaterials = useMemo(() => {
     let filtered = [...rawMaterials];
@@ -271,7 +287,7 @@ export default function RawMaterialsPage() {
 
 
   const renderContent = () => {
-    if (!isClient) {
+    if (isLoading) {
       return (
         <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
           <div className="flex flex-col items-center gap-1 text-center">
@@ -374,7 +390,7 @@ export default function RawMaterialsPage() {
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
                                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => deleteMaterial(material.id)}>Delete</AlertDialogAction>
+                                        <AlertDialogAction onClick={() => handleDeleteMaterial(material.id)}>Delete</AlertDialogAction>
                                     </AlertDialogFooter>
                                 </AlertDialogContent>
                             </AlertDialog>
@@ -542,7 +558,7 @@ export default function RawMaterialsPage() {
           )}
         </div>
       </header>
-       {isClient ? (
+       {isLoading ? renderContent() : (
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
               {tabs.map(tab => (
@@ -555,7 +571,7 @@ export default function RawMaterialsPage() {
               </TabsContent>
           ))}
         </Tabs>
-       ) : renderContent()}
+       )}
     </div>
   );
 }

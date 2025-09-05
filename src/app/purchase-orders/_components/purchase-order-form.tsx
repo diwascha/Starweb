@@ -28,6 +28,7 @@ import { summarizePurchaseOrderChanges } from '@/ai/flows/summarize-po-changes-f
 import { Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/use-auth';
+import { onRawMaterialsUpdate, addRawMaterial } from '@/services/raw-material-service';
 
 const poItemSchema = z.object({
   rawMaterialId: z.string().min(1, 'Material is required.'),
@@ -61,7 +62,7 @@ const materialTypesForAdd = [
 const paperTypes = ['Kraft Paper', 'Virgin Paper'];
 
 export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
-  const [rawMaterials, setRawMaterials] = useLocalStorage<RawMaterial[]>('rawMaterials', []);
+  const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useLocalStorage<PurchaseOrder[]>('purchaseOrders', []);
   const router = useRouter();
   const { toast } = useToast();
@@ -102,6 +103,8 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   
   useEffect(() => {
     setIsClient(true);
+    const unsubscribe = onRawMaterialsUpdate(setRawMaterials);
+    return () => unsubscribe();
   }, []);
   
   useEffect(() => {
@@ -286,7 +289,11 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     return '';
   };
   
-  const handleQuickAddMaterial = () => {
+  const handleQuickAddMaterial = async () => {
+    if (!user) {
+        toast({ title: 'Error', description: 'You must be logged in.', variant: 'destructive' });
+        return;
+    }
     const { type, name, size, gsm, bf, units } = quickAddForm;
     const isPaper = paperTypes.includes(type);
 
@@ -305,20 +312,23 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         return;
     }
     
-    const newMaterial: RawMaterial = {
-        id: crypto.randomUUID(),
+    const newMaterial: Omit<RawMaterial, 'id'> = {
         type,
         name: finalName,
         size: isPaper ? size : '',
         gsm: isPaper ? gsm : '',
         bf: isPaper ? bf : '',
         units: units,
-        createdBy: user?.username || 'System',
+        createdBy: user.username,
     };
     
-    setRawMaterials(prev => [...prev, newMaterial]);
-    toast({ title: 'Success', description: `Added "${finalName}".` });
-    setIsQuickAddMaterialDialogOpen(false);
+    try {
+        await addRawMaterial(newMaterial);
+        toast({ title: 'Success', description: `Added "${finalName}".` });
+        setIsQuickAddMaterialDialogOpen(false);
+    } catch (error) {
+        toast({ title: 'Error', description: 'Failed to add material.', variant: 'destructive' });
+    }
   };
   
   const isQuickAddPaper = paperTypes.includes(quickAddForm.type);
