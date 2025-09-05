@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { PlusCircle, MoreHorizontal, Edit, Trash2, View, ArrowUpDown, Search, PackageCheck, Ban, User } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Edit, Trash2, View, ArrowUpDown, Search, PackageCheck, Ban, User, Printer } from 'lucide-react';
 import type { PurchaseOrder, PurchaseOrderStatus } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -108,6 +108,15 @@ export default function PurchaseOrdersListPage() {
       updatePoStatus(poToUpdate.id, 'Delivered', deliveryDate.toISOString());
       setDeliveryDialogOpen(false);
       setPoToUpdate(null);
+    }
+  };
+  
+  const handlePrint = (poId: string) => {
+    const printWindow = window.open(`/purchase-orders/${poId}`, '_blank');
+    if (printWindow) {
+        printWindow.onload = () => {
+            setTimeout(() => printWindow.print(), 500); // Give it a moment to render
+        };
     }
   };
 
@@ -283,6 +292,11 @@ export default function PurchaseOrdersListPage() {
                         {hasPermission('purchaseOrders', 'edit') && (
                             <DropdownMenuItem onClick={() => router.push(`/purchase-orders/edit/${po.id}`)} disabled={po.status === 'Delivered' || po.status === 'Canceled'}>
                                 <Edit className="mr-2 h-4 w-4" /> Edit
+                            </DropdownMenuItem>
+                        )}
+                         {hasPermission('purchaseOrders', 'view') && (
+                            <DropdownMenuItem onSelect={() => handlePrint(po.id)}>
+                                <Printer className="mr-2 h-4 w-4" /> Print
                             </DropdownMenuItem>
                         )}
                         
