@@ -386,7 +386,9 @@ export default function RawMaterialsPage() {
                                         <span>{material.lastModifiedBy || material.createdBy}</span>
                                     </TooltipTrigger>
                                     <TooltipContent>
-                                        <p>Created by: {material.createdBy} on {format(new Date(material.createdAt), "PP")}</p>
+                                        {material.createdBy && material.createdAt && (
+                                            <p>Created by: {material.createdBy} on {format(new Date(material.createdAt), "PP")}</p>
+                                        )}
                                         {material.lastModifiedBy && material.lastModifiedAt && (
                                             <p>Modified by: {material.lastModifiedBy} on {format(new Date(material.lastModifiedAt), "PP")}</p>
                                         )}
