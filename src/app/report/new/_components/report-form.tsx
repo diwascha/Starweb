@@ -288,12 +288,17 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
         const allReports = await getReportsForSerial();
         const nextSerialNumber = generateNextSerialNumber(allReports);
 
+        const productForDb: Product = {
+          ...selectedProduct,
+          lastModifiedBy: selectedProduct.lastModifiedBy || null,
+        };
+
         const newReportData: Omit<Report, 'id'> = {
             serialNumber: nextSerialNumber,
             taxInvoiceNumber: taxInvoiceNumber || 'N/A',
             challanNumber: challanNumber || 'N/A',
             quantity: quantity || 'N/A',
-            product: selectedProduct,
+            product: productForDb,
             date: new Date().toISOString(),
             testData,
             printLog: [],
@@ -497,3 +502,5 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
     </>
   );
 }
+
+    
