@@ -14,8 +14,8 @@ import { useAuth } from '@/hooks/use-auth';
 import { format, differenceInDays } from 'date-fns';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { getReports } from '@/services/report-service';
-import { getPurchaseOrders } from '@/services/purchase-order-service';
+import { onReportsUpdate } from '@/services/report-service';
+import { onPurchaseOrdersUpdate } from '@/services/purchase-order-service';
 
 
 function LiveDateTime() {
@@ -70,13 +70,13 @@ export default function DashboardPage() {
 
   useEffect(() => {
     setIsClient(true);
-    async function fetchData() {
-        const reportsData = await getReports();
-        const poData = await getPurchaseOrders();
-        setReports(reportsData);
-        setPurchaseOrders(poData);
-    }
-    fetchData();
+    const unsubReports = onReportsUpdate(setReports);
+    const unsubPOs = onPurchaseOrdersUpdate(setPurchaseOrders);
+    
+    return () => {
+        unsubReports();
+        unsubPOs();
+    };
   }, []);
   
   const canViewPOs = hasPermission('purchaseOrders', 'view');

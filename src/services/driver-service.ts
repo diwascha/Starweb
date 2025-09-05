@@ -24,11 +24,11 @@ export const addDriver = async (driver: Omit<Driver, 'id'>): Promise<string> => 
     return docRef.id;
 };
 
-export const getDrivers = async (): Promise<Driver[]> => {
-    const snapshot = await getDocs(driversCollection);
-    return snapshot.docs.map(fromFirestore);
+export const onDriversUpdate = (callback: (drivers: Driver[]) => void): () => void => {
+    return onSnapshot(driversCollection, (snapshot) => {
+        callback(snapshot.docs.map(fromFirestore));
+    });
 };
-
 
 export const updateDriver = async (id: string, driver: Partial<Omit<Driver, 'id'>>): Promise<void> => {
     const driverDoc = doc(db, 'drivers', id);

@@ -14,10 +14,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn, toNepaliDate } from '@/lib/utils';
 import { differenceInDays, startOfToday, startOfMonth, endOfMonth, subMonths, format } from 'date-fns';
-import { getVehicles } from '@/services/vehicle-service';
-import { getDrivers } from '@/services/driver-service';
-import { getPolicies } from '@/services/policy-service';
-import { getTransactions } from '@/services/transaction-service';
+import { onVehiclesUpdate } from '@/services/vehicle-service';
+import { onDriversUpdate } from '@/services/driver-service';
+import { onPoliciesUpdate } from '@/services/policy-service';
+import { onTransactionsUpdate } from '@/services/transaction-service';
 import { useToast } from '@/hooks/use-toast';
 
 const fleetModules = [
@@ -38,27 +38,21 @@ export default function FleetDashboardPage() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     
     useEffect(() => {
-        async function fetchData() {
-            setIsLoading(true);
-            try {
-                const [vehiclesData, driversData, policiesData, txnsData] = await Promise.all([
-                    getVehicles(),
-                    getDrivers(),
-                    getPolicies(),
-                    getTransactions()
-                ]);
-                setVehicles(vehiclesData);
-                setDrivers(driversData);
-                setPolicies(policiesData);
-                setTransactions(txnsData);
-            } catch (error) {
-                toast({ title: 'Error', description: 'Failed to load dashboard data.', variant: 'destructive' });
-            } finally {
-                setIsLoading(false);
-            }
+        setIsLoading(true);
+        const unsubVehicles = onVehiclesUpdate(setVehicles);
+        const unsubDrivers = onDriversUpdate(setDrivers);
+        const unsubPolicies = onPoliciesUpdate(setPolicies);
+        const unsubTxns = onTransactionsUpdate(setTransactions);
+        
+        setIsLoading(false);
+
+        return () => {
+            unsubVehicles();
+            unsubDrivers();
+            unsubPolicies();
+            unsubTxns();
         }
-        fetchData();
-    }, [toast]);
+    }, []);
     
     const { totalVehicles, totalDrivers, netThisMonth, vehicleStatusData } = useMemo(() => {
         if (isLoading) return { totalVehicles: 0, totalDrivers: 0, netThisMonth: 0, vehicleStatusData: [] };

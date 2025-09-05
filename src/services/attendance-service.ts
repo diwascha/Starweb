@@ -24,7 +24,6 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Attendanc
 export const addAttendanceRecords = async (records: Omit<AttendanceRecord, 'id'>[]): Promise<void> => {
     const batch = writeBatch(db);
     records.forEach(record => {
-        // Create a unique ID based on date and employee name to prevent duplicates
         const docId = `${record.date}-${record.employeeName}`;
         const docRef = doc(attendanceCollection, docId);
         batch.set(docRef, record);
@@ -32,7 +31,8 @@ export const addAttendanceRecords = async (records: Omit<AttendanceRecord, 'id'>
     await batch.commit();
 };
 
-export const getAttendanceRecords = async (): Promise<AttendanceRecord[]> => {
-    const snapshot = await getDocs(attendanceCollection);
-    return snapshot.docs.map(fromFirestore);
+export const onAttendanceUpdate = (callback: (records: AttendanceRecord[]) => void): () => void => {
+    return onSnapshot(attendanceCollection, (snapshot) => {
+        callback(snapshot.docs.map(fromFirestore));
+    });
 };

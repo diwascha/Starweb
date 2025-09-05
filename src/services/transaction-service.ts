@@ -25,9 +25,10 @@ export const addTransaction = async (transaction: Omit<Transaction, 'id'>): Prom
     return docRef.id;
 };
 
-export const getTransactions = async (): Promise<Transaction[]> => {
-    const snapshot = await getDocs(transactionsCollection);
-    return snapshot.docs.map(fromFirestore);
+export const onTransactionsUpdate = (callback: (transactions: Transaction[]) => void): () => void => {
+    return onSnapshot(transactionsCollection, (snapshot) => {
+        callback(snapshot.docs.map(fromFirestore));
+    });
 };
 
 export const updateTransaction = async (id: string, transaction: Partial<Omit<Transaction, 'id'>>): Promise<void> => {

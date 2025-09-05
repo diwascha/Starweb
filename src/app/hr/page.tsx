@@ -13,9 +13,8 @@ import { startOfToday, startOfMonth, endOfMonth, isToday } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { getAttendanceBadgeVariant } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { getEmployees } from '@/services/employee-service';
-import { getAttendanceRecords } from '@/services/attendance-service';
-import { useToast } from '@/hooks/use-toast';
+import { onEmployeesUpdate } from '@/services/employee-service';
+import { onAttendanceUpdate } from '@/services/attendance-service';
 
 
 const hrModules = [
@@ -67,27 +66,20 @@ const hrModules = [
 export default function HRPage() {
    const { hasPermission } = useAuth();
    const [isClient, setIsClient] = useState(false);
-   const { toast } = useToast();
    
    const [employees, setEmployees] = useState<Employee[]>([]);
    const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
    
    useEffect(() => { 
        setIsClient(true);
-       async function fetchData() {
-           try {
-               const [employeesData, attendanceData] = await Promise.all([
-                   getEmployees(),
-                   getAttendanceRecords()
-               ]);
-               setEmployees(employeesData);
-               setAttendance(attendanceData);
-           } catch (error) {
-               toast({ title: 'Error', description: 'Failed to load dashboard data.', variant: 'destructive' });
-           }
+       const unsubEmployees = onEmployeesUpdate(setEmployees);
+       const unsubAttendance = onAttendanceUpdate(setAttendance);
+
+       return () => {
+           unsubEmployees();
+           unsubAttendance();
        }
-       fetchData();
-    }, [toast]);
+    }, []);
    
    const { totalEmployees, presentToday, absentToday, monthlyAttendanceData, wageBasisData } = useMemo(() => {
         if (!isClient) return { totalEmployees: 0, presentToday: 0, absentToday: 0, monthlyAttendanceData: [], wageBasisData: [] };

@@ -36,7 +36,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { format } from 'date-fns';
 import { cn, toNepaliDate } from '@/lib/utils';
 import { DualCalendar } from '@/components/ui/dual-calendar';
-import { getDrivers, addDriver, updateDriver, deleteDriver } from '@/services/driver-service';
+import { onDriversUpdate, addDriver, updateDriver, deleteDriver } from '@/services/driver-service';
 
 type DriverSortKey = 'name' | 'nickname' | 'licenseNumber' | 'contactNumber' | 'dateOfBirth';
 type SortDirection = 'asc' | 'desc';
@@ -62,19 +62,13 @@ export default function DriversPage() {
     const { hasPermission, user } = useAuth();
 
     useEffect(() => {
-        async function fetchDrivers() {
-            setIsLoading(true);
-            try {
-                const driversData = await getDrivers();
-                setDrivers(driversData);
-            } catch (error) {
-                toast({ title: 'Error', description: 'Failed to fetch drivers.', variant: 'destructive' });
-            } finally {
-                setIsLoading(false);
-            }
-        }
-        fetchDrivers();
-    }, [toast]);
+        setIsLoading(true);
+        const unsubscribe = onDriversUpdate((driversData) => {
+            setDrivers(driversData);
+            setIsLoading(false);
+        });
+        return () => unsubscribe();
+    }, []);
 
     const resetForm = () => {
         setEditingDriver(null);
@@ -119,12 +113,10 @@ export default function DriversPage() {
             if (editingDriver) {
                 const updatedData: Partial<Omit<Driver, 'id'>> = { ...formState, lastModifiedBy: user.username };
                 await updateDriver(editingDriver.id, updatedData);
-                setDrivers(prev => prev.map(d => d.id === editingDriver.id ? { ...d, ...updatedData, id: editingDriver.id } : d));
                 toast({ title: 'Success', description: 'Driver updated.' });
             } else {
                 const newData: Omit<Driver, 'id'> = { ...formState, createdBy: user.username };
-                const newId = await addDriver(newData);
-                setDrivers(prev => [...prev, { ...newData, id: newId }]);
+                await addDriver(newData);
                 toast({ title: 'Success', description: 'New driver added.' });
             }
             setIsDialogOpen(false);
@@ -137,7 +129,6 @@ export default function DriversPage() {
     const handleDelete = async (id: string) => {
         try {
             await deleteDriver(id);
-            setDrivers(prev => prev.filter(d => d.id !== id));
             toast({ title: 'Success', description: 'Driver deleted.' });
         } catch (error) {
             toast({ title: 'Error', description: 'Failed to delete driver.', variant: 'destructive' });

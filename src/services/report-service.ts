@@ -22,7 +22,6 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Report =>
     };
 };
 
-// A dedicated function to handle single doc snapshot which might not be a QueryDocumentSnapshot
 const fromDocSnapshot = (docSnap: DocumentData): Report => {
     const data = docSnap.data();
     return {
@@ -40,15 +39,15 @@ const fromDocSnapshot = (docSnap: DocumentData): Report => {
     };
 };
 
-
 export const addReport = async (report: Omit<Report, 'id'>): Promise<string> => {
     const docRef = await addDoc(reportsCollection, report);
     return docRef.id;
 };
 
-export const getReports = async (): Promise<Report[]> => {
-    const snapshot = await getDocs(reportsCollection);
-    return snapshot.docs.map(fromFirestore);
+export const onReportsUpdate = (callback: (reports: Report[]) => void): () => void => {
+    return onSnapshot(reportsCollection, (snapshot) => {
+        callback(snapshot.docs.map(fromFirestore));
+    });
 };
 
 export const getReport = async (id: string): Promise<Report | null> => {

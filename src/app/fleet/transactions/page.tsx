@@ -42,8 +42,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import type { DateRange } from 'react-day-picker';
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
-import { getTransactions, addTransaction, updateTransaction, deleteTransaction } from '@/services/transaction-service';
-import { getVehicles } from '@/services/vehicle-service';
+import { onTransactionsUpdate, addTransaction, updateTransaction, deleteTransaction } from '@/services/transaction-service';
+import { onVehiclesUpdate } from '@/services/vehicle-service';
 
 type TransactionSortKey = 'date' | 'vehicleName' | 'type' | 'category' | 'amount';
 type SortDirection = 'asc' | 'desc';
@@ -77,20 +77,16 @@ export default function TransactionsPage() {
     const categoryOptions = formState.type === 'Income' ? incomeSources : expenseCategories;
 
     useEffect(() => {
-        async function fetchData() {
-            setIsLoading(true);
-            try {
-                const [txnsData, vehiclesData] = await Promise.all([getTransactions(), getVehicles()]);
-                setTransactions(txnsData);
-                setVehicles(vehiclesData);
-            } catch (error) {
-                toast({ title: 'Error', description: 'Failed to fetch data.', variant: 'destructive' });
-            } finally {
-                setIsLoading(false);
-            }
+        setIsLoading(true);
+        const unsubTxns = onTransactionsUpdate(setTransactions);
+        const unsubVehicles = onVehiclesUpdate(setVehicles);
+        setIsLoading(false);
+
+        return () => {
+            unsubTxns();
+            unsubVehicles();
         }
-        fetchData();
-    }, [toast]);
+    }, []);
 
     const resetForm = () => {
         setEditingTransaction(null);
@@ -145,12 +141,10 @@ export default function TransactionsPage() {
             if (editingTransaction) {
                 const updatedData: Partial<Omit<Transaction, 'id'>> = { ...formState, lastModifiedBy: user.username };
                 await updateTransaction(editingTransaction.id, updatedData);
-                setTransactions(prev => prev.map(t => t.id === editingTransaction.id ? { ...t, ...updatedData, id: editingTransaction.id } : t));
                 toast({ title: 'Success', description: 'Transaction updated.' });
             } else {
                 const newData: Omit<Transaction, 'id'> = { ...formState, createdBy: user.username };
-                const newId = await addTransaction(newData);
-                setTransactions(prev => [...prev, { ...newData, id: newId }]);
+                await addTransaction(newData);
                 toast({ title: 'Success', description: 'New transaction recorded.' });
             }
             setIsDialogOpen(false);
@@ -163,7 +157,6 @@ export default function TransactionsPage() {
     const handleDelete = async (id: string) => {
         try {
             await deleteTransaction(id);
-            setTransactions(prev => prev.filter(t => t.id !== id));
             toast({ title: 'Success', description: 'Transaction deleted.' });
         } catch (error) {
              toast({ title: 'Error', description: 'Failed to delete transaction.', variant: 'destructive' });

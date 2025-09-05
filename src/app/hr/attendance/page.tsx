@@ -14,8 +14,8 @@ import NepaliDate from 'nepali-date-converter';
 import { useAuth } from '@/hooks/use-auth';
 import { Badge } from '@/components/ui/badge';
 import { format, parse } from 'date-fns';
-import { getEmployees } from '@/services/employee-service';
-import { getAttendanceRecords, addAttendanceRecords } from '@/services/attendance-service';
+import { onEmployeesUpdate } from '@/services/employee-service';
+import { onAttendanceUpdate, addAttendanceRecords } from '@/services/attendance-service';
 
 type SortKey = 'date' | 'employeeName' | 'status';
 type SortDirection = 'asc' | 'desc';
@@ -32,20 +32,14 @@ export default function AttendancePage() {
   
   useEffect(() => {
     setIsClient(true);
-    async function fetchData() {
-        try {
-            const [employeesData, attendanceData] = await Promise.all([
-                getEmployees(),
-                getAttendanceRecords()
-            ]);
-            setEmployees(employeesData);
-            setAttendance(attendanceData);
-        } catch (error) {
-            toast({ title: 'Error', description: 'Failed to fetch initial data.', variant: 'destructive' });
-        }
+    const unsubEmployees = onEmployeesUpdate(setEmployees);
+    const unsubAttendance = onAttendanceUpdate(setAttendance);
+
+    return () => {
+        unsubEmployees();
+        unsubAttendance();
     }
-    fetchData();
-  }, [toast]);
+  }, []);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -149,8 +143,6 @@ export default function AttendancePage() {
     if (newRecords.length > 0) {
         try {
             await addAttendanceRecords(newRecords);
-            const updatedRecords = await getAttendanceRecords();
-            setAttendance(updatedRecords);
             toast({ title: 'Success', description: `${newRecords.length} attendance records imported successfully.` });
         } catch (error) {
             console.error("Firestore import error:", error);

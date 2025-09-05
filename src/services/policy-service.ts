@@ -27,9 +27,10 @@ export const addPolicy = async (policy: Omit<PolicyOrMembership, 'id'>): Promise
     return docRef.id;
 };
 
-export const getPolicies = async (): Promise<PolicyOrMembership[]> => {
-    const snapshot = await getDocs(policiesCollection);
-    return snapshot.docs.map(fromFirestore);
+export const onPoliciesUpdate = (callback: (policies: PolicyOrMembership[]) => void): () => void => {
+    return onSnapshot(policiesCollection, (snapshot) => {
+        callback(snapshot.docs.map(fromFirestore));
+    });
 };
 
 export const updatePolicy = async (id: string, policy: Partial<Omit<PolicyOrMembership, 'id'>>): Promise<void> => {

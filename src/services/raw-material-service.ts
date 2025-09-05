@@ -27,9 +27,10 @@ export const addRawMaterial = async (material: Omit<RawMaterial, 'id'>): Promise
     return docRef.id;
 };
 
-export const getRawMaterials = async (): Promise<RawMaterial[]> => {
-    const snapshot = await getDocs(rawMaterialsCollection);
-    return snapshot.docs.map(fromFirestore);
+export const onRawMaterialsUpdate = (callback: (materials: RawMaterial[]) => void): () => void => {
+    return onSnapshot(rawMaterialsCollection, (snapshot) => {
+        callback(snapshot.docs.map(fromFirestore));
+    });
 };
 
 export const updateRawMaterial = async (id: string, material: Partial<Omit<RawMaterial, 'id'>>): Promise<void> => {

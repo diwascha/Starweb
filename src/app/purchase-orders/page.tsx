@@ -13,8 +13,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { getStatusBadgeVariant } from '@/lib/utils';
 import { differenceInDays } from 'date-fns';
-import { getPurchaseOrders } from '@/services/purchase-order-service';
-import { getRawMaterials } from '@/services/raw-material-service';
+import { onPurchaseOrdersUpdate } from '@/services/purchase-order-service';
+import { onRawMaterialsUpdate } from '@/services/raw-material-service';
 
 
 const poModules = [
@@ -45,13 +45,13 @@ export default function PurchaseOrderDashboardPage() {
    
    useEffect(() => {
      setIsClient(true);
-     async function fetchData() {
-       const poData = await getPurchaseOrders();
-       const rmData = await getRawMaterials();
-       setPurchaseOrders(poData);
-       setRawMaterials(rmData);
-     }
-     fetchData();
+     const unsubPOs = onPurchaseOrdersUpdate(setPurchaseOrders);
+     const unsubRMs = onRawMaterialsUpdate(setRawMaterials);
+
+     return () => {
+         unsubPOs();
+         unsubRMs();
+     };
    }, []);
    
    const { totalPOs, totalRawMaterials, avgLeadTime, poStatusData, companyLeadTimeData } = useMemo(() => {
@@ -254,5 +254,4 @@ export default function PurchaseOrderDashboardPage() {
     </div>
   );
 }
-
     

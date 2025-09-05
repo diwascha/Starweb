@@ -29,9 +29,10 @@ export const addPurchaseOrder = async (po: Omit<PurchaseOrder, 'id'>): Promise<s
     return docRef.id;
 };
 
-export const getPurchaseOrders = async (): Promise<PurchaseOrder[]> => {
-    const snapshot = await getDocs(purchaseOrdersCollection);
-    return snapshot.docs.map(fromFirestore);
+export const onPurchaseOrdersUpdate = (callback: (purchaseOrders: PurchaseOrder[]) => void): () => void => {
+    return onSnapshot(purchaseOrdersCollection, (snapshot) => {
+        callback(snapshot.docs.map(fromFirestore));
+    });
 };
 
 export const getPurchaseOrder = async (id: string): Promise<PurchaseOrder | null> => {

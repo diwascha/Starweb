@@ -22,9 +22,10 @@ export const addEmployee = async (employee: Omit<Employee, 'id'>): Promise<strin
     return docRef.id;
 };
 
-export const getEmployees = async (): Promise<Employee[]> => {
-    const snapshot = await getDocs(employeesCollection);
-    return snapshot.docs.map(fromFirestore);
+export const onEmployeesUpdate = (callback: (employees: Employee[]) => void): () => void => {
+    return onSnapshot(employeesCollection, (snapshot) => {
+        callback(snapshot.docs.map(fromFirestore));
+    });
 };
 
 export const updateEmployee = async (id: string, employee: Partial<Omit<Employee, 'id'>>): Promise<void> => {

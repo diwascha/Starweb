@@ -39,7 +39,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/use-auth';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { getEmployees, addEmployee, updateEmployee, deleteEmployee } from '@/services/employee-service';
+import { onEmployeesUpdate, addEmployee, updateEmployee, deleteEmployee } from '@/services/employee-service';
 
 type EmployeeSortKey = 'name' | 'wageBasis' | 'wageAmount';
 type SortDirection = 'asc' | 'desc';
@@ -65,19 +65,13 @@ export default function EmployeesPage() {
   const { hasPermission, user } = useAuth();
   
   useEffect(() => {
-    async function fetchEmployees() {
-        setIsLoading(true);
-        try {
-            const employeesData = await getEmployees();
-            setEmployees(employeesData);
-        } catch (error) {
-            toast({ title: 'Error', description: 'Failed to fetch employees.', variant: 'destructive' });
-        } finally {
-            setIsLoading(false);
-        }
-    }
-    fetchEmployees();
-  }, [toast]);
+    setIsLoading(true);
+    const unsubscribe = onEmployeesUpdate((employeesData) => {
+        setEmployees(employeesData);
+        setIsLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
   
   const resetForm = () => {
     setEmployeeName('');
@@ -120,7 +114,6 @@ export default function EmployeesPage() {
           lastModifiedBy: user.username,
         };
         await updateEmployee(editingEmployee.id, updatedEmployeeData);
-        setEmployees(prev => prev.map(e => e.id === editingEmployee.id ? { ...e, ...updatedEmployeeData, id: editingEmployee.id } : e));
         toast({ title: 'Success', description: 'Employee updated.' });
       } else {
         const newEmployeeData: Omit<Employee, 'id'> = {
@@ -129,8 +122,7 @@ export default function EmployeesPage() {
           wageAmount: amount,
           createdBy: user.username,
         };
-        const newId = await addEmployee(newEmployeeData);
-        setEmployees(prev => [...prev, { ...newEmployeeData, id: newId }]);
+        await addEmployee(newEmployeeData);
         toast({ title: 'Success', description: 'New employee added.' });
       }
       resetForm();
@@ -143,7 +135,6 @@ export default function EmployeesPage() {
   const handleDeleteEmployee = async (id: string) => {
     try {
       await deleteEmployee(id);
-      setEmployees(prev => prev.filter(e => e.id !== id));
       toast({ title: 'Employee Deleted', description: 'The employee record has been deleted.' });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to delete employee.', variant: 'destructive' });

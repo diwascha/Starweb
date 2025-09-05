@@ -24,10 +24,16 @@ export const addProduct = async (product: Omit<Product, 'id'>): Promise<string> 
     return docRef.id;
 };
 
+export const onProductsUpdate = (callback: (products: Product[]) => void): () => void => {
+    return onSnapshot(productsCollection, (snapshot) => {
+        callback(snapshot.docs.map(fromFirestore));
+    });
+};
+
 export const getProducts = async (): Promise<Product[]> => {
     const snapshot = await getDocs(productsCollection);
     return snapshot.docs.map(fromFirestore);
-};
+}
 
 export const updateProduct = async (id: string, product: Omit<Product, 'id'>): Promise<void> => {
     const productDoc = doc(db, 'products', id);
