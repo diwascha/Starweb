@@ -66,6 +66,12 @@ export const getReportsByProductId = async (productId: string): Promise<Report[]
     return snapshot.docs.map(fromFirestore);
 }
 
+export const getReportsForSerial = async (): Promise<Pick<Report, 'serialNumber'>[]> => {
+    const snapshot = await getDocs(reportsCollection);
+    return snapshot.docs.map(doc => ({ serialNumber: doc.data().serialNumber }));
+};
+
+
 export const updateReport = async (id: string, report: Partial<Omit<Report, 'id'>>): Promise<void> => {
     const reportDoc = doc(db, 'reports', id);
     await updateDoc(reportDoc, {

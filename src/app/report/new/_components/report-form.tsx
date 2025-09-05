@@ -22,8 +22,8 @@ import { generateNextSerialNumber } from '@/lib/utils';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { RefreshCw } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
-import { getProducts } from '@/services/product-service';
-import { addReport, updateReport, getReports } from '@/services/report-service';
+import { onProductsUpdate } from '@/services/product-service';
+import { addReport, updateReport, getReportsForSerial } from '@/services/report-service';
 
 const testResultSchema = z.object({
   value: z.string().min(1, { message: 'Result is required.' }),
@@ -95,7 +95,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(reportToEdit?.product || null);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedBoxType, setSelectedBoxType] = useState<BoxType>('Normal');
 
   const defaultValues = useMemo(() => {
@@ -133,10 +133,17 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
 
   useEffect(() => {
     setIsClient(true);
-    getProducts().then(productsData => {
-      setProducts(productsData);
-    });
-  }, []);
+    const unsubProducts = onProductsUpdate(setProducts);
+    
+    if (reportToEdit) {
+        setSelectedProduct(reportToEdit.product);
+        form.reset(defaultValues);
+    }
+
+    return () => {
+        unsubProducts();
+    }
+  }, [reportToEdit, form, defaultValues]);
   
   const calculateAndSetValues = (boxType: BoxType) => {
     if (!selectedProduct) {
@@ -278,7 +285,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
           toast({ title: 'Success', description: 'Report updated successfully.' });
           router.push(`/report/${reportToEdit.id}`);
       } else {
-        const allReports = await getReports();
+        const allReports = await getReportsForSerial();
         const nextSerialNumber = generateNextSerialNumber(allReports);
 
         const newReportData: Omit<Report, 'id'> = {
