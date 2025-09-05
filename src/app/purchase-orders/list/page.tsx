@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { PlusCircle, MoreHorizontal, Edit, Trash2, View, ArrowUpDown, Search, PackageCheck, Ban } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Edit, Trash2, View, ArrowUpDown, Search, PackageCheck, Ban, User } from 'lucide-react';
 import type { PurchaseOrder, PurchaseOrderStatus } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -45,8 +45,10 @@ import { CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
 import { onPurchaseOrdersUpdate, deletePurchaseOrder, updatePurchaseOrder } from '@/services/purchase-order-service';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
-type SortKey = 'poNumber' | 'poDate' | 'companyName' | 'status';
+
+type SortKey = 'poNumber' | 'poDate' | 'companyName' | 'status' | 'authorship';
 type SortDirection = 'asc' | 'desc';
 
 export default function PurchaseOrdersListPage() {
@@ -132,6 +134,15 @@ export default function PurchaseOrdersListPage() {
     
     if (sortConfig.key) {
       filtered.sort((a, b) => {
+        if (sortConfig.key === 'authorship') {
+             const aDate = a.updatedAt || a.createdAt;
+             const bDate = b.updatedAt || b.createdAt;
+             if (!aDate || !bDate) return 0;
+             if (aDate < bDate) return sortConfig.direction === 'asc' ? -1 : 1;
+             if (aDate > bDate) return sortConfig.direction === 'asc' ? 1 : -1;
+             return 0;
+        }
+
         const aValue = a[sortConfig.key];
         const bValue = b[sortConfig.key];
   
@@ -216,6 +227,12 @@ export default function PurchaseOrdersListPage() {
                     Status <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
                 </TableHead>
+                <TableHead>
+                    <Button variant="ghost" onClick={() => requestSort('authorship')}>
+                        Authorship
+                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
+                </TableHead>
                 <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
             </TableHeader>
@@ -227,6 +244,28 @@ export default function PurchaseOrdersListPage() {
                     <TableCell>{po.companyName}</TableCell>
                     <TableCell>
                         <Badge variant={getStatusBadgeVariant(po.status)}>{po.status}</Badge>
+                    </TableCell>
+                    <TableCell>
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-default">
+                                    {po.lastModifiedBy ? <Edit className="h-4 w-4" /> : <User className="h-4 w-4" />}
+                                    <span>{po.lastModifiedBy || po.createdBy}</span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>
+                                        Created by: {po.createdBy}
+                                        {po.createdAt ? ` on ${format(new Date(po.createdAt), "PP")}` : ''}
+                                    </p>
+                                    {po.lastModifiedBy && (
+                                      <p>
+                                        Modified by: {po.lastModifiedBy}
+                                        {po.updatedAt ? ` on ${format(new Date(po.updatedAt), "PP")}` : ''}
+                                      </p>
+                                    )}
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
                     </TableCell>
                     <TableCell className="text-right">
                     <DropdownMenu>
