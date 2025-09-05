@@ -247,6 +247,7 @@ export default function RawMaterialsPage() {
         if (sortConfig.key === 'authorship') {
              const aDate = a.lastModifiedAt || a.createdAt;
              const bDate = b.lastModifiedAt || b.createdAt;
+             if (!aDate || !bDate) return 0;
              if (aDate < bDate) return sortConfig.direction === 'asc' ? -1 : 1;
              if (aDate > bDate) return sortConfig.direction === 'asc' ? 1 : -1;
              return 0;
@@ -382,7 +383,7 @@ export default function RawMaterialsPage() {
                             <TooltipProvider>
                                 <Tooltip>
                                     <TooltipTrigger className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-default">
-                                        <User className="h-4 w-4" />
+                                        {material.lastModifiedBy ? <Edit className="h-4 w-4" /> : <User className="h-4 w-4" />}
                                         <span>{material.lastModifiedBy || material.createdBy}</span>
                                     </TooltipTrigger>
                                     <TooltipContent>
