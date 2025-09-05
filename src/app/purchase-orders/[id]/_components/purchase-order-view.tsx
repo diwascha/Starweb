@@ -99,16 +99,17 @@ export default function PurchaseOrderView({ poId }: { poId: string }) {
         </div>
       </div>
 
-      <div className="printable-area space-y-8 p-4 border rounded-lg bg-white text-black">
-        <header className="text-center space-y-2 mb-8 relative">
+      <div className="printable-area space-y-4 p-4 border rounded-lg bg-white text-black">
+        <header className="text-center space-y-1 mb-4 relative">
             <div className="pt-8">
-              <h1 className="text-2xl font-bold">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
-              <p>HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
-              <h2 className="text-xl font-semibold underline mt-2">PURCHASE ORDER</h2>
+              <h1 className="text-xl font-bold">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
+              <h2 className="text-lg font-semibold">शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.</h2>
+              <p className="text-sm">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
+              <h2 className="text-lg font-semibold underline mt-1">PURCHASE ORDER</h2>
             </div>
         </header>
         
-        <div className="grid grid-cols-2 text-sm mb-4 gap-x-4 gap-y-2">
+        <div className="grid grid-cols-2 text-xs mb-2 gap-x-4">
             <div><span className="font-semibold">PO No:</span> {purchaseOrder.poNumber}</div>
             <div className="text-right">
               <span className="font-semibold">Date:</span> {nepaliDateString} B.S. ({new Date(purchaseOrder.poDate).toLocaleDateString('en-CA')})
@@ -123,16 +124,16 @@ export default function PurchaseOrderView({ poId }: { poId: string }) {
             )}
         </div>
         
-        <Separator className="my-4 bg-gray-300"/>
+        <Separator className="my-2 bg-gray-300"/>
 
         <Card className="shadow-none border-gray-300">
-          <CardHeader>
-            <CardTitle>To: {purchaseOrder.companyName}</CardTitle>
+          <CardHeader className="p-2">
+            <CardTitle className="text-base">To: {purchaseOrder.companyName}</CardTitle>
             <p className="text-sm">{purchaseOrder.companyAddress}</p>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <section className="space-y-4">
-              <h2 className="text-xl font-semibold">Order Details</h2>
+          <CardContent className="space-y-4 p-2">
+            <section className="space-y-2">
+              <h2 className="text-base font-semibold">Order Details</h2>
                {Object.entries(groupedItems).map(([type, items]) => {
                   const isPaper = paperTypes.includes(type);
                   return (
@@ -140,34 +141,34 @@ export default function PurchaseOrderView({ poId }: { poId: string }) {
                         <Table>
                         <TableHeader>
                             <TableRow className="border-b-gray-300 bg-gray-100">
-                                <TableCell colSpan={isPaper ? 6 : 4} className="font-bold text-black">{type}</TableCell>
+                                <TableCell colSpan={isPaper ? 6 : 4} className="font-bold text-black h-8 px-2 text-sm">{type}</TableCell>
                             </TableRow>
                             <TableRow className="border-b-gray-300">
-                            <TableHead className="text-black font-semibold">S.N.</TableHead>
-                            <TableHead className="text-black font-semibold">Description</TableHead>
+                            <TableHead className="text-black font-semibold h-8 px-2 text-xs">S.N.</TableHead>
+                            <TableHead className="text-black font-semibold h-8 px-2 text-xs">Description</TableHead>
                             {isPaper && (
                                 <>
-                                <TableHead className="text-black font-semibold">Size (Inch)</TableHead>
-                                <TableHead className="text-black font-semibold">GSM</TableHead>
-                                <TableHead className="text-black font-semibold">BF</TableHead>
+                                <TableHead className="text-black font-semibold h-8 px-2 text-xs">Size (Inch)</TableHead>
+                                <TableHead className="text-black font-semibold h-8 px-2 text-xs">GSM</TableHead>
+                                <TableHead className="text-black font-semibold h-8 px-2 text-xs">BF</TableHead>
                                 </>
                             )}
-                            <TableHead className="text-black font-semibold text-right">Quantity</TableHead>
+                            <TableHead className="text-black font-semibold h-8 px-2 text-xs text-right">Quantity</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {items.map((item, index) => (
                             <TableRow key={`${item.rawMaterialId}-${index}`} className="border-b-gray-300">
-                                <TableCell>{index + 1}</TableCell>
-                                <TableCell>{item.rawMaterialName}</TableCell>
+                                <TableCell className="px-2 py-1 text-xs">{index + 1}</TableCell>
+                                <TableCell className="px-2 py-1 text-xs">{item.rawMaterialName}</TableCell>
                                 {isPaper && (
                                     <>
-                                        <TableCell>{item.size || '-'}</TableCell>
-                                        <TableCell>{item.gsm || '-'}</TableCell>
-                                        <TableCell>{item.bf || '-'}</TableCell>
+                                        <TableCell className="px-2 py-1 text-xs">{item.size || '-'}</TableCell>
+                                        <TableCell className="px-2 py-1 text-xs">{item.gsm || '-'}</TableCell>
+                                        <TableCell className="px-2 py-1 text-xs">{item.bf || '-'}</TableCell>
                                     </>
                                 )}
-                                <TableCell className="text-right">{item.quantity} {item.unit}</TableCell>
+                                <TableCell className="px-2 py-1 text-xs text-right">{item.quantity} {item.unit}</TableCell>
                             </TableRow>
                             ))}
                         </TableBody>
@@ -178,8 +179,8 @@ export default function PurchaseOrderView({ poId }: { poId: string }) {
             </section>
              {showAmendedDate && purchaseOrder.amendments && purchaseOrder.amendments.length > 0 && (
                 <section>
-                  <h3 className="text-lg font-semibold">Amendment History</h3>
-                  <div className="text-sm border-t border-gray-300 mt-2 pt-2 space-y-2">
+                  <h3 className="text-base font-semibold">Amendment History</h3>
+                  <div className="text-xs border-t border-gray-300 mt-1 pt-1 space-y-1">
                     {purchaseOrder.amendments.map((amendment, index) => (
                       <div key={index}>
                         <p className="font-semibold">
@@ -191,7 +192,7 @@ export default function PurchaseOrderView({ poId }: { poId: string }) {
                   </div>
                 </section>
             )}
-            <div className="mt-16 text-center pt-12 text-xs text-gray-500">
+            <div className="mt-12 text-center pt-8 text-xs text-gray-500">
               <p>This is a digitally issued document and is valid without a signature.</p>
               <p className="font-semibold mt-1">SHIVAM PACKAGING INDUSTRIES PVT LTD.</p>
             </div>
@@ -228,24 +229,32 @@ export default function PurchaseOrderView({ poId }: { poId: string }) {
         )}
       <style jsx global>{`
         @media print {
+          @page {
+            size: A4;
+            margin: 0.5in 0.8in 0 0.8in;
+          }
           body {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
             background-color: #fff;
           }
-          .printable-area {
+          body * {
+            visibility: hidden;
+          }
+          .printable-area, .printable-area * {
             visibility: visible;
+          }
+          .printable-area {
             position: absolute;
             left: 0;
             top: 0;
             width: 100%;
+            height: 50vh; /* Aims for half of an A4 page */
             margin: 0;
-            padding: 1.5rem;
+            padding: 0;
             border: none;
-            color: #000;
+            font-size: 10px; /* Smaller base font size for print */
           }
-           .printable-area * {
-            visibility: visible;
-            font-family: 'Times New Roman', Times, serif;
-           }
            .print\:hidden {
               display: none;
            }
