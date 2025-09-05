@@ -287,6 +287,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
       } else {
         const allReports = await getReportsForSerial();
         const nextSerialNumber = generateNextSerialNumber(allReports);
+        const now = new Date().toISOString();
 
         const productForDb: Product = {
           ...selectedProduct,
@@ -299,7 +300,8 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
             challanNumber: challanNumber || 'N/A',
             quantity: quantity || 'N/A',
             product: productForDb,
-            date: new Date().toISOString(),
+            date: now,
+            createdAt: now,
             testData,
             printLog: [],
             createdBy: user.username,
@@ -502,5 +504,3 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
     </>
   );
 }
-
-    

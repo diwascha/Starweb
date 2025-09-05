@@ -21,7 +21,9 @@ export interface Product {
   address: string;
   specification: ProductSpecification;
   createdBy: string;
+  createdAt: string; // ISO string
   lastModifiedBy?: string | null;
+  lastModifiedAt?: string; // ISO string
 }
 
 export interface TestResult {
@@ -42,11 +44,13 @@ export interface Report {
   challanNumber: string;
   quantity: string;
   product: Product;
-  date: string;
+  date: string; // This is the report date, not creation date
+  createdAt: string; // ISO string for creation date
   testData: TestResultData;
   printLog?: PrintLogEntry[];
   createdBy: string;
   lastModifiedBy?: string | null;
+  lastModifiedAt?: string; // ISO string
 }
 
 export interface RawMaterial {

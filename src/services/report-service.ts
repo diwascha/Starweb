@@ -15,10 +15,12 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Report =>
         quantity: data.quantity,
         product: data.product,
         date: data.date,
+        createdAt: data.createdAt,
         testData: data.testData,
         printLog: data.printLog,
         createdBy: data.createdBy,
         lastModifiedBy: data.lastModifiedBy,
+        lastModifiedAt: data.lastModifiedAt,
     };
 };
 
@@ -32,10 +34,12 @@ const fromDocSnapshot = (docSnap: DocumentData): Report => {
         quantity: data.quantity,
         product: data.product,
         date: data.date,
+        createdAt: data.createdAt,
         testData: data.testData,
         printLog: data.printLog,
         createdBy: data.createdBy,
         lastModifiedBy: data.lastModifiedBy,
+        lastModifiedAt: data.lastModifiedAt,
     };
 };
 
@@ -75,7 +79,8 @@ export const getReportsForSerial = async (): Promise<Pick<Report, 'serialNumber'
 export const updateReport = async (id: string, report: Partial<Omit<Report, 'id'>>): Promise<void> => {
     const reportDoc = doc(db, 'reports', id);
     await updateDoc(reportDoc, {
-        ...report
+        ...report,
+        lastModifiedAt: new Date().toISOString(),
     });
 };
 

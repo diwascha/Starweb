@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { PlusCircle, FileText, MoreHorizontal, Trash2, View, Printer, ArrowUpDown, Search, Edit } from 'lucide-react';
+import { PlusCircle, FileText, MoreHorizontal, Trash2, View, Printer, ArrowUpDown, Search, Edit, User } from 'lucide-react';
 import type { Report } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -31,8 +31,11 @@ import { Input } from '@/components/ui/input';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { onReportsUpdate, deleteReport, updateReport } from '@/services/report-service';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { format } from 'date-fns';
 
-type ReportSortKey = 'serialNumber' | 'productName' | 'taxInvoiceNumber' | 'challanNumber' | 'quantity' | 'createdBy' | 'lastModifiedBy';
+
+type ReportSortKey = 'serialNumber' | 'productName' | 'taxInvoiceNumber' | 'challanNumber' | 'quantity' | 'authorship';
 type SortDirection = 'asc' | 'desc';
 
 export default function ReportsListPage() {
@@ -110,6 +113,15 @@ export default function ReportsListPage() {
     
     if (reportSortConfig.key) {
       filteredReports.sort((a, b) => {
+        if (reportSortConfig.key === 'authorship') {
+             const aDate = a.lastModifiedAt || a.createdAt;
+             const bDate = b.lastModifiedAt || b.createdAt;
+             if (!aDate || !bDate) return 0;
+             if (aDate < bDate) return reportSortConfig.direction === 'asc' ? -1 : 1;
+             if (aDate > bDate) return reportSortConfig.direction === 'asc' ? 1 : -1;
+             return 0;
+        }
+
         let aValue: string | number;
         let bValue: string | number;
   
@@ -129,14 +141,6 @@ export default function ReportsListPage() {
           case 'quantity':
             aValue = a.quantity.toLowerCase();
             bValue = b.quantity.toLowerCase();
-            break;
-          case 'createdBy':
-            aValue = (a.createdBy || '').toLowerCase();
-            bValue = (b.createdBy || '').toLowerCase();
-            break;
-          case 'lastModifiedBy':
-            aValue = (a.lastModifiedBy || '').toLowerCase();
-            bValue = (b.lastModifiedBy || '').toLowerCase();
             break;
           case 'serialNumber':
           default:
@@ -224,15 +228,9 @@ export default function ReportsListPage() {
                     </Button>
                 </TableHead>
                 <TableHead>
-                    <Button variant="ghost" onClick={() => requestReportSort('createdBy')}>
-                    Created By
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                    </Button>
-                </TableHead>
-                 <TableHead>
-                    <Button variant="ghost" onClick={() => requestReportSort('lastModifiedBy')}>
-                    Last Modified By
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                    <Button variant="ghost" onClick={() => requestReportSort('authorship')}>
+                        Authorship
+                        <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
                 </TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -246,8 +244,28 @@ export default function ReportsListPage() {
                     <TableCell>{report.taxInvoiceNumber}</TableCell>
                     <TableCell>{report.challanNumber}</TableCell>
                     <TableCell>{report.quantity}</TableCell>
-                    <TableCell>{report.createdBy}</TableCell>
-                    <TableCell>{report.lastModifiedBy || 'N/A'}</TableCell>
+                    <TableCell>
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-default">
+                                    {report.lastModifiedBy ? <Edit className="h-4 w-4" /> : <User className="h-4 w-4" />}
+                                    <span>{report.lastModifiedBy || report.createdBy}</span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>
+                                        Created by: {report.createdBy}
+                                        {report.createdAt ? ` on ${format(new Date(report.createdAt), "PP")}` : ''}
+                                    </p>
+                                    {report.lastModifiedBy && report.lastModifiedAt && (
+                                      <p>
+                                        Modified by: {report.lastModifiedBy}
+                                        {report.lastModifiedAt ? ` on ${format(new Date(report.lastModifiedAt), "PP")}` : ''}
+                                      </p>
+                                    )}
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    </TableCell>
                     <TableCell className="text-right">
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>

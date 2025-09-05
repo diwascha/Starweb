@@ -15,7 +15,9 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Product =
         address: data.address,
         specification: data.specification,
         createdBy: data.createdBy,
+        createdAt: data.createdAt,
         lastModifiedBy: data.lastModifiedBy,
+        lastModifiedAt: data.lastModifiedAt,
     };
 }
 

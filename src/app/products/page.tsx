@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, Check, ChevronsUpDown } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, Check, ChevronsUpDown, User } from 'lucide-react';
 import type { Product, ProductSpecification, Report } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -45,6 +45,9 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
 import { addProduct, updateProduct, deleteProduct, onProductsUpdate } from '@/services/product-service';
 import { getReportsByProductId, deleteReport } from '@/services/report-service';
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { format } from 'date-fns';
+
 
 const initialSpecValues: ProductSpecification = {
   dimension: '',
@@ -59,7 +62,7 @@ const initialSpecValues: ProductSpecification = {
   load: '',
 };
 
-type ProductSortKey = 'name' | 'materialCode' | 'companyName' | 'createdBy' | 'lastModifiedBy';
+type ProductSortKey = 'name' | 'materialCode' | 'companyName' | 'authorship';
 type SortDirection = 'asc' | 'desc';
 
 export default function ProductsPage() {
@@ -159,10 +162,12 @@ export default function ProductsPage() {
             address: newAddress.trim(),
             specification: newSpec,
             lastModifiedBy: user.username,
+            lastModifiedAt: new Date().toISOString(),
           };
           await updateProduct(editingProduct.id, updatedProductData);
           toast({ title: 'Success', description: 'Product updated.' });
         } else {
+           const now = new Date().toISOString();
           const newProduct: Omit<Product, 'id'> = {
             name: newProductName.trim(),
             materialCode: newMaterialCode.trim(),
@@ -170,6 +175,7 @@ export default function ProductsPage() {
             address: newAddress.trim(),
             specification: newSpec,
             createdBy: user.username,
+            createdAt: now,
           };
           await addProduct(newProduct);
           toast({ title: 'Success', description: 'New product added.' });
@@ -234,8 +240,17 @@ export default function ProductsPage() {
 
     if (productSortConfig.key) {
       filteredProducts.sort((a, b) => {
-        const aValue = (a[productSortConfig.key] || '').toLowerCase();
-        const bValue = (b[productSortConfig.key] || '').toLowerCase();
+        if (productSortConfig.key === 'authorship') {
+             const aDate = a.lastModifiedAt || a.createdAt;
+             const bDate = b.lastModifiedAt || b.createdAt;
+             if (!aDate || !bDate) return 0;
+             if (aDate < bDate) return productSortConfig.direction === 'asc' ? -1 : 1;
+             if (aDate > bDate) return productSortConfig.direction === 'asc' ? 1 : -1;
+             return 0;
+        }
+
+        const aValue = (a[productSortConfig.key as keyof Product] || '').toString().toLowerCase();
+        const bValue = (b[productSortConfig.key as keyof Product] || '').toString().toLowerCase();
 
         if (aValue < bValue) {
           return productSortConfig.direction === 'asc' ? -1 : 1;
@@ -300,15 +315,9 @@ export default function ProductsPage() {
                     </Button>
                 </TableHead>
                 <TableHead>
-                    <Button variant="ghost" onClick={() => requestProductSort('createdBy')}>
-                    Created By
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                    </Button>
-                </TableHead>
-                <TableHead>
-                    <Button variant="ghost" onClick={() => requestProductSort('lastModifiedBy')}>
-                    Last Modified By
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                    <Button variant="ghost" onClick={() => requestProductSort('authorship')}>
+                        Authorship
+                        <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
                 </TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -320,8 +329,28 @@ export default function ProductsPage() {
                     <TableCell className="font-medium">{product.name}</TableCell>
                     <TableCell>{product.materialCode}</TableCell>
                     <TableCell>{product.companyName}</TableCell>
-                    <TableCell>{product.createdBy}</TableCell>
-                    <TableCell>{product.lastModifiedBy || 'N/A'}</TableCell>
+                    <TableCell>
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-default">
+                                    {product.lastModifiedBy ? <Edit className="h-4 w-4" /> : <User className="h-4 w-4" />}
+                                    <span>{product.lastModifiedBy || product.createdBy}</span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>
+                                        Created by: {product.createdBy}
+                                        {product.createdAt ? ` on ${format(new Date(product.createdAt), "PP")}` : ''}
+                                    </p>
+                                    {product.lastModifiedBy && product.lastModifiedAt && (
+                                      <p>
+                                        Modified by: {product.lastModifiedBy}
+                                        {product.lastModifiedAt ? ` on ${format(new Date(product.lastModifiedAt), "PP")}` : ''}
+                                      </p>
+                                    )}
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    </TableCell>
                     <TableCell className="text-right">
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
