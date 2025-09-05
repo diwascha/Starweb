@@ -45,7 +45,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { onRawMaterialsUpdate, addRawMaterial, updateRawMaterial, deleteRawMaterial } from '@/services/raw-material-service';
+import { getRawMaterials, addRawMaterial, updateRawMaterial, deleteRawMaterial } from '@/services/raw-material-service';
 import { format } from 'date-fns';
 
 
@@ -98,12 +98,19 @@ export default function RawMaterialsPage() {
   const [isUnitPopoverOpen, setIsUnitPopoverOpen] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onRawMaterialsUpdate((materials) => {
-        setRawMaterials(materials);
-        setIsLoading(false);
-    });
-    return () => unsubscribe();
-  }, []);
+    async function fetchMaterials() {
+        setIsLoading(true);
+        try {
+            const materials = await getRawMaterials();
+            setRawMaterials(materials);
+        } catch (error) {
+            toast({ title: 'Error', description: 'Failed to fetch raw materials.', variant: 'destructive' });
+        } finally {
+            setIsLoading(false);
+        }
+    }
+    fetchMaterials();
+  }, [toast]);
   
   const resetForm = () => {
     setNewMaterialType('');
@@ -175,6 +182,7 @@ export default function RawMaterialsPage() {
             lastModifiedAt: new Date().toISOString(),
           };
           await updateRawMaterial(editingMaterial.id, updatedMaterialData);
+          setRawMaterials(prev => prev.map(m => m.id === editingMaterial.id ? { ...m, ...updatedMaterialData, id: editingMaterial.id } : m));
           toast({ title: 'Success', description: 'Raw material updated.' });
         } else {
           const now = new Date().toISOString();
@@ -188,7 +196,8 @@ export default function RawMaterialsPage() {
             createdBy: user.username,
             createdAt: now,
           };
-          await addRawMaterial(newMaterialData);
+          const newId = await addRawMaterial(newMaterialData);
+          setRawMaterials(prev => [...prev, { ...newMaterialData, id: newId }]);
           toast({ title: 'Success', description: 'New raw material added.' });
         }
         resetForm();
@@ -201,6 +210,7 @@ export default function RawMaterialsPage() {
   const handleDeleteMaterial = async (id: string) => {
     try {
         await deleteRawMaterial(id);
+        setRawMaterials(prev => prev.filter(m => m.id !== id));
         toast({ title: 'Raw Material Deleted', description: 'The raw material has been deleted.' });
     } catch (error) {
         toast({ title: 'Error', description: 'Failed to delete raw material.', variant: 'destructive' });
