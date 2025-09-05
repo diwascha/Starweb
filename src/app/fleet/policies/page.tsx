@@ -39,9 +39,9 @@ import { format, differenceInDays, startOfToday } from 'date-fns';
 import { cn, toNepaliDate } from '@/lib/utils';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { onPoliciesUpdate, addPolicy, updatePolicy, deletePolicy } from '@/services/policy-service';
-import { onVehiclesUpdate } from '@/services/vehicle-service';
-import { onDriversUpdate } from '@/services/driver-service';
+import { getPolicies, addPolicy, updatePolicy, deletePolicy } from '@/services/policy-service';
+import { getVehicles } from '@/services/vehicle-service';
+import { getDrivers } from '@/services/driver-service';
 
 type PolicySortKey = 'type' | 'provider' | 'policyNumber' | 'endDate' | 'memberName';
 type SortDirection = 'asc' | 'desc';
@@ -87,16 +87,25 @@ export default function PoliciesPage() {
     }, [vehicles, drivers]);
 
     useEffect(() => {
-        const unsubPolicies = onPoliciesUpdate(setPolicies);
-        const unsubVehicles = onVehiclesUpdate(setVehicles);
-        const unsubDrivers = onDriversUpdate(setDrivers);
-        setIsLoading(false);
-        return () => {
-            unsubPolicies();
-            unsubVehicles();
-            unsubDrivers();
-        };
-    }, []);
+        async function fetchData() {
+            setIsLoading(true);
+            try {
+                const [policiesData, vehiclesData, driversData] = await Promise.all([
+                    getPolicies(),
+                    getVehicles(),
+                    getDrivers(),
+                ]);
+                setPolicies(policiesData);
+                setVehicles(vehiclesData);
+                setDrivers(driversData);
+            } catch (error) {
+                toast({ title: 'Error', description: 'Failed to load data.', variant: 'destructive' });
+            } finally {
+                setIsLoading(false);
+            }
+        }
+        fetchData();
+    }, [toast]);
     
     useEffect(() => {
         setFilterMemberId('All');
@@ -157,7 +166,7 @@ export default function PoliciesPage() {
         setEditingProvider({ oldName: providerName, newName: providerName });
     };
 
-    const handleUpdateProvider = () => {
+    const handleUpdateProvider = async () => {
         if (!editingProvider) return;
         const { oldName, newName } = editingProvider;
 
@@ -170,15 +179,17 @@ export default function PoliciesPage() {
             .filter(p => p.provider === oldName)
             .map(p => updatePolicy(p.id, { provider: newName }));
         
-        Promise.all(updates).then(() => {
-             if (formState.provider === oldName) {
+        try {
+            await Promise.all(updates);
+            setPolicies(prev => prev.map(p => p.provider === oldName ? { ...p, provider: newName } : p));
+            if (formState.provider === oldName) {
                 setFormState(prev => ({ ...prev, provider: newName }));
             }
             toast({ title: 'Success', description: `Provider "${oldName}" updated to "${newName}".` });
             setEditingProvider(null);
-        }).catch(() => {
+        } catch {
             toast({ title: 'Error', description: 'Failed to update providers.', variant: 'destructive' });
-        });
+        }
     };
     
     const handleTypeSelect = (type: string) => {
@@ -190,7 +201,7 @@ export default function PoliciesPage() {
         setEditingType({ oldName: typeName, newName: typeName });
     };
 
-    const handleUpdateType = () => {
+    const handleUpdateType = async () => {
         if (!editingType) return;
         const { oldName, newName } = editingType;
 
@@ -202,16 +213,18 @@ export default function PoliciesPage() {
         const updates = policies
             .filter(p => p.type === oldName)
             .map(p => updatePolicy(p.id, { type: newName }));
-
-        Promise.all(updates).then(() => {
+        
+        try {
+            await Promise.all(updates);
+            setPolicies(prev => prev.map(p => p.type === oldName ? { ...p, type: newName } : p));
             if (formState.type === oldName) {
                 setFormState(prev => ({ ...prev, type: newName }));
             }
             toast({ title: 'Success', description: `Type "${oldName}" updated to "${newName}".` });
             setEditingType(null);
-        }).catch(() => {
+        } catch {
              toast({ title: 'Error', description: 'Failed to update types.', variant: 'destructive' });
-        });
+        }
     };
 
 
@@ -226,10 +239,12 @@ export default function PoliciesPage() {
             if (editingPolicy) {
                 const updatedData: Partial<Omit<PolicyOrMembership, 'id'>> = { ...formState, lastModifiedBy: user.username };
                 await updatePolicy(editingPolicy.id, updatedData);
+                setPolicies(prev => prev.map(p => p.id === editingPolicy.id ? { ...p, ...updatedData, id: editingPolicy.id } : p));
                 toast({ title: 'Success', description: 'Record updated.' });
             } else {
                 const newData: Omit<PolicyOrMembership, 'id'> = { ...formState, createdBy: user.username };
-                await addPolicy(newData);
+                const newId = await addPolicy(newData);
+                setPolicies(prev => [...prev, { ...newData, id: newId }]);
                 toast({ title: 'Success', description: 'New record added.' });
             }
             setIsDialogOpen(false);
@@ -242,6 +257,7 @@ export default function PoliciesPage() {
     const handleDelete = async (id: string) => {
         try {
             await deletePolicy(id);
+            setPolicies(prev => prev.filter(p => p.id !== id));
             toast({ title: 'Success', description: 'Record deleted.' });
         } catch (error) {
             toast({ title: 'Error', description: 'Failed to delete record.', variant: 'destructive' });
