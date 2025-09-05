@@ -106,6 +106,11 @@ export default function PurchaseOrderView({ poId }: { poId: string }) {
               <h2 className="text-lg font-semibold">शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.</h2>
               <p className="text-sm">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
               <h2 className="text-lg font-semibold underline mt-1">PURCHASE ORDER</h2>
+              {showAmendedDate && amendedDate && (
+                <p className="text-xs italic">
+                  (AMENDED PO-LAST RELEASED-{amendedDate.toLocaleDateString('en-CA')})
+                </p>
+              )}
             </div>
         </header>
         
