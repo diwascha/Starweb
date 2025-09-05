@@ -556,7 +556,7 @@ export default function RawMaterialsPage() {
                                         {newMaterialUnits.map(unit => (
                                             <Badge key={unit} variant="secondary" className="gap-1">
                                                 {unit}
-                                                <button onClick={() => handleUnitRemove(unit)} className="rounded-full hover:bg-background/50">
+                                                <button type="button" onClick={() => handleUnitRemove(unit)} className="rounded-full hover:bg-background/50">
                                                     <X className="h-3 w-3" />
                                                 </button>
                                             </Badge>
@@ -576,9 +576,19 @@ export default function RawMaterialsPage() {
                                                 placeholder="Search or create unit..."
                                                 value={unitInputValue}
                                                 onValueChange={setUnitInputValue}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' && unitInputValue.trim()) {
+                                                        e.preventDefault();
+                                                        handleUnitSelect(unitInputValue.trim());
+                                                    }
+                                                }}
                                             />
                                             <CommandList>
-                                                <CommandEmpty>No results. Press Enter to add.</CommandEmpty>
+                                                <CommandEmpty>
+                                                    <div className="p-2 text-sm text-center">
+                                                        No results. Press Enter to add.
+                                                    </div>
+                                                </CommandEmpty>
                                                 <CommandGroup>
                                                     {allUnits.filter(u => !newMaterialUnits.includes(u)).map(unit => (
                                                         <CommandItem key={unit} onSelect={() => handleUnitSelect(unit)}>
@@ -620,3 +630,4 @@ export default function RawMaterialsPage() {
     </div>
   );
 }
+
