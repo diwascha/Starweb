@@ -12,8 +12,6 @@ import NepaliDate from 'nepali-date-converter';
 import { getReport, updateReport } from '@/services/report-service';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { useIsMobile } from '@/hooks/use-mobile';
-
 
 const orderedSpecificationKeys: (keyof ProductSpecification)[] = [
   'dimension',
@@ -32,7 +30,6 @@ export default function ReportView({ reportId }: { reportId: string }) {
   const [report, setReport] = useState<Report | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
-  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (reportId) {
@@ -42,6 +39,24 @@ export default function ReportView({ reportId }: { reportId: string }) {
       });
     }
   }, [reportId]);
+
+  const handlePrint = async () => {
+    if (!report) return;
+    
+    // Add to print log
+    const newLogEntry = { date: new Date().toISOString() };
+    const updatedReportData = {
+        ...report,
+        printLog: [...(report.printLog || []), newLogEntry],
+    };
+    setReport(updatedReportData);
+    await updateReport(report.id, { printLog: updatedReportData.printLog });
+    
+    // Use a timeout to ensure state update is processed before printing
+    setTimeout(() => {
+      window.print();
+    }, 100);
+  };
 
   const handleSaveAsPdf = async () => {
     if (!report) return;
@@ -119,17 +134,16 @@ export default function ReportView({ reportId }: { reportId: string }) {
     <>
       <div className="flex justify-between items-center mb-8 print:hidden">
         <h1 className="text-3xl font-bold">Test Report</h1>
-        {isMobile ? (
-            <Button onClick={handleSaveAsPdf} disabled={isGeneratingPdf}>
+        <div className="flex gap-2">
+            <Button variant="outline" onClick={handleSaveAsPdf} disabled={isGeneratingPdf}>
                 {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 {isGeneratingPdf ? 'Saving...' : 'Save as PDF'}
             </Button>
-        ) : (
-             <Button onClick={() => window.print()}>
+             <Button onClick={handlePrint}>
                 <Printer className="mr-2 h-4 w-4" />
                 Print
             </Button>
-        )}
+        </div>
       </div>
 
       <div className="printable-area space-y-4 p-4 border rounded-lg bg-white text-black">

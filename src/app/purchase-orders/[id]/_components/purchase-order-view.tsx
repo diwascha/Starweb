@@ -16,7 +16,6 @@ import { differenceInDays } from 'date-fns';
 import { getPurchaseOrder } from '@/services/purchase-order-service';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { useIsMobile } from '@/hooks/use-mobile';
 
 const paperTypes = ['Kraft Paper', 'Virgin Paper'];
 
@@ -24,7 +23,6 @@ export default function PurchaseOrderView({ poId }: { poId: string }) {
   const [purchaseOrder, setPurchaseOrder] = useState<PurchaseOrder | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const router = useRouter();
-  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (poId) {
@@ -159,17 +157,14 @@ export default function PurchaseOrderView({ poId }: { poId: string }) {
         </div>
         <div className="flex gap-2">
             <Button variant="outline" onClick={() => router.push(`/purchase-orders/edit/${poId}`)}>Edit</Button>
-            {isMobile ? (
-                 <Button onClick={handleSaveAsPdf} disabled={isGeneratingPdf}>
-                    {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                    {isGeneratingPdf ? 'Saving...' : 'Save as PDF'}
-                </Button>
-            ) : (
-                <Button onClick={() => window.print()}>
-                    <Printer className="mr-2 h-4 w-4" />
-                    Print
-                </Button>
-            )}
+            <Button variant="outline" onClick={handleSaveAsPdf} disabled={isGeneratingPdf}>
+                {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                {isGeneratingPdf ? 'Saving...' : 'Save as PDF'}
+            </Button>
+            <Button onClick={() => window.print()}>
+                <Printer className="mr-2 h-4 w-4" />
+                Print
+            </Button>
         </div>
       </div>
 
