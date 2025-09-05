@@ -6,7 +6,7 @@ import type { PurchaseOrder, PurchaseOrderStatus } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Printer } from 'lucide-react';
+import { Printer, Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import NepaliDate from 'nepali-date-converter';
 import { useRouter } from 'next/navigation';
@@ -14,11 +14,14 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { differenceInDays } from 'date-fns';
 import { getPurchaseOrder } from '@/services/purchase-order-service';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 const paperTypes = ['Kraft Paper', 'Virgin Paper'];
 
 export default function PurchaseOrderView({ poId }: { poId: string }) {
   const [purchaseOrder, setPurchaseOrder] = useState<PurchaseOrder | null>(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -26,6 +29,70 @@ export default function PurchaseOrderView({ poId }: { poId: string }) {
         getPurchaseOrder(poId).then(setPurchaseOrder);
     }
   }, [poId]);
+  
+  const handleSaveAsPdf = async () => {
+    if (!purchaseOrder) return;
+    
+    setIsGeneratingPdf(true);
+    const printableArea = document.querySelector('.printable-area') as HTMLElement;
+    if (!printableArea) {
+        setIsGeneratingPdf(false);
+        return;
+    }
+    
+    try {
+        const canvas = await html2canvas(printableArea, {
+            scale: 2, // Higher scale for better quality
+            useCORS: true,
+            logging: false,
+        });
+
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF({
+            orientation: 'portrait',
+            unit: 'px',
+            format: 'a4',
+        });
+
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const canvasWidth = canvas.width;
+        const canvasHeight = canvas.height;
+        const ratio = canvasWidth / canvasHeight;
+        const height = pdfWidth / ratio;
+
+        // If the content is taller than one page, split it
+        let position = 0;
+        let remainingHeight = canvasHeight;
+
+        while (remainingHeight > 0) {
+            const pageCanvas = document.createElement('canvas');
+            const pageCanvasHeight = Math.min(remainingHeight, canvasWidth * (pdfHeight/pdfWidth));
+            pageCanvas.width = canvasWidth;
+            pageCanvas.height = pageCanvasHeight;
+
+            const ctx = pageCanvas.getContext('2d');
+            ctx?.drawImage(canvas, 0, position, canvasWidth, pageCanvasHeight, 0, 0, canvasWidth, pageCanvasHeight);
+
+            const pageImgData = pageCanvas.toDataURL('image/png');
+            const pageHeight = pdfWidth * (pageCanvasHeight / canvasWidth);
+            
+            if (position > 0) {
+                pdf.addPage();
+            }
+            pdf.addImage(pageImgData, 'PNG', 0, 0, pdfWidth, pageHeight);
+            
+            position += pageCanvasHeight;
+            remainingHeight -= pageCanvasHeight;
+        }
+
+        pdf.save(`PO-${purchaseOrder.poNumber}.pdf`);
+    } catch (error) {
+        console.error("Error generating PDF", error);
+    } finally {
+        setIsGeneratingPdf(false);
+    }
+  };
 
   if (!purchaseOrder) {
     return (
@@ -90,9 +157,9 @@ export default function PurchaseOrderView({ poId }: { poId: string }) {
         </div>
         <div className="flex gap-2">
             <Button variant="outline" onClick={() => router.push(`/purchase-orders/edit/${poId}`)}>Edit</Button>
-            <Button onClick={() => window.print()}>
-            <Printer className="mr-2 h-4 w-4" />
-            Print or Save as PDF
+            <Button onClick={handleSaveAsPdf} disabled={isGeneratingPdf}>
+            {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Printer className="mr-2 h-4 w-4" />}
+            {isGeneratingPdf ? 'Generating...' : 'Save as PDF'}
             </Button>
         </div>
       </div>
@@ -101,7 +168,7 @@ export default function PurchaseOrderView({ poId }: { poId: string }) {
         <header className="text-center space-y-1 mb-4 relative">
             <div className="pt-8">
               <h1 className="text-xl font-bold">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
-              <h2 className="text-lg font-semibold">शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.</h2>
+              <h2 className="text-lg font-semibold"> शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.</h2>
               <p className="text-sm">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
               <h2 className="text-lg font-semibold underline mt-1">PURCHASE ORDER</h2>
               {showAmendedDate && amendedDate && (
@@ -249,7 +316,7 @@ export default function PurchaseOrderView({ poId }: { poId: string }) {
             left: 0;
             top: 0;
             width: 100%;
-            height: 50vh; /* Aims for half of an A4 page */
+            height: auto;
             margin: 0;
             padding: 0;
             border: none;

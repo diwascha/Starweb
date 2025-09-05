@@ -6,10 +6,13 @@ import type { Report, ProductSpecification } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Printer } from 'lucide-react';
+import { Printer, Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import NepaliDate from 'nepali-date-converter';
 import { getReport, updateReport } from '@/services/report-service';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+
 
 const orderedSpecificationKeys: (keyof ProductSpecification)[] = [
   'dimension',
@@ -27,6 +30,7 @@ const orderedSpecificationKeys: (keyof ProductSpecification)[] = [
 export default function ReportView({ reportId }: { reportId: string }) {
   const [report, setReport] = useState<Report | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   useEffect(() => {
     if (reportId) {
@@ -37,25 +41,54 @@ export default function ReportView({ reportId }: { reportId: string }) {
     }
   }, [reportId]);
 
-  const handlePrint = async () => {
-    if (report) {
-      const newLogEntry = { date: new Date().toISOString() };
-      const updatedReportData = {
-          ...report,
-          printLog: [...(report.printLog || []), newLogEntry],
-      };
-      
-      // Optimistically update the state
-      setReport(updatedReportData); 
-      
-      // Update in Firestore
-      await updateReport(report.id, { printLog: updatedReportData.printLog });
-      
-      setTimeout(() => {
-        window.print();
-      }, 0);
+  const handleSaveAsPdf = async () => {
+    if (!report) return;
+    
+    setIsGeneratingPdf(true);
+    const printableArea = document.querySelector('.printable-area') as HTMLElement;
+    if (!printableArea) {
+        setIsGeneratingPdf(false);
+        return;
+    }
+
+    // Add to print log
+    const newLogEntry = { date: new Date().toISOString() };
+    const updatedReportData = {
+        ...report,
+        printLog: [...(report.printLog || []), newLogEntry],
+    };
+    setReport(updatedReportData);
+    await updateReport(report.id, { printLog: updatedReportData.printLog });
+    
+    try {
+        const canvas = await html2canvas(printableArea, {
+            scale: 2, // Higher scale for better quality
+            useCORS: true,
+            logging: false,
+        });
+
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF({
+            orientation: 'portrait',
+            unit: 'px',
+            format: 'a4',
+        });
+        
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const canvasWidth = canvas.width;
+        const canvasHeight = canvas.height;
+        const ratio = canvasWidth / canvasHeight;
+        const pdfHeight = pdfWidth / ratio;
+
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        pdf.save(`Report-${report.serialNumber}.pdf`);
+    } catch (error) {
+        console.error("Error generating PDF", error);
+    } finally {
+        setIsGeneratingPdf(false);
     }
   };
+
 
   if (isLoading) {
       return (
@@ -84,9 +117,9 @@ export default function ReportView({ reportId }: { reportId: string }) {
     <>
       <div className="flex justify-between items-center mb-8 print:hidden">
         <h1 className="text-3xl font-bold">Test Report</h1>
-        <Button onClick={handlePrint}>
-          <Printer className="mr-2 h-4 w-4" />
-          Print or Save as PDF
+        <Button onClick={handleSaveAsPdf} disabled={isGeneratingPdf}>
+          {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Printer className="mr-2 h-4 w-4" />}
+          {isGeneratingPdf ? 'Generating...' : 'Save as PDF'}
         </Button>
       </div>
 
@@ -94,7 +127,7 @@ export default function ReportView({ reportId }: { reportId: string }) {
         <header className="text-center space-y-1 mb-4 relative">
             <div className="pt-8">
               <h1 className="text-xl font-bold">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
-              <h2 className="text-lg font-semibold">शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.</h2>
+              <h2 className="text-lg font-semibold"> शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.</h2>
               <p className="text-sm">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
               <h2 className="text-lg font-semibold underline mt-1">TEST REPORT</h2>
             </div>
@@ -155,7 +188,7 @@ export default function ReportView({ reportId }: { reportId: string }) {
                   <TableBody>
                     {report.product.specification && orderedSpecificationKeys.map((key) => {
                       const specKey = key as keyof ProductSpecification;
-                      const standardValue = report.product.specification[specKey];
+                      const standardValue = report.product.specification?.[specKey];
                       
                       if (!standardValue || standardValue.trim() === '') {
                         return null;
@@ -259,7 +292,7 @@ export default function ReportView({ reportId }: { reportId: string }) {
             left: 0;
             top: 0;
             width: 100%;
-            height: 50vh; /* Aims for half of an A4 page */
+            height: auto; 
             margin: 0;
             padding: 0;
             border: none;
