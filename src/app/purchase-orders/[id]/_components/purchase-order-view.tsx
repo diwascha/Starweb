@@ -93,6 +93,12 @@ export default function PurchaseOrderView({ poId }: { poId: string }) {
         setIsGeneratingPdf(false);
     }
   };
+  
+  const handlePrint = () => {
+    setTimeout(() => {
+        window.print();
+    }, 100);
+  };
 
   if (!purchaseOrder) {
     return (
@@ -161,7 +167,7 @@ export default function PurchaseOrderView({ poId }: { poId: string }) {
                 {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 {isGeneratingPdf ? 'Saving...' : 'Save as PDF'}
             </Button>
-            <Button onClick={() => window.print()}>
+            <Button onClick={handlePrint}>
                 <Printer className="mr-2 h-4 w-4" />
                 Print
             </Button>
