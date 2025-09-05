@@ -10,8 +10,8 @@ import type { Report, Product } from '@/lib/types';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { onReportsUpdate } from '@/services/report-service';
-import { onProductsUpdate } from '@/services/product-service';
+import { getReports } from '@/services/report-service';
+import { getProducts } from '@/services/product-service';
 
 const reportModules = [
     {
@@ -49,12 +49,13 @@ export default function ReportDashboardPage() {
 
    useEffect(() => { 
         setIsClient(true);
-        const unsubReports = onReportsUpdate(setReports);
-        const unsubProducts = onProductsUpdate(setProducts);
-        return () => {
-            unsubReports();
-            unsubProducts();
-        };
+        async function fetchData() {
+            const reportsData = await getReports();
+            const productsData = await getProducts();
+            setReports(reportsData);
+            setProducts(productsData);
+        }
+        fetchData();
     }, []);
 
    const { totalReports, totalProducts, productTestData, recentReports } = useMemo(() => {
