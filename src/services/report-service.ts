@@ -3,6 +3,8 @@ import { db } from '@/lib/firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDoc, query, where } from 'firebase/firestore';
 import type { Report } from '@/lib/types';
 
+const reportsCollection = collection(db, 'reports');
+
 const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Report => {
     const data = snapshot.data();
     return {
