@@ -41,10 +41,3 @@ export const deleteRawMaterial = async (id: string): Promise<void> => {
     const materialDoc = doc(db, 'rawMaterials', id);
     await deleteDoc(materialDoc);
 };
-
-export const onRawMaterialsUpdate = (callback: (materials: RawMaterial[]) => void): (() => void) => {
-    return onSnapshot(rawMaterialsCollection, (snapshot) => {
-        const materials = snapshot.docs.map(fromFirestore);
-        callback(materials);
-    });
-};

@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { collection, doc, writeBatch, onSnapshot, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
+import { collection, doc, writeBatch, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs } from 'firebase/firestore';
 import type { AttendanceRecord } from '@/lib/types';
 
 const attendanceCollection = collection(db, 'attendance');
@@ -32,9 +32,7 @@ export const addAttendanceRecords = async (records: Omit<AttendanceRecord, 'id'>
     await batch.commit();
 };
 
-export const onAttendanceUpdate = (callback: (records: AttendanceRecord[]) => void): (() => void) => {
-    return onSnapshot(attendanceCollection, (snapshot) => {
-        const records = snapshot.docs.map(fromFirestore);
-        callback(records);
-    });
+export const getAttendanceRecords = async (): Promise<AttendanceRecord[]> => {
+    const snapshot = await getDocs(attendanceCollection);
+    return snapshot.docs.map(fromFirestore);
 };

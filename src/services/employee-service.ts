@@ -36,10 +36,3 @@ export const deleteEmployee = async (id: string): Promise<void> => {
     const employeeDoc = doc(db, 'employees', id);
     await deleteDoc(employeeDoc);
 };
-
-export const onEmployeesUpdate = (callback: (employees: Employee[]) => void): (() => void) => {
-    return onSnapshot(employeesCollection, (snapshot) => {
-        const employees = snapshot.docs.map(fromFirestore);
-        callback(employees);
-    });
-};

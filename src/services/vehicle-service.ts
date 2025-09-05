@@ -26,6 +26,11 @@ export const addVehicle = async (vehicle: Omit<Vehicle, 'id'>): Promise<string> 
     return docRef.id;
 };
 
+export const getVehicles = async (): Promise<Vehicle[]> => {
+    const snapshot = await getDocs(vehiclesCollection);
+    return snapshot.docs.map(fromFirestore);
+};
+
 export const updateVehicle = async (id: string, vehicle: Partial<Omit<Vehicle, 'id'>>): Promise<void> => {
     const vehicleDoc = doc(db, 'vehicles', id);
     await updateDoc(vehicleDoc, vehicle);
@@ -34,11 +39,4 @@ export const updateVehicle = async (id: string, vehicle: Partial<Omit<Vehicle, '
 export const deleteVehicle = async (id: string): Promise<void> => {
     const vehicleDoc = doc(db, 'vehicles', id);
     await deleteDoc(vehicleDoc);
-};
-
-export const onVehiclesUpdate = (callback: (vehicles: Vehicle[]) => void): (() => void) => {
-    return onSnapshot(vehiclesCollection, (snapshot) => {
-        const vehicles = snapshot.docs.map(fromFirestore);
-        callback(vehicles);
-    });
 };

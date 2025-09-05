@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs } from 'firebase/firestore';
 import type { Transaction } from '@/lib/types';
 
 const transactionsCollection = collection(db, 'transactions');
@@ -25,6 +25,11 @@ export const addTransaction = async (transaction: Omit<Transaction, 'id'>): Prom
     return docRef.id;
 };
 
+export const getTransactions = async (): Promise<Transaction[]> => {
+    const snapshot = await getDocs(transactionsCollection);
+    return snapshot.docs.map(fromFirestore);
+};
+
 export const updateTransaction = async (id: string, transaction: Partial<Omit<Transaction, 'id'>>): Promise<void> => {
     const transactionDoc = doc(db, 'transactions', id);
     await updateDoc(transactionDoc, transaction);
@@ -33,11 +38,4 @@ export const updateTransaction = async (id: string, transaction: Partial<Omit<Tr
 export const deleteTransaction = async (id: string): Promise<void> => {
     const transactionDoc = doc(db, 'transactions', id);
     await deleteDoc(transactionDoc);
-};
-
-export const onTransactionsUpdate = (callback: (transactions: Transaction[]) => void): (() => void) => {
-    return onSnapshot(transactionsCollection, (snapshot) => {
-        const transactions = snapshot.docs.map(fromFirestore);
-        callback(transactions);
-    });
 };

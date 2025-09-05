@@ -54,10 +54,3 @@ export const deletePurchaseOrder = async (id: string): Promise<void> => {
     const poDoc = doc(db, 'purchaseOrders', id);
     await deleteDoc(poDoc);
 };
-
-export const onPurchaseOrdersUpdate = (callback: (pos: PurchaseOrder[]) => void): (() => void) => {
-    return onSnapshot(purchaseOrdersCollection, (snapshot) => {
-        const pos = snapshot.docs.map(fromFirestore);
-        callback(pos);
-    });
-};

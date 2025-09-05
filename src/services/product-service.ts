@@ -38,10 +38,3 @@ export const deleteProduct = async (id: string): Promise<void> => {
     const productDoc = doc(db, 'products', id);
     await deleteDoc(productDoc);
 };
-
-export const onProductsUpdate = (callback: (products: Product[]) => void): (() => void) => {
-    return onSnapshot(productsCollection, (snapshot) => {
-        const products = snapshot.docs.map(fromFirestore);
-        callback(products);
-    });
-};

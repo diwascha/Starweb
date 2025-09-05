@@ -63,10 +63,3 @@ export const deleteReport = async (id: string): Promise<void> => {
     const reportDoc = doc(db, 'reports', id);
     await deleteDoc(reportDoc);
 };
-
-export const onReportsUpdate = (callback: (reports: Report[]) => void): (() => void) => {
-    return onSnapshot(reportsCollection, (snapshot) => {
-        const reports = snapshot.docs.map(fromFirestore);
-        callback(reports);
-    });
-};
