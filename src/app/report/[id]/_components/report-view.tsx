@@ -6,12 +6,13 @@ import type { Report, ProductSpecification } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Printer, Loader2 } from 'lucide-react';
+import { Printer, Loader2, Save } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import NepaliDate from 'nepali-date-converter';
 import { getReport, updateReport } from '@/services/report-service';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 
 const orderedSpecificationKeys: (keyof ProductSpecification)[] = [
@@ -31,6 +32,7 @@ export default function ReportView({ reportId }: { reportId: string }) {
   const [report, setReport] = useState<Report | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (reportId) {
@@ -117,10 +119,17 @@ export default function ReportView({ reportId }: { reportId: string }) {
     <>
       <div className="flex justify-between items-center mb-8 print:hidden">
         <h1 className="text-3xl font-bold">Test Report</h1>
-        <Button onClick={handleSaveAsPdf} disabled={isGeneratingPdf}>
-          {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Printer className="mr-2 h-4 w-4" />}
-          {isGeneratingPdf ? 'Generating...' : 'Save as PDF'}
-        </Button>
+        {isMobile ? (
+            <Button onClick={handleSaveAsPdf} disabled={isGeneratingPdf}>
+                {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                {isGeneratingPdf ? 'Saving...' : 'Save as PDF'}
+            </Button>
+        ) : (
+             <Button onClick={() => window.print()}>
+                <Printer className="mr-2 h-4 w-4" />
+                Print
+            </Button>
+        )}
       </div>
 
       <div className="printable-area space-y-4 p-4 border rounded-lg bg-white text-black">
