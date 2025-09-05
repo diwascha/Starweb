@@ -2,7 +2,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import useLocalStorage from '@/hooks/use-local-storage';
 import type { Report, ProductSpecification } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -10,27 +9,34 @@ import { Button } from '@/components/ui/button';
 import { Printer } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import NepaliDate from 'nepali-date-converter';
+import { getReport, updateReport } from '@/services/report-service';
 
 export default function ReportView({ reportId }: { reportId: string }) {
-  const [reports, setReports] = useLocalStorage<Report[]>('reports', []);
   const [report, setReport] = useState<Report | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const foundReport = reports.find(r => r.id === reportId);
-    setReport(foundReport || null);
-  }, [reportId, reports]);
+    if (reportId) {
+      getReport(reportId).then(fetchedReport => {
+        setReport(fetchedReport);
+        setIsLoading(false);
+      });
+    }
+  }, [reportId]);
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     if (report) {
       const newLogEntry = { date: new Date().toISOString() };
-      const updatedReport = {
+      const updatedReportData = {
           ...report,
           printLog: [...(report.printLog || []), newLogEntry],
       };
       
-      const updatedReports = reports.map(r => r.id === reportId ? updatedReport : r);
-      setReports(updatedReports);
-      setReport(updatedReport); 
+      // Optimistically update the state
+      setReport(updatedReportData); 
+      
+      // Update in Firestore
+      await updateReport(report.id, { printLog: updatedReportData.printLog });
       
       setTimeout(() => {
         window.print();
@@ -38,10 +44,18 @@ export default function ReportView({ reportId }: { reportId: string }) {
     }
   };
 
+  if (isLoading) {
+      return (
+      <div className="flex justify-center items-center h-full">
+        <p>Loading report...</p>
+      </div>
+    );
+  }
+
   if (!report) {
     return (
       <div className="flex justify-center items-center h-full">
-        <p>Report not found or is loading...</p>
+        <p>Report not found.</p>
       </div>
     );
   }

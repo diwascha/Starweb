@@ -15,6 +15,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { format, differenceInDays } from 'date-fns';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { onReportsUpdate } from '@/services/report-service';
 
 
 function LiveDateTime() {
@@ -62,13 +63,15 @@ function PasswordExpiryReminder() {
 }
 
 export default function DashboardPage() {
-  const [reports] = useLocalStorage<Report[]>('reports', []);
+  const [reports, setReports] = useState<Report[]>([]);
   const [purchaseOrders] = useLocalStorage<PurchaseOrder[]>('purchaseOrders', []);
   const [isClient, setIsClient] = useState(false);
   const { hasPermission } = useAuth();
 
   useEffect(() => {
     setIsClient(true);
+    const unsubscribe = onReportsUpdate(setReports);
+    return () => unsubscribe();
   }, []);
   
   const canViewPOs = hasPermission('purchaseOrders', 'view');

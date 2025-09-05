@@ -43,8 +43,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
-import { addProduct, updateProduct, deleteProduct, getProducts, onProductsUpdate } from '@/services/product-service';
-import useLocalStorage from '@/hooks/use-local-storage';
+import { addProduct, updateProduct, deleteProduct, onProductsUpdate } from '@/services/product-service';
+import { getReportsByProductId, deleteReport } from '@/services/report-service';
 
 const initialSpecValues: ProductSpecification = {
   dimension: '',
@@ -63,7 +63,6 @@ type ProductSortKey = 'name' | 'materialCode' | 'companyName' | 'createdBy' | 'l
 type SortDirection = 'asc' | 'desc';
 
 export default function ProductsPage() {
-  const [reports, setReports] = useLocalStorage<Report[]>('reports', []);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -162,9 +161,6 @@ export default function ProductsPage() {
             lastModifiedBy: user.username,
           };
           await updateProduct(editingProduct.id, updatedProductData);
-          
-          // TODO: This part will also need to be migrated to firestore.
-          setReports(reports.map(r => r.product.id === editingProduct.id ? {...r, product: {id: editingProduct.id, ...updatedProductData}} : r));
           toast({ title: 'Success', description: 'Product updated.' });
         } else {
           const newProduct: Omit<Product, 'id'> = {
@@ -190,9 +186,13 @@ export default function ProductsPage() {
   
   const handleDeleteProduct = async (id: string) => {
     try {
+      // First, find and delete all associated reports
+      const reportsToDelete = await getReportsByProductId(id);
+      for (const report of reportsToDelete) {
+        await deleteReport(report.id);
+      }
+      // Then, delete the product itself
       await deleteProduct(id);
-      // TODO: This part will also need to be migrated to firestore.
-      setReports(reports.filter(report => report.product.id !== id));
       toast({ title: 'Product Deleted', description: 'The product and its associated reports have been deleted.' });
     } catch (error) {
        toast({ title: 'Error', description: 'Failed to delete product.', variant: 'destructive' });

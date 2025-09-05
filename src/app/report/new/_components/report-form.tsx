@@ -14,7 +14,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import useLocalStorage from '@/hooks/use-local-storage';
 import type { Product, Report, TestResultData, ProductSpecification } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
@@ -23,6 +22,8 @@ import { generateNextSerialNumber } from '@/lib/utils';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { RefreshCw } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
+import { onProductsUpdate } from '@/services/product-service';
+import { addReport, updateReport, getReports } from '@/services/report-service';
 
 const testResultSchema = z.object({
   value: z.string().min(1, { message: 'Result is required.' }),
@@ -88,8 +89,7 @@ const getRandomInRange = (min: number, max: number, precision: number = 2) => {
 };
 
 export function ReportForm({ reportToEdit }: ReportFormProps) {
-  const [products] = useLocalStorage<Product[]>('products', []);
-  const [reports, setReports] = useLocalStorage<Report[]>('reports', []);
+  const [products, setProducts] = useState<Product[]>([]);
   const router = useRouter();
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -100,11 +100,14 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
 
   useEffect(() => {
     setIsClient(true);
+    const unsubscribe = onProductsUpdate(setProducts);
+    
     if (reportToEdit) {
         const product = products.find(p => p.id === reportToEdit.product.id);
         setSelectedProduct(product || null);
         setSelectedBoxType('Normal');
     }
+    return () => unsubscribe();
   }, [reportToEdit, products]);
   
   const form = useForm<ReportFormValues>({
@@ -262,11 +265,8 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
       const { productId, taxInvoiceNumber, challanNumber, quantity, ...testDataValues } = values;
       const testData: TestResultData = testDataValues as TestResultData;
       
-      let newReportId = reportToEdit ? reportToEdit.id : crypto.randomUUID();
-
       if (reportToEdit) {
-          const updatedReport: Report = {
-              ...reportToEdit,
+          const updatedReportData: Partial<Report> = {
               product: selectedProduct,
               taxInvoiceNumber: taxInvoiceNumber || 'N/A',
               challanNumber: challanNumber || 'N/A',
@@ -274,10 +274,15 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
               testData,
               lastModifiedBy: user.username,
           };
-          setReports(reports.map(r => r.id === reportToEdit.id ? updatedReport : r));
+          await updateReport(reportToEdit.id, updatedReportData);
           toast({ title: 'Success', description: 'Report updated successfully.' });
+          router.push(`/report/${reportToEdit.id}`);
       } else {
-        const newReportData: Omit<Report, 'id' | 'serialNumber'> = {
+        const allReports = await getReports();
+        const nextSerialNumber = generateNextSerialNumber(allReports);
+
+        const newReportData: Omit<Report, 'id'> = {
+            serialNumber: nextSerialNumber,
             taxInvoiceNumber: taxInvoiceNumber || 'N/A',
             challanNumber: challanNumber || 'N/A',
             quantity: quantity || 'N/A',
@@ -288,24 +293,10 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
             createdBy: user.username,
         };
 
-        const tempReport: Report = {
-            ...newReportData,
-            id: newReportId,
-            serialNumber: 'PENDING',
-        };
-        
-        setReports(prevReports => {
-            const allReports = [...(prevReports || []), tempReport];
-            const finalSerialNumber = generateNextSerialNumber(allReports);
-            
-            return allReports.map(r => 
-                r.id === newReportId ? { ...r, serialNumber: finalSerialNumber } : r
-            );
-        });
-
+        const newReportId = await addReport(newReportData);
         toast({ title: 'Success', description: 'Report generated successfully.' });
+        router.push(`/report/${newReportId}`);
       }
-       router.push(`/report/${newReportId}`);
     } catch (error) {
       console.error('Failed to generate report:', error);
       toast({

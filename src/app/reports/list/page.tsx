@@ -4,7 +4,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { PlusCircle, FileText, MoreHorizontal, Edit, Trash2, View, Printer, ArrowUpDown, Search } from 'lucide-react';
-import useLocalStorage from '@/hooks/use-local-storage';
 import type { Report } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -31,12 +30,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
+import { onReportsUpdate, deleteReport, updateReport } from '@/services/report-service';
 
 type ReportSortKey = 'serialNumber' | 'productName' | 'taxInvoiceNumber' | 'challanNumber' | 'quantity' | 'createdBy' | 'lastModifiedBy';
 type SortDirection = 'asc' | 'desc';
 
 export default function ReportsListPage() {
-  const [reports, setReports] = useLocalStorage<Report[]>('reports', []);
+  const [reports, setReports] = useState<Report[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   
   const [reportSortConfig, setReportSortConfig] = useState<{ key: ReportSortKey; direction: SortDirection }>({
@@ -45,38 +45,45 @@ export default function ReportsListPage() {
   });
 
   const { toast } = useToast();
-  const [isClient, setIsClient] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const { hasPermission } = useAuth();
 
   useEffect(() => {
-    setIsClient(true);
+    const unsubscribe = onReportsUpdate((reports) => {
+      setReports(reports);
+      setIsLoading(false);
+    });
+    return () => unsubscribe();
   }, []);
   
-  const deleteReport = (id: string) => {
-    setReports(reports.filter(report => report.id !== id));
-    toast({ title: 'Report Deleted', description: 'The report has been successfully deleted.' });
+  const handleDeleteReport = async (id: string) => {
+    try {
+      await deleteReport(id);
+      toast({ title: 'Report Deleted', description: 'The report has been successfully deleted.' });
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to delete report.', variant: 'destructive' });
+    }
   };
   
-  const handlePrint = (report: Report) => {
+  const handlePrint = async (report: Report) => {
     const newLogEntry = { date: new Date().toISOString() };
-    const updatedReport = {
-      ...report,
-      printLog: [...(report.printLog || []), newLogEntry],
-    };
+    const updatedPrintLog = [...(report.printLog || []), newLogEntry];
     
-    const updatedReports = reports.map(r => r.id === report.id ? updatedReport : r);
-    setReports(updatedReports);
-    
-    setTimeout(() => {
-        const printWindow = window.open(`/report/${report.id}`, '_blank');
-        if (printWindow) {
-            printWindow.onload = () => {
-                // A short delay for content to render before printing
-                setTimeout(() => printWindow.print(), 500);
-            };
-        }
-    }, 100);
+    try {
+      await updateReport(report.id, { printLog: updatedPrintLog });
+      
+      setTimeout(() => {
+          const printWindow = window.open(`/report/${report.id}`, '_blank');
+          if (printWindow) {
+              printWindow.onload = () => {
+                  setTimeout(() => printWindow.print(), 500);
+              };
+          }
+      }, 100);
+    } catch (error) {
+      toast({ title: 'Error', description: 'Could not update print log.', variant: 'destructive' });
+    }
   };
 
   const requestReportSort = (key: ReportSortKey) => {
@@ -151,7 +158,7 @@ export default function ReportsListPage() {
 
 
   const renderContent = () => {
-    if (!isClient) {
+    if (isLoading) {
       return (
         <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
           <div className="flex flex-col items-center gap-1 text-center">
@@ -281,7 +288,7 @@ export default function ReportsListPage() {
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => deleteReport(report.id)}>Delete</AlertDialogAction>
+                                    <AlertDialogAction onClick={() => handleDeleteReport(report.id)}>Delete</AlertDialogAction>
                                 </AlertDialogFooter>
                                 </AlertDialogContent>
                             </AlertDialog>

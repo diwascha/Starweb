@@ -5,12 +5,13 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { FileText, FileSpreadsheet, Package, PlusCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
-import useLocalStorage from '@/hooks/use-local-storage';
 import { useState, useEffect, useMemo } from 'react';
 import type { Report, Product } from '@/lib/types';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { onReportsUpdate } from '@/services/report-service';
+import { onProductsUpdate } from '@/services/product-service';
 
 const reportModules = [
     {
@@ -43,10 +44,18 @@ export default function ReportDashboardPage() {
    const { hasPermission } = useAuth();
    const [isClient, setIsClient] = useState(false);
 
-   const [reports] = useLocalStorage<Report[]>('reports', []);
-   const [products] = useLocalStorage<Product[]>('products', []);
+   const [reports, setReports] = useState<Report[]>([]);
+   const [products, setProducts] = useState<Product[]>([]);
 
-   useEffect(() => { setIsClient(true) }, []);
+   useEffect(() => { 
+        setIsClient(true);
+        const unsubReports = onReportsUpdate(setReports);
+        const unsubProducts = onProductsUpdate(setProducts);
+        return () => {
+            unsubReports();
+            unsubProducts();
+        };
+    }, []);
 
    const { totalReports, totalProducts, productTestData, recentReports } = useMemo(() => {
         if (!isClient) return { totalReports: 0, totalProducts: 0, productTestData: [], recentReports: [] };
