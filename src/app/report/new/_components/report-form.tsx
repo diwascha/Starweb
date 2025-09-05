@@ -156,6 +156,10 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
     }
 
     const spec = selectedProduct.specification;
+    if (!spec) {
+        toast({ title: 'Missing Specification', description: 'Selected product is missing standard specifications.', variant: 'destructive'});
+        return;
+    }
     const gsmSpec = parseSpecValue(spec.gsm);
     const loadSpec = parseSpecValue(spec.load);
     const loadMin = loadSpec.min;
@@ -224,7 +228,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
       setSelectedProduct(product);
       testDataKeys.forEach(field => {
         const isStatic = staticFields.includes(field);
-        form.setValue(`${field}.value`, isStatic ? product.specification[field] : '');
+        form.setValue(`${field}.value`, isStatic && product.specification ? product.specification[field] : '');
         form.setValue(`${field}.remark`, '');
       });
       const defaultBoxType = 'Normal';
@@ -476,7 +480,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
                                 />
                               </FormControl>
                               <FormDescription>
-                                Standard: {selectedProduct.specification[key]}
+                                Standard: {selectedProduct.specification?.[key] || 'N/A'}
                               </FormDescription>
                               <FormMessage />
                             </FormItem>
