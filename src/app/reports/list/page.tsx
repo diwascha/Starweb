@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { PlusCircle, FileText, MoreHorizontal, Trash2, View, Printer, ArrowUpDown, Search } from 'lucide-react';
+import { PlusCircle, FileText, MoreHorizontal, Trash2, View, Printer, ArrowUpDown, Search, Edit } from 'lucide-react';
 import type { Report } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -268,12 +268,17 @@ export default function ReportsListPage() {
                                 <View className="mr-2 h-4 w-4" /> View
                             </DropdownMenuItem>
                         )}
+                        {hasPermission('reports', 'edit') && (
+                           <DropdownMenuItem onSelect={() => router.push(`/report/edit/${report.id}`)}>
+                                <Edit className="mr-2 h-4 w-4" /> Edit
+                            </DropdownMenuItem>
+                        )}
                         {hasPermission('reports', 'view') && (
                             <DropdownMenuItem onSelect={() => handlePrint(report)}>
                                 <Printer className="mr-2 h-4 w-4" /> Print
                             </DropdownMenuItem>
                         )}
-                        {(hasPermission('reports', 'view')) && hasPermission('reports', 'delete') && <DropdownMenuSeparator />}
+                        {(hasPermission('reports', 'view') || hasPermission('reports', 'edit')) && hasPermission('reports', 'delete') && <DropdownMenuSeparator />}
                         {hasPermission('reports', 'delete') && (
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
