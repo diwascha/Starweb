@@ -46,6 +46,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { onRawMaterialsUpdate, addRawMaterial, updateRawMaterial, deleteRawMaterial } from '@/services/raw-material-service';
+import { format } from 'date-fns';
 
 
 const materialTypes = [
@@ -54,7 +55,7 @@ const materialTypes = [
 
 const paperTypes = ['Kraft Paper', 'Virgin Paper'];
 
-type RawMaterialSortKey = 'name' | 'type' | 'createdBy' | 'lastModifiedBy';
+type RawMaterialSortKey = 'name' | 'type' | 'authorship';
 type SortDirection = 'asc' | 'desc';
 
 const generateMaterialName = (type: string, size: string, gsm: string, bf: string) => {
@@ -171,10 +172,12 @@ export default function RawMaterialsPage() {
             bf: isPaper ? newMaterialBf.trim() : '',
             units: newMaterialUnits,
             lastModifiedBy: user.username,
+            lastModifiedAt: new Date().toISOString(),
           };
           await updateRawMaterial(editingMaterial.id, updatedMaterialData);
           toast({ title: 'Success', description: 'Raw material updated.' });
         } else {
+          const now = new Date().toISOString();
           const newMaterialData: Omit<RawMaterial, 'id'> = {
             type: newMaterialType.trim(),
             name: finalName,
@@ -183,6 +186,7 @@ export default function RawMaterialsPage() {
             bf: isPaper ? newMaterialBf.trim() : '',
             units: newMaterialUnits,
             createdBy: user.username,
+            createdAt: now,
           };
           await addRawMaterial(newMaterialData);
           toast({ title: 'Success', description: 'New raw material added.' });
@@ -237,8 +241,16 @@ export default function RawMaterialsPage() {
 
     if (sortConfig.key) {
       filtered.sort((a, b) => {
-        const aValue = (a[sortConfig.key] || '').toLowerCase();
-        const bValue = (b[sortConfig.key] || '').toLowerCase();
+        const aValue = (a[sortConfig.key as keyof RawMaterial] || '').toString().toLowerCase();
+        const bValue = (b[sortConfig.key as keyof RawMaterial] || '').toString().toLowerCase();
+
+        if (sortConfig.key === 'authorship') {
+             const aDate = a.lastModifiedAt || a.createdAt;
+             const bDate = b.lastModifiedAt || b.createdAt;
+             if (aDate < bDate) return sortConfig.direction === 'asc' ? -1 : 1;
+             if (aDate > bDate) return sortConfig.direction === 'asc' ? 1 : -1;
+             return 0;
+        }
 
         if (aValue < bValue) {
           return sortConfig.direction === 'asc' ? -1 : 1;
@@ -344,29 +356,11 @@ export default function RawMaterialsPage() {
                         </>
                     )}
                     <TableHead>Units</TableHead>
-                    <TableHead>
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button variant="ghost" onClick={() => requestSort('createdBy')}>
-                                        Created <ArrowUpDown className="ml-2 h-4 w-4" />
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent><p>Created By</p></TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
-                    </TableHead>
-                    <TableHead>
-                         <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button variant="ghost" onClick={() => requestSort('lastModifiedBy')}>
-                                        Modified <ArrowUpDown className="ml-2 h-4 w-4" />
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent><p>Last Modified By</p></TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
+                     <TableHead>
+                        <Button variant="ghost" onClick={() => requestSort('authorship')}>
+                            Authorship
+                            <ArrowUpDown className="ml-2 h-4 w-4" />
+                        </Button>
                     </TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -384,31 +378,21 @@ export default function RawMaterialsPage() {
                             </>
                         )}
                         <TableCell>{Array.isArray(material.units) ? material.units.join(', ') : ''}</TableCell>
-                        <TableCell>
+                         <TableCell>
                             <TooltipProvider>
                                 <Tooltip>
-                                    <TooltipTrigger>
-                                        <User className="h-4 w-4 text-muted-foreground" />
+                                    <TooltipTrigger className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-default">
+                                        <User className="h-4 w-4" />
+                                        <span>{material.lastModifiedBy || material.createdBy}</span>
                                     </TooltipTrigger>
                                     <TooltipContent>
-                                        <p>{material.createdBy}</p>
+                                        <p>Created by: {material.createdBy} on {format(new Date(material.createdAt), "PP")}</p>
+                                        {material.lastModifiedBy && material.lastModifiedAt && (
+                                            <p>Modified by: {material.lastModifiedBy} on {format(new Date(material.lastModifiedAt), "PP")}</p>
+                                        )}
                                     </TooltipContent>
                                 </Tooltip>
                             </TooltipProvider>
-                        </TableCell>
-                        <TableCell>
-                            {material.lastModifiedBy ? (
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger>
-                                            <User className="h-4 w-4 text-muted-foreground" />
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>{material.lastModifiedBy}</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                            ) : 'N/A'}
                         </TableCell>
                         <TableCell className="text-right">
                         <DropdownMenu>

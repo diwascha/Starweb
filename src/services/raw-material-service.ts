@@ -16,7 +16,9 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): RawMateri
         bf: data.bf,
         units: data.units,
         createdBy: data.createdBy,
+        createdAt: data.createdAt,
         lastModifiedBy: data.lastModifiedBy,
+        lastModifiedAt: data.lastModifiedAt,
     };
 }
 

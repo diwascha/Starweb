@@ -58,7 +58,9 @@ export interface RawMaterial {
   bf: string;
   units: string[];
   createdBy: string;
+  createdAt: string; // ISO string
   lastModifiedBy?: string;
+  lastModifiedAt?: string; // ISO string
 }
 
 export interface PurchaseOrderItem {
