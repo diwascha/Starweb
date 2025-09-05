@@ -35,44 +35,86 @@ const USER_SESSION_KEY = 'user_session';
 
 const pageOrder: Module[] = ['dashboard', 'reports', 'products', 'purchaseOrders', 'rawMaterials', 'settings', 'hr', 'fleet'];
 
-// Function to convert kebab-case to camelCase
 const kebabToCamel = (s: string): Module | string => {
+    const segments = s.split('/');
+    const mainSegment = segments[0];
+
     const specialCases: Record<string, Module> = {
       'report': 'reports',
-      'reports/list': 'reports',
+      'reports': 'reports',
       'products': 'products',
       'purchase-orders': 'purchaseOrders',
-      'purchase-orders/list': 'purchaseOrders',
       'raw-materials': 'rawMaterials',
       'settings': 'settings',
       'hr': 'hr',
-      'hr/employees': 'hr',
-      'hr/attendance': 'hr',
       'fleet': 'fleet',
-      'fleet/vehicles': 'fleet',
-      'fleet/drivers': 'fleet',
       'dashboard': 'dashboard',
     };
-    if (specialCases[s]) {
-        return specialCases[s];
+    if (specialCases[mainSegment]) {
+        return specialCases[mainSegment];
     }
-    const cameled = s.replace(/-./g, x => x[1].toUpperCase());
+    const cameled = mainSegment.replace(/-./g, x => x[1].toUpperCase());
     return cameled;
 };
 
 const moduleToPath = (module: Module): string => {
     if (module === 'dashboard') return '/dashboard';
-    
     const kebab = module.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`);
     return `/${kebab}`;
 }
+
+const AuthRedirect = () => {
+    const { user, loading, hasPermission } = useAuth();
+    const router = useRouter();
+    const pathname = usePathname();
+
+    useEffect(() => {
+        if (loading) return;
+
+        const isAuthPage = pathname === '/login';
+
+        if (!user && !isAuthPage) {
+            router.push('/login');
+            return;
+        }
+
+        if (user && isAuthPage) {
+            router.push('/dashboard');
+            return;
+        }
+
+        if (user && !isAuthPage && !user.is_admin) {
+            const pathSegments = pathname.split('/').filter(Boolean);
+            if (pathSegments.length === 0) return;
+
+            const currentModuleAttempt = kebabToCamel(pathSegments[0]);
+
+            if (modules.includes(currentModuleAttempt as Module)) {
+                const currentModule = currentModuleAttempt as Module;
+                if (!hasPermission(currentModule, 'view')) {
+                    const firstAllowedPage = pageOrder.find(module => hasPermission(module, 'view'));
+                    if (firstAllowedPage) {
+                        const redirectPath = moduleToPath(firstAllowedPage);
+                        if (pathname !== redirectPath) {
+                            router.push(redirectPath);
+                        }
+                    } else {
+                        if (pathname !== '/dashboard') {
+                           router.push('/dashboard');
+                        }
+                    }
+                }
+            }
+        }
+    }, [user, loading, pathname, router, hasPermission]);
+
+    return null;
+};
 
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<UserSession | null>(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
-  const pathname = usePathname();
 
   useEffect(() => {
     try {
@@ -126,62 +168,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = useCallback(async () => {
     sessionStorage.removeItem(USER_SESSION_KEY);
     setUser(null);
-    router.push('/login');
-  }, [router]);
-
-  useEffect(() => {
-    if (loading) return;
-
-    const isAuthPage = pathname === '/login';
-
-    if (!user && !isAuthPage) {
-        router.push('/login');
-        return;
-    }
-
-    if (user && isAuthPage) {
-        router.push('/dashboard');
-        return;
-    }
-
-    if (user && !isAuthPage) {
-        // Admins can see all pages
-        if (user.is_admin) {
-            return;
-        }
-
-        const pathSegments = pathname.split('/').filter(Boolean);
-        if (pathSegments.length === 0) return; // Root page is handled by page.tsx
-
-        const mainSegment = pathSegments.join('/');
-        const currentModuleAttempt = kebabToCamel(mainSegment);
-        
-        const isAlreadyOnPermittedModuleDashboard = modules.includes(currentModuleAttempt as Module) && hasPermission(currentModuleAttempt as Module, 'view');
-        if (isAlreadyOnPermittedModuleDashboard) {
-            return; // No redirect needed
-        }
-
-        if (modules.includes(currentModuleAttempt as Module)) {
-            const currentModule = currentModuleAttempt as Module;
-            const canViewCurrentModule = hasPermission(currentModule, 'view');
-            
-            if (!canViewCurrentModule) {
-                const firstAllowedPage = pageOrder.find(module => hasPermission(module, 'view'));
-                
-                if (firstAllowedPage) {
-                     const redirectPath = moduleToPath(firstAllowedPage);
-                     if (pathname !== redirectPath) {
-                        router.push(redirectPath);
-                    }
-                } else {
-                     if (pathname !== '/dashboard') {
-                       router.push('/dashboard');
-                    }
-                }
-            }
-        }
-    }
-}, [user, loading, pathname, router, hasPermission]);
+    // The redirect is now handled by the AuthRedirect component
+  }, []);
   
   return (
     <AuthContext.Provider value={{ user, loading, login, logout, hasPermission }}>
@@ -191,5 +179,4 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 };
 
 export const useAuth = () => useContext(AuthContext);
-
-    
+export { AuthRedirect };
