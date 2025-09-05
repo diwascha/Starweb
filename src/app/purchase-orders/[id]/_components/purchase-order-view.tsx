@@ -13,7 +13,7 @@ import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { differenceInDays } from 'date-fns';
-import { onPurchaseOrdersUpdate } from '@/services/purchase-order-service';
+import { getPurchaseOrder } from '@/services/purchase-order-service';
 
 const paperTypes = ['Kraft Paper', 'Virgin Paper'];
 
@@ -22,11 +22,9 @@ export default function PurchaseOrderView({ poId }: { poId: string }) {
   const router = useRouter();
 
   useEffect(() => {
-    const unsubscribe = onPurchaseOrdersUpdate((purchaseOrders) => {
-        const found = purchaseOrders.find(p => p.id === poId);
-        setPurchaseOrder(found || null);
-    });
-    return () => unsubscribe();
+    if (poId) {
+        getPurchaseOrder(poId).then(setPurchaseOrder);
+    }
   }, [poId]);
 
   if (!purchaseOrder) {
