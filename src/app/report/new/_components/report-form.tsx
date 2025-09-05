@@ -16,7 +16,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import type { Product, Report, TestResultData, ProductSpecification } from '@/lib/types';
 import { useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { generateNextSerialNumber } from '@/lib/utils';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -95,31 +95,20 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(reportToEdit?.product || null);
   const [selectedBoxType, setSelectedBoxType] = useState<BoxType>('Normal');
 
-  useEffect(() => {
-    setIsClient(true);
-    async function fetchProducts() {
-        const productsData = await getProducts();
-        setProducts(productsData);
-        if (reportToEdit) {
-            const product = productsData.find(p => p.id === reportToEdit.product.id);
-            setSelectedProduct(product || null);
-        }
-    }
-    fetchProducts();
-  }, [reportToEdit]);
-  
-  const form = useForm<ReportFormValues>({
-    resolver: zodResolver(reportFormSchema),
-    defaultValues: reportToEdit ? {
+  const defaultValues = useMemo(() => {
+    if (reportToEdit) {
+      return {
         productId: reportToEdit.product.id,
         taxInvoiceNumber: reportToEdit.taxInvoiceNumber,
         challanNumber: reportToEdit.challanNumber,
         quantity: reportToEdit.quantity,
-        ...reportToEdit.testData
-    } : {
+        ...reportToEdit.testData,
+      };
+    }
+    return {
       productId: '',
       taxInvoiceNumber: '',
       challanNumber: '',
@@ -134,9 +123,21 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
       printing: { value: '', remark: '' },
       moisture: { value: '', remark: '' },
       load: { value: '', remark: '' },
-    },
+    };
+  }, [reportToEdit]);
+  
+  const form = useForm<ReportFormValues>({
+    resolver: zodResolver(reportFormSchema),
+    defaultValues,
   });
 
+  useEffect(() => {
+    setIsClient(true);
+    getProducts().then(productsData => {
+      setProducts(productsData);
+    });
+  }, []);
+  
   const calculateAndSetValues = (boxType: BoxType) => {
     if (!selectedProduct) {
       toast({
@@ -208,27 +209,6 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
     form.setValue('gsm.value', String(parseFloat(gsmResult.toFixed(2))));
     form.setValue('load.value', String(Math.max(loadMin, parseFloat(loadResult.toFixed(2)))));
   };
-
-
-  useEffect(() => {
-    if (selectedProduct && !reportToEdit) {
-      handleProductChange(selectedProduct.id);
-    }
-  }, [selectedProduct]);
-
-  useEffect(() => {
-    if (reportToEdit && products.length > 0) {
-      const product = products.find(p => p.id === reportToEdit.product.id);
-      setSelectedProduct(product || null);
-      form.reset({
-        productId: reportToEdit.product.id,
-        taxInvoiceNumber: reportToEdit.taxInvoiceNumber,
-        challanNumber: reportToEdit.challanNumber,
-        quantity: reportToEdit.quantity,
-        ...reportToEdit.testData
-      });
-    }
-  }, [reportToEdit, products, form]);
 
   const handleProductChange = (productId: string) => {
     form.setValue('productId', productId);
@@ -358,7 +338,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Product</FormLabel>
-                  <Select onValueChange={handleProductChange} defaultValue={field.value} disabled={!!reportToEdit}>
+                  <Select onValueChange={handleProductChange} value={field.value} disabled={!!reportToEdit}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a product to test" />
