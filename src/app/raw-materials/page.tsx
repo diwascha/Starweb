@@ -466,7 +466,7 @@ export default function RawMaterialsPage() {
                                 id="material-name"
                                 value={newMaterialName}
                                 onChange={e => setNewMaterialName(e.target.value)}
-                                placeholder={"e.g. Corrugation Gum"}
+                                placeholder={"Product description"}
                                 />
                             </div>
                         )}
