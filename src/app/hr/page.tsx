@@ -14,6 +14,7 @@ import { startOfToday, startOfMonth, endOfMonth, isToday } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { getAttendanceBadgeVariant } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { onEmployeesUpdate } from '@/services/employee-service';
 
 
 const hrModules = [
@@ -66,10 +67,14 @@ export default function HRPage() {
    const { hasPermission } = useAuth();
    const [isClient, setIsClient] = useState(false);
    
-   const [employees] = useLocalStorage<Employee[]>('employees', []);
+   const [employees, setEmployees] = useState<Employee[]>([]);
    const [attendance] = useLocalStorage<AttendanceRecord[]>('attendance', []);
    
-   useEffect(() => { setIsClient(true) }, []);
+   useEffect(() => { 
+       setIsClient(true);
+       const unsub = onEmployeesUpdate(setEmployees);
+       return () => unsub();
+    }, []);
    
    const { totalEmployees, presentToday, absentToday, monthlyAttendanceData, wageBasisData } = useMemo(() => {
         if (!isClient) return { totalEmployees: 0, presentToday: 0, absentToday: 0, monthlyAttendanceData: [], wageBasisData: [] };

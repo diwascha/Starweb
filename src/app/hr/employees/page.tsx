@@ -3,7 +3,6 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search } from 'lucide-react';
-import useLocalStorage from '@/hooks/use-local-storage';
 import type { Employee, WageBasis } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -40,12 +39,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/use-auth';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { onEmployeesUpdate, addEmployee, updateEmployee, deleteEmployee } from '@/services/employee-service';
 
 type EmployeeSortKey = 'name' | 'wageBasis' | 'wageAmount';
 type SortDirection = 'asc' | 'desc';
 
 export default function EmployeesPage() {
-  const [employees, setEmployees] = useLocalStorage<Employee[]>('employees', []);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   
   // Dialog State
   const [isEmployeeDialogOpen, setIsEmployeeDialogOpen] = useState(false);
@@ -61,11 +62,14 @@ export default function EmployeesPage() {
   });
   
   const { toast } = useToast();
-  const [isClient, setIsClient] = useState(false);
-  const { hasPermission } = useAuth();
+  const { hasPermission, user } = useAuth();
   
   useEffect(() => {
-    setIsClient(true);
+    const unsubscribe = onEmployeesUpdate((employees) => {
+      setEmployees(employees);
+      setIsLoading(false);
+    });
+    return () => unsubscribe();
   }, []);
   
   const resetForm = () => {
@@ -88,39 +92,52 @@ export default function EmployeesPage() {
     setIsEmployeeDialogOpen(true);
   };
 
-  const handleEmployeeSubmit = () => {
+  const handleEmployeeSubmit = async () => {
+    if (!user) {
+      toast({ title: 'Error', description: 'You must be logged in to perform this action.', variant: 'destructive' });
+      return;
+    }
+
     const amount = parseFloat(wageAmount);
     if (employeeName.trim() === '' || isNaN(amount) || amount <= 0) {
       toast({ title: 'Error', description: 'Please fill all fields with valid values.', variant: 'destructive' });
       return;
     }
 
-    if (editingEmployee) {
-      const updatedEmployee: Employee = {
-        ...editingEmployee,
-        name: employeeName.trim(),
-        wageBasis,
-        wageAmount: amount,
-      };
-      setEmployees(employees.map(e => (e.id === editingEmployee.id ? updatedEmployee : e)));
-      toast({ title: 'Success', description: 'Employee updated.' });
-    } else {
-      const newEmployee: Employee = {
-        id: crypto.randomUUID(),
-        name: employeeName.trim(),
-        wageBasis,
-        wageAmount: amount,
-      };
-      setEmployees([...employees, newEmployee]);
-      toast({ title: 'Success', description: 'New employee added.' });
+    try {
+      if (editingEmployee) {
+        const updatedEmployeeData: Partial<Omit<Employee, 'id'>> = {
+          name: employeeName.trim(),
+          wageBasis,
+          wageAmount: amount,
+          lastModifiedBy: user.username,
+        };
+        await updateEmployee(editingEmployee.id, updatedEmployeeData);
+        toast({ title: 'Success', description: 'Employee updated.' });
+      } else {
+        const newEmployeeData: Omit<Employee, 'id'> = {
+          name: employeeName.trim(),
+          wageBasis,
+          wageAmount: amount,
+          createdBy: user.username,
+        };
+        await addEmployee(newEmployeeData);
+        toast({ title: 'Success', description: 'New employee added.' });
+      }
+      resetForm();
+      setIsEmployeeDialogOpen(false);
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to save employee.', variant: 'destructive' });
     }
-    resetForm();
-    setIsEmployeeDialogOpen(false);
   };
   
-  const deleteEmployee = (id: string) => {
-    setEmployees(employees.filter(employee => employee.id !== id));
-    toast({ title: 'Employee Deleted', description: 'The employee record has been deleted.' });
+  const handleDeleteEmployee = async (id: string) => {
+    try {
+      await deleteEmployee(id);
+      toast({ title: 'Employee Deleted', description: 'The employee record has been deleted.' });
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to delete employee.', variant: 'destructive' });
+    }
   };
 
   const requestSort = (key: EmployeeSortKey) => {
@@ -155,7 +172,7 @@ export default function EmployeesPage() {
   }, [employees, sortConfig, searchQuery]);
 
   const renderContent = () => {
-    if (!isClient) {
+    if (isLoading) {
       return (
         <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
           <h3 className="text-2xl font-bold tracking-tight">Loading...</h3>
@@ -207,7 +224,7 @@ export default function EmployeesPage() {
                           <AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()}><Trash2 className="mr-2 h-4 w-4 text-destructive" /> <span className="text-destructive">Delete</span></DropdownMenuItem></AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the employee record. This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
-                            <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => deleteEmployee(employee.id)}>Delete</AlertDialogAction></AlertDialogFooter>
+                            <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteEmployee(employee.id)}>Delete</AlertDialogAction></AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>
                       )}

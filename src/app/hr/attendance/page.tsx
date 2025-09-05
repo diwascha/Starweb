@@ -15,13 +15,14 @@ import NepaliDate from 'nepali-date-converter';
 import { useAuth } from '@/hooks/use-auth';
 import { Badge } from '@/components/ui/badge';
 import { format, parse } from 'date-fns';
+import { onEmployeesUpdate } from '@/services/employee-service';
 
 type SortKey = 'date' | 'employeeName' | 'status';
 type SortDirection = 'asc' | 'desc';
 
 export default function AttendancePage() {
   const [attendance, setAttendance] = useLocalStorage<AttendanceRecord[]>('attendance', []);
-  const [employees] = useLocalStorage<Employee[]>('employees', []);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -31,6 +32,8 @@ export default function AttendancePage() {
   
   useEffect(() => {
     setIsClient(true);
+    const unsub = onEmployeesUpdate(setEmployees);
+    return () => unsub();
   }, []);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
