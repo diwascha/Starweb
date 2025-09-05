@@ -2,10 +2,8 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import Link from 'next/link';
 import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, Check, ChevronsUpDown } from 'lucide-react';
-import useLocalStorage from '@/hooks/use-local-storage';
-import type { Report, Product, ProductSpecification } from '@/lib/types';
+import type { Product, ProductSpecification, Report } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import {
@@ -45,7 +43,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
-
+import { addProduct, updateProduct, deleteProduct, getProducts, onProductsUpdate } from '@/services/product-service';
+import useLocalStorage from '@/hooks/use-local-storage';
 
 const initialSpecValues: ProductSpecification = {
   dimension: '',
@@ -65,7 +64,9 @@ type SortDirection = 'asc' | 'desc';
 
 export default function ProductsPage() {
   const [reports, setReports] = useLocalStorage<Report[]>('reports', []);
-  const [products, setProducts] = useLocalStorage<Product[]>('products', []);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
   const [newProductName, setNewProductName] = useState('');
   const [newMaterialCode, setNewMaterialCode] = useState('');
   const [newCompanyName, setNewCompanyName] = useState('');
@@ -84,11 +85,14 @@ export default function ProductsPage() {
   const [isCompanyPopoverOpen, setIsCompanyPopoverOpen] = useState(false);
 
   const { toast } = useToast();
-  const [isClient, setIsClient] = useState(false);
   const { hasPermission, user } = useAuth();
 
   useEffect(() => {
-    setIsClient(true);
+    const unsubscribe = onProductsUpdate((products) => {
+      setProducts(products);
+      setIsLoading(false);
+    });
+    return () => unsubscribe();
   }, []);
 
   const companies = useMemo(() => {
@@ -139,53 +143,60 @@ export default function ProductsPage() {
     setIsProductDialogOpen(true);
   };
 
-  const handleProductSubmit = () => {
+  const handleProductSubmit = async () => {
     if (!user) {
         toast({ title: 'Error', description: 'You must be logged in to perform this action.', variant: 'destructive' });
         return;
     }
-    const isSpecFilled = Object.values(newSpec).every(val => val.trim() !== '');
+    const isSpecFilled = Object.values(newSpec).every(val => (val || '').trim() !== '');
     if (newProductName.trim() !== '' && newMaterialCode.trim() !== '' && newCompanyName.trim() !== '' && newAddress.trim() !== '' && isSpecFilled) {
-      if (editingProduct) {
-        // Edit existing product
-        const updatedProduct: Product = {
-          ...editingProduct,
-          name: newProductName.trim(),
-          materialCode: newMaterialCode.trim(),
-          companyName: newCompanyName.trim(),
-          address: newAddress.trim(),
-          specification: newSpec,
-          lastModifiedBy: user.username,
-        };
-        setProducts(products.map(p => (p.id === editingProduct.id ? updatedProduct : p)));
-        // Also update the product details in any existing reports
-        setReports(reports.map(r => r.product.id === editingProduct.id ? {...r, product: updatedProduct} : r));
-        toast({ title: 'Success', description: 'Product updated.' });
-      } else {
-        // Add new product
-        const newProduct: Product = {
-          id: crypto.randomUUID(),
-          name: newProductName.trim(),
-          materialCode: newMaterialCode.trim(),
-          companyName: newCompanyName.trim(),
-          address: newAddress.trim(),
-          specification: newSpec,
-          createdBy: user.username,
-        };
-        setProducts([...products, newProduct]);
-        toast({ title: 'Success', description: 'New product added.' });
+      try {
+        if (editingProduct) {
+          const updatedProductData: Omit<Product, 'id'> = {
+            name: newProductName.trim(),
+            materialCode: newMaterialCode.trim(),
+            companyName: newCompanyName.trim(),
+            address: newAddress.trim(),
+            specification: newSpec,
+            createdBy: editingProduct.createdBy,
+            lastModifiedBy: user.username,
+          };
+          await updateProduct(editingProduct.id, updatedProductData);
+          
+          // TODO: This part will also need to be migrated to firestore.
+          setReports(reports.map(r => r.product.id === editingProduct.id ? {...r, product: {id: editingProduct.id, ...updatedProductData}} : r));
+          toast({ title: 'Success', description: 'Product updated.' });
+        } else {
+          const newProduct: Omit<Product, 'id'> = {
+            name: newProductName.trim(),
+            materialCode: newMaterialCode.trim(),
+            companyName: newCompanyName.trim(),
+            address: newAddress.trim(),
+            specification: newSpec,
+            createdBy: user.username,
+          };
+          await addProduct(newProduct);
+          toast({ title: 'Success', description: 'New product added.' });
+        }
+        resetForm();
+        setIsProductDialogOpen(false);
+      } catch (error) {
+        toast({ title: 'Error', description: 'Failed to save product.', variant: 'destructive' });
       }
-      resetForm();
-      setIsProductDialogOpen(false);
     } else {
       toast({ title: 'Error', description: 'Please fill all the fields.', variant: 'destructive' });
     }
   };
   
-  const deleteProduct = (id: string) => {
-    setProducts(products.filter(product => product.id !== id));
-    setReports(reports.filter(report => report.product.id !== id));
-    toast({ title: 'Product Deleted', description: 'The product and its associated reports have been deleted.' });
+  const handleDeleteProduct = async (id: string) => {
+    try {
+      await deleteProduct(id);
+      // TODO: This part will also need to be migrated to firestore.
+      setReports(reports.filter(report => report.product.id !== id));
+      toast({ title: 'Product Deleted', description: 'The product and its associated reports have been deleted.' });
+    } catch (error) {
+       toast({ title: 'Error', description: 'Failed to delete product.', variant: 'destructive' });
+    }
   };
 
   const handleSpecChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -239,11 +250,11 @@ export default function ProductsPage() {
   }, [products, productSortConfig, searchQuery]);
 
   const renderContent = () => {
-    if (!isClient) {
+    if (isLoading) {
       return (
         <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
           <div className="flex flex-col items-center gap-1 text-center">
-            <h3 className="text-2xl font-bold tracking-tight">Loading...</h3>
+            <h3 className="text-2xl font-bold tracking-tight">Loading Products...</h3>
           </div>
         </div>
       );
@@ -342,7 +353,7 @@ export default function ProductsPage() {
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => deleteProduct(product.id)}>Delete</AlertDialogAction>
+                                    <AlertDialogAction onClick={() => handleDeleteProduct(product.id)}>Delete</AlertDialogAction>
                                 </AlertDialogFooter>
                             </AlertDialogContent>
                         </AlertDialog>
