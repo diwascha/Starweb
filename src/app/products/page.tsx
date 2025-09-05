@@ -43,7 +43,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
-import { addProduct, updateProduct, deleteProduct, onProductsUpdate } from '@/services/product-service';
+import { addProduct, updateProduct, deleteProduct, getProducts } from '@/services/product-service';
 import { getReportsByProductId, deleteReport } from '@/services/report-service';
 
 const initialSpecValues: ProductSpecification = {
@@ -87,12 +87,19 @@ export default function ProductsPage() {
   const { hasPermission, user } = useAuth();
 
   useEffect(() => {
-    const unsubscribe = onProductsUpdate((products) => {
-      setProducts(products);
-      setIsLoading(false);
-    });
-    return () => unsubscribe();
-  }, []);
+    async function fetchProducts() {
+        setIsLoading(true);
+        try {
+            const productsData = await getProducts();
+            setProducts(productsData);
+        } catch (error) {
+            toast({ title: 'Error', description: 'Failed to fetch products.', variant: 'destructive' });
+        } finally {
+            setIsLoading(false);
+        }
+    }
+    fetchProducts();
+  }, [toast]);
 
   const companies = useMemo(() => {
     const companyMap = new Map<string, string>();
@@ -161,6 +168,7 @@ export default function ProductsPage() {
             lastModifiedBy: user.username,
           };
           await updateProduct(editingProduct.id, updatedProductData);
+          setProducts(prev => prev.map(p => p.id === editingProduct.id ? { ...p, ...updatedProductData, id: editingProduct.id } : p));
           toast({ title: 'Success', description: 'Product updated.' });
         } else {
           const newProduct: Omit<Product, 'id'> = {
@@ -171,7 +179,8 @@ export default function ProductsPage() {
             specification: newSpec,
             createdBy: user.username,
           };
-          await addProduct(newProduct);
+          const newId = await addProduct(newProduct);
+          setProducts(prev => [...prev, { ...newProduct, id: newId }]);
           toast({ title: 'Success', description: 'New product added.' });
         }
         resetForm();
@@ -193,6 +202,7 @@ export default function ProductsPage() {
       }
       // Then, delete the product itself
       await deleteProduct(id);
+      setProducts(prev => prev.filter(p => p.id !== id));
       toast({ title: 'Product Deleted', description: 'The product and its associated reports have been deleted.' });
     } catch (error) {
        toast({ title: 'Error', description: 'Failed to delete product.', variant: 'destructive' });
@@ -525,3 +535,5 @@ export default function ProductsPage() {
     </div>
   );
 }
+
+    
