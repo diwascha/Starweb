@@ -37,13 +37,13 @@ export default function PurchaseOrderView({ poId }: { poId: string }) {
     );
   }
 
-  const nepaliDate = new NepaliDate(new Date(purchaseOrder.poDate));
-  const nepaliDateString = nepaliDate.format('YYYY/MM/DD');
+  const nepaliPoDate = new NepaliDate(new Date(purchaseOrder.poDate));
+  const nepaliPoDateString = nepaliPoDate.format('YYYY/MM/DD');
   
-  const createdDate = new Date(purchaseOrder.createdAt);
-  const amendedDate = new Date(purchaseOrder.updatedAt);
-
   const showAmendedDate = purchaseOrder.amendments && purchaseOrder.amendments.length > 0;
+  const amendedDate = showAmendedDate ? new Date(purchaseOrder.updatedAt) : null;
+  const nepaliAmendedDateString = amendedDate ? new NepaliDate(amendedDate).format('YYYY/MM/DD') : '';
+
   
   const groupedItems = purchaseOrder.items.reduce((acc, item) => {
     const key = item.rawMaterialType || 'Other';
@@ -112,14 +112,11 @@ export default function PurchaseOrderView({ poId }: { poId: string }) {
         <div className="grid grid-cols-2 text-xs mb-2 gap-x-4">
             <div><span className="font-semibold">PO No:</span> {purchaseOrder.poNumber}</div>
             <div className="text-right">
-              <span className="font-semibold">Date:</span> {nepaliDateString} B.S. ({new Date(purchaseOrder.poDate).toLocaleDateString('en-CA')})
+              <span className="font-semibold">Date:</span> {nepaliPoDateString} B.S. ({new Date(purchaseOrder.poDate).toLocaleDateString('en-CA')})
             </div>
-            <div>
-              <span className="font-semibold">Created Date:</span> {createdDate.toLocaleDateString('en-CA')}
-            </div>
-             {showAmendedDate && (
-              <div className="text-right">
-                <span className="font-semibold">Amended Date:</span> {amendedDate.toLocaleDateString('en-CA')}
+             {showAmendedDate && amendedDate && (
+              <div className="col-start-2 text-right">
+                <span className="font-semibold">Amended Date:</span> {nepaliAmendedDateString} B.S. ({amendedDate.toLocaleDateString('en-CA')})
               </div>
             )}
         </div>
