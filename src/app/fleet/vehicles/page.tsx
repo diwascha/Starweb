@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { Vehicle, VehicleStatus, Driver } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -35,10 +35,13 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/use-auth';
 import { onVehiclesUpdate, addVehicle, updateVehicle, deleteVehicle } from '@/services/vehicle-service';
 import { onDriversUpdate } from '@/services/driver-service';
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { format } from 'date-fns';
+
 
 const vehicleStatuses: VehicleStatus[] = ['Active', 'In Maintenance', 'Decommissioned'];
 
-type VehicleSortKey = 'name' | 'make' | 'model' | 'status' | 'driverName';
+type VehicleSortKey = 'name' | 'make' | 'model' | 'status' | 'driverName' | 'authorship';
 type SortDirection = 'asc' | 'desc';
 
 export default function VehiclesPage() {
@@ -48,7 +51,7 @@ export default function VehiclesPage() {
     
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
-    const [formState, setFormState] = useState<Omit<Vehicle, 'id' | 'createdBy' | 'lastModifiedBy'>>({
+    const [formState, setFormState] = useState<Omit<Vehicle, 'id' | 'createdBy' | 'lastModifiedBy' | 'createdAt' | 'lastModifiedAt'>>({
         name: '',
         make: '',
         model: '',
@@ -121,7 +124,7 @@ export default function VehiclesPage() {
                 await updateVehicle(editingVehicle.id, updatedData);
                 toast({ title: 'Success', description: 'Vehicle updated.' });
             } else {
-                const newData: Omit<Vehicle, 'id'> = { ...formState, createdBy: user.username };
+                const newData: Omit<Vehicle, 'id' | 'createdAt' | 'lastModifiedAt'> = { ...formState, createdBy: user.username };
                 await addVehicle(newData);
                 toast({ title: 'Success', description: 'New vehicle added.' });
             }
@@ -166,6 +169,15 @@ export default function VehiclesPage() {
         }
 
         augmentedVehicles.sort((a, b) => {
+            if (sortConfig.key === 'authorship') {
+                const aDate = a.lastModifiedAt || a.createdAt;
+                const bDate = b.lastModifiedAt || b.createdAt;
+                if (!aDate || !bDate) return 0;
+                if (aDate < bDate) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (aDate > bDate) return sortConfig.direction === 'asc' ? 1 : -1;
+                return 0;
+            }
+
             const aVal = a[sortConfig.key];
             const bVal = b[sortConfig.key];
             if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
@@ -211,6 +223,7 @@ export default function VehiclesPage() {
                             <TableHead><Button variant="ghost" onClick={() => requestSort('model')}>Model <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('driverName')}>Assigned Driver <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('status')}>Status <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('authorship')}>Authorship <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -222,6 +235,30 @@ export default function VehiclesPage() {
                                 <TableCell>{vehicle.model}</TableCell>
                                 <TableCell>{vehicle.driverName}</TableCell>
                                 <TableCell>{vehicle.status}</TableCell>
+                                <TableCell>
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-default">
+                                                {vehicle.lastModifiedBy ? <Edit className="h-4 w-4" /> : <User className="h-4 w-4" />}
+                                                <span>{vehicle.lastModifiedBy || vehicle.createdBy}</span>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                {vehicle.createdBy && (
+                                                    <p>
+                                                    Created by: {vehicle.createdBy}
+                                                    {vehicle.createdAt ? ` on ${format(new Date(vehicle.createdAt), "PP")}` : ''}
+                                                    </p>
+                                                )}
+                                                {vehicle.lastModifiedBy && vehicle.lastModifiedAt && (
+                                                <p>
+                                                    Modified by: {vehicle.lastModifiedBy}
+                                                    {vehicle.lastModifiedAt ? ` on ${format(new Date(vehicle.lastModifiedAt), "PP")}` : ''}
+                                                </p>
+                                                )}
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                </TableCell>
                                 <TableCell className="text-right">
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>

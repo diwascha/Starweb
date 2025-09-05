@@ -18,12 +18,17 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): PolicyOrM
         memberId: data.memberId,
         memberType: data.memberType,
         createdBy: data.createdBy,
+        createdAt: data.createdAt,
         lastModifiedBy: data.lastModifiedBy,
+        lastModifiedAt: data.lastModifiedAt,
     };
 }
 
 export const addPolicy = async (policy: Omit<PolicyOrMembership, 'id'>): Promise<string> => {
-    const docRef = await addDoc(policiesCollection, policy);
+    const docRef = await addDoc(policiesCollection, {
+        ...policy,
+        createdAt: new Date().toISOString(),
+    });
     return docRef.id;
 };
 
@@ -35,7 +40,10 @@ export const onPoliciesUpdate = (callback: (policies: PolicyOrMembership[]) => v
 
 export const updatePolicy = async (id: string, policy: Partial<Omit<PolicyOrMembership, 'id'>>): Promise<void> => {
     const policyDoc = doc(db, 'policies', id);
-    await updateDoc(policyDoc, policy);
+    await updateDoc(policyDoc, {
+        ...policy,
+        lastModifiedAt: new Date().toISOString(),
+    });
 };
 
 export const deletePolicy = async (id: string): Promise<void> => {

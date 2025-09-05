@@ -15,12 +15,17 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Driver =>
         contactNumber: data.contactNumber,
         dateOfBirth: data.dateOfBirth,
         createdBy: data.createdBy,
+        createdAt: data.createdAt,
         lastModifiedBy: data.lastModifiedBy,
+        lastModifiedAt: data.lastModifiedAt,
     };
 }
 
 export const addDriver = async (driver: Omit<Driver, 'id'>): Promise<string> => {
-    const docRef = await addDoc(driversCollection, driver);
+    const docRef = await addDoc(driversCollection, {
+        ...driver,
+        createdAt: new Date().toISOString(),
+    });
     return docRef.id;
 };
 
@@ -32,7 +37,10 @@ export const onDriversUpdate = (callback: (drivers: Driver[]) => void): () => vo
 
 export const updateDriver = async (id: string, driver: Partial<Omit<Driver, 'id'>>): Promise<void> => {
     const driverDoc = doc(db, 'drivers', id);
-    await updateDoc(driverDoc, driver);
+    await updateDoc(driverDoc, {
+        ...driver,
+        lastModifiedAt: new Date().toISOString(),
+    });
 };
 
 export const deleteDriver = async (id: string): Promise<void> => {

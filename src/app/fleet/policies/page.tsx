@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { PolicyOrMembership, Vehicle, Driver } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, CalendarIcon, Check, ChevronsUpDown } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, CalendarIcon, Check, ChevronsUpDown, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -43,7 +43,7 @@ import { onPoliciesUpdate, addPolicy, updatePolicy, deletePolicy } from '@/servi
 import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onDriversUpdate } from '@/services/driver-service';
 
-type PolicySortKey = 'type' | 'provider' | 'policyNumber' | 'endDate' | 'memberName';
+type PolicySortKey = 'type' | 'provider' | 'policyNumber' | 'endDate' | 'memberName' | 'authorship';
 type SortDirection = 'asc' | 'desc';
 
 export default function PoliciesPage() {
@@ -54,7 +54,7 @@ export default function PoliciesPage() {
     
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingPolicy, setEditingPolicy] = useState<PolicyOrMembership | null>(null);
-    const [formState, setFormState] = useState<Omit<PolicyOrMembership, 'id' | 'createdBy' | 'lastModifiedBy'>>({
+    const [formState, setFormState] = useState<Omit<PolicyOrMembership, 'id' | 'createdBy' | 'lastModifiedBy' | 'createdAt' | 'lastModifiedAt'>>({
         type: 'Insurance',
         provider: '',
         policyNumber: '',
@@ -232,7 +232,7 @@ export default function PoliciesPage() {
                 await updatePolicy(editingPolicy.id, updatedData);
                 toast({ title: 'Success', description: 'Record updated.' });
             } else {
-                const newData: Omit<PolicyOrMembership, 'id'> = { ...formState, createdBy: user.username };
+                const newData: Omit<PolicyOrMembership, 'id' | 'createdAt' | 'lastModifiedAt'> = { ...formState, createdBy: user.username };
                 await addPolicy(newData);
                 toast({ title: 'Success', description: 'New record added.' });
             }
@@ -303,6 +303,15 @@ export default function PoliciesPage() {
         }
 
         augmentedPolicies.sort((a, b) => {
+            if (sortConfig.key === 'authorship') {
+                const aDate = a.lastModifiedAt || a.createdAt;
+                const bDate = b.lastModifiedAt || b.createdAt;
+                if (!aDate || !bDate) return 0;
+                if (aDate < bDate) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (aDate > bDate) return sortConfig.direction === 'asc' ? 1 : -1;
+                return 0;
+            }
+
             if (sortConfig.key === 'endDate') {
                 // Special sorting for expiryStatus
                 const aDays = a.expiryStatus.days;
@@ -358,6 +367,7 @@ export default function PoliciesPage() {
                             <TableHead><Button variant="ghost" onClick={() => requestSort('memberName')}>For <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('endDate')}>Expiry Date (BS) <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead>Status</TableHead>
+                             <TableHead><Button variant="ghost" onClick={() => requestSort('authorship')}>Authorship <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -383,6 +393,30 @@ export default function PoliciesPage() {
                                             </TooltipContent>
                                         </Tooltip>
                                      </TooltipProvider>
+                                </TableCell>
+                                <TableCell>
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-default">
+                                                {policy.lastModifiedBy ? <Edit className="h-4 w-4" /> : <User className="h-4 w-4" />}
+                                                <span>{policy.lastModifiedBy || policy.createdBy}</span>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                {policy.createdBy && (
+                                                    <p>
+                                                    Created by: {policy.createdBy}
+                                                    {policy.createdAt ? ` on ${format(new Date(policy.createdAt), "PP")}` : ''}
+                                                    </p>
+                                                )}
+                                                {policy.lastModifiedBy && policy.lastModifiedAt && (
+                                                <p>
+                                                    Modified by: {policy.lastModifiedBy}
+                                                    {policy.lastModifiedAt ? ` on ${format(new Date(policy.lastModifiedAt), "PP")}` : ''}
+                                                </p>
+                                                )}
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
                                 </TableCell>
                                 <TableCell className="text-right">
                                     <DropdownMenu>

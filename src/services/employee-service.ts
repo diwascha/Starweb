@@ -13,12 +13,17 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Employee 
         wageBasis: data.wageBasis,
         wageAmount: data.wageAmount,
         createdBy: data.createdBy,
+        createdAt: data.createdAt,
         lastModifiedBy: data.lastModifiedBy,
+        lastModifiedAt: data.lastModifiedAt,
     };
 }
 
 export const addEmployee = async (employee: Omit<Employee, 'id'>): Promise<string> => {
-    const docRef = await addDoc(employeesCollection, employee);
+    const docRef = await addDoc(employeesCollection, {
+        ...employee,
+        createdAt: new Date().toISOString(),
+    });
     return docRef.id;
 };
 
@@ -30,7 +35,10 @@ export const onEmployeesUpdate = (callback: (employees: Employee[]) => void): ()
 
 export const updateEmployee = async (id: string, employee: Partial<Omit<Employee, 'id'>>): Promise<void> => {
     const employeeDoc = doc(db, 'employees', id);
-    await updateDoc(employeeDoc, employee);
+    await updateDoc(employeeDoc, {
+        ...employee,
+        lastModifiedAt: new Date().toISOString(),
+    });
 };
 
 export const deleteEmployee = async (id: string): Promise<void> => {

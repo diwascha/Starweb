@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { Driver } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, CalendarIcon } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, CalendarIcon, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -37,8 +37,10 @@ import { format } from 'date-fns';
 import { cn, toNepaliDate } from '@/lib/utils';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { onDriversUpdate, addDriver, updateDriver, deleteDriver } from '@/services/driver-service';
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
-type DriverSortKey = 'name' | 'nickname' | 'licenseNumber' | 'contactNumber' | 'dateOfBirth';
+
+type DriverSortKey = 'name' | 'nickname' | 'licenseNumber' | 'contactNumber' | 'dateOfBirth' | 'authorship';
 type SortDirection = 'asc' | 'desc';
 
 export default function DriversPage() {
@@ -47,7 +49,7 @@ export default function DriversPage() {
     
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
-    const [formState, setFormState] = useState<Omit<Driver, 'id' | 'createdBy' | 'lastModifiedBy'>>({
+    const [formState, setFormState] = useState<Omit<Driver, 'id' | 'createdBy' | 'lastModifiedBy' | 'createdAt' | 'lastModifiedAt'>>({
         name: '',
         nickname: '',
         licenseNumber: '',
@@ -115,7 +117,7 @@ export default function DriversPage() {
                 await updateDriver(editingDriver.id, updatedData);
                 toast({ title: 'Success', description: 'Driver updated.' });
             } else {
-                const newData: Omit<Driver, 'id'> = { ...formState, createdBy: user.username };
+                const newData: Omit<Driver, 'id' | 'createdAt' | 'lastModifiedAt'> = { ...formState, createdBy: user.username };
                 await addDriver(newData);
                 toast({ title: 'Success', description: 'New driver added.' });
             }
@@ -157,6 +159,15 @@ export default function DriversPage() {
             );
         }
         filtered.sort((a, b) => {
+            if (sortConfig.key === 'authorship') {
+                const aDate = a.lastModifiedAt || a.createdAt;
+                const bDate = b.lastModifiedAt || b.createdAt;
+                if (!aDate || !bDate) return 0;
+                if (aDate < bDate) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (aDate > bDate) return sortConfig.direction === 'asc' ? 1 : -1;
+                return 0;
+            }
+
             if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
             if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'asc' ? 1 : -1;
             return 0;
@@ -199,6 +210,7 @@ export default function DriversPage() {
                             <TableHead><Button variant="ghost" onClick={() => requestSort('licenseNumber')}>License Number <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('contactNumber')}>Contact Number <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                              <TableHead><Button variant="ghost" onClick={() => requestSort('dateOfBirth')}>Date of Birth (BS) <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                             <TableHead><Button variant="ghost" onClick={() => requestSort('authorship')}>Authorship <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -210,6 +222,30 @@ export default function DriversPage() {
                                 <TableCell>{driver.licenseNumber}</TableCell>
                                 <TableCell>{driver.contactNumber}</TableCell>
                                 <TableCell>{toNepaliDate(driver.dateOfBirth)}</TableCell>
+                                <TableCell>
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-default">
+                                                {driver.lastModifiedBy ? <Edit className="h-4 w-4" /> : <User className="h-4 w-4" />}
+                                                <span>{driver.lastModifiedBy || driver.createdBy}</span>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                {driver.createdBy && (
+                                                    <p>
+                                                    Created by: {driver.createdBy}
+                                                    {driver.createdAt ? ` on ${format(new Date(driver.createdAt), "PP")}` : ''}
+                                                    </p>
+                                                )}
+                                                {driver.lastModifiedBy && driver.lastModifiedAt && (
+                                                <p>
+                                                    Modified by: {driver.lastModifiedBy}
+                                                    {driver.lastModifiedAt ? ` on ${format(new Date(driver.lastModifiedAt), "PP")}` : ''}
+                                                </p>
+                                                )}
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                </TableCell>
                                 <TableCell className="text-right">
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>

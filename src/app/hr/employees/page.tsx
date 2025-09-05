@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, User } from 'lucide-react';
 import type { Employee, WageBasis } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -40,8 +40,11 @@ import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/use-auth';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { onEmployeesUpdate, addEmployee, updateEmployee, deleteEmployee } from '@/services/employee-service';
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { format } from 'date-fns';
 
-type EmployeeSortKey = 'name' | 'wageBasis' | 'wageAmount';
+
+type EmployeeSortKey = 'name' | 'wageBasis' | 'wageAmount' | 'authorship';
 type SortDirection = 'asc' | 'desc';
 
 export default function EmployeesPage() {
@@ -116,7 +119,7 @@ export default function EmployeesPage() {
         await updateEmployee(editingEmployee.id, updatedEmployeeData);
         toast({ title: 'Success', description: 'Employee updated.' });
       } else {
-        const newEmployeeData: Omit<Employee, 'id'> = {
+        const newEmployeeData: Omit<Employee, 'id' | 'createdAt' | 'lastModifiedAt'> = {
           name: employeeName.trim(),
           wageBasis,
           wageAmount: amount,
@@ -160,6 +163,15 @@ export default function EmployeesPage() {
     }
 
     filtered.sort((a, b) => {
+        if (sortConfig.key === 'authorship') {
+             const aDate = a.lastModifiedAt || a.createdAt;
+             const bDate = b.lastModifiedAt || b.createdAt;
+             if (!aDate || !bDate) return 0;
+             if (aDate < bDate) return sortConfig.direction === 'asc' ? -1 : 1;
+             if (aDate > bDate) return sortConfig.direction === 'asc' ? 1 : -1;
+             return 0;
+        }
+
       if (a[sortConfig.key] < b[sortConfig.key]) {
         return sortConfig.direction === 'asc' ? -1 : 1;
       }
@@ -205,6 +217,7 @@ export default function EmployeesPage() {
               <TableHead><Button variant="ghost" onClick={() => requestSort('name')}>Employee Name <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('wageBasis')}>Wage Basis <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('wageAmount')}>Amount <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+              <TableHead><Button variant="ghost" onClick={() => requestSort('authorship')}>Authorship <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -214,6 +227,28 @@ export default function EmployeesPage() {
                 <TableCell className="font-medium">{employee.name}</TableCell>
                 <TableCell>{employee.wageBasis}</TableCell>
                 <TableCell>{employee.wageAmount.toLocaleString()}</TableCell>
+                <TableCell>
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-default">
+                                {employee.lastModifiedBy ? <Edit className="h-4 w-4" /> : <User className="h-4 w-4" />}
+                                <span>{employee.lastModifiedBy || employee.createdBy}</span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>
+                                    Created by: {employee.createdBy}
+                                    {employee.createdAt ? ` on ${format(new Date(employee.createdAt), "PP")}` : ''}
+                                </p>
+                                {employee.lastModifiedBy && employee.lastModifiedAt && (
+                                    <p>
+                                    Modified by: {employee.lastModifiedBy}
+                                    {employee.lastModifiedAt ? ` on ${format(new Date(employee.lastModifiedAt), "PP")}` : ''}
+                                    </p>
+                                )}
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                </TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>

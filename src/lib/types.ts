@@ -111,7 +111,9 @@ export interface Employee {
   wageBasis: WageBasis;
   wageAmount: number;
   createdBy: string;
+  createdAt: string; // ISO string
   lastModifiedBy?: string;
+  lastModifiedAt?: string; // ISO string
 }
 
 export type AttendanceStatus = 'Present' | 'Absent' | 'Public Holiday' | 'Saturday';
@@ -142,7 +144,9 @@ export interface Vehicle {
   status: VehicleStatus;
   driverId?: string;
   createdBy: string;
+  createdAt: string; // ISO string
   lastModifiedBy?: string;
+  lastModifiedAt?: string; // ISO string
 }
 
 export interface Driver {
@@ -153,7 +157,9 @@ export interface Driver {
     contactNumber: string;
     dateOfBirth: string; // ISO string
     createdBy: string;
+    createdAt: string; // ISO string
     lastModifiedBy?: string;
+    lastModifiedAt?: string; // ISO string
 }
 
 export interface PolicyOrMembership {
@@ -167,7 +173,9 @@ export interface PolicyOrMembership {
     memberId: string; // Can be vehicleId or driverId
     memberType: 'Vehicle' | 'Driver';
     createdBy: string;
+    createdAt: string; // ISO string
     lastModifiedBy?: string;
+    lastModifiedAt?: string; // ISO string
 }
 
 export const expenseCategories = ['Fuel', 'Maintenance', 'Insurance', 'Tires', 'Repairs', 'Tolls', 'Permits', 'Other'] as const;
@@ -187,7 +195,9 @@ export interface Transaction {
     amount: number;
     description: string;
     createdBy: string;
+    createdAt: string; // ISO string
     lastModifiedBy?: string;
+    lastModifiedAt?: string; // ISO string
 }
 
 

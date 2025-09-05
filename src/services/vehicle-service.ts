@@ -17,12 +17,17 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Vehicle =
         status: data.status,
         driverId: data.driverId,
         createdBy: data.createdBy,
+        createdAt: data.createdAt,
         lastModifiedBy: data.lastModifiedBy,
+        lastModifiedAt: data.lastModifiedAt,
     };
 }
 
 export const addVehicle = async (vehicle: Omit<Vehicle, 'id'>): Promise<string> => {
-    const docRef = await addDoc(vehiclesCollection, vehicle);
+    const docRef = await addDoc(vehiclesCollection, {
+        ...vehicle,
+        createdAt: new Date().toISOString(),
+    });
     return docRef.id;
 };
 
@@ -34,7 +39,10 @@ export const onVehiclesUpdate = (callback: (vehicles: Vehicle[]) => void): () =>
 
 export const updateVehicle = async (id: string, vehicle: Partial<Omit<Vehicle, 'id'>>): Promise<void> => {
     const vehicleDoc = doc(db, 'vehicles', id);
-    await updateDoc(vehicleDoc, vehicle);
+    await updateDoc(vehicleDoc, {
+        ...vehicle,
+        lastModifiedAt: new Date().toISOString(),
+    });
 };
 
 export const deleteVehicle = async (id: string): Promise<void> => {

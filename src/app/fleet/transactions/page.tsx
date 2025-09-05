@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo } from 'react';
 import type { Transaction, Vehicle, TransactionType, ExpenseCategory, IncomeSource } from '@/lib/types';
 import { expenseCategories, incomeSources } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, CalendarIcon, ArrowRightLeft, Landmark, Wrench } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, CalendarIcon, ArrowRightLeft, Landmark, Wrench, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -44,8 +44,10 @@ import type { DateRange } from 'react-day-picker';
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 import { onTransactionsUpdate, addTransaction, updateTransaction, deleteTransaction } from '@/services/transaction-service';
 import { onVehiclesUpdate } from '@/services/vehicle-service';
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
-type TransactionSortKey = 'date' | 'vehicleName' | 'type' | 'category' | 'amount';
+
+type TransactionSortKey = 'date' | 'vehicleName' | 'type' | 'category' | 'amount' | 'authorship';
 type SortDirection = 'asc' | 'desc';
 
 export default function TransactionsPage() {
@@ -55,7 +57,7 @@ export default function TransactionsPage() {
     
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
-    const [formState, setFormState] = useState<Omit<Transaction, 'id' | 'createdBy' | 'lastModifiedBy'>>({
+    const [formState, setFormState] = useState<Omit<Transaction, 'id' | 'createdBy' | 'lastModifiedBy' | 'createdAt' | 'lastModifiedAt'>>({
         vehicleId: '',
         date: new Date().toISOString(),
         type: 'Expense',
@@ -143,7 +145,7 @@ export default function TransactionsPage() {
                 await updateTransaction(editingTransaction.id, updatedData);
                 toast({ title: 'Success', description: 'Transaction updated.' });
             } else {
-                const newData: Omit<Transaction, 'id'> = { ...formState, createdBy: user.username };
+                const newData: Omit<Transaction, 'id' | 'createdAt' | 'lastModifiedAt'> = { ...formState, createdBy: user.username };
                 await addTransaction(newData);
                 toast({ title: 'Success', description: 'New transaction recorded.' });
             }
@@ -199,6 +201,15 @@ export default function TransactionsPage() {
         }
         
         augmented.sort((a, b) => {
+            if (sortConfig.key === 'authorship') {
+                const aDate = a.lastModifiedAt || a.createdAt;
+                const bDate = b.lastModifiedAt || b.createdAt;
+                if (!aDate || !bDate) return 0;
+                if (aDate < bDate) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (aDate > bDate) return sortConfig.direction === 'asc' ? 1 : -1;
+                return 0;
+            }
+
             const aVal = a[sortConfig.key];
             const bVal = b[sortConfig.key];
             if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
@@ -257,6 +268,7 @@ export default function TransactionsPage() {
                             <TableHead><Button variant="ghost" onClick={() => requestSort('category')}>Category <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('amount')}>Amount <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead>Description</TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('authorship')}>Authorship <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -273,6 +285,30 @@ export default function TransactionsPage() {
                                     {txn.amount.toLocaleString()}
                                 </TableCell>
                                 <TableCell>{txn.description}</TableCell>
+                                <TableCell>
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-default">
+                                                {txn.lastModifiedBy ? <Edit className="h-4 w-4" /> : <User className="h-4 w-4" />}
+                                                <span>{txn.lastModifiedBy || txn.createdBy}</span>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                {txn.createdBy && (
+                                                    <p>
+                                                    Created by: {txn.createdBy}
+                                                    {txn.createdAt ? ` on ${format(new Date(txn.createdAt), "PP")}` : ''}
+                                                    </p>
+                                                )}
+                                                {txn.lastModifiedBy && txn.lastModifiedAt && (
+                                                <p>
+                                                    Modified by: {txn.lastModifiedBy}
+                                                    {txn.lastModifiedAt ? ` on ${format(new Date(txn.lastModifiedAt), "PP")}` : ''}
+                                                </p>
+                                                )}
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                </TableCell>
                                 <TableCell className="text-right">
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
