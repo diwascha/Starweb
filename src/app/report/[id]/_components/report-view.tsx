@@ -43,19 +43,28 @@ export default function ReportView({ reportId }: { reportId: string }) {
   const handlePrint = async () => {
     if (!report) return;
     
-    // Add to print log
     const newLogEntry = { date: new Date().toISOString() };
     const updatedReportData = {
         ...report,
         printLog: [...(report.printLog || []), newLogEntry],
     };
-    setReport(updatedReportData);
-    await updateReport(report.id, { printLog: updatedReportData.printLog });
     
-    // Use a timeout to ensure state update is processed before printing
-    setTimeout(() => {
-      window.print();
-    }, 100);
+    try {
+        await updateReport(report.id, { printLog: updatedReportData.printLog });
+        setReport(updatedReportData);
+        
+        // Use a timeout to ensure state update is processed before printing
+        setTimeout(() => {
+          window.print();
+        }, 100);
+
+    } catch (error) {
+        console.error("Failed to update print log before printing", error);
+        // Still attempt to print even if logging fails
+        setTimeout(() => {
+          window.print();
+        }, 100);
+    }
   };
 
   const handleSaveAsPdf = async () => {
