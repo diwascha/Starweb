@@ -228,7 +228,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
       setSelectedProduct(product);
       testDataKeys.forEach(field => {
         const isStatic = staticFields.includes(field);
-        form.setValue(`${field}.value`, isStatic && product.specification ? product.specification[field] : '');
+        form.setValue(`${field}.value`, (isStatic && product.specification) ? product.specification[field] : '');
         form.setValue(`${field}.remark`, '');
       });
       const defaultBoxType = 'Normal';
@@ -271,14 +271,10 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
       const { productId, taxInvoiceNumber, challanNumber, quantity, ...testDataValues } = values;
       const testData: TestResultData = testDataValues as TestResultData;
       
-      const productForFirestore = {
-        ...selectedProduct,
-        lastModifiedBy: selectedProduct.lastModifiedBy || null,
-      };
       
       if (reportToEdit) {
           const updatedReportData: Partial<Report> = {
-              product: productForFirestore,
+              product: selectedProduct,
               taxInvoiceNumber: taxInvoiceNumber || 'N/A',
               challanNumber: challanNumber || 'N/A',
               quantity: quantity || 'N/A',
@@ -297,12 +293,11 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
             taxInvoiceNumber: taxInvoiceNumber || 'N/A',
             challanNumber: challanNumber || 'N/A',
             quantity: quantity || 'N/A',
-            product: productForFirestore,
+            product: selectedProduct,
             date: new Date().toISOString(),
             testData,
             printLog: [],
             createdBy: user.username,
-            lastModifiedBy: null,
         };
 
         const newReportId = await addReport(newReportData);

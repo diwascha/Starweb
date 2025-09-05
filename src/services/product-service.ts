@@ -30,12 +30,7 @@ export const onProductsUpdate = (callback: (products: Product[]) => void): () =>
     });
 };
 
-export const getProducts = async (): Promise<Product[]> => {
-    const snapshot = await getDocs(productsCollection);
-    return snapshot.docs.map(fromFirestore);
-}
-
-export const updateProduct = async (id: string, product: Omit<Product, 'id'>): Promise<void> => {
+export const updateProduct = async (id: string, product: Partial<Omit<Product, 'id'>>): Promise<void> => {
     const productDoc = doc(db, 'products', id);
     await updateDoc(productDoc, product);
 };

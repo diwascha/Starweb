@@ -75,11 +75,7 @@ export const getReportsForSerial = async (): Promise<Pick<Report, 'serialNumber'
 export const updateReport = async (id: string, report: Partial<Omit<Report, 'id'>>): Promise<void> => {
     const reportDoc = doc(db, 'reports', id);
     await updateDoc(reportDoc, {
-        ...report,
-        product: {
-            ...report.product,
-            lastModifiedBy: report.product?.lastModifiedBy || null,
-        }
+        ...report
     });
 };
 

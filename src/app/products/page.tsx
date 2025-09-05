@@ -152,13 +152,12 @@ export default function ProductsPage() {
     if (newProductName.trim() !== '' && newMaterialCode.trim() !== '' && newCompanyName.trim() !== '' && newAddress.trim() !== '' && isSpecFilled) {
       try {
         if (editingProduct) {
-          const updatedProductData: Omit<Product, 'id'> = {
+          const updatedProductData: Partial<Omit<Product, 'id'>> = {
             name: newProductName.trim(),
             materialCode: newMaterialCode.trim(),
             companyName: newCompanyName.trim(),
             address: newAddress.trim(),
             specification: newSpec,
-            createdBy: editingProduct.createdBy,
             lastModifiedBy: user.username,
           };
           await updateProduct(editingProduct.id, updatedProductData);
@@ -526,4 +525,3 @@ export default function ProductsPage() {
     </div>
   );
 }
-    
