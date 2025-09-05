@@ -233,7 +233,7 @@ export default function PurchaseOrderView({ poId }: { poId: string }) {
         @media print {
           @page {
             size: A4;
-            margin: 0.5in 0.8in 0 0.8in;
+            margin: 0.3in 0.8in 0 0.8in;
           }
           body {
             -webkit-print-color-adjust: exact;
