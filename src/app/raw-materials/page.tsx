@@ -53,7 +53,7 @@ const materialTypes = [
 
 const paperTypes = ['Kraft Paper', 'Virgin Paper'];
 
-type RawMaterialSortKey = 'name' | 'type';
+type RawMaterialSortKey = 'name' | 'type' | 'createdBy' | 'lastModifiedBy';
 type SortDirection = 'asc' | 'desc';
 
 const generateMaterialName = (type: string, size: string, gsm: string, bf: string) => {
@@ -343,6 +343,18 @@ export default function RawMaterialsPage() {
                         </>
                     )}
                     <TableHead>Units</TableHead>
+                    <TableHead>
+                        <Button variant="ghost" onClick={() => requestSort('createdBy')}>
+                            Created By
+                            <ArrowUpDown className="ml-2 h-4 w-4" />
+                        </Button>
+                    </TableHead>
+                    <TableHead>
+                        <Button variant="ghost" onClick={() => requestSort('lastModifiedBy')}>
+                            Last Modified By
+                            <ArrowUpDown className="ml-2 h-4 w-4" />
+                        </Button>
+                    </TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -359,6 +371,8 @@ export default function RawMaterialsPage() {
                             </>
                         )}
                         <TableCell>{Array.isArray(material.units) ? material.units.join(', ') : ''}</TableCell>
+                        <TableCell>{material.createdBy}</TableCell>
+                        <TableCell>{material.lastModifiedBy || 'N/A'}</TableCell>
                         <TableCell className="text-right">
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
