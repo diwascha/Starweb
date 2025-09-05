@@ -63,7 +63,7 @@ const moduleToPath = (module: Module): string => {
     return `/${kebab}`;
 }
 
-const AuthRedirect = () => {
+const AuthRedirect = ({ children }: { children: (user: UserSession) => ReactNode }) => {
     const { user, loading, hasPermission } = useAuth();
     const router = useRouter();
     const pathname = usePathname();
@@ -85,17 +85,17 @@ const AuthRedirect = () => {
 
         if (user && !isAuthPage && !user.is_admin) {
             const pathSegments = pathname.split('/').filter(Boolean);
-            if (pathSegments.length === 0) return;
+            if (pathSegments.length === 0 && pathname !== '/dashboard') return;
 
-            const currentModuleAttempt = kebabToCamel(pathSegments[0]);
-
+            const currentModuleAttempt = kebabToCamel(pathSegments[0] || 'dashboard');
+            
             if (modules.includes(currentModuleAttempt as Module)) {
                 const currentModule = currentModuleAttempt as Module;
                 if (!hasPermission(currentModule, 'view')) {
                     const firstAllowedPage = pageOrder.find(module => hasPermission(module, 'view'));
                     if (firstAllowedPage) {
                         const redirectPath = moduleToPath(firstAllowedPage);
-                        if (pathname !== redirectPath) {
+                         if (pathname !== redirectPath) {
                             router.push(redirectPath);
                         }
                     } else {
@@ -108,7 +108,27 @@ const AuthRedirect = () => {
         }
     }, [user, loading, pathname, router, hasPermission]);
 
-    return null;
+    if (loading) {
+        return (
+            <div className="flex h-screen items-center justify-center">
+                <p>Loading application...</p>
+            </div>
+        );
+    }
+    
+    if (pathname === '/login') {
+        return <>{children(user!)}</>; // This is fine because the layout won't render for /login
+    }
+
+    if (!user) {
+       return (
+            <div className="flex h-screen items-center justify-center">
+                <p>Redirecting to login...</p>
+            </div>
+        );
+    }
+    
+    return <>{children(user)}</>;
 };
 
 
@@ -168,7 +188,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = useCallback(async () => {
     sessionStorage.removeItem(USER_SESSION_KEY);
     setUser(null);
-    // The redirect is now handled by the AuthRedirect component
   }, []);
   
   return (
