@@ -27,6 +27,7 @@ import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { onRawMaterialsUpdate, addRawMaterial } from '@/services/raw-material-service';
 import { onPurchaseOrdersUpdate, addPurchaseOrder, updatePurchaseOrder } from '@/services/purchase-order-service';
+import { Badge } from '@/components/ui/badge';
 
 const poItemSchema = z.object({
   rawMaterialId: z.string().min(1, 'Material is required.'),
@@ -325,6 +326,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         bf: isPaper ? bf : '',
         units: units,
         createdBy: user.username,
+        createdAt: new Date().toISOString(),
     };
     
     try {
@@ -360,7 +362,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   };
 
   const handleQuickAddUnitKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if ((e.key === 'Enter' || e.key === ',') && quickAddUnitInput.trim()) {
+    if ((e.key === 'Enter' || e.key === ',' || e.key === '.') && quickAddUnitInput.trim()) {
         e.preventDefault();
         const newUnit = quickAddUnitInput.trim();
         if (!quickAddForm.units.find(u => u.toLowerCase() === newUnit.toLowerCase())) {
