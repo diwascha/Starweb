@@ -550,7 +550,7 @@ export default function NewTripSheetPage() {
                                 <CardHeader><CardTitle>Trip Expenses & Income</CardTitle></CardHeader>
                                 <CardContent className="space-y-6">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <FormField control={form.control} name="truckAdvance" render={({ field }) => <FormItem><FormLabel>Truck Advance</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl></FormItem>} />
+                                        <FormField control={form.control} name="truckAdvance" render={({ field }) => <FormItem><FormLabel>Peski Amount</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl></FormItem>} />
                                         <FormField control={form.control} name="transport" render={({ field }) => <FormItem><FormLabel>Transport</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl></FormItem>} />
                                     </div>
                                     <div>
