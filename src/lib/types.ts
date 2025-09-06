@@ -232,8 +232,8 @@ export interface Transaction {
     chequeNumber?: string;
     chequeDate?: string; // ISO string
     dueDate?: string; // ISO string for Credit or Cheque
-    partyId?: string; // Vendor
-    accountId?: string;
+    partyId?: string | null; // Vendor
+    accountId?: string | null;
     items: TransactionItem[];
     amount: number; // This will be the grand total
     remarks: string;

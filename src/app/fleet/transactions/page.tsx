@@ -114,7 +114,7 @@ const transactionSchema = z.object({
     message: 'Due Date is required for Credit billing.',
     path: ['dueDate'],
 }).refine(data => {
-     if (['Purchase', 'Sales'].includes(data.type) || data.billingType === 'Credit') {
+     if (['Purchase', 'Sales', 'Credit'].includes(data.billingType) || ['Purchase', 'Sales'].includes(data.type)) {
         return !!data.partyId;
     }
     return true;
@@ -200,15 +200,15 @@ export default function TransactionsPage() {
     });
     
     const watchBillingType = form.watch("billingType");
-    const watchAllFields = form.watch();
+    const watchedFormValues = form.watch();
 
     const { subtotal, vatAmount, totalAmount } = useMemo(() => {
-        const items = watchAllFields.items || [];
+        const items = watchedFormValues.items || [];
         const sub = items.reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.rate) || 0), 0);
-        const vat = watchAllFields.invoiceType === 'Taxable' ? sub * 0.13 : 0;
+        const vat = watchedFormValues.invoiceType === 'Taxable' ? sub * 0.13 : 0;
         const total = sub + vat;
         return { subtotal: sub, vatAmount: vat, totalAmount: total };
-    }, [watchAllFields.items, watchAllFields.invoiceType]);
+    }, [watchedFormValues.items, watchedFormValues.invoiceType]);
 
 
     const handleOpenTransactionDialog = (transaction: Transaction | null = null, type?: TransactionType) => {
@@ -255,8 +255,8 @@ export default function TransactionsPage() {
             })),
             amount: grandTotal,
             remarks: values.remarks || '',
-            accountId: values.accountId || undefined,
-            partyId: values.partyId || undefined,
+            accountId: values.accountId || null,
+            partyId: values.partyId || null,
         };
 
         try {
@@ -269,6 +269,7 @@ export default function TransactionsPage() {
             }
             setIsTransactionDialogOpen(false);
         } catch (error) {
+             console.error("Failed to save transaction:", error);
              toast({ title: 'Error', description: 'Failed to save transaction.', variant: 'destructive' });
         }
     };
@@ -689,7 +690,7 @@ export default function TransactionsPage() {
                                 <TableCell><FormField control={form.control} name={`items.${index}.quantity`} render={({ field }) => <Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />} /></TableCell>
                                 <TableCell><FormField control={form.control} name={`items.${index}.uom`} render={({ field }) => <Input {...field} value={field.value ?? ''} />} /></TableCell>
                                 <TableCell><FormField control={form.control} name={`items.${index}.rate`} render={({ field }) => <Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />} /></TableCell>
-                                <TableCell>{((watchAllFields.items?.[index]?.quantity || 0) * (watchAllFields.items?.[index]?.rate || 0)).toLocaleString()}</TableCell>
+                                <TableCell>{((watchedFormValues.items?.[index]?.quantity || 0) * (watchedFormValues.items?.[index]?.rate || 0)).toLocaleString()}</TableCell>
                                 <TableCell><Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}><X className="h-4 w-4 text-destructive"/></Button></TableCell>
                             </TableRow>
                         ))}
@@ -703,7 +704,7 @@ export default function TransactionsPage() {
                                 <Label>Calculation</Label>
                                 <div className="p-4 border rounded-md space-y-2">
                                     <div className="flex justify-between text-sm"><span>Subtotal</span><span>{subtotal.toLocaleString(undefined, {maximumFractionDigits: 2})}</span></div>
-                                    {watchAllFields.invoiceType === 'Taxable' && <div className="flex justify-between text-sm"><span>VAT (13%)</span><span>{vatAmount.toLocaleString(undefined, {maximumFractionDigits: 2})}</span></div>}
+                                    {watchedFormValues.invoiceType === 'Taxable' && <div className="flex justify-between text-sm"><span>VAT (13%)</span><span>{vatAmount.toLocaleString(undefined, {maximumFractionDigits: 2})}</span></div>}
                                     <div className="flex justify-between font-bold"><span>Grand Total</span><span>{totalAmount.toLocaleString(undefined, {maximumFractionDigits: 2})}</span></div>
                                 </div>
                             </div>
