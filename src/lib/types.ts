@@ -6,6 +6,7 @@
 
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -249,6 +250,7 @@ export interface Trip {
     returnLoadIncome?: number;
     detentionStartDate?: string; // ISO string
     detentionEndDate?: string; // ISO string
+    numberOfParties?: number;
     dropOffChargeRate?: number;
     detentionChargeRate?: number;
     createdBy: string;

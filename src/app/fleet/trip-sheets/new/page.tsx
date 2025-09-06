@@ -45,10 +45,7 @@ const fuelEntrySchema = z.object({
 const tripSchema = z.object({
   date: z.date(),
   vehicleId: z.string().min(1, 'Vehicle is required.'),
-  destinations: z.array(destinationSchema)
-    .refine(destinations => destinations.filter(d => d.name && d.freight).length > 0, {
-      message: 'At least one destination with a name and freight is required.',
-    }),
+  destinations: z.array(destinationSchema),
   truckAdvance: z.number().min(0).optional(),
   transport: z.number().min(0).optional(),
   fuelEntries: z.array(fuelEntrySchema),
@@ -56,6 +53,7 @@ const tripSchema = z.object({
   returnLoadIncome: z.number().min(0).optional(),
   detentionStartDate: z.date().optional(),
   detentionEndDate: z.date().optional(),
+  numberOfParties: z.number().min(0).optional(),
   dropOffChargeRate: z.number().min(0).optional(),
   detentionChargeRate: z.number().min(0).optional(),
 });
@@ -88,6 +86,7 @@ export default function NewTripSheetPage() {
             returnLoadIncome: 0,
             detentionStartDate: undefined,
             detentionEndDate: undefined,
+            numberOfParties: 0,
             dropOffChargeRate: 800,
             detentionChargeRate: 3000,
         },
@@ -128,14 +127,13 @@ export default function NewTripSheetPage() {
         const transport = form.watch('transport') || 0;
         const fuelEntries = form.watch('fuelEntries');
         const returnIncome = form.watch('returnLoadIncome') || 0;
+        const numberOfParties = form.watch('numberOfParties') || 0;
         const dropOffChargeRate = form.watch('dropOffChargeRate') || 0;
         const detentionChargeRate = form.watch('detentionChargeRate') || 0;
-
-        const validDestinations = destinations.filter(d => d.name && d.freight && d.freight > 0);
         
-        const totalFreight = validDestinations.reduce((sum, dest) => sum + (dest.freight || 0), 0);
+        const totalFreight = destinations.filter(d => d.name && d.freight && d.freight > 0).reduce((sum, dest) => sum + (dest.freight || 0), 0);
         
-        const dropOffCharge = validDestinations.length > 3 ? (validDestinations.length - 3) * dropOffChargeRate : 0;
+        const dropOffCharge = numberOfParties > 3 ? (numberOfParties - 3) * dropOffChargeRate : 0;
         
         const detentionCharge = detentionDays * detentionChargeRate;
 
@@ -265,13 +263,16 @@ export default function NewTripSheetPage() {
                                         </TableCell>
                                     </TableRow>))}
                                 </TableBody></Table>
-                                {form.formState.errors.destinations && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.destinations.message}</p>}
+                                {form.formState.errors.destinations && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.destinations.root?.message}</p>}
                                 
                                 <div className="flex justify-between items-center mt-4">
                                     <Button type="button" size="sm" variant="outline" onClick={() => appendDestination({ name: '', freight: 0 })}>
                                         <PlusCircle className="mr-2 h-4 w-4" /> Add Destination
                                     </Button>
-                                    <FormField control={form.control} name="dropOffChargeRate" render={({ field }) => <FormItem className="flex items-center gap-2 space-y-0"><FormLabel>Extra Drop-off Rate</FormLabel><FormControl><Input type="number" className="w-24" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl></FormItem>} />
+                                    <div className="flex items-center gap-4">
+                                        <FormField control={form.control} name="numberOfParties" render={({ field }) => <FormItem className="flex items-center gap-2 space-y-0"><FormLabel>Number of Parties</FormLabel><FormControl><Input type="number" className="w-24" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl></FormItem>} />
+                                        <FormField control={form.control} name="dropOffChargeRate" render={({ field }) => <FormItem className="flex items-center gap-2 space-y-0"><FormLabel>Extra Drop-off Rate</FormLabel><FormControl><Input type="number" className="w-24" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl></FormItem>} />
+                                    </div>
                                 </div>
                                 
                                 <div className="mt-6 pt-6 border-t">

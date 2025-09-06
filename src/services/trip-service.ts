@@ -20,6 +20,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Trip => {
         returnLoadIncome: data.returnLoadIncome,
         detentionStartDate: data.detentionStartDate,
         detentionEndDate: data.detentionEndDate,
+        numberOfParties: data.numberOfParties,
         dropOffChargeRate: data.dropOffChargeRate,
         detentionChargeRate: data.detentionChargeRate,
         createdBy: data.createdBy,
