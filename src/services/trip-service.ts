@@ -18,7 +18,8 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Trip => {
         fuelEntries: data.fuelEntries,
         extraExpenses: data.extraExpenses,
         returnLoadIncome: data.returnLoadIncome,
-        detentionDays: data.detentionDays,
+        detentionStartDate: data.detentionStartDate,
+        detentionEndDate: data.detentionEndDate,
         dropOffChargeRate: data.dropOffChargeRate,
         detentionChargeRate: data.detentionChargeRate,
         createdBy: data.createdBy,
@@ -54,5 +55,3 @@ export const deleteTrip = async (id: string): Promise<void> => {
     const tripDoc = doc(db, 'trips', id);
     await deleteDoc(tripDoc);
 };
-
-    

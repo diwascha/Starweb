@@ -14,9 +14,9 @@ import { useRouter } from 'next/navigation';
 import { useState, useEffect, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, PlusCircle, Trash2, ChevronsUpDown, Check } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Trash2, ChevronsUpDown, Check, Plus } from 'lucide-react';
 import { DualCalendar } from '@/components/ui/dual-calendar';
-import { format } from 'date-fns';
+import { format, differenceInDays } from 'date-fns';
 import { cn, toNepaliDate } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
@@ -29,6 +29,9 @@ import { onPartiesUpdate } from '@/services/party-service';
 import { addTrip } from '@/services/trip-service';
 import { Loader2 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
+import { DateRange } from 'react-day-picker';
+import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 
 const destinationSchema = z.object({
   name: z.string().optional(),
@@ -52,7 +55,8 @@ const tripSchema = z.object({
   fuelEntries: z.array(fuelEntrySchema),
   extraExpenses: z.string().optional(),
   returnLoadIncome: z.number().min(0).optional(),
-  detentionDays: z.number().min(0).optional(),
+  detentionStartDate: z.date().optional(),
+  detentionEndDate: z.date().optional(),
   dropOffChargeRate: z.number().min(0).optional(),
   detentionChargeRate: z.number().min(0).optional(),
 });
@@ -66,6 +70,8 @@ export default function NewTripSheetPage() {
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [parties, setParties] = useState<Party[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isDetentionDialogOpen, setIsDetentionDialogOpen] = useState(false);
+    const [detentionDateRange, setDetentionDateRange] = useState<DateRange | undefined>(undefined);
 
     const form = useForm<TripFormValues>({
         resolver: zodResolver(tripSchema),
@@ -81,7 +87,8 @@ export default function NewTripSheetPage() {
             fuelEntries: [],
             extraExpenses: '',
             returnLoadIncome: 0,
-            detentionDays: 0,
+            detentionStartDate: undefined,
+            detentionEndDate: undefined,
             dropOffChargeRate: 800,
             detentionChargeRate: 3000,
         },
@@ -108,13 +115,20 @@ export default function NewTripSheetPage() {
 
     const fuelVendors = useMemo(() => parties.filter(p => p.type === 'Vendor'), [parties]);
     
+    const detentionDays = useMemo(() => {
+        const { detentionStartDate, detentionEndDate } = form.watch();
+        if (detentionStartDate && detentionEndDate) {
+            return differenceInDays(detentionEndDate, detentionStartDate) + 1;
+        }
+        return 0;
+    }, [form.watch('detentionStartDate'), form.watch('detentionEndDate')]);
+
     const { totalFreight, dropOffCharge, detentionCharge, totalTaxable, vatAmount, grossAmount, tdsAmount, netPay, totalExpenses, returnLoadIncome, netAmount } = useMemo(() => {
         const destinations = form.watch('destinations');
         const truckAdvance = form.watch('truckAdvance') || 0;
         const transport = form.watch('transport') || 0;
         const fuelEntries = form.watch('fuelEntries');
         const returnIncome = form.watch('returnLoadIncome') || 0;
-        const detentionDays = form.watch('detentionDays') || 0;
         const dropOffChargeRate = form.watch('dropOffChargeRate') || 0;
         const detentionChargeRate = form.watch('detentionChargeRate') || 0;
 
@@ -137,7 +151,13 @@ export default function NewTripSheetPage() {
         const netAmount = netPay - totalExpenses + returnIncome;
         
         return { totalFreight, dropOffCharge, detentionCharge, totalTaxable, vatAmount, grossAmount, tdsAmount, netPay, totalExpenses, returnLoadIncome: returnIncome, netAmount };
-    }, [form.watch()]);
+    }, [form.watch(), detentionDays]);
+    
+    const handleConfirmDetention = () => {
+        form.setValue('detentionStartDate', detentionDateRange?.from);
+        form.setValue('detentionEndDate', detentionDateRange?.to);
+        setIsDetentionDialogOpen(false);
+    };
 
     async function onSubmit(values: TripFormValues) {
         if (!user) return;
@@ -157,6 +177,8 @@ export default function NewTripSheetPage() {
                 ...values,
                 destinations: filteredDestinations,
                 date: values.date.toISOString(),
+                detentionStartDate: values.detentionStartDate?.toISOString(),
+                detentionEndDate: values.detentionEndDate?.toISOString(),
                 createdAt: new Date().toISOString(),
                 createdBy: user.username,
             };
@@ -242,7 +264,32 @@ export default function NewTripSheetPage() {
                                 <Button type="button" size="sm" variant="outline" onClick={() => appendDestination({ name: '', freight: 0 })} className="mt-4"><PlusCircle className="mr-2 h-4 w-4" /> Add Destination</Button>
                                 
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 pt-6 border-t">
-                                    <FormField control={form.control} name="detentionDays" render={({ field }) => <FormItem><FormLabel>Detention Days</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl></FormItem>} />
+                                     <div className="space-y-2">
+                                        <Label>Detention</Label>
+                                        <Dialog open={isDetentionDialogOpen} onOpenChange={setIsDetentionDialogOpen}>
+                                            <DialogTrigger asChild>
+                                                <Button type="button" variant="outline" className="w-full justify-start font-normal">
+                                                    <Plus className="mr-2 h-4 w-4"/>
+                                                    {detentionDays > 0 ? `${detentionDays} day(s)` : 'Add Detention'}
+                                                </Button>
+                                            </DialogTrigger>
+                                            <DialogContent>
+                                                <DialogHeader><DialogTitle>Select Detention Period</DialogTitle></DialogHeader>
+                                                <div className="py-4 flex justify-center">
+                                                    <DualDateRangePicker selected={detentionDateRange} onSelect={setDetentionDateRange} />
+                                                </div>
+                                                <DialogFooter>
+                                                    <Button variant="outline" onClick={() => setIsDetentionDialogOpen(false)}>Cancel</Button>
+                                                    <Button onClick={handleConfirmDetention}>Confirm</Button>
+                                                </DialogFooter>
+                                            </DialogContent>
+                                        </Dialog>
+                                         {form.watch('detentionStartDate') && (
+                                            <p className="text-xs text-muted-foreground">
+                                                {format(form.watch('detentionStartDate')!, "PPP")} - {form.watch('detentionEndDate') ? format(form.watch('detentionEndDate')!, "PPP") : ''}
+                                            </p>
+                                        )}
+                                    </div>
                                     <FormField control={form.control} name="detentionChargeRate" render={({ field }) => <FormItem><FormLabel>Detention Rate/Day</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl></FormItem>} />
                                     <FormField control={form.control} name="dropOffChargeRate" render={({ field }) => <FormItem><FormLabel>Extra Drop-off Rate</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl></FormItem>} />
                                 </div>
@@ -308,7 +355,3 @@ export default function NewTripSheetPage() {
         </div>
     );
 }
-
-    
-
-    

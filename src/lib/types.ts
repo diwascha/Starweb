@@ -5,6 +5,7 @@
 
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -102,7 +103,7 @@ export interface PurchaseOrder {
   items: PurchaseOrderItem[];
   amendments?: Amendment[];
   status: PurchaseOrderStatus;
-  deliveryDate?: string; // ISO string for delivery date
+  deliveryDate?: string; // ISO string
   createdBy: string;
   lastModifiedBy?: string;
 }
@@ -246,7 +247,8 @@ export interface Trip {
     fuelEntries: FuelEntry[];
     extraExpenses?: string;
     returnLoadIncome?: number;
-    detentionDays?: number;
+    detentionStartDate?: string; // ISO string
+    detentionEndDate?: string; // ISO string
     dropOffChargeRate?: number;
     detentionChargeRate?: number;
     createdBy: string;
