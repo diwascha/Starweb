@@ -76,8 +76,8 @@ export default function NewTripSheetPage() {
             date: new Date(),
             vehicleId: '',
             destinations: [
-                { name: '', freight: 0 },
-                { name: '', freight: 0 } 
+                { name: '', freight: undefined },
+                { name: '', freight: undefined } 
             ],
             truckAdvance: 0,
             transport: 0,
@@ -117,25 +117,19 @@ export default function NewTripSheetPage() {
     const watchedFormValues = form.watch();
 
     const { totalFreight, dropOffCharge, detentionCharge, totalTaxable, vatAmount, grossAmount, tdsAmount, netPay, totalExpenses, returnLoadIncome, netAmount, detentionDays } = useMemo(() => {
-        const {
-            destinations = [],
-            numberOfParties = 0,
-            dropOffChargeRate = 0,
-            detentionChargeRate = 0,
-            truckAdvance = 0,
-            transport = 0,
-            fuelEntries = [],
-            returnLoadIncome = 0,
-            detentionStartDate,
-            detentionEndDate
-        } = watchedFormValues;
+        const values = watchedFormValues;
         
-        const days = detentionStartDate && detentionEndDate ? differenceInDays(detentionEndDate, detentionStartDate) + 1 : 0;
+        const days = values.detentionStartDate && values.detentionEndDate ? differenceInDays(values.detentionEndDate, values.detentionStartDate) + 1 : 0;
         
-        const totalFreight = destinations.filter(d => d.name && d.freight && d.freight > 0).reduce((sum, dest) => sum + (dest.freight || 0), 0);
+        const totalFreight = (values.destinations || [])
+            .filter(d => d.name && d.freight && Number(d.freight) > 0)
+            .reduce((sum, dest) => sum + (Number(dest.freight) || 0), 0);
         
+        const numberOfParties = Number(values.numberOfParties) || 0;
+        const dropOffChargeRate = Number(values.dropOffChargeRate) || 0;
         const dropOffCharge = numberOfParties > 3 ? (numberOfParties - 3) * dropOffChargeRate : 0;
         
+        const detentionChargeRate = Number(values.detentionChargeRate) || 0;
         const detentionCharge = days * detentionChargeRate;
 
         const totalTaxable = totalFreight + dropOffCharge + detentionCharge;
@@ -144,11 +138,28 @@ export default function NewTripSheetPage() {
         const tdsAmount = grossAmount * 0.015;
         const netPay = grossAmount - tdsAmount;
         
-        const totalFuel = fuelEntries.reduce((sum, entry) => sum + (entry.amount || 0), 0);
+        const totalFuel = (values.fuelEntries || []).reduce((sum, entry) => sum + (Number(entry.amount) || 0), 0);
+        const truckAdvance = Number(values.truckAdvance) || 0;
+        const transport = Number(values.transport) || 0;
+        const returnLoadIncomeVal = Number(values.returnLoadIncome) || 0;
+
         const totalExpenses = truckAdvance + transport + totalFuel;
-        const netAmount = netPay - totalExpenses + returnLoadIncome;
+        const netAmount = netPay - totalExpenses + returnLoadIncomeVal;
         
-        return { totalFreight, dropOffCharge, detentionCharge, totalTaxable, vatAmount, grossAmount, tdsAmount, netPay, totalExpenses, returnLoadIncome, netAmount, detentionDays: days };
+        return { 
+            totalFreight, 
+            dropOffCharge, 
+            detentionCharge, 
+            totalTaxable, 
+            vatAmount, 
+            grossAmount, 
+            tdsAmount, 
+            netPay, 
+            totalExpenses, 
+            returnLoadIncome: returnLoadIncomeVal, 
+            netAmount, 
+            detentionDays: days 
+        };
     }, [watchedFormValues]);
     
     const handleConfirmDetention = () => {
@@ -168,8 +179,8 @@ export default function NewTripSheetPage() {
         setIsSubmitting(true);
         try {
             const filteredDestinations = values.destinations
-              .filter(d => d.name && d.name.trim() !== '' && d.freight && d.freight > 0)
-              .map(d => ({ name: d.name!, freight: d.freight! }));
+              .filter(d => d.name && d.name.trim() !== '' && d.freight && Number(d.freight) > 0)
+              .map(d => ({ name: d.name!, freight: Number(d.freight!) }));
               
             if (filteredDestinations.length === 0) {
                 form.setError('destinations', { type: 'manual', message: 'At least one valid destination with freight is required.' });
@@ -267,7 +278,7 @@ export default function NewTripSheetPage() {
                                 {form.formState.errors.destinations && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.destinations.root?.message}</p>}
                                 
                                 <div className="flex justify-between items-center mt-4">
-                                    <Button type="button" size="sm" variant="outline" onClick={() => appendDestination({ name: '', freight: 0 })}>
+                                    <Button type="button" size="sm" variant="outline" onClick={() => appendDestination({ name: '', freight: undefined })}>
                                         <PlusCircle className="mr-2 h-4 w-4" /> Add Destination
                                     </Button>
                                     <div className="flex items-center gap-4">
@@ -378,3 +389,5 @@ export default function NewTripSheetPage() {
         </div>
     );
 }
+
+    
