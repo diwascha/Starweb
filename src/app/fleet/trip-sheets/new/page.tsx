@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import type { Vehicle, Party, Trip, Destination, PartyType, TripDestination } from '@/lib/types';
+import type { Vehicle, Party, Trip, Destination, PartyType, TripDestination, ExtraExpense } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
@@ -43,6 +43,11 @@ const fuelEntrySchema = z.object({
   amount: z.number().min(1, 'Fuel amount is required.'),
 });
 
+const extraExpenseSchema = z.object({
+  description: z.string().min(1, 'Description is required.'),
+  amount: z.number().min(1, 'Amount is required.'),
+});
+
 const tripSchema = z.object({
   date: z.date(),
   vehicleId: z.string().min(1, 'Vehicle is required.'),
@@ -50,7 +55,7 @@ const tripSchema = z.object({
   truckAdvance: z.number().min(0).optional(),
   transport: z.number().min(0).optional(),
   fuelEntries: z.array(fuelEntrySchema),
-  extraExpenses: z.string().optional(),
+  extraExpenses: z.array(extraExpenseSchema),
   returnLoadIncome: z.number().min(0).optional(),
   detentionStartDate: z.date().optional(),
   detentionEndDate: z.date().optional(),
@@ -92,12 +97,11 @@ export default function NewTripSheetPage() {
             vehicleId: '',
             destinations: [
                 { name: '', freight: 0 },
-                { name: '', freight: 0 } 
             ],
             truckAdvance: 0,
             transport: 0,
             fuelEntries: [],
-            extraExpenses: '',
+            extraExpenses: [],
             returnLoadIncome: 0,
             detentionStartDate: undefined,
             detentionEndDate: undefined,
@@ -115,6 +119,11 @@ export default function NewTripSheetPage() {
     const { fields: fuelFields, append: appendFuel, remove: removeFuel } = useFieldArray({
         control: form.control,
         name: "fuelEntries",
+    });
+
+    const { fields: expenseFields, append: appendExpense, remove: removeExpense } = useFieldArray({
+        control: form.control,
+        name: "extraExpenses",
     });
 
     useEffect(() => {
@@ -160,8 +169,9 @@ export default function NewTripSheetPage() {
         const truckAdvance = Number(values.truckAdvance) || 0;
         const transport = Number(values.transport) || 0;
         const returnLoadIncomeVal = Number(values.returnLoadIncome) || 0;
+        const totalExtraExpenses = (values.extraExpenses || []).reduce((sum, entry) => sum + (Number(entry.amount) || 0), 0);
 
-        const totalExpenses = truckAdvance + transport + totalFuel;
+        const totalExpenses = truckAdvance + transport + totalFuel + totalExtraExpenses;
         const netAmount = netPay - totalExpenses + returnLoadIncomeVal;
         
         return { 
@@ -205,10 +215,15 @@ export default function NewTripSheetPage() {
                 setIsSubmitting(false);
                 return;
             }
+            
+            const filteredExtraExpenses: ExtraExpense[] = (values.extraExpenses || [])
+                .filter(e => e.description && e.description.trim() !== '' && e.amount && Number(e.amount) > 0)
+                .map(e => ({ description: e.description, amount: Number(e.amount) }));
 
             const newTripData: Omit<Trip, 'id'> = {
                 ...values,
                 destinations: filteredDestinations,
+                extraExpenses: filteredExtraExpenses,
                 date: values.date.toISOString(),
                 detentionStartDate: values.detentionStartDate?.toISOString(),
                 detentionEndDate: values.detentionEndDate?.toISOString(),
@@ -432,7 +447,7 @@ export default function NewTripSheetPage() {
                                             <FormField control={form.control} name={`destinations.${index}.freight`} render={({ field }) => 
                                                 <FormItem>
                                                     <FormControl>
-                                                        <Input type="number" {...field} value={field.value ?? 0} onChange={e => field.onChange(e.target.value === '' ? 0 : parseFloat(e.target.value))} />
+                                                        <Input type="number" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
                                                     </FormControl>
                                                     <FormMessage/>
                                                 </FormItem>
@@ -595,7 +610,22 @@ export default function NewTripSheetPage() {
                                         </div>
                                         <Button type="button" size="sm" variant="outline" onClick={() => appendFuel({ partyId: '', amount: 0 })} className="mt-4"><PlusCircle className="mr-2 h-4 w-4" /> Add Fuel Entry</Button>
                                     </div>
-                                    <FormField control={form.control} name="extraExpenses" render={({ field }) => <FormItem><FormLabel>Extra Expenses (Details)</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>} />
+                                    <div>
+                                        <Label className="text-base font-medium">Extra Expenses</Label>
+                                        <div className="mt-2 space-y-4">
+                                            {expenseFields.map((item, index) => (<div key={item.id} className="flex items-start gap-2">
+                                                <FormField control={form.control} name={`extraExpenses.${index}.description`} render={({ field }) => (
+                                                    <FormItem className="flex-1">
+                                                        <FormControl><Input placeholder="Expense description" {...field} /></FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}/>
+                                                <FormField control={form.control} name={`extraExpenses.${index}.amount`} render={({ field }) => <FormItem><FormControl><Input type="number" placeholder="Amount" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl><FormMessage/></FormItem>} />
+                                                <Button type="button" variant="ghost" size="icon" onClick={() => removeExpense(index)} className="mt-2"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                            </div>))}
+                                        </div>
+                                        <Button type="button" size="sm" variant="outline" onClick={() => appendExpense({ description: '', amount: 0 })} className="mt-4"><PlusCircle className="mr-2 h-4 w-4" /> Add Expense</Button>
+                                    </div>
                                     <FormField control={form.control} name="returnLoadIncome" render={({ field }) => <FormItem><FormLabel>Additional Income (Return Load)</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl></FormItem>} />
                                 </CardContent>
                             </Card>
@@ -680,4 +710,3 @@ export default function NewTripSheetPage() {
         </div>
     );
 }
-

@@ -9,6 +9,7 @@
 
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -242,6 +243,11 @@ export interface FuelEntry {
     amount: number;
 }
 
+export interface ExtraExpense {
+    description: string;
+    amount: number;
+}
+
 export interface Destination {
     id: string;
     name: string;
@@ -260,7 +266,7 @@ export interface Trip {
     truckAdvance?: number;
     transport?: number;
     fuelEntries: FuelEntry[];
-    extraExpenses?: string;
+    extraExpenses?: ExtraExpense[];
     returnLoadIncome?: number;
     detentionStartDate?: string; // ISO string
     detentionEndDate?: string; // ISO string
