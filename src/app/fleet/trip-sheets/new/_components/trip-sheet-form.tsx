@@ -311,27 +311,31 @@ export function TripSheetForm() {
                     expenses: Number(rt.expenses) || 0,
                 }));
 
-            const newTripData: Omit<Trip, 'id'> = {
+            const tripData: Omit<Trip, 'id'> = {
                 date: values.date.toISOString(),
                 vehicleId: values.vehicleId,
                 partyId: values.partyId,
-                odometerStart: values.odometerStart || undefined,
-                odometerEnd: values.odometerEnd || undefined,
                 destinations: filteredDestinations,
-                truckAdvance: values.truckAdvance || undefined,
                 transport: values.transport,
                 fuelEntries: filteredFuelEntries,
                 extraExpenses: filteredExtraExpenses,
                 returnTrips: filteredReturnTrips,
-                detentionStartDate: values.detentionStartDate?.toISOString(),
-                detentionEndDate: values.detentionEndDate?.toISOString(),
-                numberOfParties: values.numberOfParties || undefined,
-                dropOffChargeRate: values.dropOffChargeRate || undefined,
-                detentionChargeRate: values.detentionChargeRate || undefined,
                 createdAt: new Date().toISOString(),
                 createdBy: user.username,
             };
-            await addTrip(newTripData);
+
+            // Conditionally add optional fields to avoid sending 'undefined' to Firestore
+            if (values.odometerStart) tripData.odometerStart = values.odometerStart;
+            if (values.odometerEnd) tripData.odometerEnd = values.odometerEnd;
+            if (values.truckAdvance) tripData.truckAdvance = values.truckAdvance;
+            if (values.detentionStartDate) tripData.detentionStartDate = values.detentionStartDate.toISOString();
+            if (values.detentionEndDate) tripData.detentionEndDate = values.detentionEndDate.toISOString();
+            if (values.numberOfParties) tripData.numberOfParties = values.numberOfParties;
+            if (values.dropOffChargeRate) tripData.dropOffChargeRate = values.dropOffChargeRate;
+            if (values.detentionChargeRate) tripData.detentionChargeRate = values.detentionChargeRate;
+
+
+            await addTrip(tripData);
             toast({ title: 'Success', description: 'Trip sheet created successfully.' });
             router.push('/fleet/transactions');
         } catch (error) {
