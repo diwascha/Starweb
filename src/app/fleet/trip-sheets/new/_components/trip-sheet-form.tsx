@@ -337,7 +337,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                             partyId: f.partyId,
                             amount: Number(f.amount)
                         };
-                        if (f.liters) entry.liters = Number(f.liters);
+                        if (f.liters !== undefined && f.liters !== null) entry.liters = Number(f.liters);
                         return entry;
                     }),
                 extraExpenses: (values.extraExpenses || [])
