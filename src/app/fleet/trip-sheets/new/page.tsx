@@ -88,6 +88,9 @@ export default function NewTripSheetPage() {
     const [trips, setTrips] = useState<Trip[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     
+    // UI States
+    const [showReturnTrip, setShowReturnTrip] = useState(false);
+
     // Dialog States
     const [isDetentionDialogOpen, setIsDetentionDialogOpen] = useState(false);
     const [detentionDateRange, setDetentionDateRange] = useState<DateRange | undefined>(undefined);
@@ -245,6 +248,17 @@ export default function NewTripSheetPage() {
         form.setValue('detentionStartDate', undefined);
         form.setValue('detentionEndDate', undefined);
         setDetentionDateRange(undefined);
+    };
+    
+    const handleRemoveReturnTrip = () => {
+        form.setValue('returnTrip', {
+            date: undefined,
+            from: '',
+            to: '',
+            freight: undefined,
+            expenses: undefined,
+        });
+        setShowReturnTrip(false);
     };
 
     async function onSubmit(values: TripFormValues) {
@@ -679,12 +693,12 @@ export default function NewTripSheetPage() {
                                         <Label className="text-base font-medium">Extra Expenses</Label>
                                         <div className="mt-2 space-y-4">
                                             {expenseFields.map((item, index) => (
-                                                <div key={item.id} className="grid grid-cols-1 md:grid-cols-3 items-start gap-2">
+                                                <div key={item.id} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] items-start gap-2">
                                                     <FormField
                                                         control={form.control}
                                                         name={`extraExpenses.${index}.partyId`}
                                                         render={({ field }) => (
-                                                            <FormItem className="md:col-span-1">
+                                                            <FormItem>
                                                                 <Popover>
                                                                     <PopoverTrigger asChild>
                                                                         <FormControl>
@@ -733,18 +747,18 @@ export default function NewTripSheetPage() {
                                                             </FormItem>
                                                         )}
                                                     />
-                                                    <FormField
-                                                        control={form.control}
-                                                        name={`extraExpenses.${index}.description`}
-                                                        render={({ field }) => (
-                                                            <FormItem className="md:col-span-1">
-                                                                <FormControl><Input placeholder="Expense description" {...field} value={field.value ?? ''} /></FormControl>
-                                                                <FormMessage />
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                    <div className="flex items-center gap-2 md:col-span-1">
+                                                    <div className="flex items-center gap-2">
                                                         <FormField
+                                                            control={form.control}
+                                                            name={`extraExpenses.${index}.description`}
+                                                            render={({ field }) => (
+                                                                <FormItem className="flex-1">
+                                                                    <FormControl><Input placeholder="Expense description" {...field} value={field.value ?? ''} /></FormControl>
+                                                                    <FormMessage />
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                         <FormField
                                                             control={form.control}
                                                             name={`extraExpenses.${index}.amount`}
                                                             render={({ field }) => (
@@ -767,38 +781,53 @@ export default function NewTripSheetPage() {
                                     </div>
                                 </CardContent>
                             </Card>
-                             <Card>
-                                <CardHeader>
-                                    <CardTitle>Return Trip</CardTitle>
-                                    <CardDescription>Record details about the return load to calculate net income.</CardDescription>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    <FormField control={form.control} name="returnTrip.date" render={({ field }) => (
-                                        <FormItem className="flex flex-col"><FormLabel>Return Date (Optional)</FormLabel>
-                                            <Popover><PopoverTrigger asChild><FormControl>
-                                                <Button variant="outline" className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                                    {field.value ? `${toNepaliDate(field.value.toISOString())} BS (${format(field.value, "PPP")})` : <span>Pick a date</span>}
-                                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                </Button>
-                                            </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start">
-                                                <DualCalendar selected={field.value} onSelect={field.onChange} />
-                                            </PopoverContent></Popover><FormMessage />
-                                        </FormItem>
-                                    )}/>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <FormField control={form.control} name="returnTrip.from" render={({ field }) => (<FormItem><FormLabel>From</FormLabel><FormControl><Input placeholder="Starting point" {...field} value={field.value ?? ''} /></FormControl></FormItem>)} />
-                                        <FormField control={form.control} name="returnTrip.to" render={({ field }) => (<FormItem><FormLabel>To</FormLabel><FormControl><Input placeholder="Destination" {...field} value={field.value ?? ''} /></FormControl></FormItem>)} />
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <FormField control={form.control} name="returnTrip.freight" render={({ field }) => (<FormItem><FormLabel>Freight</FormLabel><FormControl><Input type="number" placeholder="Income from load" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl></FormItem>)} />
-                                        <FormField control={form.control} name="returnTrip.expenses" render={({ field }) => (<FormItem><FormLabel>Expenses</FormLabel><FormControl><Input type="number" placeholder="Expenses during return" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl></FormItem>)} />
-                                    </div>
-                                    <div className="flex justify-between text-sm font-medium pt-2 border-t">
-                                        <span>Balance Income</span>
-                                        <span>{( (watchedFormValues.returnTrip?.freight || 0) - (watchedFormValues.returnTrip?.expenses || 0) ).toLocaleString()}</span>
-                                    </div>
-                                </CardContent>
-                            </Card>
+                             
+                            {showReturnTrip ? (
+                                <Card>
+                                    <CardHeader className="flex flex-row items-center justify-between">
+                                        <div>
+                                            <CardTitle>Return Trip</CardTitle>
+                                            <CardDescription>Record details about the return load to calculate net income.</CardDescription>
+                                        </div>
+                                        <Button type="button" variant="ghost" size="sm" onClick={handleRemoveReturnTrip}>
+                                            <X className="mr-2 h-4 w-4"/> Remove
+                                        </Button>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                        <FormField control={form.control} name="returnTrip.date" render={({ field }) => (
+                                            <FormItem className="flex flex-col"><FormLabel>Return Date (Optional)</FormLabel>
+                                                <Popover><PopoverTrigger asChild><FormControl>
+                                                    <Button variant="outline" className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                                        {field.value ? `${toNepaliDate(field.value.toISOString())} BS (${format(field.value, "PPP")})` : <span>Pick a date</span>}
+                                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                    </Button>
+                                                </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start">
+                                                    <DualCalendar selected={field.value} onSelect={field.onChange} />
+                                                </PopoverContent></Popover><FormMessage />
+                                            </FormItem>
+                                        )}/>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <FormField control={form.control} name="returnTrip.from" render={({ field }) => (<FormItem><FormLabel>From</FormLabel><FormControl><Input placeholder="Starting point" {...field} value={field.value ?? ''} /></FormControl></FormItem>)} />
+                                            <FormField control={form.control} name="returnTrip.to" render={({ field }) => (<FormItem><FormLabel>To</FormLabel><FormControl><Input placeholder="Destination" {...field} value={field.value ?? ''} /></FormControl></FormItem>)} />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <FormField control={form.control} name="returnTrip.freight" render={({ field }) => (<FormItem><FormLabel>Freight</FormLabel><FormControl><Input type="number" placeholder="Income from load" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl></FormItem>)} />
+                                            <FormField control={form.control} name="returnTrip.expenses" render={({ field }) => (<FormItem><FormLabel>Expenses</FormLabel><FormControl><Input type="number" placeholder="Expenses during return" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl></FormItem>)} />
+                                        </div>
+                                        <div className="flex justify-between text-sm font-medium pt-2 border-t">
+                                            <span>Balance Income</span>
+                                            <span>{( (watchedFormValues.returnTrip?.freight || 0) - (watchedFormValues.returnTrip?.expenses || 0) ).toLocaleString()}</span>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            ) : (
+                                <div className="flex justify-center">
+                                    <Button type="button" variant="outline" onClick={() => setShowReturnTrip(true)}>
+                                        <PlusCircle className="mr-2 h-4 w-4"/> Add Return Trip
+                                    </Button>
+                                </div>
+                            )}
+
                         </div>
                         <div className="lg:col-span-1">
                             <Card className="sticky top-8">
