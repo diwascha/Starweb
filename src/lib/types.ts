@@ -1,24 +1,4 @@
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -236,6 +216,7 @@ export interface Transaction {
     description: string;
     partyId?: string;
     accountId?: string;
+    tripId?: string; // Link to the trip
     createdBy: string;
     createdAt: string; // ISO string
     lastModifiedBy?: string;
@@ -296,6 +277,7 @@ export interface Trip {
     numberOfParties?: number;
     dropOffChargeRate?: number;
     detentionChargeRate?: number;
+    salesTransactionId?: string; // Link to the main sales transaction
     createdBy: string;
     createdAt: string; // ISO string
     lastModifiedBy?: string;
@@ -321,8 +303,3 @@ export interface User {
   permissions: Permissions;
   passwordLastUpdated?: string; // ISO Date string
 }
-
-    
-
-
-    

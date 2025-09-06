@@ -320,7 +320,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
         setIsSubmitting(true);
 
         try {
-            const tripData: Omit<Trip, 'id' | 'createdAt' | 'lastModifiedAt'> = {
+            const tripDataForDb: Omit<Trip, 'id' | 'createdAt' | 'lastModifiedAt' | 'salesTransactionId'> = {
                 date: values.date.toISOString(),
                 vehicleId: values.vehicleId,
                 partyId: values.partyId,
@@ -363,25 +363,25 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                 createdBy: user.username,
             };
 
-            if (values.odometerStart !== undefined && values.odometerStart !== null) tripData.odometerStart = values.odometerStart;
-            if (values.odometerEnd !== undefined && values.odometerEnd !== null) tripData.odometerEnd = values.odometerEnd;
-            if (values.truckAdvance !== undefined && values.truckAdvance !== null) tripData.truckAdvance = values.truckAdvance;
-            if (values.detentionStartDate) tripData.detentionStartDate = values.detentionStartDate.toISOString();
-            if (values.detentionEndDate) tripData.detentionEndDate = values.detentionEndDate.toISOString();
-            if (values.numberOfParties !== undefined && values.numberOfParties !== null) tripData.numberOfParties = values.numberOfParties;
-            if (values.dropOffChargeRate !== undefined && values.dropOffChargeRate !== null) tripData.dropOffChargeRate = values.dropOffChargeRate;
-            if (values.detentionChargeRate !== undefined && values.detentionChargeRate !== null) tripData.detentionChargeRate = values.detentionChargeRate;
+            if (values.odometerStart !== undefined && values.odometerStart !== null) tripDataForDb.odometerStart = values.odometerStart;
+            if (values.odometerEnd !== undefined && values.odometerEnd !== null) tripDataForDb.odometerEnd = values.odometerEnd;
+            if (values.truckAdvance !== undefined && values.truckAdvance !== null) tripDataForDb.truckAdvance = values.truckAdvance;
+            if (values.detentionStartDate) tripDataForDb.detentionStartDate = values.detentionStartDate.toISOString();
+            if (values.detentionEndDate) tripDataForDb.detentionEndDate = values.detentionEndDate.toISOString();
+            if (values.numberOfParties !== undefined && values.numberOfParties !== null) tripDataForDb.numberOfParties = values.numberOfParties;
+            if (values.dropOffChargeRate !== undefined && values.dropOffChargeRate !== null) tripDataForDb.dropOffChargeRate = values.dropOffChargeRate;
+            if (values.detentionChargeRate !== undefined && values.detentionChargeRate !== null) tripDataForDb.detentionChargeRate = values.detentionChargeRate;
             
             if (tripToEdit) {
                 await updateTrip(tripToEdit.id, {
-                    ...tripData,
+                    ...tripDataForDb,
                     lastModifiedBy: user.username
                 });
                 toast({ title: 'Success', description: 'Trip sheet updated successfully.' });
                 router.push('/fleet/trip-sheets');
             } else {
-                await addTrip(tripData);
-                toast({ title: 'Success', description: 'Trip sheet created successfully.' });
+                await addTrip(tripDataForDb);
+                toast({ title: 'Success', description: 'Trip sheet created and transaction recorded.' });
                 router.push('/fleet/transactions');
             }
 
