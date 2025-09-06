@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import type { Vehicle, Party, Trip, Destination, FuelEntry, LocationType } from '@/lib/types';
+import type { Vehicle, Party, Trip, Destination, FuelEntry } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
@@ -44,7 +44,6 @@ const tripSchema = z.object({
   date: z.date(),
   vehicleId: z.string().min(1, 'Vehicle is required.'),
   finalDestination: z.string().min(1, 'Final destination is required.'),
-  locationType: z.enum(['Inside Valley', 'Outside Valley']),
   destinations: z.array(destinationSchema).min(1, 'At least one destination is required.'),
   truckAdvance: z.number().min(0).optional(),
   transport: z.number().min(0).optional(),
@@ -69,7 +68,6 @@ export default function NewTripSheetPage() {
             date: new Date(),
             vehicleId: '',
             finalDestination: '',
-            locationType: 'Inside Valley',
             destinations: [{ name: '', freight: 0 }],
             truckAdvance: 0,
             transport: 0,
@@ -172,12 +170,6 @@ export default function NewTripSheetPage() {
                                     )}/>
                                     <FormField control={form.control} name="finalDestination" render={({ field }) => (
                                         <FormItem><FormLabel>Final Destination</FormLabel><FormControl><Input placeholder="e.g. Kathmandu" {...field} /></FormControl><FormMessage /></FormItem>
-                                    )}/>
-                                     <FormField control={form.control} name="locationType" render={({ field }) => (
-                                        <FormItem><FormLabel>Location Type</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>
-                                            <SelectItem value="Inside Valley">Inside Valley</SelectItem>
-                                            <SelectItem value="Outside Valley">Outside Valley</SelectItem>
-                                        </SelectContent></Select><FormMessage /></FormItem>
                                     )}/>
                                 </CardContent>
                             </Card>

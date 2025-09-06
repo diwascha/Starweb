@@ -2,6 +2,7 @@
 
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -233,14 +234,11 @@ export interface FuelEntry {
     amount: number;
 }
 
-export type LocationType = 'Inside Valley' | 'Outside Valley';
-
 export interface Trip {
     id: string;
     date: string; // ISO string
     vehicleId: string;
     finalDestination: string;
-    locationType: LocationType;
     destinations: Destination[];
     truckAdvance: number;
     transport: number;

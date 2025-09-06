@@ -12,7 +12,6 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Trip => {
         date: data.date,
         vehicleId: data.vehicleId,
         finalDestination: data.finalDestination,
-        locationType: data.locationType,
         destinations: data.destinations,
         truckAdvance: data.truckAdvance,
         transport: data.transport,
