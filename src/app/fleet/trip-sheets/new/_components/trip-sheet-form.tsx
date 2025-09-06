@@ -516,7 +516,53 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                                             {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
                                         </SelectContent></Select><FormMessage /></FormItem>
                                     )}/>
-                                     
+                                     <FormField control={form.control} name="partyId" render={({ field }) => (
+                                        <FormItem className="md:col-span-2"><FormLabel>Client</FormLabel>
+                                            <Popover>
+                                                <PopoverTrigger asChild>
+                                                    <FormControl>
+                                                    <Button variant="outline" role="combobox" className="w-full justify-between">
+                                                        {field.value ? clients.find((c) => c.id === field.value)?.name : "Select client"}
+                                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                    </Button>
+                                                    </FormControl>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="p-0">
+                                                    <Command>
+                                                    <CommandInput 
+                                                        placeholder="Search client..."
+                                                        value={partySearch}
+                                                        onValueChange={setPartySearch}
+                                                    />
+                                                    <CommandList>
+                                                        <CommandEmpty>
+                                                            <CommandItem onSelect={() => handleOpenPartyDialog(null, 'Client', partySearch)}>
+                                                                <PlusCircle className="mr-2 h-4 w-4"/> Add "{partySearch}"
+                                                            </CommandItem>
+                                                        </CommandEmpty>
+                                                        <CommandGroup>
+                                                        {clients.map((client) => (
+                                                            <CommandItem
+                                                                key={client.id}
+                                                                value={client.name}
+                                                                onSelect={() => field.onChange(client.id)}
+                                                                className="flex justify-between items-center"
+                                                            >
+                                                                <div className="flex items-center">
+                                                                    <Check className={cn("mr-2 h-4 w-4", field.value === client.id ? "opacity-100" : "opacity-0")} />
+                                                                    {client.name}
+                                                                </div>
+                                                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleOpenPartyDialog(client, 'Client'); }}>
+                                                                    <Edit className="h-4 w-4" />
+                                                                </Button>
+                                                            </CommandItem>
+                                                        ))}
+                                                    </CommandGroup></CommandList>
+                                                    </Command>
+                                                </PopoverContent>
+                                            </Popover><FormMessage />
+                                        </FormItem>
+                                    )}/>
                                     <div className="grid grid-cols-2 gap-4 md:col-span-2">
                                         <FormField control={form.control} name="odometerStart" render={({ field }) => (
                                             <FormItem><FormLabel>Odometer Start (KM)</FormLabel><FormControl><Input type="number" placeholder="e.g. 125000" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseInt(e.target.value, 10))} /></FormControl><FormMessage /></FormItem>
@@ -719,7 +765,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                                                               />
                                                               <CommandList>
                                                                 <CommandEmpty>
-                                                                    <Button variant="ghost" className="w-full justify-start" onClick={() => handleOpenPartyDialog(null, 'Vendor')}>
+                                                                    <Button variant="ghost" className="w-full justify-start" onClick={() => handleOpenPartyDialog(null, 'Vendor', partySearch)}>
                                                                         <PlusCircle className="mr-2 h-4 w-4"/> Add Vendor
                                                                     </Button>
                                                                 </CommandEmpty>
@@ -785,7 +831,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                                                                             />
                                                                             <CommandList>
                                                                                 <CommandEmpty>
-                                                                                    <Button variant="ghost" className="w-full justify-start" onClick={() => handleOpenPartyDialog(null, 'Vendor')}>
+                                                                                    <Button variant="ghost" className="w-full justify-start" onClick={() => handleOpenPartyDialog(null, 'Vendor', partySearch)}>
                                                                                         <PlusCircle className="mr-2 h-4 w-4" /> Add Vendor
                                                                                     </Button>
                                                                                 </CommandEmpty>
