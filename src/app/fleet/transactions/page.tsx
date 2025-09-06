@@ -159,15 +159,12 @@ export default function TransactionsPage() {
     });
     
     const watchBillingType = form.watch("billingType");
-    const watchInvoiceType = form.watch("invoiceType");
     const watchItems = form.watch("items");
+    const watchInvoiceType = form.watch("invoiceType");
     
-    const { subtotal, vatAmount, totalAmount } = useMemo(() => {
-        const currentSubtotal = (watchItems || []).reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.rate) || 0), 0);
-        const currentVat = watchInvoiceType === 'Taxable' ? currentSubtotal * 0.13 : 0;
-        const currentTotal = currentSubtotal + currentVat;
-        return { subtotal: currentSubtotal, vatAmount: currentVat, totalAmount: currentTotal };
-    }, [watchItems, watchInvoiceType]);
+    const subtotal = (watchItems || []).reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.rate) || 0), 0);
+    const vatAmount = watchInvoiceType === 'Taxable' ? subtotal * 0.13 : 0;
+    const totalAmount = subtotal + vatAmount;
 
 
     const handleOpenTransactionDialog = (transaction: Transaction | null = null, type?: TransactionType) => {
