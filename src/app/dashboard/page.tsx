@@ -19,13 +19,20 @@ import { onPurchaseOrdersUpdate } from '@/services/purchase-order-service';
 
 
 function LiveDateTime() {
-  const [now, setNow] = useState(new Date());
+  const [now, setNow] = useState<Date | null>(null);
 
   useEffect(() => {
+    // Set the initial date only on the client
+    setNow(new Date());
+    
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
+  if (!now) {
+    return null; // Don't render on the server or before client-side mount
+  }
+  
   return (
     <div className="text-sm text-muted-foreground text-right">
       <p>{format(now, 'EEEE, MMMM d, yyyy')}</p>
@@ -155,7 +162,7 @@ export default function DashboardPage() {
         <CardHeader>
             <CardTitle>Recent Activity</CardTitle>
             <CardDescription>A log of the most recent purchase orders and test reports created or modified.</CardDescription>
-        </CardHeader>
+        </-cardheader>
         <CardContent>
              <ScrollArea className="h-[calc(100vh-32rem)]">
                 {recentActivities.length > 0 ? (
