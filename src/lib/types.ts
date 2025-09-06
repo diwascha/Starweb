@@ -214,7 +214,7 @@ export interface Account {
 export interface TransactionItem {
     particular: string;
     quantity: number;
-    uom: string;
+    uom?: string;
     rate: number;
 }
 

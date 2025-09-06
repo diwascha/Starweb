@@ -114,7 +114,7 @@ const transactionSchema = z.object({
     message: 'Due Date is required for Credit billing.',
     path: ['dueDate'],
 }).refine(data => {
-     if (['Purchase', 'Sales', 'Credit'].includes(data.type) || data.billingType === 'Credit') {
+     if (['Purchase', 'Sales'].includes(data.type) || data.billingType === 'Credit') {
         return !!data.partyId;
     }
     return true;
@@ -202,12 +202,13 @@ export default function TransactionsPage() {
     const watchBillingType = form.watch("billingType");
     const watchAllFields = form.watch();
 
-    const currentItems = watchAllFields.items || [];
-    const currentInvoiceType = watchAllFields.invoiceType;
-
-    const subtotal = currentItems.reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.rate) || 0), 0);
-    const vatAmount = currentInvoiceType === 'Taxable' ? subtotal * 0.13 : 0;
-    const totalAmount = subtotal + vatAmount;
+    const { subtotal, vatAmount, totalAmount } = useMemo(() => {
+        const items = watchAllFields.items || [];
+        const sub = items.reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.rate) || 0), 0);
+        const vat = watchAllFields.invoiceType === 'Taxable' ? sub * 0.13 : 0;
+        const total = sub + vat;
+        return { subtotal: sub, vatAmount: vat, totalAmount: total };
+    }, [watchAllFields.items, watchAllFields.invoiceType]);
 
 
     const handleOpenTransactionDialog = (transaction: Transaction | null = null, type?: TransactionType) => {
@@ -247,6 +248,11 @@ export default function TransactionsPage() {
             invoiceDate: values.invoiceDate?.toISOString(),
             chequeDate: values.chequeDate?.toISOString(),
             dueDate: values.dueDate?.toISOString(),
+            items: values.items.map(item => ({
+                ...item,
+                quantity: Number(item.quantity) || 0,
+                rate: Number(item.rate) || 0,
+            })),
             amount: grandTotal,
             remarks: values.remarks || '',
             accountId: values.accountId || undefined,
@@ -258,7 +264,7 @@ export default function TransactionsPage() {
                 await updateTransaction(editingTransaction.id, { ...transactionData, lastModifiedBy: user.username });
                 toast({ title: 'Success', description: 'Transaction updated.' });
             } else {
-                await addTransaction({ ...transactionData, createdBy: user.username, type: values.type });
+                await addTransaction({ ...transactionData, createdBy: user.username });
                 toast({ title: 'Success', description: 'New transaction recorded.' });
             }
             setIsTransactionDialogOpen(false);
@@ -660,8 +666,13 @@ export default function TransactionsPage() {
                                  <FormField control={form.control} name="chequeNumber" render={({ field }) => (<FormItem><FormLabel>Cheque Number</FormLabel><FormControl><Input {...field} value={field.value ?? ''} /></FormControl><FormMessage/></FormItem>)}/>
                                 </>
                             )}
-                             {(watchBillingType === 'Credit' || watchBillingType === 'Bank') && (
-                                <FormField control={form.control} name="dueDate" render={({ field }) => (<FormItem><FormLabel>{watchBillingType === 'Bank' ? 'Cheque Date' : 'Due Date'}</FormLabel><Popover><PopoverTrigger asChild><FormControl>
+                             {watchBillingType === 'Credit' && (
+                                <FormField control={form.control} name="dueDate" render={({ field }) => (<FormItem><FormLabel>Due Date</FormLabel><Popover><PopoverTrigger asChild><FormControl>
+                                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button>
+                                </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage/></FormItem>)}/>
+                             )}
+                             {watchBillingType === 'Bank' && (
+                                <FormField control={form.control} name="chequeDate" render={({ field }) => (<FormItem><FormLabel>Cheque Date</FormLabel><Popover><PopoverTrigger asChild><FormControl>
                                         <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button>
                                 </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage/></FormItem>)}/>
                              )}
@@ -692,7 +703,7 @@ export default function TransactionsPage() {
                                 <Label>Calculation</Label>
                                 <div className="p-4 border rounded-md space-y-2">
                                     <div className="flex justify-between text-sm"><span>Subtotal</span><span>{subtotal.toLocaleString(undefined, {maximumFractionDigits: 2})}</span></div>
-                                    {currentInvoiceType === 'Taxable' && <div className="flex justify-between text-sm"><span>VAT (13%)</span><span>{vatAmount.toLocaleString(undefined, {maximumFractionDigits: 2})}</span></div>}
+                                    {watchAllFields.invoiceType === 'Taxable' && <div className="flex justify-between text-sm"><span>VAT (13%)</span><span>{vatAmount.toLocaleString(undefined, {maximumFractionDigits: 2})}</span></div>}
                                     <div className="flex justify-between font-bold"><span>Grand Total</span><span>{totalAmount.toLocaleString(undefined, {maximumFractionDigits: 2})}</span></div>
                                 </div>
                             </div>
