@@ -529,12 +529,14 @@ export function TripSheetForm() {
                                             <FormMessage />
                                         </FormItem>
                                     )}/>
-                                    <FormField control={form.control} name="odometerStart" render={({ field }) => (
-                                        <FormItem><FormLabel>Odometer Start (KM)</FormLabel><FormControl><Input type="number" placeholder="e.g. 125000" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseInt(e.target.value, 10))} /></FormControl><FormMessage /></FormItem>
-                                    )}/>
-                                     <FormField control={form.control} name="odometerEnd" render={({ field }) => (
-                                        <FormItem><FormLabel>Odometer End (KM)</FormLabel><FormControl><Input type="number" placeholder="e.g. 125500" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseInt(e.target.value, 10))} /></FormControl><FormMessage /></FormItem>
-                                    )}/>
+                                    <div className="grid grid-cols-2 gap-4 md:col-span-1">
+                                        <FormField control={form.control} name="odometerStart" render={({ field }) => (
+                                            <FormItem><FormLabel>Odometer Start (KM)</FormLabel><FormControl><Input type="number" placeholder="e.g. 125000" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseInt(e.target.value, 10))} /></FormControl><FormMessage /></FormItem>
+                                        )}/>
+                                        <FormField control={form.control} name="odometerEnd" render={({ field }) => (
+                                            <FormItem><FormLabel>Odometer End (KM)</FormLabel><FormControl><Input type="number" placeholder="e.g. 125500" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseInt(e.target.value, 10))} /></FormControl><FormMessage /></FormItem>
+                                        )}/>
+                                    </div>
                                 </CardContent>
                             </Card>
                              <Card>
@@ -1010,7 +1012,3 @@ export function TripSheetForm() {
         </div>
     );
 }
-
-    
-
-    
