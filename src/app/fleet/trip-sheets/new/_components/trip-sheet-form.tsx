@@ -348,16 +348,14 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                 returnTrips: (values.returnTrips || [])
                     .filter(rt => rt.freight && Number(rt.freight) > 0)
                     .map(rt => {
-                        const returnTrip: Partial<ReturnTrip> = {
-                            from: rt.from,
-                            to: rt.to,
-                            freight: Number(rt.freight) || 0,
-                            expenses: Number(rt.expenses) || 0
-                        };
+                        const returnTrip: Partial<ReturnTrip> = {};
+                        if(rt.from) returnTrip.from = rt.from;
+                        if(rt.to) returnTrip.to = rt.to;
+                        if(rt.freight) returnTrip.freight = Number(rt.freight) || 0;
+                        if(rt.expenses) returnTrip.expenses = Number(rt.expenses) || 0;
                         if (rt.partyId) returnTrip.partyId = rt.partyId;
-                        if (rt.date) {
-                            returnTrip.date = rt.date.toISOString();
-                        }
+                        if (rt.date) returnTrip.date = rt.date.toISOString();
+                        
                         return returnTrip as ReturnTrip;
                     }),
                 createdBy: user.username,
@@ -538,7 +536,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                                                     <CommandList>
                                                         <CommandEmpty>
                                                             <Button variant="ghost" className="w-full justify-start" onClick={() => handleOpenPartyDialog(null, 'Client')}>
-                                                                <PlusCircle className="mr-2 h-4 w-4"/> Add Client
+                                                                <PlusCircle className="mr-2 h-4 w-4"/> Add "{partySearch}"
                                                             </Button>
                                                         </CommandEmpty>
                                                         <CommandGroup>
