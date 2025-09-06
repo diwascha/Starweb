@@ -162,10 +162,11 @@ export default function TransactionsPage() {
     const watchInvoiceType = form.watch("invoiceType");
     const watchItems = form.watch("items");
     
-    const totalAmount = useMemo(() => {
-        const subtotal = (watchItems || []).reduce((sum, item) => sum + (item.quantity || 0) * (item.rate || 0), 0);
-        const vat = watchInvoiceType === 'Taxable' ? subtotal * 0.13 : 0;
-        return subtotal + vat;
+    const { subtotal, vatAmount, totalAmount } = useMemo(() => {
+        const currentSubtotal = (watchItems || []).reduce((sum, item) => sum + (item.quantity || 0) * (item.rate || 0), 0);
+        const currentVat = watchInvoiceType === 'Taxable' ? currentSubtotal * 0.13 : 0;
+        const currentTotal = currentSubtotal + currentVat;
+        return { subtotal: currentSubtotal, vatAmount: currentVat, totalAmount: currentTotal };
     }, [watchItems, watchInvoiceType]);
 
 
@@ -648,8 +649,8 @@ export default function TransactionsPage() {
                             <div className="space-y-2">
                                 <Label>Calculation</Label>
                                 <div className="p-4 border rounded-md space-y-2">
-                                    <div className="flex justify-between text-sm"><span>Subtotal</span><span>{((totalAmount) / (watchInvoiceType === 'Taxable' ? 1.13 : 1)).toLocaleString(undefined, {maximumFractionDigits: 2})}</span></div>
-                                    {watchInvoiceType === 'Taxable' && <div className="flex justify-between text-sm"><span>VAT (13%)</span><span>{(totalAmount - (totalAmount / 1.13)).toLocaleString(undefined, {maximumFractionDigits: 2})}</span></div>}
+                                    <div className="flex justify-between text-sm"><span>Subtotal</span><span>{subtotal.toLocaleString(undefined, {maximumFractionDigits: 2})}</span></div>
+                                    {watchInvoiceType === 'Taxable' && <div className="flex justify-between text-sm"><span>VAT (13%)</span><span>{vatAmount.toLocaleString(undefined, {maximumFractionDigits: 2})}</span></div>}
                                     <div className="flex justify-between font-bold"><span>Grand Total</span><span>{totalAmount.toLocaleString(undefined, {maximumFractionDigits: 2})}</span></div>
                                 </div>
                             </div>
@@ -736,3 +737,4 @@ export default function TransactionsPage() {
         </>
     );
 }
+
