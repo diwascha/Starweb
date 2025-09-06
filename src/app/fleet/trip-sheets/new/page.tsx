@@ -166,6 +166,7 @@ export default function NewTripSheetPage() {
     
     const watchedFormValues = form.watch();
     const finalDestinationName = watchedFormValues.destinations?.[0]?.name;
+    const selectedVehicleId = watchedFormValues.vehicleId;
 
     useEffect(() => {
         if (finalDestinationName) {
@@ -179,6 +180,20 @@ export default function NewTripSheetPage() {
             }
         }
     }, [finalDestinationName, trips, form]);
+    
+    useEffect(() => {
+        if (selectedVehicleId) {
+            const lastTripForVehicle = trips
+                .filter(trip => trip.vehicleId === selectedVehicleId && trip.odometerEnd)
+                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+
+            if (lastTripForVehicle) {
+                form.setValue('odometerStart', lastTripForVehicle.odometerEnd);
+            } else {
+                 form.setValue('odometerStart', undefined);
+            }
+        }
+    }, [selectedVehicleId, trips, form]);
 
     const { 
         totalFreight, dropOffCharge, detentionCharge, totalTaxable, vatAmount, grossAmount, tdsAmount, netPay, 
