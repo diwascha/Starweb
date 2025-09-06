@@ -98,13 +98,13 @@ export default function NewTripSheetPage() {
             date: new Date(),
             vehicleId: '',
             destinations: [
-                { name: '', freight: 0 },
+                { name: '', freight: undefined },
             ],
-            truckAdvance: 0,
-            transport: 0,
+            truckAdvance: undefined,
+            transport: undefined,
             fuelEntries: [],
             extraExpenses: [],
-            returnLoadIncome: 0,
+            returnLoadIncome: undefined,
             detentionStartDate: undefined,
             detentionEndDate: undefined,
             numberOfParties: 0,
@@ -347,7 +347,7 @@ export default function NewTripSheetPage() {
         if (lastFreight) {
             form.setValue(`destinations.${index}.freight`, lastFreight);
         } else {
-             form.setValue(`destinations.${index}.freight`, 0);
+             form.setValue(`destinations.${index}.freight`, undefined);
         }
     };
     
@@ -550,7 +550,7 @@ export default function NewTripSheetPage() {
                                 <CardHeader><CardTitle>Trip Expenses & Income</CardTitle></CardHeader>
                                 <CardContent className="space-y-6">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <FormField control={form.control} name="truckAdvance" render={({ field }) => <FormItem><FormLabel>Peski Amount</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl></FormItem>} />
+                                        <FormField control={form.control} name="truckAdvance" render={({ field }) => <FormItem><FormLabel>Truck Advance</FormLabel><FormControl><Input type="number" placeholder="Peski Amount" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl></FormItem>} />
                                         <FormField control={form.control} name="transport" render={({ field }) => <FormItem><FormLabel>Transport</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl></FormItem>} />
                                     </div>
                                     <div>
@@ -701,7 +701,7 @@ export default function NewTripSheetPage() {
                                                 </div>
                                             ))}
                                         </div>
-                                        <Button type="button" size="sm" variant="outline" onClick={() => appendExpense({ description: '', amount: 0, partyId: '' })} className="mt-4">
+                                        <Button type="button" size="sm" variant="outline" onClick={() => appendExpense({ description: '', amount: undefined, partyId: '' })} className="mt-4">
                                             <PlusCircle className="mr-2 h-4 w-4" /> Add Expense
                                         </Button>
                                     </div>
