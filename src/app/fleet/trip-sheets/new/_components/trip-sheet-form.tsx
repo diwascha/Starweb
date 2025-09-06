@@ -937,7 +937,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                                                     )}/>
                                                      <FormField control={form.control} name={`returnTrips.${index}.partyId`} render={({ field }) => (
                                                         <FormItem>
-                                                            <FormLabel>Client</FormLabel>
+                                                            <FormLabel>RT Client</FormLabel>
                                                             <Popover>
                                                                 <PopoverTrigger asChild>
                                                                     <FormControl>
