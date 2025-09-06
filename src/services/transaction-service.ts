@@ -1,4 +1,5 @@
 
+
 import { db } from '@/lib/firebase';
 import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs } from 'firebase/firestore';
 import type { Transaction } from '@/lib/types';
@@ -11,11 +12,20 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Transacti
         id: snapshot.id,
         vehicleId: data.vehicleId,
         date: data.date,
-        type: data.type,
-        amount: data.amount,
-        description: data.description,
+        invoiceNumber: data.invoiceNumber,
+        invoiceDate: data.invoiceDate,
+        invoiceType: data.invoiceType,
+        billingType: data.billingType,
+        chequeNumber: data.chequeNumber,
+        chequeDate: data.chequeDate,
+        dueDate: data.dueDate,
         partyId: data.partyId,
         accountId: data.accountId,
+        items: data.items,
+        amount: data.amount,
+        remarks: data.remarks,
+        tripId: data.tripId,
+        type: data.type,
         createdBy: data.createdBy,
         createdAt: data.createdAt,
         lastModifiedBy: data.lastModifiedBy,
@@ -23,7 +33,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Transacti
     };
 }
 
-export const addTransaction = async (transaction: Omit<Transaction, 'id'>): Promise<string> => {
+export const addTransaction = async (transaction: Omit<Transaction, 'id' | 'createdAt' | 'lastModifiedAt'>): Promise<string> => {
     const docRef = await addDoc(transactionsCollection, {
         ...transaction,
         createdAt: new Date().toISOString(),

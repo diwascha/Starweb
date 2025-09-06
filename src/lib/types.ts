@@ -1,4 +1,5 @@
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -207,21 +208,40 @@ export interface Account {
     lastModifiedAt?: string; // ISO string
 }
 
+export interface TransactionItem {
+    particular: string;
+    quantity: number;
+    uom: string;
+    rate: number;
+}
+
+export type BillingType = 'Cash' | 'Bank Cheque' | 'Credit' | 'QR';
+export type InvoiceType = 'Taxable' | 'Normal';
+
 export interface Transaction {
     id: string;
     vehicleId: string;
-    date: string; // ISO string
-    type: TransactionType;
-    amount: number;
-    description: string;
-    partyId?: string;
+    date: string; // Posting Date (ISO string)
+    invoiceNumber?: string;
+    invoiceDate?: string; // ISO string
+    invoiceType: InvoiceType;
+    billingType: BillingType;
+    chequeNumber?: string;
+    chequeDate?: string; // ISO string
+    dueDate?: string; // ISO string for Credit or Cheque
+    partyId?: string; // Vendor
     accountId?: string;
+    items: TransactionItem[];
+    amount: number; // This will be the grand total
+    remarks: string;
     tripId?: string; // Link to the trip
+    type: TransactionType; // Purchase, Sales, etc.
     createdBy: string;
     createdAt: string; // ISO string
     lastModifiedBy?: string;
     lastModifiedAt?: string; // ISO string
 }
+
 
 export interface TripDestination {
     name: string;
