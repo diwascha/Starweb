@@ -225,18 +225,18 @@ export interface Transaction {
     id: string;
     vehicleId: string;
     date: string; // Posting Date (ISO string)
-    invoiceNumber?: string;
-    invoiceDate?: string; // ISO string
+    invoiceNumber?: string | null;
+    invoiceDate?: string | null;
     invoiceType: InvoiceType;
     billingType: BillingType;
-    chequeNumber?: string;
-    chequeDate?: string; // ISO string
-    dueDate?: string; // ISO string for Credit or Cheque
+    chequeNumber?: string | null;
+    chequeDate?: string | null;
+    dueDate?: string | null;
     partyId?: string | null; // Vendor
     accountId?: string | null;
     items: TransactionItem[];
     amount: number; // This will be the grand total
-    remarks: string;
+    remarks: string | null;
     tripId?: string; // Link to the trip
     type: TransactionType; // Purchase, Sales, etc.
     createdBy: string;

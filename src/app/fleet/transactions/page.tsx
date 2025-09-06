@@ -113,7 +113,7 @@ const transactionSchema = z.object({
     message: 'Due Date is required for Credit billing.',
     path: ['dueDate'],
 }).refine(data => {
-     if (['Credit'].includes(data.billingType) || ['Purchase', 'Sales'].includes(data.type)) {
+     if (['Credit', 'Purchase', 'Sales'].includes(data.billingType) || ['Purchase', 'Sales'].includes(data.type)) {
         return !!data.partyId;
     }
     return true;
@@ -207,7 +207,7 @@ export default function TransactionsPage() {
         const vat = watchedFormValues.invoiceType === 'Taxable' ? sub * 0.13 : 0;
         const total = sub + vat;
         return { subtotal: sub, vatAmount: vat, totalAmount: total };
-    }, [watchedFormValues.items, watchedFormValues.invoiceType]);
+    }, [watchedFormValues]);
 
 
     const handleOpenTransactionDialog = (transaction: Transaction | null = null, type?: TransactionType) => {
@@ -255,7 +255,7 @@ export default function TransactionsPage() {
                 rate: Number(item.rate) || 0,
             })),
             amount: grandTotal,
-            remarks: values.remarks || '',
+            remarks: values.remarks || null,
             accountId: values.accountId || null,
             partyId: values.partyId || null,
         };
