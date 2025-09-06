@@ -218,7 +218,7 @@ export interface TransactionItem {
     rate: number;
 }
 
-export type BillingType = 'Cash' | 'Bank' | 'Credit' | 'QR';
+export type BillingType = 'Cash' | 'Bank' | 'Credit';
 export type InvoiceType = 'Taxable' | 'Normal';
 
 export interface Transaction {

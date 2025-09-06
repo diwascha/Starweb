@@ -72,7 +72,7 @@ const transactionSchema = z.object({
     invoiceNumber: z.string().optional(),
     invoiceDate: z.date().optional(),
     invoiceType: z.enum(['Taxable', 'Normal']),
-    billingType: z.enum(['Cash', 'Bank', 'Credit', 'QR']),
+    billingType: z.enum(['Cash', 'Bank', 'Credit']),
     chequeNumber: z.string().optional(),
     chequeDate: z.date().optional(),
     dueDate: z.date().optional(),
@@ -586,7 +586,7 @@ export default function TransactionsPage() {
                                 <FormItem><FormLabel>Billing</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select billing type" /></SelectTrigger></FormControl>
                                     <SelectContent>
                                         <SelectItem value="Cash">Cash</SelectItem><SelectItem value="Bank">Bank</SelectItem>
-                                        <SelectItem value="Credit">Credit</SelectItem><SelectItem value="QR">QR</SelectItem>
+                                        <SelectItem value="Credit">Credit</SelectItem>
                                     </SelectContent>
                                 </Select><FormMessage/></FormItem>
                             )}/>
