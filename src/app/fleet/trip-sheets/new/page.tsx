@@ -266,46 +266,53 @@ export default function NewTripSheetPage() {
                                     </TableRow>))}
                                 </TableBody></Table>
                                 {form.formState.errors.destinations && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.destinations.message}</p>}
-                                <Button type="button" size="sm" variant="outline" onClick={() => appendDestination({ name: '', freight: 0 })} className="mt-4"><PlusCircle className="mr-2 h-4 w-4" /> Add Destination</Button>
                                 
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 pt-6 border-t">
-                                     <div className="space-y-2">
-                                        <Label>Detention</Label>
-                                         <div className="flex items-center gap-2">
-                                            <Dialog open={isDetentionDialogOpen} onOpenChange={setIsDetentionDialogOpen}>
-                                                <DialogTrigger asChild>
-                                                    <Button type="button" variant="outline" className="w-full justify-start font-normal">
-                                                        <Plus className="mr-2 h-4 w-4"/>
-                                                        {detentionDays > 0 ? `${detentionDays} day(s)` : 'Add Detention'}
+                                <div className="flex justify-between items-center mt-4">
+                                    <Button type="button" size="sm" variant="outline" onClick={() => appendDestination({ name: '', freight: 0 })}>
+                                        <PlusCircle className="mr-2 h-4 w-4" /> Add Destination
+                                    </Button>
+                                    <FormField control={form.control} name="dropOffChargeRate" render={({ field }) => <FormItem className="flex items-center gap-2 space-y-0"><FormLabel>Extra Drop-off Rate</FormLabel><FormControl><Input type="number" className="w-24" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl></FormItem>} />
+                                </div>
+                                
+                                <div className="mt-6 pt-6 border-t">
+                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                         <div className="space-y-2">
+                                            <Label>Detention</Label>
+                                             <div className="flex items-center gap-2">
+                                                <Dialog open={isDetentionDialogOpen} onOpenChange={setIsDetentionDialogOpen}>
+                                                    <DialogTrigger asChild>
+                                                        <Button type="button" variant="outline" className="w-full justify-start font-normal">
+                                                            <Plus className="mr-2 h-4 w-4"/>
+                                                            {detentionDays > 0 ? `${detentionDays} day(s)` : 'Add Detention'}
+                                                        </Button>
+                                                    </DialogTrigger>
+                                                    <DialogContent>
+                                                        <DialogHeader><DialogTitle>Select Detention Period</DialogTitle></DialogHeader>
+                                                        <div className="py-4 flex justify-center">
+                                                            <DualDateRangePicker selected={detentionDateRange} onSelect={setDetentionDateRange} />
+                                                        </div>
+                                                        <DialogFooter>
+                                                            <Button variant="outline" onClick={() => setIsDetentionDialogOpen(false)}>Cancel</Button>
+                                                            <Button onClick={handleConfirmDetention}>Confirm</Button>
+                                                        </DialogFooter>
+                                                    </DialogContent>
+                                                </Dialog>
+                                                {form.watch('detentionStartDate') && (
+                                                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={handleClearDetention}>
+                                                        <X className="h-4 w-4 text-destructive" />
                                                     </Button>
-                                                </DialogTrigger>
-                                                <DialogContent>
-                                                    <DialogHeader><DialogTitle>Select Detention Period</DialogTitle></DialogHeader>
-                                                    <div className="py-4 flex justify-center">
-                                                        <DualDateRangePicker selected={detentionDateRange} onSelect={setDetentionDateRange} />
-                                                    </div>
-                                                    <DialogFooter>
-                                                        <Button variant="outline" onClick={() => setIsDetentionDialogOpen(false)}>Cancel</Button>
-                                                        <Button onClick={handleConfirmDetention}>Confirm</Button>
-                                                    </DialogFooter>
-                                                </DialogContent>
-                                            </Dialog>
-                                            {form.watch('detentionStartDate') && (
-                                                <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={handleClearDetention}>
-                                                    <X className="h-4 w-4 text-destructive" />
-                                                </Button>
+                                                )}
+                                             </div>
+                                             {form.watch('detentionStartDate') && (
+                                                <p className="text-xs text-muted-foreground">
+                                                    {format(form.watch('detentionStartDate')!, "PPP")} - {form.watch('detentionEndDate') ? format(form.watch('detentionEndDate')!, "PPP") : ''}
+                                                </p>
                                             )}
-                                         </div>
-                                         {form.watch('detentionStartDate') && (
-                                            <p className="text-xs text-muted-foreground">
-                                                {format(form.watch('detentionStartDate')!, "PPP")} - {form.watch('detentionEndDate') ? format(form.watch('detentionEndDate')!, "PPP") : ''}
-                                            </p>
+                                        </div>
+                                        {form.watch('detentionStartDate') && (
+                                        <FormField control={form.control} name="detentionChargeRate" render={({ field }) => <FormItem><FormLabel>Detention Rate/Day</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl></FormItem>} />
                                         )}
-                                    </div>
-                                    {form.watch('detentionStartDate') && (
-                                    <FormField control={form.control} name="detentionChargeRate" render={({ field }) => <FormItem><FormLabel>Detention Rate/Day</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl></FormItem>} />
-                                    )}
-                                    <FormField control={form.control} name="dropOffChargeRate" render={({ field }) => <FormItem><FormLabel>Extra Drop-off Rate</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl></FormItem>} />
+                                     </div>
                                 </div>
                                 </CardContent>
                             </Card>
