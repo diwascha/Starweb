@@ -527,17 +527,16 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                                                     </FormControl>
                                                 </PopoverTrigger>
                                                 <PopoverContent className="p-0">
-                                                    <Command filter={(value, search) => {
-                                                        if (clients.find(c => c.name.toLowerCase() === value)?.name.toLowerCase().includes(search.toLowerCase())) return 1
-                                                        return 0
-                                                    }}>
+                                                    <Command>
                                                     <CommandInput 
                                                         placeholder="Search client..."
+                                                        value={partySearch}
+                                                        onValueChange={setPartySearch}
                                                     />
                                                     <CommandList>
                                                         <CommandEmpty>
-                                                            <CommandItem onSelect={() => handleOpenPartyDialog(null, 'Client', (document.querySelector('[cmdk-input]') as HTMLInputElement)?.value || '')}>
-                                                                <PlusCircle className="mr-2 h-4 w-4"/> Add Client
+                                                            <CommandItem onSelect={() => handleOpenPartyDialog(null, 'Client', partySearch)}>
+                                                                <PlusCircle className="mr-2 h-4 w-4"/> Add "{partySearch}"
                                                             </CommandItem>
                                                         </CommandEmpty>
                                                         <CommandGroup>
