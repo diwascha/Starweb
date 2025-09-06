@@ -762,9 +762,19 @@ export default function NewTripSheetPage() {
                             </Card>
                              
                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Return Trips</CardTitle>
-                                    <CardDescription>Record details about return loads to calculate net income.</CardDescription>
+                                <CardHeader className="flex flex-row items-center justify-between">
+                                    <div>
+                                        <CardTitle>Return Trips</CardTitle>
+                                        <CardDescription>Record details about return loads to calculate net income.</CardDescription>
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => appendReturnTrip({ date: undefined, from: '', to: '', freight: undefined, expenses: undefined })}
+                                    >
+                                        <PlusCircle className="mr-2 h-4 w-4" /> Add Return Trip
+                                    </Button>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
                                     {returnTripFields.map((item, index) => {
@@ -803,14 +813,6 @@ export default function NewTripSheetPage() {
                                             </div>
                                         );
                                     })}
-                                     <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => appendReturnTrip({ date: undefined, from: '', to: '', freight: undefined, expenses: undefined })}
-                                    >
-                                        <PlusCircle className="mr-2 h-4 w-4" /> Add Return Trip
-                                    </Button>
                                 </CardContent>
                             </Card>
                         </div>
