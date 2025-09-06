@@ -270,8 +270,8 @@ export default function NewTripSheetPage() {
                                         <PlusCircle className="mr-2 h-4 w-4" /> Add Destination
                                     </Button>
                                     <div className="flex items-center gap-4">
-                                        <FormField control={form.control} name="numberOfParties" render={({ field }) => <FormItem className="flex items-center gap-2 space-y-0"><FormLabel>Number of Parties</FormLabel><FormControl><Input type="number" className="w-24" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl></FormItem>} />
-                                        <FormField control={form.control} name="dropOffChargeRate" render={({ field }) => <FormItem className="flex items-center gap-2 space-y-0"><FormLabel>Extra Drop-off Rate</FormLabel><FormControl><Input type="number" className="w-24" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl></FormItem>} />
+                                        <FormField control={form.control} name="numberOfParties" render={({ field }) => <FormItem className="flex items-center gap-2 space-y-0"><FormLabel>Number of Parties</FormLabel><FormControl><Input type="number" className="w-24" {...field} onChange={e => field.onChange(e.target.value === '' ? '' : parseInt(e.target.value, 10))} /></FormControl></FormItem>} />
+                                        <FormField control={form.control} name="dropOffChargeRate" render={({ field }) => <FormItem className="flex items-center gap-2 space-y-0"><FormLabel>Extra Drop-off Rate</FormLabel><FormControl><Input type="number" className="w-24" {...field} onChange={e => field.onChange(e.target.value === '' ? '' : parseFloat(e.target.value))} /></FormControl></FormItem>} />
                                     </div>
                                 </div>
                                 
