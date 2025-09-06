@@ -205,7 +205,6 @@ export default function NewTripSheetPage() {
         const returnFreight = Number(values.returnTrip?.freight) || 0;
         const returnExpenses = Number(values.returnTrip?.expenses) || 0;
         const returnLoadIncomeVal = returnFreight - returnExpenses;
-        form.setValue('returnLoadIncome', returnLoadIncomeVal >= 0 ? returnLoadIncomeVal : 0);
 
         const totalExtraExpenses = (values.extraExpenses || []).reduce((sum, entry) => sum + (Number(entry.amount) || 0), 0);
 
@@ -226,7 +225,15 @@ export default function NewTripSheetPage() {
             netAmount, 
             detentionDays: days 
         };
-    }, [watchedFormValues, form]);
+    }, [watchedFormValues]);
+
+    const watchedReturnTrip = form.watch('returnTrip');
+    useEffect(() => {
+        const returnFreight = Number(watchedReturnTrip?.freight) || 0;
+        const returnExpenses = Number(watchedReturnTrip?.expenses) || 0;
+        const returnLoadIncomeVal = returnFreight - returnExpenses;
+        form.setValue('returnLoadIncome', returnLoadIncomeVal >= 0 ? returnLoadIncomeVal : 0);
+    }, [watchedReturnTrip, form]);
     
     const handleConfirmDetention = () => {
         form.setValue('detentionStartDate', detentionDateRange?.from);
