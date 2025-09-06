@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -217,9 +216,9 @@ export default function TransactionsPage() {
             form.reset({
                 ...transaction,
                 date: new Date(transaction.date),
-                invoiceDate: transaction.invoiceDate ? new Date(transaction.invoiceDate) : undefined,
-                chequeDate: transaction.chequeDate ? new Date(transaction.chequeDate) : undefined,
-                dueDate: transaction.dueDate ? new Date(transaction.dueDate) : undefined,
+                invoiceDate: transaction.invoiceDate ? new Date(transaction.invoiceDate) : null,
+                chequeDate: transaction.chequeDate ? new Date(transaction.chequeDate) : null,
+                dueDate: transaction.dueDate ? new Date(transaction.dueDate) : null,
                 items: transaction.items.map(item => ({...item, quantity: Number(item.quantity) || 0, rate: Number(item.rate) || 0 }))
             });
         } else {
@@ -667,15 +666,13 @@ export default function TransactionsPage() {
                                      <FormMessage/></FormItem>
                                  )}/>
                                  <FormField control={form.control} name="chequeNumber" render={({ field }) => (<FormItem><FormLabel>Cheque Number</FormLabel><FormControl><Input {...field} value={field.value ?? ''} /></FormControl><FormMessage/></FormItem>)}/>
+                                 <FormField control={form.control} name="chequeDate" render={({ field }) => (<FormItem><FormLabel>Cheque Date</FormLabel><Popover><PopoverTrigger asChild><FormControl>
+                                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button>
+                                </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage/></FormItem>)}/>
                                 </>
                             )}
                              {watchBillingType === 'Credit' && (
                                 <FormField control={form.control} name="dueDate" render={({ field }) => (<FormItem><FormLabel>Due Date</FormLabel><Popover><PopoverTrigger asChild><FormControl>
-                                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button>
-                                </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage/></FormItem>)}/>
-                             )}
-                             {watchBillingType === 'Bank' && (
-                                <FormField control={form.control} name="chequeDate" render={({ field }) => (<FormItem><FormLabel>Cheque Date</FormLabel><Popover><PopoverTrigger asChild><FormControl>
                                         <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button>
                                 </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage/></FormItem>)}/>
                              )}
@@ -793,10 +790,3 @@ export default function TransactionsPage() {
         </>
     );
 }
-
-
-
-
-    
-
-    
