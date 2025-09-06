@@ -339,13 +339,13 @@ export default function TransactionsPage() {
                             {hasPermission('fleet', 'create') && (
                                 <>
                                 <DialogTrigger asChild>
-                                    <Button onClick={() => handleOpenTransactionDialog(null, 'Purchase')} className="w-full">
-                                        <ShoppingCart className="mr-2 h-4 w-4" /> New Purchase
+                                    <Button onClick={() => handleOpenTransactionDialog(null, 'Sales')} className="w-full">
+                                        <TrendingUp className="mr-2 h-4 w-4" /> New Sales
                                     </Button>
                                 </DialogTrigger>
                                 <DialogTrigger asChild>
-                                    <Button onClick={() => handleOpenTransactionDialog(null, 'Sales')} className="w-full">
-                                        <TrendingUp className="mr-2 h-4 w-4" /> New Sales
+                                    <Button onClick={() => handleOpenTransactionDialog(null, 'Purchase')} className="w-full">
+                                        <ShoppingCart className="mr-2 h-4 w-4" /> New Purchase
                                     </Button>
                                 </DialogTrigger>
                                 <DialogTrigger asChild>
