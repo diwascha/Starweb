@@ -28,6 +28,7 @@ import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onPartiesUpdate } from '@/services/party-service';
 import { addTrip } from '@/services/trip-service';
 import { Loader2 } from 'lucide-react';
+import { Label } from '@/components/ui/label';
 
 const destinationSchema = z.object({
   name: z.string().min(1, 'Destination name is required.'),
