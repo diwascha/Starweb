@@ -413,13 +413,13 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
         }
     };
 
-    const handleOpenPartyDialog = (party: Party | null = null, type: PartyType) => {
+    const handleOpenPartyDialog = (party: Party | null = null, type: PartyType, searchName: string = '') => {
         if (party) {
             setEditingParty(party);
             setPartyForm({ name: party.name, type: party.type, address: party.address || '', panNumber: party.panNumber || '' });
         } else {
             setEditingParty(null);
-            setPartyForm({ name: partySearch, type, address: '', panNumber: '' });
+            setPartyForm({ name: searchName, type, address: '', panNumber: '' });
         }
         setIsPartyDialogOpen(true);
     };
@@ -527,17 +527,18 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                                                     </FormControl>
                                                 </PopoverTrigger>
                                                 <PopoverContent className="p-0">
-                                                    <Command>
+                                                    <Command filter={(value, search) => {
+                                                        if (clients.find(c => c.name.toLowerCase() === value)?.name.toLowerCase().includes(search.toLowerCase())) return 1
+                                                        return 0
+                                                    }}>
                                                     <CommandInput 
                                                         placeholder="Search client..."
-                                                        value={partySearch}
-                                                        onValueChange={setPartySearch}
                                                     />
                                                     <CommandList>
                                                         <CommandEmpty>
-                                                            <Button variant="ghost" className="w-full justify-start" onClick={() => handleOpenPartyDialog(null, 'Client')}>
-                                                                <PlusCircle className="mr-2 h-4 w-4"/> Add "{partySearch}"
-                                                            </Button>
+                                                            <CommandItem onSelect={() => handleOpenPartyDialog(null, 'Client', (document.querySelector('[cmdk-input]') as HTMLInputElement)?.value || '')}>
+                                                                <PlusCircle className="mr-2 h-4 w-4"/> Add Client
+                                                            </CommandItem>
                                                         </CommandEmpty>
                                                         <CommandGroup>
                                                         {clients.map((client) => (
