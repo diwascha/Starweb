@@ -54,6 +54,7 @@ const returnTripSchema = z.object({
     date: z.date().optional(),
     from: z.string().optional(),
     to: z.string().optional(),
+    partyId: z.string().optional(),
     freight: z.number().optional(),
     expenses: z.number().optional(),
 });
@@ -319,7 +320,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
         setIsSubmitting(true);
 
         try {
-            const tripData: Partial<Omit<Trip, 'id' | 'createdAt' | 'createdBy'>> & { createdBy: string; } = {
+            const tripData: Omit<Trip, 'id' | 'createdAt' | 'lastModifiedAt'> = {
                 date: values.date.toISOString(),
                 vehicleId: values.vehicleId,
                 partyId: values.partyId,
@@ -353,6 +354,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                             freight: Number(rt.freight) || 0,
                             expenses: Number(rt.expenses) || 0
                         };
+                        if (rt.partyId) returnTrip.partyId = rt.partyId;
                         if (rt.date) {
                             returnTrip.date = rt.date.toISOString();
                         }
@@ -361,14 +363,14 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                 createdBy: user.username,
             };
 
-            if (values.odometerStart !== undefined) tripData.odometerStart = values.odometerStart;
-            if (values.odometerEnd !== undefined) tripData.odometerEnd = values.odometerEnd;
-            if (values.truckAdvance !== undefined) tripData.truckAdvance = values.truckAdvance;
+            if (values.odometerStart !== undefined && values.odometerStart !== null) tripData.odometerStart = values.odometerStart;
+            if (values.odometerEnd !== undefined && values.odometerEnd !== null) tripData.odometerEnd = values.odometerEnd;
+            if (values.truckAdvance !== undefined && values.truckAdvance !== null) tripData.truckAdvance = values.truckAdvance;
             if (values.detentionStartDate) tripData.detentionStartDate = values.detentionStartDate.toISOString();
             if (values.detentionEndDate) tripData.detentionEndDate = values.detentionEndDate.toISOString();
-            if (values.numberOfParties !== undefined) tripData.numberOfParties = values.numberOfParties;
-            if (values.dropOffChargeRate !== undefined) tripData.dropOffChargeRate = values.dropOffChargeRate;
-            if (values.detentionChargeRate !== undefined) tripData.detentionChargeRate = values.detentionChargeRate;
+            if (values.numberOfParties !== undefined && values.numberOfParties !== null) tripData.numberOfParties = values.numberOfParties;
+            if (values.dropOffChargeRate !== undefined && values.dropOffChargeRate !== null) tripData.dropOffChargeRate = values.dropOffChargeRate;
+            if (values.detentionChargeRate !== undefined && values.detentionChargeRate !== null) tripData.detentionChargeRate = values.detentionChargeRate;
             
             if (tripToEdit) {
                 await updateTrip(tripToEdit.id, {
@@ -378,7 +380,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                 toast({ title: 'Success', description: 'Trip sheet updated successfully.' });
                 router.push('/fleet/trip-sheets');
             } else {
-                await addTrip(tripData as Omit<Trip, 'id'>);
+                await addTrip(tripData);
                 toast({ title: 'Success', description: 'Trip sheet created successfully.' });
                 router.push('/fleet/transactions');
             }
@@ -921,7 +923,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                                         type="button"
                                         variant="outline"
                                         size="sm"
-                                        onClick={() => appendReturnTrip({ date: undefined, from: '', to: '', freight: undefined, expenses: undefined })}
+                                        onClick={() => appendReturnTrip({ date: undefined, from: '', to: '', partyId: '', freight: undefined, expenses: undefined })}
                                     >
                                         <PlusCircle className="mr-2 h-4 w-4" /> Add Return Trip
                                     </Button>
@@ -936,7 +938,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                                                 <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2 h-8 w-8" onClick={() => removeReturnTrip(index)}>
                                                     <X className="h-4 w-4 text-destructive" />
                                                 </Button>
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                                     <FormField control={form.control} name={`returnTrips.${index}.date`} render={({ field }) => (
                                                         <FormItem className="flex flex-col"><FormLabel>Return Date (Optional)</FormLabel>
                                                             <Popover><PopoverTrigger asChild><FormControl>
@@ -947,6 +949,35 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                                                             </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start">
                                                                 <DualCalendar selected={field.value} onSelect={field.onChange} />
                                                             </PopoverContent></Popover><FormMessage />
+                                                        </FormItem>
+                                                    )}/>
+                                                     <FormField control={form.control} name={`returnTrips.${index}.partyId`} render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel>Client</FormLabel>
+                                                            <Popover>
+                                                                <PopoverTrigger asChild>
+                                                                    <FormControl>
+                                                                    <Button variant="outline" role="combobox" className="w-full justify-between">
+                                                                        {field.value ? clients.find((c) => c.id === field.value)?.name : "Select client"}
+                                                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                                    </Button>
+                                                                    </FormControl>
+                                                                </PopoverTrigger>
+                                                                <PopoverContent className="p-0">
+                                                                    <Command>
+                                                                    <CommandInput placeholder="Search client..." />
+                                                                    <CommandList><CommandEmpty>No client found.</CommandEmpty><CommandGroup>
+                                                                        {clients.map((client) => (
+                                                                            <CommandItem key={client.id} value={client.name} onSelect={() => field.onChange(client.id)}>
+                                                                                <Check className={cn("mr-2 h-4 w-4", field.value === client.id ? "opacity-100" : "opacity-0")} />
+                                                                                {client.name}
+                                                                            </CommandItem>
+                                                                        ))}
+                                                                    </CommandGroup></CommandList>
+                                                                    </Command>
+                                                                </PopoverContent>
+                                                            </Popover>
+                                                            <FormMessage />
                                                         </FormItem>
                                                     )}/>
                                                     <FormField control={form.control} name={`returnTrips.${index}.from`} render={({ field }) => (<FormItem><FormLabel>From</FormLabel><FormControl><Input placeholder="Starting point" {...field} value={field.value ?? ''} /></FormControl></FormItem>)} />

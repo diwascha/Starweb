@@ -18,6 +18,7 @@
 
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -271,6 +272,7 @@ export interface ReturnTrip {
     date?: string; // ISO string
     from?: string;
     to?: string;
+    partyId?: string;
     freight?: number;
     expenses?: number;
 }
