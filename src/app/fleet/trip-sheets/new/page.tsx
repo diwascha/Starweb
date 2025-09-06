@@ -144,6 +144,20 @@ export default function NewTripSheetPage() {
     const vendors = useMemo(() => parties.filter(p => p.type === 'Vendor'), [parties]);
     
     const watchedFormValues = form.watch();
+    const finalDestinationName = watchedFormValues.destinations?.[0]?.name;
+
+    useEffect(() => {
+        if (finalDestinationName) {
+            const sortedTrips = trips.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            const lastTripToDestination = sortedTrips.find(trip => 
+                trip.destinations.length > 0 && trip.destinations[0].name.toLowerCase() === finalDestinationName.toLowerCase()
+            );
+
+            if (lastTripToDestination && lastTripToDestination.truckAdvance) {
+                form.setValue('truckAdvance', lastTripToDestination.truckAdvance);
+            }
+        }
+    }, [finalDestinationName, trips, form]);
 
     const { totalFreight, dropOffCharge, detentionCharge, totalTaxable, vatAmount, grossAmount, tdsAmount, netPay, totalExpenses, returnLoadIncome, netAmount, detentionDays } = useMemo(() => {
         const values = watchedFormValues;
