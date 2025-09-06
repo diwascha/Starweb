@@ -63,22 +63,27 @@ const tripSchema = z.object({
   date: z.date(),
   vehicleId: z.string().min(1, 'Vehicle is required.'),
   partyId: z.string().min(1, 'Client is required.'),
-  odometerStart: z.number().min(0).optional(),
-  odometerEnd: z.number().min(0).optional(),
+  odometerStart: z.number().min(0, "Odometer value cannot be negative").optional(),
+  odometerEnd: z.number().min(0, "Odometer value cannot be negative").optional(),
   destinations: z.array(destinationSchema),
-  truckAdvance: z.number().min(0).optional(),
-  transport: z.number().min(1, 'Transport charge is required.'),
+  truckAdvance: z.number().min(0, "Advance cannot be negative").optional(),
+  transport: z.number().min(0, "Transport charge cannot be negative"),
   fuelEntries: z.array(fuelEntrySchema),
   extraExpenses: z.array(extraExpenseSchema),
   returnTrips: z.array(returnTripSchema),
   detentionStartDate: z.date().optional(),
   detentionEndDate: z.date().optional(),
-  numberOfParties: z.number().min(0).optional(),
-  dropOffChargeRate: z.number().min(0).optional(),
-  detentionChargeRate: z.number().min(0).optional(),
+  numberOfParties: z.number().min(0, "Number of parties cannot be negative").optional(),
+  dropOffChargeRate: z.number().min(0, "Drop-off rate cannot be negative").optional(),
+  detentionChargeRate: z.number().min(0, "Detention rate cannot be negative").optional(),
 }).refine(data => !data.odometerEnd || !data.odometerStart || data.odometerEnd >= data.odometerStart, {
     message: "End odometer must be greater than or equal to start odometer.",
     path: ["odometerEnd"],
+}).refine(data => {
+    return data.destinations.some(d => d && d.name && d.name.trim() !== '' && d.freight && Number(d.freight) > 0);
+}, {
+    message: "At least one destination with a valid freight amount is required.",
+    path: ["destinations"],
 });
 
 type TripFormValues = z.infer<typeof tripSchema>;
@@ -97,7 +102,7 @@ export function TripSheetForm() {
     const [isDetentionDialogOpen, setIsDetentionDialogOpen] = useState(false);
     const [detentionDateRange, setDetentionDateRange] = useState<DateRange | undefined>(undefined);
     const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
-    const [partyForm, setPartyForm] = useState<{name: string, type: PartyType, address?: string, panNumber?: string}>({name: '', type: 'Client', address: '', panNumber: ''});
+    const [partyForm, setPartyForm] = useState<{name: string, type: PartyType, address?: string, panNumber?: string}>({name: 'Client', type: 'Client', address: '', panNumber: ''});
     const [editingParty, setEditingParty] = useState<Party | null>(null);
     const [partySearch, setPartySearch] = useState('');
     
@@ -119,7 +124,7 @@ export function TripSheetForm() {
                 { name: '', freight: undefined },
             ],
             truckAdvance: undefined,
-            transport: undefined,
+            transport: 0,
             fuelEntries: [],
             extraExpenses: [],
             returnTrips: [],
@@ -279,49 +284,36 @@ export function TripSheetForm() {
     async function onSubmit(values: TripFormValues) {
         if (!user) return;
         setIsSubmitting(true);
+
         try {
-            const filteredDestinations: TripDestination[] = values.destinations
-              .filter(d => d && d.name && d.name.trim() !== '' && d.freight && Number(d.freight) > 0)
-              .map(d => ({ name: d.name!, freight: Number(d.freight!) }));
-              
-            if (filteredDestinations.length === 0) {
-                form.setError('destinations', { type: 'manual', message: 'At least one valid destination with freight is required.' });
-                setIsSubmitting(false);
-                return;
-            }
-            
-            const filteredExtraExpenses: ExtraExpense[] = values.extraExpenses
-                .filter(e => e.description && e.description.trim() !== '' && e.amount && Number(e.amount) > 0)
-                .map(e => ({ description: e.description, amount: Number(e.amount), partyId: e.partyId || undefined }));
-
-             const filteredFuelEntries: FuelEntry[] = (values.fuelEntries || [])
-                .filter(f => f.partyId && f.amount && Number(f.amount) > 0)
-                .map(f => ({
-                    partyId: f.partyId,
-                    amount: Number(f.amount),
-                    liters: f.liters ? Number(f.liters) : undefined
-                }));
-            
-            const filteredReturnTrips: ReturnTrip[] = (values.returnTrips || [])
-                .filter(rt => rt.freight && Number(rt.freight) > 0)
-                .map(rt => ({
-                    ...rt,
-                    date: rt.date?.toISOString(),
-                    freight: Number(rt.freight) || 0,
-                    expenses: Number(rt.expenses) || 0,
-                }));
-
             const tripData: Omit<Trip, 'id'> = {
                 date: values.date.toISOString(),
                 vehicleId: values.vehicleId,
                 partyId: values.partyId,
-                destinations: filteredDestinations,
-                transport: values.transport,
-                fuelEntries: filteredFuelEntries,
-                extraExpenses: filteredExtraExpenses,
-                returnTrips: filteredReturnTrips,
-                createdAt: new Date().toISOString(),
+                transport: Number(values.transport),
+                destinations: (values.destinations || [])
+                    .filter(d => d && d.name && d.name.trim() !== '' && d.freight && Number(d.freight) > 0)
+                    .map(d => ({ name: d.name!, freight: Number(d.freight!) })),
+                fuelEntries: (values.fuelEntries || [])
+                    .filter(f => f.partyId && f.amount && Number(f.amount) > 0)
+                    .map(f => ({
+                        partyId: f.partyId,
+                        amount: Number(f.amount),
+                        liters: f.liters ? Number(f.liters) : undefined
+                    })),
+                extraExpenses: (values.extraExpenses || [])
+                    .filter(e => e.description && e.description.trim() !== '' && e.amount && Number(e.amount) > 0)
+                    .map(e => ({ description: e.description, amount: Number(e.amount), partyId: e.partyId || undefined })),
+                returnTrips: (values.returnTrips || [])
+                    .filter(rt => rt.freight && Number(rt.freight) > 0)
+                    .map(rt => ({
+                        ...rt,
+                        date: rt.date?.toISOString(),
+                        freight: Number(rt.freight) || 0,
+                        expenses: Number(rt.expenses) || 0,
+                    })),
                 createdBy: user.username,
+                createdAt: new Date().toISOString(),
             };
 
             // Conditionally add optional fields to avoid sending 'undefined' to Firestore
@@ -708,7 +700,7 @@ export function TripSheetForm() {
                                 <CardHeader><CardTitle>Trip Expenses</CardTitle></CardHeader>
                                 <CardContent className="space-y-6">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <FormField control={form.control} name="truckAdvance" render={({ field }) => <FormItem><FormLabel>Truck Advance</FormLabel><FormControl><Input type="number" placeholder="Peski Amount" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl></FormItem>} />
+                                        <FormField control={form.control} name="truckAdvance" render={({ field }) => <FormItem><FormLabel>Truck Advance</FormLabel><FormControl><Input type="number" placeholder="Peski Amount" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl><FormMessage /></FormItem>} />
                                         <FormField control={form.control} name="transport" render={({ field }) => <FormItem><FormLabel>Transport</FormLabel><FormControl><Input type="number" placeholder="Billing charge" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl><FormMessage /></FormItem>} />
                                     </div>
                                     <div>
