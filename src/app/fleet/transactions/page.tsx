@@ -60,9 +60,9 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 const transactionItemSchema = z.object({
     particular: z.string().min(1, 'Particular is required.'),
-    quantity: z.number().min(0.01, 'Quantity must be positive.'),
+    quantity: z.number().min(0, 'Quantity must be positive.'),
     uom: z.string().optional(),
-    rate: z.number().min(0.01, 'Rate must be positive.'),
+    rate: z.number().min(0, 'Rate must be positive.'),
 });
 
 const transactionSchema = z.object({
@@ -227,7 +227,7 @@ export default function TransactionsPage() {
                 date: new Date(),
                 invoiceType: 'Taxable',
                 billingType: 'Cash',
-                items: [{ particular: '', quantity: 1, uom: '', rate: 0 }],
+                items: [{ particular: '', quantity: 0, uom: '', rate: 0 }],
                 type: type || 'Purchase',
             });
         }
@@ -236,7 +236,7 @@ export default function TransactionsPage() {
     
     const handleSubmitTransaction = async (values: TransactionFormValues) => {
         if (!user) return;
-
+        
         const calculatedSubtotal = (values.items || []).reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.rate) || 0), 0);
         const calculatedVat = values.invoiceType === 'Taxable' ? calculatedSubtotal * 0.13 : 0;
         const grandTotal = calculatedSubtotal + calculatedVat;
@@ -694,7 +694,7 @@ export default function TransactionsPage() {
                             </TableRow>
                         ))}
                         </TableBody></Table>
-                        <Button type="button" size="sm" variant="outline" className="mt-2" onClick={() => append({ particular: '', quantity: 1, uom: '', rate: 0 })}>
+                        <Button type="button" size="sm" variant="outline" className="mt-2" onClick={() => append({ particular: '', quantity: 0, uom: '', rate: 0 })}>
                             <Plus className="mr-2 h-4 w-4"/> Add Row
                         </Button>
                         </div>
@@ -790,3 +790,5 @@ export default function TransactionsPage() {
         </>
     );
 }
+
+    
