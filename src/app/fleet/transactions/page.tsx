@@ -49,7 +49,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { onTransactionsUpdate, addTransaction, updateTransaction, deleteTransaction } from '@/services/transaction-service';
 import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onPartiesUpdate, addParty } from '@/services/party-service';
-import { onAccountsUpdate, addAccount } from '@/services/account-service';
+import { onAccountsUpdate, addAccount, updateAccount } from '@/services/account-service';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -114,6 +114,7 @@ export default function TransactionsPage() {
     const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
     const [partyForm, setPartyForm] = useState<{name: string, type: PartyType}>({name: '', type: 'Vendor'});
     const [accountForm, setAccountForm] = useState(initialAccountFormState);
+    const [editingAccount, setEditingAccount] = useState<Account | null>(null);
     
     // Search & Filter
     const [searchQuery, setSearchQuery] = useState('');
@@ -237,6 +238,23 @@ export default function TransactionsPage() {
              toast({title: 'Error', description: 'Failed to add party.', variant: 'destructive'});
         }
     };
+    
+    const handleOpenAccountDialog = (account: Account | null = null) => {
+        if (account) {
+            setEditingAccount(account);
+            setAccountForm({
+                name: account.name,
+                type: account.type,
+                accountNumber: account.accountNumber || '',
+                bankName: account.bankName || '',
+                branch: account.branch || '',
+            });
+        } else {
+            setEditingAccount(null);
+            setAccountForm(initialAccountFormState);
+        }
+        setIsAccountDialogOpen(true);
+    };
 
     const handleSubmitAccount = async () => {
         if(!user) return;
@@ -249,15 +267,24 @@ export default function TransactionsPage() {
             return;
         }
         try {
-            const newAccountData: Omit<Account, 'id'> = {
-                ...accountForm,
-                createdBy: user.username,
-            };
-            const newAccountId = await addAccount(newAccountData);
-            form.setValue('accountId', newAccountId);
-            toast({title: 'Success', description: 'New account added.'});
+            if (editingAccount) {
+                const updatedAccountData: Partial<Omit<Account, 'id'>> = {
+                    ...accountForm,
+                    lastModifiedBy: user.username,
+                };
+                await updateAccount(editingAccount.id, updatedAccountData);
+                toast({ title: 'Success', description: 'Account updated.' });
+            } else {
+                 const newAccountData: Omit<Account, 'id'> = {
+                    ...accountForm,
+                    createdBy: user.username,
+                };
+                const newAccountId = await addAccount(newAccountData);
+                form.setValue('accountId', newAccountId);
+                toast({title: 'Success', description: 'New account added.'});
+            }
+            
             setIsAccountDialogOpen(false);
-            setAccountForm(initialAccountFormState);
         } catch {
              toast({title: 'Error', description: 'Failed to add account.', variant: 'destructive'});
         }
@@ -568,22 +595,28 @@ export default function TransactionsPage() {
                                  <FormField control={form.control} name="accountId" render={({ field }) => (
                                      <FormItem><FormLabel>Bank Account</FormLabel>
                                         <div className="flex gap-2">
-                                            <Select onValueChange={field.onChange} value={field.value}>
-                                                <FormControl><SelectTrigger><SelectValue placeholder="Select bank" /></SelectTrigger></FormControl>
-                                                <SelectContent>{bankAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{accountsById.get(acc.id)}</SelectItem>)}</SelectContent>
-                                            </Select>
-                                            <Button type="button" size="icon" variant="outline" onClick={() => setIsAccountDialogOpen(true)}><Plus className="h-4 w-4"/></Button>
+                                            <Popover><PopoverTrigger asChild><FormControl>
+                                                <Button variant="outline" role="combobox" className="w-full justify-between">
+                                                    {field.value ? accountsById.get(field.value) : "Select account..."}<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                </Button>
+                                            </FormControl></PopoverTrigger><PopoverContent className="p-0 w-[--radix-popover-trigger-width]"><Command>
+                                                <CommandInput placeholder="Search accounts..." />
+                                                <CommandList><CommandEmpty>No accounts found.</CommandEmpty><CommandGroup>
+                                                    {bankAccounts.map(account => <CommandItem key={account.id} value={account.name} onSelect={() => field.onChange(account.id)} className="flex justify-between items-center">
+                                                        <div><Check className={cn("mr-2 h-4 w-4", field.value === account.id ? "opacity-100" : "opacity-0")} />{accountsById.get(account.id)}</div>
+                                                        <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => {e.stopPropagation(); handleOpenAccountDialog(account);}}><Edit className="h-4 w-4"/></Button>
+                                                    </CommandItem>)}
+                                                </CommandGroup></CommandList>
+                                            </Command></PopoverContent></Popover>
+                                            <Button type="button" size="icon" variant="outline" onClick={() => handleOpenAccountDialog(null)}><Plus className="h-4 w-4"/></Button>
                                         </div>
                                      <FormMessage/></FormItem>
                                  )}/>
                                  <FormField control={form.control} name="chequeNumber" render={({ field }) => (<FormItem><FormLabel>Cheque Number</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage/></FormItem>)}/>
-                                 <FormField control={form.control} name="chequeDate" render={({ field }) => (<FormItem><FormLabel>Cheque Date</FormLabel><Popover><PopoverTrigger asChild><FormControl>
-                                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button>
-                                 </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage/></FormItem>)}/>
                                 </>
                             )}
-                             {watchBillingType === 'Credit' && (
-                                <FormField control={form.control} name="dueDate" render={({ field }) => (<FormItem><FormLabel>Due Date</FormLabel><Popover><PopoverTrigger asChild><FormControl>
+                             {(watchBillingType === 'Credit' || watchBillingType === 'Bank') && (
+                                <FormField control={form.control} name="dueDate" render={({ field }) => (<FormItem><FormLabel>{watchBillingType === 'Bank' ? 'Cheque Date' : 'Due Date'}</FormLabel><Popover><PopoverTrigger asChild><FormControl>
                                         <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button>
                                 </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage/></FormItem>)}/>
                              )}
@@ -662,7 +695,7 @@ export default function TransactionsPage() {
 
             <Dialog open={isAccountDialogOpen} onOpenChange={setIsAccountDialogOpen}>
                 <DialogContent className="sm:max-w-md">
-                    <DialogHeader><DialogTitle>Add New Account</DialogTitle></DialogHeader>
+                    <DialogHeader><DialogTitle>{editingAccount ? 'Edit Account' : 'Add New Account'}</DialogTitle></DialogHeader>
                     <div className="grid gap-4 py-4">
                         <div className="space-y-2">
                             <Label htmlFor="account-type">Account Type</Label>
@@ -694,7 +727,7 @@ export default function TransactionsPage() {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => { setIsAccountDialogOpen(false); setAccountForm(initialAccountFormState);}}>Cancel</Button>
-                        <Button onClick={handleSubmitAccount}>Add Account</Button>
+                        <Button onClick={handleSubmitAccount}>{editingAccount ? 'Save Changes' : 'Add Account'}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

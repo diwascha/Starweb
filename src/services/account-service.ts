@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc } from 'firebase/firestore';
 import type { Account } from '@/lib/types';
 
 const accountsCollection = collection(db, 'accounts');
@@ -27,6 +27,14 @@ export const addAccount = async (account: Omit<Account, 'id'>): Promise<string> 
         createdAt: new Date().toISOString(),
     });
     return docRef.id;
+};
+
+export const updateAccount = async (id: string, account: Partial<Omit<Account, 'id'>>): Promise<void> => {
+    const accountDoc = doc(db, 'accounts', id);
+    await updateDoc(accountDoc, {
+        ...account,
+        lastModifiedAt: new Date().toISOString(),
+    });
 };
 
 export const onAccountsUpdate = (callback: (accounts: Account[]) => void): () => void => {
