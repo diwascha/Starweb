@@ -17,6 +17,7 @@
 
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -199,7 +200,7 @@ export interface PolicyOrMembership {
 export const transactionTypes = ['Purchase', 'Sales', 'Payment', 'Receipt'] as const;
 export type TransactionType = typeof transactionTypes[number];
 
-export type PartyType = 'Vendor' | 'Client';
+export type PartyType = 'Vendor' | 'Client' | 'Both';
 
 export interface Party {
     id: string;
@@ -286,8 +287,8 @@ export interface Trip {
     truckAdvance?: number;
     transport: number;
     fuelEntries: FuelEntry[];
-    extraExpenses?: ExtraExpense[];
-    returnTrips?: ReturnTrip[];
+    extraExpenses: ExtraExpense[];
+    returnTrips: ReturnTrip[];
     detentionStartDate?: string; // ISO string
     detentionEndDate?: string; // ISO string
     numberOfParties?: number;

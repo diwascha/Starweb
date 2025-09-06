@@ -505,7 +505,11 @@ export default function TransactionsPage() {
                             <Label htmlFor="party-type">Party Type</Label>
                             <Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm(p => ({...p, type: v}))}>
                                 <SelectTrigger id="party-type"><SelectValue/></SelectTrigger>
-                                <SelectContent><SelectItem value="Vendor">Vendor</SelectItem><SelectItem value="Client">Client</SelectItem></SelectContent>
+                                <SelectContent>
+                                    <SelectItem value="Vendor">Vendor</SelectItem>
+                                    <SelectItem value="Client">Client</SelectItem>
+                                    <SelectItem value="Both">Both</SelectItem>
+                                </SelectContent>
                             </Select>
                         </div>
                     </div>

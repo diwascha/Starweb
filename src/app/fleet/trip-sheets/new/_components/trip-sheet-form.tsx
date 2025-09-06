@@ -70,7 +70,7 @@ const tripSchema = z.object({
   transport: z.number().min(1, 'Transport charge is required.'),
   fuelEntries: z.array(fuelEntrySchema),
   extraExpenses: z.array(extraExpenseSchema),
-  returnTrips: z.array(returnTripSchema).optional(),
+  returnTrips: z.array(returnTripSchema),
   detentionStartDate: z.date().optional(),
   detentionEndDate: z.date().optional(),
   numberOfParties: z.number().min(0).optional(),
@@ -164,8 +164,8 @@ export function TripSheetForm() {
         };
     }, []);
 
-    const vendors = useMemo(() => parties.filter(p => p.type === 'Vendor'), [parties]);
-    const clients = useMemo(() => parties.filter(p => p.type === 'Client'), [parties]);
+    const vendors = useMemo(() => parties.filter(p => p.type === 'Vendor' || p.type === 'Both'), [parties]);
+    const clients = useMemo(() => parties.filter(p => p.type === 'Client' || p.type === 'Both'), [parties]);
     
     const watchedFormValues = form.watch();
     const finalDestinationName = watchedFormValues.destinations?.[0]?.name;
@@ -290,7 +290,7 @@ export function TripSheetForm() {
                 return;
             }
             
-            const filteredExtraExpenses: ExtraExpense[] = (values.extraExpenses || [])
+            const filteredExtraExpenses: ExtraExpense[] = values.extraExpenses
                 .filter(e => e.description && e.description.trim() !== '' && e.amount && Number(e.amount) > 0)
                 .map(e => ({ description: e.description, amount: Number(e.amount), partyId: e.partyId || undefined }));
 
@@ -964,6 +964,7 @@ export function TripSheetForm() {
                                 <SelectContent>
                                     <SelectItem value="Client">Client</SelectItem>
                                     <SelectItem value="Vendor">Vendor</SelectItem>
+                                    <SelectItem value="Both">Both</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
