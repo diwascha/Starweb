@@ -105,7 +105,7 @@ export default function LoginPage() {
                 <Input
                   id="username"
                   type="text"
-                  placeholder="Administrator"
+                  placeholder="Username"
                   {...register('username')}
                   disabled={isLoading}
                 />
