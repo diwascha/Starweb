@@ -309,16 +309,21 @@ export function TripSheetForm() {
                 }));
 
             const newTripData: Omit<Trip, 'id'> = {
-                ...values,
-                odometerStart: Number(values.odometerStart) || undefined,
-                odometerEnd: Number(values.odometerEnd) || undefined,
-                destinations: filteredDestinations,
-                extraExpenses: filteredExtraExpenses,
-                fuelEntries: filteredFuelEntries,
-                returnTrips: filteredReturnTrips,
                 date: values.date.toISOString(),
+                vehicleId: values.vehicleId,
+                odometerStart: values.odometerStart || undefined,
+                odometerEnd: values.odometerEnd || undefined,
+                destinations: filteredDestinations,
+                truckAdvance: values.truckAdvance || undefined,
+                transport: values.transport,
+                fuelEntries: filteredFuelEntries,
+                extraExpenses: filteredExtraExpenses,
+                returnTrips: filteredReturnTrips,
                 detentionStartDate: values.detentionStartDate?.toISOString(),
                 detentionEndDate: values.detentionEndDate?.toISOString(),
+                numberOfParties: values.numberOfParties || undefined,
+                dropOffChargeRate: values.dropOffChargeRate || undefined,
+                detentionChargeRate: values.detentionChargeRate || undefined,
                 createdAt: new Date().toISOString(),
                 createdBy: user.username,
             };
@@ -326,6 +331,7 @@ export function TripSheetForm() {
             toast({ title: 'Success', description: 'Trip sheet created successfully.' });
             router.push('/fleet/transactions');
         } catch (error) {
+            console.error(error);
             toast({ title: 'Error', description: 'Failed to create trip sheet.', variant: 'destructive' });
         } finally {
             setIsSubmitting(false);
@@ -445,10 +451,6 @@ export function TripSheetForm() {
 
     return (
         <div className="flex flex-col gap-8">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight">New Trip Sheet</h1>
-                <p className="text-muted-foreground">Record a new sales trip and its associated expenses.</p>
-            </div>
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -943,3 +945,5 @@ export function TripSheetForm() {
         </div>
     );
 }
+
+    
