@@ -614,69 +614,92 @@ export default function NewTripSheetPage() {
                                     <div>
                                         <Label className="text-base font-medium">Extra Expenses</Label>
                                         <div className="mt-2 space-y-4">
-                                            {expenseFields.map((item, index) => (<div key={item.id} className="grid grid-cols-1 md:grid-cols-3 items-start gap-2">
-                                                <FormField control={form.control} name={`extraExpenses.${index}.description`} render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormControl><Input placeholder="Expense description" {...field} /></FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}/>
-                                                <FormField control={form.control} name={`extraExpenses.${index}.partyId`} render={({ field }) => (
-                                                    <FormItem>
-                                                        <Popover>
-                                                          <PopoverTrigger asChild>
-                                                            <FormControl>
-                                                              <Button variant="outline" role="combobox" className="w-full justify-between">
-                                                                {field.value ? vendors.find((v) => v.id === field.value)?.name : "Select vendor (optional)"}
-                                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                                              </Button>
-                                                            </FormControl>
-                                                          </PopoverTrigger>
-                                                          <PopoverContent className="p-0">
-                                                            <Command>
-                                                              <CommandInput 
-                                                                  placeholder="Search vendor..."
-                                                                  value={partySearch}
-                                                                  onValueChange={setPartySearch}
-                                                              />
-                                                              <CommandList>
-                                                                <CommandEmpty>
-                                                                    <Button variant="ghost" className="w-full justify-start" onClick={() => handleOpenPartyDialog()}>
-                                                                        <PlusCircle className="mr-2 h-4 w-4"/> Add Vendor
-                                                                    </Button>
-                                                                </CommandEmpty>
-                                                                <CommandGroup>
-                                                                  {vendors.map((vendor) => (
-                                                                    <CommandItem
-                                                                      key={vendor.id}
-                                                                      value={vendor.name}
-                                                                      onSelect={() => field.onChange(vendor.id)}
-                                                                      className="flex justify-between items-center"
-                                                                    >
-                                                                      <div className="flex items-center">
-                                                                        <Check className={cn("mr-2 h-4 w-4", field.value === vendor.id ? "opacity-100" : "opacity-0")} />
-                                                                        {vendor.name}
-                                                                      </div>
-                                                                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleOpenPartyDialog(vendor); }}>
-                                                                        <Edit className="h-4 w-4" />
-                                                                      </Button>
-                                                                    </CommandItem>
-                                                                  ))}
-                                                                </CommandGroup>
-                                                              </CommandList>
-                                                            </Command>
-                                                          </PopoverContent>
-                                                        </Popover>
-                                                        <FormMessage />
-                                                      </FormItem>
-                                                )}/>
-                                                <div className="flex items-center gap-2">
-                                                <FormField control={form.control} name={`extraExpenses.${index}.amount`} render={({ field }) => <FormItem className="flex-1"><FormControl><Input type="number" placeholder="Amount" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl><FormMessage/></FormItem>} />
-                                                <Button type="button" variant="ghost" size="icon" onClick={() => removeExpense(index)} className="mt-2"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                            {expenseFields.map((item, index) => (
+                                                <div key={item.id} className="grid grid-cols-1 md:grid-cols-3 items-start gap-2">
+                                                    <FormField
+                                                        control={form.control}
+                                                        name={`extraExpenses.${index}.description`}
+                                                        render={({ field }) => (
+                                                            <FormItem className="md:col-span-1">
+                                                                <FormControl><Input placeholder="Expense description" {...field} /></FormControl>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                    <FormField
+                                                        control={form.control}
+                                                        name={`extraExpenses.${index}.partyId`}
+                                                        render={({ field }) => (
+                                                            <FormItem className="md:col-span-1">
+                                                                <Popover>
+                                                                    <PopoverTrigger asChild>
+                                                                        <FormControl>
+                                                                            <Button variant="outline" role="combobox" className="w-full justify-between">
+                                                                                {field.value ? vendors.find((v) => v.id === field.value)?.name : "Select vendor (optional)"}
+                                                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                                            </Button>
+                                                                        </FormControl>
+                                                                    </PopoverTrigger>
+                                                                    <PopoverContent className="p-0">
+                                                                        <Command>
+                                                                            <CommandInput
+                                                                                placeholder="Search vendor..."
+                                                                                value={partySearch}
+                                                                                onValueChange={setPartySearch}
+                                                                            />
+                                                                            <CommandList>
+                                                                                <CommandEmpty>
+                                                                                    <Button variant="ghost" className="w-full justify-start" onClick={() => handleOpenPartyDialog()}>
+                                                                                        <PlusCircle className="mr-2 h-4 w-4" /> Add Vendor
+                                                                                    </Button>
+                                                                                </CommandEmpty>
+                                                                                <CommandGroup>
+                                                                                    {vendors.map((vendor) => (
+                                                                                        <CommandItem
+                                                                                            key={vendor.id}
+                                                                                            value={vendor.name}
+                                                                                            onSelect={() => field.onChange(vendor.id)}
+                                                                                            className="flex justify-between items-center"
+                                                                                        >
+                                                                                            <div className="flex items-center">
+                                                                                                <Check className={cn("mr-2 h-4 w-4", field.value === vendor.id ? "opacity-100" : "opacity-0")} />
+                                                                                                {vendor.name}
+                                                                                            </div>
+                                                                                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleOpenPartyDialog(vendor); }}>
+                                                                                                <Edit className="h-4 w-4" />
+                                                                                            </Button>
+                                                                                        </CommandItem>
+                                                                                    ))}
+                                                                                </CommandGroup>
+                                                                            </CommandList>
+                                                                        </Command>
+                                                                    </PopoverContent>
+                                                                </Popover>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                    <div className="flex items-center gap-2 md:col-span-1">
+                                                        <FormField
+                                                            control={form.control}
+                                                            name={`extraExpenses.${index}.amount`}
+                                                            render={({ field }) => (
+                                                                <FormItem className="flex-1">
+                                                                    <FormControl><Input type="number" placeholder="Amount" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl>
+                                                                    <FormMessage />
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                        <Button type="button" variant="ghost" size="icon" onClick={() => removeExpense(index)} className="mt-2">
+                                                            <Trash2 className="h-4 w-4 text-destructive" />
+                                                        </Button>
+                                                    </div>
                                                 </div>
-                                            </div>))}
+                                            ))}
                                         </div>
-                                        <Button type="button" size="sm" variant="outline" onClick={() => appendExpense({ description: '', amount: 0, partyId: '' })} className="mt-4"><PlusCircle className="mr-2 h-4 w-4" /> Add Expense</Button>
+                                        <Button type="button" size="sm" variant="outline" onClick={() => appendExpense({ description: '', amount: 0, partyId: '' })} className="mt-4">
+                                            <PlusCircle className="mr-2 h-4 w-4" /> Add Expense
+                                        </Button>
                                     </div>
                                     <FormField control={form.control} name="returnLoadIncome" render={({ field }) => <FormItem><FormLabel>Additional Income (Return Load)</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl></FormItem>} />
                                 </CardContent>
