@@ -195,7 +195,9 @@ export default function TransactionsPage() {
     const handleSubmitTransaction = async (values: TransactionFormValues) => {
         if (!user) return;
         
-        const grandTotal = totalAmount;
+        const subtotal = (values.items || []).reduce((sum, item) => sum + (item.quantity || 0) * (item.rate || 0), 0);
+        const vat = values.invoiceType === 'Taxable' ? subtotal * 0.13 : 0;
+        const grandTotal = subtotal + vat;
 
         const transactionData: Omit<Transaction, 'id' | 'createdAt' | 'lastModifiedAt'> = {
             ...values,
