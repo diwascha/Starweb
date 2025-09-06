@@ -348,7 +348,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                 returnTrips: (values.returnTrips || [])
                     .filter(rt => rt.freight && Number(rt.freight) > 0)
                     .map(rt => {
-                        const returnTrip: ReturnTrip = {
+                        const returnTrip: Partial<ReturnTrip> = {
                             from: rt.from,
                             to: rt.to,
                             freight: Number(rt.freight) || 0,
@@ -358,7 +358,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                         if (rt.date) {
                             returnTrip.date = rt.date.toISOString();
                         }
-                        return returnTrip;
+                        return returnTrip as ReturnTrip;
                     }),
                 createdBy: user.username,
             };
