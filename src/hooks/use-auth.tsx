@@ -135,8 +135,10 @@ const AuthRedirect = ({ children }: { children: (user: UserSession) => ReactNode
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<UserSession | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
+    setIsClient(true);
     try {
       const storedUser = sessionStorage.getItem(USER_SESSION_KEY);
       if (storedUser) {
@@ -189,6 +191,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     sessionStorage.removeItem(USER_SESSION_KEY);
     setUser(null);
   }, []);
+  
+  if (!isClient) {
+    return null;
+  }
   
   return (
     <AuthContext.Provider value={{ user, loading, login, logout, hasPermission }}>
