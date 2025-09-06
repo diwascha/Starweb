@@ -286,7 +286,7 @@ export function TripSheetForm() {
         setIsSubmitting(true);
 
         try {
-            const tripData: Omit<Trip, 'id'> = {
+            const tripData: Omit<Trip, 'id' | 'createdAt' | 'createdBy'> & { createdAt: string; createdBy: string; } = {
                 date: values.date.toISOString(),
                 vehicleId: values.vehicleId,
                 partyId: values.partyId,
@@ -296,27 +296,39 @@ export function TripSheetForm() {
                     .map(d => ({ name: d.name!, freight: Number(d.freight!) })),
                 fuelEntries: (values.fuelEntries || [])
                     .filter(f => f.partyId && f.amount && Number(f.amount) > 0)
-                    .map(f => ({
-                        partyId: f.partyId,
-                        amount: Number(f.amount),
-                        liters: f.liters ? Number(f.liters) : undefined
-                    })),
+                    .map(f => {
+                        const entry: FuelEntry = {
+                            partyId: f.partyId,
+                            amount: Number(f.amount)
+                        };
+                        if (f.liters) entry.liters = Number(f.liters);
+                        return entry;
+                    }),
                 extraExpenses: (values.extraExpenses || [])
                     .filter(e => e.description && e.description.trim() !== '' && e.amount && Number(e.amount) > 0)
-                    .map(e => ({ description: e.description, amount: Number(e.amount), partyId: e.partyId || undefined })),
+                    .map(e => {
+                        const expense: ExtraExpense = { description: e.description, amount: Number(e.amount) };
+                        if (e.partyId) expense.partyId = e.partyId;
+                        return expense;
+                    }),
                 returnTrips: (values.returnTrips || [])
                     .filter(rt => rt.freight && Number(rt.freight) > 0)
-                    .map(rt => ({
-                        ...rt,
-                        date: rt.date?.toISOString(),
-                        freight: Number(rt.freight) || 0,
-                        expenses: Number(rt.expenses) || 0,
-                    })),
+                    .map(rt => {
+                        const returnTrip: ReturnTrip = {
+                            from: rt.from,
+                            to: rt.to,
+                            freight: Number(rt.freight) || 0,
+                            expenses: Number(rt.expenses) || 0
+                        };
+                        if (rt.date) {
+                            returnTrip.date = rt.date.toISOString();
+                        }
+                        return returnTrip;
+                    }),
                 createdBy: user.username,
                 createdAt: new Date().toISOString(),
             };
 
-            // Conditionally add optional fields to avoid sending 'undefined' to Firestore
             if (values.odometerStart) tripData.odometerStart = values.odometerStart;
             if (values.odometerEnd) tripData.odometerEnd = values.odometerEnd;
             if (values.truckAdvance) tripData.truckAdvance = values.truckAdvance;
@@ -325,7 +337,6 @@ export function TripSheetForm() {
             if (values.numberOfParties) tripData.numberOfParties = values.numberOfParties;
             if (values.dropOffChargeRate) tripData.dropOffChargeRate = values.dropOffChargeRate;
             if (values.detentionChargeRate) tripData.detentionChargeRate = values.detentionChargeRate;
-
 
             await addTrip(tripData);
             toast({ title: 'Success', description: 'Trip sheet created successfully.' });
