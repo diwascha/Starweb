@@ -107,7 +107,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
     const [isDetentionDialogOpen, setIsDetentionDialogOpen] = useState(false);
     const [detentionDateRange, setDetentionDateRange] = useState<DateRange | undefined>(undefined);
     const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
-    const [partyForm, setPartyForm] = useState<{name: string, type: PartyType, address?: string, panNumber?: string}>({name: 'Client', type: 'Client', address: '', panNumber: ''});
+    const [partyForm, setPartyForm] = useState<{name: string, type: PartyType, address?: string, panNumber?: string}>({name: '', type: 'Client', address: '', panNumber: ''});
     const [editingParty, setEditingParty] = useState<Party | null>(null);
     const [partySearch, setPartySearch] = useState('');
     const [returnTripPartySearch, setReturnTripPartySearch] = useState<{ [key: number]: string }>({});
@@ -536,8 +536,8 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                                                         onValueChange={setPartySearch}
                                                     />
                                                     <CommandList>
-                                                        <CommandEmpty onSelect={() => handleOpenPartyDialog(null, 'Client', partySearch)}>
-                                                            <CommandItem>
+                                                        <CommandEmpty>
+                                                            <CommandItem onSelect={() => handleOpenPartyDialog(null, 'Client', partySearch)}>
                                                                 <PlusCircle className="mr-2 h-4 w-4"/> Add "{partySearch}"
                                                             </CommandItem>
                                                         </CommandEmpty>
@@ -958,8 +958,8 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                                                                         onValueChange={(value) => setReturnTripPartySearch(prev => ({ ...prev, [index]: value }))}
                                                                     />
                                                                     <CommandList>
-                                                                        <CommandEmpty onSelect={() => handleOpenPartyDialog(null, 'Client', currentSearch)}>
-                                                                            <CommandItem>
+                                                                        <CommandEmpty>
+                                                                            <CommandItem onSelect={() => handleOpenPartyDialog(null, 'Client', currentSearch)}>
                                                                                 <PlusCircle className="mr-2 h-4 w-4"/> Add "{currentSearch}"
                                                                             </CommandItem>
                                                                         </CommandEmpty>
