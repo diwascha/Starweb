@@ -321,57 +321,57 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
         if (!user) return;
         setIsSubmitting(true);
 
-        try {
-            const tripDataForDb: Omit<Trip, 'id' | 'createdAt' | 'lastModifiedAt' | 'salesTransactionId'> = {
-                date: values.date.toISOString(),
-                vehicleId: values.vehicleId,
-                partyId: values.partyId,
-                transport: Number(values.transport),
-                destinations: (values.destinations || [])
-                    .filter(d => d && d.name && d.name.trim() !== '' && d.freight && Number(d.freight) > 0)
-                    .map(d => ({ name: d.name!, freight: Number(d.freight!) })),
-                fuelEntries: (values.fuelEntries || [])
-                    .filter(f => f.partyId && f.amount && Number(f.amount) > 0)
-                    .map(f => {
-                        const entry: FuelEntry = {
-                            partyId: f.partyId,
-                            amount: Number(f.amount)
-                        };
-                        if (f.liters !== undefined && f.liters !== null) entry.liters = Number(f.liters);
-                        return entry;
-                    }),
-                extraExpenses: (values.extraExpenses || [])
-                    .filter(e => e.description && e.description.trim() !== '' && e.amount && Number(e.amount) > 0)
-                    .map(e => {
-                        const expense: ExtraExpense = { description: e.description, amount: Number(e.amount) };
-                        if (e.partyId) expense.partyId = e.partyId;
-                        return expense;
-                    }),
-                returnTrips: (values.returnTrips || [])
-                    .filter(rt => rt.freight && Number(rt.freight) > 0)
-                    .map(rt => {
-                        const returnTrip: Partial<ReturnTrip> = {};
-                        if(rt.from) returnTrip.from = rt.from;
-                        if(rt.to) returnTrip.to = rt.to;
-                        if(rt.freight) returnTrip.freight = Number(rt.freight) || 0;
-                        if(rt.expenses) returnTrip.expenses = Number(rt.expenses) || 0;
-                        if (rt.partyId) returnTrip.partyId = rt.partyId;
-                        if (rt.date) returnTrip.date = rt.date.toISOString();
-                        
-                        return returnTrip as ReturnTrip;
-                    }),
-                createdBy: user.username,
-            };
+        const tripDataForDb: Omit<Trip, 'id' | 'createdAt' | 'lastModifiedAt' | 'salesTransactionId'> = {
+            date: values.date.toISOString(),
+            vehicleId: values.vehicleId,
+            partyId: values.partyId,
+            transport: Number(values.transport),
+            destinations: (values.destinations || [])
+                .filter(d => d && d.name && d.name.trim() !== '' && d.freight && Number(d.freight) > 0)
+                .map(d => ({ name: d.name!, freight: Number(d.freight!) })),
+            fuelEntries: (values.fuelEntries || [])
+                .filter(f => f.partyId && f.amount && Number(f.amount) > 0)
+                .map(f => {
+                    const entry: FuelEntry = {
+                        partyId: f.partyId,
+                        amount: Number(f.amount)
+                    };
+                    if (f.liters !== undefined && f.liters !== null) entry.liters = Number(f.liters);
+                    return entry;
+                }),
+            extraExpenses: (values.extraExpenses || [])
+                .filter(e => e.description && e.description.trim() !== '' && e.amount && Number(e.amount) > 0)
+                .map(e => {
+                    const expense: ExtraExpense = { description: e.description, amount: Number(e.amount) };
+                    if (e.partyId) expense.partyId = e.partyId;
+                    return expense;
+                }),
+            returnTrips: (values.returnTrips || [])
+                .filter(rt => rt.freight && Number(rt.freight) > 0)
+                .map(rt => {
+                    const returnTrip: Partial<ReturnTrip> = {};
+                    if(rt.from) returnTrip.from = rt.from;
+                    if(rt.to) returnTrip.to = rt.to;
+                    if(rt.freight) returnTrip.freight = Number(rt.freight) || 0;
+                    if(rt.expenses) returnTrip.expenses = Number(rt.expenses) || 0;
+                    if (rt.partyId) returnTrip.partyId = rt.partyId;
+                    if (rt.date) returnTrip.date = rt.date.toISOString();
+                    
+                    return returnTrip as ReturnTrip;
+                }),
+            createdBy: user.username,
+        };
 
-            if (values.odometerStart !== undefined && values.odometerStart !== null) tripDataForDb.odometerStart = values.odometerStart;
-            if (values.odometerEnd !== undefined && values.odometerEnd !== null) tripDataForDb.odometerEnd = values.odometerEnd;
-            if (values.truckAdvance !== undefined && values.truckAdvance !== null) tripDataForDb.truckAdvance = values.truckAdvance;
-            if (values.detentionStartDate) tripDataForDb.detentionStartDate = values.detentionStartDate.toISOString();
-            if (values.detentionEndDate) tripDataForDb.detentionEndDate = values.detentionEndDate.toISOString();
-            if (values.numberOfParties !== undefined && values.numberOfParties !== null) tripDataForDb.numberOfParties = values.numberOfParties;
-            if (values.dropOffChargeRate !== undefined && values.dropOffChargeRate !== null) tripDataForDb.dropOffChargeRate = values.dropOffChargeRate;
-            if (values.detentionChargeRate !== undefined && values.detentionChargeRate !== null) tripDataForDb.detentionChargeRate = values.detentionChargeRate;
-            
+        if (values.odometerStart !== undefined && values.odometerStart !== null) tripDataForDb.odometerStart = values.odometerStart;
+        if (values.odometerEnd !== undefined && values.odometerEnd !== null) tripDataForDb.odometerEnd = values.odometerEnd;
+        if (values.truckAdvance !== undefined && values.truckAdvance !== null) tripDataForDb.truckAdvance = values.truckAdvance;
+        if (values.detentionStartDate) tripDataForDb.detentionStartDate = values.detentionStartDate.toISOString();
+        if (values.detentionEndDate) tripDataForDb.detentionEndDate = values.detentionEndDate.toISOString();
+        if (values.numberOfParties !== undefined && values.numberOfParties !== null) tripDataForDb.numberOfParties = values.numberOfParties;
+        if (values.dropOffChargeRate !== undefined && values.dropOffChargeRate !== null) tripDataForDb.dropOffChargeRate = values.dropOffChargeRate;
+        if (values.detentionChargeRate !== undefined && values.detentionChargeRate !== null) tripDataForDb.detentionChargeRate = values.detentionChargeRate;
+
+        try {
             if (tripToEdit) {
                 await updateTrip(tripToEdit.id, {
                     ...tripDataForDb,
@@ -1021,9 +1021,14 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                             </Card>
                         </div>
                     </div>
-                    <Button type="submit" disabled={isSubmitting}>
-                        {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : (tripToEdit ? 'Update Trip Sheet' : 'Save Trip Sheet')}
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <Button type="button" variant="outline" onClick={() => router.push('/fleet/trip-sheets')}>
+                            Cancel
+                        </Button>
+                        <Button type="submit" disabled={isSubmitting}>
+                            {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : (tripToEdit ? 'Update Trip Sheet' : 'Save Trip Sheet')}
+                        </Button>
+                    </div>
                 </form>
             </Form>
 
