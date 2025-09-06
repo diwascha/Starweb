@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import type { Vehicle, Party, Trip, Destination, PartyType, TripDestination, ExtraExpense } from '@/lib/types';
+import type { Vehicle, Party, Trip, Destination, PartyType, TripDestination, ExtraExpense, FuelEntry } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
@@ -55,7 +55,7 @@ const tripSchema = z.object({
   vehicleId: z.string().min(1, 'Vehicle is required.'),
   destinations: z.array(destinationSchema),
   truckAdvance: z.number().min(0).optional(),
-  transport: z.number().min(0).optional(),
+  transport: z.number().min(1, 'Transport charge is required.'),
   fuelEntries: z.array(fuelEntrySchema),
   extraExpenses: z.array(extraExpenseSchema),
   returnLoadIncome: z.number().min(0).optional(),
@@ -222,10 +222,19 @@ export default function NewTripSheetPage() {
                 .filter(e => e.description && e.description.trim() !== '' && e.amount && Number(e.amount) > 0)
                 .map(e => ({ description: e.description, amount: Number(e.amount), partyId: e.partyId }));
 
+             const filteredFuelEntries: FuelEntry[] = (values.fuelEntries || [])
+                .filter(f => f.partyId && f.amount && Number(f.amount) > 0)
+                .map(f => ({
+                    partyId: f.partyId,
+                    amount: Number(f.amount),
+                    liters: f.liters ? Number(f.liters) : undefined
+                }));
+
             const newTripData: Omit<Trip, 'id'> = {
                 ...values,
                 destinations: filteredDestinations,
                 extraExpenses: filteredExtraExpenses,
+                fuelEntries: filteredFuelEntries,
                 date: values.date.toISOString(),
                 detentionStartDate: values.detentionStartDate?.toISOString(),
                 detentionEndDate: values.detentionEndDate?.toISOString(),
@@ -551,7 +560,7 @@ export default function NewTripSheetPage() {
                                 <CardContent className="space-y-6">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <FormField control={form.control} name="truckAdvance" render={({ field }) => <FormItem><FormLabel>Truck Advance</FormLabel><FormControl><Input type="number" placeholder="Peski Amount" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl></FormItem>} />
-                                        <FormField control={form.control} name="transport" render={({ field }) => <FormItem><FormLabel>Transport</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl></FormItem>} />
+                                        <FormField control={form.control} name="transport" render={({ field }) => <FormItem><FormLabel>Transport</FormLabel><FormControl><Input type="number" placeholder="Billing charge" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl><FormMessage /></FormItem>} />
                                     </div>
                                     <div>
                                         <Label className="text-base font-medium">Fuel</Label>
