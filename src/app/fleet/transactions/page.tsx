@@ -161,16 +161,12 @@ export default function TransactionsPage() {
     const watchBillingType = form.watch("billingType");
     const watchAllFields = form.watch();
 
-    const { subtotal, vatAmount, totalAmount } = useMemo(() => {
-        const items = watchAllFields.items || [];
-        const sub = items.reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.rate) || 0), 0);
-        const vat = watchAllFields.invoiceType === 'Taxable' ? sub * 0.13 : 0;
-        return {
-            subtotal: sub,
-            vatAmount: vat,
-            totalAmount: sub + vat,
-        };
-    }, [watchAllFields.items, watchAllFields.invoiceType]);
+    const currentItems = watchAllFields.items || [];
+    const currentInvoiceType = watchAllFields.invoiceType;
+
+    const subtotal = currentItems.reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.rate) || 0), 0);
+    const vatAmount = currentInvoiceType === 'Taxable' ? subtotal * 0.13 : 0;
+    const totalAmount = subtotal + vatAmount;
 
 
     const handleOpenTransactionDialog = (transaction: Transaction | null = null, type?: TransactionType) => {
@@ -182,6 +178,7 @@ export default function TransactionsPage() {
                 invoiceDate: transaction.invoiceDate ? new Date(transaction.invoiceDate) : undefined,
                 chequeDate: transaction.chequeDate ? new Date(transaction.chequeDate) : undefined,
                 dueDate: transaction.dueDate ? new Date(transaction.dueDate) : undefined,
+                items: transaction.items.map(item => ({...item, quantity: Number(item.quantity) || 0, rate: Number(item.rate) || 0 }))
             });
         } else {
             setEditingTransaction(null);
@@ -198,11 +195,11 @@ export default function TransactionsPage() {
     
     const handleSubmitTransaction = async (values: TransactionFormValues) => {
         if (!user) return;
-        
-        const subtotal = (values.items || []).reduce((sum, item) => sum + (item.quantity || 0) * (item.rate || 0), 0);
-        const vat = values.invoiceType === 'Taxable' ? subtotal * 0.13 : 0;
-        const grandTotal = subtotal + vat;
 
+        const calculatedSubtotal = (values.items || []).reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.rate) || 0), 0);
+        const calculatedVat = values.invoiceType === 'Taxable' ? calculatedSubtotal * 0.13 : 0;
+        const grandTotal = calculatedSubtotal + calculatedVat;
+        
         const transactionData = {
             ...values,
             date: values.date.toISOString(),
@@ -653,7 +650,7 @@ export default function TransactionsPage() {
                                 <Label>Calculation</Label>
                                 <div className="p-4 border rounded-md space-y-2">
                                     <div className="flex justify-between text-sm"><span>Subtotal</span><span>{subtotal.toLocaleString(undefined, {maximumFractionDigits: 2})}</span></div>
-                                    {watchAllFields.invoiceType === 'Taxable' && <div className="flex justify-between text-sm"><span>VAT (13%)</span><span>{vatAmount.toLocaleString(undefined, {maximumFractionDigits: 2})}</span></div>}
+                                    {currentInvoiceType === 'Taxable' && <div className="flex justify-between text-sm"><span>VAT (13%)</span><span>{vatAmount.toLocaleString(undefined, {maximumFractionDigits: 2})}</span></div>}
                                     <div className="flex justify-between font-bold"><span>Grand Total</span><span>{totalAmount.toLocaleString(undefined, {maximumFractionDigits: 2})}</span></div>
                                 </div>
                             </div>
