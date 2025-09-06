@@ -242,15 +242,7 @@ export function AppSidebar() {
                             </Link>
                             </SidebarMenuButton>
                         </SidebarMenuItem>
-                        <SidebarMenuItem>
-                            <SidebarMenuButton asChild isActive={getIsActive('/fleet/trip-sheets')}>
-                            <Link href="/fleet/trip-sheets">
-                                <FileText />
-                                <span>Trip Sheets</span>
-                            </Link>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
-                        <SidebarMenuItem>
+                         <SidebarMenuItem>
                             <SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions')}>
                             <Link href="/fleet/transactions">
                                 <CreditCard />
@@ -258,6 +250,16 @@ export function AppSidebar() {
                             </Link>
                             </SidebarMenuButton>
                         </SidebarMenuItem>
+                         <div className="ml-4">
+                             <SidebarMenuItem>
+                                <SidebarMenuButton asChild isActive={getIsActive('/fleet/trip-sheets')}>
+                                <Link href="/fleet/trip-sheets">
+                                    <FileText />
+                                    <span>Trip Sheets</span>
+                                </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                        </div>
                     </div>
                 </>
             )}
