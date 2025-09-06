@@ -962,9 +962,19 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                                                                         </CommandEmpty>
                                                                         <CommandGroup>
                                                                         {clients.map((client) => (
-                                                                            <CommandItem key={client.id} value={client.name} onSelect={() => field.onChange(client.id)}>
-                                                                                <Check className={cn("mr-2 h-4 w-4", field.value === client.id ? "opacity-100" : "opacity-0")} />
-                                                                                {client.name}
+                                                                            <CommandItem
+                                                                                key={client.id}
+                                                                                value={client.name}
+                                                                                onSelect={() => field.onChange(client.id)}
+                                                                                className="flex justify-between items-center"
+                                                                            >
+                                                                                <div className="flex items-center">
+                                                                                    <Check className={cn("mr-2 h-4 w-4", field.value === client.id ? "opacity-100" : "opacity-0")} />
+                                                                                    {client.name}
+                                                                                </div>
+                                                                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleOpenPartyDialog(client, 'Client'); }}>
+                                                                                    <Edit className="h-4 w-4" />
+                                                                                </Button>
                                                                             </CommandItem>
                                                                         ))}
                                                                     </CommandGroup></CommandList>
