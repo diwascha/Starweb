@@ -618,16 +618,6 @@ export default function NewTripSheetPage() {
                                                 <div key={item.id} className="grid grid-cols-1 md:grid-cols-3 items-start gap-2">
                                                     <FormField
                                                         control={form.control}
-                                                        name={`extraExpenses.${index}.description`}
-                                                        render={({ field }) => (
-                                                            <FormItem className="md:col-span-1">
-                                                                <FormControl><Input placeholder="Expense description" {...field} /></FormControl>
-                                                                <FormMessage />
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                    <FormField
-                                                        control={form.control}
                                                         name={`extraExpenses.${index}.partyId`}
                                                         render={({ field }) => (
                                                             <FormItem className="md:col-span-1">
@@ -675,6 +665,16 @@ export default function NewTripSheetPage() {
                                                                         </Command>
                                                                     </PopoverContent>
                                                                 </Popover>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                    <FormField
+                                                        control={form.control}
+                                                        name={`extraExpenses.${index}.description`}
+                                                        render={({ field }) => (
+                                                            <FormItem className="md:col-span-1">
+                                                                <FormControl><Input placeholder="Expense description" {...field} /></FormControl>
                                                                 <FormMessage />
                                                             </FormItem>
                                                         )}
