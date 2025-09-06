@@ -463,35 +463,21 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
         form.setValue(`destinations.${index}.name`, destinationName);
         
         const sortedTrips = trips.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-        let lastTripWithDestination: Trip | undefined;
         let lastFreight: number | undefined;
 
-        if (index === 0) { // Final Destination
-            lastTripWithDestination = sortedTrips.find(trip => 
-                trip.destinations.length > 0 && trip.destinations[0].name.toLowerCase() === destinationName.toLowerCase()
-            );
-            if (lastTripWithDestination) {
-                lastFreight = lastTripWithDestination.destinations[0].freight;
-            }
-        } else { // Additional Destination
-            lastTripWithDestination = sortedTrips.find(trip => {
+        // Find the last trip where this destination was used in the same role (final vs. additional)
+        for (const trip of sortedTrips) {
+            if (index === 0) { // Looking for a final destination
+                if (trip.destinations.length > 0 && trip.destinations[0].name.toLowerCase() === destinationName.toLowerCase()) {
+                    lastFreight = trip.destinations[0].freight;
+                    break;
+                }
+            } else { // Looking for an additional destination
                 const additionalDest = trip.destinations.slice(1).find(d => d.name.toLowerCase() === destinationName.toLowerCase());
                 if (additionalDest) {
                     lastFreight = additionalDest.freight;
-                    return true;
+                    break;
                 }
-                return false;
-            });
-        }
-
-        // Fallback: If no role-specific match found, find any match
-        if (!lastTripWithDestination) {
-            lastTripWithDestination = sortedTrips.find(trip => 
-                trip.destinations.some(d => d.name.toLowerCase() === destinationName.toLowerCase())
-            );
-             if (lastTripWithDestination) {
-                lastFreight = lastTripWithDestination.destinations.find(d => d.name.toLowerCase() === destinationName.toLowerCase())?.freight;
             }
         }
 
