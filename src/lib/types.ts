@@ -200,8 +200,11 @@ export type AccountType = 'Cash' | 'Bank';
 
 export interface Account {
     id: string;
-    name: string;
+    name: string; // Account holder name or "Cash Account"
     type: AccountType;
+    accountNumber?: string;
+    bankName?: string;
+    branch?: string;
     createdBy: string;
     createdAt: string; // ISO string
     lastModifiedBy?: string;

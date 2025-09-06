@@ -89,6 +89,14 @@ type TransactionFormValues = z.infer<typeof transactionSchema>;
 type TransactionSortKey = 'date' | 'vehicleName' | 'type' | 'partyName' | 'amount' | 'authorship' | 'dueDate';
 type SortDirection = 'asc' | 'desc';
 
+const initialAccountFormState = {
+    name: '',
+    type: 'Cash' as AccountType,
+    accountNumber: '',
+    bankName: '',
+    branch: '',
+};
+
 export default function TransactionsPage() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -105,7 +113,7 @@ export default function TransactionsPage() {
     // Form states
     const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
     const [partyForm, setPartyForm] = useState<{name: string, type: PartyType}>({name: '', type: 'Vendor'});
-    const [accountForm, setAccountForm] = useState<{name: string, type: AccountType}>({name: '', type: 'Cash'});
+    const [accountForm, setAccountForm] = useState(initialAccountFormState);
     
     // Search & Filter
     const [searchQuery, setSearchQuery] = useState('');
@@ -119,7 +127,7 @@ export default function TransactionsPage() {
     // Memos for performance
     const vehiclesById = useMemo(() => new Map(vehicles.map(v => [v.id, v.name])), [vehicles]);
     const partiesById = useMemo(() => new Map(parties.map(p => [p.id, p.name])), [parties]);
-    const accountsById = useMemo(() => new Map(accounts.map(a => [a.id, a.name])), [accounts]);
+    const accountsById = useMemo(() => new Map(accounts.map(a => [a.id, a.bankName ? `${a.bankName} - ${a.accountNumber}` : a.name])), [accounts]);
     const bankAccounts = useMemo(() => accounts.filter(a => a.type === 'Bank'), [accounts]);
 
     // Data fetching
@@ -236,12 +244,20 @@ export default function TransactionsPage() {
             toast({title: 'Error', description: 'Account name and type are required.', variant: 'destructive'});
             return;
         }
+         if (accountForm.type === 'Bank' && (!accountForm.bankName || !accountForm.accountNumber)) {
+            toast({ title: 'Error', description: 'Bank Name and Account Number are required for bank accounts.', variant: 'destructive' });
+            return;
+        }
         try {
-            const newAccountId = await addAccount({...accountForm, createdBy: user.username});
+            const newAccountData: Omit<Account, 'id'> = {
+                ...accountForm,
+                createdBy: user.username,
+            };
+            const newAccountId = await addAccount(newAccountData);
             form.setValue('accountId', newAccountId);
             toast({title: 'Success', description: 'New account added.'});
             setIsAccountDialogOpen(false);
-            setAccountForm({name: '', type: 'Cash'});
+            setAccountForm(initialAccountFormState);
         } catch {
              toast({title: 'Error', description: 'Failed to add account.', variant: 'destructive'});
         }
@@ -554,7 +570,7 @@ export default function TransactionsPage() {
                                         <div className="flex gap-2">
                                             <Select onValueChange={field.onChange} value={field.value}>
                                                 <FormControl><SelectTrigger><SelectValue placeholder="Select bank" /></SelectTrigger></FormControl>
-                                                <SelectContent>{bankAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}</SelectContent>
+                                                <SelectContent>{bankAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{accountsById.get(acc.id)}</SelectItem>)}</SelectContent>
                                             </Select>
                                             <Button type="button" size="icon" variant="outline" onClick={() => setIsAccountDialogOpen(true)}><Plus className="h-4 w-4"/></Button>
                                         </div>
@@ -606,7 +622,7 @@ export default function TransactionsPage() {
                     </div>
                     </ScrollArea>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsTransactionDialogOpen(false)}>Cancel</Button>
+                        <Button variant="outline" type="button" onClick={() => setIsTransactionDialogOpen(false)}>Cancel</Button>
                         <Button type="submit">{editingTransaction ? 'Save Changes' : 'Add Transaction'}</Button>
                     </DialogFooter>
                     </form>
@@ -642,13 +658,9 @@ export default function TransactionsPage() {
             </Dialog>
 
             <Dialog open={isAccountDialogOpen} onOpenChange={setIsAccountDialogOpen}>
-                <DialogContent className="sm:max-w-sm">
+                <DialogContent className="sm:max-w-md">
                     <DialogHeader><DialogTitle>Add New Account</DialogTitle></DialogHeader>
                     <div className="grid gap-4 py-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="account-name">Account Name</Label>
-                            <Input id="account-name" value={accountForm.name} onChange={e => setAccountForm(p => ({...p, name: e.target.value}))} />
-                        </div>
                         <div className="space-y-2">
                             <Label htmlFor="account-type">Account Type</Label>
                             <Select value={accountForm.type} onValueChange={(v: AccountType) => setAccountForm(p => ({...p, type: v}))}>
@@ -656,9 +668,29 @@ export default function TransactionsPage() {
                                 <SelectContent><SelectItem value="Cash">Cash</SelectItem><SelectItem value="Bank">Bank</SelectItem></SelectContent>
                             </Select>
                         </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="account-name">{accountForm.type === 'Bank' ? 'Account Holder Name' : 'Account Name'}</Label>
+                            <Input id="account-name" value={accountForm.name} onChange={e => setAccountForm(p => ({...p, name: e.target.value}))} />
+                        </div>
+                        {accountForm.type === 'Bank' && (
+                            <>
+                                <div className="space-y-2">
+                                    <Label htmlFor="bank-name">Bank Name</Label>
+                                    <Input id="bank-name" value={accountForm.bankName} onChange={e => setAccountForm(p => ({...p, bankName: e.target.value}))} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="account-number">Account Number</Label>
+                                    <Input id="account-number" value={accountForm.accountNumber} onChange={e => setAccountForm(p => ({...p, accountNumber: e.target.value}))} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="branch">Branch</Label>
+                                    <Input id="branch" value={accountForm.branch} onChange={e => setAccountForm(p => ({...p, branch: e.target.value}))} />
+                                </div>
+                            </>
+                        )}
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsAccountDialogOpen(false)}>Cancel</Button>
+                        <Button variant="outline" onClick={() => { setIsAccountDialogOpen(false); setAccountForm(initialAccountFormState);}}>Cancel</Button>
                         <Button onClick={handleSubmitAccount}>Add Account</Button>
                     </DialogFooter>
                 </DialogContent>
