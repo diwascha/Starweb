@@ -114,7 +114,7 @@ const transactionSchema = z.object({
     message: 'Due Date is required for Credit billing.',
     path: ['dueDate'],
 }).refine(data => {
-     if (['Purchase', 'Sales', 'Credit'].includes(data.billingType) || ['Purchase', 'Sales'].includes(data.type)) {
+     if (['Credit'].includes(data.billingType) || ['Purchase', 'Sales'].includes(data.type)) {
         return !!data.partyId;
     }
     return true;
@@ -245,9 +245,11 @@ export default function TransactionsPage() {
         const transactionData = {
             ...values,
             date: values.date.toISOString(),
-            invoiceDate: values.invoiceDate?.toISOString(),
-            chequeDate: values.chequeDate?.toISOString(),
-            dueDate: values.dueDate?.toISOString(),
+            invoiceNumber: values.invoiceNumber || null,
+            invoiceDate: values.invoiceDate?.toISOString() || null,
+            chequeNumber: values.chequeNumber || null,
+            chequeDate: values.chequeDate?.toISOString() || null,
+            dueDate: values.dueDate?.toISOString() || null,
             items: values.items.map(item => ({
                 ...item,
                 quantity: Number(item.quantity) || 0,
@@ -794,5 +796,7 @@ export default function TransactionsPage() {
 
 
 
+
+    
 
     
