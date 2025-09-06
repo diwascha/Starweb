@@ -113,38 +113,30 @@ export default function NewTripSheetPage() {
 
     const fuelVendors = useMemo(() => parties.filter(p => p.type === 'Vendor'), [parties]);
     
-    const detentionDays = useMemo(() => {
-        const { detentionStartDate, detentionEndDate } = form.watch();
-        if (detentionStartDate && detentionEndDate) {
-            return differenceInDays(detentionEndDate, detentionStartDate) + 1;
-        }
-        return 0;
-    }, [form.watch('detentionStartDate'), form.watch('detentionEndDate')]);
+    // Watch all form values to trigger re-calculation
+    const watchedFormValues = form.watch();
 
-    const watchedDestinations = form.watch('destinations');
-    const watchedNumberOfParties = form.watch('numberOfParties');
-    const watchedDropOffChargeRate = form.watch('dropOffChargeRate');
-    const watchedDetentionChargeRate = form.watch('detentionChargeRate');
-    const watchedTruckAdvance = form.watch('truckAdvance');
-    const watchedTransport = form.watch('transport');
-    const watchedFuelEntries = form.watch('fuelEntries');
-    const watchedReturnLoadIncome = form.watch('returnLoadIncome');
-
-    const { totalFreight, dropOffCharge, detentionCharge, totalTaxable, vatAmount, grossAmount, tdsAmount, netPay, totalExpenses, returnLoadIncome, netAmount } = useMemo(() => {
-        const destinations = watchedDestinations;
-        const truckAdvance = watchedTruckAdvance || 0;
-        const transport = watchedTransport || 0;
-        const fuelEntries = watchedFuelEntries;
-        const returnIncome = watchedReturnLoadIncome || 0;
-        const numberOfParties = watchedNumberOfParties || 0;
-        const dropOffChargeRate = watchedDropOffChargeRate || 0;
-        const detentionChargeRate = watchedDetentionChargeRate || 0;
+    const { totalFreight, dropOffCharge, detentionCharge, totalTaxable, vatAmount, grossAmount, tdsAmount, netPay, totalExpenses, returnLoadIncome, netAmount, detentionDays } = useMemo(() => {
+        const {
+            destinations = [],
+            numberOfParties = 0,
+            dropOffChargeRate = 0,
+            detentionChargeRate = 0,
+            truckAdvance = 0,
+            transport = 0,
+            fuelEntries = [],
+            returnLoadIncome = 0,
+            detentionStartDate,
+            detentionEndDate
+        } = watchedFormValues;
+        
+        const days = detentionStartDate && detentionEndDate ? differenceInDays(detentionEndDate, detentionStartDate) + 1 : 0;
         
         const totalFreight = destinations.filter(d => d.name && d.freight && d.freight > 0).reduce((sum, dest) => sum + (dest.freight || 0), 0);
         
         const dropOffCharge = numberOfParties > 3 ? (numberOfParties - 3) * dropOffChargeRate : 0;
         
-        const detentionCharge = detentionDays * detentionChargeRate;
+        const detentionCharge = days * detentionChargeRate;
 
         const totalTaxable = totalFreight + dropOffCharge + detentionCharge;
         const vatAmount = totalTaxable * 0.13;
@@ -154,20 +146,10 @@ export default function NewTripSheetPage() {
         
         const totalFuel = fuelEntries.reduce((sum, entry) => sum + (entry.amount || 0), 0);
         const totalExpenses = truckAdvance + transport + totalFuel;
-        const netAmount = netPay - totalExpenses + returnIncome;
+        const netAmount = netPay - totalExpenses + returnLoadIncome;
         
-        return { totalFreight, dropOffCharge, detentionCharge, totalTaxable, vatAmount, grossAmount, tdsAmount, netPay, totalExpenses, returnLoadIncome: returnIncome, netAmount };
-    }, [
-        watchedDestinations, 
-        watchedNumberOfParties, 
-        watchedDropOffChargeRate,
-        watchedDetentionChargeRate,
-        watchedTruckAdvance,
-        watchedTransport,
-        watchedFuelEntries,
-        watchedReturnLoadIncome,
-        detentionDays
-    ]);
+        return { totalFreight, dropOffCharge, detentionCharge, totalTaxable, vatAmount, grossAmount, tdsAmount, netPay, totalExpenses, returnLoadIncome, netAmount, detentionDays: days };
+    }, [watchedFormValues]);
     
     const handleConfirmDetention = () => {
         form.setValue('detentionStartDate', detentionDateRange?.from);
@@ -317,19 +299,19 @@ export default function NewTripSheetPage() {
                                                         </DialogFooter>
                                                     </DialogContent>
                                                 </Dialog>
-                                                {form.watch('detentionStartDate') && (
+                                                {watchedFormValues.detentionStartDate && (
                                                     <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={handleClearDetention}>
                                                         <X className="h-4 w-4 text-destructive" />
                                                     </Button>
                                                 )}
                                              </div>
-                                             {form.watch('detentionStartDate') && (
+                                             {watchedFormValues.detentionStartDate && (
                                                 <p className="text-xs text-muted-foreground">
-                                                    {format(form.watch('detentionStartDate')!, "PPP")} - {form.watch('detentionEndDate') ? format(form.watch('detentionEndDate')!, "PPP") : ''}
+                                                    {format(watchedFormValues.detentionStartDate, "PPP")} - {watchedFormValues.detentionEndDate ? format(watchedFormValues.detentionEndDate, "PPP") : ''}
                                                 </p>
                                             )}
                                         </div>
-                                        {form.watch('detentionStartDate') && (
+                                        {watchedFormValues.detentionStartDate && (
                                         <FormField control={form.control} name="detentionChargeRate" render={({ field }) => <FormItem><FormLabel>Detention Rate/Day</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl></FormItem>} />
                                         )}
                                      </div>
