@@ -88,9 +88,6 @@ export default function NewTripSheetPage() {
     const [trips, setTrips] = useState<Trip[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     
-    // UI States
-    const [showReturnTrip, setShowReturnTrip] = useState(false);
-
     // Dialog States
     const [isDetentionDialogOpen, setIsDetentionDialogOpen] = useState(false);
     const [detentionDateRange, setDetentionDateRange] = useState<DateRange | undefined>(undefined);
@@ -248,17 +245,6 @@ export default function NewTripSheetPage() {
         form.setValue('detentionStartDate', undefined);
         form.setValue('detentionEndDate', undefined);
         setDetentionDateRange(undefined);
-    };
-    
-    const handleRemoveReturnTrip = () => {
-        form.setValue('returnTrip', {
-            date: undefined,
-            from: '',
-            to: '',
-            freight: undefined,
-            expenses: undefined,
-        });
-        setShowReturnTrip(false);
     };
 
     async function onSubmit(values: TripFormValues) {
@@ -782,51 +768,38 @@ export default function NewTripSheetPage() {
                                 </CardContent>
                             </Card>
                              
-                            {showReturnTrip ? (
-                                <Card>
-                                    <CardHeader className="flex flex-row items-center justify-between">
-                                        <div>
-                                            <CardTitle>Return Trip</CardTitle>
-                                            <CardDescription>Record details about the return load to calculate net income.</CardDescription>
-                                        </div>
-                                        <Button type="button" variant="ghost" size="sm" onClick={handleRemoveReturnTrip}>
-                                            <X className="mr-2 h-4 w-4"/> Remove
-                                        </Button>
-                                    </CardHeader>
-                                    <CardContent className="space-y-4">
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <FormField control={form.control} name="returnTrip.date" render={({ field }) => (
-                                                <FormItem className="flex flex-col"><FormLabel>Return Date (Optional)</FormLabel>
-                                                    <Popover><PopoverTrigger asChild><FormControl>
-                                                        <Button variant="outline" className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                                            {field.value ? `${toNepaliDate(field.value.toISOString())} BS (${format(field.value, "PPP")})` : <span>Pick a date</span>}
-                                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                        </Button>
-                                                    </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start">
-                                                        <DualCalendar selected={field.value} onSelect={field.onChange} />
-                                                    </PopoverContent></Popover><FormMessage />
-                                                </FormItem>
-                                            )}/>
-                                            <FormField control={form.control} name="returnTrip.from" render={({ field }) => (<FormItem><FormLabel>From</FormLabel><FormControl><Input placeholder="Starting point" {...field} value={field.value ?? ''} /></FormControl></FormItem>)} />
-                                            <FormField control={form.control} name="returnTrip.to" render={({ field }) => (<FormItem><FormLabel>To</FormLabel><FormControl><Input placeholder="Destination" {...field} value={field.value ?? ''} /></FormControl></FormItem>)} />
-                                            <FormField control={form.control} name="returnTrip.freight" render={({ field }) => (<FormItem><FormLabel>Freight</FormLabel><FormControl><Input type="number" placeholder="Income from load" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl></FormItem>)} />
-                                            <FormField control={form.control} name="returnTrip.expenses" render={({ field }) => (<FormItem><FormLabel>Expenses</FormLabel><FormControl><Input type="number" placeholder="Expenses during return" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl></FormItem>)} />
-                                            <div className="flex flex-col justify-end space-y-2">
-                                                <Label>Balance Income</Label>
-                                                <div className="p-2 border rounded-md h-10 flex items-center text-sm font-medium">
-                                                     <span>{( (watchedFormValues.returnTrip?.freight || 0) - (watchedFormValues.returnTrip?.expenses || 0) ).toLocaleString()}</span>
-                                                </div>
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Return Trip</CardTitle>
+                                    <CardDescription>Record details about the return load to calculate net income.</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <FormField control={form.control} name="returnTrip.date" render={({ field }) => (
+                                            <FormItem className="flex flex-col"><FormLabel>Return Date (Optional)</FormLabel>
+                                                <Popover><PopoverTrigger asChild><FormControl>
+                                                    <Button variant="outline" className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                                        {field.value ? `${toNepaliDate(field.value.toISOString())} BS (${format(field.value, "PPP")})` : <span>Pick a date</span>}
+                                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                    </Button>
+                                                </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start">
+                                                    <DualCalendar selected={field.value} onSelect={field.onChange} />
+                                                </PopoverContent></Popover><FormMessage />
+                                            </FormItem>
+                                        )}/>
+                                        <FormField control={form.control} name="returnTrip.from" render={({ field }) => (<FormItem><FormLabel>From</FormLabel><FormControl><Input placeholder="Starting point" {...field} value={field.value ?? ''} /></FormControl></FormItem>)} />
+                                        <FormField control={form.control} name="returnTrip.to" render={({ field }) => (<FormItem><FormLabel>To</FormLabel><FormControl><Input placeholder="Destination" {...field} value={field.value ?? ''} /></FormControl></FormItem>)} />
+                                        <FormField control={form.control} name="returnTrip.freight" render={({ field }) => (<FormItem><FormLabel>Freight</FormLabel><FormControl><Input type="number" placeholder="Income from load" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl></FormItem>)} />
+                                        <FormField control={form.control} name="returnTrip.expenses" render={({ field }) => (<FormItem><FormLabel>Expenses</FormLabel><FormControl><Input type="number" placeholder="Expenses during return" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl></FormItem>)} />
+                                        <div className="flex flex-col justify-end space-y-2">
+                                            <Label>Balance Income</Label>
+                                            <div className="p-2 border rounded-md h-10 flex items-center text-sm font-medium">
+                                                 <span>{( (watchedFormValues.returnTrip?.freight || 0) - (watchedFormValues.returnTrip?.expenses || 0) ).toLocaleString()}</span>
                                             </div>
                                         </div>
-                                    </CardContent>
-                                </Card>
-                            ) : (
-                                <div className="flex justify-center">
-                                    <Button type="button" variant="outline" onClick={() => setShowReturnTrip(true)}>
-                                        <PlusCircle className="mr-2 h-4 w-4"/> Add Return Trip
-                                    </Button>
-                                </div>
-                            )}
+                                    </div>
+                                </CardContent>
+                            </Card>
 
                         </div>
                         <div className="lg:col-span-1">
@@ -909,3 +882,5 @@ export default function NewTripSheetPage() {
         </div>
     );
 }
+
+    
