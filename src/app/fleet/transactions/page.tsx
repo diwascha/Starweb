@@ -163,7 +163,7 @@ export default function TransactionsPage() {
     const watchItems = form.watch("items");
     
     const { subtotal, vatAmount, totalAmount } = useMemo(() => {
-        const currentSubtotal = (watchItems || []).reduce((sum, item) => sum + (item.quantity || 0) * (item.rate || 0), 0);
+        const currentSubtotal = (watchItems || []).reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.rate) || 0), 0);
         const currentVat = watchInvoiceType === 'Taxable' ? currentSubtotal * 0.13 : 0;
         const currentTotal = currentSubtotal + currentVat;
         return { subtotal: currentSubtotal, vatAmount: currentVat, totalAmount: currentTotal };
@@ -196,7 +196,7 @@ export default function TransactionsPage() {
     const handleSubmitTransaction = async (values: TransactionFormValues) => {
         if (!user) return;
         
-        const subtotal = (values.items || []).reduce((sum, item) => sum + (item.quantity || 0) * (item.rate || 0), 0);
+        const subtotal = (values.items || []).reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.rate) || 0), 0);
         const vat = values.invoiceType === 'Taxable' ? subtotal * 0.13 : 0;
         const grandTotal = subtotal + vat;
 
