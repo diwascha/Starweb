@@ -62,7 +62,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 const transactionItemSchema = z.object({
     particular: z.string().min(1, 'Particular is required.'),
     quantity: z.number().min(0.01, 'Quantity must be positive.'),
-    uom: z.string().min(1, 'UOM is required.'),
+    uom: z.string().optional(),
     rate: z.number().min(0.01, 'Rate must be positive.'),
 });
 
@@ -216,7 +216,7 @@ export default function TransactionsPage() {
                 await updateTransaction(editingTransaction.id, { ...transactionData, lastModifiedBy: user.username });
                 toast({ title: 'Success', description: 'Transaction updated.' });
             } else {
-                await addTransaction({ ...transactionData, createdBy: user.username });
+                await addTransaction({ ...transactionData, createdBy: user.username, type: values.type });
                 toast({ title: 'Success', description: 'New transaction recorded.' });
             }
             setIsTransactionDialogOpen(false);
@@ -634,7 +634,7 @@ export default function TransactionsPage() {
                             <TableRow key={item.id}>
                                 <TableCell><FormField control={form.control} name={`items.${index}.particular`} render={({ field }) => <Input {...field} />} /></TableCell>
                                 <TableCell><FormField control={form.control} name={`items.${index}.quantity`} render={({ field }) => <Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />} /></TableCell>
-                                <TableCell><FormField control={form.control} name={`items.${index}.uom`} render={({ field }) => <Input {...field} />} /></TableCell>
+                                <TableCell><FormField control={form.control} name={`items.${index}.uom`} render={({ field }) => <Input {...field} value={field.value ?? ''} />} /></TableCell>
                                 <TableCell><FormField control={form.control} name={`items.${index}.rate`} render={({ field }) => <Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />} /></TableCell>
                                 <TableCell>{((watchAllFields.items?.[index]?.quantity || 0) * (watchAllFields.items?.[index]?.rate || 0)).toLocaleString()}</TableCell>
                                 <TableCell><Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}><X className="h-4 w-4 text-destructive"/></Button></TableCell>
