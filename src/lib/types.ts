@@ -3,6 +3,7 @@
 
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -238,7 +239,6 @@ export interface Trip {
     id: string;
     date: string; // ISO string
     vehicleId: string;
-    finalDestination: string;
     destinations: Destination[];
     truckAdvance: number;
     transport: number;
@@ -270,3 +270,5 @@ export interface User {
   permissions: Permissions;
   passwordLastUpdated?: string; // ISO Date string
 }
+
+    

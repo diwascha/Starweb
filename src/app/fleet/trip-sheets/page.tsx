@@ -98,10 +98,13 @@ export default function TripSheetsPage() {
           const totalExpenses = (trip.truckAdvance || 0) + (trip.transport || 0) + totalFuel;
           
           const netAmount = netPay - totalExpenses + (trip.returnLoadIncome || 0);
+          
+          const finalDestination = trip.destinations[0]?.name || 'N/A';
 
           return {
               ...trip,
               vehicleName: vehiclesById.get(trip.vehicleId) || 'N/A',
+              finalDestination,
               netAmount,
           }
       });
@@ -226,3 +229,5 @@ export default function TripSheetsPage() {
     </div>
   );
 }
+
+    

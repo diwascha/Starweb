@@ -1,4 +1,5 @@
 
+
 import { db } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import type { Trip } from '@/lib/types';
@@ -11,7 +12,6 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Trip => {
         id: snapshot.id,
         date: data.date,
         vehicleId: data.vehicleId,
-        finalDestination: data.finalDestination,
         destinations: data.destinations,
         truckAdvance: data.truckAdvance,
         transport: data.transport,
@@ -51,3 +51,5 @@ export const deleteTrip = async (id: string): Promise<void> => {
     const tripDoc = doc(db, 'trips', id);
     await deleteDoc(tripDoc);
 };
+
+    

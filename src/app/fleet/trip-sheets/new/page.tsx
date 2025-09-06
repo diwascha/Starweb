@@ -43,7 +43,6 @@ const fuelEntrySchema = z.object({
 const tripSchema = z.object({
   date: z.date(),
   vehicleId: z.string().min(1, 'Vehicle is required.'),
-  finalDestination: z.string().min(1, 'Final destination is required.'),
   destinations: z.array(destinationSchema).min(1, 'At least one destination is required.'),
   truckAdvance: z.number().min(0).optional(),
   transport: z.number().min(0).optional(),
@@ -67,7 +66,6 @@ export default function NewTripSheetPage() {
         defaultValues: {
             date: new Date(),
             vehicleId: '',
-            finalDestination: '',
             destinations: [{ name: '', freight: 0 }],
             truckAdvance: 0,
             transport: 0,
@@ -168,18 +166,41 @@ export default function NewTripSheetPage() {
                                             {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
                                         </SelectContent></Select><FormMessage /></FormItem>
                                     )}/>
-                                    <FormField control={form.control} name="finalDestination" render={({ field }) => (
-                                        <FormItem><FormLabel>Final Destination</FormLabel><FormControl><Input placeholder="e.g. Kathmandu" {...field} /></FormControl><FormMessage /></FormItem>
-                                    )}/>
                                 </CardContent>
                             </Card>
                              <Card>
                                 <CardHeader><CardTitle>Freight Details</CardTitle></CardHeader>
-                                <CardContent><Table><TableHeader><TableRow><TableHead>Destination</TableHead><TableHead>Freight (NPR)</TableHead><TableHead className="w-[50px]"></TableHead></TableRow></TableHeader><TableBody>
+                                <CardContent><Table><TableHeader><TableRow>
+                                  <TableHead>Destination</TableHead>
+                                  <TableHead>Freight (NPR)</TableHead>
+                                  <TableHead className="w-[50px]"></TableHead>
+                                </TableRow></TableHeader><TableBody>
                                     {destinationFields.map((item, index) => (<TableRow key={item.id}>
-                                        <TableCell><FormField control={form.control} name={`destinations.${index}.name`} render={({ field }) => <Input {...field} />}/></TableCell>
-                                        <TableCell><FormField control={form.control} name={`destinations.${index}.freight`} render={({ field }) => <Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />}/></TableCell>
-                                        <TableCell><Button type="button" variant="ghost" size="icon" onClick={() => removeDestination(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button></TableCell>
+                                        <TableCell>
+                                            <FormField control={form.control} name={`destinations.${index}.name`} render={({ field }) => 
+                                                <FormItem>
+                                                    {index === 0 && <FormLabel>Final Destination</FormLabel>}
+                                                    <Input {...field} placeholder={index === 0 ? "e.g. Kathmandu" : "Additional drop-off"}/>
+                                                    <FormMessage/>
+                                                </FormItem>
+                                            }/>
+                                        </TableCell>
+                                        <TableCell>
+                                            <FormField control={form.control} name={`destinations.${index}.freight`} render={({ field }) => 
+                                                <FormItem>
+                                                    {index === 0 && <FormLabel>Freight</FormLabel>}
+                                                    <Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />
+                                                    <FormMessage/>
+                                                </FormItem>
+                                            }/>
+                                        </TableCell>
+                                        <TableCell className="pt-8">
+                                            {index > 0 && 
+                                                <Button type="button" variant="ghost" size="icon" onClick={() => removeDestination(index)}>
+                                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                                </Button>
+                                            }
+                                        </TableCell>
                                     </TableRow>))}
                                 </TableBody></Table>
                                 <Button type="button" size="sm" variant="outline" onClick={() => appendDestination({ name: '', freight: 0 })} className="mt-4"><PlusCircle className="mr-2 h-4 w-4" /> Add Destination</Button>
@@ -241,3 +262,5 @@ export default function NewTripSheetPage() {
         </div>
     );
 }
+
+    
