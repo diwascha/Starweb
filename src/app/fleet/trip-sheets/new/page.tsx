@@ -125,10 +125,10 @@ export default function NewTripSheetPage() {
             .reduce((sum, dest) => sum + (Number(dest.freight) || 0), 0);
         
         const numberOfParties = Number(values.numberOfParties) || 0;
-        const dropOffChargeRate = Number(values.dropOffChargeRate) || 0;
+        const dropOffChargeRate = Number(values.dropOffChargeRate) || 800;
         const dropOffCharge = numberOfParties > 3 ? (numberOfParties - 3) * dropOffChargeRate : 0;
         
-        const detentionChargeRate = Number(values.detentionChargeRate) || 0;
+        const detentionChargeRate = Number(values.detentionChargeRate) || 3000;
         const detentionCharge = days * detentionChargeRate;
 
         const totalTaxable = totalFreight + dropOffCharge + detentionCharge;
