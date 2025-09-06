@@ -110,6 +110,8 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
     const [partyForm, setPartyForm] = useState<{name: string, type: PartyType, address?: string, panNumber?: string}>({name: 'Client', type: 'Client', address: '', panNumber: ''});
     const [editingParty, setEditingParty] = useState<Party | null>(null);
     const [partySearch, setPartySearch] = useState('');
+    const [returnTripPartySearch, setReturnTripPartySearch] = useState<{ [key: number]: string }>({});
+
     
     const [isDestinationDialogOpen, setIsDestinationDialogOpen] = useState(false);
     const [destinationForm, setDestinationForm] = useState<{ name: string }>({ name: '' });
@@ -534,8 +536,8 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                                                         onValueChange={setPartySearch}
                                                     />
                                                     <CommandList>
-                                                        <CommandEmpty>
-                                                            <CommandItem onSelect={() => handleOpenPartyDialog(null, 'Client', partySearch)}>
+                                                        <CommandEmpty onSelect={() => handleOpenPartyDialog(null, 'Client', partySearch)}>
+                                                            <CommandItem>
                                                                 <PlusCircle className="mr-2 h-4 w-4"/> Add "{partySearch}"
                                                             </CommandItem>
                                                         </CommandEmpty>
@@ -916,6 +918,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                                     {returnTripFields.map((item, index) => {
                                         const watchedTrip = watchedFormValues.returnTrips?.[index];
                                         const balance = (Number(watchedTrip?.freight) || 0) - (Number(watchedTrip?.expenses) || 0);
+                                        const currentSearch = returnTripPartySearch[index] || '';
 
                                         return (
                                             <div key={item.id} className="p-4 border rounded-lg space-y-4 relative">
@@ -949,8 +952,18 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                                                                 </PopoverTrigger>
                                                                 <PopoverContent className="p-0">
                                                                     <Command>
-                                                                    <CommandInput placeholder="Search client..." />
-                                                                    <CommandList><CommandEmpty>No client found.</CommandEmpty><CommandGroup>
+                                                                    <CommandInput 
+                                                                        placeholder="Search client..."
+                                                                        value={currentSearch}
+                                                                        onValueChange={(value) => setReturnTripPartySearch(prev => ({ ...prev, [index]: value }))}
+                                                                    />
+                                                                    <CommandList>
+                                                                        <CommandEmpty onSelect={() => handleOpenPartyDialog(null, 'Client', currentSearch)}>
+                                                                            <CommandItem>
+                                                                                <PlusCircle className="mr-2 h-4 w-4"/> Add "{currentSearch}"
+                                                                            </CommandItem>
+                                                                        </CommandEmpty>
+                                                                        <CommandGroup>
                                                                         {clients.map((client) => (
                                                                             <CommandItem key={client.id} value={client.name} onSelect={() => field.onChange(client.id)}>
                                                                                 <Check className={cn("mr-2 h-4 w-4", field.value === client.id ? "opacity-100" : "opacity-0")} />
