@@ -72,7 +72,7 @@ const transactionSchema = z.object({
     invoiceNumber: z.string().optional(),
     invoiceDate: z.date().optional(),
     invoiceType: z.enum(['Taxable', 'Normal']),
-    billingType: z.enum(['Cash', 'Bank Cheque', 'Credit', 'QR']),
+    billingType: z.enum(['Cash', 'Bank', 'Credit', 'QR']),
     chequeNumber: z.string().optional(),
     chequeDate: z.date().optional(),
     dueDate: z.date().optional(),
@@ -120,6 +120,7 @@ export default function TransactionsPage() {
     const vehiclesById = useMemo(() => new Map(vehicles.map(v => [v.id, v.name])), [vehicles]);
     const partiesById = useMemo(() => new Map(parties.map(p => [p.id, p.name])), [parties]);
     const accountsById = useMemo(() => new Map(accounts.map(a => [a.id, a.name])), [accounts]);
+    const bankAccounts = useMemo(() => accounts.filter(a => a.type === 'Bank'), [accounts]);
 
     // Data fetching
     useEffect(() => {
@@ -195,6 +196,7 @@ export default function TransactionsPage() {
             dueDate: values.dueDate?.toISOString(),
             amount: grandTotal,
             remarks: values.remarks || '',
+            accountId: values.accountId || undefined,
         };
 
         try {
@@ -540,20 +542,28 @@ export default function TransactionsPage() {
                             <FormField control={form.control} name="billingType" render={({ field }) => (
                                 <FormItem><FormLabel>Billing</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select billing type" /></SelectTrigger></FormControl>
                                     <SelectContent>
-                                        <SelectItem value="Cash">Cash</SelectItem><SelectItem value="Bank Cheque">Bank Cheque</SelectItem>
+                                        <SelectItem value="Cash">Cash</SelectItem><SelectItem value="Bank">Bank</SelectItem>
                                         <SelectItem value="Credit">Credit</SelectItem><SelectItem value="QR">QR</SelectItem>
                                     </SelectContent>
                                 </Select><FormMessage/></FormItem>
                             )}/>
-                            {watchBillingType === 'Bank Cheque' && (
+                            {watchBillingType === 'Bank' && (
                                 <>
+                                 <FormField control={form.control} name="accountId" render={({ field }) => (
+                                     <FormItem><FormLabel>Bank Account</FormLabel>
+                                        <div className="flex gap-2">
+                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                <FormControl><SelectTrigger><SelectValue placeholder="Select bank" /></SelectTrigger></FormControl>
+                                                <SelectContent>{bankAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}</SelectContent>
+                                            </Select>
+                                            <Button type="button" size="icon" variant="outline" onClick={() => setIsAccountDialogOpen(true)}><Plus className="h-4 w-4"/></Button>
+                                        </div>
+                                     <FormMessage/></FormItem>
+                                 )}/>
                                  <FormField control={form.control} name="chequeNumber" render={({ field }) => (<FormItem><FormLabel>Cheque Number</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage/></FormItem>)}/>
-                                 <FormField control={form.control} name="chequeDate" render={({ field }) => (<FormItem><FormLabel>Cheque Date</FormLabel><Popover><PopoverTrigger asChild><FormControl>
-                                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button>
-                                 </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage/></FormItem>)}/>
                                 </>
                             )}
-                             {(watchBillingType === 'Credit' || watchBillingType === 'Bank Cheque') && (
+                             {(watchBillingType === 'Credit' || watchBillingType === 'Bank') && (
                                 <FormField control={form.control} name="dueDate" render={({ field }) => (<FormItem><FormLabel>Due Date</FormLabel><Popover><PopoverTrigger asChild><FormControl>
                                         <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button>
                                 </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage/></FormItem>)}/>
