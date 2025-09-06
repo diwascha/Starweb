@@ -16,6 +16,7 @@
 
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -278,6 +279,7 @@ export interface Trip {
     id: string;
     date: string; // ISO string
     vehicleId: string;
+    partyId: string;
     odometerStart?: number;
     odometerEnd?: number;
     destinations: TripDestination[];
@@ -316,5 +318,8 @@ export interface User {
   permissions: Permissions;
   passwordLastUpdated?: string; // ISO Date string
 }
+
+    
+
 
     
