@@ -162,7 +162,7 @@ export default function DashboardPage() {
         <CardHeader>
             <CardTitle>Recent Activity</CardTitle>
             <CardDescription>A log of the most recent purchase orders and test reports created or modified.</CardDescription>
-        </-cardheader>
+        </CardHeader>
         <CardContent>
              <ScrollArea className="h-[calc(100vh-32rem)]">
                 {recentActivities.length > 0 ? (
