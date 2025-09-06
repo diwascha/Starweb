@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -14,7 +13,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useEffect, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, PlusCircle, Trash2, ChevronsUpDown, Check, Plus } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Trash2, ChevronsUpDown, Check, Plus, X } from 'lucide-react';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { format, differenceInDays } from 'date-fns';
 import { cn, toNepaliDate } from '@/lib/utils';
@@ -158,6 +157,12 @@ export default function NewTripSheetPage() {
         form.setValue('detentionEndDate', detentionDateRange?.to);
         setIsDetentionDialogOpen(false);
     };
+    
+    const handleClearDetention = () => {
+        form.setValue('detentionStartDate', undefined);
+        form.setValue('detentionEndDate', undefined);
+        setDetentionDateRange(undefined);
+    };
 
     async function onSubmit(values: TripFormValues) {
         if (!user) return;
@@ -266,24 +271,31 @@ export default function NewTripSheetPage() {
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 pt-6 border-t">
                                      <div className="space-y-2">
                                         <Label>Detention</Label>
-                                        <Dialog open={isDetentionDialogOpen} onOpenChange={setIsDetentionDialogOpen}>
-                                            <DialogTrigger asChild>
-                                                <Button type="button" variant="outline" className="w-full justify-start font-normal">
-                                                    <Plus className="mr-2 h-4 w-4"/>
-                                                    {detentionDays > 0 ? `${detentionDays} day(s)` : 'Add Detention'}
+                                         <div className="flex items-center gap-2">
+                                            <Dialog open={isDetentionDialogOpen} onOpenChange={setIsDetentionDialogOpen}>
+                                                <DialogTrigger asChild>
+                                                    <Button type="button" variant="outline" className="w-full justify-start font-normal">
+                                                        <Plus className="mr-2 h-4 w-4"/>
+                                                        {detentionDays > 0 ? `${detentionDays} day(s)` : 'Add Detention'}
+                                                    </Button>
+                                                </DialogTrigger>
+                                                <DialogContent>
+                                                    <DialogHeader><DialogTitle>Select Detention Period</DialogTitle></DialogHeader>
+                                                    <div className="py-4 flex justify-center">
+                                                        <DualDateRangePicker selected={detentionDateRange} onSelect={setDetentionDateRange} />
+                                                    </div>
+                                                    <DialogFooter>
+                                                        <Button variant="outline" onClick={() => setIsDetentionDialogOpen(false)}>Cancel</Button>
+                                                        <Button onClick={handleConfirmDetention}>Confirm</Button>
+                                                    </DialogFooter>
+                                                </DialogContent>
+                                            </Dialog>
+                                            {form.watch('detentionStartDate') && (
+                                                <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={handleClearDetention}>
+                                                    <X className="h-4 w-4 text-destructive" />
                                                 </Button>
-                                            </DialogTrigger>
-                                            <DialogContent>
-                                                <DialogHeader><DialogTitle>Select Detention Period</DialogTitle></DialogHeader>
-                                                <div className="py-4 flex justify-center">
-                                                    <DualDateRangePicker selected={detentionDateRange} onSelect={setDetentionDateRange} />
-                                                </div>
-                                                <DialogFooter>
-                                                    <Button variant="outline" onClick={() => setIsDetentionDialogOpen(false)}>Cancel</Button>
-                                                    <Button onClick={handleConfirmDetention}>Confirm</Button>
-                                                </DialogFooter>
-                                            </DialogContent>
-                                        </Dialog>
+                                            )}
+                                         </div>
                                          {form.watch('detentionStartDate') && (
                                             <p className="text-xs text-muted-foreground">
                                                 {format(form.watch('detentionStartDate')!, "PPP")} - {form.watch('detentionEndDate') ? format(form.watch('detentionEndDate')!, "PPP") : ''}
