@@ -4,6 +4,7 @@
 
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -240,11 +241,14 @@ export interface Trip {
     date: string; // ISO string
     vehicleId: string;
     destinations: Destination[];
-    truckAdvance: number;
-    transport: number;
+    truckAdvance?: number;
+    transport?: number;
     fuelEntries: FuelEntry[];
-    extraExpenses: string;
-    returnLoadIncome: number;
+    extraExpenses?: string;
+    returnLoadIncome?: number;
+    detentionDays?: number;
+    dropOffChargeRate?: number;
+    detentionChargeRate?: number;
     createdBy: string;
     createdAt: string; // ISO string
     lastModifiedBy?: string;

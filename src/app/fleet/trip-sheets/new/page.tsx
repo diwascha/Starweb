@@ -52,6 +52,9 @@ const tripSchema = z.object({
   fuelEntries: z.array(fuelEntrySchema),
   extraExpenses: z.string().optional(),
   returnLoadIncome: z.number().min(0).optional(),
+  detentionDays: z.number().min(0).optional(),
+  dropOffChargeRate: z.number().min(0).optional(),
+  detentionChargeRate: z.number().min(0).optional(),
 });
 
 type TripFormValues = z.infer<typeof tripSchema>;
@@ -78,6 +81,9 @@ export default function NewTripSheetPage() {
             fuelEntries: [],
             extraExpenses: '',
             returnLoadIncome: 0,
+            detentionDays: 0,
+            dropOffChargeRate: 800,
+            detentionChargeRate: 3000,
         },
     });
     
@@ -102,14 +108,25 @@ export default function NewTripSheetPage() {
 
     const fuelVendors = useMemo(() => parties.filter(p => p.type === 'Vendor'), [parties]);
     
-    const { totalTaxable, vatAmount, grossAmount, tdsAmount, netPay, totalExpenses, returnLoadIncome, netAmount } = useMemo(() => {
+    const { totalFreight, dropOffCharge, detentionCharge, totalTaxable, vatAmount, grossAmount, tdsAmount, netPay, totalExpenses, returnLoadIncome, netAmount } = useMemo(() => {
         const destinations = form.watch('destinations');
         const truckAdvance = form.watch('truckAdvance') || 0;
         const transport = form.watch('transport') || 0;
         const fuelEntries = form.watch('fuelEntries');
         const returnIncome = form.watch('returnLoadIncome') || 0;
+        const detentionDays = form.watch('detentionDays') || 0;
+        const dropOffChargeRate = form.watch('dropOffChargeRate') || 0;
+        const detentionChargeRate = form.watch('detentionChargeRate') || 0;
 
-        const totalTaxable = destinations.reduce((sum, dest) => sum + (dest.freight || 0), 0);
+        const validDestinations = destinations.filter(d => d.name && d.freight && d.freight > 0);
+        
+        const totalFreight = validDestinations.reduce((sum, dest) => sum + (dest.freight || 0), 0);
+        
+        const dropOffCharge = validDestinations.length > 3 ? (validDestinations.length - 3) * dropOffChargeRate : 0;
+        
+        const detentionCharge = detentionDays * detentionChargeRate;
+
+        const totalTaxable = totalFreight + dropOffCharge + detentionCharge;
         const vatAmount = totalTaxable * 0.13;
         const grossAmount = totalTaxable + vatAmount;
         const tdsAmount = grossAmount * 0.015;
@@ -119,7 +136,7 @@ export default function NewTripSheetPage() {
         const totalExpenses = truckAdvance + transport + totalFuel;
         const netAmount = netPay - totalExpenses + returnIncome;
         
-        return { totalTaxable, vatAmount, grossAmount, tdsAmount, netPay, totalExpenses, returnLoadIncome: returnIncome, netAmount };
+        return { totalFreight, dropOffCharge, detentionCharge, totalTaxable, vatAmount, grossAmount, tdsAmount, netPay, totalExpenses, returnLoadIncome: returnIncome, netAmount };
     }, [form.watch()]);
 
     async function onSubmit(values: TripFormValues) {
@@ -248,6 +265,11 @@ export default function NewTripSheetPage() {
                                         </div>
                                         <Button type="button" size="sm" variant="outline" onClick={() => appendFuel({ partyId: '', amount: 0 })} className="mt-4"><PlusCircle className="mr-2 h-4 w-4" /> Add Fuel Entry</Button>
                                     </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                        <FormField control={form.control} name="detentionDays" render={({ field }) => <FormItem><FormLabel>Detention Days</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl></FormItem>} />
+                                        <FormField control={form.control} name="detentionChargeRate" render={({ field }) => <FormItem><FormLabel>Detention Rate/Day</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl></FormItem>} />
+                                        <FormField control={form.control} name="dropOffChargeRate" render={({ field }) => <FormItem><FormLabel>Extra Drop-off Rate</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl></FormItem>} />
+                                    </div>
                                     <FormField control={form.control} name="extraExpenses" render={({ field }) => <FormItem><FormLabel>Extra Expenses (Details)</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>} />
                                     <FormField control={form.control} name="returnLoadIncome" render={({ field }) => <FormItem><FormLabel>Additional Income (Return Load)</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl></FormItem>} />
                                 </CardContent>
@@ -257,7 +279,11 @@ export default function NewTripSheetPage() {
                             <Card className="sticky top-8">
                                 <CardHeader><CardTitle>Financial Summary</CardTitle></CardHeader>
                                 <CardContent className="space-y-4">
-                                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Total Taxable</span><span>{totalTaxable.toLocaleString()}</span></div>
+                                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Total Freight</span><span>{totalFreight.toLocaleString()}</span></div>
+                                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Drop-off Charge</span><span>+ {dropOffCharge.toLocaleString()}</span></div>
+                                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Detention Charge</span><span>+ {detentionCharge.toLocaleString()}</span></div>
+                                    <Separator />
+                                    <div className="flex justify-between text-sm font-medium"><span className="text-muted-foreground">Total Taxable</span><span>{totalTaxable.toLocaleString()}</span></div>
                                     <div className="flex justify-between text-sm"><span className="text-muted-foreground">VAT (13%)</span><span>{vatAmount.toLocaleString()}</span></div>
                                     <div className="flex justify-between font-medium"><span className="text-muted-foreground">Gross Amount</span><span>{grossAmount.toLocaleString()}</span></div>
                                     <Separator />
