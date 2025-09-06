@@ -43,7 +43,7 @@ const fuelEntrySchema = z.object({
 const tripSchema = z.object({
   date: z.date(),
   vehicleId: z.string().min(1, 'Vehicle is required.'),
-  primaryDestination: z.string().min(1, 'Primary destination is required.'),
+  finalDestination: z.string().min(1, 'Final destination is required.'),
   locationType: z.enum(['Inside Valley', 'Outside Valley']),
   destinations: z.array(destinationSchema).min(1, 'At least one destination is required.'),
   truckAdvance: z.number().min(0).optional(),
@@ -68,7 +68,7 @@ export default function NewTripSheetPage() {
         defaultValues: {
             date: new Date(),
             vehicleId: '',
-            primaryDestination: '',
+            finalDestination: '',
             locationType: 'Inside Valley',
             destinations: [{ name: '', freight: 0 }],
             truckAdvance: 0,
@@ -170,8 +170,8 @@ export default function NewTripSheetPage() {
                                             {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
                                         </SelectContent></Select><FormMessage /></FormItem>
                                     )}/>
-                                    <FormField control={form.control} name="primaryDestination" render={({ field }) => (
-                                        <FormItem><FormLabel>Primary Destination</FormLabel><FormControl><Input placeholder="e.g. Kathmandu" {...field} /></FormControl><FormMessage /></FormItem>
+                                    <FormField control={form.control} name="finalDestination" render={({ field }) => (
+                                        <FormItem><FormLabel>Final Destination</FormLabel><FormControl><Input placeholder="e.g. Kathmandu" {...field} /></FormControl><FormMessage /></FormItem>
                                     )}/>
                                      <FormField control={form.control} name="locationType" render={({ field }) => (
                                         <FormItem><FormLabel>Location Type</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>

@@ -37,7 +37,7 @@ import { onTripsUpdate, deleteTrip } from '@/services/trip-service';
 import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
-type SortKey = 'date' | 'vehicleName' | 'primaryDestination' | 'netAmount' | 'authorship';
+type SortKey = 'date' | 'vehicleName' | 'finalDestination' | 'netAmount' | 'authorship';
 type SortDirection = 'asc' | 'desc';
 
 export default function TripSheetsPage() {
@@ -114,7 +114,7 @@ export default function TripSheetsPage() {
         const lowercasedQuery = searchQuery.toLowerCase();
         filtered = filtered.filter(trip =>
             (trip.vehicleName || '').toLowerCase().includes(lowercasedQuery) ||
-            (trip.primaryDestination || '').toLowerCase().includes(lowercasedQuery)
+            (trip.finalDestination || '').toLowerCase().includes(lowercasedQuery)
         );
     }
     
@@ -164,7 +164,7 @@ export default function TripSheetsPage() {
             <TableHeader><TableRow>
                 <TableHead><Button variant="ghost" onClick={() => requestSort('date')}>Date</Button></TableHead>
                 <TableHead><Button variant="ghost" onClick={() => requestSort('vehicleName')}>Vehicle</Button></TableHead>
-                <TableHead><Button variant="ghost" onClick={() => requestSort('primaryDestination')}>Destination</Button></TableHead>
+                <TableHead><Button variant="ghost" onClick={() => requestSort('finalDestination')}>Destination</Button></TableHead>
                 <TableHead><Button variant="ghost" onClick={() => requestSort('netAmount')}>Net Amount</Button></TableHead>
                 <TableHead><Button variant="ghost" onClick={() => requestSort('authorship')}>Authorship</Button></TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -174,7 +174,7 @@ export default function TripSheetsPage() {
                 <TableRow key={trip.id}>
                     <TableCell className="font-medium">{toNepaliDate(trip.date)}</TableCell>
                     <TableCell>{trip.vehicleName}</TableCell>
-                    <TableCell>{trip.primaryDestination}</TableCell>
+                    <TableCell>{trip.finalDestination}</TableCell>
                     <TableCell>{trip.netAmount.toLocaleString()}</TableCell>
                     <TableCell>
                         <TooltipProvider><Tooltip><TooltipTrigger className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-default">
