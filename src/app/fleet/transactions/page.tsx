@@ -56,6 +56,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { PaymentReceiptForm } from './_components/payment-receipt-form';
 
 
 const transactionItemSchema = z.object({
@@ -68,59 +69,38 @@ const transactionItemSchema = z.object({
 const transactionSchema = z.object({
     vehicleId: z.string().min(1, 'Vehicle is required.'),
     date: z.date({ required_error: 'Posting date is required.' }),
-    invoiceNumber: z.string().optional().nullable(),
+    invoiceNumber: z.string().optional(),
     invoiceDate: z.date().optional().nullable(),
     invoiceType: z.enum(['Taxable', 'Normal']),
     billingType: z.enum(['Cash', 'Bank', 'Credit']),
-    chequeNumber: z.string().optional().nullable(),
+    chequeNumber: z.string().optional(),
     chequeDate: z.date().optional().nullable(),
     dueDate: z.date().optional().nullable(),
-    partyId: z.string().optional().nullable(),
-    accountId: z.string().optional().nullable(),
+    partyId: z.string().optional(),
+    accountId: z.string().optional(),
     items: z.array(transactionItemSchema).min(1, 'At least one item is required.'),
-    remarks: z.string().optional().nullable(),
+    remarks: z.string().optional(),
     type: z.enum(['Purchase', 'Sales', 'Payment', 'Receipt']),
 }).refine(data => {
-    if (data.billingType === 'Bank') {
-        return !!data.chequeDate;
-    }
+    if (data.billingType === 'Bank') return !!data.chequeDate;
     return true;
-}, {
-    message: 'Cheque Date is required for Bank billing.',
-    path: ['chequeDate'],
-}).refine(data => {
-    if (data.billingType === 'Bank') {
-        return !!data.chequeNumber && data.chequeNumber.trim() !== '';
-    }
+}, { message: 'Cheque Date is required for Bank billing.', path: ['chequeDate'] })
+.refine(data => {
+    if (data.billingType === 'Bank') return !!data.chequeNumber && data.chequeNumber.trim() !== '';
     return true;
-}, {
-    message: 'Cheque Number is required for Bank billing.',
-    path: ['chequeNumber'],
-}).refine(data => {
-    if (data.billingType === 'Bank') {
-        return !!data.accountId;
-    }
+}, { message: 'Cheque Number is required for Bank billing.', path: ['chequeNumber'] })
+.refine(data => {
+    if (data.billingType === 'Bank') return !!data.accountId;
     return true;
-}, {
-    message: 'Bank Account is required for Bank billing.',
-    path: ['accountId'],
-}).refine(data => {
-    if (data.billingType === 'Credit') {
-        return !!data.dueDate;
-    }
+}, { message: 'Bank Account is required for Bank billing.', path: ['accountId'] })
+.refine(data => {
+    if (data.billingType === 'Credit') return !!data.dueDate;
     return true;
-}, {
-    message: 'Due Date is required for Credit billing.',
-    path: ['dueDate'],
-}).refine(data => {
-     if (['Credit', 'Purchase', 'Sales'].includes(data.billingType) || ['Purchase', 'Sales'].includes(data.type)) {
-        return !!data.partyId;
-    }
+}, { message: 'Due Date is required for Credit billing.', path: ['dueDate'] })
+.refine(data => {
+    if (['Credit', 'Purchase', 'Sales'].includes(data.billingType) || ['Purchase', 'Sales'].includes(data.type)) return !!data.partyId;
     return true;
-}, {
-    message: 'Vendor/Party is required for this transaction type.',
-    path: ['partyId'],
-});
+}, { message: 'Vendor/Party is required for this transaction type.', path: ['partyId'] });
 
 
 type TransactionFormValues = z.infer<typeof transactionSchema>;
@@ -149,6 +129,7 @@ export default function TransactionsPage() {
     const [isTransactionDialogOpen, setIsTransactionDialogOpen] = useState(false);
     const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
     const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
+    const [isPaymentReceiptDialogOpen, setIsPaymentReceiptDialogOpen] = useState(false);
 
     // Form states
     const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
@@ -207,7 +188,7 @@ export default function TransactionsPage() {
         const vat = watchedFormValues.invoiceType === 'Taxable' ? sub * 0.13 : 0;
         const total = sub + vat;
         return { subtotal: sub, vatAmount: vat, totalAmount: total };
-    }, [watchedFormValues]);
+    }, [watchedFormValues.items, watchedFormValues.invoiceType]);
 
 
     const handleOpenTransactionDialog = (transaction: Transaction | null = null, type?: TransactionType) => {
@@ -498,7 +479,7 @@ export default function TransactionsPage() {
                                 <Button onClick={() => handleOpenTransactionDialog(null, 'Purchase')} className="w-full">
                                     <ShoppingCart className="mr-2 h-4 w-4" /> New Purchase
                                 </Button>
-                                <Button onClick={() => handleOpenTransactionDialog(null, 'Payment')} className="w-full">
+                                <Button onClick={() => setIsPaymentReceiptDialogOpen(true)} className="w-full">
                                     <ArrowRightLeft className="mr-2 h-4 w-4" /> New Payment / Receipt
                                 </Button>
                                 </>
@@ -787,8 +768,21 @@ export default function TransactionsPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+            
+             <Dialog open={isPaymentReceiptDialogOpen} onOpenChange={setIsPaymentReceiptDialogOpen}>
+                <DialogContent className="sm:max-w-4xl">
+                    <DialogHeader><DialogTitle>New Payment / Receipt</DialogTitle></DialogHeader>
+                    <PaymentReceiptForm
+                        accounts={accounts}
+                        parties={parties}
+                        onFormSubmit={async (values) => {
+                            console.log(values);
+                            setIsPaymentReceiptDialogOpen(false);
+                        }}
+                        onCancel={() => setIsPaymentReceiptDialogOpen(false)}
+                    />
+                </DialogContent>
+            </Dialog>
         </>
     );
 }
-
-    
