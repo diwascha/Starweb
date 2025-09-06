@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import type { Transaction, Vehicle, Party, Account, TransactionType, PartyType, AccountType } from '@/lib/types';
 import { transactionTypes } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, CalendarIcon, ArrowRightLeft, Landmark, Wrench, User, ChevronLeft, ChevronRight, ChevronsUpDown, Check } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, CalendarIcon, ArrowRightLeft, Landmark, Wrench, User, ChevronLeft, ChevronRight, ChevronsUpDown, Check, ShoppingCart, TrendingUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -119,12 +119,15 @@ export default function TransactionsPage() {
         });
     };
 
-    const handleOpenTransactionDialog = (transaction: Transaction | null = null) => {
+    const handleOpenTransactionDialog = (transaction: Transaction | null = null, type?: TransactionType) => {
         if (transaction) {
             setEditingTransaction(transaction);
             setTransactionForm(transaction);
         } else {
             resetTransactionForm();
+            if (type) {
+                setTransactionForm(prev => ({ ...prev, type }));
+            }
         }
         setIsTransactionDialogOpen(true);
     };
@@ -325,11 +328,23 @@ export default function TransactionsPage() {
                                 <p className="text-2xl font-bold">{globalSummary.payables.toLocaleString()}</p>
                             </div>
                              {hasPermission('fleet', 'create') && (
-                                <DialogTrigger asChild>
-                                    <Button onClick={() => handleOpenTransactionDialog()} className="w-full">
-                                        <Plus className="mr-2 h-4 w-4" /> Add Transaction
-                                    </Button>
-                                </DialogTrigger>
+                                <div className="space-y-2">
+                                    <DialogTrigger asChild>
+                                        <Button onClick={() => handleOpenTransactionDialog(null, 'Purchase')} className="w-full">
+                                            <ShoppingCart className="mr-2 h-4 w-4" /> New Purchase
+                                        </Button>
+                                    </DialogTrigger>
+                                     <DialogTrigger asChild>
+                                        <Button onClick={() => handleOpenTransactionDialog(null, 'Sales')} className="w-full">
+                                            <TrendingUp className="mr-2 h-4 w-4" /> New Sales
+                                        </Button>
+                                    </DialogTrigger>
+                                     <DialogTrigger asChild>
+                                        <Button onClick={() => handleOpenTransactionDialog(null, 'Payment')} className="w-full">
+                                            <ArrowRightLeft className="mr-2 h-4 w-4" /> New Payment / Receipt
+                                        </Button>
+                                    </DialogTrigger>
+                                </div>
                             )}
                         </CardContent>
                     </Card>
@@ -518,3 +533,5 @@ export default function TransactionsPage() {
         </Dialog>
     );
 }
+
+    
