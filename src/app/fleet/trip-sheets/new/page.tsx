@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import type { Vehicle, Party, Trip, Destination, FuelEntry, PartyType } from '@/lib/types';
+import type { Vehicle, Party, Trip, Destination, FuelEntry, PartyType, TripDestination } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
@@ -31,6 +31,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { DateRange } from 'react-day-picker';
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
+import { onDestinationsUpdate, addDestination, updateDestination } from '@/services/destination-service';
 
 const destinationSchema = z.object({
   name: z.string().optional(),
@@ -66,6 +67,7 @@ export default function NewTripSheetPage() {
     const { user } = useAuth();
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [parties, setParties] = useState<Party[]>([]);
+    const [destinations, setDestinations] = useState<Destination[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     
     // Dialog States
@@ -75,6 +77,12 @@ export default function NewTripSheetPage() {
     const [partyForm, setPartyForm] = useState<{name: string, type: PartyType, address?: string, panNumber?: string}>({name: '', type: 'Vendor', address: '', panNumber: ''});
     const [editingParty, setEditingParty] = useState<Party | null>(null);
     const [fuelVendorSearch, setFuelVendorSearch] = useState('');
+    
+    const [isDestinationDialogOpen, setIsDestinationDialogOpen] = useState(false);
+    const [destinationForm, setDestinationForm] = useState<{ name: string }>({ name: '' });
+    const [editingDestination, setEditingDestination] = useState<Destination | null>(null);
+    const [destinationSearch, setDestinationSearch] = useState('');
+
 
     const form = useForm<TripFormValues>({
         resolver: zodResolver(tripSchema),
@@ -98,7 +106,7 @@ export default function NewTripSheetPage() {
         },
     });
     
-    const { fields: destinationFields, append: appendDestination, remove: removeDestination } = useFieldArray({
+    const { fields: destinationFields, append: appendDestination, remove: removeDestination, update: updateDestinationField } = useFieldArray({
         control: form.control,
         name: "destinations",
     });
@@ -111,9 +119,11 @@ export default function NewTripSheetPage() {
     useEffect(() => {
         const unsubVehicles = onVehiclesUpdate(setVehicles);
         const unsubParties = onPartiesUpdate(setParties);
+        const unsubDestinations = onDestinationsUpdate(setDestinations);
         return () => {
             unsubVehicles();
             unsubParties();
+            unsubDestinations();
         };
     }, []);
 
@@ -183,7 +193,7 @@ export default function NewTripSheetPage() {
         if (!user) return;
         setIsSubmitting(true);
         try {
-            const filteredDestinations = values.destinations
+            const filteredDestinations: TripDestination[] = values.destinations
               .filter(d => d.name && d.name.trim() !== '' && d.freight && Number(d.freight) > 0)
               .map(d => ({ name: d.name!, freight: Number(d.freight!) }));
               
@@ -244,6 +254,39 @@ export default function NewTripSheetPage() {
         }
         setIsPartyDialogOpen(true);
     };
+
+    const handleSubmitDestination = async () => {
+        if (!user) return;
+        if (!destinationForm.name.trim()) {
+            toast({ title: 'Error', description: 'Destination name is required.', variant: 'destructive' });
+            return;
+        }
+        try {
+            if (editingDestination) {
+                await updateDestination(editingDestination.id, { ...destinationForm, lastModifiedBy: user.username });
+                toast({ title: 'Success', description: 'Destination updated.' });
+            } else {
+                await addDestination({ ...destinationForm, createdBy: user.username });
+                toast({ title: 'Success', description: 'New destination added.' });
+            }
+            setIsDestinationDialogOpen(false);
+            setDestinationForm({ name: '' });
+            setEditingDestination(null);
+        } catch {
+            toast({ title: 'Error', description: 'Failed to save destination.', variant: 'destructive' });
+        }
+    };
+    
+    const handleOpenDestinationDialog = (destination: Destination | null = null) => {
+        if (destination) {
+            setEditingDestination(destination);
+            setDestinationForm({ name: destination.name });
+        } else {
+            setEditingDestination(null);
+            setDestinationForm({ name: destinationSearch });
+        }
+        setIsDestinationDialogOpen(true);
+    };
     
     const watchedNumberOfParties = form.watch('numberOfParties');
 
@@ -292,7 +335,50 @@ export default function NewTripSheetPage() {
                                             <FormField control={form.control} name={`destinations.${index}.name`} render={({ field }) => 
                                                 <FormItem>
                                                     {index === 0 && <FormLabel>Final Destination</FormLabel>}
-                                                    <Input {...field} placeholder={index === 0 ? "e.g. Kathmandu" : "Additional drop-off"}/>
+                                                     <Popover>
+                                                        <PopoverTrigger asChild>
+                                                            <FormControl>
+                                                            <Button variant="outline" role="combobox" className="w-full justify-between">
+                                                                {field.value || "Select destination"}
+                                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                            </Button>
+                                                            </FormControl>
+                                                        </PopoverTrigger>
+                                                        <PopoverContent className="p-0">
+                                                            <Command>
+                                                            <CommandInput 
+                                                                placeholder="Search destination..."
+                                                                value={destinationSearch}
+                                                                onValueChange={setDestinationSearch}
+                                                            />
+                                                            <CommandList>
+                                                                <CommandEmpty>
+                                                                    <Button variant="ghost" className="w-full justify-start" onClick={() => handleOpenDestinationDialog()}>
+                                                                        <PlusCircle className="mr-2 h-4 w-4"/> Add Destination
+                                                                    </Button>
+                                                                </CommandEmpty>
+                                                                <CommandGroup>
+                                                                {destinations.map((dest) => (
+                                                                    <CommandItem
+                                                                    key={dest.id}
+                                                                    value={dest.name}
+                                                                    onSelect={() => field.onChange(dest.name)}
+                                                                    className="flex justify-between items-center"
+                                                                    >
+                                                                    <div className="flex items-center">
+                                                                        <Check className={cn("mr-2 h-4 w-4", field.value === dest.name ? "opacity-100" : "opacity-0")} />
+                                                                        {dest.name}
+                                                                    </div>
+                                                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleOpenDestinationDialog(dest); }}>
+                                                                        <Edit className="h-4 w-4" />
+                                                                    </Button>
+                                                                    </CommandItem>
+                                                                ))}
+                                                                </CommandGroup>
+                                                            </CommandList>
+                                                            </Command>
+                                                        </PopoverContent>
+                                                    </Popover>
                                                     <FormMessage/>
                                                 </FormItem>
                                             }/>
@@ -327,7 +413,7 @@ export default function NewTripSheetPage() {
                                                 <FormLabel>Number of Parties</FormLabel>
                                                 <FormControl>
                                                     <Input type="number" className="w-24" {...field} 
-                                                        value={field.value || ''}
+                                                        value={field.value ?? ''}
                                                         onChange={e => field.onChange(e.target.value === '' ? undefined : parseInt(e.target.value, 10))} />
                                                 </FormControl>
                                             </FormItem>
@@ -338,7 +424,7 @@ export default function NewTripSheetPage() {
                                                     <FormLabel>Extra Drop-off Rate</FormLabel>
                                                     <FormControl>
                                                         <Input type="number" className="w-24" {...field} 
-                                                            value={field.value || ''}
+                                                            value={field.value ?? ''}
                                                             onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
                                                     </FormControl>
                                                 </FormItem>
@@ -388,7 +474,7 @@ export default function NewTripSheetPage() {
                                                 <FormLabel>Detention Rate/Day</FormLabel>
                                                 <FormControl>
                                                     <Input type="number" {...field} 
-                                                        value={field.value || ''} 
+                                                        value={field.value ?? ''} 
                                                         onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
                                                 </FormControl>
                                             </FormItem>} />
@@ -401,8 +487,8 @@ export default function NewTripSheetPage() {
                                 <CardHeader><CardTitle>Trip Expenses & Income</CardTitle></CardHeader>
                                 <CardContent className="space-y-6">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <FormField control={form.control} name="truckAdvance" render={({ field }) => <FormItem><FormLabel>Truck Advance</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} onChange={e => field.onChange(e.target.value === '' ? 0 : parseFloat(e.target.value))} /></FormControl></FormItem>} />
-                                        <FormField control={form.control} name="transport" render={({ field }) => <FormItem><FormLabel>Transport</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} onChange={e => field.onChange(e.target.value === '' ? 0 : parseFloat(e.target.value))} /></FormControl></FormItem>} />
+                                        <FormField control={form.control} name="truckAdvance" render={({ field }) => <FormItem><FormLabel>Truck Advance</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl></FormItem>} />
+                                        <FormField control={form.control} name="transport" render={({ field }) => <FormItem><FormLabel>Transport</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl></FormItem>} />
                                     </div>
                                     <div>
                                         <Label className="text-base font-medium">Fuel</Label>
@@ -457,14 +543,14 @@ export default function NewTripSheetPage() {
                                                         <FormMessage />
                                                       </FormItem>
                                                 )}/>
-                                                <FormField control={form.control} name={`fuelEntries.${index}.amount`} render={({ field }) => <FormItem><FormControl><Input type="number" placeholder="Amount" {...field} value={field.value || ''} onChange={e => field.onChange(e.target.value === '' ? 0 : parseFloat(e.target.value))} /></FormControl><FormMessage/></FormItem>} />
+                                                <FormField control={form.control} name={`fuelEntries.${index}.amount`} render={({ field }) => <FormItem><FormControl><Input type="number" placeholder="Amount" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl><FormMessage/></FormItem>} />
                                                 <Button type="button" variant="ghost" size="icon" onClick={() => removeFuel(index)} className="mt-2"><Trash2 className="h-4 w-4 text-destructive" /></Button>
                                             </div>))}
                                         </div>
                                         <Button type="button" size="sm" variant="outline" onClick={() => appendFuel({ partyId: '', amount: 0 })} className="mt-4"><PlusCircle className="mr-2 h-4 w-4" /> Add Fuel Entry</Button>
                                     </div>
                                     <FormField control={form.control} name="extraExpenses" render={({ field }) => <FormItem><FormLabel>Extra Expenses (Details)</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>} />
-                                    <FormField control={form.control} name="returnLoadIncome" render={({ field }) => <FormItem><FormLabel>Additional Income (Return Load)</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} onChange={e => field.onChange(e.target.value === '' ? 0 : parseFloat(e.target.value))} /></FormControl></FormItem>} />
+                                    <FormField control={form.control} name="returnLoadIncome" render={({ field }) => <FormItem><FormLabel>Additional Income (Return Load)</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl></FormItem>} />
                                 </CardContent>
                             </Card>
                         </div>
@@ -522,6 +608,26 @@ export default function NewTripSheetPage() {
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsPartyDialogOpen(false)}>Cancel</Button>
                         <Button onClick={handleSubmitParty}>{editingParty ? 'Save Changes' : 'Add Vendor'}</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            <Dialog open={isDestinationDialogOpen} onOpenChange={(isOpen) => {
+                if (!isOpen) setEditingDestination(null);
+                setIsDestinationDialogOpen(isOpen);
+            }}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>{editingDestination ? 'Edit Destination' : 'Add New Destination'}</DialogTitle>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="destination-name">Destination Name</Label>
+                            <Input id="destination-name" value={destinationForm.name} onChange={e => setDestinationForm({ name: e.target.value })} />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsDestinationDialogOpen(false)}>Cancel</Button>
+                        <Button onClick={handleSubmitDestination}>{editingDestination ? 'Save Changes' : 'Add Destination'}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

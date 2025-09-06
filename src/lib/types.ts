@@ -8,6 +8,7 @@
 
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -231,7 +232,7 @@ export interface Transaction {
     lastModifiedAt?: string; // ISO string
 }
 
-export interface Destination {
+export interface TripDestination {
     name: string;
     freight: number;
 }
@@ -241,11 +242,21 @@ export interface FuelEntry {
     amount: number;
 }
 
+export interface Destination {
+    id: string;
+    name: string;
+    createdBy: string;
+    createdAt: string; // ISO string
+    lastModifiedBy?: string;
+    lastModifiedAt?: string; // ISO string
+}
+
+
 export interface Trip {
     id: string;
     date: string; // ISO string
     vehicleId: string;
-    destinations: Destination[];
+    destinations: TripDestination[];
     truckAdvance?: number;
     transport?: number;
     fuelEntries: FuelEntry[];
