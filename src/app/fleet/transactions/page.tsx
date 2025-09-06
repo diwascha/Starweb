@@ -285,36 +285,35 @@ export default function TransactionsPage() {
                     <p className="text-muted-foreground">Manage your fleet's financial transactions and view summaries.</p>
                 </header>
 
-                <section>
-                    <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-xl font-semibold">Fleet Summary</h2>
-                        <div className="flex gap-2">
-                             <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => scroll('left')}><ChevronLeft className="h-4 w-4" /></Button>
-                             <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => scroll('right')}><ChevronRight className="h-4 w-4" /></Button>
+                <section className="grid md:grid-cols-2 gap-6">
+                    <div>
+                         <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-semibold">Fleet Summary</h2>
+                            <div className="flex gap-2">
+                                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => scroll('left')}><ChevronLeft className="h-4 w-4" /></Button>
+                                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => scroll('right')}><ChevronRight className="h-4 w-4" /></Button>
+                            </div>
+                        </div>
+                        <div className="relative">
+                            <ScrollArea className="w-full whitespace-nowrap" ref={scrollContainerRef}>
+                                <div className="flex gap-4 pb-4">
+                                    {fleetSummaries.map(summary => (
+                                        <Card key={summary.id} className="w-64 flex-shrink-0">
+                                            <CardHeader>
+                                                <CardTitle className="truncate">{summary.name}</CardTitle>
+                                            </CardHeader>
+                                            <CardContent className="space-y-2">
+                                                <p className="text-sm">Income: <span className="font-medium text-green-600">{summary.income.toLocaleString()}</span></p>
+                                                <p className="text-sm">Expense: <span className="font-medium text-red-600">{summary.expense.toLocaleString()}</span></p>
+                                                <p className="text-sm font-semibold">Net: <span className={cn(summary.net >= 0 ? 'text-green-600' : 'text-red-600')}>{summary.net.toLocaleString()}</span></p>
+                                            </CardContent>
+                                        </Card>
+                                    ))}
+                                </div>
+                            </ScrollArea>
                         </div>
                     </div>
-                    <div className="relative">
-                        <ScrollArea className="w-full whitespace-nowrap" ref={scrollContainerRef}>
-                            <div className="flex gap-4 pb-4">
-                                {fleetSummaries.map(summary => (
-                                    <Card key={summary.id} className="w-64 flex-shrink-0">
-                                        <CardHeader>
-                                            <CardTitle className="truncate">{summary.name}</CardTitle>
-                                        </CardHeader>
-                                        <CardContent className="space-y-2">
-                                            <p className="text-sm">Income: <span className="font-medium text-green-600">{summary.income.toLocaleString()}</span></p>
-                                            <p className="text-sm">Expense: <span className="font-medium text-red-600">{summary.expense.toLocaleString()}</span></p>
-                                            <p className="text-sm font-semibold">Net: <span className={cn(summary.net >= 0 ? 'text-green-600' : 'text-red-600')}>{summary.net.toLocaleString()}</span></p>
-                                        </CardContent>
-                                    </Card>
-                                ))}
-                            </div>
-                        </ScrollArea>
-                    </div>
-                </section>
-
-                <section className="grid md:grid-cols-3 gap-6 items-start">
-                    <Card className="md:col-span-1">
+                     <Card>
                         <CardHeader>
                             <CardTitle>Financial Overview</CardTitle>
                         </CardHeader>
@@ -327,79 +326,88 @@ export default function TransactionsPage() {
                                 <p className="text-sm text-muted-foreground">Total Payables</p>
                                 <p className="text-2xl font-bold">{globalSummary.payables.toLocaleString()}</p>
                             </div>
-                             {hasPermission('fleet', 'create') && (
-                                <div className="space-y-2">
-                                    <DialogTrigger asChild>
-                                        <Button onClick={() => handleOpenTransactionDialog(null, 'Purchase')} className="w-full">
-                                            <ShoppingCart className="mr-2 h-4 w-4" /> New Purchase
-                                        </Button>
-                                    </DialogTrigger>
-                                     <DialogTrigger asChild>
-                                        <Button onClick={() => handleOpenTransactionDialog(null, 'Sales')} className="w-full">
-                                            <TrendingUp className="mr-2 h-4 w-4" /> New Sales
-                                        </Button>
-                                    </DialogTrigger>
-                                     <DialogTrigger asChild>
-                                        <Button onClick={() => handleOpenTransactionDialog(null, 'Payment')} className="w-full">
-                                            <ArrowRightLeft className="mr-2 h-4 w-4" /> New Payment / Receipt
-                                        </Button>
-                                    </DialogTrigger>
-                                </div>
-                            )}
                         </CardContent>
                     </Card>
-                    <div className="md:col-span-2">
-                         <div className="flex flex-col md:flex-row gap-2 mb-4">
-                            <div className="relative flex-1">
-                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input type="search" placeholder="Search..." className="pl-8 w-full" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
-                            </div>
-                            <div className="flex gap-2">
-                                <Popover><PopoverTrigger asChild>
-                                    <Button id="date" variant={"outline"} className={cn("w-full md:w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {dateRange?.from ? (dateRange.to ? (`${format(dateRange.from, "LLL dd, y")} - ${format(dateRange.to, "LLL dd, y")}`) : format(dateRange.from, "LLL dd, y")) : (<span>Pick a date range</span>)}
-                                    </Button>
-                                </PopoverTrigger><PopoverContent className="w-auto p-0" align="end"><DualDateRangePicker selected={dateRange} onSelect={setDateRange} /></PopoverContent></Popover>
-                                <Select value={filterVehicleId} onValueChange={setFilterVehicleId}>
-                                    <SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="All Vehicles" /></SelectTrigger>
-                                    <SelectContent><SelectItem value="All">All Vehicles</SelectItem>{vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}</SelectContent>
-                                </Select>
-                            </div>
+                </section>
+
+                <section>
+                    <div className="flex flex-col md:flex-row gap-4 items-center justify-between mb-4">
+                        <div className="flex-1 w-full">
+                            <h2 className="text-xl font-semibold">Transactions</h2>
                         </div>
-                        <Card>
-                            <Table><TableHeader><TableRow>
-                                <TableHead><Button variant="ghost" onClick={() => requestSort('date')}>Date</Button></TableHead>
-                                <TableHead><Button variant="ghost" onClick={() => requestSort('vehicleName')}>Vehicle</Button></TableHead>
-                                <TableHead><Button variant="ghost" onClick={() => requestSort('type')}>Type</Button></TableHead>
-                                <TableHead><Button variant="ghost" onClick={() => requestSort('partyName')}>Party</Button></TableHead>
-                                <TableHead><Button variant="ghost" onClick={() => requestSort('amount')}>Amount</Button></TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
-                            </TableRow></TableHeader>
-                            <TableBody>
-                                {sortedAndFilteredTransactions.map(txn => (
-                                    <TableRow key={txn.id}>
-                                        <TableCell>{toNepaliDate(txn.date)}</TableCell>
-                                        <TableCell>{txn.vehicleName}</TableCell>
-                                        <TableCell><Badge variant="outline">{txn.type}</Badge></TableCell>
-                                        <TableCell>{txn.partyName}</TableCell>
-                                        <TableCell className={cn(['Purchase', 'Payment'].includes(txn.type) ? 'text-red-600' : 'text-green-600')}>{txn.amount.toLocaleString()}</TableCell>
-                                        <TableCell className="text-right"><DropdownMenu>
-                                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                {hasPermission('fleet', 'edit') && <DropdownMenuItem onSelect={() => handleOpenTransactionDialog(txn)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>}
-                                                {hasPermission('fleet', 'delete') && <DropdownMenuSeparator />}
-                                                {hasPermission('fleet', 'delete') && (
-                                                    <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()}><Trash2 className="mr-2 h-4 w-4 text-destructive" /> <span className="text-destructive">Delete</span></DropdownMenuItem></AlertDialogTrigger>
-                                                    <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the transaction.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(txn.id)}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
-                                                )}
-                                            </DropdownMenuContent>
-                                        </DropdownMenu></TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody></Table>
-                        </Card>
+                        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                            {hasPermission('fleet', 'create') && (
+                                <>
+                                <DialogTrigger asChild>
+                                    <Button onClick={() => handleOpenTransactionDialog(null, 'Purchase')} className="w-full">
+                                        <ShoppingCart className="mr-2 h-4 w-4" /> New Purchase
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogTrigger asChild>
+                                    <Button onClick={() => handleOpenTransactionDialog(null, 'Sales')} className="w-full">
+                                        <TrendingUp className="mr-2 h-4 w-4" /> New Sales
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogTrigger asChild>
+                                    <Button onClick={() => handleOpenTransactionDialog(null, 'Payment')} className="w-full">
+                                        <ArrowRightLeft className="mr-2 h-4 w-4" /> New Payment / Receipt
+                                    </Button>
+                                </DialogTrigger>
+                                </>
+                            )}
+                        </div>
                     </div>
+
+                     <div className="flex flex-col md:flex-row gap-2 mb-4">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input type="search" placeholder="Search..." className="pl-8 w-full" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                        </div>
+                        <div className="flex gap-2">
+                            <Popover><PopoverTrigger asChild>
+                                <Button id="date" variant={"outline"} className={cn("w-full md:w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {dateRange?.from ? (dateRange.to ? (`${format(dateRange.from, "LLL dd, y")} - ${format(dateRange.to, "LLL dd, y")}`) : format(dateRange.from, "LLL dd, y")) : (<span>Pick a date range</span>)}
+                                </Button>
+                            </PopoverTrigger><PopoverContent className="w-auto p-0" align="end"><DualDateRangePicker selected={dateRange} onSelect={setDateRange} /></PopoverContent></Popover>
+                            <Select value={filterVehicleId} onValueChange={setFilterVehicleId}>
+                                <SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="All Vehicles" /></SelectTrigger>
+                                <SelectContent><SelectItem value="All">All Vehicles</SelectItem>{vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}</SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <Card>
+                        <Table><TableHeader><TableRow>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('date')}>Date</Button></TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('vehicleName')}>Vehicle</Button></TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('type')}>Type</Button></TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('partyName')}>Party</Button></TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('amount')}>Amount</Button></TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                        </TableRow></TableHeader>
+                        <TableBody>
+                            {sortedAndFilteredTransactions.map(txn => (
+                                <TableRow key={txn.id}>
+                                    <TableCell>{toNepaliDate(txn.date)}</TableCell>
+                                    <TableCell>{txn.vehicleName}</TableCell>
+                                    <TableCell><Badge variant="outline">{txn.type}</Badge></TableCell>
+                                    <TableCell>{txn.partyName}</TableCell>
+                                    <TableCell className={cn(['Purchase', 'Payment'].includes(txn.type) ? 'text-red-600' : 'text-green-600')}>{txn.amount.toLocaleString()}</TableCell>
+                                    <TableCell className="text-right"><DropdownMenu>
+                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            {hasPermission('fleet', 'edit') && <DropdownMenuItem onSelect={() => handleOpenTransactionDialog(txn)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>}
+                                            {hasPermission('fleet', 'delete') && <DropdownMenuSeparator />}
+                                            {hasPermission('fleet', 'delete') && (
+                                                <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()}><Trash2 className="mr-2 h-4 w-4 text-destructive" /> <span className="text-destructive">Delete</span></DropdownMenuItem></AlertDialogTrigger>
+                                                <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the transaction.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(txn.id)}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+                                            )}
+                                        </DropdownMenuContent>
+                                    </DropdownMenu></TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody></Table>
+                    </Card>
                 </section>
             </div>
             
@@ -533,5 +541,7 @@ export default function TransactionsPage() {
         </Dialog>
     );
 }
+
+    
 
     
