@@ -204,7 +204,8 @@ export default function NewTripSheetPage() {
                             </Card>
                              <Card>
                                 <CardHeader><CardTitle>Freight Details</CardTitle></CardHeader>
-                                <CardContent><Table><TableHeader><TableRow>
+                                <CardContent>
+                                <Table><TableHeader><TableRow>
                                   <TableHead>Destination</TableHead>
                                   <TableHead>Freight (NPR)</TableHead>
                                   <TableHead className="w-[50px]"></TableHead>
@@ -239,6 +240,12 @@ export default function NewTripSheetPage() {
                                 </TableBody></Table>
                                 {form.formState.errors.destinations && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.destinations.message}</p>}
                                 <Button type="button" size="sm" variant="outline" onClick={() => appendDestination({ name: '', freight: 0 })} className="mt-4"><PlusCircle className="mr-2 h-4 w-4" /> Add Destination</Button>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 pt-6 border-t">
+                                    <FormField control={form.control} name="detentionDays" render={({ field }) => <FormItem><FormLabel>Detention Days</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl></FormItem>} />
+                                    <FormField control={form.control} name="detentionChargeRate" render={({ field }) => <FormItem><FormLabel>Detention Rate/Day</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl></FormItem>} />
+                                    <FormField control={form.control} name="dropOffChargeRate" render={({ field }) => <FormItem><FormLabel>Extra Drop-off Rate</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl></FormItem>} />
+                                </div>
                                 </CardContent>
                             </Card>
                              <Card>
@@ -264,11 +271,6 @@ export default function NewTripSheetPage() {
                                             </div>))}
                                         </div>
                                         <Button type="button" size="sm" variant="outline" onClick={() => appendFuel({ partyId: '', amount: 0 })} className="mt-4"><PlusCircle className="mr-2 h-4 w-4" /> Add Fuel Entry</Button>
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                        <FormField control={form.control} name="detentionDays" render={({ field }) => <FormItem><FormLabel>Detention Days</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl></FormItem>} />
-                                        <FormField control={form.control} name="detentionChargeRate" render={({ field }) => <FormItem><FormLabel>Detention Rate/Day</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl></FormItem>} />
-                                        <FormField control={form.control} name="dropOffChargeRate" render={({ field }) => <FormItem><FormLabel>Extra Drop-off Rate</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl></FormItem>} />
                                     </div>
                                     <FormField control={form.control} name="extraExpenses" render={({ field }) => <FormItem><FormLabel>Extra Expenses (Details)</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>} />
                                     <FormField control={form.control} name="returnLoadIncome" render={({ field }) => <FormItem><FormLabel>Additional Income (Return Load)</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl></FormItem>} />
