@@ -302,7 +302,9 @@ export default function NewTripSheetPage() {
                                             </p>
                                         )}
                                     </div>
+                                    {form.watch('detentionStartDate') && (
                                     <FormField control={form.control} name="detentionChargeRate" render={({ field }) => <FormItem><FormLabel>Detention Rate/Day</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl></FormItem>} />
+                                    )}
                                     <FormField control={form.control} name="dropOffChargeRate" render={({ field }) => <FormItem><FormLabel>Extra Drop-off Rate</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl></FormItem>} />
                                 </div>
                                 </CardContent>
