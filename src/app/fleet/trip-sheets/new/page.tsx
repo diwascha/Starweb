@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import type { Vehicle, Party, Trip, Destination, FuelEntry, PartyType, TripDestination } from '@/lib/types';
+import type { Vehicle, Party, Trip, Destination, PartyType, TripDestination } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
@@ -25,7 +25,7 @@ import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/hooks/use-auth';
 import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onPartiesUpdate, addParty, updateParty } from '@/services/party-service';
-import { addTrip } from '@/services/trip-service';
+import { addTrip, onTripsUpdate } from '@/services/trip-service';
 import { Loader2, Edit } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
@@ -68,6 +68,7 @@ export default function NewTripSheetPage() {
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [parties, setParties] = useState<Party[]>([]);
     const [destinations, setDestinations] = useState<Destination[]>([]);
+    const [trips, setTrips] = useState<Trip[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     
     // Dialog States
@@ -120,10 +121,12 @@ export default function NewTripSheetPage() {
         const unsubVehicles = onVehiclesUpdate(setVehicles);
         const unsubParties = onPartiesUpdate(setParties);
         const unsubDestinations = onDestinationsUpdate(setDestinations);
+        const unsubTrips = onTripsUpdate(setTrips);
         return () => {
             unsubVehicles();
             unsubParties();
             unsubDestinations();
+            unsubTrips();
         };
     }, []);
 
@@ -287,6 +290,21 @@ export default function NewTripSheetPage() {
         }
         setIsDestinationDialogOpen(true);
     };
+
+    const handleDestinationSelect = (index: number, destinationName: string) => {
+        form.setValue(`destinations.${index}.name`, destinationName);
+        
+        const lastTripToDestination = trips
+            .filter(trip => trip.destinations.some(d => d.name.toLowerCase() === destinationName.toLowerCase()))
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+
+        if (lastTripToDestination) {
+            const lastFreight = lastTripToDestination.destinations.find(d => d.name.toLowerCase() === destinationName.toLowerCase())?.freight;
+            if (lastFreight) {
+                form.setValue(`destinations.${index}.freight`, lastFreight);
+            }
+        }
+    };
     
     const watchedNumberOfParties = form.watch('numberOfParties');
 
@@ -334,7 +352,6 @@ export default function NewTripSheetPage() {
                                         <TableCell>
                                             <FormField control={form.control} name={`destinations.${index}.name`} render={({ field }) => 
                                                 <FormItem>
-                                                    {index === 0 && <FormLabel>Final Destination</FormLabel>}
                                                      <Popover>
                                                         <PopoverTrigger asChild>
                                                             <FormControl>
@@ -362,7 +379,7 @@ export default function NewTripSheetPage() {
                                                                     <CommandItem
                                                                     key={dest.id}
                                                                     value={dest.name}
-                                                                    onSelect={() => field.onChange(dest.name)}
+                                                                    onSelect={() => handleDestinationSelect(index, dest.name)}
                                                                     className="flex justify-between items-center"
                                                                     >
                                                                     <div className="flex items-center">
@@ -386,13 +403,12 @@ export default function NewTripSheetPage() {
                                         <TableCell>
                                             <FormField control={form.control} name={`destinations.${index}.freight`} render={({ field }) => 
                                                 <FormItem>
-                                                    {index === 0 && <FormLabel>Freight</FormLabel>}
-                                                    <Input type="number" {...field} value={field.value || ''} onChange={e => field.onChange(e.target.value === '' ? 0 : parseFloat(e.target.value))} />
+                                                    <Input type="number" {...field} value={field.value || ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
                                                     <FormMessage/>
                                                 </FormItem>
                                             }/>
                                         </TableCell>
-                                        <TableCell className="pt-8">
+                                        <TableCell>
                                             {index > 1 && 
                                                 <Button type="button" variant="ghost" size="icon" onClick={() => removeDestination(index)}>
                                                     <Trash2 className="h-4 w-4 text-destructive" />
