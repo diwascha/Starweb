@@ -715,7 +715,7 @@ export function TripSheetForm() {
                                         <Label className="text-base font-medium">Extra Expenses</Label>
                                         <div className="mt-2 space-y-4">
                                             {expenseFields.map((item, index) => (
-                                                <div key={item.id} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] items-start gap-2">
+                                                <div key={item.id} className="grid grid-cols-1 md:grid-cols-[1fr_2fr] items-start gap-2">
                                                     <FormField
                                                         control={form.control}
                                                         name={`extraExpenses.${index}.partyId`}
