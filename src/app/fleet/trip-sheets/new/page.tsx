@@ -608,12 +608,12 @@ export default function NewTripSheetPage() {
                                                 )}/>
                                                 <div className="flex items-center gap-2 md:col-span-2">
                                                     <FormField control={form.control} name={`fuelEntries.${index}.liters`} render={({ field }) => <FormItem className="flex-1"><FormControl><Input type="number" placeholder="Enter Liter" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl><FormMessage/></FormItem>} />
-                                                    <FormField control={form.control} name={`fuelEntries.${index}.amount`} render={({ field }) => <FormItem className="flex-1"><FormControl><Input type="number" placeholder="Amount" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl><FormMessage/></FormItem>} />
+                                                    <FormField control={form.control} name={`fuelEntries.${index}.amount`} render={({ field }) => <FormItem className="flex-1"><FormControl><Input type="number" placeholder="Enter fuel amount" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl><FormMessage/></FormItem>} />
                                                     <Button type="button" variant="ghost" size="icon" onClick={() => removeFuel(index)} className="mt-2"><Trash2 className="h-4 w-4 text-destructive" /></Button>
                                                 </div>
                                             </div>))}
                                         </div>
-                                        <Button type="button" size="sm" variant="outline" onClick={() => appendFuel({ partyId: '', amount: 0, liters: undefined })} className="mt-4"><PlusCircle className="mr-2 h-4 w-4" /> Add Fuel Entry</Button>
+                                        <Button type="button" size="sm" variant="outline" onClick={() => appendFuel({ partyId: '', amount: undefined, liters: undefined })} className="mt-4"><PlusCircle className="mr-2 h-4 w-4" /> Add Fuel Entry</Button>
                                     </div>
                                     <div>
                                         <Label className="text-base font-medium">Extra Expenses</Label>
