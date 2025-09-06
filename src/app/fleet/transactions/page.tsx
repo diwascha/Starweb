@@ -69,17 +69,17 @@ const transactionItemSchema = z.object({
 const transactionSchema = z.object({
     vehicleId: z.string().min(1, 'Vehicle is required.'),
     date: z.date({ required_error: 'Posting date is required.' }),
-    invoiceNumber: z.string().optional(),
-    invoiceDate: z.date().optional(),
+    invoiceNumber: z.string().optional().nullable(),
+    invoiceDate: z.date().optional().nullable(),
     invoiceType: z.enum(['Taxable', 'Normal']),
     billingType: z.enum(['Cash', 'Bank', 'Credit']),
-    chequeNumber: z.string().optional(),
-    chequeDate: z.date().optional(),
-    dueDate: z.date().optional(),
-    partyId: z.string().optional(),
-    accountId: z.string().optional(),
+    chequeNumber: z.string().optional().nullable(),
+    chequeDate: z.date().optional().nullable(),
+    dueDate: z.date().optional().nullable(),
+    partyId: z.string().optional().nullable(),
+    accountId: z.string().optional().nullable(),
     items: z.array(transactionItemSchema).min(1, 'At least one item is required.'),
-    remarks: z.string().optional(),
+    remarks: z.string().optional().nullable(),
     type: z.enum(['Purchase', 'Sales', 'Payment', 'Receipt']),
 });
 
@@ -159,12 +159,18 @@ export default function TransactionsPage() {
     });
     
     const watchBillingType = form.watch("billingType");
-    const watchItems = form.watch("items");
-    const watchInvoiceType = form.watch("invoiceType");
-    
-    const subtotal = (watchItems || []).reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.rate) || 0), 0);
-    const vatAmount = watchInvoiceType === 'Taxable' ? subtotal * 0.13 : 0;
-    const totalAmount = subtotal + vatAmount;
+    const watchAllFields = form.watch();
+
+    const { subtotal, vatAmount, totalAmount } = useMemo(() => {
+        const items = watchAllFields.items || [];
+        const sub = items.reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.rate) || 0), 0);
+        const vat = watchAllFields.invoiceType === 'Taxable' ? sub * 0.13 : 0;
+        return {
+            subtotal: sub,
+            vatAmount: vat,
+            totalAmount: sub + vat,
+        };
+    }, [watchAllFields.items, watchAllFields.invoiceType]);
 
 
     const handleOpenTransactionDialog = (transaction: Transaction | null = null, type?: TransactionType) => {
@@ -193,11 +199,11 @@ export default function TransactionsPage() {
     const handleSubmitTransaction = async (values: TransactionFormValues) => {
         if (!user) return;
         
-        const subtotal = (values.items || []).reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.rate) || 0), 0);
+        const subtotal = (values.items || []).reduce((sum, item) => sum + (item.quantity || 0) * (item.rate || 0), 0);
         const vat = values.invoiceType === 'Taxable' ? subtotal * 0.13 : 0;
         const grandTotal = subtotal + vat;
 
-        const transactionData: Omit<Transaction, 'id' | 'createdAt' | 'lastModifiedAt'> = {
+        const transactionData = {
             ...values,
             date: values.date.toISOString(),
             invoiceDate: values.invoiceDate?.toISOString(),
@@ -275,7 +281,7 @@ export default function TransactionsPage() {
                 await updateAccount(editingAccount.id, updatedAccountData);
                 toast({ title: 'Success', description: 'Account updated.' });
             } else {
-                 const newAccountData: Omit<Account, 'id'> = {
+                 const newAccountData: Omit<Account, 'id' | 'createdAt' | 'lastModifiedAt'> = {
                     ...accountForm,
                     createdBy: user.username,
                 };
@@ -561,7 +567,7 @@ export default function TransactionsPage() {
                         </div>
                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             <FormField control={form.control} name="invoiceNumber" render={({ field }) => (
-                                <FormItem><FormLabel>Invoice Number (Optional)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage/></FormItem>
+                                <FormItem><FormLabel>Invoice Number (Optional)</FormLabel><FormControl><Input {...field} value={field.value ?? ''} /></FormControl><FormMessage/></FormItem>
                             )}/>
                             <FormField control={form.control} name="invoiceDate" render={({ field }) => (
                                 <FormItem><FormLabel>Invoice Date (Optional)</FormLabel>
@@ -612,7 +618,7 @@ export default function TransactionsPage() {
                                         </div>
                                      <FormMessage/></FormItem>
                                  )}/>
-                                 <FormField control={form.control} name="chequeNumber" render={({ field }) => (<FormItem><FormLabel>Cheque Number</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage/></FormItem>)}/>
+                                 <FormField control={form.control} name="chequeNumber" render={({ field }) => (<FormItem><FormLabel>Cheque Number</FormLabel><FormControl><Input {...field} value={field.value ?? ''} /></FormControl><FormMessage/></FormItem>)}/>
                                 </>
                             )}
                              {(watchBillingType === 'Credit' || watchBillingType === 'Bank') && (
@@ -633,7 +639,7 @@ export default function TransactionsPage() {
                                 <TableCell><FormField control={form.control} name={`items.${index}.quantity`} render={({ field }) => <Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />} /></TableCell>
                                 <TableCell><FormField control={form.control} name={`items.${index}.uom`} render={({ field }) => <Input {...field} />} /></TableCell>
                                 <TableCell><FormField control={form.control} name={`items.${index}.rate`} render={({ field }) => <Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />} /></TableCell>
-                                <TableCell>{((watchItems[index]?.quantity || 0) * (watchItems[index]?.rate || 0)).toLocaleString()}</TableCell>
+                                <TableCell>{((watchAllFields.items?.[index]?.quantity || 0) * (watchAllFields.items?.[index]?.rate || 0)).toLocaleString()}</TableCell>
                                 <TableCell><Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}><X className="h-4 w-4 text-destructive"/></Button></TableCell>
                             </TableRow>
                         ))}
@@ -647,12 +653,12 @@ export default function TransactionsPage() {
                                 <Label>Calculation</Label>
                                 <div className="p-4 border rounded-md space-y-2">
                                     <div className="flex justify-between text-sm"><span>Subtotal</span><span>{subtotal.toLocaleString(undefined, {maximumFractionDigits: 2})}</span></div>
-                                    {watchInvoiceType === 'Taxable' && <div className="flex justify-between text-sm"><span>VAT (13%)</span><span>{vatAmount.toLocaleString(undefined, {maximumFractionDigits: 2})}</span></div>}
+                                    {watchAllFields.invoiceType === 'Taxable' && <div className="flex justify-between text-sm"><span>VAT (13%)</span><span>{vatAmount.toLocaleString(undefined, {maximumFractionDigits: 2})}</span></div>}
                                     <div className="flex justify-between font-bold"><span>Grand Total</span><span>{totalAmount.toLocaleString(undefined, {maximumFractionDigits: 2})}</span></div>
                                 </div>
                             </div>
                             <FormField control={form.control} name="remarks" render={({ field }) => (
-                                <FormItem><FormLabel>Remarks</FormLabel><FormControl><Textarea className="min-h-[110px]" {...field} /></FormControl><FormMessage/></FormItem>
+                                <FormItem><FormLabel>Remarks</FormLabel><FormControl><Textarea className="min-h-[110px]" {...field} value={field.value ?? ''} /></FormControl><FormMessage/></FormItem>
                             )}/>
                         </div>
                     </div>
