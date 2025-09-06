@@ -31,8 +31,8 @@ import { Loader2 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 
 const destinationSchema = z.object({
-  name: z.string().min(1, 'Destination name is required.'),
-  freight: z.number().min(0, 'Freight must be a positive number.'),
+  name: z.string().optional(),
+  freight: z.number().optional(),
 });
 
 const fuelEntrySchema = z.object({
@@ -43,7 +43,10 @@ const fuelEntrySchema = z.object({
 const tripSchema = z.object({
   date: z.date(),
   vehicleId: z.string().min(1, 'Vehicle is required.'),
-  destinations: z.array(destinationSchema).min(1, 'At least one destination is required.'),
+  destinations: z.array(destinationSchema)
+    .refine(destinations => destinations.filter(d => d.name && d.freight).length > 0, {
+      message: 'At least one destination with a name and freight is required.',
+    }),
   truckAdvance: z.number().min(0).optional(),
   transport: z.number().min(0).optional(),
   fuelEntries: z.array(fuelEntrySchema),
@@ -66,7 +69,10 @@ export default function NewTripSheetPage() {
         defaultValues: {
             date: new Date(),
             vehicleId: '',
-            destinations: [{ name: '', freight: 0 }],
+            destinations: [
+                { name: '', freight: 0 },
+                { name: '', freight: 0 } 
+            ],
             truckAdvance: 0,
             transport: 0,
             fuelEntries: [],
@@ -120,8 +126,19 @@ export default function NewTripSheetPage() {
         if (!user) return;
         setIsSubmitting(true);
         try {
+            const filteredDestinations = values.destinations
+              .filter(d => d.name && d.name.trim() !== '' && d.freight && d.freight > 0)
+              .map(d => ({ name: d.name!, freight: d.freight! }));
+              
+            if (filteredDestinations.length === 0) {
+                form.setError('destinations', { message: 'At least one valid destination is required.' });
+                setIsSubmitting(false);
+                return;
+            }
+
             const newTripData: Omit<Trip, 'id'> = {
                 ...values,
+                destinations: filteredDestinations,
                 date: values.date.toISOString(),
                 createdAt: new Date().toISOString(),
                 createdBy: user.username,
@@ -203,6 +220,7 @@ export default function NewTripSheetPage() {
                                         </TableCell>
                                     </TableRow>))}
                                 </TableBody></Table>
+                                {form.formState.errors.destinations && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.destinations.message}</p>}
                                 <Button type="button" size="sm" variant="outline" onClick={() => appendDestination({ name: '', freight: 0 })} className="mt-4"><PlusCircle className="mr-2 h-4 w-4" /> Add Destination</Button>
                                 </CardContent>
                             </Card>
@@ -262,5 +280,7 @@ export default function NewTripSheetPage() {
         </div>
     );
 }
+
+    
 
     
