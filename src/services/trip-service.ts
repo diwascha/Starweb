@@ -1,17 +1,18 @@
 
 
 import { db } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, doc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
 import type { Trip } from '@/lib/types';
 
 const tripsCollection = collection(db, 'trips');
 
-const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Trip => {
+const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentData): Trip => {
     const data = snapshot.data();
     return {
         id: snapshot.id,
         date: data.date,
         vehicleId: data.vehicleId,
+        partyId: data.partyId,
         odometerStart: data.odometerStart,
         odometerEnd: data.odometerEnd,
         destinations: data.destinations,
@@ -44,6 +45,16 @@ export const onTripsUpdate = (callback: (trips: Trip[]) => void): () => void => 
     return onSnapshot(tripsCollection, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
     });
+};
+
+export const getTrip = async (id: string): Promise<Trip | null> => {
+    const tripDoc = doc(db, 'trips', id);
+    const docSnap = await getDoc(tripDoc);
+    if (docSnap.exists()) {
+        return fromFirestore(docSnap);
+    } else {
+        return null;
+    }
 };
 
 export const updateTrip = async (id: string, trip: Partial<Omit<Trip, 'id'>>): Promise<void> => {

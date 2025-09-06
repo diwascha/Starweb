@@ -25,7 +25,7 @@ import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/hooks/use-auth';
 import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onPartiesUpdate, addParty, updateParty } from '@/services/party-service';
-import { addTrip, onTripsUpdate } from '@/services/trip-service';
+import { addTrip, updateTrip, onTripsUpdate } from '@/services/trip-service';
 import { Loader2, Edit } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
@@ -88,7 +88,11 @@ const tripSchema = z.object({
 
 type TripFormValues = z.infer<typeof tripSchema>;
 
-export function TripSheetForm() {
+interface TripSheetFormProps {
+  tripToEdit?: Trip;
+}
+
+export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
     const router = useRouter();
     const { toast } = useToast();
     const { user } = useAuth();
@@ -112,9 +116,25 @@ export function TripSheetForm() {
     const [destinationSearch, setDestinationSearch] = useState('');
 
 
-    const form = useForm<TripFormValues>({
-        resolver: zodResolver(tripSchema),
-        defaultValues: {
+    const defaultValues = useMemo(() => {
+        if (tripToEdit) {
+            return {
+                ...tripToEdit,
+                date: new Date(tripToEdit.date),
+                detentionStartDate: tripToEdit.detentionStartDate ? new Date(tripToEdit.detentionStartDate) : undefined,
+                detentionEndDate: tripToEdit.detentionEndDate ? new Date(tripToEdit.detentionEndDate) : undefined,
+                destinations: tripToEdit.destinations.map(d => ({ ...d, freight: Number(d.freight) })),
+                fuelEntries: tripToEdit.fuelEntries.map(f => ({ ...f, amount: Number(f.amount), liters: f.liters ? Number(f.liters) : undefined })),
+                extraExpenses: tripToEdit.extraExpenses.map(e => ({ ...e, amount: Number(e.amount) })),
+                returnTrips: tripToEdit.returnTrips.map(rt => ({
+                    ...rt,
+                    date: rt.date ? new Date(rt.date) : undefined,
+                    freight: rt.freight ? Number(rt.freight) : undefined,
+                    expenses: rt.expenses ? Number(rt.expenses) : undefined
+                }))
+            };
+        }
+        return {
             date: new Date(),
             vehicleId: '',
             partyId: '',
@@ -133,7 +153,12 @@ export function TripSheetForm() {
             numberOfParties: 0,
             dropOffChargeRate: 800,
             detentionChargeRate: 3000,
-        },
+        };
+    }, [tripToEdit]);
+
+    const form = useForm<TripFormValues>({
+        resolver: zodResolver(tripSchema),
+        defaultValues,
     });
     
     const { fields: destinationFields, append: appendDestination, remove: removeDestination } = useFieldArray({
@@ -161,13 +186,21 @@ export function TripSheetForm() {
         const unsubParties = onPartiesUpdate(setParties);
         const unsubDestinations = onDestinationsUpdate(setDestinations);
         const unsubTrips = onTripsUpdate(setTrips);
+
+        if (tripToEdit) {
+            form.reset(defaultValues);
+            if (tripToEdit.detentionStartDate) {
+                setDetentionDateRange({ from: new Date(tripToEdit.detentionStartDate), to: tripToEdit.detentionEndDate ? new Date(tripToEdit.detentionEndDate) : undefined });
+            }
+        }
+
         return () => {
             unsubVehicles();
             unsubParties();
             unsubDestinations();
             unsubTrips();
         };
-    }, []);
+    }, [tripToEdit, form, defaultValues]);
 
     const vendors = useMemo(() => parties.filter(p => p.type === 'Vendor' || p.type === 'Both'), [parties]);
     const clients = useMemo(() => parties.filter(p => p.type === 'Client' || p.type === 'Both'), [parties]);
@@ -177,7 +210,7 @@ export function TripSheetForm() {
     const selectedVehicleId = watchedFormValues.vehicleId;
 
     useEffect(() => {
-        if (finalDestinationName) {
+        if (finalDestinationName && !tripToEdit) { // Only auto-fill on new trips
             const sortedTrips = trips.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
             const lastTripToDestination = sortedTrips.find(trip => 
                 trip.destinations.length > 0 && trip.destinations[0].name.toLowerCase() === finalDestinationName.toLowerCase()
@@ -187,10 +220,10 @@ export function TripSheetForm() {
                 form.setValue('truckAdvance', lastTripToDestination.truckAdvance);
             }
         }
-    }, [finalDestinationName, trips, form]);
+    }, [finalDestinationName, trips, form, tripToEdit]);
     
     useEffect(() => {
-        if (selectedVehicleId) {
+        if (selectedVehicleId && !tripToEdit) { // Only auto-fill on new trips
             const lastTripForVehicle = trips
                 .filter(trip => trip.vehicleId === selectedVehicleId && trip.odometerEnd)
                 .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
@@ -201,7 +234,7 @@ export function TripSheetForm() {
                  form.setValue('odometerStart', undefined);
             }
         }
-    }, [selectedVehicleId, trips, form]);
+    }, [selectedVehicleId, trips, form, tripToEdit]);
 
     const { 
         totalFreight, dropOffCharge, detentionCharge, totalTaxable, vatAmount, grossAmount, tdsAmount, netPay, 
@@ -286,7 +319,7 @@ export function TripSheetForm() {
         setIsSubmitting(true);
 
         try {
-            const tripData: Omit<Trip, 'id' | 'createdAt' | 'createdBy'> & { createdAt: string; createdBy: string; } = {
+            const tripData: Partial<Omit<Trip, 'id' | 'createdAt' | 'createdBy'>> & { createdBy: string; } = {
                 date: values.date.toISOString(),
                 vehicleId: values.vehicleId,
                 partyId: values.partyId,
@@ -326,24 +359,33 @@ export function TripSheetForm() {
                         return returnTrip;
                     }),
                 createdBy: user.username,
-                createdAt: new Date().toISOString(),
             };
 
-            if (values.odometerStart) tripData.odometerStart = values.odometerStart;
-            if (values.odometerEnd) tripData.odometerEnd = values.odometerEnd;
-            if (values.truckAdvance) tripData.truckAdvance = values.truckAdvance;
+            if (values.odometerStart !== undefined) tripData.odometerStart = values.odometerStart;
+            if (values.odometerEnd !== undefined) tripData.odometerEnd = values.odometerEnd;
+            if (values.truckAdvance !== undefined) tripData.truckAdvance = values.truckAdvance;
             if (values.detentionStartDate) tripData.detentionStartDate = values.detentionStartDate.toISOString();
             if (values.detentionEndDate) tripData.detentionEndDate = values.detentionEndDate.toISOString();
-            if (values.numberOfParties) tripData.numberOfParties = values.numberOfParties;
-            if (values.dropOffChargeRate) tripData.dropOffChargeRate = values.dropOffChargeRate;
-            if (values.detentionChargeRate) tripData.detentionChargeRate = values.detentionChargeRate;
+            if (values.numberOfParties !== undefined) tripData.numberOfParties = values.numberOfParties;
+            if (values.dropOffChargeRate !== undefined) tripData.dropOffChargeRate = values.dropOffChargeRate;
+            if (values.detentionChargeRate !== undefined) tripData.detentionChargeRate = values.detentionChargeRate;
+            
+            if (tripToEdit) {
+                await updateTrip(tripToEdit.id, {
+                    ...tripData,
+                    lastModifiedBy: user.username
+                });
+                toast({ title: 'Success', description: 'Trip sheet updated successfully.' });
+                router.push('/fleet/trip-sheets');
+            } else {
+                await addTrip(tripData as Omit<Trip, 'id'>);
+                toast({ title: 'Success', description: 'Trip sheet created successfully.' });
+                router.push('/fleet/transactions');
+            }
 
-            await addTrip(tripData);
-            toast({ title: 'Success', description: 'Trip sheet created successfully.' });
-            router.push('/fleet/transactions');
         } catch (error) {
             console.error(error);
-            toast({ title: 'Error', description: 'Failed to create trip sheet.', variant: 'destructive' });
+            toast({ title: 'Error', description: 'Failed to save trip sheet.', variant: 'destructive' });
         } finally {
             setIsSubmitting(false);
         }
@@ -952,7 +994,7 @@ export function TripSheetForm() {
                         </div>
                     </div>
                     <Button type="submit" disabled={isSubmitting}>
-                        {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : 'Save Trip Sheet'}
+                        {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : (tripToEdit ? 'Update Trip Sheet' : 'Save Trip Sheet')}
                     </Button>
                 </form>
             </Form>
