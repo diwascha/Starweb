@@ -81,7 +81,48 @@ const transactionSchema = z.object({
     items: z.array(transactionItemSchema).min(1, 'At least one item is required.'),
     remarks: z.string().optional().nullable(),
     type: z.enum(['Purchase', 'Sales', 'Payment', 'Receipt']),
+}).refine(data => {
+    if (data.billingType === 'Bank') {
+        return !!data.chequeDate;
+    }
+    return true;
+}, {
+    message: 'Cheque Date is required for Bank billing.',
+    path: ['chequeDate'],
+}).refine(data => {
+    if (data.billingType === 'Bank') {
+        return !!data.chequeNumber && data.chequeNumber.trim() !== '';
+    }
+    return true;
+}, {
+    message: 'Cheque Number is required for Bank billing.',
+    path: ['chequeNumber'],
+}).refine(data => {
+    if (data.billingType === 'Bank') {
+        return !!data.accountId;
+    }
+    return true;
+}, {
+    message: 'Bank Account is required for Bank billing.',
+    path: ['accountId'],
+}).refine(data => {
+    if (data.billingType === 'Credit') {
+        return !!data.dueDate;
+    }
+    return true;
+}, {
+    message: 'Due Date is required for Credit billing.',
+    path: ['dueDate'],
+}).refine(data => {
+     if (['Purchase', 'Sales', 'Credit'].includes(data.type) || data.billingType === 'Credit') {
+        return !!data.partyId;
+    }
+    return true;
+}, {
+    message: 'Vendor/Party is required for this transaction type.',
+    path: ['partyId'],
 });
+
 
 type TransactionFormValues = z.infer<typeof transactionSchema>;
 
@@ -209,6 +250,7 @@ export default function TransactionsPage() {
             amount: grandTotal,
             remarks: values.remarks || '',
             accountId: values.accountId || undefined,
+            partyId: values.partyId || undefined,
         };
 
         try {
@@ -737,4 +779,5 @@ export default function TransactionsPage() {
         </>
     );
 }
+
 
