@@ -72,8 +72,9 @@ export default function NewTripSheetPage() {
     const [isDetentionDialogOpen, setIsDetentionDialogOpen] = useState(false);
     const [detentionDateRange, setDetentionDateRange] = useState<DateRange | undefined>(undefined);
     const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
-    const [partyForm, setPartyForm] = useState<{name: string, type: PartyType}>({name: '', type: 'Vendor'});
+    const [partyForm, setPartyForm] = useState<{name: string, type: PartyType, address?: string, panNumber?: string}>({name: '', type: 'Vendor', address: '', panNumber: ''});
     const [editingParty, setEditingParty] = useState<Party | null>(null);
+    const [fuelVendorSearch, setFuelVendorSearch] = useState('');
 
     const form = useForm<TripFormValues>({
         resolver: zodResolver(tripSchema),
@@ -214,19 +215,19 @@ export default function NewTripSheetPage() {
     const handleSubmitParty = async () => {
         if(!user) return;
         if(!partyForm.name || !partyForm.type) {
-            toast({title: 'Error', description: 'Party name and type are required.', variant: 'destructive'});
+            toast({title: 'Error', description: 'Vendor name is required.', variant: 'destructive'});
             return;
         }
         try {
             if (editingParty) {
-                await updateParty(editingParty.id, { name: partyForm.name, type: partyForm.type, lastModifiedBy: user.username });
+                await updateParty(editingParty.id, { ...partyForm, lastModifiedBy: user.username });
                 toast({title: 'Success', description: 'Vendor updated.'});
             } else {
                 await addParty({...partyForm, createdBy: user.username});
                 toast({title: 'Success', description: 'New vendor added.'});
             }
             setIsPartyDialogOpen(false);
-            setPartyForm({name: '', type: 'Vendor'});
+            setPartyForm({name: '', type: 'Vendor', address: '', panNumber: ''});
             setEditingParty(null);
         } catch {
              toast({title: 'Error', description: 'Failed to save vendor.', variant: 'destructive'});
@@ -236,10 +237,10 @@ export default function NewTripSheetPage() {
     const handleOpenPartyDialog = (party: Party | null = null) => {
         if (party) {
             setEditingParty(party);
-            setPartyForm({ name: party.name, type: party.type });
+            setPartyForm({ name: party.name, type: party.type, address: party.address || '', panNumber: party.panNumber || '' });
         } else {
             setEditingParty(null);
-            setPartyForm({ name: '', type: 'Vendor' });
+            setPartyForm({ name: fuelVendorSearch, type: 'Vendor', address: '', panNumber: '' });
         }
         setIsPartyDialogOpen(true);
     };
@@ -300,7 +301,7 @@ export default function NewTripSheetPage() {
                                             <FormField control={form.control} name={`destinations.${index}.freight`} render={({ field }) => 
                                                 <FormItem>
                                                     {index === 0 && <FormLabel>Freight</FormLabel>}
-                                                    <Input type="number" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
+                                                    <Input type="number" {...field} value={field.value || ''} onChange={e => field.onChange(e.target.value === '' ? 0 : parseFloat(e.target.value))} />
                                                     <FormMessage/>
                                                 </FormItem>
                                             }/>
@@ -326,7 +327,7 @@ export default function NewTripSheetPage() {
                                                 <FormLabel>Number of Parties</FormLabel>
                                                 <FormControl>
                                                     <Input type="number" className="w-24" {...field} 
-                                                        value={field.value ?? ''}
+                                                        value={field.value || ''}
                                                         onChange={e => field.onChange(e.target.value === '' ? undefined : parseInt(e.target.value, 10))} />
                                                 </FormControl>
                                             </FormItem>
@@ -337,7 +338,7 @@ export default function NewTripSheetPage() {
                                                     <FormLabel>Extra Drop-off Rate</FormLabel>
                                                     <FormControl>
                                                         <Input type="number" className="w-24" {...field} 
-                                                            value={field.value ?? ''}
+                                                            value={field.value || ''}
                                                             onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
                                                     </FormControl>
                                                 </FormItem>
@@ -387,7 +388,7 @@ export default function NewTripSheetPage() {
                                                 <FormLabel>Detention Rate/Day</FormLabel>
                                                 <FormControl>
                                                     <Input type="number" {...field} 
-                                                        value={field.value ?? ''} 
+                                                        value={field.value || ''} 
                                                         onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
                                                 </FormControl>
                                             </FormItem>} />
@@ -400,8 +401,8 @@ export default function NewTripSheetPage() {
                                 <CardHeader><CardTitle>Trip Expenses & Income</CardTitle></CardHeader>
                                 <CardContent className="space-y-6">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <FormField control={form.control} name="truckAdvance" render={({ field }) => <FormItem><FormLabel>Truck Advance</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl></FormItem>} />
-                                        <FormField control={form.control} name="transport" render={({ field }) => <FormItem><FormLabel>Transport</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl></FormItem>} />
+                                        <FormField control={form.control} name="truckAdvance" render={({ field }) => <FormItem><FormLabel>Truck Advance</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} onChange={e => field.onChange(e.target.value === '' ? 0 : parseFloat(e.target.value))} /></FormControl></FormItem>} />
+                                        <FormField control={form.control} name="transport" render={({ field }) => <FormItem><FormLabel>Transport</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} onChange={e => field.onChange(e.target.value === '' ? 0 : parseFloat(e.target.value))} /></FormControl></FormItem>} />
                                     </div>
                                     <div>
                                         <Label className="text-base font-medium">Fuel</Label>
@@ -413,14 +414,18 @@ export default function NewTripSheetPage() {
                                                           <PopoverTrigger asChild>
                                                             <FormControl>
                                                               <Button variant="outline" role="combobox" className="w-full justify-between">
-                                                                {field.value ? fuelVendors.find((v) => v.id === field.value)?.name : "Select or type..."}
+                                                                {field.value ? fuelVendors.find((v) => v.id === field.value)?.name : "Select fuel vendor"}
                                                                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                                               </Button>
                                                             </FormControl>
                                                           </PopoverTrigger>
                                                           <PopoverContent className="p-0">
                                                             <Command>
-                                                              <CommandInput placeholder="Search vendor..." />
+                                                              <CommandInput 
+                                                                  placeholder="Search vendor..."
+                                                                  value={fuelVendorSearch}
+                                                                  onValueChange={setFuelVendorSearch}
+                                                              />
                                                               <CommandList>
                                                                 <CommandEmpty>
                                                                     <Button variant="ghost" className="w-full justify-start" onClick={() => handleOpenPartyDialog()}>
@@ -452,14 +457,14 @@ export default function NewTripSheetPage() {
                                                         <FormMessage />
                                                       </FormItem>
                                                 )}/>
-                                                <FormField control={form.control} name={`fuelEntries.${index}.amount`} render={({ field }) => <FormItem><FormControl><Input type="number" placeholder="Amount" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl><FormMessage/></FormItem>} />
+                                                <FormField control={form.control} name={`fuelEntries.${index}.amount`} render={({ field }) => <FormItem><FormControl><Input type="number" placeholder="Amount" {...field} value={field.value || ''} onChange={e => field.onChange(e.target.value === '' ? 0 : parseFloat(e.target.value))} /></FormControl><FormMessage/></FormItem>} />
                                                 <Button type="button" variant="ghost" size="icon" onClick={() => removeFuel(index)} className="mt-2"><Trash2 className="h-4 w-4 text-destructive" /></Button>
                                             </div>))}
                                         </div>
                                         <Button type="button" size="sm" variant="outline" onClick={() => appendFuel({ partyId: '', amount: 0 })} className="mt-4"><PlusCircle className="mr-2 h-4 w-4" /> Add Fuel Entry</Button>
                                     </div>
                                     <FormField control={form.control} name="extraExpenses" render={({ field }) => <FormItem><FormLabel>Extra Expenses (Details)</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>} />
-                                    <FormField control={form.control} name="returnLoadIncome" render={({ field }) => <FormItem><FormLabel>Additional Income (Return Load)</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl></FormItem>} />
+                                    <FormField control={form.control} name="returnLoadIncome" render={({ field }) => <FormItem><FormLabel>Additional Income (Return Load)</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} onChange={e => field.onChange(e.target.value === '' ? 0 : parseFloat(e.target.value))} /></FormControl></FormItem>} />
                                 </CardContent>
                             </Card>
                         </div>
@@ -496,7 +501,7 @@ export default function NewTripSheetPage() {
                 if (!isOpen) setEditingParty(null);
                 setIsPartyDialogOpen(isOpen);
             }}>
-                <DialogContent className="sm:max-w-sm">
+                <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle>{editingParty ? 'Edit Vendor' : 'Add New Vendor'}</DialogTitle>
                     </DialogHeader>
@@ -504,6 +509,14 @@ export default function NewTripSheetPage() {
                         <div className="space-y-2">
                             <Label htmlFor="party-name">Vendor Name</Label>
                             <Input id="party-name" value={partyForm.name} onChange={e => setPartyForm(p => ({...p, name: e.target.value}))} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="party-address">Address</Label>
+                            <Textarea id="party-address" value={partyForm.address} onChange={e => setPartyForm(p => ({...p, address: e.target.value}))} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="party-pan">PAN Number</Label>
+                            <Input id="party-pan" value={partyForm.panNumber} onChange={e => setPartyForm(p => ({...p, panNumber: e.target.value}))} />
                         </div>
                     </div>
                     <DialogFooter>
@@ -515,5 +528,3 @@ export default function NewTripSheetPage() {
         </div>
     );
 }
-
-    

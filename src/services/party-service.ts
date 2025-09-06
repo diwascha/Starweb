@@ -11,6 +11,8 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Party => 
         id: snapshot.id,
         name: data.name,
         type: data.type,
+        address: data.address,
+        panNumber: data.panNumber,
         createdBy: data.createdBy,
         createdAt: data.createdAt,
         lastModifiedBy: data.lastModifiedBy,

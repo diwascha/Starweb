@@ -7,6 +7,7 @@
 
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -195,6 +196,8 @@ export interface Party {
     id: string;
     name: string;
     type: PartyType;
+    address?: string;
+    panNumber?: string;
     createdBy: string;
     createdAt: string; // ISO string
     lastModifiedBy?: string;
