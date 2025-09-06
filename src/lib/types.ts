@@ -14,6 +14,7 @@
 
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -276,6 +277,8 @@ export interface Trip {
     id: string;
     date: string; // ISO string
     vehicleId: string;
+    odometerStart?: number;
+    odometerEnd?: number;
     destinations: TripDestination[];
     truckAdvance?: number;
     transport?: number;

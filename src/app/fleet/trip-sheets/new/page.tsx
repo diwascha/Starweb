@@ -62,6 +62,8 @@ const returnTripSchema = z.object({
 const tripSchema = z.object({
   date: z.date(),
   vehicleId: z.string().min(1, 'Vehicle is required.'),
+  odometerStart: z.number().min(0).optional(),
+  odometerEnd: z.number().min(0).optional(),
   destinations: z.array(destinationSchema),
   truckAdvance: z.number().min(0).optional(),
   transport: z.number().min(1, 'Transport charge is required.'),
@@ -73,6 +75,9 @@ const tripSchema = z.object({
   numberOfParties: z.number().min(0).optional(),
   dropOffChargeRate: z.number().min(0).optional(),
   detentionChargeRate: z.number().min(0).optional(),
+}).refine(data => !data.odometerEnd || !data.odometerStart || data.odometerEnd >= data.odometerStart, {
+    message: "End odometer must be greater than or equal to start odometer.",
+    path: ["odometerEnd"],
 });
 
 type TripFormValues = z.infer<typeof tripSchema>;
@@ -106,6 +111,8 @@ export default function NewTripSheetPage() {
         defaultValues: {
             date: new Date(),
             vehicleId: '',
+            odometerStart: undefined,
+            odometerEnd: undefined,
             destinations: [
                 { name: '', freight: undefined },
             ],
@@ -173,7 +180,11 @@ export default function NewTripSheetPage() {
         }
     }, [finalDestinationName, trips, form]);
 
-    const { totalFreight, dropOffCharge, detentionCharge, totalTaxable, vatAmount, grossAmount, tdsAmount, netPay, totalExpenses, totalReturnLoadIncome, netAmount, detentionDays } = useMemo(() => {
+    const { 
+        totalFreight, dropOffCharge, detentionCharge, totalTaxable, vatAmount, grossAmount, tdsAmount, netPay, 
+        totalExpenses, totalReturnLoadIncome, netAmount, detentionDays,
+        totalDistance, totalFuelLiters, fuelEfficiency 
+    } = useMemo(() => {
         const values = watchedFormValues;
         
         const days = values.detentionStartDate && values.detentionEndDate ? differenceInDays(values.detentionEndDate, values.detentionStartDate) + 1 : 0;
@@ -195,7 +206,7 @@ export default function NewTripSheetPage() {
         const tdsAmount = grossAmount * 0.015;
         const netPay = grossAmount - tdsAmount;
         
-        const totalFuel = (values.fuelEntries || []).reduce((sum, entry) => sum + (Number(entry.amount) || 0), 0);
+        const totalFuelAmount = (values.fuelEntries || []).reduce((sum, entry) => sum + (Number(entry.amount) || 0), 0);
         const truckAdvance = Number(values.truckAdvance) || 0;
         const transport = Number(values.transport) || 0;
         
@@ -207,8 +218,14 @@ export default function NewTripSheetPage() {
 
         const totalExtraExpenses = (values.extraExpenses || []).reduce((sum, entry) => sum + (Number(entry.amount) || 0), 0);
 
-        const totalExpenses = truckAdvance + transport + totalFuel + totalExtraExpenses;
+        const totalExpenses = truckAdvance + transport + totalFuelAmount + totalExtraExpenses;
         const netAmount = netPay - totalExpenses + totalReturnLoadIncomeVal;
+        
+        const odoStart = Number(values.odometerStart) || 0;
+        const odoEnd = Number(values.odometerEnd) || 0;
+        const totalDistance = odoEnd > odoStart ? odoEnd - odoStart : 0;
+        const totalLiters = (values.fuelEntries || []).reduce((sum, entry) => sum + (Number(entry.liters) || 0), 0);
+        const efficiency = totalLiters > 0 && totalDistance > 0 ? (totalDistance / totalLiters).toFixed(2) : 'N/A';
         
         return { 
             totalFreight, 
@@ -222,7 +239,10 @@ export default function NewTripSheetPage() {
             totalExpenses, 
             totalReturnLoadIncome: totalReturnLoadIncomeVal, 
             netAmount, 
-            detentionDays: days 
+            detentionDays: days,
+            totalDistance,
+            totalFuelLiters: totalLiters,
+            fuelEfficiency: efficiency
         };
     }, [watchedFormValues]);
     
@@ -275,6 +295,8 @@ export default function NewTripSheetPage() {
 
             const newTripData: Omit<Trip, 'id'> = {
                 ...values,
+                odometerStart: Number(values.odometerStart) || undefined,
+                odometerEnd: Number(values.odometerEnd) || undefined,
                 destinations: filteredDestinations,
                 extraExpenses: filteredExtraExpenses,
                 fuelEntries: filteredFuelEntries,
@@ -435,6 +457,12 @@ export default function NewTripSheetPage() {
                                         <FormItem><FormLabel>Vehicle</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a vehicle" /></SelectTrigger></FormControl><SelectContent>
                                             {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
                                         </SelectContent></Select><FormMessage /></FormItem>
+                                    )}/>
+                                    <FormField control={form.control} name="odometerStart" render={({ field }) => (
+                                        <FormItem><FormLabel>Odometer Start (KM)</FormLabel><FormControl><Input type="number" placeholder="e.g. 125000" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseInt(e.target.value, 10))} /></FormControl><FormMessage /></FormItem>
+                                    )}/>
+                                     <FormField control={form.control} name="odometerEnd" render={({ field }) => (
+                                        <FormItem><FormLabel>Odometer End (KM)</FormLabel><FormControl><Input type="number" placeholder="e.g. 125500" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseInt(e.target.value, 10))} /></FormControl><FormMessage /></FormItem>
                                     )}/>
                                 </CardContent>
                             </Card>
@@ -835,6 +863,10 @@ export default function NewTripSheetPage() {
                                     <div className="flex justify-between text-sm"><span className="text-muted-foreground">Return Load</span><span>+ {totalReturnLoadIncome.toLocaleString()}</span></div>
                                     <Separator />
                                     <div className="flex justify-between text-xl font-bold text-green-600"><span className="text-muted-foreground">Net Amount</span><span>{netAmount.toLocaleString()}</span></div>
+                                    <Separator />
+                                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Total Distance</span><span>{totalDistance.toLocaleString()} KM</span></div>
+                                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Fuel Efficiency</span><span>{fuelEfficiency} KM/L</span></div>
+
                                 </CardContent>
                             </Card>
                         </div>
