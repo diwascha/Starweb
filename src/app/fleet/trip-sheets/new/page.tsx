@@ -107,7 +107,7 @@ export default function NewTripSheetPage() {
         },
     });
     
-    const { fields: destinationFields, append: appendDestination, remove: removeDestination, update: updateDestinationField } = useFieldArray({
+    const { fields: destinationFields, append: appendDestination, remove: removeDestination } = useFieldArray({
         control: form.control,
         name: "destinations",
     });
@@ -140,7 +140,7 @@ export default function NewTripSheetPage() {
         const days = values.detentionStartDate && values.detentionEndDate ? differenceInDays(values.detentionEndDate, values.detentionStartDate) + 1 : 0;
         
         const totalFreight = (values.destinations || [])
-            .filter(d => d.name && d.name.trim() !== '' && d.freight && Number(d.freight) > 0)
+            .filter(d => d && d.name && d.name.trim() !== '' && d.freight && Number(d.freight) > 0)
             .reduce((sum, dest) => sum + (Number(dest.freight) || 0), 0);
         
         const numberOfParties = Number(values.numberOfParties) || 0;
@@ -197,7 +197,7 @@ export default function NewTripSheetPage() {
         setIsSubmitting(true);
         try {
             const filteredDestinations: TripDestination[] = values.destinations
-              .filter(d => d.name && d.name.trim() !== '' && d.freight && Number(d.freight) > 0)
+              .filter(d => d && d.name && d.name.trim() !== '' && d.freight && Number(d.freight) > 0)
               .map(d => ({ name: d.name!, freight: Number(d.freight!) }));
               
             if (filteredDestinations.length === 0) {
@@ -294,15 +294,43 @@ export default function NewTripSheetPage() {
     const handleDestinationSelect = (index: number, destinationName: string) => {
         form.setValue(`destinations.${index}.name`, destinationName);
         
-        const lastTripToDestination = trips
-            .filter(trip => trip.destinations.some(d => d.name.toLowerCase() === destinationName.toLowerCase()))
-            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+        const sortedTrips = trips.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-        if (lastTripToDestination) {
-            const lastFreight = lastTripToDestination.destinations.find(d => d.name.toLowerCase() === destinationName.toLowerCase())?.freight;
-            if (lastFreight) {
-                form.setValue(`destinations.${index}.freight`, lastFreight);
+        let lastTripWithDestination: Trip | undefined;
+        let lastFreight: number | undefined;
+
+        if (index === 0) { // Final Destination
+            lastTripWithDestination = sortedTrips.find(trip => 
+                trip.destinations.length > 0 && trip.destinations[0].name.toLowerCase() === destinationName.toLowerCase()
+            );
+            if (lastTripWithDestination) {
+                lastFreight = lastTripWithDestination.destinations[0].freight;
             }
+        } else { // Additional Destination
+            lastTripWithDestination = sortedTrips.find(trip => {
+                const additionalDest = trip.destinations.slice(1).find(d => d.name.toLowerCase() === destinationName.toLowerCase());
+                if (additionalDest) {
+                    lastFreight = additionalDest.freight;
+                    return true;
+                }
+                return false;
+            });
+        }
+
+        // Fallback: If no role-specific match found, find any match
+        if (!lastTripWithDestination) {
+            lastTripWithDestination = sortedTrips.find(trip => 
+                trip.destinations.some(d => d.name.toLowerCase() === destinationName.toLowerCase())
+            );
+             if (lastTripWithDestination) {
+                lastFreight = lastTripWithDestination.destinations.find(d => d.name.toLowerCase() === destinationName.toLowerCase())?.freight;
+            }
+        }
+
+        if (lastFreight) {
+            form.setValue(`destinations.${index}.freight`, lastFreight);
+        } else {
+             form.setValue(`destinations.${index}.freight`, 0);
         }
     };
     
@@ -403,13 +431,15 @@ export default function NewTripSheetPage() {
                                         <TableCell>
                                             <FormField control={form.control} name={`destinations.${index}.freight`} render={({ field }) => 
                                                 <FormItem>
-                                                    <Input type="number" {...field} value={field.value ?? 0} onChange={e => field.onChange(e.target.value === '' ? 0 : parseFloat(e.target.value))} />
+                                                    <FormControl>
+                                                        <Input type="number" {...field} value={field.value ?? 0} onChange={e => field.onChange(e.target.value === '' ? 0 : parseFloat(e.target.value))} />
+                                                    </FormControl>
                                                     <FormMessage/>
                                                 </FormItem>
                                             }/>
                                         </TableCell>
                                         <TableCell>
-                                            {index > 1 && 
+                                            {index > 0 && 
                                                 <Button type="button" variant="ghost" size="icon" onClick={() => removeDestination(index)}>
                                                     <Trash2 className="h-4 w-4 text-destructive" />
                                                 </Button>
@@ -429,8 +459,8 @@ export default function NewTripSheetPage() {
                                                 <FormLabel>Number of Parties</FormLabel>
                                                 <FormControl>
                                                     <Input type="number" className="w-24" {...field} 
-                                                        value={field.value ?? 0}
-                                                        onChange={e => field.onChange(e.target.value === '' ? 0 : parseInt(e.target.value, 10))} />
+                                                        value={field.value ?? ''}
+                                                        onChange={e => field.onChange(e.target.value === '' ? undefined : parseInt(e.target.value, 10))} />
                                                 </FormControl>
                                             </FormItem>
                                         )} />
@@ -440,8 +470,8 @@ export default function NewTripSheetPage() {
                                                     <FormLabel>Extra Drop-off Rate</FormLabel>
                                                     <FormControl>
                                                         <Input type="number" className="w-24" {...field} 
-                                                            value={field.value ?? 0}
-                                                            onChange={e => field.onChange(e.target.value === '' ? 0 : parseFloat(e.target.value))} />
+                                                            value={field.value ?? ''}
+                                                            onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
                                                     </FormControl>
                                                 </FormItem>
                                             )} />
@@ -490,8 +520,8 @@ export default function NewTripSheetPage() {
                                                 <FormLabel>Detention Rate/Day</FormLabel>
                                                 <FormControl>
                                                     <Input type="number" {...field} 
-                                                        value={field.value ?? 0} 
-                                                        onChange={e => field.onChange(e.target.value === '' ? 0 : parseFloat(e.target.value))} />
+                                                        value={field.value ?? ''} 
+                                                        onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
                                                 </FormControl>
                                             </FormItem>} />
                                         )}
@@ -503,8 +533,8 @@ export default function NewTripSheetPage() {
                                 <CardHeader><CardTitle>Trip Expenses & Income</CardTitle></CardHeader>
                                 <CardContent className="space-y-6">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <FormField control={form.control} name="truckAdvance" render={({ field }) => <FormItem><FormLabel>Truck Advance</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} onChange={e => field.onChange(e.target.value === '' ? 0 : parseFloat(e.target.value))} /></FormControl></FormItem>} />
-                                        <FormField control={form.control} name="transport" render={({ field }) => <FormItem><FormLabel>Transport</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} onChange={e => field.onChange(e.target.value === '' ? 0 : parseFloat(e.target.value))} /></FormControl></FormItem>} />
+                                        <FormField control={form.control} name="truckAdvance" render={({ field }) => <FormItem><FormLabel>Truck Advance</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl></FormItem>} />
+                                        <FormField control={form.control} name="transport" render={({ field }) => <FormItem><FormLabel>Transport</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl></FormItem>} />
                                     </div>
                                     <div>
                                         <Label className="text-base font-medium">Fuel</Label>
@@ -559,14 +589,14 @@ export default function NewTripSheetPage() {
                                                         <FormMessage />
                                                       </FormItem>
                                                 )}/>
-                                                <FormField control={form.control} name={`fuelEntries.${index}.amount`} render={({ field }) => <FormItem><FormControl><Input type="number" placeholder="Amount" {...field} value={field.value ?? 0} onChange={e => field.onChange(e.target.value === '' ? 0 : parseFloat(e.target.value))} /></FormControl><FormMessage/></FormItem>} />
+                                                <FormField control={form.control} name={`fuelEntries.${index}.amount`} render={({ field }) => <FormItem><FormControl><Input type="number" placeholder="Amount" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl><FormMessage/></FormItem>} />
                                                 <Button type="button" variant="ghost" size="icon" onClick={() => removeFuel(index)} className="mt-2"><Trash2 className="h-4 w-4 text-destructive" /></Button>
                                             </div>))}
                                         </div>
                                         <Button type="button" size="sm" variant="outline" onClick={() => appendFuel({ partyId: '', amount: 0 })} className="mt-4"><PlusCircle className="mr-2 h-4 w-4" /> Add Fuel Entry</Button>
                                     </div>
                                     <FormField control={form.control} name="extraExpenses" render={({ field }) => <FormItem><FormLabel>Extra Expenses (Details)</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>} />
-                                    <FormField control={form.control} name="returnLoadIncome" render={({ field }) => <FormItem><FormLabel>Additional Income (Return Load)</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} onChange={e => field.onChange(e.target.value === '' ? 0 : parseFloat(e.target.value))} /></FormControl></FormItem>} />
+                                    <FormField control={form.control} name="returnLoadIncome" render={({ field }) => <FormItem><FormLabel>Additional Income (Return Load)</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl></FormItem>} />
                                 </CardContent>
                             </Card>
                         </div>
@@ -650,3 +680,4 @@ export default function NewTripSheetPage() {
         </div>
     );
 }
+
