@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -49,6 +50,7 @@ import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onPartiesUpdate, addParty } from '@/services/party-service';
 import { onAccountsUpdate, addAccount } from '@/services/account-service';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useRouter } from 'next/navigation';
 
 
 type TransactionSortKey = 'date' | 'vehicleName' | 'type' | 'partyName' | 'accountName' | 'amount' | 'authorship';
@@ -60,6 +62,7 @@ export default function TransactionsPage() {
     const [parties, setParties] = useState<Party[]>([]);
     const [accounts, setAccounts] = useState<Account[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const router = useRouter();
     
     // Dialogs
     const [isTransactionDialogOpen, setIsTransactionDialogOpen] = useState(false);
@@ -338,11 +341,9 @@ export default function TransactionsPage() {
                         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                             {hasPermission('fleet', 'create') && (
                                 <>
-                                <DialogTrigger asChild>
-                                    <Button onClick={() => handleOpenTransactionDialog(null, 'Sales')} className="w-full">
-                                        <TrendingUp className="mr-2 h-4 w-4" /> New Sales
-                                    </Button>
-                                </DialogTrigger>
+                                <Button onClick={() => router.push('/fleet/trip-sheets/new')} className="w-full">
+                                    <TrendingUp className="mr-2 h-4 w-4" /> New Sales
+                                </Button>
                                 <DialogTrigger asChild>
                                     <Button onClick={() => handleOpenTransactionDialog(null, 'Purchase')} className="w-full">
                                         <ShoppingCart className="mr-2 h-4 w-4" /> New Purchase
@@ -541,7 +542,3 @@ export default function TransactionsPage() {
         </Dialog>
     );
 }
-
-    
-
-    

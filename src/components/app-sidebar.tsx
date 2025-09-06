@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -238,6 +239,14 @@ export function AppSidebar() {
                             <Link href="/fleet/policies">
                                 <ShieldCheck />
                                 <span>Policies & Memberships</span>
+                            </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={getIsActive('/fleet/trip-sheets')}>
+                            <Link href="/fleet/trip-sheets">
+                                <FileText />
+                                <span>Trip Sheets</span>
                             </Link>
                             </SidebarMenuButton>
                         </SidebarMenuItem>

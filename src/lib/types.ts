@@ -1,5 +1,6 @@
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -215,6 +216,36 @@ export interface Transaction {
     description: string;
     partyId?: string;
     accountId?: string;
+    createdBy: string;
+    createdAt: string; // ISO string
+    lastModifiedBy?: string;
+    lastModifiedAt?: string; // ISO string
+}
+
+export interface Destination {
+    name: string;
+    freight: number;
+}
+
+export interface FuelEntry {
+    partyId: string;
+    amount: number;
+}
+
+export type LocationType = 'Inside Valley' | 'Outside Valley';
+
+export interface Trip {
+    id: string;
+    date: string; // ISO string
+    vehicleId: string;
+    primaryDestination: string;
+    locationType: LocationType;
+    destinations: Destination[];
+    truckAdvance: number;
+    transport: number;
+    fuelEntries: FuelEntry[];
+    extraExpenses: string;
+    returnLoadIncome: number;
     createdBy: string;
     createdAt: string; // ISO string
     lastModifiedBy?: string;
