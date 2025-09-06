@@ -279,7 +279,7 @@ export default function NewTripSheetPage() {
                     liters: f.liters ? Number(f.liters) : undefined
                 }));
             
-            const returnTripData: ReturnTrip | undefined = values.returnTrip?.freight && values.returnTrip?.freight > 0 ? {
+            const returnTripData: ReturnTrip | undefined = showReturnTrip && values.returnTrip?.freight && values.returnTrip?.freight > 0 ? {
                 ...values.returnTrip,
                 date: values.returnTrip.date?.toISOString(),
                 freight: Number(values.returnTrip.freight) || 0,
@@ -774,17 +774,23 @@ export default function NewTripSheetPage() {
                                 </CardContent>
                             </Card>
                              
-                           {showReturnTrip ? (
-                                <Card>
-                                    <CardHeader className="flex flex-row items-center justify-between">
-                                        <div>
-                                            <CardTitle>Return Trip</CardTitle>
-                                            <CardDescription>Record details about the return load to calculate net income.</CardDescription>
-                                        </div>
+                           <Card>
+                                <CardHeader className="flex flex-row items-center justify-between">
+                                    <div>
+                                        <CardTitle>Return Trip</CardTitle>
+                                        <CardDescription>Record details about the return load to calculate net income.</CardDescription>
+                                    </div>
+                                    {showReturnTrip ? (
                                         <Button type="button" variant="ghost" size="sm" onClick={handleRemoveReturnTrip}>
                                             <X className="mr-2 h-4 w-4" /> Remove
                                         </Button>
-                                    </CardHeader>
+                                    ) : (
+                                         <Button type="button" variant="secondary" size="sm" onClick={() => setShowReturnTrip(true)}>
+                                            <PlusCircle className="mr-2 h-4 w-4"/> Add Return Trip
+                                        </Button>
+                                    )}
+                                </CardHeader>
+                                {showReturnTrip && (
                                     <CardContent className="space-y-4">
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <FormField control={form.control} name="returnTrip.date" render={({ field }) => (
@@ -811,12 +817,8 @@ export default function NewTripSheetPage() {
                                             </div>
                                         </div>
                                     </CardContent>
-                                </Card>
-                           ) : (
-                                <Button type="button" variant="outline" onClick={() => setShowReturnTrip(true)}>
-                                    <PlusCircle className="mr-2 h-4 w-4"/> Add Return Trip
-                                </Button>
-                           )}
+                                )}
+                            </Card>
                         </div>
                         <div className="lg:col-span-1">
                             <Card className="sticky top-8">
