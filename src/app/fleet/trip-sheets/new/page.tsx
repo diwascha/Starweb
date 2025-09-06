@@ -46,6 +46,7 @@ const fuelEntrySchema = z.object({
 const extraExpenseSchema = z.object({
   description: z.string().min(1, 'Description is required.'),
   amount: z.number().min(1, 'Amount is required.'),
+  partyId: z.string().optional(),
 });
 
 const tripSchema = z.object({
@@ -82,7 +83,7 @@ export default function NewTripSheetPage() {
     const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
     const [partyForm, setPartyForm] = useState<{name: string, type: PartyType, address?: string, panNumber?: string}>({name: '', type: 'Vendor', address: '', panNumber: ''});
     const [editingParty, setEditingParty] = useState<Party | null>(null);
-    const [fuelVendorSearch, setFuelVendorSearch] = useState('');
+    const [partySearch, setPartySearch] = useState('');
     
     const [isDestinationDialogOpen, setIsDestinationDialogOpen] = useState(false);
     const [destinationForm, setDestinationForm] = useState<{ name: string }>({ name: '' });
@@ -139,7 +140,7 @@ export default function NewTripSheetPage() {
         };
     }, []);
 
-    const fuelVendors = useMemo(() => parties.filter(p => p.type === 'Vendor'), [parties]);
+    const vendors = useMemo(() => parties.filter(p => p.type === 'Vendor'), [parties]);
     
     const watchedFormValues = form.watch();
 
@@ -218,7 +219,7 @@ export default function NewTripSheetPage() {
             
             const filteredExtraExpenses: ExtraExpense[] = (values.extraExpenses || [])
                 .filter(e => e.description && e.description.trim() !== '' && e.amount && Number(e.amount) > 0)
-                .map(e => ({ description: e.description, amount: Number(e.amount) }));
+                .map(e => ({ description: e.description, amount: Number(e.amount), partyId: e.partyId }));
 
             const newTripData: Omit<Trip, 'id'> = {
                 ...values,
@@ -268,7 +269,7 @@ export default function NewTripSheetPage() {
             setPartyForm({ name: party.name, type: party.type, address: party.address || '', panNumber: party.panNumber || '' });
         } else {
             setEditingParty(null);
-            setPartyForm({ name: fuelVendorSearch, type: 'Vendor', address: '', panNumber: '' });
+            setPartyForm({ name: partySearch, type: 'Vendor', address: '', panNumber: '' });
         }
         setIsPartyDialogOpen(true);
     };
@@ -561,7 +562,7 @@ export default function NewTripSheetPage() {
                                                           <PopoverTrigger asChild>
                                                             <FormControl>
                                                               <Button variant="outline" role="combobox" className="w-full justify-between">
-                                                                {field.value ? fuelVendors.find((v) => v.id === field.value)?.name : "Select fuel vendor"}
+                                                                {field.value ? vendors.find((v) => v.id === field.value)?.name : "Select fuel vendor"}
                                                                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                                               </Button>
                                                             </FormControl>
@@ -570,8 +571,8 @@ export default function NewTripSheetPage() {
                                                             <Command>
                                                               <CommandInput 
                                                                   placeholder="Search vendor..."
-                                                                  value={fuelVendorSearch}
-                                                                  onValueChange={setFuelVendorSearch}
+                                                                  value={partySearch}
+                                                                  onValueChange={setPartySearch}
                                                               />
                                                               <CommandList>
                                                                 <CommandEmpty>
@@ -580,7 +581,7 @@ export default function NewTripSheetPage() {
                                                                     </Button>
                                                                 </CommandEmpty>
                                                                 <CommandGroup>
-                                                                  {fuelVendors.map((vendor) => (
+                                                                  {vendors.map((vendor) => (
                                                                     <CommandItem
                                                                       key={vendor.id}
                                                                       value={vendor.name}
@@ -613,18 +614,69 @@ export default function NewTripSheetPage() {
                                     <div>
                                         <Label className="text-base font-medium">Extra Expenses</Label>
                                         <div className="mt-2 space-y-4">
-                                            {expenseFields.map((item, index) => (<div key={item.id} className="flex items-start gap-2">
+                                            {expenseFields.map((item, index) => (<div key={item.id} className="grid grid-cols-1 md:grid-cols-3 items-start gap-2">
                                                 <FormField control={form.control} name={`extraExpenses.${index}.description`} render={({ field }) => (
-                                                    <FormItem className="flex-1">
+                                                    <FormItem>
                                                         <FormControl><Input placeholder="Expense description" {...field} /></FormControl>
                                                         <FormMessage />
                                                     </FormItem>
                                                 )}/>
-                                                <FormField control={form.control} name={`extraExpenses.${index}.amount`} render={({ field }) => <FormItem><FormControl><Input type="number" placeholder="Amount" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl><FormMessage/></FormItem>} />
+                                                <FormField control={form.control} name={`extraExpenses.${index}.partyId`} render={({ field }) => (
+                                                    <FormItem>
+                                                        <Popover>
+                                                          <PopoverTrigger asChild>
+                                                            <FormControl>
+                                                              <Button variant="outline" role="combobox" className="w-full justify-between">
+                                                                {field.value ? vendors.find((v) => v.id === field.value)?.name : "Select vendor (optional)"}
+                                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                              </Button>
+                                                            </FormControl>
+                                                          </PopoverTrigger>
+                                                          <PopoverContent className="p-0">
+                                                            <Command>
+                                                              <CommandInput 
+                                                                  placeholder="Search vendor..."
+                                                                  value={partySearch}
+                                                                  onValueChange={setPartySearch}
+                                                              />
+                                                              <CommandList>
+                                                                <CommandEmpty>
+                                                                    <Button variant="ghost" className="w-full justify-start" onClick={() => handleOpenPartyDialog()}>
+                                                                        <PlusCircle className="mr-2 h-4 w-4"/> Add Vendor
+                                                                    </Button>
+                                                                </CommandEmpty>
+                                                                <CommandGroup>
+                                                                  {vendors.map((vendor) => (
+                                                                    <CommandItem
+                                                                      key={vendor.id}
+                                                                      value={vendor.name}
+                                                                      onSelect={() => field.onChange(vendor.id)}
+                                                                      className="flex justify-between items-center"
+                                                                    >
+                                                                      <div className="flex items-center">
+                                                                        <Check className={cn("mr-2 h-4 w-4", field.value === vendor.id ? "opacity-100" : "opacity-0")} />
+                                                                        {vendor.name}
+                                                                      </div>
+                                                                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleOpenPartyDialog(vendor); }}>
+                                                                        <Edit className="h-4 w-4" />
+                                                                      </Button>
+                                                                    </CommandItem>
+                                                                  ))}
+                                                                </CommandGroup>
+                                                              </CommandList>
+                                                            </Command>
+                                                          </PopoverContent>
+                                                        </Popover>
+                                                        <FormMessage />
+                                                      </FormItem>
+                                                )}/>
+                                                <div className="flex items-center gap-2">
+                                                <FormField control={form.control} name={`extraExpenses.${index}.amount`} render={({ field }) => <FormItem className="flex-1"><FormControl><Input type="number" placeholder="Amount" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl><FormMessage/></FormItem>} />
                                                 <Button type="button" variant="ghost" size="icon" onClick={() => removeExpense(index)} className="mt-2"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                                </div>
                                             </div>))}
                                         </div>
-                                        <Button type="button" size="sm" variant="outline" onClick={() => appendExpense({ description: '', amount: 0 })} className="mt-4"><PlusCircle className="mr-2 h-4 w-4" /> Add Expense</Button>
+                                        <Button type="button" size="sm" variant="outline" onClick={() => appendExpense({ description: '', amount: 0, partyId: '' })} className="mt-4"><PlusCircle className="mr-2 h-4 w-4" /> Add Expense</Button>
                                     </div>
                                     <FormField control={form.control} name="returnLoadIncome" render={({ field }) => <FormItem><FormLabel>Additional Income (Return Load)</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl></FormItem>} />
                                 </CardContent>
