@@ -11,6 +11,7 @@
 
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -242,6 +243,7 @@ export interface TripDestination {
 export interface FuelEntry {
     partyId: string;
     amount: number;
+    liters?: number;
 }
 
 export interface ExtraExpense {

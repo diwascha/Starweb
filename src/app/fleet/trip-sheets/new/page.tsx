@@ -40,6 +40,7 @@ const destinationSchema = z.object({
 
 const fuelEntrySchema = z.object({
   partyId: z.string().min(1, 'Fuel vendor is required.'),
+  liters: z.number().optional(),
   amount: z.number().min(1, 'Fuel amount is required.'),
 });
 
@@ -555,9 +556,9 @@ export default function NewTripSheetPage() {
                                     <div>
                                         <Label className="text-base font-medium">Fuel</Label>
                                         <div className="mt-2 space-y-4">
-                                            {fuelFields.map((item, index) => (<div key={item.id} className="flex items-start gap-2">
+                                            {fuelFields.map((item, index) => (<div key={item.id} className="grid grid-cols-1 md:grid-cols-3 items-start gap-2">
                                                 <FormField control={form.control} name={`fuelEntries.${index}.partyId`} render={({ field }) => (
-                                                    <FormItem className="flex-1">
+                                                    <FormItem className="md:col-span-1">
                                                         <Popover>
                                                           <PopoverTrigger asChild>
                                                             <FormControl>
@@ -605,11 +606,14 @@ export default function NewTripSheetPage() {
                                                         <FormMessage />
                                                       </FormItem>
                                                 )}/>
-                                                <FormField control={form.control} name={`fuelEntries.${index}.amount`} render={({ field }) => <FormItem><FormControl><Input type="number" placeholder="Amount" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl><FormMessage/></FormItem>} />
-                                                <Button type="button" variant="ghost" size="icon" onClick={() => removeFuel(index)} className="mt-2"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                                <div className="flex items-center gap-2 md:col-span-2">
+                                                    <FormField control={form.control} name={`fuelEntries.${index}.liters`} render={({ field }) => <FormItem className="flex-1"><FormControl><Input type="number" placeholder="Liters" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl><FormMessage/></FormItem>} />
+                                                    <FormField control={form.control} name={`fuelEntries.${index}.amount`} render={({ field }) => <FormItem className="flex-1"><FormControl><Input type="number" placeholder="Amount" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl><FormMessage/></FormItem>} />
+                                                    <Button type="button" variant="ghost" size="icon" onClick={() => removeFuel(index)} className="mt-2"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                                </div>
                                             </div>))}
                                         </div>
-                                        <Button type="button" size="sm" variant="outline" onClick={() => appendFuel({ partyId: '', amount: 0 })} className="mt-4"><PlusCircle className="mr-2 h-4 w-4" /> Add Fuel Entry</Button>
+                                        <Button type="button" size="sm" variant="outline" onClick={() => appendFuel({ partyId: '', amount: 0, liters: 0 })} className="mt-4"><PlusCircle className="mr-2 h-4 w-4" /> Add Fuel Entry</Button>
                                     </div>
                                     <div>
                                         <Label className="text-base font-medium">Extra Expenses</Label>
@@ -674,7 +678,7 @@ export default function NewTripSheetPage() {
                                                         name={`extraExpenses.${index}.description`}
                                                         render={({ field }) => (
                                                             <FormItem className="md:col-span-1">
-                                                                <FormControl><Input placeholder="Expense description" {...field} /></FormControl>
+                                                                <FormControl><Input placeholder="Expense description" {...field} value={field.value ?? ''} /></FormControl>
                                                                 <FormMessage />
                                                             </FormItem>
                                                         )}
