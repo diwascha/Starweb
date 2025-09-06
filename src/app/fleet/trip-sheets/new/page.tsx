@@ -100,12 +100,12 @@ export default function NewTripSheetPage() {
 
     const fuelVendors = useMemo(() => parties.filter(p => p.type === 'Vendor'), [parties]);
     
-    const { totalTaxable, vatAmount, grossAmount, tdsAmount, netPay, totalExpenses, netAmount } = useMemo(() => {
+    const { totalTaxable, vatAmount, grossAmount, tdsAmount, netPay, totalExpenses, returnLoadIncome, netAmount } = useMemo(() => {
         const destinations = form.watch('destinations');
         const truckAdvance = form.watch('truckAdvance') || 0;
         const transport = form.watch('transport') || 0;
         const fuelEntries = form.watch('fuelEntries');
-        const returnLoadIncome = form.watch('returnLoadIncome') || 0;
+        const returnIncome = form.watch('returnLoadIncome') || 0;
 
         const totalTaxable = destinations.reduce((sum, dest) => sum + (dest.freight || 0), 0);
         const vatAmount = totalTaxable * 0.13;
@@ -115,9 +115,9 @@ export default function NewTripSheetPage() {
         
         const totalFuel = fuelEntries.reduce((sum, entry) => sum + (entry.amount || 0), 0);
         const totalExpenses = truckAdvance + transport + totalFuel;
-        const netAmount = netPay - totalExpenses + returnLoadIncome;
+        const netAmount = netPay - totalExpenses + returnIncome;
         
-        return { totalTaxable, vatAmount, grossAmount, tdsAmount, netPay, totalExpenses, netAmount };
+        return { totalTaxable, vatAmount, grossAmount, tdsAmount, netPay, totalExpenses, returnLoadIncome: returnIncome, netAmount };
     }, [form.watch()]);
 
     async function onSubmit(values: TripFormValues) {
