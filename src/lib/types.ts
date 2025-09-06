@@ -253,7 +253,7 @@ export interface ReturnTrip {
     date?: string; // ISO string
     from?: string;
     to?: string;
-    partyId?: string;
+    clientName?: string;
     freight?: number;
     expenses?: number;
 }

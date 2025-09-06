@@ -54,7 +54,7 @@ const returnTripSchema = z.object({
     date: z.date().optional(),
     from: z.string().optional(),
     to: z.string().optional(),
-    partyId: z.string().optional(),
+    clientName: z.string().optional(),
     freight: z.number().optional(),
     expenses: z.number().optional(),
 });
@@ -110,8 +110,6 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
     const [partyForm, setPartyForm] = useState<{name: string, type: PartyType, address?: string, panNumber?: string}>({name: '', type: 'Client', address: '', panNumber: ''});
     const [editingParty, setEditingParty] = useState<Party | null>(null);
     const [partySearch, setPartySearch] = useState('');
-    const [returnTripPartySearch, setReturnTripPartySearch] = useState<{ [key: number]: string }>({});
-
     
     const [isDestinationDialogOpen, setIsDestinationDialogOpen] = useState(false);
     const [destinationForm, setDestinationForm] = useState<{ name: string }>({ name: '' });
@@ -354,7 +352,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                     if(rt.to) returnTrip.to = rt.to;
                     if(rt.freight) returnTrip.freight = Number(rt.freight) || 0;
                     if(rt.expenses) returnTrip.expenses = Number(rt.expenses) || 0;
-                    if (rt.partyId) returnTrip.partyId = rt.partyId;
+                    if (rt.clientName) returnTrip.clientName = rt.clientName;
                     if (rt.date) returnTrip.date = rt.date.toISOString();
                     
                     return returnTrip as ReturnTrip;
@@ -906,7 +904,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                                         type="button"
                                         variant="outline"
                                         size="sm"
-                                        onClick={() => appendReturnTrip({ date: undefined, from: '', to: '', partyId: '', freight: undefined, expenses: undefined })}
+                                        onClick={() => appendReturnTrip({ date: undefined, from: '', to: '', clientName: '', freight: undefined, expenses: undefined })}
                                     >
                                         <PlusCircle className="mr-2 h-4 w-4" /> Add Return Trip
                                     </Button>
@@ -915,8 +913,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                                     {returnTripFields.map((item, index) => {
                                         const watchedTrip = watchedFormValues.returnTrips?.[index];
                                         const balance = (Number(watchedTrip?.freight) || 0) - (Number(watchedTrip?.expenses) || 0);
-                                        const currentSearch = returnTripPartySearch[index] || '';
-
+                                        
                                         return (
                                             <div key={item.id} className="p-4 border rounded-lg space-y-4 relative">
                                                 <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2 h-8 w-8" onClick={() => removeReturnTrip(index)}>
@@ -935,52 +932,12 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                                                             </PopoverContent></Popover><FormMessage />
                                                         </FormItem>
                                                     )}/>
-                                                     <FormField control={form.control} name={`returnTrips.${index}.partyId`} render={({ field }) => (
+                                                     <FormField control={form.control} name={`returnTrips.${index}.clientName`} render={({ field }) => (
                                                         <FormItem>
                                                             <FormLabel>RT Client</FormLabel>
-                                                            <Popover>
-                                                                <PopoverTrigger asChild>
-                                                                    <FormControl>
-                                                                    <Button variant="outline" role="combobox" className="w-full justify-between">
-                                                                        {field.value ? clients.find((c) => c.id === field.value)?.name : "Select client"}
-                                                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                                                    </Button>
-                                                                    </FormControl>
-                                                                </PopoverTrigger>
-                                                                <PopoverContent className="p-0">
-                                                                    <Command>
-                                                                    <CommandInput 
-                                                                        placeholder="Search client..."
-                                                                        value={currentSearch}
-                                                                        onValueChange={(value) => setReturnTripPartySearch(prev => ({ ...prev, [index]: value }))}
-                                                                    />
-                                                                    <CommandList>
-                                                                        <CommandEmpty>
-                                                                            <CommandItem onSelect={() => handleOpenPartyDialog(null, 'Client', currentSearch)}>
-                                                                                <PlusCircle className="mr-2 h-4 w-4"/> Add "{currentSearch}"
-                                                                            </CommandItem>
-                                                                        </CommandEmpty>
-                                                                        <CommandGroup>
-                                                                        {clients.map((client) => (
-                                                                            <CommandItem
-                                                                                key={client.id}
-                                                                                value={client.name}
-                                                                                onSelect={() => field.onChange(client.id)}
-                                                                                className="flex justify-between items-center"
-                                                                            >
-                                                                                <div className="flex items-center">
-                                                                                    <Check className={cn("mr-2 h-4 w-4", field.value === client.id ? "opacity-100" : "opacity-0")} />
-                                                                                    {client.name}
-                                                                                </div>
-                                                                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleOpenPartyDialog(client, 'Client'); }}>
-                                                                                    <Edit className="h-4 w-4" />
-                                                                                </Button>
-                                                                            </CommandItem>
-                                                                        ))}
-                                                                    </CommandGroup></CommandList>
-                                                                    </Command>
-                                                                </PopoverContent>
-                                                            </Popover>
+                                                            <FormControl>
+                                                                <Input placeholder="Client for return trip" {...field} value={field.value ?? ''} />
+                                                            </FormControl>
                                                             <FormMessage />
                                                         </FormItem>
                                                     )}/>
