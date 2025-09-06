@@ -56,7 +56,7 @@ const returnTripSchema = z.object({
     to: z.string().optional(),
     freight: z.number().optional(),
     expenses: z.number().optional(),
-}).optional();
+});
 
 
 const tripSchema = z.object({
@@ -67,8 +67,7 @@ const tripSchema = z.object({
   transport: z.number().min(1, 'Transport charge is required.'),
   fuelEntries: z.array(fuelEntrySchema),
   extraExpenses: z.array(extraExpenseSchema),
-  returnTrip: returnTripSchema,
-  returnLoadIncome: z.number().min(0).optional(),
+  returnTrips: z.array(returnTripSchema).optional(),
   detentionStartDate: z.date().optional(),
   detentionEndDate: z.date().optional(),
   numberOfParties: z.number().min(0).optional(),
@@ -100,7 +99,6 @@ export default function NewTripSheetPage() {
     const [destinationForm, setDestinationForm] = useState<{ name: string }>({ name: '' });
     const [editingDestination, setEditingDestination] = useState<Destination | null>(null);
     const [destinationSearch, setDestinationSearch] = useState('');
-    const [showReturnTrip, setShowReturnTrip] = useState(false);
 
 
     const form = useForm<TripFormValues>({
@@ -115,14 +113,7 @@ export default function NewTripSheetPage() {
             transport: undefined,
             fuelEntries: [],
             extraExpenses: [],
-            returnTrip: {
-                date: undefined,
-                from: '',
-                to: '',
-                freight: undefined,
-                expenses: undefined,
-            },
-            returnLoadIncome: undefined,
+            returnTrips: [],
             detentionStartDate: undefined,
             detentionEndDate: undefined,
             numberOfParties: 0,
@@ -144,6 +135,11 @@ export default function NewTripSheetPage() {
     const { fields: expenseFields, append: appendExpense, remove: removeExpense } = useFieldArray({
         control: form.control,
         name: "extraExpenses",
+    });
+
+    const { fields: returnTripFields, append: appendReturnTrip, remove: removeReturnTrip } = useFieldArray({
+        control: form.control,
+        name: "returnTrips",
     });
 
     useEffect(() => {
@@ -177,7 +173,7 @@ export default function NewTripSheetPage() {
         }
     }, [finalDestinationName, trips, form]);
 
-    const { totalFreight, dropOffCharge, detentionCharge, totalTaxable, vatAmount, grossAmount, tdsAmount, netPay, totalExpenses, returnLoadIncome, netAmount, detentionDays } = useMemo(() => {
+    const { totalFreight, dropOffCharge, detentionCharge, totalTaxable, vatAmount, grossAmount, tdsAmount, netPay, totalExpenses, totalReturnLoadIncome, netAmount, detentionDays } = useMemo(() => {
         const values = watchedFormValues;
         
         const days = values.detentionStartDate && values.detentionEndDate ? differenceInDays(values.detentionEndDate, values.detentionStartDate) + 1 : 0;
@@ -203,14 +199,16 @@ export default function NewTripSheetPage() {
         const truckAdvance = Number(values.truckAdvance) || 0;
         const transport = Number(values.transport) || 0;
         
-        const returnFreight = Number(values.returnTrip?.freight) || 0;
-        const returnExpenses = Number(values.returnTrip?.expenses) || 0;
-        const returnLoadIncomeVal = returnFreight - returnExpenses;
+        const totalReturnLoadIncomeVal = (values.returnTrips || []).reduce((sum, trip) => {
+            const freight = Number(trip.freight) || 0;
+            const expenses = Number(trip.expenses) || 0;
+            return sum + (freight - expenses);
+        }, 0);
 
         const totalExtraExpenses = (values.extraExpenses || []).reduce((sum, entry) => sum + (Number(entry.amount) || 0), 0);
 
         const totalExpenses = truckAdvance + transport + totalFuel + totalExtraExpenses;
-        const netAmount = netPay - totalExpenses + returnLoadIncomeVal;
+        const netAmount = netPay - totalExpenses + totalReturnLoadIncomeVal;
         
         return { 
             totalFreight, 
@@ -222,19 +220,11 @@ export default function NewTripSheetPage() {
             tdsAmount, 
             netPay, 
             totalExpenses, 
-            returnLoadIncome: returnLoadIncomeVal, 
+            totalReturnLoadIncome: totalReturnLoadIncomeVal, 
             netAmount, 
             detentionDays: days 
         };
     }, [watchedFormValues]);
-
-    const watchedReturnTrip = form.watch('returnTrip');
-    useEffect(() => {
-        const returnFreight = Number(watchedReturnTrip?.freight) || 0;
-        const returnExpenses = Number(watchedReturnTrip?.expenses) || 0;
-        const returnLoadIncomeVal = returnFreight - returnExpenses;
-        form.setValue('returnLoadIncome', returnLoadIncomeVal >= 0 ? returnLoadIncomeVal : 0);
-    }, [watchedReturnTrip, form]);
     
     const handleConfirmDetention = () => {
         form.setValue('detentionStartDate', detentionDateRange?.from);
@@ -246,11 +236,6 @@ export default function NewTripSheetPage() {
         form.setValue('detentionStartDate', undefined);
         form.setValue('detentionEndDate', undefined);
         setDetentionDateRange(undefined);
-    };
-
-    const handleRemoveReturnTrip = () => {
-        setShowReturnTrip(false);
-        form.setValue('returnTrip', { date: undefined, from: '', to: '', freight: undefined, expenses: undefined });
     };
 
     async function onSubmit(values: TripFormValues) {
@@ -279,19 +264,21 @@ export default function NewTripSheetPage() {
                     liters: f.liters ? Number(f.liters) : undefined
                 }));
             
-            const returnTripData: ReturnTrip | undefined = showReturnTrip && values.returnTrip?.freight && values.returnTrip?.freight > 0 ? {
-                ...values.returnTrip,
-                date: values.returnTrip.date?.toISOString(),
-                freight: Number(values.returnTrip.freight) || 0,
-                expenses: Number(values.returnTrip.expenses) || 0,
-            } : undefined;
+            const filteredReturnTrips: ReturnTrip[] = (values.returnTrips || [])
+                .filter(rt => rt.freight && Number(rt.freight) > 0)
+                .map(rt => ({
+                    ...rt,
+                    date: rt.date?.toISOString(),
+                    freight: Number(rt.freight) || 0,
+                    expenses: Number(rt.expenses) || 0,
+                }));
 
             const newTripData: Omit<Trip, 'id'> = {
                 ...values,
                 destinations: filteredDestinations,
                 extraExpenses: filteredExtraExpenses,
                 fuelEntries: filteredFuelEntries,
-                returnTrip: returnTripData,
+                returnTrips: filteredReturnTrips,
                 date: values.date.toISOString(),
                 detentionStartDate: values.detentionStartDate?.toISOString(),
                 detentionEndDate: values.detentionEndDate?.toISOString(),
@@ -775,49 +762,56 @@ export default function NewTripSheetPage() {
                             </Card>
                              
                            <Card>
-                                <CardHeader className="flex flex-row items-center justify-between">
-                                    <div>
-                                        <CardTitle>Return Trip</CardTitle>
-                                        <CardDescription>Record details about the return load to calculate net income.</CardDescription>
-                                    </div>
-                                    {showReturnTrip ? (
-                                        <Button type="button" variant="ghost" size="sm" onClick={handleRemoveReturnTrip}>
-                                            <X className="mr-2 h-4 w-4" /> Remove
-                                        </Button>
-                                    ) : (
-                                         <Button type="button" variant="secondary" size="sm" onClick={() => setShowReturnTrip(true)}>
-                                            <PlusCircle className="mr-2 h-4 w-4"/> Add Return Trip
-                                        </Button>
-                                    )}
+                                <CardHeader>
+                                    <CardTitle>Return Trips</CardTitle>
+                                    <CardDescription>Record details about return loads to calculate net income.</CardDescription>
                                 </CardHeader>
-                                {showReturnTrip && (
-                                    <CardContent className="space-y-4">
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <FormField control={form.control} name="returnTrip.date" render={({ field }) => (
-                                                <FormItem className="flex flex-col"><FormLabel>Return Date (Optional)</FormLabel>
-                                                    <Popover><PopoverTrigger asChild><FormControl>
-                                                        <Button variant="outline" className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                                            {field.value ? `${toNepaliDate(field.value.toISOString())} BS (${format(field.value, "PPP")})` : <span>Pick a date</span>}
-                                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                        </Button>
-                                                    </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start">
-                                                        <DualCalendar selected={field.value} onSelect={field.onChange} />
-                                                    </PopoverContent></Popover><FormMessage />
-                                                </FormItem>
-                                            )}/>
-                                            <FormField control={form.control} name="returnTrip.from" render={({ field }) => (<FormItem><FormLabel>From</FormLabel><FormControl><Input placeholder="Starting point" {...field} value={field.value ?? ''} /></FormControl></FormItem>)} />
-                                            <FormField control={form.control} name="returnTrip.to" render={({ field }) => (<FormItem><FormLabel>To</FormLabel><FormControl><Input placeholder="Destination" {...field} value={field.value ?? ''} /></FormControl></FormItem>)} />
-                                            <FormField control={form.control} name="returnTrip.freight" render={({ field }) => (<FormItem><FormLabel>Freight</FormLabel><FormControl><Input type="number" placeholder="Income from load" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl></FormItem>)} />
-                                            <FormField control={form.control} name="returnTrip.expenses" render={({ field }) => (<FormItem><FormLabel>Expenses</FormLabel><FormControl><Input type="number" placeholder="Expenses during return" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl></FormItem>)} />
-                                            <div className="flex flex-col justify-end space-y-2">
-                                                <Label>Balance Income</Label>
-                                                <div className="p-2 border rounded-md h-10 flex items-center text-sm font-medium">
-                                                     <span>{( (watchedFormValues.returnTrip?.freight || 0) - (watchedFormValues.returnTrip?.expenses || 0) ).toLocaleString()}</span>
+                                <CardContent className="space-y-4">
+                                    {returnTripFields.map((item, index) => {
+                                        const watchedTrip = watchedFormValues.returnTrips?.[index];
+                                        const balance = (Number(watchedTrip?.freight) || 0) - (Number(watchedTrip?.expenses) || 0);
+
+                                        return (
+                                            <div key={item.id} className="p-4 border rounded-lg space-y-4 relative">
+                                                <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2 h-8 w-8" onClick={() => removeReturnTrip(index)}>
+                                                    <X className="h-4 w-4 text-destructive" />
+                                                </Button>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    <FormField control={form.control} name={`returnTrips.${index}.date`} render={({ field }) => (
+                                                        <FormItem className="flex flex-col"><FormLabel>Return Date (Optional)</FormLabel>
+                                                            <Popover><PopoverTrigger asChild><FormControl>
+                                                                <Button variant="outline" className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                                                    {field.value ? `${toNepaliDate(field.value.toISOString())} BS (${format(field.value, "PPP")})` : <span>Pick a date</span>}
+                                                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                                </Button>
+                                                            </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start">
+                                                                <DualCalendar selected={field.value} onSelect={field.onChange} />
+                                                            </PopoverContent></Popover><FormMessage />
+                                                        </FormItem>
+                                                    )}/>
+                                                    <FormField control={form.control} name={`returnTrips.${index}.from`} render={({ field }) => (<FormItem><FormLabel>From</FormLabel><FormControl><Input placeholder="Starting point" {...field} value={field.value ?? ''} /></FormControl></FormItem>)} />
+                                                    <FormField control={form.control} name={`returnTrips.${index}.to`} render={({ field }) => (<FormItem><FormLabel>To</FormLabel><FormControl><Input placeholder="Destination" {...field} value={field.value ?? ''} /></FormControl></FormItem>)} />
+                                                    <FormField control={form.control} name={`returnTrips.${index}.freight`} render={({ field }) => (<FormItem><FormLabel>Freight</FormLabel><FormControl><Input type="number" placeholder="Income from load" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl></FormItem>)} />
+                                                    <FormField control={form.control} name={`returnTrips.${index}.expenses`} render={({ field }) => (<FormItem><FormLabel>Expenses</FormLabel><FormControl><Input type="number" placeholder="Expenses during return" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl></FormItem>)} />
+                                                    <div className="flex flex-col justify-end space-y-2">
+                                                        <Label>Balance Income</Label>
+                                                        <div className="p-2 border rounded-md h-10 flex items-center text-sm font-medium">
+                                                             <span>{balance.toLocaleString()}</span>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    </CardContent>
-                                )}
+                                        );
+                                    })}
+                                     <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => appendReturnTrip({ date: undefined, from: '', to: '', freight: undefined, expenses: undefined })}
+                                    >
+                                        <PlusCircle className="mr-2 h-4 w-4" /> Add Return Trip
+                                    </Button>
+                                </CardContent>
                             </Card>
                         </div>
                         <div className="lg:col-span-1">
@@ -836,7 +830,7 @@ export default function NewTripSheetPage() {
                                     <div className="flex justify-between text-lg font-bold"><span className="text-muted-foreground">Net Bank Pay</span><span>{netPay.toLocaleString()}</span></div>
                                     <Separator />
                                     <div className="flex justify-between text-sm"><span className="text-muted-foreground">Total Expenses</span><span>- {totalExpenses.toLocaleString()}</span></div>
-                                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Return Load</span><span>+ {returnLoadIncome.toLocaleString()}</span></div>
+                                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Return Load</span><span>+ {totalReturnLoadIncome.toLocaleString()}</span></div>
                                     <Separator />
                                     <div className="flex justify-between text-xl font-bold text-green-600"><span className="text-muted-foreground">Net Amount</span><span>{netAmount.toLocaleString()}</span></div>
                                 </CardContent>

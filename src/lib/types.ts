@@ -13,6 +13,7 @@
 
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -280,8 +281,7 @@ export interface Trip {
     transport?: number;
     fuelEntries: FuelEntry[];
     extraExpenses?: ExtraExpense[];
-    returnTrip?: ReturnTrip;
-    returnLoadIncome?: number;
+    returnTrips?: ReturnTrip[];
     detentionStartDate?: string; // ISO string
     detentionEndDate?: string; // ISO string
     numberOfParties?: number;

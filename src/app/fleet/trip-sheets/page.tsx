@@ -97,7 +97,13 @@ export default function TripSheetsPage() {
           const totalFuel = trip.fuelEntries.reduce((sum, entry) => sum + entry.amount, 0);
           const totalExpenses = (trip.truckAdvance || 0) + (trip.transport || 0) + totalFuel;
           
-          const netAmount = netPay - totalExpenses + (trip.returnLoadIncome || 0);
+          const totalReturnLoadIncome = (trip.returnTrips || []).reduce((sum, rt) => {
+            const freight = Number(rt.freight) || 0;
+            const expenses = Number(rt.expenses) || 0;
+            return sum + (freight - expenses);
+          }, 0);
+
+          const netAmount = netPay - totalExpenses + totalReturnLoadIncome;
           
           const finalDestination = trip.destinations[0]?.name || 'N/A';
 
