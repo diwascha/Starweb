@@ -613,7 +613,7 @@ export default function NewTripSheetPage() {
                                                 </div>
                                             </div>))}
                                         </div>
-                                        <Button type="button" size="sm" variant="outline" onClick={() => appendFuel({ partyId: '', amount: 0, liters: 0 })} className="mt-4"><PlusCircle className="mr-2 h-4 w-4" /> Add Fuel Entry</Button>
+                                        <Button type="button" size="sm" variant="outline" onClick={() => appendFuel({ partyId: '', amount: 0, liters: undefined })} className="mt-4"><PlusCircle className="mr-2 h-4 w-4" /> Add Fuel Entry</Button>
                                     </div>
                                     <div>
                                         <Label className="text-base font-medium">Extra Expenses</Label>
