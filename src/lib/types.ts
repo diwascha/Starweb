@@ -15,6 +15,7 @@
 
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -281,7 +282,7 @@ export interface Trip {
     odometerEnd?: number;
     destinations: TripDestination[];
     truckAdvance?: number;
-    transport?: number;
+    transport: number;
     fuelEntries: FuelEntry[];
     extraExpenses?: ExtraExpense[];
     returnTrips?: ReturnTrip[];
