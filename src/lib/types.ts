@@ -179,22 +179,42 @@ export interface PolicyOrMembership {
     lastModifiedAt?: string; // ISO string
 }
 
-export const expenseCategories = ['Fuel', 'Maintenance', 'Insurance', 'Tires', 'Repairs', 'Tolls', 'Permits', 'Other'] as const;
-export type ExpenseCategory = typeof expenseCategories[number];
+export const transactionTypes = ['Purchase', 'Sales', 'Payment', 'Receipt'] as const;
+export type TransactionType = typeof transactionTypes[number];
 
-export const incomeSources = ['Freight', 'Leasing', 'Sale', 'Other'] as const;
-export type IncomeSource = typeof incomeSources[number];
+export type PartyType = 'Vendor' | 'Client';
 
-export type TransactionType = 'Income' | 'Expense';
+export interface Party {
+    id: string;
+    name: string;
+    type: PartyType;
+    createdBy: string;
+    createdAt: string; // ISO string
+    lastModifiedBy?: string;
+    lastModifiedAt?: string; // ISO string
+}
+
+export type AccountType = 'Cash' | 'Bank';
+
+export interface Account {
+    id: string;
+    name: string;
+    type: AccountType;
+    createdBy: string;
+    createdAt: string; // ISO string
+    lastModifiedBy?: string;
+    lastModifiedAt?: string; // ISO string
+}
 
 export interface Transaction {
     id: string;
     vehicleId: string;
     date: string; // ISO string
     type: TransactionType;
-    category: ExpenseCategory | IncomeSource;
     amount: number;
     description: string;
+    partyId?: string;
+    accountId?: string;
     createdBy: string;
     createdAt: string; // ISO string
     lastModifiedBy?: string;
