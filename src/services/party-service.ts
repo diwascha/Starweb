@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc } from 'firebase/firestore';
 import type { Party } from '@/lib/types';
 
 const partiesCollection = collection(db, 'parties');
@@ -31,3 +31,13 @@ export const onPartiesUpdate = (callback: (parties: Party[]) => void): () => voi
         callback(snapshot.docs.map(fromFirestore));
     });
 };
+
+export const updateParty = async (id: string, party: Partial<Omit<Party, 'id'>>): Promise<void> => {
+    const partyDoc = doc(db, 'parties', id);
+    await updateDoc(partyDoc, {
+        ...party,
+        lastModifiedAt: new Date().toISOString(),
+    });
+};
+
+    

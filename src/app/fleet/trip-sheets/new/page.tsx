@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import type { Vehicle, Party, Trip, Destination, FuelEntry } from '@/lib/types';
+import type { Vehicle, Party, Trip, Destination, FuelEntry, PartyType } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
@@ -24,9 +24,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/hooks/use-auth';
 import { onVehiclesUpdate } from '@/services/vehicle-service';
-import { onPartiesUpdate } from '@/services/party-service';
+import { onPartiesUpdate, addParty, updateParty } from '@/services/party-service';
 import { addTrip } from '@/services/trip-service';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Edit } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { DateRange } from 'react-day-picker';
@@ -67,8 +67,13 @@ export default function NewTripSheetPage() {
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [parties, setParties] = useState<Party[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    
+    // Dialog States
     const [isDetentionDialogOpen, setIsDetentionDialogOpen] = useState(false);
     const [detentionDateRange, setDetentionDateRange] = useState<DateRange | undefined>(undefined);
+    const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
+    const [partyForm, setPartyForm] = useState<{name: string, type: PartyType}>({name: '', type: 'Vendor'});
+    const [editingParty, setEditingParty] = useState<Party | null>(null);
 
     const form = useForm<TripFormValues>({
         resolver: zodResolver(tripSchema),
@@ -205,6 +210,39 @@ export default function NewTripSheetPage() {
             setIsSubmitting(false);
         }
     }
+
+    const handleSubmitParty = async () => {
+        if(!user) return;
+        if(!partyForm.name || !partyForm.type) {
+            toast({title: 'Error', description: 'Party name and type are required.', variant: 'destructive'});
+            return;
+        }
+        try {
+            if (editingParty) {
+                await updateParty(editingParty.id, { name: partyForm.name, type: partyForm.type, lastModifiedBy: user.username });
+                toast({title: 'Success', description: 'Vendor updated.'});
+            } else {
+                await addParty({...partyForm, createdBy: user.username});
+                toast({title: 'Success', description: 'New vendor added.'});
+            }
+            setIsPartyDialogOpen(false);
+            setPartyForm({name: '', type: 'Vendor'});
+            setEditingParty(null);
+        } catch {
+             toast({title: 'Error', description: 'Failed to save vendor.', variant: 'destructive'});
+        }
+    };
+
+    const handleOpenPartyDialog = (party: Party | null = null) => {
+        if (party) {
+            setEditingParty(party);
+            setPartyForm({ name: party.name, type: party.type });
+        } else {
+            setEditingParty(null);
+            setPartyForm({ name: '', type: 'Vendor' });
+        }
+        setIsPartyDialogOpen(true);
+    };
     
     const watchedNumberOfParties = form.watch('numberOfParties');
 
@@ -262,7 +300,7 @@ export default function NewTripSheetPage() {
                                             <FormField control={form.control} name={`destinations.${index}.freight`} render={({ field }) => 
                                                 <FormItem>
                                                     {index === 0 && <FormLabel>Freight</FormLabel>}
-                                                    <Input type="number" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? 0 : parseFloat(e.target.value))} />
+                                                    <Input type="number" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
                                                     <FormMessage/>
                                                 </FormItem>
                                             }/>
@@ -350,7 +388,7 @@ export default function NewTripSheetPage() {
                                                 <FormControl>
                                                     <Input type="number" {...field} 
                                                         value={field.value ?? ''} 
-                                                        onChange={e => field.onChange(e.target.value === '' ? 0 : parseFloat(e.target.value))} />
+                                                        onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
                                                 </FormControl>
                                             </FormItem>} />
                                         )}
@@ -362,28 +400,66 @@ export default function NewTripSheetPage() {
                                 <CardHeader><CardTitle>Trip Expenses & Income</CardTitle></CardHeader>
                                 <CardContent className="space-y-6">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <FormField control={form.control} name="truckAdvance" render={({ field }) => <FormItem><FormLabel>Truck Advance</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? 0 : parseFloat(e.target.value))} /></FormControl></FormItem>} />
-                                        <FormField control={form.control} name="transport" render={({ field }) => <FormItem><FormLabel>Transport</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? 0 : parseFloat(e.target.value))} /></FormControl></FormItem>} />
+                                        <FormField control={form.control} name="truckAdvance" render={({ field }) => <FormItem><FormLabel>Truck Advance</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl></FormItem>} />
+                                        <FormField control={form.control} name="transport" render={({ field }) => <FormItem><FormLabel>Transport</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl></FormItem>} />
                                     </div>
                                     <div>
                                         <Label className="text-base font-medium">Fuel</Label>
                                         <div className="mt-2 space-y-4">
-                                            {fuelFields.map((item, index) => (<div key={item.id} className="flex items-center gap-2">
+                                            {fuelFields.map((item, index) => (<div key={item.id} className="flex items-start gap-2">
                                                 <FormField control={form.control} name={`fuelEntries.${index}.partyId`} render={({ field }) => (
-                                                    <FormItem className="flex-1"><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" role="combobox" className="w-full justify-between">
-                                                        {field.value ? fuelVendors.find(v => v.id === field.value)?.name : "Select fuel vendor"}<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                                    </Button></FormControl></PopoverTrigger><PopoverContent className="p-0"><Command><CommandInput placeholder="Search vendor..."/><CommandList><CommandEmpty>No vendor found.</CommandEmpty><CommandGroup>
-                                                        {fuelVendors.map(vendor => (<CommandItem key={vendor.id} value={vendor.name} onSelect={() => field.onChange(vendor.id)}><Check className={cn("mr-2 h-4 w-4", field.value === vendor.id ? "opacity-100" : "opacity-0")} />{vendor.name}</CommandItem>))}
-                                                    </CommandGroup></CommandList></Command></PopoverContent></Popover></FormItem>
+                                                    <FormItem className="flex-1">
+                                                        <Popover>
+                                                          <PopoverTrigger asChild>
+                                                            <FormControl>
+                                                              <Button variant="outline" role="combobox" className="w-full justify-between">
+                                                                {field.value ? fuelVendors.find((v) => v.id === field.value)?.name : "Select or type..."}
+                                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                              </Button>
+                                                            </FormControl>
+                                                          </PopoverTrigger>
+                                                          <PopoverContent className="p-0">
+                                                            <Command>
+                                                              <CommandInput placeholder="Search vendor..." />
+                                                              <CommandList>
+                                                                <CommandEmpty>
+                                                                    <Button variant="ghost" className="w-full justify-start" onClick={() => handleOpenPartyDialog()}>
+                                                                        <PlusCircle className="mr-2 h-4 w-4"/> Add Vendor
+                                                                    </Button>
+                                                                </CommandEmpty>
+                                                                <CommandGroup>
+                                                                  {fuelVendors.map((vendor) => (
+                                                                    <CommandItem
+                                                                      key={vendor.id}
+                                                                      value={vendor.name}
+                                                                      onSelect={() => field.onChange(vendor.id)}
+                                                                      className="flex justify-between items-center"
+                                                                    >
+                                                                      <div className="flex items-center">
+                                                                        <Check className={cn("mr-2 h-4 w-4", field.value === vendor.id ? "opacity-100" : "opacity-0")} />
+                                                                        {vendor.name}
+                                                                      </div>
+                                                                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleOpenPartyDialog(vendor); }}>
+                                                                        <Edit className="h-4 w-4" />
+                                                                      </Button>
+                                                                    </CommandItem>
+                                                                  ))}
+                                                                </CommandGroup>
+                                                              </CommandList>
+                                                            </Command>
+                                                          </PopoverContent>
+                                                        </Popover>
+                                                        <FormMessage />
+                                                      </FormItem>
                                                 )}/>
-                                                <FormField control={form.control} name={`fuelEntries.${index}.amount`} render={({ field }) => <FormItem><FormControl><Input type="number" placeholder="Amount" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? 0 : parseFloat(e.target.value))} /></FormControl></FormItem>} />
-                                                <Button type="button" variant="ghost" size="icon" onClick={() => removeFuel(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                                <FormField control={form.control} name={`fuelEntries.${index}.amount`} render={({ field }) => <FormItem><FormControl><Input type="number" placeholder="Amount" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl><FormMessage/></FormItem>} />
+                                                <Button type="button" variant="ghost" size="icon" onClick={() => removeFuel(index)} className="mt-2"><Trash2 className="h-4 w-4 text-destructive" /></Button>
                                             </div>))}
                                         </div>
                                         <Button type="button" size="sm" variant="outline" onClick={() => appendFuel({ partyId: '', amount: 0 })} className="mt-4"><PlusCircle className="mr-2 h-4 w-4" /> Add Fuel Entry</Button>
                                     </div>
                                     <FormField control={form.control} name="extraExpenses" render={({ field }) => <FormItem><FormLabel>Extra Expenses (Details)</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>} />
-                                    <FormField control={form.control} name="returnLoadIncome" render={({ field }) => <FormItem><FormLabel>Additional Income (Return Load)</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? 0 : parseFloat(e.target.value))} /></FormControl></FormItem>} />
+                                    <FormField control={form.control} name="returnLoadIncome" render={({ field }) => <FormItem><FormLabel>Additional Income (Return Load)</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl></FormItem>} />
                                 </CardContent>
                             </Card>
                         </div>
@@ -415,6 +491,29 @@ export default function NewTripSheetPage() {
                     </Button>
                 </form>
             </Form>
+
+            <Dialog open={isPartyDialogOpen} onOpenChange={(isOpen) => {
+                if (!isOpen) setEditingParty(null);
+                setIsPartyDialogOpen(isOpen);
+            }}>
+                <DialogContent className="sm:max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle>{editingParty ? 'Edit Vendor' : 'Add New Vendor'}</DialogTitle>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="party-name">Vendor Name</Label>
+                            <Input id="party-name" value={partyForm.name} onChange={e => setPartyForm(p => ({...p, name: e.target.value}))} />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsPartyDialogOpen(false)}>Cancel</Button>
+                        <Button onClick={handleSubmitParty}>{editingParty ? 'Save Changes' : 'Add Vendor'}</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
+
+    
