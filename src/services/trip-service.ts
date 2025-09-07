@@ -74,7 +74,8 @@ export const addTrip = async (trip: Omit<Trip, 'id' | 'createdAt' | 'salesTransa
         createdBy: trip.createdBy,
         createdAt: now,
         billingType: 'Credit',
-        invoiceType: 'Taxable'
+        invoiceType: 'Taxable',
+        // Omitted optional fields will not be written
     };
     batch.set(salesTransactionRef, salesTransaction);
 

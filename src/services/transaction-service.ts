@@ -1,5 +1,4 @@
 
-
 import { db } from '@/lib/firebase';
 import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, writeBatch, query, where, getDoc } from 'firebase/firestore';
 import type { Transaction } from '@/lib/types';
@@ -72,7 +71,7 @@ export const saveVoucher = async (voucherData: any, createdBy: string) => {
                 vehicleId: vehicleId,
                 partyId: ledgerId,
                 amount: amount,
-                remarks: narration || voucherData.remarks || '',
+                remarks: narration || voucherData.remarks || null,
                 invoiceType: 'Normal', // Default for payments/receipts
                 items: [{ particular: `${voucherData.voucherNo}-${type}`, quantity: 1, rate: amount }],
                 accountId: voucherData.accountId || null,
@@ -85,9 +84,9 @@ export const saveVoucher = async (voucherData: any, createdBy: string) => {
                 dueDate: null,
                 invoiceDate: null,
                 invoiceNumber: null,
-                tripId: undefined,
-                lastModifiedBy: undefined,
-                purchaseNumber: undefined,
+                tripId: null,
+                lastModifiedBy: null,
+                purchaseNumber: null,
             };
             batch.set(transactionRef, newTransaction);
         }
@@ -187,8 +186,8 @@ export const updateVoucher = async (voucherId: string, voucherData: any, modifie
                 dueDate: null,
                 invoiceDate: null,
                 invoiceNumber: null,
-                tripId: undefined,
-                purchaseNumber: undefined,
+                tripId: null,
+                purchaseNumber: null,
             };
             batch.set(transactionRef, newTransaction);
         }
