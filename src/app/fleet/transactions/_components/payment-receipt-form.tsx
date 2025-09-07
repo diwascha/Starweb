@@ -113,7 +113,7 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
     const ledgerId = watchedFirstItem?.ledgerId;
     const vehicleId = watchedFirstItem?.vehicleId;
 
-    if (!ledgerId && !vehicleId) return { receivables: 0, payables: 0, title: '' };
+    if (!ledgerId && !vehicleId) return { receivables: 0, payables: 0, title: 'Select a Ledger or Vehicle' };
 
     let filteredTxns: Transaction[];
     let titleParts: (string | undefined)[] = [];
@@ -122,7 +122,7 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
     const selectedVehicleName = vehicles.find(v => v.id === vehicleId)?.name;
     
     titleParts.push(selectedPartyName);
-    if(vehicleId) titleParts.push(selectedVehicleName);
+    if(vehicleId && selectedVehicleName) titleParts.push(selectedVehicleName);
 
 
     if (ledgerId && vehicleId) {
@@ -136,14 +136,15 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
     }
     
     const { receivables, payables } = filteredTxns.reduce((acc, t) => {
-        if (t.type === 'Sales' && t.partyId === ledgerId) acc.receivables += t.amount;
-        if (t.type === 'Receipt' && t.partyId === ledgerId) acc.receivables -= t.amount;
+        if (t.type === 'Sales') acc.receivables += t.amount;
+        if (t.type === 'Receipt') acc.receivables -= t.amount;
         if (t.type === 'Purchase') acc.payables += t.amount;
         if (t.type === 'Payment') acc.payables -= t.amount;
         return acc;
     }, { receivables: 0, payables: 0 });
 
-    return { receivables, payables, title: titleParts.filter(Boolean).join(' & ') };
+
+    return { receivables, payables, title: titleParts.filter(Boolean).join(' & ') || 'Summary' };
   }, [watchedFirstItem, transactions, parties, vehicles]);
 
 
@@ -280,24 +281,22 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
         </Button>
         
         <Card className="bg-blue-100 border-blue-300 p-4 mt-4">
-            <CardContent className="p-0 space-y-4">
+            <CardContent className="p-0">
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                     {summaryData.title && (
-                         <div className="space-y-2">
-                             <Label>Summary for {summaryData.title}</Label>
-                             <div className="grid grid-cols-2 gap-2">
-                                <div className="p-2 rounded-lg bg-gray-200">
-                                    <p className="text-xs text-muted-foreground">Account Receivable</p>
-                                    <p className="font-mono font-bold">{summaryData.receivables.toLocaleString()}</p>
-                                </div>
-                                <div className="p-2 rounded-lg bg-gray-200">
-                                    <p className="text-xs text-muted-foreground">Account Payable</p>
-                                    <p className="font-mono font-bold">{summaryData.payables.toLocaleString()}</p>
-                                </div>
+                     <div className="space-y-2">
+                         <Label>Summary for {summaryData.title}</Label>
+                         <div className="grid grid-cols-2 gap-2">
+                            <div className="p-2 rounded-lg bg-gray-200">
+                                <p className="text-xs text-muted-foreground">Account Receivable</p>
+                                <p className="font-mono font-bold">{summaryData.receivables.toLocaleString()}</p>
                             </div>
-                         </div>
-                     )}
-                    <div className="md:col-start-2 space-y-2">
+                            <div className="p-2 rounded-lg bg-gray-200">
+                                <p className="text-xs text-muted-foreground">Account Payable</p>
+                                <p className="font-mono font-bold">{summaryData.payables.toLocaleString()}</p>
+                            </div>
+                        </div>
+                     </div>
+                    <div className="space-y-2">
                         <Label>Current Transaction Totals</Label>
                         <div className="flex justify-between bg-gray-200 p-2 rounded-md">
                             <Label>Total Rec Amt</Label>
@@ -314,7 +313,7 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
                     </div>
                 </div>
                  <FormField control={form.control} name="remarks" render={({ field }) => (
-                    <FormItem><FormLabel>Remarks</FormLabel><FormControl><Input {...field} value={field.value ?? ''} className="bg-white"/></FormControl><FormMessage /></FormItem>
+                    <FormItem className="mt-4"><FormLabel>Remarks</FormLabel><FormControl><Input {...field} value={field.value ?? ''} className="bg-white"/></FormControl><FormMessage /></FormItem>
                 )}/>
             </CardContent>
         </Card>
