@@ -427,6 +427,7 @@ export default function SettingsPage() {
                         </CardContent>
                     </Card>
                     {user?.is_admin && (
+                        <>
                         <Card>
                             <CardHeader className="flex flex-row items-center justify-between">
                                 <div>
@@ -464,6 +465,35 @@ export default function SettingsPage() {
                                 </TableBody></Table>
                             </CardContent>
                         </Card>
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Backup &amp; Restore</CardTitle>
+                                <CardDescription>Export your application data or restore it from a backup file.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div>
+                                    <h3 className="font-medium">Export Data</h3>
+                                    <p className="text-sm text-muted-foreground mb-2">Download a complete backup of your database in JSON format. Keep this file in a safe place.</p>
+                                    <Button onClick={handleExportData} disabled={isExporting}>
+                                        {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                                        {isExporting ? 'Exporting...' : 'Export All Data'}
+                                    </Button>
+                                </div>
+                                <div className="pt-4 border-t">
+                                    <h3 className="font-medium">Restore Data</h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        Restoring data will overwrite all existing information in your database. This is a sensitive operation and should be done with caution using the official Google Cloud tools.
+                                    </p>
+                                    <div className="mt-2 text-xs p-3 bg-muted rounded-md space-y-1">
+                                        <p className="font-semibold">Instructions:</p>
+                                        <p>1. Install the Google Cloud CLI on your local machine.</p>
+                                        <p>2. Authenticate by running <code className="bg-background p-1 rounded">gcloud auth login</code>.</p>
+                                        <p>3. Use the <code className="bg-background p-1 rounded">gcloud firestore import</code> command with your backup file.</p>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                        </>
                     )}
                 </div>
             </TabsContent>
@@ -581,34 +611,6 @@ export default function SettingsPage() {
                             </div>
                             <p className="text-sm text-muted-foreground">This prefix is used for generating new test report serial numbers.</p>
                         </div>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Backup & Restore</CardTitle>
-                            <CardDescription>Export your application data or restore it from a backup file.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div>
-                                <h3 className="font-medium">Export Data</h3>
-                                <p className="text-sm text-muted-foreground mb-2">Download a complete backup of your database in JSON format. Keep this file in a safe place.</p>
-                                <Button onClick={handleExportData} disabled={isExporting}>
-                                    {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-                                    {isExporting ? 'Exporting...' : 'Export All Data'}
-                                </Button>
-                            </div>
-                            <div className="pt-4 border-t">
-                                <h3 className="font-medium">Restore Data</h3>
-                                <p className="text-sm text-muted-foreground">
-                                    Restoring data will overwrite all existing information in your database. This is a sensitive operation and should be done with caution using the official Google Cloud tools.
-                                </p>
-                                <div className="mt-2 text-xs p-3 bg-muted rounded-md space-y-1">
-                                    <p className="font-semibold">Instructions:</p>
-                                    <p>1. Install the Google Cloud CLI on your local machine.</p>
-                                    <p>2. Authenticate by running <code className="bg-background p-1 rounded">gcloud auth login</code>.</p>
-                                    <p>3. Use the <code className="bg-background p-1 rounded">gcloud firestore import</code> command with your backup file.</p>
-                                </div>
-                            </div>
                         </CardContent>
                     </Card>
                 </div>
