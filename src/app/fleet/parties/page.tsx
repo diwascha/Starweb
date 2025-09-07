@@ -65,8 +65,13 @@ export default function ClientTransactionsPage() {
     };
 
     const clientTransactions = useMemo(() => {
-        return transactions.filter(t => t.type === 'Sales' || t.type === 'Receipt');
-    }, [transactions]);
+        const clientIds = new Set(clients.map(c => c.id));
+        return transactions.filter(t => 
+            (t.type === 'Sales' || t.type === 'Receipt') && 
+            t.partyId && 
+            clientIds.has(t.partyId)
+        );
+    }, [transactions, clients]);
     
     const clientsWithTransactions = useMemo(() => {
         const clientIdsInTransactions = new Set(clientTransactions.map(t => t.partyId));
