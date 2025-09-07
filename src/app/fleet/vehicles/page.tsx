@@ -1,4 +1,5 @@
 
+export const runtime = 'nodejs';
 import { getVehicles } from '@/services/vehicle-service';
 import { getDrivers } from '@/services/driver-service';
 import VehiclesClientPage from './_components/vehicles-client-page';

@@ -1,4 +1,5 @@
 
+export const runtime = 'nodejs';
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { PlusCircle, ShoppingCart } from 'lucide-react';

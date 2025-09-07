@@ -1,4 +1,5 @@
 
+export const runtime = 'nodejs';
 'use client';
 
 import { useEffect, useState, useMemo, use, Suspense } from 'react';
