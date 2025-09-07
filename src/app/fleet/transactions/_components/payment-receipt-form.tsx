@@ -118,16 +118,19 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
     let filteredTxns: Transaction[];
     let titleParts: (string | undefined)[] = [];
 
+    const selectedPartyName = parties.find(p => p.id === ledgerId)?.name;
+    const selectedVehicleName = vehicles.find(v => v.id === vehicleId)?.name;
+
     if (ledgerId && vehicleId) {
       filteredTxns = transactions.filter(t => t.partyId === ledgerId || t.vehicleId === vehicleId);
-      titleParts.push(parties.find(p => p.id === ledgerId)?.name);
-      titleParts.push(vehicles.find(v => v.id === vehicleId)?.name);
+      titleParts.push(selectedPartyName);
+      titleParts.push(selectedVehicleName);
     } else if (ledgerId) {
       filteredTxns = transactions.filter(t => t.partyId === ledgerId);
-      titleParts.push(parties.find(p => p.id === ledgerId)?.name);
+      titleParts.push(selectedPartyName);
     } else if (vehicleId) {
       filteredTxns = transactions.filter(t => t.vehicleId === vehicleId);
-      titleParts.push(vehicles.find(v => v.id === vehicleId)?.name);
+      titleParts.push(selectedVehicleName);
     } else {
       filteredTxns = [];
     }
