@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -147,27 +148,6 @@ export default function TransactionsPage() {
                 <p className="text-muted-foreground">Manage your fleet's financial transactions and view summaries.</p>
             </header>
             <section>
-                <div className="flex flex-col md:flex-row gap-4 items-center justify-between mb-4">
-                    <div className="flex-1 w-full">
-                        <h2 className="text-xl font-semibold">All Transactions</h2>
-                    </div>
-                    <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                        {hasPermission('fleet', 'create') && (
-                            <>
-                            <Button onClick={() => router.push('/fleet/trip-sheets/new')} className="w-full">
-                                <TrendingUp className="mr-2 h-4 w-4" /> New Sales
-                            </Button>
-                            <Button onClick={() => router.push('/fleet/transactions/purchase/new')} className="w-full">
-                                <ShoppingCart className="mr-2 h-4 w-4" /> New Purchase
-                            </Button>
-                            <Button onClick={() => router.push('/fleet/transactions/payment-receipt/new')} className="w-full">
-                                <ArrowRightLeft className="mr-2 h-4 w-4" /> New Payment / Receipt
-                            </Button>
-                            </>
-                        )}
-                    </div>
-                </div>
-
                  <div className="flex flex-col md:flex-row gap-2 mb-4">
                     <div className="relative flex-1">
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />

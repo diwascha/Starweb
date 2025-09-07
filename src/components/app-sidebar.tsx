@@ -13,7 +13,7 @@ import {
   SidebarSeparator,
   SidebarContent,
 } from '@/components/ui/sidebar';
-import { FileText, LayoutDashboard, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users, Calendar, Award, Wallet, Building2, PlusCircle, Truck, ShieldCheck, CreditCard } from 'lucide-react';
+import { FileText, LayoutDashboard, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users, Calendar, Award, Wallet, Building2, PlusCircle, Truck, ShieldCheck, CreditCard, ArrowRightLeft, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
@@ -250,16 +250,44 @@ export function AppSidebar() {
                             </Link>
                             </SidebarMenuButton>
                         </SidebarMenuItem>
+                         <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={getIsActive('/fleet/trip-sheets')}>
+                            <Link href="/fleet/trip-sheets">
+                                <FileText />
+                                <span>Trip Sheets</span>
+                            </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
                          <div className="ml-4">
-                             <SidebarMenuItem>
-                                <SidebarMenuButton asChild isActive={getIsActive('/fleet/trip-sheets')}>
-                                <Link href="/fleet/trip-sheets">
-                                    <FileText />
-                                    <span>Trip Sheets</span>
-                                </Link>
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
-                        </div>
+                            {hasPermission('fleet', 'create') && (
+                                <>
+                                 <SidebarMenuItem>
+                                    <SidebarMenuButton asChild isActive={getIsActive('/fleet/trip-sheets/new')}>
+                                    <Link href="/fleet/trip-sheets/new">
+                                        <TrendingUp />
+                                        <span>New Sales</span>
+                                    </Link>
+                                    </SidebarMenuButton>
+                                </SidebarMenuItem>
+                                <SidebarMenuItem>
+                                    <SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/purchase/new')}>
+                                    <Link href="/fleet/transactions/purchase/new">
+                                        <ShoppingCart />
+                                        <span>New Purchase</span>
+                                    </Link>
+                                    </SidebarMenuButton>
+                                </SidebarMenuItem>
+                                <SidebarMenuItem>
+                                    <SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/payment-receipt/new')}>
+                                    <Link href="/fleet/transactions/payment-receipt/new">
+                                        <ArrowRightLeft />
+                                        <span>New Payment/Receipt</span>
+                                    </Link>
+                                    </SidebarMenuButton>
+                                </SidebarMenuItem>
+                                </>
+                            )}
+                         </div>
                     </div>
                 </>
             )}
