@@ -113,16 +113,15 @@ export default function NewPaymentReceiptPage() {
     };
 
     const filteredAndSortedVouchers = useMemo(() => {
-        const paymentReceipts = transactions.filter(t => (t.type === 'Payment' || t.type === 'Receipt') && t.voucherId);
+        const paymentReceipts = transactions.filter(t => (t.type === 'Payment' || t.type === 'Receipt'));
 
         const grouped = paymentReceipts.reduce((acc, t) => {
-            if (!t.voucherId) return acc;
+            const voucherKey = t.voucherId || `legacy-${t.id}`;
             
-            if (!acc[t.voucherId]) {
-                 const firstTransaction = t;
-                 acc[t.voucherId] = {
-                    voucherId: t.voucherId,
-                    voucherNo: firstTransaction.items[0]?.particular.replace(/ .*/,'') || 'N/A', // hacky way to get voucherNo
+            if (!acc[voucherKey]) {
+                 acc[voucherKey] = {
+                    voucherId: voucherKey,
+                    voucherNo: t.items[0]?.particular.replace(/ .*/,'') || 'N/A',
                     date: t.date,
                     type: t.type as 'Payment' | 'Receipt',
                     totalAmount: 0,
@@ -131,7 +130,7 @@ export default function NewPaymentReceiptPage() {
                     transactions: [],
                 };
             }
-            const group = acc[t.voucherId];
+            const group = acc[voucherKey];
             group.totalAmount += t.amount;
             if (t.partyId) group.parties.push(t.partyId);
             group.vehicles.push(t.vehicleId);
