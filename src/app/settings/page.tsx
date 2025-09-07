@@ -1,8 +1,8 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
-import type { Party, Account, PartyType, AccountType, UnitOfMeasurement, AppSetting } from '@/lib/types';
+import { useState, useEffect, useMemo } from 'react';
+import type { Party, Account, PartyType, AccountType, UnitOfMeasurement, AppSetting, User, Permissions, Module, Action } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -38,6 +38,9 @@ import { onAccountsUpdate, addAccount, updateAccount, deleteAccount } from '@/se
 import { onUomsUpdate, addUom, updateUom, deleteUom } from '@/services/uom-service';
 import { onSettingUpdate, setSetting } from '@/services/settings-service';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { getUsers, setUsers, validatePassword } from '@/services/user-service';
+import { modules, actions } from '@/lib/types';
+import { Checkbox } from '@/components/ui/checkbox';
 
 
 export default function SettingsPage() {
@@ -47,6 +50,7 @@ export default function SettingsPage() {
   const [parties, setParties] = useState<Party[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [uoms, setUoms] = useState<UnitOfMeasurement[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -68,6 +72,12 @@ export default function SettingsPage() {
   const [isUomDialogOpen, setIsUomDialogOpen] = useState(false);
   const [editingUom, setEditingUom] = useState<UnitOfMeasurement | null>(null);
   const [uomForm, setUomForm] = useState({ name: '', abbreviation: '' });
+  
+  // User Dialog State
+  const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [userForm, setUserForm] = useState({ username: '', password: '', permissions: {} as Permissions });
+  const [passwordError, setPasswordError] = useState<string | null>(null);
 
 
   useEffect(() => {
@@ -79,12 +89,18 @@ export default function SettingsPage() {
         setReportPrefix(setting?.value || '2082/083-');
     });
 
+    // Since users are in localStorage, we poll for changes.
+    const handleStorageChange = () => setUsers(getUsers());
+    window.addEventListener('storage', handleStorageChange);
+    handleStorageChange(); // Initial load
+
     setIsLoading(false);
     return () => {
         unsubParties();
         unsubAccounts();
         unsubUoms();
         unsubPrefix();
+        window.removeEventListener('storage', handleStorageChange);
     }
   }, []);
   
@@ -235,6 +251,86 @@ export default function SettingsPage() {
   
   const filteredUoms = uoms.filter(u => u.name.toLowerCase().includes(searchQuery.toLowerCase()) || u.abbreviation.toLowerCase().includes(searchQuery.toLowerCase()));
 
+  // --- User Management ---
+  const openUserDialog = (userToEdit: User | null = null) => {
+    if (userToEdit) {
+        setEditingUser(userToEdit);
+        setUserForm({ username: userToEdit.username, password: '', permissions: userToEdit.permissions || {} });
+    } else {
+        setEditingUser(null);
+        setUserForm({ username: '', password: '', permissions: {} });
+    }
+    setPasswordError(null);
+    setIsUserDialogOpen(true);
+  };
+  
+  const handlePermissionChange = (module: Module, action: Action, checked: boolean) => {
+    setUserForm(prev => {
+        const newPermissions = { ...prev.permissions };
+        if (checked) {
+            newPermissions[module] = [...(newPermissions[module] || []), action];
+        } else {
+            newPermissions[module] = (newPermissions[module] || []).filter(a => a !== action);
+        }
+        return { ...prev, permissions: newPermissions };
+    });
+  };
+
+  const handleUserSubmit = () => {
+    const isEditing = !!editingUser;
+    const { isValid, error } = validatePassword(userForm.password, !isEditing); // Password is required only for new users
+    if (!isValid) {
+        setPasswordError(error!);
+        return;
+    }
+    setPasswordError(null);
+
+    const allUsers = getUsers();
+    if (!isEditing && allUsers.some(u => u.username.toLowerCase() === userForm.username.toLowerCase())) {
+        toast({ title: 'Error', description: 'Username already exists.', variant: 'destructive' });
+        return;
+    }
+
+    let updatedUsers: User[];
+    if (isEditing) {
+        updatedUsers = allUsers.map(u => {
+            if (u.id === editingUser.id) {
+                const updatedUser: User = {
+                    ...u,
+                    username: userForm.username,
+                    permissions: userForm.permissions,
+                };
+                if (userForm.password) {
+                    updatedUser.password = userForm.password;
+                    updatedUser.passwordLastUpdated = new Date().toISOString();
+                }
+                return updatedUser;
+            }
+            return u;
+        });
+    } else {
+        const newUser: User = {
+            id: Date.now().toString(), // Simple unique ID
+            username: userForm.username,
+            password: userForm.password,
+            permissions: userForm.permissions,
+            passwordLastUpdated: new Date().toISOString(),
+        };
+        updatedUsers = [...allUsers, newUser];
+    }
+    
+    setUsers(updatedUsers);
+    toast({ title: 'Success', description: `User ${isEditing ? 'updated' : 'created'}.` });
+    setIsUserDialogOpen(false);
+  };
+
+  const handleDeleteUser = (id: string) => {
+      const updatedUsers = getUsers().filter(u => u.id !== id);
+      setUsers(updatedUsers);
+      toast({ title: 'Success', description: 'User deleted.' });
+  };
+  
+  const filteredUsers = users.filter(u => u.username.toLowerCase().includes(searchQuery.toLowerCase()));
 
   if (isLoading) {
     return (
@@ -258,10 +354,11 @@ export default function SettingsPage() {
         </header>
         
         <Tabs defaultValue="parties">
-            <TabsList>
+            <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="parties">Vendors & Suppliers</TabsTrigger>
                 <TabsTrigger value="accounts">Accounts</TabsTrigger>
                 <TabsTrigger value="uom">Units of Measurement</TabsTrigger>
+                <TabsTrigger value="users">User Management</TabsTrigger>
                 <TabsTrigger value="application">Application</TabsTrigger>
             </TabsList>
             <TabsContent value="parties">
@@ -352,6 +449,45 @@ export default function SettingsPage() {
                                         <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()}><Trash2 className="mr-2 h-4 w-4 text-destructive" /> <span className="text-destructive">Delete</span></DropdownMenuItem></AlertDialogTrigger>
                                         <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the unit.</AlertDialogDescription></AlertDialogHeader>
                                         <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteUom(uom.id)}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+                                    </DropdownMenuContent></DropdownMenu>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                        </TableBody></Table>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+             <TabsContent value="users">
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                        <div>
+                            <CardTitle>User Management</CardTitle>
+                            <CardDescription>Manage users and their permissions.</CardDescription>
+                        </div>
+                        <Button onClick={() => openUserDialog()}><Plus className="mr-2 h-4 w-4" /> Add User</Button>
+                    </CardHeader>
+                    <CardContent>
+                        <Table><TableHeader><TableRow>
+                            <TableHead>Username</TableHead><TableHead>Permissions</TableHead><TableHead className="text-right">Actions</TableHead>
+                        </TableRow></TableHeader><TableBody>
+                        {filteredUsers.map(u => (
+                            <TableRow key={u.id}>
+                                <TableCell>{u.username}</TableCell>
+                                <TableCell className="max-w-md">
+                                    <div className="flex flex-wrap gap-1">
+                                    {Object.entries(u.permissions).flatMap(([module, actions]) => 
+                                        actions.map(action => <Badge key={`${module}-${action}`} variant="secondary">{`${module}: ${action}`}</Badge>)
+                                    )}
+                                    </div>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                    <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuItem onSelect={() => openUserDialog(u)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()}><Trash2 className="mr-2 h-4 w-4 text-destructive" /> <span className="text-destructive">Delete</span></DropdownMenuItem></AlertDialogTrigger>
+                                        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the user account.</AlertDialogDescription></AlertDialogHeader>
+                                        <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteUser(u.id)}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
                                     </DropdownMenuContent></DropdownMenu>
                                 </TableCell>
                             </TableRow>
@@ -471,6 +607,50 @@ export default function SettingsPage() {
                 <DialogFooter>
                     <Button variant="outline" onClick={() => setIsUomDialogOpen(false)}>Cancel</Button>
                     <Button onClick={handleUomSubmit}>{editingUom ? 'Save Changes' : 'Add Unit'}</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+         {/* User Dialog */}
+        <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
+            <DialogContent className="sm:max-w-2xl">
+                <DialogHeader><DialogTitle>{editingUser ? 'Edit User' : 'Add New User'}</DialogTitle></DialogHeader>
+                <div className="grid gap-6 py-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="username">Username</Label>
+                        <Input id="username" value={userForm.username} onChange={e => setUserForm(p => ({...p, username: e.target.value}))} disabled={!!editingUser} />
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="password">Password</Label>
+                        <Input id="password" type="password" value={userForm.password} onChange={e => setUserForm(p => ({...p, password: e.target.value}))} placeholder={editingUser ? 'Leave blank to keep current password' : ''} />
+                        {passwordError && <p className="text-sm text-destructive">{passwordError}</p>}
+                    </div>
+                    <div className="space-y-4">
+                        <Label>Permissions</Label>
+                        <div className="space-y-2">
+                            {modules.filter(m => m !== 'dashboard').map(module => (
+                                <div key={module} className="p-4 border rounded-md">
+                                    <h4 className="font-medium capitalize mb-2">{module.replace(/([A-Z])/g, ' $1')}</h4>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                        {actions.map(action => (
+                                            <div key={action} className="flex items-center space-x-2">
+                                                <Checkbox
+                                                    id={`${module}-${action}`}
+                                                    checked={(userForm.permissions[module] || []).includes(action)}
+                                                    onCheckedChange={(checked) => handlePermissionChange(module, action, !!checked)}
+                                                />
+                                                <label htmlFor={`${module}-${action}`} className="text-sm font-medium capitalize">{action}</label>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsUserDialogOpen(false)}>Cancel</Button>
+                    <Button onClick={handleUserSubmit}>{editingUser ? 'Save Changes' : 'Add User'}</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
