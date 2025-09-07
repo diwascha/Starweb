@@ -22,7 +22,7 @@ import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function PartyLedgerPage() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -31,7 +31,7 @@ export default function PartyLedgerPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-    const [filterPartyId, setFilterPartyId] = useState<string>('All');
+    const [activePartyTab, setActivePartyTab] = useState<string>('All');
     const router = useRouter();
     const { toast } = useToast();
     const { hasPermission } = useAuth();
@@ -81,12 +81,12 @@ export default function PartyLedgerPage() {
             filtered = filtered.filter(t => isWithinInterval(new Date(t.date), interval));
         }
         
-        if (filterPartyId !== 'All') {
-            filtered = filtered.filter(t => t.partyId === filterPartyId);
+        if (activePartyTab !== 'All') {
+            filtered = filtered.filter(t => t.partyId === activePartyTab);
         }
         
         return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    }, [transactions, searchQuery, dateRange, vehiclesById, partiesById, filterPartyId]);
+    }, [transactions, searchQuery, dateRange, vehiclesById, partiesById, activePartyTab]);
     
     const handleExport = async () => {
         const XLSX = (await import('xlsx'));
@@ -189,17 +189,8 @@ export default function PartyLedgerPage() {
                             {dateRange?.from ? (dateRange.to ? (`${format(dateRange.from, "LLL dd, y")} - ${format(dateRange.to, "LLL dd, y")}`) : format(dateRange.from, "LLL dd, y")) : (<span>Pick a date range</span>)}
                         </Button>
                     </PopoverTrigger><PopoverContent className="w-auto p-0" align="end"><DualDateRangePicker selected={dateRange} onSelect={setDateRange} /></PopoverContent></Popover>
-                    <Select value={filterPartyId} onValueChange={setFilterPartyId}>
-                        <SelectTrigger className="w-full md:w-[200px]">
-                            <SelectValue placeholder="All Parties" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="All">All Parties</SelectItem>
-                            {parties.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                    {filterPartyId !== 'All' && (
-                        <Button variant="outline" onClick={() => router.push(`/fleet/ledger/${filterPartyId}`)}>
+                    {activePartyTab !== 'All' && (
+                        <Button variant="outline" onClick={() => router.push(`/fleet/ledger/${activePartyTab}`)}>
                             <View className="mr-2 h-4 w-4" /> View Ledger
                         </Button>
                     )}
@@ -208,7 +199,19 @@ export default function PartyLedgerPage() {
                     </Button>
                 </div>
             </div>
-            {renderContent()}
+             <Tabs value={activePartyTab} onValueChange={setActivePartyTab}>
+                <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-6">
+                    <TabsTrigger value="All">All Parties</TabsTrigger>
+                    {parties.map(p => (
+                        <TabsTrigger key={p.id} value={p.id}>{p.name}</TabsTrigger>
+                    ))}
+                </TabsList>
+                <TabsContent value={activePartyTab} className="mt-4">
+                    {renderContent()}
+                </TabsContent>
+            </Tabs>
         </div>
     );
 }
+
+    
