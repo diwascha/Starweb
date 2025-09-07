@@ -38,7 +38,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type TransactionSortKey = 'date' | 'vehicleName' | 'type' | 'partyName' | 'amount' | 'authorship' | 'dueDate';
 type SortDirection = 'asc' | 'desc';
-type TransactionFilterType = 'All' | 'Sales' | 'Purchase' | 'PaymentReceipt';
+type TransactionFilterType = 'All' | 'Sales' | 'Purchase' | 'Payment' | 'Receipt';
 
 export default function TransactionsPage() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -61,8 +61,6 @@ export default function TransactionsPage() {
     // Memos for performance
     const vehiclesById = useMemo(() => new Map(vehicles.map(v => [v.id, v.name])), [vehicles]);
     const partiesById = useMemo(() => new Map(parties.map(p => [p.id, p.name])), [parties]);
-    const customers = useMemo(() => parties.filter(p => p.type === 'Customer' || p.type === 'Both'), [parties]);
-
 
     // Data fetching
     useEffect(() => {
@@ -104,11 +102,7 @@ export default function TransactionsPage() {
         }));
 
         if (activeTab !== 'All') {
-            if (activeTab === 'PaymentReceipt') {
-                augmented = augmented.filter(t => t.type === 'Payment' || t.type === 'Receipt');
-            } else {
-                augmented = augmented.filter(t => t.type === activeTab);
-            }
+            augmented = augmented.filter(t => t.type === activeTab);
         }
         
         if (searchQuery) {
@@ -158,7 +152,7 @@ export default function TransactionsPage() {
             'Vehicle': t.vehicleName,
             'Type': t.type,
             'Party': t.partyName,
-            'Amount': t.amount,
+            'Amount': ['Purchase', 'Payment'].includes(t.type) ? -t.amount : t.amount,
             'Billing Type': t.billingType,
             'Due Date': t.dueDate ? toNepaliDate(t.dueDate) : '',
             'Remarks': t.remarks,
@@ -278,11 +272,12 @@ export default function TransactionsPage() {
                             </Button>
                         </div>
                         <div>
-                           <TabsList className="grid w-full grid-cols-4 md:w-auto">
+                           <TabsList className="grid w-full grid-cols-3 md:w-auto md:grid-cols-5">
                                 <TabsTrigger value="All">All</TabsTrigger>
                                 <TabsTrigger value="Sales">Sales</TabsTrigger>
                                 <TabsTrigger value="Purchase">Purchase</TabsTrigger>
-                                <TabsTrigger value="PaymentReceipt">Payments & Receipts</TabsTrigger>
+                                <TabsTrigger value="Payment">Payments</TabsTrigger>
+                                <TabsTrigger value="Receipt">Receipts</TabsTrigger>
                             </TabsList>
                         </div>
                     </div>
