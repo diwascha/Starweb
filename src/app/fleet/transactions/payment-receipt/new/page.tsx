@@ -24,6 +24,8 @@ import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 import type { DateRange } from 'react-day-picker';
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import * as XLSX from 'xlsx';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 
 type SortKey = 'date' | 'vehicleName' | 'partyName' | 'amount';
 type SortDirection = 'asc' | 'desc';
@@ -41,6 +43,9 @@ export default function NewPaymentReceiptPage() {
     const [filterType, setFilterType] = useState<'All' | 'Payment' | 'Receipt'>('All');
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
+    const [filterVehicleId, setFilterVehicleId] = useState<string>('All');
+    const [filterPartyId, setFilterPartyId] = useState<string>('All');
+
 
     const { toast } = useToast();
     const { user } = useAuth();
@@ -108,6 +113,14 @@ export default function NewPaymentReceiptPage() {
             };
             filtered = filtered.filter(t => isWithinInterval(new Date(t.date), interval));
         }
+        
+        if (filterVehicleId !== 'All') {
+            filtered = filtered.filter(t => t.vehicleId === filterVehicleId);
+        }
+
+        if (filterPartyId !== 'All') {
+            filtered = filtered.filter(t => t.partyId === filterPartyId);
+        }
 
         filtered.sort((a, b) => {
             const aVal = a[sortConfig.key];
@@ -118,7 +131,7 @@ export default function NewPaymentReceiptPage() {
         });
 
         return filtered;
-    }, [transactions, filterType, dateRange, sortConfig, vehiclesById, partiesById]);
+    }, [transactions, filterType, dateRange, sortConfig, vehiclesById, partiesById, filterVehicleId, filterPartyId]);
     
     const handleExport = () => {
         const dataToExport = filteredAndSortedVouchers.map(v => ({
@@ -168,19 +181,27 @@ export default function NewPaymentReceiptPage() {
                     </div>
                 ) : (
                     <Tabs value={filterType} onValueChange={(value) => setFilterType(value as any)}>
-                        <div className="flex justify-between items-center">
+                        <div className="flex justify-between items-center flex-wrap gap-2">
                             <TabsList>
                                 <TabsTrigger value="All">All</TabsTrigger>
                                 <TabsTrigger value="Payment">Payments</TabsTrigger>
                                 <TabsTrigger value="Receipt">Receipts</TabsTrigger>
                             </TabsList>
-                             <div className="flex items-center gap-2">
+                             <div className="flex items-center gap-2 flex-wrap">
                                 <Popover><PopoverTrigger asChild>
-                                    <Button id="date" variant={"outline"} className={cn("w-full md:w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                                    <Button id="date" variant={"outline"} className={cn("w-full md:w-[250px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
                                         <CalendarIcon className="mr-2 h-4 w-4" />
                                         {dateRange?.from ? (dateRange.to ? (`${format(dateRange.from, "LLL dd, y")} - ${format(dateRange.to, "LLL dd, y")}`) : format(dateRange.from, "LLL dd, y")) : (<span>Pick a date range</span>)}
                                     </Button>
                                 </PopoverTrigger><PopoverContent className="w-auto p-0" align="end"><DualDateRangePicker selected={dateRange} onSelect={setDateRange} /></PopoverContent></Popover>
+                                <Select value={filterVehicleId} onValueChange={setFilterVehicleId}>
+                                    <SelectTrigger className="w-full md:w-[150px]"><SelectValue placeholder="All Vehicles" /></SelectTrigger>
+                                    <SelectContent><SelectItem value="All">All Vehicles</SelectItem>{vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}</SelectContent>
+                                </Select>
+                                <Select value={filterPartyId} onValueChange={setFilterPartyId}>
+                                    <SelectTrigger className="w-full md:w-[150px]"><SelectValue placeholder="All Parties" /></SelectTrigger>
+                                    <SelectContent><SelectItem value="All">All Parties</SelectItem>{parties.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+                                </Select>
                                 <Button variant="outline" onClick={handleExport}>
                                     <Download className="mr-2 h-4 w-4" /> Export
                                 </Button>
