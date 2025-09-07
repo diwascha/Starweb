@@ -182,7 +182,7 @@ export interface PolicyOrMembership {
 export const transactionTypes = ['Purchase', 'Sales', 'Payment', 'Receipt'] as const;
 export type TransactionType = typeof transactionTypes[number];
 
-export type PartyType = 'Vendor' | 'Client' | 'Both';
+export type PartyType = 'Vendor' | 'Customer' | 'Both';
 
 export interface Party {
     id: string;

@@ -45,7 +45,7 @@ import { onPartiesUpdate } from '@/services/party-service';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
 
-type SortKey = 'date' | 'vehicleName' | 'clientName' | 'finalDestination' | 'netAmount' | 'authorship';
+type SortKey = 'date' | 'vehicleName' | 'customerName' | 'finalDestination' | 'netAmount' | 'authorship';
 type SortDirection = 'asc' | 'desc';
 
 interface CalculationDetails {
@@ -146,9 +146,9 @@ export default function TripSheetsPage() {
           return {
               ...trip,
               vehicleName: vehiclesById.get(trip.vehicleId) || 'N/A',
-              clientName: partiesById.get(trip.partyId) || 'N/A',
+              customerName: partiesById.get(trip.partyId) || 'N/A',
               finalDestination,
-              netAmount: netPay, // This is the client payable amount
+              netAmount: netPay, // This is the customer payable amount
           }
       });
   }, [trips, vehiclesById, partiesById]);
@@ -160,7 +160,7 @@ export default function TripSheetsPage() {
         const lowercasedQuery = searchQuery.toLowerCase();
         filtered = filtered.filter(trip =>
             (trip.vehicleName || '').toLowerCase().includes(lowercasedQuery) ||
-            (trip.clientName || '').toLowerCase().includes(lowercasedQuery) ||
+            (trip.customerName || '').toLowerCase().includes(lowercasedQuery) ||
             (trip.finalDestination || '').toLowerCase().includes(lowercasedQuery)
         );
     }
@@ -211,7 +211,7 @@ export default function TripSheetsPage() {
             <TableHeader><TableRow>
                 <TableHead><Button variant="ghost" onClick={() => requestSort('date')}>Date</Button></TableHead>
                 <TableHead><Button variant="ghost" onClick={() => requestSort('vehicleName')}>Vehicle</Button></TableHead>
-                <TableHead><Button variant="ghost" onClick={() => requestSort('clientName')}>Client</Button></TableHead>
+                <TableHead><Button variant="ghost" onClick={() => requestSort('customerName')}>Customer</Button></TableHead>
                 <TableHead><Button variant="ghost" onClick={() => requestSort('finalDestination')}>Destination</Button></TableHead>
                 <TableHead><Button variant="ghost" onClick={() => requestSort('netAmount')}>Net Bank Pay</Button></TableHead>
                 <TableHead><Button variant="ghost" onClick={() => requestSort('authorship')}>Authorship</Button></TableHead>
@@ -222,7 +222,7 @@ export default function TripSheetsPage() {
                 <TableRow key={trip.id}>
                     <TableCell className="font-medium">{toNepaliDate(trip.date)}</TableCell>
                     <TableCell>{trip.vehicleName}</TableCell>
-                    <TableCell>{trip.clientName}</TableCell>
+                    <TableCell>{trip.customerName}</TableCell>
                     <TableCell>{trip.finalDestination}</TableCell>
                     <TableCell>
                         <Button variant="link" className="p-0 h-auto" onClick={() => openCalcDialog(trip)}>
@@ -283,7 +283,7 @@ export default function TripSheetsPage() {
             <DialogHeader>
                 <DialogTitle>Net Bank Pay Calculation</DialogTitle>
                 <DialogDescription>
-                    Here is the step-by-step breakdown of the client's payable amount.
+                    Here is the step-by-step breakdown of the customer's payable amount.
                 </DialogDescription>
             </DialogHeader>
             {selectedTripDetails && (

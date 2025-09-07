@@ -61,7 +61,7 @@ export default function TransactionsPage() {
     // Memos for performance
     const vehiclesById = useMemo(() => new Map(vehicles.map(v => [v.id, v.name])), [vehicles]);
     const partiesById = useMemo(() => new Map(parties.map(p => [p.id, p.name])), [parties]);
-    const clients = useMemo(() => parties.filter(p => p.type === 'Client' || p.type === 'Both'), [parties]);
+    const customers = useMemo(() => parties.filter(p => p.type === 'Customer' || p.type === 'Both'), [parties]);
 
 
     // Data fetching
@@ -257,11 +257,11 @@ export default function TransactionsPage() {
                             </PopoverTrigger><PopoverContent className="w-auto p-0" align="end"><DualDateRangePicker selected={dateRange} onSelect={setDateRange} /></PopoverContent></Popover>
                              <Select value={filterPartyId} onValueChange={setFilterPartyId}>
                                 <SelectTrigger className="w-full md:w-[180px]">
-                                    <SelectValue placeholder="All Clients" />
+                                    <SelectValue placeholder="All Parties" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="All">All Clients</SelectItem>
-                                    {clients.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                                    <SelectItem value="All">All Parties</SelectItem>
+                                    {parties.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                             <Select value={filterVehicleId} onValueChange={setFilterVehicleId}>

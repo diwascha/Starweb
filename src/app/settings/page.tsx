@@ -651,7 +651,7 @@ export default function SettingsPage() {
                         <Label htmlFor="party-type">Party Type</Label>
                         <Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm(p => ({...p, type: v}))}>
                             <SelectTrigger id="party-type"><SelectValue/></SelectTrigger>
-                            <SelectContent><SelectItem value="Vendor">Vendor</SelectItem><SelectItem value="Client">Client</SelectItem><SelectItem value="Both">Both</SelectItem></SelectContent>
+                            <SelectContent><SelectItem value="Vendor">Vendor</SelectItem><SelectItem value="Customer">Customer</SelectItem><SelectItem value="Both">Both</SelectItem></SelectContent>
                         </Select>
                     </div>
                     <div className="space-y-2">

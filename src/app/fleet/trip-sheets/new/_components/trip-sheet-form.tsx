@@ -67,7 +67,7 @@ const tripSchema = z.object({
   tripNumber: z.string(),
   date: z.date(),
   vehicleId: z.string().min(1, 'Vehicle is required.'),
-  partyId: z.string().min(1, 'Client is required.'),
+  partyId: z.string().min(1, 'Customer is required.'),
   odometerStart: z.number().min(0, "Odometer value cannot be negative").optional(),
   odometerEnd: z.number().min(0, "Odometer value cannot be negative").optional(),
   destinations: z.array(destinationSchema),
@@ -111,7 +111,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
     const [isDetentionDialogOpen, setIsDetentionDialogOpen] = useState(false);
     const [detentionDateRange, setDetentionDateRange] = useState<DateRange | undefined>(undefined);
     const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
-    const [partyForm, setPartyForm] = useState<{name: string, type: PartyType, address?: string, panNumber?: string}>({name: '', type: 'Client', address: '', panNumber: ''});
+    const [partyForm, setPartyForm] = useState<{name: string, type: PartyType, address?: string, panNumber?: string}>({name: '', type: 'Customer', address: '', panNumber: ''});
     const [editingParty, setEditingParty] = useState<Party | null>(null);
     const [partySearch, setPartySearch] = useState('');
     
@@ -211,7 +211,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
     }, [tripToEdit, form, defaultValues, trips]);
 
     const vendors = useMemo(() => parties.filter(p => p.type === 'Vendor' || p.type === 'Both'), [parties]);
-    const clients = useMemo(() => parties.filter(p => p.type === 'Client' || p.type === 'Both'), [parties]);
+    const customers = useMemo(() => parties.filter(p => p.type === 'Customer' || p.type === 'Both'), [parties]);
     
     const watchedFormValues = form.watch();
     const finalDestinationName = watchedFormValues.destinations?.[0]?.name;
@@ -417,7 +417,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                 toast({title: 'Success', description: 'New party added.'});
             }
             setIsPartyDialogOpen(false);
-            setPartyForm({name: '', type: 'Client', address: '', panNumber: ''});
+            setPartyForm({name: '', type: 'Customer', address: '', panNumber: ''});
             setEditingParty(null);
         } catch {
              toast({title: 'Error', description: 'Failed to save party.', variant: 'destructive'});
@@ -529,12 +529,12 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                                         </SelectContent></Select><FormMessage /></FormItem>
                                     )}/>
                                      <FormField control={form.control} name="partyId" render={({ field }) => (
-                                        <FormItem><FormLabel>Client</FormLabel>
+                                        <FormItem><FormLabel>Customer</FormLabel>
                                             <Popover>
                                                 <PopoverTrigger asChild>
                                                     <FormControl>
                                                     <Button variant="outline" role="combobox" className="w-full justify-between">
-                                                        {field.value ? clients.find((c) => c.id === field.value)?.name : "Select client"}
+                                                        {field.value ? customers.find((c) => c.id === field.value)?.name : "Select customer"}
                                                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                                     </Button>
                                                     </FormControl>
@@ -542,29 +542,29 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                                                 <PopoverContent className="p-0">
                                                     <Command>
                                                     <CommandInput 
-                                                        placeholder="Search client..."
+                                                        placeholder="Search customer..."
                                                         value={partySearch}
                                                         onValueChange={setPartySearch}
                                                     />
                                                     <CommandList>
                                                         <CommandEmpty>
-                                                            <CommandItem onSelect={() => handleOpenPartyDialog(null, 'Client', partySearch)}>
+                                                            <CommandItem onSelect={() => handleOpenPartyDialog(null, 'Customer', partySearch)}>
                                                                 <PlusCircle className="mr-2 h-4 w-4"/> Add "{partySearch}"
                                                             </CommandItem>
                                                         </CommandEmpty>
                                                         <CommandGroup>
-                                                        {clients.map((client) => (
+                                                        {customers.map((customer) => (
                                                             <CommandItem
-                                                                key={client.id}
-                                                                value={client.name}
-                                                                onSelect={() => field.onChange(client.id)}
+                                                                key={customer.id}
+                                                                value={customer.name}
+                                                                onSelect={() => field.onChange(customer.id)}
                                                                 className="flex justify-between items-center"
                                                             >
                                                                 <div className="flex items-center">
-                                                                    <Check className={cn("mr-2 h-4 w-4", field.value === client.id ? "opacity-100" : "opacity-0")} />
-                                                                    {client.name}
+                                                                    <Check className={cn("mr-2 h-4 w-4", field.value === customer.id ? "opacity-100" : "opacity-0")} />
+                                                                    {customer.name}
                                                                 </div>
-                                                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleOpenPartyDialog(client, 'Client'); }}>
+                                                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleOpenPartyDialog(customer, 'Customer'); }}>
                                                                     <Edit className="h-4 w-4" />
                                                                 </Button>
                                                             </CommandItem>
@@ -966,9 +966,9 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                                                     )}/>
                                                      <FormField control={form.control} name={`returnTrips.${index}.clientName`} render={({ field }) => (
                                                         <FormItem>
-                                                            <FormLabel>RT Client</FormLabel>
+                                                            <FormLabel>RT Customer</FormLabel>
                                                             <FormControl>
-                                                                <Input placeholder="Client for return trip" {...field} value={field.value ?? ''} />
+                                                                <Input placeholder="Customer for return trip" {...field} value={field.value ?? ''} />
                                                             </FormControl>
                                                             <FormMessage />
                                                         </FormItem>
@@ -1042,7 +1042,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                              <Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm(p => ({...p, type: v}))}>
                                 <SelectTrigger id="party-type"><SelectValue/></SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="Client">Client</SelectItem>
+                                    <SelectItem value="Customer">Customer</SelectItem>
                                     <SelectItem value="Vendor">Vendor</SelectItem>
                                     <SelectItem value="Both">Both</SelectItem>
                                 </SelectContent>

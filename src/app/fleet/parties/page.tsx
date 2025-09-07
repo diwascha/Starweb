@@ -25,7 +25,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-export default function ClientTransactionsPage() {
+export default function CustomerTransactionsPage() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [parties, setParties] = useState<Party[]>([]);
@@ -40,7 +40,7 @@ export default function ClientTransactionsPage() {
 
     const vehiclesById = useMemo(() => new Map(vehicles.map(v => [v.id, v.name])), [vehicles]);
     const partiesById = useMemo(() => new Map(parties.map(p => [p.id, p.name])), [parties]);
-    const clients = useMemo(() => parties.filter(p => p.type === 'Client' || p.type === 'Both'), [parties]);
+    const customers = useMemo(() => parties.filter(p => p.type === 'Customer' || p.type === 'Both'), [parties]);
 
     useEffect(() => {
         setIsLoading(true);
@@ -64,23 +64,23 @@ export default function ClientTransactionsPage() {
         }
     };
 
-    const clientTransactions = useMemo(() => {
-        const clientIds = new Set(clients.map(c => c.id));
+    const customerTransactions = useMemo(() => {
+        const customerIds = new Set(customers.map(c => c.id));
         return transactions.filter(t => 
             (t.type === 'Sales' || t.type === 'Receipt') && 
             t.partyId && 
-            clientIds.has(t.partyId)
+            customerIds.has(t.partyId)
         );
-    }, [transactions, clients]);
+    }, [transactions, customers]);
     
-    const clientsWithTransactions = useMemo(() => {
-        const clientIdsInTransactions = new Set(clientTransactions.map(t => t.partyId));
-        return clients.filter(c => clientIdsInTransactions.has(c.id));
-    }, [clientTransactions, clients]);
+    const customersWithTransactions = useMemo(() => {
+        const customerIdsInTransactions = new Set(customerTransactions.map(t => t.partyId));
+        return customers.filter(c => customerIdsInTransactions.has(c.id));
+    }, [customerTransactions, customers]);
 
 
     const filteredTransactions = useMemo(() => {
-        let filtered = clientTransactions;
+        let filtered = customerTransactions;
 
         if (searchQuery) {
             const lowercasedQuery = searchQuery.toLowerCase();
@@ -108,7 +108,7 @@ export default function ClientTransactionsPage() {
         }
         
         return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    }, [clientTransactions, searchQuery, dateRange, vehiclesById, partiesById, filterVehicleId, filterPartyId]);
+    }, [customerTransactions, searchQuery, dateRange, vehiclesById, partiesById, filterVehicleId, filterPartyId]);
     
     const handleExport = async () => {
         const XLSX = (await import('xlsx'));
@@ -117,7 +117,7 @@ export default function ClientTransactionsPage() {
             'Date (AD)': format(new Date(t.date), 'yyyy-MM-dd'),
             'Vehicle': vehiclesById.get(t.vehicleId) || 'N/A',
             'Type': t.type,
-            'Client': t.partyId ? partiesById.get(t.partyId) : 'N/A',
+            'Customer': t.partyId ? partiesById.get(t.partyId) : 'N/A',
             'Amount': t.amount,
             'Billing Type': t.billingType,
             'Remarks': t.remarks,
@@ -125,8 +125,8 @@ export default function ClientTransactionsPage() {
         
         const worksheet = XLSX.utils.json_to_sheet(dataToExport);
         const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Client Transactions");
-        XLSX.writeFile(workbook, `Client-Transactions-${new Date().toISOString().split('T')[0]}.xlsx`);
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Customer Transactions");
+        XLSX.writeFile(workbook, `Customer-Transactions-${new Date().toISOString().split('T')[0]}.xlsx`);
     };
 
     const renderContent = () => {
@@ -138,11 +138,11 @@ export default function ClientTransactionsPage() {
             );
         }
 
-        if (clientTransactions.length === 0) {
+        if (customerTransactions.length === 0) {
             return (
                 <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
                   <div className="flex flex-col items-center gap-1 text-center">
-                    <h3 className="text-2xl font-bold tracking-tight">No client transactions found</h3>
+                    <h3 className="text-2xl font-bold tracking-tight">No customer transactions found</h3>
                     <p className="text-sm text-muted-foreground">Sales and Receipts will appear here once recorded.</p>
                   </div>
                 </div>
@@ -157,7 +157,7 @@ export default function ClientTransactionsPage() {
                             <TableHead>Date</TableHead>
                             <TableHead>Vehicle</TableHead>
                             <TableHead>Type</TableHead>
-                            <TableHead>Client</TableHead>
+                            <TableHead>Customer</TableHead>
                             <TableHead>Amount</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
@@ -194,14 +194,14 @@ export default function ClientTransactionsPage() {
     return (
         <div className="flex flex-col gap-8">
             <header>
-                <h1 className="text-3xl font-bold tracking-tight">Client Transactions</h1>
-                <p className="text-muted-foreground">View all sales and receipts from clients.</p>
+                <h1 className="text-3xl font-bold tracking-tight">Customer Transactions</h1>
+                <p className="text-muted-foreground">View all sales and receipts from customers.</p>
             </header>
             <div className="flex flex-col gap-4">
                  <div className="flex flex-col md:flex-row gap-2">
                     <div className="relative flex-1">
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input type="search" placeholder="Search by vehicle, client, etc..." className="pl-8 w-full" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                        <Input type="search" placeholder="Search by vehicle, customer, etc..." className="pl-8 w-full" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                     </div>
                     <Popover><PopoverTrigger asChild>
                         <Button id="date" variant={"outline"} className={cn("w-full md:w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
@@ -225,10 +225,10 @@ export default function ClientTransactionsPage() {
                  <div>
                     <Tabs value={filterPartyId} onValueChange={setFilterPartyId}>
                         <TabsList>
-                            <TabsTrigger value="All">All Clients</TabsTrigger>
-                            {clientsWithTransactions.map(client => (
-                                <TabsTrigger key={client.id} value={client.id}>
-                                    {client.name}
+                            <TabsTrigger value="All">All Customers</TabsTrigger>
+                            {customersWithTransactions.map(customer => (
+                                <TabsTrigger key={customer.id} value={customer.id}>
+                                    {customer.name}
                                 </TabsTrigger>
                             ))}
                         </TabsList>
@@ -239,5 +239,3 @@ export default function ClientTransactionsPage() {
         </div>
     );
 }
-
-    

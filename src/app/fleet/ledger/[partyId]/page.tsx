@@ -18,7 +18,7 @@ export default async function PartyLedgerPage({ params }: { params: { partyId: s
       <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
         <div className="flex flex-col items-center gap-1 text-center">
             <h3 className="text-2xl font-bold tracking-tight">Party Not Found</h3>
-            <p className="text-sm text-muted-foreground">The requested client or vendor could not be found.</p>
+            <p className="text-sm text-muted-foreground">The requested customer or vendor could not be found.</p>
         </div>
       </div>
     );
