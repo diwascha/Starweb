@@ -1,10 +1,15 @@
-'use client';
 export const runtime = 'nodejs';
 
 import PurchaseOrderView from './_components/purchase-order-view';
-import { use } from 'react';
+import { getPurchaseOrder } from '@/services/purchase-order-service';
 
-export default function PurchaseOrderPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
-  return <PurchaseOrderView poId={id} />;
+// This is a Server Component that fetches initial data
+export default async function PurchaseOrderPage({ params }: { params: { id: string } }) {
+  const initialPurchaseOrder = await getPurchaseOrder(params.id);
+
+  if (!initialPurchaseOrder) {
+    return <div>Purchase Order not found.</div>;
+  }
+  
+  return <PurchaseOrderView initialPurchaseOrder={initialPurchaseOrder} />;
 }

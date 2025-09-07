@@ -12,22 +12,19 @@ import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { differenceInDays } from 'date-fns';
-import { getPurchaseOrder } from '@/services/purchase-order-service';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
 const paperTypes = ['Kraft Paper', 'Virgin Paper'];
 
-export default function PurchaseOrderView({ poId }: { poId: string }) {
-  const [purchaseOrder, setPurchaseOrder] = useState<PurchaseOrder | null>(null);
+export default function PurchaseOrderView({ initialPurchaseOrder }: { initialPurchaseOrder: PurchaseOrder }) {
+  const [purchaseOrder, setPurchaseOrder] = useState<PurchaseOrder>(initialPurchaseOrder);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
-    if (poId) {
-        getPurchaseOrder(poId).then(setPurchaseOrder);
-    }
-  }, [poId]);
+    setPurchaseOrder(initialPurchaseOrder);
+  }, [initialPurchaseOrder]);
   
   const handleSaveAsPdf = async () => {
     if (!purchaseOrder) return;
@@ -161,7 +158,7 @@ export default function PurchaseOrderView({ poId }: { poId: string }) {
             </div>
         </div>
         <div className="flex gap-2">
-            <Button variant="outline" onClick={() => router.push(`/purchase-orders/edit/${poId}`)}>Edit</Button>
+            <Button variant="outline" onClick={() => router.push(`/purchase-orders/edit/${purchaseOrder.id}`)}>Edit</Button>
             <Button variant="outline" onClick={handleSaveAsPdf} disabled={isGeneratingPdf}>
                 {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 {isGeneratingPdf ? 'Saving...' : 'Save as PDF'}

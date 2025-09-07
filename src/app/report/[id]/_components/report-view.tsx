@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Printer, Loader2, Save } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import NepaliDate from 'nepali-date-converter';
-import { getReport, updateReport } from '@/services/report-service';
+import { updateReport } from '@/services/report-service';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -25,19 +25,13 @@ const orderedSpecificationKeys: (keyof ProductSpecification)[] = [
   'load',
 ];
 
-export default function ReportView({ reportId }: { reportId: string }) {
-  const [report, setReport] = useState<Report | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+export default function ReportView({ initialReport }: { initialReport: Report }) {
+  const [report, setReport] = useState<Report>(initialReport);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   useEffect(() => {
-    if (reportId) {
-      getReport(reportId).then(fetchedReport => {
-        setReport(fetchedReport);
-        setIsLoading(false);
-      });
-    }
-  }, [reportId]);
+    setReport(initialReport);
+  }, [initialReport]);
 
   const handlePrint = async () => {
     if (!report) return;
@@ -114,14 +108,6 @@ export default function ReportView({ reportId }: { reportId: string }) {
     }
   };
 
-
-  if (isLoading) {
-      return (
-      <div className="flex justify-center items-center h-full">
-        <p>Loading report...</p>
-      </div>
-    );
-  }
 
   if (!report) {
     return (
