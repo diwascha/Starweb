@@ -1,4 +1,3 @@
-export const runtime = 'nodejs';
 
 import { getTransaction } from '@/services/transaction-service';
 import PurchaseViewClient from './_components/PurchaseViewClient';
@@ -15,7 +14,7 @@ export default async function PurchaseViewPage({ params }: { params: { id: strin
 
   if (!transaction) {
     return (
-      <div className="flex justify-center items-center h-full">
+      <div class="flex justify-center items-center h-full">
         <p>Transaction not found.</p>
       </div>
     );

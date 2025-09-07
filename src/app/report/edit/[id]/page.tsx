@@ -1,4 +1,3 @@
-export const runtime = 'nodejs';
 
 import { ReportForm } from '@/app/report/new/_components/report-form';
 import { getReport } from '@/services/report-service';

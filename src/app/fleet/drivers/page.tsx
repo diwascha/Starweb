@@ -1,5 +1,4 @@
 
-export const runtime = 'nodejs';
 import { getDrivers } from '@/services/driver-service';
 import DriversClientPage from './_components/drivers-client-page';
 

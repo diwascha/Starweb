@@ -1,4 +1,3 @@
-export const runtime = 'nodejs';
 
 import { getVoucherTransactions } from '@/services/transaction-service';
 import type { Transaction, Vehicle, Party, Account } from '@/lib/types';
@@ -26,7 +25,7 @@ export default async function VoucherViewPage({ params }: { params: { voucherId:
 
   if (transactions.length === 0) {
     return (
-      <div className="flex justify-center items-center h-full">
+      <div class="flex justify-center items-center h-full">
         <p>Voucher not found.</p>
       </div>
     );

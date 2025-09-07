@@ -1,4 +1,3 @@
-export const runtime = 'nodejs';
 
 import { getVoucherTransactions } from '@/services/transaction-service';
 import { getVehicles } from '@/services/vehicle-service';
@@ -20,8 +19,8 @@ export default async function EditVoucherPage({ params }: { params: { voucherId:
 
   if (!initialTransactions || initialTransactions.length === 0) {
      return (
-      <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
-        <h3 className="text-2xl font-bold tracking-tight">Voucher not found.</h3>
+      <div class="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
+        <h3 class="text-2xl font-bold tracking-tight">Voucher not found.</h3>
       </div>
     );
   }
@@ -48,10 +47,10 @@ export default async function EditVoucherPage({ params }: { params: { voucherId:
 
 
   return (
-    <div className="flex flex-col gap-8">
+    <div class="flex flex-col gap-8">
       <header>
-        <h1 className="text-3xl font-bold tracking-tight">Edit Voucher</h1>
-        <p className="text-muted-foreground">Modify the details for voucher #{initialFormValues.voucherNo}.</p>
+        <h1 class="text-3xl font-bold tracking-tight">Edit Voucher</h1>
+        <p class="text-muted-foreground">Modify the details for voucher #{initialFormValues.voucherNo}.</p>
       </header>
         <PaymentReceiptForm
           accounts={accounts}

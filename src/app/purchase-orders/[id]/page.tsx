@@ -1,4 +1,3 @@
-export const runtime = 'nodejs';
 
 import PurchaseOrderView from './_components/purchase-order-view';
 import { getPurchaseOrder } from '@/services/purchase-order-service';
