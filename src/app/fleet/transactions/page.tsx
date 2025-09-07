@@ -52,6 +52,8 @@ export default function TransactionsPage() {
     const [sortConfig, setSortConfig] = useState<{ key: TransactionSortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [activeTab, setActiveTab] = useState<TransactionFilterType>('All');
+    const [filterPartyId, setFilterPartyId] = useState<string>('All');
+    const [filterVehicleId, setFilterVehicleId] = useState<string>('All');
     
     const { toast } = useToast();
     const { hasPermission, user } = useAuth();
@@ -125,6 +127,14 @@ export default function TransactionsPage() {
             augmented = augmented.filter(t => isWithinInterval(new Date(t.date), interval));
         }
         
+        if (filterPartyId !== 'All') {
+            augmented = augmented.filter(t => t.partyId === filterPartyId);
+        }
+        
+        if (filterVehicleId !== 'All') {
+            augmented = augmented.filter(t => t.vehicleId === filterVehicleId);
+        }
+        
         augmented.sort((a, b) => {
             const aVal = a[sortConfig.key];
             const bVal = b[sortConfig.key];
@@ -136,7 +146,7 @@ export default function TransactionsPage() {
         });
         
         return augmented;
-    }, [transactions, searchQuery, sortConfig, vehiclesById, partiesById, dateRange, activeTab]);
+    }, [transactions, searchQuery, sortConfig, vehiclesById, partiesById, dateRange, activeTab, filterPartyId, filterVehicleId]);
     
      const handleExport = async () => {
         const XLSX = (await import('xlsx'));
@@ -243,6 +253,24 @@ export default function TransactionsPage() {
                                     {dateRange?.from ? (dateRange.to ? (`${format(dateRange.from, "LLL dd, y")} - ${format(dateRange.to, "LLL dd, y")}`) : format(dateRange.from, "LLL dd, y")) : (<span>Pick a date range</span>)}
                                 </Button>
                             </PopoverTrigger><PopoverContent className="w-auto p-0" align="end"><DualDateRangePicker selected={dateRange} onSelect={setDateRange} /></PopoverContent></Popover>
+                             <Select value={filterPartyId} onValueChange={setFilterPartyId}>
+                                <SelectTrigger className="w-full md:w-[180px]">
+                                    <SelectValue placeholder="All Parties" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="All">All Parties</SelectItem>
+                                    {parties.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            <Select value={filterVehicleId} onValueChange={setFilterVehicleId}>
+                                <SelectTrigger className="w-full md:w-[180px]">
+                                    <SelectValue placeholder="All Vehicles" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="All">All Vehicles</SelectItem>
+                                    {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
                             <Button variant="outline" onClick={handleExport}>
                                 <Download className="mr-2 h-4 w-4" /> Export
                             </Button>
