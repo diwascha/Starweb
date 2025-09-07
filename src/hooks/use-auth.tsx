@@ -72,18 +72,20 @@ const AuthRedirect = ({ children }: { children: (user: UserSession) => ReactNode
         if (loading) return;
 
         const isAuthPage = pathname === '/login';
+        const isLoadingPage = pathname === '/loading';
 
-        if (!user && !isAuthPage) {
+
+        if (!user && !isAuthPage && !isLoadingPage) {
             router.push('/login');
             return;
         }
 
         if (user && isAuthPage) {
-            router.push('/dashboard');
+            router.push('/loading');
             return;
         }
 
-        if (user && !isAuthPage && !user.is_admin) {
+        if (user && !isAuthPage && !isLoadingPage && !user.is_admin) {
             const pathSegments = pathname.split('/').filter(Boolean);
             if (pathSegments.length === 0 && pathname !== '/dashboard') return;
             
@@ -106,7 +108,7 @@ const AuthRedirect = ({ children }: { children: (user: UserSession) => ReactNode
     }, [user, loading, pathname, router, hasPermission]);
 
 
-    if (loading || (!user && pathname !== '/login')) {
+    if (loading || (!user && !['/login', '/loading'].includes(pathname))) {
         return (
             <div className="flex h-screen items-center justify-center">
                 <p>Loading...</p>
@@ -114,8 +116,8 @@ const AuthRedirect = ({ children }: { children: (user: UserSession) => ReactNode
         );
     }
     
-    if (!user && pathname === '/login') {
-        return <>{children(null as any)}</>; // Let login page render
+    if (!user && (pathname === '/login' || pathname === '/loading')) {
+        return <>{children(null as any)}</>; 
     }
     
     if (user) {

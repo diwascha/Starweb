@@ -18,11 +18,14 @@ export default function AuthAwareLayout({ children }: { children: React.ReactNod
         );
     }
     
-    if (!user && pathname !== '/login') {
+    const isAuthPage = pathname === '/login';
+    const isLoadingPage = pathname === '/loading';
+
+    if (!user && !isAuthPage && !isLoadingPage) {
        return <AuthRedirect>{() => children}</AuthRedirect>
     }
     
-    if (!user && pathname === '/login') {
+    if ((!user || user) && (isAuthPage || isLoadingPage)) {
         return <>{children}</>;
     }
 

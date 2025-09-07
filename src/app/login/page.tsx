@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -49,7 +50,7 @@ export default function LoginPage() {
               title: 'Success',
               description: 'Logged in successfully as Administrator.',
             });
-            router.push('/dashboard');
+            router.push('/loading');
             return;
         }
       }
@@ -65,7 +66,7 @@ export default function LoginPage() {
           title: 'Success',
           description: 'Logged in successfully.',
         });
-        router.push('/dashboard');
+        router.push('/loading');
         return;
       }
 
