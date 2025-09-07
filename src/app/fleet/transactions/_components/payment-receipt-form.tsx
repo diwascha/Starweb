@@ -57,7 +57,7 @@ export function PaymentReceiptForm({ accounts, parties, onFormSubmit, onCancel }
   const { user } = useAuth();
   
   const cashAndBankAccounts = React.useMemo(() => accounts.filter(a => a.type === 'Cash' || a.type === 'Bank'), [accounts]);
-  const generalLedgers = parties; // Assuming parties are used as general ledgers for now
+  const generalLedgers = parties;
 
   const form = useForm<VoucherFormValues>({
     resolver: zodResolver(voucherSchema),
