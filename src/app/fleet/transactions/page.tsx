@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { Transaction, Vehicle, Party } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, CalendarIcon, ArrowRightLeft, Landmark, Wrench, User, ChevronLeft, ChevronRight, ChevronsUpDown, Check, ShoppingCart, TrendingUp, X } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, CalendarIcon, ArrowRightLeft, Landmark, Wrench, User, ChevronLeft, ChevronRight, ChevronsUpDown, Check, ShoppingCart, TrendingUp, X, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -132,6 +132,26 @@ export default function TransactionsPage() {
         return augmented;
     }, [transactions, searchQuery, sortConfig, vehiclesById, partiesById, filterVehicleId, dateRange]);
     
+     const handleExport = async () => {
+        const XLSX = (await import('xlsx'));
+        const dataToExport = sortedAndFilteredTransactions.map(t => ({
+            'Date (BS)': toNepaliDate(t.date),
+            'Date (AD)': format(new Date(t.date), 'yyyy-MM-dd'),
+            'Vehicle': t.vehicleName,
+            'Type': t.type,
+            'Party': t.partyName,
+            'Amount': t.amount,
+            'Billing Type': t.billingType,
+            'Due Date': t.dueDate ? toNepaliDate(t.dueDate) : '',
+            'Remarks': t.remarks,
+        }));
+        
+        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Transactions");
+        XLSX.writeFile(workbook, `Transactions-${new Date().toISOString().split('T')[0]}.xlsx`);
+    };
+
     if (isLoading) {
         return (
             <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
@@ -209,7 +229,7 @@ export default function TransactionsPage() {
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input type="search" placeholder="Search..." className="pl-8 w-full" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
                         <Popover><PopoverTrigger asChild>
                             <Button id="date" variant={"outline"} className={cn("w-full md:w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
                                 <CalendarIcon className="mr-2 h-4 w-4" />
@@ -220,6 +240,9 @@ export default function TransactionsPage() {
                             <SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="All Vehicles" /></SelectTrigger>
                             <SelectContent><SelectItem value="All">All Vehicles</SelectItem>{vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}</SelectContent>
                         </Select>
+                        <Button variant="outline" onClick={handleExport}>
+                            <Download className="mr-2 h-4 w-4" /> Export
+                        </Button>
                     </div>
                 </div>
                 {renderContent()}
