@@ -257,6 +257,9 @@ export interface FuelEntry {
     partyId: string;
     amount: number;
     liters?: number;
+    invoiceNumber?: string;
+    invoiceDate?: string; // ISO String
+    purchaseTransactionId?: string;
 }
 
 export interface ExtraExpense {

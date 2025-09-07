@@ -35,7 +35,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
     };
 }
 
-const calculateNetPay = (trip: Omit<Trip, 'id'>): number => {
+const calculateNetPay = (trip: Omit<Trip, 'id' | 'salesTransactionId'>): number => {
     const days = trip.detentionStartDate && trip.detentionEndDate ? differenceInDays(new Date(trip.detentionEndDate), new Date(trip.detentionStartDate)) + 1 : 0;
     
     const totalFreight = (trip.destinations || []).reduce((sum, dest) => sum + (Number(dest.freight) || 0), 0);
@@ -54,8 +54,9 @@ const calculateNetPay = (trip: Omit<Trip, 'id'>): number => {
 };
 
 
-export const addTrip = async (trip: Omit<Trip, 'id'>): Promise<string> => {
+export const addTrip = async (trip: Omit<Trip, 'id' | 'createdAt' | 'salesTransactionId'>): Promise<string> => {
     const batch = writeBatch(db);
+    const now = new Date().toISOString();
     
     const tripRef = doc(collection(db, 'trips'));
 
@@ -67,17 +68,43 @@ export const addTrip = async (trip: Omit<Trip, 'id'>): Promise<string> => {
         date: trip.date,
         type: 'Sales',
         amount: netPay,
-        description: `Sales from trip to ${trip.destinations[0]?.name || 'destination'}`,
+        items: [{ particular: `Sales from trip to ${trip.destinations[0]?.name || 'destination'}`, quantity: 1, rate: netPay }],
         partyId: trip.partyId,
         tripId: tripRef.id,
         createdBy: trip.createdBy,
-        createdAt: new Date().toISOString(),
+        createdAt: now,
+        billingType: 'Credit',
+        invoiceType: 'Taxable'
     };
     batch.set(salesTransactionRef, salesTransaction);
 
+    const fuelEntriesWithPurchaseIds = [];
+    for (const fuelEntry of trip.fuelEntries) {
+        const purchaseTransactionRef = doc(collection(db, 'transactions'));
+        const purchaseTx: Omit<Transaction, 'id'> = {
+            vehicleId: trip.vehicleId,
+            partyId: fuelEntry.partyId,
+            date: fuelEntry.invoiceDate || trip.date,
+            invoiceNumber: fuelEntry.invoiceNumber || null,
+            invoiceDate: fuelEntry.invoiceDate || null,
+            type: 'Purchase',
+            billingType: 'Credit',
+            invoiceType: 'Normal',
+            amount: fuelEntry.amount,
+            items: [{ particular: 'Fuel', quantity: fuelEntry.liters || 1, rate: fuelEntry.liters ? fuelEntry.amount / fuelEntry.liters : fuelEntry.amount }],
+            remarks: `Fuel for trip ${tripRef.id}`,
+            tripId: tripRef.id,
+            createdBy: trip.createdBy,
+            createdAt: now,
+        };
+        batch.set(purchaseTransactionRef, purchaseTx);
+        fuelEntriesWithPurchaseIds.push({ ...fuelEntry, purchaseTransactionId: purchaseTransactionRef.id });
+    }
+
     const newTripData = {
       ...trip,
-      createdAt: new Date().toISOString(),
+      fuelEntries: fuelEntriesWithPurchaseIds,
+      createdAt: now,
       salesTransactionId: salesTransactionRef.id,
     };
     batch.set(tripRef, newTripData);
@@ -102,19 +129,18 @@ export const getTrip = async (id: string): Promise<Trip | null> => {
     }
 };
 
-export const updateTrip = async (id: string, trip: Partial<Omit<Trip, 'id'>>): Promise<void> => {
+export const updateTrip = async (id: string, tripUpdate: Partial<Omit<Trip, 'id'>>): Promise<void> => {
     const batch = writeBatch(db);
     const tripRef = doc(db, 'trips', id);
+    const now = new Date().toISOString();
 
-    const fullTripDataForCalc: Omit<Trip, 'id'> = {
-        // This is tricky, we need the full trip data to recalculate.
-        // Let's fetch it first.
-        ...(await getTrip(id))!,
-        ...trip,
-    };
+    const originalTrip = await getTrip(id);
+    if (!originalTrip) throw new Error("Trip not found");
 
+    const fullTripDataForCalc: Omit<Trip, 'id'> = { ...originalTrip, ...tripUpdate };
+    
+    // 1. Update Sales Transaction
     const netPay = calculateNetPay(fullTripDataForCalc);
-
     if (fullTripDataForCalc.salesTransactionId) {
         const transactionRef = doc(db, 'transactions', fullTripDataForCalc.salesTransactionId);
         batch.update(transactionRef, {
@@ -122,14 +148,70 @@ export const updateTrip = async (id: string, trip: Partial<Omit<Trip, 'id'>>): P
             date: fullTripDataForCalc.date,
             vehicleId: fullTripDataForCalc.vehicleId,
             partyId: fullTripDataForCalc.partyId,
-            lastModifiedBy: trip.lastModifiedBy,
-            lastModifiedAt: new Date().toISOString(),
+            lastModifiedBy: tripUpdate.lastModifiedBy,
+            lastModifiedAt: now,
         });
     }
+    
+    // 2. Handle Fuel Entries
+    const newFuelEntries = tripUpdate.fuelEntries || [];
+    const oldFuelEntries = originalTrip.fuelEntries || [];
+    const fuelEntriesWithPurchaseIds = [];
 
+    // Delete purchase transactions for removed fuel entries
+    for (const oldEntry of oldFuelEntries) {
+        if (oldEntry.purchaseTransactionId && !newFuelEntries.some(newEntry => newEntry.purchaseTransactionId === oldEntry.purchaseTransactionId)) {
+            batch.delete(doc(db, 'transactions', oldEntry.purchaseTransactionId));
+        }
+    }
+
+    for (const fuelEntry of newFuelEntries) {
+        if (fuelEntry.purchaseTransactionId) {
+            // Update existing purchase transaction
+            const purchaseTxRef = doc(db, 'transactions', fuelEntry.purchaseTransactionId);
+            batch.update(purchaseTxRef, {
+                vehicleId: fullTripDataForCalc.vehicleId,
+                partyId: fuelEntry.partyId,
+                date: fuelEntry.invoiceDate || fullTripDataForCalc.date,
+                invoiceNumber: fuelEntry.invoiceNumber || null,
+                invoiceDate: fuelEntry.invoiceDate || null,
+                amount: fuelEntry.amount,
+                items: [{ particular: 'Fuel', quantity: fuelEntry.liters || 1, rate: fuelEntry.liters ? fuelEntry.amount / fuelEntry.liters : fuelEntry.amount }],
+                lastModifiedBy: tripUpdate.lastModifiedBy,
+                lastModifiedAt: now,
+            });
+            fuelEntriesWithPurchaseIds.push(fuelEntry);
+        } else {
+            // Create new purchase transaction for new fuel entry
+            const purchaseTransactionRef = doc(collection(db, 'transactions'));
+            const purchaseTx: Omit<Transaction, 'id'> = {
+                vehicleId: fullTripDataForCalc.vehicleId,
+                partyId: fuelEntry.partyId,
+                date: fuelEntry.invoiceDate || fullTripDataForCalc.date,
+                invoiceNumber: fuelEntry.invoiceNumber || null,
+                invoiceDate: fuelEntry.invoiceDate || null,
+                type: 'Purchase',
+                billingType: 'Credit',
+                invoiceType: 'Normal',
+                amount: fuelEntry.amount,
+                items: [{ particular: 'Fuel', quantity: fuelEntry.liters || 1, rate: fuelEntry.liters ? fuelEntry.amount / fuelEntry.liters : fuelEntry.amount }],
+                remarks: `Fuel for trip ${id}`,
+                tripId: id,
+                createdBy: tripUpdate.lastModifiedBy || originalTrip.createdBy,
+                createdAt: now,
+                lastModifiedBy: tripUpdate.lastModifiedBy,
+                lastModifiedAt: now,
+            };
+            batch.set(purchaseTransactionRef, purchaseTx);
+            fuelEntriesWithPurchaseIds.push({ ...fuelEntry, purchaseTransactionId: purchaseTransactionRef.id });
+        }
+    }
+
+    // 3. Update the Trip document itself
     batch.update(tripRef, {
-        ...trip,
-        lastModifiedAt: new Date().toISOString(),
+        ...tripUpdate,
+        fuelEntries: fuelEntriesWithPurchaseIds,
+        lastModifiedAt: now,
     });
     
     await batch.commit();
@@ -152,5 +234,13 @@ export const deleteTrip = async (id: string): Promise<void> => {
         batch.delete(transactionRef);
     }
     
+    // Delete associated fuel purchase transactions
+    for (const fuelEntry of trip.fuelEntries) {
+        if (fuelEntry.purchaseTransactionId) {
+            const purchaseTxRef = doc(db, 'transactions', fuelEntry.purchaseTransactionId);
+            batch.delete(purchaseTxRef);
+        }
+    }
+
     await batch.commit();
 };
