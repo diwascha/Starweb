@@ -104,6 +104,15 @@ export default function NewPaymentReceiptPage() {
         }
     };
     
+    const handlePrint = (voucherId: string) => {
+        const printWindow = window.open(`/fleet/transactions/payment-receipt/${voucherId}`, '_blank');
+        if (printWindow) {
+            printWindow.onload = () => {
+                setTimeout(() => printWindow.print(), 500); // Give it a moment to render
+            };
+        }
+    };
+    
     const requestSort = (key: SortKey) => {
         let direction: SortDirection = 'asc';
         if (sortConfig.key === key && sortConfig.direction === 'asc') {
@@ -273,9 +282,9 @@ export default function NewPaymentReceiptPage() {
                                                    <DropdownMenu>
                                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                                         <DropdownMenuContent align="end">
-                                                            <DropdownMenuItem disabled><View className="mr-2 h-4 w-4" /> View</DropdownMenuItem>
+                                                            <DropdownMenuItem onSelect={() => router.push(`/fleet/transactions/payment-receipt/${voucher.voucherId}`)}><View className="mr-2 h-4 w-4" /> View</DropdownMenuItem>
                                                             <DropdownMenuItem disabled><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
-                                                            <DropdownMenuItem disabled><Printer className="mr-2 h-4 w-4" /> Print</DropdownMenuItem>
+                                                            <DropdownMenuItem onSelect={() => handlePrint(voucher.voucherId)}><Printer className="mr-2 h-4 w-4" /> Print</DropdownMenuItem>
                                                             <DropdownMenuSeparator />
                                                             <AlertDialog>
                                                                 <AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()}><Trash2 className="mr-2 h-4 w-4 text-destructive" /> <span className="text-destructive">Delete</span></DropdownMenuItem></AlertDialogTrigger>

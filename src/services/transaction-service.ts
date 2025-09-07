@@ -99,6 +99,24 @@ export const onTransactionsUpdate = (callback: (transactions: Transaction[]) => 
     });
 };
 
+export const getVoucherTransactions = async (voucherId: string): Promise<Transaction[]> => {
+    const q = query(transactionsCollection, where("voucherId", "==", voucherId));
+    const querySnapshot = await getDocs(q);
+    if (!querySnapshot.empty) {
+        return querySnapshot.docs.map(fromFirestore);
+    }
+    
+    // Fallback for legacy vouchers without a voucherId
+    const legacyId = voucherId.replace('legacy-', '');
+    const docSnap = await getDoc(doc(db, 'transactions', legacyId));
+    if (docSnap.exists()) {
+        return [fromFirestore(docSnap as QueryDocumentSnapshot<DocumentData>)];
+    }
+
+    return [];
+};
+
+
 export const updateTransaction = async (id: string, transaction: Partial<Omit<Transaction, 'id'>>): Promise<void> => {
     const transactionDoc = doc(db, 'transactions', id);
     await updateDoc(transactionDoc, {
@@ -113,13 +131,19 @@ export const deleteTransaction = async (id: string): Promise<void> => {
 };
 
 export const deleteVoucher = async (voucherId: string): Promise<void> => {
-    const q = query(transactionsCollection, where("voucherId", "==", voucherId));
-    const querySnapshot = await getDocs(q);
-    
     const batch = writeBatch(db);
-    querySnapshot.forEach((doc) => {
-        batch.delete(doc.ref);
-    });
+
+    if (voucherId.startsWith('legacy-')) {
+        const docId = voucherId.replace('legacy-', '');
+        const docRef = doc(db, 'transactions', docId);
+        batch.delete(docRef);
+    } else {
+        const q = query(transactionsCollection, where("voucherId", "==", voucherId));
+        const querySnapshot = await getDocs(q);
+        querySnapshot.forEach((doc) => {
+            batch.delete(doc.ref);
+        });
+    }
     
     await batch.commit();
 };
