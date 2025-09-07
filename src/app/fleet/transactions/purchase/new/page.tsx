@@ -8,35 +8,44 @@ import { useAuth } from '@/hooks/use-auth';
 import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onPartiesUpdate } from '@/services/party-service';
 import { onAccountsUpdate } from '@/services/account-service';
-import { addTransaction } from '@/services/transaction-service';
+import { onTransactionsUpdate, addTransaction } from '@/services/transaction-service';
 import { PurchaseForm } from '../../_components/purchase-form';
 import { useRouter } from 'next/navigation';
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { PlusCircle } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { toNepaliDate } from '@/lib/utils';
 
 export default function NewPurchasePage() {
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [parties, setParties] = useState<Party[]>([]);
     const [accounts, setAccounts] = useState<Account[]>([]);
+    const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const { toast } = useToast();
     const { user } = useAuth();
     const router = useRouter();
+    
+    const vehiclesById = new Map(vehicles.map(v => [v.id, v.name]));
+    const partiesById = new Map(parties.map(p => [p.id, p.name]));
 
     useEffect(() => {
         setIsLoading(true);
         const unsubVehicles = onVehiclesUpdate(setVehicles);
         const unsubParties = onPartiesUpdate(setParties);
         const unsubAccounts = onAccountsUpdate(setAccounts);
+        const unsubTransactions = onTransactionsUpdate(setTransactions);
         setIsLoading(false);
 
         return () => {
             unsubVehicles();
             unsubParties();
             unsubAccounts();
+            unsubTransactions();
         }
     }, []);
 
@@ -78,6 +87,10 @@ export default function NewPurchasePage() {
         }
     };
     
+    const purchaseTransactions = transactions
+      .filter(t => t.type === 'Purchase')
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
     if (isLoading) {
         return (
             <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
@@ -100,12 +113,38 @@ export default function NewPurchasePage() {
                         </Button>
                     </DialogTrigger>
                 </header>
-                 <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
-                  <div className="flex flex-col items-center gap-1 text-center">
-                    <h3 className="text-2xl font-bold tracking-tight">Create a Purchase Entry</h3>
-                    <p className="text-sm text-muted-foreground">Click the button above to get started.</p>
-                  </div>
-                </div>
+                 
+                {purchaseTransactions.length === 0 ? (
+                    <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
+                        <div className="flex flex-col items-center gap-1 text-center">
+                            <h3 className="text-2xl font-bold tracking-tight">No Purchases Recorded Yet</h3>
+                            <p className="text-sm text-muted-foreground">Click the button above to get started.</p>
+                        </div>
+                    </div>
+                ) : (
+                    <Card>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Date</TableHead>
+                                    <TableHead>Vehicle</TableHead>
+                                    <TableHead>Party</TableHead>
+                                    <TableHead>Amount</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {purchaseTransactions.map(txn => (
+                                    <TableRow key={txn.id}>
+                                        <TableCell>{toNepaliDate(txn.date)}</TableCell>
+                                        <TableCell>{vehiclesById.get(txn.vehicleId) || 'N/A'}</TableCell>
+                                        <TableCell>{partiesById.get(txn.partyId!) || 'N/A'}</TableCell>
+                                        <TableCell className="text-red-600">{txn.amount.toLocaleString()}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </Card>
+                )}
             </div>
             <DialogContent className="max-w-4xl">
                  <DialogHeader>

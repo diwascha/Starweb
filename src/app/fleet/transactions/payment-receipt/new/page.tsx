@@ -14,6 +14,11 @@ import { PaymentReceiptForm } from '../../_components/payment-receipt-form';
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { PlusCircle } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { toNepaliDate } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 
 
 export default function NewPaymentReceiptPage() {
@@ -26,6 +31,9 @@ export default function NewPaymentReceiptPage() {
     const { toast } = useToast();
     const { user } = useAuth();
     const router = useRouter();
+
+    const vehiclesById = new Map(vehicles.map(v => [v.id, v.name]));
+    const partiesById = new Map(parties.map(p => [p.id, p.name]));
 
     useEffect(() => {
         setIsLoading(true);
@@ -59,6 +67,10 @@ export default function NewPaymentReceiptPage() {
         }
     };
     
+    const voucherTransactions = transactions
+      .filter(t => t.type === 'Payment' || t.type === 'Receipt')
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
     if (isLoading) {
         return (
             <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
@@ -81,12 +93,40 @@ export default function NewPaymentReceiptPage() {
                         </Button>
                     </DialogTrigger>
                 </header>
-                 <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
-                  <div className="flex flex-col items-center gap-1 text-center">
-                    <h3 className="text-2xl font-bold tracking-tight">Create a Voucher</h3>
-                    <p className="text-sm text-muted-foreground">Click the button above to get started.</p>
-                  </div>
-                </div>
+                 
+                {voucherTransactions.length === 0 ? (
+                    <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
+                        <div className="flex flex-col items-center gap-1 text-center">
+                            <h3 className="text-2xl font-bold tracking-tight">No Vouchers Recorded Yet</h3>
+                            <p className="text-sm text-muted-foreground">Click the button above to get started.</p>
+                        </div>
+                    </div>
+                ) : (
+                    <Card>
+                         <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Date</TableHead>
+                                    <TableHead>Type</TableHead>
+                                    <TableHead>Vehicle</TableHead>
+                                    <TableHead>Party</TableHead>
+                                    <TableHead>Amount</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {voucherTransactions.map(txn => (
+                                    <TableRow key={txn.id}>
+                                        <TableCell>{toNepaliDate(txn.date)}</TableCell>
+                                        <TableCell><Badge variant="outline">{txn.type}</Badge></TableCell>
+                                        <TableCell>{vehiclesById.get(txn.vehicleId) || 'N/A'}</TableCell>
+                                        <TableCell>{partiesById.get(txn.partyId!) || 'N/A'}</TableCell>
+                                        <TableCell className={cn(txn.type === 'Payment' ? 'text-red-600' : 'text-green-600')}>{txn.amount.toLocaleString()}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </Card>
+                )}
             </div>
             <DialogContent className="max-w-4xl">
                  <DialogHeader>
