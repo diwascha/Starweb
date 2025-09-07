@@ -9,11 +9,11 @@ import { useAuth } from '@/hooks/use-auth';
 import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onPartiesUpdate } from '@/services/party-service';
 import { onAccountsUpdate } from '@/services/account-service';
-import { onTransactionsUpdate, saveVoucher } from '@/services/transaction-service';
+import { onTransactionsUpdate, saveVoucher, deleteVoucher } from '@/services/transaction-service';
 import { PaymentReceiptForm } from '../../_components/payment-receipt-form';
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Download, CalendarIcon, ArrowUpDown } from 'lucide-react';
+import { PlusCircle, Download, CalendarIcon, ArrowUpDown, MoreHorizontal, View, Edit, Printer, Trash2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -25,10 +25,23 @@ import type { DateRange } from 'react-day-picker';
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import * as XLSX from 'xlsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 
-type SortKey = 'date' | 'vehicleName' | 'partyName' | 'amount';
+type SortKey = 'date' | 'totalAmount' | 'voucherNo';
 type SortDirection = 'asc' | 'desc';
+
+interface GroupedVoucher {
+    voucherId: string;
+    voucherNo: string;
+    date: string;
+    type: 'Payment' | 'Receipt';
+    totalAmount: number;
+    parties: string[];
+    vehicles: string[];
+    transactions: Transaction[];
+}
 
 
 export default function NewPaymentReceiptPage() {
@@ -50,9 +63,6 @@ export default function NewPaymentReceiptPage() {
     const { toast } = useToast();
     const { user } = useAuth();
     const router = useRouter();
-
-    const vehiclesById = useMemo(() => new Map(vehicles.map(v => [v.id, v.name])), [vehicles]);
-    const partiesById = useMemo(() => new Map(parties.map(p => [p.id, p.name])), [parties]);
 
     useEffect(() => {
         setIsLoading(true);
@@ -85,6 +95,15 @@ export default function NewPaymentReceiptPage() {
         }
     };
     
+     const handleDeleteVoucher = async (voucherId: string) => {
+        try {
+            await deleteVoucher(voucherId);
+            toast({ title: 'Voucher Deleted', description: 'The voucher and its transactions have been deleted.' });
+        } catch (error) {
+            toast({ title: 'Error', description: 'Failed to delete voucher.', variant: 'destructive' });
+        }
+    };
+    
     const requestSort = (key: SortKey) => {
         let direction: SortDirection = 'asc';
         if (sortConfig.key === key && sortConfig.direction === 'asc') {
@@ -94,13 +113,35 @@ export default function NewPaymentReceiptPage() {
     };
 
     const filteredAndSortedVouchers = useMemo(() => {
-        let filtered = transactions
-            .filter(t => t.type === 'Payment' || t.type === 'Receipt')
-            .map(t => ({
-                ...t,
-                vehicleName: vehiclesById.get(t.vehicleId) || 'N/A',
-                partyName: t.partyId ? partiesById.get(t.partyId) || 'N/A' : 'N/A'
-            }));
+        const paymentReceipts = transactions.filter(t => (t.type === 'Payment' || t.type === 'Receipt') && t.voucherId);
+
+        const grouped = paymentReceipts.reduce((acc, t) => {
+            if (!t.voucherId) return acc;
+            
+            if (!acc[t.voucherId]) {
+                 const firstTransaction = t;
+                 acc[t.voucherId] = {
+                    voucherId: t.voucherId,
+                    voucherNo: firstTransaction.items[0]?.particular.replace(/ .*/,'') || 'N/A', // hacky way to get voucherNo
+                    date: t.date,
+                    type: t.type as 'Payment' | 'Receipt',
+                    totalAmount: 0,
+                    parties: [],
+                    vehicles: [],
+                    transactions: [],
+                };
+            }
+            const group = acc[t.voucherId];
+            group.totalAmount += t.amount;
+            if (t.partyId) group.parties.push(t.partyId);
+            group.vehicles.push(t.vehicleId);
+            group.transactions.push(t);
+
+            return acc;
+
+        }, {} as Record<string, GroupedVoucher>);
+        
+        let filtered = Object.values(grouped);
 
         if (filterType !== 'All') {
             filtered = filtered.filter(t => t.type === filterType);
@@ -115,11 +156,11 @@ export default function NewPaymentReceiptPage() {
         }
         
         if (filterVehicleId !== 'All') {
-            filtered = filtered.filter(t => t.vehicleId === filterVehicleId);
+            filtered = filtered.filter(v => v.vehicles.includes(filterVehicleId));
         }
 
         if (filterPartyId !== 'All') {
-            filtered = filtered.filter(t => t.partyId === filterPartyId);
+            filtered = filtered.filter(v => v.parties.includes(filterPartyId));
         }
 
         filtered.sort((a, b) => {
@@ -131,16 +172,19 @@ export default function NewPaymentReceiptPage() {
         });
 
         return filtered;
-    }, [transactions, filterType, dateRange, sortConfig, vehiclesById, partiesById, filterVehicleId, filterPartyId]);
+    }, [transactions, filterType, dateRange, sortConfig, filterVehicleId, filterPartyId]);
     
     const handleExport = () => {
+        const vehiclesById = new Map(vehicles.map(v => [v.id, v.name]));
+        const partiesById = new Map(parties.map(p => [p.id, p.name]));
+
         const dataToExport = filteredAndSortedVouchers.map(v => ({
+            'Voucher #': v.voucherNo,
             Date: toNepaliDate(v.date),
             Type: v.type,
-            Vehicle: v.vehicleName,
-            Party: v.partyName,
-            Amount: v.amount,
-            Remarks: v.remarks,
+            Vehicles: [...new Set(v.vehicles.map(id => vehiclesById.get(id) || id))].join(', '),
+            Parties: [...new Set(v.parties.map(id => partiesById.get(id) || id))].join(', '),
+            Amount: v.totalAmount,
         }));
         
         const worksheet = XLSX.utils.json_to_sheet(dataToExport);
@@ -212,21 +256,38 @@ export default function NewPaymentReceiptPage() {
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
+                                            <TableHead><Button variant="ghost" onClick={() => requestSort('voucherNo')}>Voucher # <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                                             <TableHead><Button variant="ghost" onClick={() => requestSort('date')}>Date <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                                             <TableHead>Type</TableHead>
-                                            <TableHead><Button variant="ghost" onClick={() => requestSort('vehicleName')}>Vehicle <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                                            <TableHead><Button variant="ghost" onClick={() => requestSort('partyName')}>Party <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                                            <TableHead><Button variant="ghost" onClick={() => requestSort('amount')}>Amount <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                            <TableHead><Button variant="ghost" onClick={() => requestSort('totalAmount')}>Amount <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                            <TableHead className="text-right">Actions</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {filteredAndSortedVouchers.map(txn => (
-                                            <TableRow key={txn.id}>
-                                                <TableCell>{toNepaliDate(txn.date)}</TableCell>
-                                                <TableCell><Badge variant="outline">{txn.type}</Badge></TableCell>
-                                                <TableCell>{txn.vehicleName}</TableCell>
-                                                <TableCell>{txn.partyName}</TableCell>
-                                                <TableCell className={cn(txn.type === 'Payment' ? 'text-red-600' : 'text-green-600')}>{txn.amount.toLocaleString()}</TableCell>
+                                        {filteredAndSortedVouchers.map(voucher => (
+                                            <TableRow key={voucher.voucherId}>
+                                                <TableCell>{voucher.voucherNo}</TableCell>
+                                                <TableCell>{toNepaliDate(voucher.date)}</TableCell>
+                                                <TableCell><Badge variant="outline">{voucher.type}</Badge></TableCell>
+                                                <TableCell className={cn(voucher.type === 'Payment' ? 'text-red-600' : 'text-green-600')}>{voucher.totalAmount.toLocaleString()}</TableCell>
+                                                <TableCell className="text-right">
+                                                   <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <DropdownMenuItem disabled><View className="mr-2 h-4 w-4" /> View</DropdownMenuItem>
+                                                            <DropdownMenuItem disabled><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
+                                                            <DropdownMenuItem disabled><Printer className="mr-2 h-4 w-4" /> Print</DropdownMenuItem>
+                                                            <DropdownMenuSeparator />
+                                                            <AlertDialog>
+                                                                <AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()}><Trash2 className="mr-2 h-4 w-4 text-destructive" /> <span className="text-destructive">Delete</span></DropdownMenuItem></AlertDialogTrigger>
+                                                                <AlertDialogContent>
+                                                                    <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the voucher and all its associated transactions.</AlertDialogDescription></AlertDialogHeader>
+                                                                    <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteVoucher(voucher.voucherId)}>Delete</AlertDialogAction></AlertDialogFooter>
+                                                                </AlertDialogContent>
+                                                            </AlertDialog>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </TableCell>
                                             </TableRow>
                                         ))}
                                     </TableBody>
@@ -255,3 +316,4 @@ export default function NewPaymentReceiptPage() {
         </Dialog>
     );
 }
+

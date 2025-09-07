@@ -1,7 +1,7 @@
 
 
 import { db } from '@/lib/firebase';
-import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, writeBatch } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, writeBatch, query, where, getDoc } from 'firebase/firestore';
 import type { Transaction } from '@/lib/types';
 
 const transactionsCollection = collection(db, 'transactions');
@@ -72,7 +72,7 @@ export const saveVoucher = async (voucherData: any, createdBy: string) => {
                 amount: amount,
                 remarks: narration || voucherData.remarks || '',
                 invoiceType: 'Normal', // Default for payments/receipts
-                items: [{ particular: type, quantity: 1, rate: amount }],
+                items: [{ particular: `${voucherData.voucherNo}-${type}`, quantity: 1, rate: amount }],
                 accountId: voucherData.accountId || null,
                 chequeNumber: voucherData.chequeNo || null,
                 chequeDate: voucherData.chequeDate ? voucherData.chequeDate.toISOString() : null,
@@ -80,7 +80,6 @@ export const saveVoucher = async (voucherData: any, createdBy: string) => {
                 createdBy: createdBy,
                 createdAt: now,
                 lastModifiedAt: now,
-                // These fields are not part of the voucher form but are required by the Transaction type
                 dueDate: null,
                 invoiceDate: null,
                 invoiceNumber: null,
@@ -113,4 +112,15 @@ export const deleteTransaction = async (id: string): Promise<void> => {
     await deleteDoc(transactionDoc);
 };
 
+export const deleteVoucher = async (voucherId: string): Promise<void> => {
+    const q = query(transactionsCollection, where("voucherId", "==", voucherId));
+    const querySnapshot = await getDocs(q);
     
+    const batch = writeBatch(db);
+    querySnapshot.forEach((doc) => {
+        batch.delete(doc.ref);
+    });
+    
+    await batch.commit();
+};
+
