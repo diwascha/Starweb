@@ -273,7 +273,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
       
       
       if (reportToEdit) {
-          const updatedReportData: Partial<Report> = {
+          const updatedReportData: Partial<Omit<Report, 'id'>> = {
               product: selectedProduct,
               taxInvoiceNumber: taxInvoiceNumber || 'N/A',
               challanNumber: challanNumber || 'N/A',
@@ -286,7 +286,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
           router.push(`/report/${reportToEdit.id}`);
       } else {
         const allReports = await getReportsForSerial();
-        const nextSerialNumber = generateNextSerialNumber(allReports);
+        const nextSerialNumber = await generateNextSerialNumber(allReports);
         const now = new Date().toISOString();
 
         const productForDb: Product = {

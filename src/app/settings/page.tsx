@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { Party, Account, PartyType, AccountType } from '@/lib/types';
+import type { Party, Account, PartyType, AccountType, UnitOfMeasurement, AppSetting } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -11,7 +11,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -25,7 +24,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, MoreHorizontal, Search } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, Search, Save } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
@@ -36,6 +35,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { onPartiesUpdate, addParty, updateParty, deleteParty } from '@/services/party-service';
 import { onAccountsUpdate, addAccount, updateAccount, deleteAccount } from '@/services/account-service';
+import { onUomsUpdate, addUom, updateUom, deleteUom } from '@/services/uom-service';
+import { onSettingUpdate, setSetting } from '@/services/settings-service';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 
 
@@ -45,8 +46,13 @@ export default function SettingsPage() {
   
   const [parties, setParties] = useState<Party[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [uoms, setUoms] = useState<UnitOfMeasurement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Report Prefix State
+  const [reportPrefix, setReportPrefix] = useState('');
+  const [isSavingPrefix, setIsSavingPrefix] = useState(false);
 
   // Party Dialog State
   const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
@@ -57,17 +63,43 @@ export default function SettingsPage() {
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [accountForm, setAccountForm] = useState({ name: '', type: 'Cash' as AccountType, accountNumber: '', bankName: '', branch: '' });
+  
+  // UoM Dialog State
+  const [isUomDialogOpen, setIsUomDialogOpen] = useState(false);
+  const [editingUom, setEditingUom] = useState<UnitOfMeasurement | null>(null);
+  const [uomForm, setUomForm] = useState({ name: '', abbreviation: '' });
+
 
   useEffect(() => {
     setIsLoading(true);
     const unsubParties = onPartiesUpdate(setParties);
     const unsubAccounts = onAccountsUpdate(setAccounts);
+    const unsubUoms = onUomsUpdate(setUoms);
+    const unsubPrefix = onSettingUpdate('reportNumberPrefix', (setting) => {
+        setReportPrefix(setting?.value || '2082/083-');
+    });
+
     setIsLoading(false);
     return () => {
         unsubParties();
         unsubAccounts();
+        unsubUoms();
+        unsubPrefix();
     }
   }, []);
+  
+  const handleSavePrefix = async () => {
+    setIsSavingPrefix(true);
+    try {
+        await setSetting('reportNumberPrefix', reportPrefix);
+        toast({ title: 'Success', description: 'Report number prefix updated.' });
+    } catch {
+        toast({ title: 'Error', description: 'Failed to save prefix.', variant: 'destructive' });
+    } finally {
+        setIsSavingPrefix(false);
+    }
+  };
+
 
   // --- Party Management ---
   const openPartyDialog = (party: Party | null = null) => {
@@ -159,6 +191,49 @@ export default function SettingsPage() {
   };
   
   const filteredAccounts = accounts.filter(a => a.name.toLowerCase().includes(searchQuery.toLowerCase()) || (a.bankName || '').toLowerCase().includes(searchQuery.toLowerCase()));
+  
+  // --- UoM Management ---
+  const openUomDialog = (uom: UnitOfMeasurement | null = null) => {
+    if (uom) {
+        setEditingUom(uom);
+        setUomForm({ name: uom.name, abbreviation: uom.abbreviation });
+    } else {
+        setEditingUom(null);
+        setUomForm({ name: '', abbreviation: '' });
+    }
+    setIsUomDialogOpen(true);
+  };
+  
+  const handleUomSubmit = async () => {
+    if (!user) return;
+    if (!uomForm.name || !uomForm.abbreviation) {
+        toast({ title: 'Error', description: 'Name and abbreviation are required.', variant: 'destructive' });
+        return;
+    }
+    try {
+        if (editingUom) {
+            await updateUom(editingUom.id, { ...uomForm, lastModifiedBy: user.username });
+            toast({ title: 'Success', description: 'Unit updated.' });
+        } else {
+            await addUom({ ...uomForm, createdBy: user.username, createdAt: new Date().toISOString() });
+            toast({ title: 'Success', description: 'New unit added.' });
+        }
+        setIsUomDialogOpen(false);
+    } catch {
+        toast({ title: 'Error', description: 'Failed to save unit.', variant: 'destructive' });
+    }
+  };
+  
+  const handleDeleteUom = async (id: string) => {
+      try {
+          await deleteUom(id);
+          toast({ title: 'Success', description: 'Unit deleted.' });
+      } catch {
+          toast({ title: 'Error', description: 'Failed to delete unit.', variant: 'destructive' });
+      }
+  };
+  
+  const filteredUoms = uoms.filter(u => u.name.toLowerCase().includes(searchQuery.toLowerCase()) || u.abbreviation.toLowerCase().includes(searchQuery.toLowerCase()));
 
 
   if (isLoading) {
@@ -186,7 +261,8 @@ export default function SettingsPage() {
             <TabsList>
                 <TabsTrigger value="parties">Vendors & Suppliers</TabsTrigger>
                 <TabsTrigger value="accounts">Accounts</TabsTrigger>
-                <TabsTrigger value="uom" disabled>Units of Measurement</TabsTrigger>
+                <TabsTrigger value="uom">Units of Measurement</TabsTrigger>
+                <TabsTrigger value="application">Application</TabsTrigger>
             </TabsList>
             <TabsContent value="parties">
                 <Card>
@@ -249,6 +325,58 @@ export default function SettingsPage() {
                             </TableRow>
                         ))}
                         </TableBody></Table>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+            <TabsContent value="uom">
+                 <Card>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                        <div>
+                            <CardTitle>Units of Measurement</CardTitle>
+                            <CardDescription>Manage UoMs used across the application.</CardDescription>
+                        </div>
+                        <Button onClick={() => openUomDialog()}><Plus className="mr-2 h-4 w-4" /> Add Unit</Button>
+                    </CardHeader>
+                    <CardContent>
+                         <Table><TableHeader><TableRow>
+                            <TableHead>Name</TableHead><TableHead>Abbreviation</TableHead><TableHead className="text-right">Actions</TableHead>
+                        </TableRow></TableHeader><TableBody>
+                        {filteredUoms.map(uom => (
+                            <TableRow key={uom.id}>
+                                <TableCell>{uom.name}</TableCell><TableCell>{uom.abbreviation}</TableCell>
+                                <TableCell className="text-right">
+                                     <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuItem onSelect={() => openUomDialog(uom)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()}><Trash2 className="mr-2 h-4 w-4 text-destructive" /> <span className="text-destructive">Delete</span></DropdownMenuItem></AlertDialogTrigger>
+                                        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the unit.</AlertDialogDescription></AlertDialogHeader>
+                                        <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteUom(uom.id)}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+                                    </DropdownMenuContent></DropdownMenu>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                        </TableBody></Table>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+            <TabsContent value="application">
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Application Settings</CardTitle>
+                        <CardDescription>Configure global application settings.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                       <div className="space-y-2">
+                           <Label htmlFor="report-prefix">Report Number Prefix</Label>
+                           <div className="flex items-center gap-2">
+                            <Input id="report-prefix" value={reportPrefix} onChange={(e) => setReportPrefix(e.target.value)} className="max-w-xs" />
+                            <Button onClick={handleSavePrefix} disabled={isSavingPrefix}>
+                                <Save className="mr-2 h-4 w-4" /> Save Prefix
+                            </Button>
+                           </div>
+                           <p className="text-sm text-muted-foreground">This prefix is used for generating new test report serial numbers.</p>
+                       </div>
                     </CardContent>
                 </Card>
             </TabsContent>
@@ -322,6 +450,27 @@ export default function SettingsPage() {
                 <DialogFooter>
                     <Button variant="outline" onClick={() => setIsAccountDialogOpen(false)}>Cancel</Button>
                     <Button onClick={handleAccountSubmit}>{editingAccount ? 'Save Changes' : 'Add Account'}</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+        
+        {/* UoM Dialog */}
+        <Dialog open={isUomDialogOpen} onOpenChange={setIsUomDialogOpen}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader><DialogTitle>{editingUom ? 'Edit Unit' : 'Add New Unit'}</DialogTitle></DialogHeader>
+                <div className="grid gap-4 py-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="uom-name">Unit Name</Label>
+                        <Input id="uom-name" value={uomForm.name} onChange={e => setUomForm(p => ({...p, name: e.target.value}))} placeholder="e.g. Kilogram" />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="uom-abbr">Abbreviation</Label>
+                        <Input id="uom-abbr" value={uomForm.abbreviation} onChange={e => setUomForm(p => ({...p, abbreviation: e.target.value}))} placeholder="e.g. Kg" />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsUomDialogOpen(false)}>Cancel</Button>
+                    <Button onClick={handleUomSubmit}>{editingUom ? 'Save Changes' : 'Add Unit'}</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

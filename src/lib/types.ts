@@ -331,3 +331,19 @@ export interface User {
   permissions: Permissions;
   passwordLastUpdated?: string; // ISO Date string
 }
+
+// Settings Types
+export interface UnitOfMeasurement {
+    id: string;
+    name: string;
+    abbreviation: string;
+    createdBy: string;
+    createdAt: string; // ISO string
+    lastModifiedBy?: string;
+    lastModifiedAt?: string; // ISO string
+}
+
+export interface AppSetting {
+    id: string;
+    value: any;
+}

@@ -3,13 +3,16 @@ import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import type { Report, PurchaseOrder, PurchaseOrderStatus, AttendanceStatus, User, Transaction } from './types';
 import NepaliDate from 'nepali-date-converter';
+import { getSetting } from "@/services/settings-service";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export const generateNextSerialNumber = (reports: Report[]): string => {
-  const serialPrefix = '2082/083-';
+export const generateNextSerialNumber = async (reports: Pick<Report, 'serialNumber'>[]): Promise<string> => {
+  const prefixSetting = await getSetting('reportNumberPrefix');
+  const serialPrefix = prefixSetting?.value || '2082/083-';
+  
   let maxNumber = 0;
 
   reports.forEach(report => {
