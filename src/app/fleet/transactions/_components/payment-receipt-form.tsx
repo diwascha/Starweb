@@ -236,26 +236,24 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, onFormSubmit, 
         </Button>
         
         <Card className="bg-blue-100 border-blue-300 p-4 mt-4">
-            <CardContent className="p-0">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-                    <FormField control={form.control} name="remarks" render={({ field }) => (
-                        <FormItem><FormLabel>Remarks</FormLabel><FormControl><Textarea {...field} value={field.value ?? ''} className="bg-white"/></FormControl><FormMessage /></FormItem>
-                    )}/>
-                    <div className="space-y-2">
-                        <div className="flex justify-between bg-gray-200 p-2 rounded-md">
-                            <Label>Total Rec Amt</Label>
-                            <span className="font-mono">{totalRec.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
-                        </div>
-                         <div className="flex justify-between bg-gray-200 p-2 rounded-md">
-                            <Label>Total Pay Amt</Label>
-                            <span className="font-mono">{totalPay.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
-                        </div>
-                        <div className="flex justify-between bg-gray-800 text-white p-2 rounded-md">
-                            <Label>Net Amount in Rs</Label>
-                            <span className="font-mono">{netAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
-                        </div>
+            <CardContent className="p-0 space-y-4">
+                <div className="w-full md:w-1/2 md:ml-auto space-y-2">
+                    <div className="flex justify-between bg-gray-200 p-2 rounded-md">
+                        <Label>Total Rec Amt</Label>
+                        <span className="font-mono">{totalRec.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                    </div>
+                     <div className="flex justify-between bg-gray-200 p-2 rounded-md">
+                        <Label>Total Pay Amt</Label>
+                        <span className="font-mono">{totalPay.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                    </div>
+                    <div className="flex justify-between bg-gray-800 text-white p-2 rounded-md">
+                        <Label>Net Amount in Rs</Label>
+                        <span className="font-mono">{netAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
                     </div>
                 </div>
+                <FormField control={form.control} name="remarks" render={({ field }) => (
+                    <FormItem><FormLabel>Remarks</FormLabel><FormControl><Textarea {...field} value={field.value ?? ''} className="bg-white"/></FormControl><FormMessage /></FormItem>
+                )}/>
             </CardContent>
         </Card>
 
@@ -267,3 +265,5 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, onFormSubmit, 
     </Form>
   );
 }
+
+    
