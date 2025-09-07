@@ -45,7 +45,7 @@ export const addTransaction = async (transaction: Omit<Transaction, 'id' | 'crea
 export const saveVoucher = async (voucherData: any, createdBy: string) => {
     const batch = writeBatch(db);
     const now = new Date().toISOString();
-    const voucherId = doc(transactionsCollection).id; // Generate a unique ID for the voucher group
+    const voucherId = doc(collection(db, 'transactions')).id; // Generate a unique ID for the voucher group
 
     voucherData.items.forEach((item: any) => {
         const { ledgerId, vehicleId, recAmount, payAmount, narration } = item;
@@ -84,6 +84,7 @@ export const saveVoucher = async (voucherData: any, createdBy: string) => {
                 invoiceDate: null,
                 invoiceNumber: null,
                 tripId: undefined,
+                lastModifiedBy: undefined,
             };
             batch.set(transactionRef, newTransaction);
         }
@@ -110,7 +111,32 @@ export const getVoucherTransactions = async (voucherId: string): Promise<Transac
     const legacyId = voucherId.replace('legacy-', '');
     const docSnap = await getDoc(doc(db, 'transactions', legacyId));
     if (docSnap.exists()) {
-        return [fromFirestore(docSnap as QueryDocumentSnapshot<DocumentData>)];
+        const data = docSnap.data();
+        const transaction: Transaction = {
+            id: docSnap.id,
+            vehicleId: data.vehicleId,
+            date: data.date,
+            invoiceNumber: data.invoiceNumber,
+            invoiceDate: data.invoiceDate,
+            invoiceType: data.invoiceType,
+            billingType: data.billingType,
+            chequeNumber: data.chequeNumber,
+            chequeDate: data.chequeDate,
+            dueDate: data.dueDate,
+            partyId: data.partyId,
+            accountId: data.accountId,
+            items: data.items,
+            amount: data.amount,
+            remarks: data.remarks,
+            tripId: data.tripId,
+            type: data.type,
+            voucherId: data.voucherId,
+            createdBy: data.createdBy,
+            createdAt: data.createdAt,
+            lastModifiedBy: data.lastModifiedBy,
+            lastModifiedAt: data.lastModifiedAt,
+        };
+        return [transaction];
     }
 
     return [];
@@ -124,6 +150,64 @@ export const updateTransaction = async (id: string, transaction: Partial<Omit<Tr
         lastModifiedAt: new Date().toISOString(),
     });
 };
+
+export const updateVoucher = async (voucherId: string, voucherData: any, modifiedBy: string) => {
+    const batch = writeBatch(db);
+    const now = new Date().toISOString();
+
+    // 1. Delete all existing transactions for this voucher
+    const existingTxns = await getVoucherTransactions(voucherId);
+    existingTxns.forEach(txn => {
+        batch.delete(doc(db, 'transactions', txn.id));
+    });
+
+    // 2. Create new transactions based on the updated form data
+    voucherData.items.forEach((item: any) => {
+        const { ledgerId, vehicleId, recAmount, payAmount, narration } = item;
+        
+        let amount = 0;
+        let type: 'Payment' | 'Receipt' | null = null;
+        
+        if (voucherData.voucherType === 'Payment' && payAmount > 0) {
+            amount = payAmount;
+            type = 'Payment';
+        } else if (voucherData.voucherType === 'Receipt' && recAmount > 0) {
+            amount = recAmount;
+            type = 'Receipt';
+        }
+
+        if (type && amount > 0) {
+            const transactionRef = doc(transactionsCollection);
+            const newTransaction: Omit<Transaction, 'id'|'createdAt'|'createdBy'> = {
+                date: voucherData.date.toISOString(),
+                type: type,
+                billingType: voucherData.billingType,
+                vehicleId: vehicleId,
+                partyId: ledgerId,
+                amount: amount,
+                remarks: narration || voucherData.remarks || '',
+                invoiceType: 'Normal',
+                items: [{ particular: `${voucherData.voucherNo}-${type}`, quantity: 1, rate: amount }],
+                accountId: voucherData.accountId || null,
+                chequeNumber: voucherData.chequeNo || null,
+                chequeDate: voucherData.chequeDate ? voucherData.chequeDate.toISOString() : null,
+                voucherId: voucherId,
+                lastModifiedBy: modifiedBy,
+                lastModifiedAt: now,
+                createdBy: existingTxns[0]?.createdBy || modifiedBy,
+                createdAt: existingTxns[0]?.createdAt || now,
+                dueDate: null,
+                invoiceDate: null,
+                invoiceNumber: null,
+                tripId: undefined,
+            };
+            batch.set(transactionRef, newTransaction);
+        }
+    });
+
+    await batch.commit();
+};
+
 
 export const deleteTransaction = async (id: string): Promise<void> => {
     const transactionDoc = doc(db, 'transactions', id);
@@ -147,4 +231,3 @@ export const deleteVoucher = async (voucherId: string): Promise<void> => {
     
     await batch.commit();
 };
-

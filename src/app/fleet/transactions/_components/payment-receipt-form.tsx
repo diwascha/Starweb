@@ -67,9 +67,10 @@ interface PaymentReceiptFormProps {
   transactions: Transaction[];
   onFormSubmit: (values: any) => Promise<void>;
   onCancel: () => void;
+  initialValues?: Partial<VoucherFormValues>;
 }
 
-export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, onFormSubmit, onCancel }: PaymentReceiptFormProps) {
+export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, onFormSubmit, onCancel, initialValues }: PaymentReceiptFormProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   
@@ -78,7 +79,7 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
 
   const form = useForm<VoucherFormValues>({
     resolver: zodResolver(voucherSchema),
-    defaultValues: {
+    defaultValues: initialValues || {
       voucherType: 'Payment',
       billingType: 'Cash',
       voucherNo: '001', // Placeholder
@@ -142,8 +143,6 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
 
 
   const handleSubmit = (values: VoucherFormValues) => {
-    // This is a placeholder for the actual submission logic.
-    toast({ title: "Voucher Saved", description: "The voucher has been recorded." });
     onFormSubmit(values);
   };
   
@@ -326,11 +325,9 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
 
         <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
-            <Button type="submit">Ok</Button>
+            <Button type="submit">{initialValues ? 'Save Changes' : 'Ok'}</Button>
         </div>
       </form>
     </Form>
   );
 }
-
-    
