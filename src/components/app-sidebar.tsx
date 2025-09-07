@@ -259,15 +259,20 @@ export function AppSidebar() {
                                 </SidebarMenuButton>
                             </SidebarMenuItem>
                             {hasPermission('fleet', 'create') && (
-                                <>
-                                 <SidebarMenuItem>
+                            <div className="ml-4">
+                                <SidebarMenuItem>
                                     <SidebarMenuButton asChild isActive={getIsActive('/fleet/trip-sheets/new')}>
                                     <Link href="/fleet/trip-sheets/new">
                                         <TrendingUp />
-                                        <span>New Sales</span>
+                                        <span>Sales Entry</span>
                                     </Link>
                                     </SidebarMenuButton>
                                 </SidebarMenuItem>
+                            </div>
+                            )}
+
+                            {hasPermission('fleet', 'create') && (
+                                <>
                                 <SidebarMenuItem>
                                     <SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/purchase/new')}>
                                     <Link href="/fleet/transactions/purchase/new">
