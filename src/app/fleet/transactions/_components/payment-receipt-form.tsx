@@ -94,7 +94,7 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
   
   const watchedItems = form.watch("items");
   const watchedBillingType = form.watch("billingType");
-  const watchedLedgerId = form.watch("items.0.ledgerId"); // Watch the first ledger for summary
+  const watchedFirstItem = form.watch("items.0");
   
   const { totalRec, totalPay, netAmount } = React.useMemo(() => {
     const rec = watchedItems.reduce((sum, item) => sum + (Number(item.recAmount) || 0), 0);
@@ -106,21 +106,34 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
     };
   }, [watchedItems]);
   
-  const partySummary = React.useMemo(() => {
-    if (!watchedLedgerId) return { receivables: 0, payables: 0 };
+  const summaryData = React.useMemo(() => {
+    const ledgerId = watchedFirstItem?.ledgerId;
+    const vehicleId = watchedFirstItem?.vehicleId;
+
+    if (!ledgerId && !vehicleId) return { receivables: 0, payables: 0, title: '' };
+
+    let filteredTxns = transactions;
+    let titleParts = [];
+
+    if (ledgerId) {
+      filteredTxns = filteredTxns.filter(t => t.partyId === ledgerId);
+      titleParts.push(parties.find(p => p.id === ledgerId)?.name);
+    }
+    if (vehicleId) {
+      filteredTxns = filteredTxns.filter(t => t.vehicleId === vehicleId);
+      titleParts.push(vehicles.find(v => v.id === vehicleId)?.name);
+    }
     
-    const partyTxns = transactions.filter(t => t.partyId === watchedLedgerId);
-    
-    const receivables = partyTxns
+    const receivables = filteredTxns
         .filter(t => t.type === 'Sales' || t.type === 'Receipt')
         .reduce((sum, t) => sum + (t.type === 'Sales' ? t.amount : -t.amount), 0);
         
-    const payables = partyTxns
+    const payables = filteredTxns
         .filter(t => t.type === 'Purchase' || t.type === 'Payment')
         .reduce((sum, t) => sum + (t.type === 'Purchase' ? t.amount : -t.amount), 0);
 
-    return { receivables, payables };
-  }, [watchedLedgerId, transactions]);
+    return { receivables, payables, title: titleParts.join(' & ') };
+  }, [watchedFirstItem, transactions, parties, vehicles]);
 
 
   const handleSubmit = (values: VoucherFormValues) => {
@@ -187,7 +200,7 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
                     <FormField control={form.control} name="chequeDate" render={({ field }) => (
                         <FormItem><FormLabel>Cheque Date</FormLabel><Popover><PopoverTrigger asChild><FormControl>
                             <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal bg-white", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button>
-                        </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage/></FormItem>
+                        </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value ?? undefined} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage/></FormItem>
                     )}/>
                  </>
                )}
@@ -257,17 +270,17 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
         <Card className="bg-blue-100 border-blue-300 p-4 mt-4">
             <CardContent className="p-0 space-y-4">
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                     {watchedLedgerId && (
+                     {summaryData.title && (
                          <div className="space-y-2">
-                             <Label>Summary for {parties.find(p => p.id === watchedLedgerId)?.name}</Label>
+                             <Label>Summary for {summaryData.title}</Label>
                              <div className="grid grid-cols-2 gap-2">
                                 <div className="p-2 rounded-lg bg-gray-200">
                                     <p className="text-xs text-muted-foreground">Account Receivable</p>
-                                    <p className="font-mono font-bold">{partySummary.receivables.toLocaleString()}</p>
+                                    <p className="font-mono font-bold">{summaryData.receivables.toLocaleString()}</p>
                                 </div>
                                 <div className="p-2 rounded-lg bg-gray-200">
                                     <p className="text-xs text-muted-foreground">Account Payable</p>
-                                    <p className="font-mono font-bold">{partySummary.payables.toLocaleString()}</p>
+                                    <p className="font-mono font-bold">{summaryData.payables.toLocaleString()}</p>
                                 </div>
                             </div>
                          </div>
@@ -302,5 +315,3 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
     </Form>
   );
 }
-
-    
