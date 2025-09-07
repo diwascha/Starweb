@@ -285,7 +285,7 @@ export function AppSidebar() {
                                     <SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/payment-receipt/new')}>
                                     <Link href="/fleet/transactions/payment-receipt/new">
                                         <ArrowRightLeft />
-                                        <span>New Payment/Receipt</span>
+                                        <span>Payment / Receipt</span>
                                     </Link>
                                     </SidebarMenuButton>
                                 </SidebarMenuItem>
