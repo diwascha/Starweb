@@ -410,7 +410,7 @@ export default function SettingsPage() {
                 <TabsTrigger value="parties">Vendors & Suppliers</TabsTrigger>
                 <TabsTrigger value="accounts">Accounts</TabsTrigger>
                 <TabsTrigger value="uom">Units of Measurement</TabsTrigger>
-                <TabsTrigger value="application">Application</TabsTrigger>
+                <TabsTrigger value="report-numbering">Report Numbering</TabsTrigger>
             </TabsList>
             <TabsContent value="users-security">
                 <div className="space-y-6">
@@ -593,12 +593,12 @@ export default function SettingsPage() {
                     </CardContent>
                 </Card>
             </TabsContent>
-            <TabsContent value="application">
+            <TabsContent value="report-numbering">
                 <div className="space-y-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Application Settings</CardTitle>
-                            <CardDescription>Configure global application settings.</CardDescription>
+                            <CardTitle>Report Numbering</CardTitle>
+                            <CardDescription>Configure the prefix for test report serial numbers.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
                         <div className="space-y-2">
