@@ -73,7 +73,7 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
   const { toast } = useToast();
   const { user } = useAuth();
   
-  const bankAccounts = React.useMemo(() => accounts.filter(a => a.type === 'Bank'), [accounts]);
+  const cashAndBankAccounts = React.useMemo(() => accounts.filter(a => a.type === 'Cash' || a.type === 'Bank'), [accounts]);
   const generalLedgers = parties;
 
   const form = useForm<VoucherFormValues>({
@@ -94,7 +94,10 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
   
   const watchedItems = form.watch("items");
   const watchedBillingType = form.watch("billingType");
+  const watchedAccountId = form.watch("accountId");
   const watchedFirstItem = form.watch("items.0");
+  
+  const selectedAccount = cashAndBankAccounts.find(a => a.id === watchedAccountId);
   
   const { totalRec, totalPay, netAmount } = React.useMemo(() => {
     const rec = watchedItems.reduce((sum, item) => sum + (Number(item.recAmount) || 0), 0);
@@ -106,22 +109,27 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
     };
   }, [watchedItems]);
   
-  const summaryData = React.useMemo(() => {
+ const summaryData = React.useMemo(() => {
     const ledgerId = watchedFirstItem?.ledgerId;
     const vehicleId = watchedFirstItem?.vehicleId;
 
     if (!ledgerId && !vehicleId) return { receivables: 0, payables: 0, title: '' };
 
-    let filteredTxns = transactions;
-    let titleParts = [];
+    let filteredTxns: Transaction[];
+    let titleParts: (string | undefined)[] = [];
 
-    if (ledgerId) {
-      filteredTxns = filteredTxns.filter(t => t.partyId === ledgerId);
+    if (ledgerId && vehicleId) {
+      filteredTxns = transactions.filter(t => t.partyId === ledgerId || t.vehicleId === vehicleId);
       titleParts.push(parties.find(p => p.id === ledgerId)?.name);
-    }
-    if (vehicleId) {
-      filteredTxns = filteredTxns.filter(t => t.vehicleId === vehicleId);
       titleParts.push(vehicles.find(v => v.id === vehicleId)?.name);
+    } else if (ledgerId) {
+      filteredTxns = transactions.filter(t => t.partyId === ledgerId);
+      titleParts.push(parties.find(p => p.id === ledgerId)?.name);
+    } else if (vehicleId) {
+      filteredTxns = transactions.filter(t => t.vehicleId === vehicleId);
+      titleParts.push(vehicles.find(v => v.id === vehicleId)?.name);
+    } else {
+      filteredTxns = [];
     }
     
     const receivables = filteredTxns
@@ -132,7 +140,7 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
         .filter(t => t.type === 'Purchase' || t.type === 'Payment')
         .reduce((sum, t) => sum + (t.type === 'Purchase' ? t.amount : -t.amount), 0);
 
-    return { receivables, payables, title: titleParts.join(' & ') };
+    return { receivables, payables, title: titleParts.filter(Boolean).join(' & ') };
   }, [watchedFirstItem, transactions, parties, vehicles]);
 
 
@@ -177,33 +185,33 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
                 </Select><FormMessage/></FormItem>
               )}/>
               
-               {watchedBillingType === 'Bank' && (
-                 <>
-                    <FormField control={form.control} name="accountId" render={({ field }) => (
-                     <FormItem><FormLabel>Bank Account</FormLabel>
+              {watchedBillingType === 'Bank' && (
+                <>
+                  <FormField control={form.control} name="accountId" render={({ field }) => (
+                    <FormItem><FormLabel>Bank Account</FormLabel>
                         <Popover><PopoverTrigger asChild><FormControl>
                             <Button variant="outline" role="combobox" className="w-full justify-between bg-white">
-                                {field.value ? bankAccounts.find(a => a.id === field.value)?.name : "Select account..."}<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                {field.value ? cashAndBankAccounts.find(a => a.id === field.value)?.name : "Select account..."}<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                             </Button>
                         </FormControl></PopoverTrigger><PopoverContent className="p-0 w-[--radix-popover-trigger-width]"><Command>
                             <CommandInput placeholder="Search accounts..." />
                             <CommandList><CommandEmpty>No accounts found.</CommandEmpty><CommandGroup>
-                                {bankAccounts.map(account => <CommandItem key={account.id} value={account.name} onSelect={() => field.onChange(account.id)}>
-                                    <Check className={cn("mr-2 h-4 w-4", field.value === account.id ? "opacity-100" : "opacity-0")} />{account.bankName} - {account.accountNumber}
+                                {cashAndBankAccounts.map(account => <CommandItem key={account.id} value={account.name} onSelect={() => field.onChange(account.id)}>
+                                    <Check className={cn("mr-2 h-4 w-4", field.value === account.id ? "opacity-100" : "opacity-0")} />{account.bankName ? `${account.bankName} - ${account.accountNumber}`: account.name}
                                 </CommandItem>)}
                             </CommandGroup></CommandList>
                         </Command></PopoverContent></Popover><FormMessage/></FormItem>
-                    )}/>
-                    <FormField control={form.control} name="chequeNo" render={({ field }) => (
-                        <FormItem><FormLabel>Cheque No.</FormLabel><FormControl><Input {...field} value={field.value ?? ''} className="bg-white"/></FormControl><FormMessage /></FormItem>
-                    )}/>
-                    <FormField control={form.control} name="chequeDate" render={({ field }) => (
-                        <FormItem><FormLabel>Cheque Date</FormLabel><Popover><PopoverTrigger asChild><FormControl>
-                            <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal bg-white", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button>
-                        </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value ?? undefined} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage/></FormItem>
-                    )}/>
-                 </>
-               )}
+                  )}/>
+                  <FormField control={form.control} name="chequeNo" render={({ field }) => (
+                      <FormItem><FormLabel>Cheque No.</FormLabel><FormControl><Input {...field} value={field.value ?? ''} className="bg-white"/></FormControl><FormMessage /></FormItem>
+                  )}/>
+                  <FormField control={form.control} name="chequeDate" render={({ field }) => (
+                      <FormItem><FormLabel>Cheque Date</FormLabel><Popover><PopoverTrigger asChild><FormControl>
+                          <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal bg-white", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button>
+                      </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value ?? undefined} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage/></FormItem>
+                  )}/>
+                </>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -285,7 +293,7 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
                             </div>
                          </div>
                      )}
-                    <div className="space-y-2">
+                    <div className="md:col-start-2 space-y-2">
                         <Label>Current Transaction Totals</Label>
                         <div className="flex justify-between bg-gray-200 p-2 rounded-md">
                             <Label>Total Rec Amt</Label>
