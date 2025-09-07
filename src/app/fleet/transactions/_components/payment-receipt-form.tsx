@@ -56,7 +56,7 @@ export function PaymentReceiptForm({ accounts, parties, onFormSubmit, onCancel }
   const { toast } = useToast();
   const { user } = useAuth();
   
-  const cashAndBankAccounts = accounts;
+  const cashAndBankAccounts = React.useMemo(() => accounts.filter(a => a.type === 'Cash' || a.type === 'Bank'), [accounts]);
   const generalLedgers = parties; // Assuming parties are used as general ledgers for now
 
   const form = useForm<VoucherFormValues>({
