@@ -1,5 +1,6 @@
 'use client';
 export const runtime = 'nodejs';
+
 import ReportView from './_components/report-view';
 import { use } from 'react';
 

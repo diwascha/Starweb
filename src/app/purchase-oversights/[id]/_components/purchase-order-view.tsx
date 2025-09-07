@@ -1,5 +1,5 @@
-
 'use client';
+export const runtime = 'nodejs';
 
 import { useEffect, useState, Fragment } from 'react';
 import type { PurchaseOrder, PurchaseOrderStatus } from '@/lib/types';
