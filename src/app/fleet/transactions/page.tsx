@@ -35,6 +35,7 @@ import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onPartiesUpdate } from '@/services/party-service';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
+import Link from 'next/link';
 
 
 type TransactionSortKey = 'date' | 'vehicleName' | 'type' | 'partyName' | 'amount' | 'authorship' | 'dueDate';
@@ -126,7 +127,7 @@ export default function TransactionsPage() {
             if (!aVal) return 1;
             if (!bVal) return -1;
             if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-            if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+            if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : 1;
             return 0;
         });
         
@@ -138,6 +139,63 @@ export default function TransactionsPage() {
             <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
               <h3 className="text-2xl font-bold tracking-tight">Loading...</h3>
             </div>
+        );
+    }
+    
+    const renderContent = () => {
+        if (transactions.length === 0) {
+            return (
+                <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
+                  <div className="flex flex-col items-center gap-1 text-center">
+                    <h3 className="text-2xl font-bold tracking-tight">No transactions found</h3>
+                    <p className="text-sm text-muted-foreground">Get started by creating a new transaction.</p>
+                  </div>
+                </div>
+            );
+        }
+
+        return (
+            <Card>
+                <Table><TableHeader><TableRow>
+                    <TableHead><Button variant="ghost" onClick={() => requestSort('date')}>Date</Button></TableHead>
+                    <TableHead><Button variant="ghost" onClick={() => requestSort('vehicleName')}>Vehicle</Button></TableHead>
+                    <TableHead><Button variant="ghost" onClick={() => requestSort('type')}>Type</Button></TableHead>
+                    <TableHead><Button variant="ghost" onClick={() => requestSort('partyName')}>Party</Button></TableHead>
+                    <TableHead><Button variant="ghost" onClick={() => requestSort('amount')}>Amount</Button></TableHead>
+                     <TableHead><Button variant="ghost" onClick={() => requestSort('dueDate')}>Due In</Button></TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                </TableRow></TableHeader>
+                <TableBody>
+                    {sortedAndFilteredTransactions.map(txn => {
+                        const dueDate = txn.dueDate ? new Date(txn.dueDate) : null;
+                        const daysDue = dueDate ? differenceInDays(dueDate, new Date()) : null;
+                        return (
+                        <TableRow key={txn.id}>
+                            <TableCell>{toNepaliDate(txn.date)}</TableCell>
+                            <TableCell>{txn.vehicleName}</TableCell>
+                            <TableCell><Badge variant="outline">{txn.type}</Badge></TableCell>
+                            <TableCell>{txn.partyName}</TableCell>
+                            <TableCell className={cn(['Purchase', 'Payment'].includes(txn.type) ? 'text-red-600' : 'text-green-600')}>{txn.amount.toLocaleString()}</TableCell>
+                            <TableCell>
+                                {daysDue !== null && (
+                                    <Badge variant={daysDue < 0 ? 'destructive' : 'secondary'}>
+                                        {daysDue < 0 ? `Overdue ${-daysDue}d` : `${daysDue}d`}
+                                    </Badge>
+                                )}
+                            </TableCell>
+                            <TableCell className="text-right"><DropdownMenu>
+                                <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    {hasPermission('fleet', 'delete') && (
+                                        <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()}><Trash2 className="mr-2 h-4 w-4 text-destructive" /> <span className="text-destructive">Delete</span></DropdownMenuItem></AlertDialogTrigger>
+                                        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the transaction.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(txn.id)}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+                                    )}
+                                </DropdownMenuContent>
+                            </DropdownMenu></TableCell>
+                        </TableRow>
+                    )})}
+                </TableBody></Table>
+            </Card>
         );
     }
     
@@ -166,47 +224,7 @@ export default function TransactionsPage() {
                         </Select>
                     </div>
                 </div>
-                <Card>
-                    <Table><TableHeader><TableRow>
-                        <TableHead><Button variant="ghost" onClick={() => requestSort('date')}>Date</Button></TableHead>
-                        <TableHead><Button variant="ghost" onClick={() => requestSort('vehicleName')}>Vehicle</Button></TableHead>
-                        <TableHead><Button variant="ghost" onClick={() => requestSort('type')}>Type</Button></TableHead>
-                        <TableHead><Button variant="ghost" onClick={() => requestSort('partyName')}>Party</Button></TableHead>
-                        <TableHead><Button variant="ghost" onClick={() => requestSort('amount')}>Amount</Button></TableHead>
-                         <TableHead><Button variant="ghost" onClick={() => requestSort('dueDate')}>Due In</Button></TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                    </TableRow></TableHeader>
-                    <TableBody>
-                        {sortedAndFilteredTransactions.map(txn => {
-                            const dueDate = txn.dueDate ? new Date(txn.dueDate) : null;
-                            const daysDue = dueDate ? differenceInDays(dueDate, new Date()) : null;
-                            return (
-                            <TableRow key={txn.id}>
-                                <TableCell>{toNepaliDate(txn.date)}</TableCell>
-                                <TableCell>{txn.vehicleName}</TableCell>
-                                <TableCell><Badge variant="outline">{txn.type}</Badge></TableCell>
-                                <TableCell>{txn.partyName}</TableCell>
-                                <TableCell className={cn(['Purchase', 'Payment'].includes(txn.type) ? 'text-red-600' : 'text-green-600')}>{txn.amount.toLocaleString()}</TableCell>
-                                <TableCell>
-                                    {daysDue !== null && (
-                                        <Badge variant={daysDue < 0 ? 'destructive' : 'secondary'}>
-                                            {daysDue < 0 ? `Overdue ${-daysDue}d` : `${daysDue}d`}
-                                        </Badge>
-                                    )}
-                                </TableCell>
-                                <TableCell className="text-right"><DropdownMenu>
-                                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        {hasPermission('fleet', 'delete') && (
-                                            <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()}><Trash2 className="mr-2 h-4 w-4 text-destructive" /> <span className="text-destructive">Delete</span></DropdownMenuItem></AlertDialogTrigger>
-                                            <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the transaction.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(txn.id)}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
-                                        )}
-                                    </DropdownMenuContent>
-                                </DropdownMenu></TableCell>
-                            </TableRow>
-                        )})}
-                    </TableBody></Table>
-                </Card>
+                {renderContent()}
             </section>
         </div>
     );
