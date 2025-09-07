@@ -23,6 +23,7 @@ import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function ClientTransactionsPage() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -32,12 +33,14 @@ export default function ClientTransactionsPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [filterVehicleId, setFilterVehicleId] = useState<string>('All');
+    const [filterPartyId, setFilterPartyId] = useState<string>('All');
     const router = useRouter();
     const { toast } = useToast();
     const { hasPermission } = useAuth();
 
     const vehiclesById = useMemo(() => new Map(vehicles.map(v => [v.id, v.name])), [vehicles]);
     const partiesById = useMemo(() => new Map(parties.map(p => [p.id, p.name])), [parties]);
+    const clients = useMemo(() => parties.filter(p => p.type === 'Client' || p.type === 'Both'), [parties]);
 
     useEffect(() => {
         setIsLoading(true);
@@ -61,8 +64,18 @@ export default function ClientTransactionsPage() {
         }
     };
 
+    const clientTransactions = useMemo(() => {
+        return transactions.filter(t => t.type === 'Sales' || t.type === 'Receipt');
+    }, [transactions]);
+    
+    const clientsWithTransactions = useMemo(() => {
+        const clientIdsInTransactions = new Set(clientTransactions.map(t => t.partyId));
+        return clients.filter(c => clientIdsInTransactions.has(c.id));
+    }, [clientTransactions, clients]);
+
+
     const filteredTransactions = useMemo(() => {
-        let filtered = transactions.filter(t => t.type === 'Sales' || t.type === 'Receipt');
+        let filtered = clientTransactions;
 
         if (searchQuery) {
             const lowercasedQuery = searchQuery.toLowerCase();
@@ -84,9 +97,13 @@ export default function ClientTransactionsPage() {
         if (filterVehicleId !== 'All') {
             filtered = filtered.filter(t => t.vehicleId === filterVehicleId);
         }
+
+        if (filterPartyId !== 'All') {
+            filtered = filtered.filter(t => t.partyId === filterPartyId);
+        }
         
         return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    }, [transactions, searchQuery, dateRange, vehiclesById, partiesById, filterVehicleId]);
+    }, [clientTransactions, searchQuery, dateRange, vehiclesById, partiesById, filterVehicleId, filterPartyId]);
     
     const handleExport = async () => {
         const XLSX = (await import('xlsx'));
@@ -116,7 +133,7 @@ export default function ClientTransactionsPage() {
             );
         }
 
-        if (filteredTransactions.length === 0) {
+        if (clientTransactions.length === 0) {
             return (
                 <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
                   <div className="flex flex-col items-center gap-1 text-center">
@@ -175,31 +192,47 @@ export default function ClientTransactionsPage() {
                 <h1 className="text-3xl font-bold tracking-tight">Client Transactions</h1>
                 <p className="text-muted-foreground">View all sales and receipts from clients.</p>
             </header>
-            <div className="flex flex-col md:flex-row gap-2">
-                <div className="relative flex-1">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input type="search" placeholder="Search by vehicle, client, etc..." className="pl-8 w-full" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
-                </div>
-                <Popover><PopoverTrigger asChild>
-                    <Button id="date" variant={"outline"} className={cn("w-full md:w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {dateRange?.from ? (dateRange.to ? (`${format(dateRange.from, "LLL dd, y")} - ${format(dateRange.to, "LLL dd, y")}`) : format(dateRange.from, "LLL dd, y")) : (<span>Pick a date range</span>)}
+            <div className="flex flex-col gap-4">
+                 <div className="flex flex-col md:flex-row gap-2">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input type="search" placeholder="Search by vehicle, client, etc..." className="pl-8 w-full" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                    </div>
+                    <Popover><PopoverTrigger asChild>
+                        <Button id="date" variant={"outline"} className={cn("w-full md:w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {dateRange?.from ? (dateRange.to ? (`${format(dateRange.from, "LLL dd, y")} - ${format(dateRange.to, "LLL dd, y")}`) : format(dateRange.from, "LLL dd, y")) : (<span>Pick a date range</span>)}
+                        </Button>
+                    </PopoverTrigger><PopoverContent className="w-auto p-0" align="end"><DualDateRangePicker selected={dateRange} onSelect={setDateRange} /></PopoverContent></Popover>
+                    <Select value={filterVehicleId} onValueChange={setFilterVehicleId}>
+                        <SelectTrigger className="w-full md:w-[180px]">
+                            <SelectValue placeholder="All Vehicles" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="All">All Vehicles</SelectItem>
+                            {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                    <Button variant="outline" onClick={handleExport}>
+                        <Download className="mr-2 h-4 w-4" /> Export
                     </Button>
-                </PopoverTrigger><PopoverContent className="w-auto p-0" align="end"><DualDateRangePicker selected={dateRange} onSelect={setDateRange} /></PopoverContent></Popover>
-                <Select value={filterVehicleId} onValueChange={setFilterVehicleId}>
-                    <SelectTrigger className="w-full md:w-[180px]">
-                        <SelectValue placeholder="All Vehicles" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="All">All Vehicles</SelectItem>
-                        {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
-                    </SelectContent>
-                </Select>
-                <Button variant="outline" onClick={handleExport}>
-                    <Download className="mr-2 h-4 w-4" /> Export
-                </Button>
+                </div>
+                 <div>
+                    <Tabs value={filterPartyId} onValueChange={setFilterPartyId}>
+                        <TabsList>
+                            <TabsTrigger value="All">All Clients</TabsTrigger>
+                            {clientsWithTransactions.map(client => (
+                                <TabsTrigger key={client.id} value={client.id}>
+                                    {client.name}
+                                </TabsTrigger>
+                            ))}
+                        </TabsList>
+                    </Tabs>
+                </div>
             </div>
             {renderContent()}
         </div>
     );
 }
+
+    
