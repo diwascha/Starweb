@@ -13,7 +13,7 @@ import { onTransactionsUpdate, saveVoucher, deleteVoucher } from '@/services/tra
 import { PaymentReceiptForm } from '../../_components/payment-receipt-form';
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Download, CalendarIcon, ArrowUpDown, MoreHorizontal, View, Edit, Printer, Trash2 } from 'lucide-react';
+import { PlusCircle, Download, CalendarIcon, ArrowUpDown, MoreHorizontal, View, Edit, Printer, Trash2, User } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -27,9 +27,10 @@ import * as XLSX from 'xlsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 
-type SortKey = 'date' | 'totalAmount' | 'voucherNo';
+type SortKey = 'date' | 'totalAmount' | 'voucherNo' | 'authorship';
 type SortDirection = 'asc' | 'desc';
 
 interface GroupedVoucher {
@@ -41,6 +42,10 @@ interface GroupedVoucher {
     parties: string[];
     vehicles: string[];
     transactions: Transaction[];
+    createdBy?: string;
+    createdAt?: string;
+    lastModifiedBy?: string;
+    lastModifiedAt?: string;
 }
 
 
@@ -137,6 +142,10 @@ export default function NewPaymentReceiptPage() {
                     parties: [],
                     vehicles: [],
                     transactions: [],
+                    createdBy: t.createdBy,
+                    createdAt: t.createdAt,
+                    lastModifiedBy: t.lastModifiedBy,
+                    lastModifiedAt: t.lastModifiedAt,
                 };
             }
             const group = acc[voucherKey];
@@ -144,6 +153,12 @@ export default function NewPaymentReceiptPage() {
             if (t.partyId) group.parties.push(t.partyId);
             group.vehicles.push(t.vehicleId);
             group.transactions.push(t);
+            
+            // Keep the latest modification info
+            if (t.lastModifiedAt && (!group.lastModifiedAt || new Date(t.lastModifiedAt) > new Date(group.lastModifiedAt))) {
+                group.lastModifiedAt = t.lastModifiedAt;
+                group.lastModifiedBy = t.lastModifiedBy;
+            }
 
             return acc;
 
@@ -172,6 +187,15 @@ export default function NewPaymentReceiptPage() {
         }
 
         filtered.sort((a, b) => {
+            if (sortConfig.key === 'authorship') {
+                const aDate = a.lastModifiedAt || a.createdAt;
+                const bDate = b.lastModifiedAt || b.createdAt;
+                if (!aDate || !bDate) return 0;
+                if (aDate < bDate) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (aDate > bDate) return sortConfig.direction === 'asc' ? 1 : -1;
+                return 0;
+            }
+
             const aVal = a[sortConfig.key];
             const bVal = b[sortConfig.key];
             if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
@@ -268,6 +292,7 @@ export default function NewPaymentReceiptPage() {
                                             <TableHead><Button variant="ghost" onClick={() => requestSort('date')}>Date <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                                             <TableHead>Type</TableHead>
                                             <TableHead><Button variant="ghost" onClick={() => requestSort('totalAmount')}>Amount <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                            <TableHead><Button variant="ghost" onClick={() => requestSort('authorship')}>Authorship <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                                             <TableHead className="text-right">Actions</TableHead>
                                         </TableRow>
                                     </TableHeader>
@@ -278,6 +303,30 @@ export default function NewPaymentReceiptPage() {
                                                 <TableCell>{toNepaliDate(voucher.date)}</TableCell>
                                                 <TableCell><Badge variant="outline">{voucher.type}</Badge></TableCell>
                                                 <TableCell className={cn(voucher.type === 'Payment' ? 'text-red-600' : 'text-green-600')}>{voucher.totalAmount.toLocaleString()}</TableCell>
+                                                <TableCell>
+                                                    <TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-default">
+                                                                {voucher.lastModifiedBy ? <Edit className="h-4 w-4" /> : <User className="h-4 w-4" />}
+                                                                <span>{voucher.lastModifiedBy || voucher.createdBy}</span>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                {voucher.createdBy && (
+                                                                    <p>
+                                                                    Created by: {voucher.createdBy}
+                                                                    {voucher.createdAt ? ` on ${format(new Date(voucher.createdAt), "PP")}` : ''}
+                                                                    </p>
+                                                                )}
+                                                                {voucher.lastModifiedBy && voucher.lastModifiedAt && (
+                                                                <p>
+                                                                    Modified by: {voucher.lastModifiedBy}
+                                                                    {voucher.lastModifiedAt ? ` on ${format(new Date(voucher.lastModifiedAt), "PP")}` : ''}
+                                                                </p>
+                                                                )}
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
+                                                </TableCell>
                                                 <TableCell className="text-right">
                                                    <DropdownMenu>
                                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
