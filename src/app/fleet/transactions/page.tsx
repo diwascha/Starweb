@@ -49,6 +49,7 @@ export default function TransactionsPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [sortConfig, setSortConfig] = useState<{ key: TransactionSortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
     const [filterVehicleId, setFilterVehicleId] = useState<string>('All');
+    const [filterPartyId, setFilterPartyId] = useState<string>('All');
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     
     const { toast } = useToast();
@@ -111,6 +112,10 @@ export default function TransactionsPage() {
             augmented = augmented.filter(t => t.vehicleId === filterVehicleId);
         }
 
+        if (filterPartyId !== 'All') {
+            augmented = augmented.filter(t => t.partyId === filterPartyId);
+        }
+
         if (dateRange?.from) {
             const interval = {
                 start: startOfDay(dateRange.from),
@@ -130,7 +135,7 @@ export default function TransactionsPage() {
         });
         
         return augmented;
-    }, [transactions, searchQuery, sortConfig, vehiclesById, partiesById, filterVehicleId, dateRange]);
+    }, [transactions, searchQuery, sortConfig, vehiclesById, partiesById, filterVehicleId, filterPartyId, dateRange]);
     
      const handleExport = async () => {
         const XLSX = (await import('xlsx'));
@@ -236,6 +241,10 @@ export default function TransactionsPage() {
                                 {dateRange?.from ? (dateRange.to ? (`${format(dateRange.from, "LLL dd, y")} - ${format(dateRange.to, "LLL dd, y")}`) : format(dateRange.from, "LLL dd, y")) : (<span>Pick a date range</span>)}
                             </Button>
                         </PopoverTrigger><PopoverContent className="w-auto p-0" align="end"><DualDateRangePicker selected={dateRange} onSelect={setDateRange} /></PopoverContent></Popover>
+                        <Select value={filterPartyId} onValueChange={setFilterPartyId}>
+                            <SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="All Parties" /></SelectTrigger>
+                            <SelectContent><SelectItem value="All">All Parties</SelectItem>{parties.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+                        </Select>
                         <Select value={filterVehicleId} onValueChange={setFilterVehicleId}>
                             <SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="All Vehicles" /></SelectTrigger>
                             <SelectContent><SelectItem value="All">All Vehicles</SelectItem>{vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}</SelectContent>
