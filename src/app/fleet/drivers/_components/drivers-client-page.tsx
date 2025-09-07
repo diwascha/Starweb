@@ -48,7 +48,6 @@ type SortDirection = 'asc' | 'desc';
 
 export default function DriversClientPage({ initialDrivers }: { initialDrivers: Driver[] }) {
     const [drivers, setDrivers] = useState<Driver[]>(initialDrivers);
-    const [isLoading, setIsLoading] = useState(false);
     
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
@@ -213,14 +212,6 @@ export default function DriversClientPage({ initialDrivers }: { initialDrivers: 
     }, [drivers, searchQuery, sortConfig]);
 
     const renderContent = () => {
-        if (isLoading) {
-            return (
-                <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
-                  <h3 className="text-2xl font-bold tracking-tight">Loading...</h3>
-                </div>
-            );
-        }
-
         if (drivers.length === 0) {
             return (
                 <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">

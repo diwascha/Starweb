@@ -47,7 +47,6 @@ type SortDirection = 'asc' | 'desc';
 export default function VehiclesClientPage({ initialVehicles, initialDrivers }: { initialVehicles: Vehicle[], initialDrivers: Driver[] }) {
     const [vehicles, setVehicles] = useState<Vehicle[]>(initialVehicles);
     const [drivers, setDrivers] = useState<Driver[]>(initialDrivers);
-    const [isLoading, setIsLoading] = useState(false);
     
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
@@ -188,14 +187,6 @@ export default function VehiclesClientPage({ initialVehicles, initialDrivers }: 
 
 
     const renderContent = () => {
-        if (isLoading) {
-            return (
-                <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
-                  <h3 className="text-2xl font-bold tracking-tight">Loading...</h3>
-                </div>
-            );
-        }
-
         if (vehicles.length === 0) {
             return (
                 <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
