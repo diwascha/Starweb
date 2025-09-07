@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import type { Party } from '@/lib/types';
 
 const partiesCollection = collection(db, 'parties');
@@ -42,4 +42,7 @@ export const updateParty = async (id: string, party: Partial<Omit<Party, 'id'>>)
     });
 };
 
-    
+export const deleteParty = async (id: string): Promise<void> => {
+    const partyDoc = doc(db, 'parties', id);
+    await deleteDoc(partyDoc);
+};
