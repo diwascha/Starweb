@@ -11,6 +11,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
     const data = snapshot.data();
     return {
         id: snapshot.id,
+        tripNumber: data.tripNumber,
         date: data.date,
         vehicleId: data.vehicleId,
         partyId: data.partyId,

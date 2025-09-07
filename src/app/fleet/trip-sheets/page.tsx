@@ -1,11 +1,10 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { PlusCircle, MoreHorizontal, Edit, Trash2, View, ArrowUpDown, Search, User, X } from 'lucide-react';
-import type { Trip, Vehicle } from '@/lib/types';
+import type { Trip, Vehicle, Party } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import {
@@ -42,10 +41,11 @@ import { format, differenceInDays } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
 import { onTripsUpdate, deleteTrip } from '@/services/trip-service';
 import { onVehiclesUpdate } from '@/services/vehicle-service';
+import { onPartiesUpdate } from '@/services/party-service';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
 
-type SortKey = 'date' | 'vehicleName' | 'finalDestination' | 'netAmount' | 'authorship';
+type SortKey = 'date' | 'vehicleName' | 'clientName' | 'finalDestination' | 'netAmount' | 'authorship';
 type SortDirection = 'asc' | 'desc';
 
 interface CalculationDetails {
@@ -62,6 +62,7 @@ interface CalculationDetails {
 export default function TripSheetsPage() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [parties, setParties] = useState<Party[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({
@@ -78,16 +79,19 @@ export default function TripSheetsPage() {
   const { hasPermission, user } = useAuth();
   
   const vehiclesById = useMemo(() => new Map(vehicles.map(v => [v.id, v.name])), [vehicles]);
+  const partiesById = useMemo(() => new Map(parties.map(p => [p.id, p.name])), [parties]);
 
   useEffect(() => {
     setIsLoading(true);
     const unsubTrips = onTripsUpdate(setTrips);
     const unsubVehicles = onVehiclesUpdate(setVehicles);
+    const unsubParties = onPartiesUpdate(setParties);
     setIsLoading(false);
 
     return () => {
         unsubTrips();
         unsubVehicles();
+        unsubParties();
     };
   }, []);
   
@@ -142,11 +146,12 @@ export default function TripSheetsPage() {
           return {
               ...trip,
               vehicleName: vehiclesById.get(trip.vehicleId) || 'N/A',
+              clientName: partiesById.get(trip.partyId) || 'N/A',
               finalDestination,
               netAmount: netPay, // This is the client payable amount
           }
       });
-  }, [trips, vehiclesById]);
+  }, [trips, vehiclesById, partiesById]);
   
   const filteredAndSortedTrips = useMemo(() => {
     let filtered = [...augmentedTrips];
@@ -155,6 +160,7 @@ export default function TripSheetsPage() {
         const lowercasedQuery = searchQuery.toLowerCase();
         filtered = filtered.filter(trip =>
             (trip.vehicleName || '').toLowerCase().includes(lowercasedQuery) ||
+            (trip.clientName || '').toLowerCase().includes(lowercasedQuery) ||
             (trip.finalDestination || '').toLowerCase().includes(lowercasedQuery)
         );
     }
@@ -205,6 +211,7 @@ export default function TripSheetsPage() {
             <TableHeader><TableRow>
                 <TableHead><Button variant="ghost" onClick={() => requestSort('date')}>Date</Button></TableHead>
                 <TableHead><Button variant="ghost" onClick={() => requestSort('vehicleName')}>Vehicle</Button></TableHead>
+                <TableHead><Button variant="ghost" onClick={() => requestSort('clientName')}>Client</Button></TableHead>
                 <TableHead><Button variant="ghost" onClick={() => requestSort('finalDestination')}>Destination</Button></TableHead>
                 <TableHead><Button variant="ghost" onClick={() => requestSort('netAmount')}>Net Bank Pay</Button></TableHead>
                 <TableHead><Button variant="ghost" onClick={() => requestSort('authorship')}>Authorship</Button></TableHead>
@@ -215,6 +222,7 @@ export default function TripSheetsPage() {
                 <TableRow key={trip.id}>
                     <TableCell className="font-medium">{toNepaliDate(trip.date)}</TableCell>
                     <TableCell>{trip.vehicleName}</TableCell>
+                    <TableCell>{trip.clientName}</TableCell>
                     <TableCell>{trip.finalDestination}</TableCell>
                     <TableCell>
                         <Button variant="link" className="p-0 h-auto" onClick={() => openCalcDialog(trip)}>
