@@ -375,17 +375,17 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                     ...tripDataForDb,
                     lastModifiedBy: user.username
                 });
-                toast({ title: 'Success', description: 'Trip sheet updated successfully.' });
+                toast({ title: 'Success', description: 'Sales - Trip Sheet updated successfully.' });
                 router.push('/fleet/trip-sheets');
             } else {
                 await addTrip(tripDataForDb);
-                toast({ title: 'Success', description: 'Trip sheet created and transaction recorded.' });
+                toast({ title: 'Success', description: 'Sales - Trip Sheet created and transaction recorded.' });
                 router.push('/fleet/transactions');
             }
 
         } catch (error) {
             console.error(error);
-            toast({ title: 'Error', description: 'Failed to save trip sheet.', variant: 'destructive' });
+            toast({ title: 'Error', description: 'Failed to save sales - trip sheet.', variant: 'destructive' });
         } finally {
             setIsSubmitting(false);
         }
@@ -990,7 +990,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                             Cancel
                         </Button>
                         <Button type="submit" disabled={isSubmitting}>
-                            {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : (tripToEdit ? 'Update Trip Sheet' : 'Save Trip Sheet')}
+                            {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : (tripToEdit ? 'Update Sales - Trip Sheet' : 'Save Sales - Trip Sheet')}
                         </Button>
                     </div>
                 </form>

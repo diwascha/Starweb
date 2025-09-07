@@ -253,7 +253,7 @@ export function AppSidebar() {
                             <SidebarMenuButton asChild isActive={getIsActive('/fleet/trip-sheets')}>
                             <Link href="/fleet/trip-sheets">
                                 <FileText />
-                                <span>Trip Sheets</span>
+                                <span>Sales - Trip Sheet</span>
                             </Link>
                             </SidebarMenuButton>
                         </SidebarMenuItem>

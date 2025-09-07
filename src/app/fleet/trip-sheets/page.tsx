@@ -153,12 +153,12 @@ export default function TripSheetsPage() {
         return (
           <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
             <div className="flex flex-col items-center gap-1 text-center">
-              <h3 className="text-2xl font-bold tracking-tight">No trip sheets yet</h3>
-              <p className="text-sm text-muted-foreground">Get started by creating a new trip sheet.</p>
+              <h3 className="text-2xl font-bold tracking-tight">No sales - trip sheets yet</h3>
+              <p className="text-sm text-muted-foreground">Get started by creating a new sales - trip sheet.</p>
               {hasPermission('fleet', 'create') && (
                 <Button className="mt-4" asChild>
                     <Link href="/fleet/trip-sheets/new">
-                    <PlusCircle className="mr-2 h-4 w-4" /> New Trip Sheet
+                    <PlusCircle className="mr-2 h-4 w-4" /> New Sales - Trip Sheet
                     </Link>
                 </Button>
               )}
@@ -218,7 +218,7 @@ export default function TripSheetsPage() {
     <div className="flex flex-col gap-8">
       <header className="flex items-center justify-between">
         <div>
-            <h1 className="text-3xl font-bold tracking-tight">Trip Sheets</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Sales - Trip Sheets</h1>
             <p className="text-muted-foreground">Manage sales trips and track their profitability.</p>
         </div>
         <div className="flex items-center gap-2">
@@ -227,7 +227,7 @@ export default function TripSheetsPage() {
                 <Input type="search" placeholder="Search trips..." className="pl-8 sm:w-[300px]" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
             </div>
             {hasPermission('fleet', 'create') && (
-                <Button asChild><Link href="/fleet/trip-sheets/new"><PlusCircle className="mr-2 h-4 w-4" /> New Trip Sheet</Link></Button>
+                <Button asChild><Link href="/fleet/trip-sheets/new"><PlusCircle className="mr-2 h-4 w-4" /> New Sales - Trip Sheet</Link></Button>
             )}
         </div>
       </header>
