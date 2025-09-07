@@ -191,7 +191,7 @@ export default function NewPurchasePage() {
     }, [transactions, searchQuery, dateRange, sortConfig, filterVehicleId, filterPartyId, vehicles, parties]);
     
     const handleExport = async () => {
-        const XLSX = await import('xlsx');
+        const XLSX = (await import('xlsx'));
         const vehiclesById = new Map(vehicles.map(v => [v.id, v.name]));
         const partiesById = new Map(parties.map(p => [p.id, p.name]));
 

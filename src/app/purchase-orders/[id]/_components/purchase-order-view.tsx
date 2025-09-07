@@ -13,18 +13,23 @@ import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { differenceInDays } from 'date-fns';
+import { getPurchaseOrder } from '@/services/purchase-order-service';
 
 
 const paperTypes = ['Kraft Paper', 'Virgin Paper'];
 
-export default function PurchaseOrderView({ initialPurchaseOrder }: { initialPurchaseOrder: PurchaseOrder }) {
-  const [purchaseOrder, setPurchaseOrder] = useState<PurchaseOrder>(initialPurchaseOrder);
+export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { initialPurchaseOrder: PurchaseOrder | null, poId?: string }) {
+  const [purchaseOrder, setPurchaseOrder] = useState<PurchaseOrder | null>(initialPurchaseOrder);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
-    setPurchaseOrder(initialPurchaseOrder);
-  }, [initialPurchaseOrder]);
+    if (initialPurchaseOrder) {
+      setPurchaseOrder(initialPurchaseOrder);
+    } else if (poId) {
+      getPurchaseOrder(poId).then(setPurchaseOrder);
+    }
+  }, [initialPurchaseOrder, poId]);
   
   const handleSaveAsPdf = async () => {
     if (!purchaseOrder) return;

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -30,7 +31,7 @@ export default function PurchaseViewClient({
   const [parties, setParties] = useState<Party[]>(initialParties);
   const [accounts, setAccounts] = useState<Account[]>(initialAccounts);
   
-  const handlePrint = () => {
+  const handlePrint = async () => {
     setTimeout(() => {
         window.print();
     }, 100);
