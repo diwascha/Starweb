@@ -19,6 +19,11 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Employee 
     };
 }
 
+export const getEmployees = async (): Promise<Employee[]> => {
+    const snapshot = await getDocs(employeesCollection);
+    return snapshot.docs.map(fromFirestore);
+};
+
 export const addEmployee = async (employee: Omit<Employee, 'id'>): Promise<string> => {
     const docRef = await addDoc(employeesCollection, {
         ...employee,

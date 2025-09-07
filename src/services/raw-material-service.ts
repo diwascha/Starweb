@@ -23,6 +23,12 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): RawMateri
     };
 }
 
+export const getRawMaterials = async (): Promise<RawMaterial[]> => {
+    const snapshot = await getDocs(rawMaterialsCollection);
+    return snapshot.docs.map(fromFirestore);
+};
+
+
 // Function to consolidate units
 const consolidateUnits = async (materials: RawMaterial[], createdBy: string = 'System') => {
     try {

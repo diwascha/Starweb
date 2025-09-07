@@ -24,6 +24,11 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
     };
 }
 
+export const getPurchaseOrders = async (): Promise<PurchaseOrder[]> => {
+    const snapshot = await getDocs(purchaseOrdersCollection);
+    return snapshot.docs.map(fromFirestore);
+};
+
 export const addPurchaseOrder = async (po: Omit<PurchaseOrder, 'id'>): Promise<string> => {
     const docRef = await addDoc(purchaseOrdersCollection, po);
     return docRef.id;

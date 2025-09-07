@@ -21,6 +21,11 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Attendanc
     };
 };
 
+export const getAttendance = async (): Promise<AttendanceRecord[]> => {
+    const snapshot = await getDocs(attendanceCollection);
+    return snapshot.docs.map(fromFirestore);
+};
+
 export const addAttendanceRecords = async (records: Omit<AttendanceRecord, 'id'>[]): Promise<void> => {
     const batch = writeBatch(db);
     records.forEach(record => {
