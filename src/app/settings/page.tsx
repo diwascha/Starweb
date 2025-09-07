@@ -419,7 +419,7 @@ export default function SettingsPage() {
                 <TabsTrigger value="parties">Vendors & Suppliers</TabsTrigger>
                 <TabsTrigger value="accounts">Accounts</TabsTrigger>
                 <TabsTrigger value="uom">Units of Measurement</TabsTrigger>
-                <TabsTrigger value="report-numbering">Report Numbering</TabsTrigger>
+                <TabsTrigger value="document-numbering">Document Numbering</TabsTrigger>
             </TabsList>
             <TabsContent value="users-security">
                 <div className="space-y-6">
@@ -602,7 +602,7 @@ export default function SettingsPage() {
                     </CardContent>
                 </Card>
             </TabsContent>
-            <TabsContent value="report-numbering">
+            <TabsContent value="document-numbering">
                 <Card>
                     <CardHeader>
                         <CardTitle>Document Numbering</CardTitle>
