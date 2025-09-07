@@ -34,9 +34,11 @@ import { onPartiesUpdate } from '@/services/party-service';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type TransactionSortKey = 'date' | 'vehicleName' | 'type' | 'partyName' | 'amount' | 'authorship' | 'dueDate';
 type SortDirection = 'asc' | 'desc';
+type TransactionFilterType = 'All' | 'Sales' | 'Purchase' | 'PaymentReceipt';
 
 export default function TransactionsPage() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -48,9 +50,8 @@ export default function TransactionsPage() {
     // Search & Filter
     const [searchQuery, setSearchQuery] = useState('');
     const [sortConfig, setSortConfig] = useState<{ key: TransactionSortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
-    const [filterVehicleId, setFilterVehicleId] = useState<string>('All');
-    const [filterPartyId, setFilterPartyId] = useState<string>('All');
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+    const [activeTab, setActiveTab] = useState<TransactionFilterType>('All');
     
     const { toast } = useToast();
     const { hasPermission, user } = useAuth();
@@ -98,6 +99,14 @@ export default function TransactionsPage() {
             partyName: t.partyId ? partiesById.get(t.partyId) || 'N/A' : 'N/A',
         }));
 
+        if (activeTab !== 'All') {
+            if (activeTab === 'PaymentReceipt') {
+                augmented = augmented.filter(t => t.type === 'Payment' || t.type === 'Receipt');
+            } else {
+                augmented = augmented.filter(t => t.type === activeTab);
+            }
+        }
+        
         if (searchQuery) {
             const lowercasedQuery = searchQuery.toLowerCase();
             augmented = augmented.filter(t =>
@@ -106,14 +115,6 @@ export default function TransactionsPage() {
                 (t.remarks || '').toLowerCase().includes(lowercasedQuery) ||
                 t.type.toLowerCase().includes(lowercasedQuery)
             );
-        }
-        
-        if (filterVehicleId !== 'All') {
-            augmented = augmented.filter(t => t.vehicleId === filterVehicleId);
-        }
-
-        if (filterPartyId !== 'All') {
-            augmented = augmented.filter(t => t.partyId === filterPartyId);
         }
 
         if (dateRange?.from) {
@@ -135,7 +136,7 @@ export default function TransactionsPage() {
         });
         
         return augmented;
-    }, [transactions, searchQuery, sortConfig, vehiclesById, partiesById, filterVehicleId, filterPartyId, dateRange]);
+    }, [transactions, searchQuery, sortConfig, vehiclesById, partiesById, dateRange, activeTab]);
     
      const handleExport = async () => {
         const XLSX = (await import('xlsx'));
@@ -229,32 +230,36 @@ export default function TransactionsPage() {
                 <p className="text-muted-foreground">Manage your fleet's financial transactions and view summaries.</p>
             </header>
             <section>
-                 <div className="flex flex-col md:flex-row gap-2 mb-4">
-                    <div className="relative flex-1">
-                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input type="search" placeholder="Search..." className="pl-8 w-full" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
-                    </div>
-                    <div className="flex gap-2 flex-wrap">
-                        <Popover><PopoverTrigger asChild>
-                            <Button id="date" variant={"outline"} className={cn("w-full md:w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {dateRange?.from ? (dateRange.to ? (`${format(dateRange.from, "LLL dd, y")} - ${format(dateRange.to, "LLL dd, y")}`) : format(dateRange.from, "LLL dd, y")) : (<span>Pick a date range</span>)}
+                <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TransactionFilterType)}>
+                    <div className="flex flex-col md:flex-row gap-4 mb-4">
+                        <div className="flex-1">
+                           <TabsList className="grid w-full grid-cols-4 md:w-auto">
+                                <TabsTrigger value="All">All</TabsTrigger>
+                                <TabsTrigger value="Sales">Sales</TabsTrigger>
+                                <TabsTrigger value="Purchase">Purchase</TabsTrigger>
+                                <TabsTrigger value="PaymentReceipt">Payments & Receipts</TabsTrigger>
+                            </TabsList>
+                        </div>
+                        <div className="flex flex-col md:flex-row gap-2">
+                             <div className="relative flex-1">
+                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <Input type="search" placeholder="Search..." className="pl-8 w-full" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                            </div>
+                            <Popover><PopoverTrigger asChild>
+                                <Button id="date" variant={"outline"} className={cn("w-full md:w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {dateRange?.from ? (dateRange.to ? (`${format(dateRange.from, "LLL dd, y")} - ${format(dateRange.to, "LLL dd, y")}`) : format(dateRange.from, "LLL dd, y")) : (<span>Pick a date range</span>)}
+                                </Button>
+                            </PopoverTrigger><PopoverContent className="w-auto p-0" align="end"><DualDateRangePicker selected={dateRange} onSelect={setDateRange} /></PopoverContent></Popover>
+                            <Button variant="outline" onClick={handleExport}>
+                                <Download className="mr-2 h-4 w-4" /> Export
                             </Button>
-                        </PopoverTrigger><PopoverContent className="w-auto p-0" align="end"><DualDateRangePicker selected={dateRange} onSelect={setDateRange} /></PopoverContent></Popover>
-                        <Select value={filterPartyId} onValueChange={setFilterPartyId}>
-                            <SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="All Parties" /></SelectTrigger>
-                            <SelectContent><SelectItem value="All">All Parties</SelectItem>{parties.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
-                        </Select>
-                        <Select value={filterVehicleId} onValueChange={setFilterVehicleId}>
-                            <SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="All Vehicles" /></SelectTrigger>
-                            <SelectContent><SelectItem value="All">All Vehicles</SelectItem>{vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}</SelectContent>
-                        </Select>
-                        <Button variant="outline" onClick={handleExport}>
-                            <Download className="mr-2 h-4 w-4" /> Export
-                        </Button>
+                        </div>
                     </div>
-                </div>
-                {renderContent()}
+                     <TabsContent value={activeTab} className="mt-4">
+                        {renderContent()}
+                     </TabsContent>
+                </Tabs>
             </section>
         </div>
     );
