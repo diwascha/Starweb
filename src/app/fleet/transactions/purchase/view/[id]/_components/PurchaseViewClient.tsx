@@ -71,7 +71,9 @@ export default function PurchaseViewClient({
 
        <div className="printable-area space-y-4 p-4 border rounded-lg bg-white text-black">
             <header className="text-center space-y-1 mb-4">
-                <h1 className="text-xl font-bold">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
+                <h1 className="text-xl font-bold">SIJAN DHUWANI SEWA</h1>
+                 <p className="text-sm">HETAUDA 16, BAGMATI PROVIENCE, NEPAL</p>
+                <p className="text-xs">PAN: 304603712</p>
                 <h2 className="text-lg font-semibold">PURCHASE VOUCHER</h2>
             </header>
             

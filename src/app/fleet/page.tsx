@@ -146,8 +146,8 @@ export default function FleetDashboardPage() {
     return (
         <div className="flex flex-col gap-8">
             <header>
-                <h1 className="text-3xl font-bold tracking-tight">Fleet Dashboard</h1>
-                <p className="text-muted-foreground">An overview of your fleet's operational and financial status.</p>
+                <h1 className="text-3xl font-bold tracking-tight">SIJAN DHUWANI SEWA</h1>
+                <p className="text-muted-foreground">HETAUDA 16, BAGMATI PROVIENCE, NEPAL - PAN: 304603712</p>
             </header>
             
             <div className="grid gap-6 md:grid-cols-3">
