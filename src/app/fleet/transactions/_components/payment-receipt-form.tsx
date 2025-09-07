@@ -94,10 +94,6 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
   
   const watchedItems = form.watch("items");
   const watchedBillingType = form.watch("billingType");
-  const watchedAccountId = form.watch("accountId");
-  const watchedFirstItem = form.watch("items.0");
-  
-  const selectedAccount = cashAndBankAccounts.find(a => a.id === watchedAccountId);
   
   const { totalRec, totalPay, netAmount } = React.useMemo(() => {
     const rec = watchedItems.reduce((sum, item) => sum + (Number(item.recAmount) || 0), 0);
@@ -110,42 +106,44 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
   }, [watchedItems]);
   
   const summaryData = React.useMemo(() => {
-    const ledgerId = watchedFirstItem?.ledgerId;
-    const vehicleId = watchedFirstItem?.vehicleId;
+    return watchedItems.map(item => {
+        const { ledgerId, vehicleId, recAmount = 0, payAmount = 0 } = item;
+        
+        if (!ledgerId && !vehicleId) {
+            return {
+                ledgerName: 'N/A',
+                vehicleName: 'N/A',
+                receivable: 0,
+                payable: 0,
+            };
+        }
+        
+        const filteredTxns = transactions.filter(t => {
+            const partyMatch = ledgerId ? t.partyId === ledgerId : false;
+            const vehicleMatch = vehicleId ? t.vehicleId === vehicleId : false;
+            return partyMatch || vehicleMatch;
+        });
 
-    if (!ledgerId && !vehicleId) return { receivables: 0, payables: 0, title: 'Select a Ledger or Vehicle' };
+        const balances = filteredTxns.reduce((acc, t) => {
+            if (t.type === 'Sales') acc.receivables += t.amount;
+            if (t.type === 'Receipt') acc.receivables -= t.amount;
+            if (t.type === 'Purchase') acc.payables += t.amount;
+            if (t.type === 'Payment') acc.payables -= t.amount;
+            return acc;
+        }, { receivables: 0, payables: 0 });
+        
+        // Adjust with current form values
+        const finalReceivable = balances.receivables - recAmount;
+        const finalPayable = balances.payables - payAmount;
 
-    let filteredTxns: Transaction[];
-    let titleParts: (string | undefined)[] = [];
-
-    const selectedPartyName = parties.find(p => p.id === ledgerId)?.name;
-    const selectedVehicleName = vehicles.find(v => v.id === vehicleId)?.name;
-    
-    titleParts.push(selectedPartyName);
-    if(vehicleId && selectedVehicleName) titleParts.push(selectedVehicleName);
-
-
-    if (ledgerId && vehicleId) {
-      filteredTxns = transactions.filter(t => t.partyId === ledgerId || t.vehicleId === vehicleId);
-    } else if (ledgerId) {
-      filteredTxns = transactions.filter(t => t.partyId === ledgerId);
-    } else if (vehicleId) {
-      filteredTxns = transactions.filter(t => t.vehicleId === vehicleId);
-    } else {
-      filteredTxns = [];
-    }
-    
-    const { receivables, payables } = filteredTxns.reduce((acc, t) => {
-        if (t.type === 'Sales') acc.receivables += t.amount;
-        if (t.type === 'Receipt') acc.receivables -= t.amount;
-        if (t.type === 'Purchase') acc.payables += t.amount;
-        if (t.type === 'Payment') acc.payables -= t.amount;
-        return acc;
-    }, { receivables: 0, payables: 0 });
-
-
-    return { receivables, payables, title: titleParts.filter(Boolean).join(' & ') || 'Summary' };
-  }, [watchedFirstItem, transactions, parties, vehicles]);
+        return {
+            ledgerName: parties.find(p => p.id === ledgerId)?.name || 'N/A',
+            vehicleName: vehicles.find(v => v.id === vehicleId)?.name || 'N/A',
+            receivable: finalReceivable,
+            payable: finalPayable,
+        };
+    });
+  }, [watchedItems, transactions, parties, vehicles]);
 
 
 
@@ -284,7 +282,7 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
             <CardContent className="p-0">
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                      <div className="space-y-2">
-                         <Label>Summary for {summaryData.title}</Label>
+                         <Label>Summary of Current Entries</Label>
                         <div className="p-2 rounded-lg bg-gray-200">
                           <Table>
                             <TableHeader>
@@ -292,21 +290,20 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
                                 <TableHead className="w-[50px]">S.No</TableHead>
                                 <TableHead>Ledger</TableHead>
                                 <TableHead>Vehicle</TableHead>
+                                <TableHead>A/C Receivable</TableHead>
+                                <TableHead>A/C Payable</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                              {watchedItems.map((item, index) => {
-                                const ledger = generalLedgers.find(p => p.id === item.ledgerId);
-                                const vehicle = vehicles.find(v => v.id === item.vehicleId);
-                                if (!ledger || !vehicle) return null;
-                                return (
+                              {summaryData.map((item, index) => (
                                   <TableRow key={index}>
                                     <TableCell>{index + 1}</TableCell>
-                                    <TableCell>{ledger?.name}</TableCell>
-                                    <TableCell>{vehicle?.name}</TableCell>
+                                    <TableCell>{item.ledgerName}</TableCell>
+                                    <TableCell>{item.vehicleName}</TableCell>
+                                    <TableCell>{item.receivable.toLocaleString()}</TableCell>
+                                    <TableCell>{item.payable.toLocaleString()}</TableCell>
                                   </TableRow>
-                                )
-                              })}
+                                ))}
                             </TableBody>
                           </Table>
                         </div>
