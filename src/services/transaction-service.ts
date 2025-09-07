@@ -26,6 +26,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Transacti
         remarks: data.remarks,
         tripId: data.tripId,
         type: data.type,
+        voucherId: data.voucherId,
         createdBy: data.createdBy,
         createdAt: data.createdAt,
         lastModifiedBy: data.lastModifiedBy,
@@ -44,6 +45,7 @@ export const addTransaction = async (transaction: Omit<Transaction, 'id' | 'crea
 export const saveVoucher = async (voucherData: any, createdBy: string) => {
     const batch = writeBatch(db);
     const now = new Date().toISOString();
+    const voucherId = doc(transactionsCollection).id; // Generate a unique ID for the voucher group
 
     voucherData.items.forEach((item: any) => {
         const { ledgerId, vehicleId, recAmount, payAmount, narration } = item;
@@ -74,6 +76,7 @@ export const saveVoucher = async (voucherData: any, createdBy: string) => {
                 accountId: voucherData.accountId || null,
                 chequeNumber: voucherData.chequeNo || null,
                 chequeDate: voucherData.chequeDate ? voucherData.chequeDate.toISOString() : null,
+                voucherId: voucherId,
                 createdBy: createdBy,
                 createdAt: now,
                 lastModifiedAt: now,
