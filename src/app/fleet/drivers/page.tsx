@@ -361,10 +361,10 @@ export default function DriversPage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4">
                     <div className="md:col-span-1 flex flex-col items-center gap-4">
                         <Label htmlFor="photo">Driver Photo</Label>
-                        <div className="w-40 h-40 rounded-full border border-dashed flex items-center justify-center bg-muted/50 relative">
+                        <div className="w-40 h-40 rounded-full border border-dashed flex items-center justify-center bg-muted/50 relative overflow-hidden">
                             {photoPreview ? (
                                 <>
-                                    <Image src={photoPreview} alt="Driver preview" layout="fill" objectFit="cover" className="rounded-full" />
+                                    <Image src={photoPreview} alt="Driver preview" layout="fill" objectFit="cover" />
                                     <Button variant="destructive" size="icon" className="absolute top-0 right-0 h-8 w-8 rounded-full" onClick={removePhoto}>
                                         <X className="h-4 w-4" />
                                     </Button>
