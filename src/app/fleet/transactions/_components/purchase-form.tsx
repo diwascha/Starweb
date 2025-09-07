@@ -82,12 +82,12 @@ interface PurchaseFormProps {
   parties: Party[];
   vehicles: Vehicle[];
   onFormSubmit: (values: any) => Promise<void>;
+  onCancel: () => void;
 }
 
-export function PurchaseForm({ accounts, parties, vehicles, onFormSubmit }: PurchaseFormProps) {
+export function PurchaseForm({ accounts, parties, vehicles, onFormSubmit, onCancel }: PurchaseFormProps) {
     const { toast } = useToast();
     const { user } = useAuth();
-    const router = useRouter();
 
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     
@@ -337,7 +337,7 @@ export function PurchaseForm({ accounts, parties, vehicles, onFormSubmit }: Purc
             </Card>
 
             <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => router.push('/fleet/transactions')}>Cancel</Button>
+                <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
                 <Button type="submit" disabled={isSubmitting}>
                     {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : 'Save Transaction'}
                 </Button>
