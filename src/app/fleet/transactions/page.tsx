@@ -61,6 +61,8 @@ export default function TransactionsPage() {
     // Memos for performance
     const vehiclesById = useMemo(() => new Map(vehicles.map(v => [v.id, v.name])), [vehicles]);
     const partiesById = useMemo(() => new Map(parties.map(p => [p.id, p.name])), [parties]);
+    const clients = useMemo(() => parties.filter(p => p.type === 'Client' || p.type === 'Both'), [parties]);
+
 
     // Data fetching
     useEffect(() => {
@@ -242,7 +244,7 @@ export default function TransactionsPage() {
             <section>
                 <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TransactionFilterType)}>
                     <div className="flex flex-col gap-4 mb-4">
-                        <div className="flex flex-col md:flex-row gap-2">
+                         <div className="flex flex-col md:flex-row gap-2">
                              <div className="relative flex-1">
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input type="search" placeholder="Search..." className="pl-8 w-full" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
@@ -255,11 +257,11 @@ export default function TransactionsPage() {
                             </PopoverTrigger><PopoverContent className="w-auto p-0" align="end"><DualDateRangePicker selected={dateRange} onSelect={setDateRange} /></PopoverContent></Popover>
                              <Select value={filterPartyId} onValueChange={setFilterPartyId}>
                                 <SelectTrigger className="w-full md:w-[180px]">
-                                    <SelectValue placeholder="All Parties" />
+                                    <SelectValue placeholder="All Clients" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="All">All Parties</SelectItem>
-                                    {parties.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                                    <SelectItem value="All">All Clients</SelectItem>
+                                    {clients.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                             <Select value={filterVehicleId} onValueChange={setFilterVehicleId}>
