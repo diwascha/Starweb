@@ -1,4 +1,4 @@
-import type { User } from '@/lib/types';
+import type { User, Permissions, Module, Action } from '@/lib/types';
 
 const USERS_KEY = 'users';
 const ADMIN_CREDS_KEY = 'admin_credentials';
@@ -96,4 +96,26 @@ export const validatePassword = (password: string, isRequired: boolean = true): 
         return { isValid: false, error: 'Password must contain a special character.' };
     }
     return { isValid: true };
+}
+
+// This function is intended to be used on the server, but we'll mock it for client-side use
+// In a real server environment, you would get the user from the session/request
+export const hasPermission = (module: Module, action: Action): boolean => {
+    if (typeof window === 'undefined') {
+        // On the server, we don't have user context without a proper session setup
+        // We might default to false or try to get session info if available
+        return true; // For this mock, assume true on server
+    }
+    const storedUserJson = localStorage.getItem('user_session');
+    if (!storedUserJson) return false;
+
+    const user = JSON.parse(storedUserJson);
+    if (!user) return false;
+    if (user.is_admin) return true;
+    if (module === 'dashboard' && action === 'view') return true;
+    if (user.permissions) {
+      const modulePermissions = user.permissions[module];
+      return !!modulePermissions?.includes(action);
+    }
+    return false;
 }

@@ -43,6 +43,11 @@ const fromDocSnapshot = (docSnap: DocumentData): Report => {
     };
 };
 
+export const getReports = async (): Promise<Report[]> => {
+    const snapshot = await getDocs(reportsCollection);
+    return snapshot.docs.map(fromFirestore);
+};
+
 export const addReport = async (report: Omit<Report, 'id'>): Promise<string> => {
     const docRef = await addDoc(reportsCollection, report);
     return docRef.id;
