@@ -132,13 +132,13 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
       filteredTxns = [];
     }
     
-    const receivables = filteredTxns
-        .filter(t => t.type === 'Sales' || t.type === 'Receipt')
-        .reduce((sum, t) => sum + (t.type === 'Sales' ? t.amount : -t.amount), 0);
-        
-    const payables = filteredTxns
-        .filter(t => t.type === 'Purchase' || t.type === 'Payment')
-        .reduce((sum, t) => sum + (t.type === 'Purchase' ? t.amount : -t.amount), 0);
+    const { receivables, payables } = filteredTxns.reduce((acc, t) => {
+        if (t.type === 'Sales') acc.receivables += t.amount;
+        if (t.type === 'Receipt') acc.receivables -= t.amount;
+        if (t.type === 'Purchase') acc.payables += t.amount;
+        if (t.type === 'Payment') acc.payables -= t.amount;
+        return acc;
+    }, { receivables: 0, payables: 0 });
 
     return { receivables, payables, title: titleParts.filter(Boolean).join(' & ') };
   }, [watchedFirstItem, transactions, parties, vehicles]);
