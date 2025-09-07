@@ -4,13 +4,14 @@
 import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import type { Transaction, Vehicle, Party, Account } from '@/lib/types';
+import type { Transaction, Vehicle, Party, Account, UnitOfMeasurement } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onPartiesUpdate } from '@/services/party-service';
 import { onAccountsUpdate } from '@/services/account-service';
 import { onTransactionsUpdate, addTransaction, deleteTransaction } from '@/services/transaction-service';
+import { onUomsUpdate } from '@/services/uom-service';
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Download, CalendarIcon, ArrowUpDown, MoreHorizontal, View, Edit, Printer, Trash2, User, Search } from 'lucide-react';
@@ -40,6 +41,7 @@ export default function NewPurchasePage() {
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [parties, setParties] = useState<Party[]>([]);
     const [accounts, setAccounts] = useState<Account[]>([]);
+    const [uoms, setUoms] = useState<UnitOfMeasurement[]>([]);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -61,6 +63,7 @@ export default function NewPurchasePage() {
         const unsubVehicles = onVehiclesUpdate(setVehicles);
         const unsubParties = onPartiesUpdate(setParties);
         const unsubAccounts = onAccountsUpdate(setAccounts);
+        const unsubUoms = onUomsUpdate(setUoms);
         const unsubTransactions = onTransactionsUpdate(setTransactions);
         setIsLoading(false);
 
@@ -68,6 +71,7 @@ export default function NewPurchasePage() {
             unsubVehicles();
             unsubParties();
             unsubAccounts();
+            unsubUoms();
             unsubTransactions();
         }
     }, []);
@@ -356,6 +360,7 @@ export default function NewPurchasePage() {
                         accounts={accounts}
                         parties={parties}
                         vehicles={vehicles}
+                        uoms={uoms}
                         onFormSubmit={handleFormSubmit}
                         onCancel={() => setIsDialogOpen(false)}
                         initialValues={{ purchaseNumber: nextPurchaseNum, type: 'Purchase' }}

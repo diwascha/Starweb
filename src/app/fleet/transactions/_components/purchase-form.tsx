@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { Account, Party, Vehicle, Transaction, PartyType } from '@/lib/types';
+import type { Account, Party, Vehicle, Transaction, PartyType, UnitOfMeasurement } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, ChevronsUpDown, Check, Plus, Trash2, X } from 'lucide-react';
@@ -31,6 +31,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Separator } from '@/components/ui/separator';
 import { Loader2, Edit } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { addUom } from '@/services/uom-service';
 
 const transactionItemSchema = z.object({
     particular: z.string().min(1, 'Particular is required.'),
@@ -82,12 +83,13 @@ interface PurchaseFormProps {
   accounts: Account[];
   parties: Party[];
   vehicles: Vehicle[];
+  uoms: UnitOfMeasurement[];
   onFormSubmit: (values: any) => Promise<void>;
   onCancel: () => void;
   initialValues?: Partial<TransactionFormValues> & { type: 'Purchase' | 'Sales' };
 }
 
-export function PurchaseForm({ accounts, parties, vehicles, onFormSubmit, onCancel, initialValues }: PurchaseFormProps) {
+export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, onCancel, initialValues }: PurchaseFormProps) {
     const { toast } = useToast();
     const { user } = useAuth();
 
@@ -96,6 +98,9 @@ export function PurchaseForm({ accounts, parties, vehicles, onFormSubmit, onCanc
     // Dialogs
     const [isPartyDialogOpen, setIsPartyDialogOpen] = React.useState(false);
     const [isAccountDialogOpen, setIsAccountDialogOpen] = React.useState(false);
+    
+    const [uomSearch, setUomSearch] = React.useState('');
+
 
     // Form states
     const [partyForm, setPartyForm] = React.useState<{name: string, type: PartyType}>({name: '', type: 'Vendor'});
@@ -127,6 +132,9 @@ export function PurchaseForm({ accounts, parties, vehicles, onFormSubmit, onCanc
     const bankAccounts = React.useMemo(() => accounts.filter(a => a.type === 'Bank'), [accounts]);
     const partiesById = React.useMemo(() => new Map(parties.map(p => [p.id, p.name])), [parties]);
     const accountsById = React.useMemo(() => new Map(accounts.map(a => [a.id, a.bankName ? `${a.bankName} - ${a.accountNumber}` : a.name])), [accounts]);
+    
+    const allUnits = React.useMemo(() => uoms.map(u => u.abbreviation), [uoms]);
+
 
     const handleSubmit = async (values: TransactionFormValues) => {
         setIsSubmitting(true);
@@ -187,6 +195,23 @@ export function PurchaseForm({ accounts, parties, vehicles, onFormSubmit, onCanc
              toast({title: 'Error', description: 'Failed to add account.', variant: 'destructive'});
         }
     };
+    
+    const handleAddUom = async (uomName: string) => {
+        if (!user) return;
+        const newUom = {
+            name: uomName,
+            abbreviation: uomName,
+            createdBy: user.username,
+            createdAt: new Date().toISOString()
+        };
+        try {
+            await addUom(newUom);
+            toast({ title: 'Success', description: `Unit "${uomName}" added.` });
+        } catch {
+            toast({ title: 'Error', description: 'Failed to add unit.', variant: 'destructive' });
+        }
+    };
+
 
   return (
     <>
@@ -312,7 +337,53 @@ export function PurchaseForm({ accounts, parties, vehicles, onFormSubmit, onCanc
                             <TableRow key={item.id}>
                                 <TableCell><FormField control={form.control} name={`items.${index}.particular`} render={({ field }) => <Input {...field} />} /></TableCell>
                                 <TableCell><FormField control={form.control} name={`items.${index}.quantity`} render={({ field }) => <Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />} /></TableCell>
-                                <TableCell><FormField control={form.control} name={`items.${index}.uom`} render={({ field }) => <Input {...field} value={field.value ?? ''} />} /></TableCell>
+                                <TableCell>
+                                    <FormField
+                                    control={form.control}
+                                    name={`items.${index}.uom`}
+                                    render={({ field }) => (
+                                        <Popover>
+                                        <PopoverTrigger asChild>
+                                            <FormControl>
+                                            <Button variant="outline" role="combobox" className="w-[100px] justify-between font-normal">
+                                                {field.value || "..."}
+                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                            </Button>
+                                            </FormControl>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
+                                            <Command>
+                                            <CommandInput placeholder="Search unit..." onValueChange={setUomSearch} />
+                                            <CommandList>
+                                                <CommandEmpty>
+                                                <CommandItem
+                                                    onSelect={() => {
+                                                    handleAddUom(uomSearch);
+                                                    field.onChange(uomSearch);
+                                                    }}
+                                                >
+                                                    Add "{uomSearch}"
+                                                </CommandItem>
+                                                </CommandEmpty>
+                                                <CommandGroup>
+                                                {allUnits.map((uom) => (
+                                                    <CommandItem
+                                                    key={uom}
+                                                    value={uom}
+                                                    onSelect={() => field.onChange(uom)}
+                                                    >
+                                                    <Check className={cn("mr-2 h-4 w-4", uom === field.value ? "opacity-100" : "opacity-0")} />
+                                                    {uom}
+                                                    </CommandItem>
+                                                ))}
+                                                </CommandGroup>
+                                            </CommandList>
+                                            </Command>
+                                        </PopoverContent>
+                                        </Popover>
+                                    )}
+                                    />
+                                </TableCell>
                                 <TableCell><FormField control={form.control} name={`items.${index}.rate`} render={({ field }) => <Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />} /></TableCell>
                                 <TableCell>{((watchedFormValues.items?.[index]?.quantity || 0) * (watchedFormValues.items?.[index]?.rate || 0)).toLocaleString()}</TableCell>
                                 <TableCell><Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}><X className="h-4 w-4 text-destructive"/></Button></TableCell>
