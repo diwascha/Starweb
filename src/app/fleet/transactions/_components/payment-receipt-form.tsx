@@ -285,15 +285,30 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                      <div className="space-y-2">
                          <Label>Summary for {summaryData.title}</Label>
-                         <div className="grid grid-cols-2 gap-2">
-                            <div className="p-2 rounded-lg bg-gray-200">
-                                <p className="text-xs text-muted-foreground">Account Receivable</p>
-                                <p className="font-mono font-bold">{summaryData.receivables.toLocaleString()}</p>
-                            </div>
-                            <div className="p-2 rounded-lg bg-gray-200">
-                                <p className="text-xs text-muted-foreground">Account Payable</p>
-                                <p className="font-mono font-bold">{summaryData.payables.toLocaleString()}</p>
-                            </div>
+                        <div className="p-2 rounded-lg bg-gray-200">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="w-[50px]">S.No</TableHead>
+                                <TableHead>Ledger</TableHead>
+                                <TableHead>Vehicle</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {watchedItems.map((item, index) => {
+                                const ledger = generalLedgers.find(p => p.id === item.ledgerId);
+                                const vehicle = vehicles.find(v => v.id === item.vehicleId);
+                                if (!ledger || !vehicle) return null;
+                                return (
+                                  <TableRow key={index}>
+                                    <TableCell>{index + 1}</TableCell>
+                                    <TableCell>{ledger?.name}</TableCell>
+                                    <TableCell>{vehicle?.name}</TableCell>
+                                  </TableRow>
+                                )
+                              })}
+                            </TableBody>
+                          </Table>
                         </div>
                      </div>
                     <div className="space-y-2">
