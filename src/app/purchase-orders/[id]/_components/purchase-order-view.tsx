@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, Fragment } from 'react';
@@ -12,8 +13,7 @@ import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { differenceInDays } from 'date-fns';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+
 
 const paperTypes = ['Kraft Paper', 'Virgin Paper'];
 
@@ -37,6 +37,9 @@ export default function PurchaseOrderView({ initialPurchaseOrder }: { initialPur
     }
     
     try {
+        const jsPDF = (await import('jspdf')).default;
+        const html2canvas = (await import('html2canvas')).default;
+        
         const canvas = await html2canvas(printableArea, {
             scale: 2, // Higher scale for better quality
             useCORS: true,

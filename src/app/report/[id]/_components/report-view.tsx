@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -9,8 +10,6 @@ import { Printer, Loader2, Save } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import NepaliDate from 'nepali-date-converter';
 import { updateReport } from '@/services/report-service';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 const orderedSpecificationKeys: (keyof ProductSpecification)[] = [
   'dimension',
@@ -69,6 +68,9 @@ export default function ReportView({ initialReport }: { initialReport: Report })
         setIsGeneratingPdf(false);
         return;
     }
+    
+    const jsPDF = (await import('jspdf')).default;
+    const html2canvas = (await import('html2canvas')).default;
 
     // Add to print log
     const newLogEntry = { date: new Date().toISOString() };
