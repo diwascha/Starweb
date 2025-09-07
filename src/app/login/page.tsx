@@ -24,7 +24,6 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 const loadingSteps = [
-  { progress: 0, text: 'Authenticating...' },
   { progress: 20, text: 'Initializing workspace...' },
   { progress: 40, text: 'Loading user settings...' },
   { progress: 60, text: 'Fetching initial data...' },
@@ -35,11 +34,11 @@ const loadingSteps = [
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [showProgress, setShowProgress] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [loadingText, setLoadingText] = useState('Initializing...');
-  const { login } = useAuth();
+  const [loadingText, setLoadingText] = useState('Authenticating...');
+  const { login, loading: authLoading, user } = useAuth();
 
   const {
     register,
@@ -48,34 +47,40 @@ export default function LoginPage() {
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
   });
-
+  
+  // Effect for animating the progress bar
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (showProgress) {
       interval = setInterval(() => {
         setProgress(prevProgress => {
-          const currentStep = loadingSteps.find(step => prevProgress < step.progress);
-          if (currentStep) {
+          const currentStepIndex = loadingSteps.findIndex(step => prevProgress < step.progress);
+          if (currentStepIndex !== -1) {
+            const currentStep = loadingSteps[currentStepIndex];
             setLoadingText(currentStep.text);
-            return currentStep.progress;
+            // Increment progress more smoothly towards the next step's value
+            return Math.min(prevProgress + 10, currentStep.progress);
           }
           return 100;
         });
-      }, 1000); // Increased from 700ms to 1000ms
+      }, 500); // Slower interval for a more deliberate feel
     }
     return () => clearInterval(interval);
   }, [showProgress]);
 
+  // Effect for redirecting after successful login and loading
   useEffect(() => {
-    if (progress >= 100) {
+    // Redirect only when the user object is available, auth is no longer loading, and progress is complete.
+    if (user && !authLoading && progress >= 100) {
       setTimeout(() => {
         router.replace('/dashboard');
-      }, 500);
+      }, 300); // A small delay for the 100% to be visible
     }
-  }, [progress, router]);
+  }, [user, authLoading, progress, router]);
+
 
   const onSubmit = async (data: LoginFormValues) => {
-    setIsLoading(true);
+    setIsSubmitting(true);
     try {
       // Check for Administrator
       if (data.username === 'Administrator') {
@@ -89,6 +94,7 @@ export default function LoginPage() {
               description: 'Logged in successfully as Administrator.',
             });
             setShowProgress(true);
+            setIsSubmitting(false);
             return;
         }
       }
@@ -105,6 +111,7 @@ export default function LoginPage() {
           description: 'Logged in successfully.',
         });
         setShowProgress(true);
+        setIsSubmitting(false);
         return;
       }
 
@@ -116,7 +123,7 @@ export default function LoginPage() {
         description: error.message,
         variant: 'destructive',
       });
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -140,18 +147,18 @@ export default function LoginPage() {
                   type="text"
                   placeholder="Username"
                   {...register('username')}
-                  disabled={isLoading}
+                  disabled={isSubmitting}
                 />
                 {errors.username && <p className="text-sm text-destructive">{errors.username.message}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
-                <Input id="password" type="password" {...register('password')} disabled={isLoading}/>
+                <Input id="password" type="password" {...register('password')} disabled={isSubmitting}/>
                 {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
               </div>
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading && !showProgress && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isLoading && !showProgress ? 'Logging in...' : 'Login'}
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting && !showProgress && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isSubmitting && !showProgress ? 'Logging in...' : 'Login'}
               </Button>
             </form>
              {showProgress && (

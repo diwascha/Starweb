@@ -72,20 +72,18 @@ const AuthRedirect = ({ children }: { children: (user: UserSession) => ReactNode
         if (loading) return;
 
         const isAuthPage = pathname === '/login';
-        const isLoadingPage = pathname === '/loading';
 
-
-        if (!user && !isAuthPage && !isLoadingPage) {
+        if (!user && !isAuthPage) {
             router.push('/login');
             return;
         }
 
         if (user && isAuthPage) {
-            router.push('/loading');
+            router.push('/dashboard');
             return;
         }
 
-        if (user && !isAuthPage && !isLoadingPage && !user.is_admin) {
+        if (user && !isAuthPage && !user.is_admin) {
             const pathSegments = pathname.split('/').filter(Boolean);
             if (pathSegments.length === 0 && pathname !== '/dashboard') return;
             
@@ -108,15 +106,15 @@ const AuthRedirect = ({ children }: { children: (user: UserSession) => ReactNode
     }, [user, loading, pathname, router, hasPermission]);
 
 
-    if (loading || (!user && !['/login', '/loading'].includes(pathname))) {
+    if (loading || (!user && pathname !== '/login')) {
         return (
             <div className="flex h-screen items-center justify-center">
-                <p>Loading...</p>
+                <p>Loading session...</p>
             </div>
         );
     }
     
-    if (!user && (pathname === '/login' || pathname === '/loading')) {
+    if (!user && pathname === '/login') {
         return <>{children(null as any)}</>; 
     }
     
@@ -143,7 +141,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error("Failed to parse user from local storage", error);
     } finally {
-      setLoading(false);
+      // Add a small delay to ensure rendering happens after initial state is set
+      setTimeout(() => setLoading(false), 50);
     }
   }, []);
   
@@ -159,6 +158,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [user]);
 
   const login = useCallback(async (userToLogin: User) => {
+    setLoading(true);
     let sessionToStore: UserSession;
     const isAdmin = userToLogin.id === 'admin';
 
@@ -181,11 +181,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     
     localStorage.setItem(USER_SESSION_KEY, JSON.stringify(sessionToStore));
     setUser(sessionToStore);
+    // Setting loading to false will trigger the redirect effect in consumers
+    setLoading(false);
   }, []);
 
   const logout = useCallback(async () => {
+    setLoading(true);
     localStorage.removeItem(USER_SESSION_KEY);
     setUser(null);
+    setLoading(false);
   }, []);
   
   if (!isClient) {
