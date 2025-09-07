@@ -27,6 +27,7 @@ const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_FIREBASE_PROJECT_ID: 'testreportgen',
   },
+  serverComponentsExternalPackages: ['recharts', 'lucide-react'],
 };
 
 export default nextConfig;

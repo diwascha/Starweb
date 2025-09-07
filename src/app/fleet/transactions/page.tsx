@@ -1,9 +1,8 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
-import type { Transaction, Vehicle, Party, Account, TransactionType, PartyType, AccountType, BillingType, InvoiceType, TransactionItem } from '@/lib/types';
-import { transactionTypes } from '@/lib/types';
+import { useState, useEffect, useMemo } from 'react';
+import type { Transaction, Vehicle, Party } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, CalendarIcon, ArrowRightLeft, Landmark, Wrench, User, ChevronLeft, ChevronRight, ChevronsUpDown, Check, ShoppingCart, TrendingUp, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -35,7 +34,6 @@ import { onPartiesUpdate } from '@/services/party-service';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
-
 
 type TransactionSortKey = 'date' | 'vehicleName' | 'type' | 'partyName' | 'amount' | 'authorship' | 'dueDate';
 type SortDirection = 'asc' | 'desc';
@@ -229,7 +227,3 @@ export default function TransactionsPage() {
         </div>
     );
 }
-
-    
-
-    
