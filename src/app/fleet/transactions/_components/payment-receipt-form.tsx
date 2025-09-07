@@ -119,7 +119,7 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
         }
         
         const filteredTxns = transactions.filter(t => {
-             if (ledgerId && vehicleId) {
+            if (ledgerId && vehicleId) {
                 return t.partyId === ledgerId || t.vehicleId === vehicleId;
             }
             if (ledgerId) {
@@ -140,8 +140,8 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
         }, { receivables: 0, payables: 0 });
         
         // Adjust with current form values
-        const finalReceivable = balances.receivables - recAmount + payAmount;
-        const finalPayable = balances.payables - payAmount + recAmount;
+        const finalReceivable = balances.receivables - recAmount;
+        const finalPayable = balances.payables - payAmount;
 
         return {
             ledgerName: parties.find(p => p.id === ledgerId)?.name || 'N/A',
