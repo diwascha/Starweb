@@ -28,10 +28,6 @@ const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_FIREBASE_PROJECT_ID: 'testreportgen',
   },
-  webpack: (config) => {
-    config.cache = false;
-    return config;
-  },
 };
 
 export default nextConfig;
