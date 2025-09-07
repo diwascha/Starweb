@@ -277,7 +277,7 @@ export function AppSidebar() {
                                     <SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/purchase/new')}>
                                     <Link href="/fleet/transactions/purchase/new">
                                         <ShoppingCart />
-                                        <span>New Purchase</span>
+                                        <span>Purchase</span>
                                     </Link>
                                     </SidebarMenuButton>
                                 </SidebarMenuItem>
