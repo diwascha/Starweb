@@ -182,7 +182,7 @@ export interface PolicyOrMembership {
 export const transactionTypes = ['Purchase', 'Sales', 'Payment', 'Receipt'] as const;
 export type TransactionType = typeof transactionTypes[number];
 
-export type PartyType = 'Vendor' | 'Customer' | 'Both';
+export type PartyType = 'Supplier' | 'Customer' | 'Both';
 
 export interface Party {
     id: string;
@@ -233,7 +233,7 @@ export interface Transaction {
     chequeNumber?: string | null;
     chequeDate?: string | null;
     dueDate?: string | null;
-    partyId?: string | null; // Vendor
+    partyId?: string | null; // Supplier
     accountId?: string | null;
     items: TransactionItem[];
     amount: number; // This will be the grand total

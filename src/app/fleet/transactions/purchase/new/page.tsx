@@ -136,7 +136,7 @@ export default function NewPurchasePage() {
         setSortConfig({ key, direction });
     };
     
-    const vendors = useMemo(() => parties.filter(p => p.type === 'Vendor' || p.type === 'Both'), [parties]);
+    const suppliers = useMemo(() => parties.filter(p => p.type === 'Supplier' || p.type === 'Both'), [parties]);
 
     const filteredAndSortedPurchases = useMemo(() => {
         let filtered = transactions.filter(t => t.type === 'Purchase');
@@ -209,7 +209,7 @@ export default function NewPurchasePage() {
         const dataToExport = filteredAndSortedPurchases.map(p => ({
             'Date': toNepaliDate(p.date),
             'Vehicle': vehiclesById.get(p.vehicleId),
-            'Vendor': partiesById.get(p.partyId!),
+            'Supplier': partiesById.get(p.partyId!),
             'Invoice #': p.invoiceNumber,
             'Amount': p.amount,
             'Created By': p.createdBy,
@@ -282,8 +282,8 @@ export default function NewPurchasePage() {
                                 <SelectContent><SelectItem value="All">All Vehicles</SelectItem>{vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}</SelectContent>
                             </Select>
                             <Select value={filterPartyId} onValueChange={setFilterPartyId}>
-                                <SelectTrigger className="w-full md:w-[150px]"><SelectValue placeholder="All Vendors" /></SelectTrigger>
-                                <SelectContent><SelectItem value="All">All Vendors</SelectItem>{vendors.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+                                <SelectTrigger className="w-full md:w-[150px]"><SelectValue placeholder="All Suppliers" /></SelectTrigger>
+                                <SelectContent><SelectItem value="All">All Suppliers</SelectItem>{suppliers.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
                             </Select>
                             <Button variant="outline" onClick={handleExport}>
                                 <Download className="mr-2 h-4 w-4" /> Export
@@ -296,7 +296,7 @@ export default function NewPurchasePage() {
                                 <TableRow>
                                     <TableHead><Button variant="ghost" onClick={() => requestSort('date')}>Date <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                                     <TableHead><Button variant="ghost" onClick={() => requestSort('vehicleName')}>Vehicle <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                                    <TableHead><Button variant="ghost" onClick={() => requestSort('partyName')}>Vendor <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                    <TableHead><Button variant="ghost" onClick={() => requestSort('partyName')}>Supplier <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                                     <TableHead><Button variant="ghost" onClick={() => requestSort('amount')}>Amount <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                                     <TableHead><Button variant="ghost" onClick={() => requestSort('authorship')}>Authorship <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                                     <TableHead className="text-right">Actions</TableHead>

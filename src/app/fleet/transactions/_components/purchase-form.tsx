@@ -75,7 +75,7 @@ const transactionSchema = z.object({
 .refine(data => {
     if (['Credit', 'Purchase', 'Sales'].includes(data.billingType) || ['Purchase', 'Sales'].includes(data.type)) return !!data.partyId;
     return true;
-}, { message: 'Vendor/Party is required for this transaction type.', path: ['partyId'] });
+}, { message: 'Supplier/Party is required for this transaction type.', path: ['partyId'] });
 
 type TransactionFormValues = z.infer<typeof transactionSchema>;
 
@@ -103,7 +103,7 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
 
 
     // Form states
-    const [partyForm, setPartyForm] = React.useState<{name: string, type: PartyType}>({name: '', type: 'Vendor'});
+    const [partyForm, setPartyForm] = React.useState<{name: string, type: PartyType}>({name: '', type: 'Supplier'});
     const [accountForm, setAccountForm] = React.useState({ name: '', type: 'Cash' as 'Cash' | 'Bank', accountNumber: '', bankName: '', branch: '' });
     const [editingAccount, setEditingAccount] = React.useState<Account | null>(null);
 
@@ -153,7 +153,7 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
             form.setValue('partyId', newPartyId);
             toast({title: 'Success', description: 'New party added.'});
             setIsPartyDialogOpen(false);
-            setPartyForm({name: '', type: 'Vendor'});
+            setPartyForm({name: '', type: 'Supplier'});
         } catch {
              toast({title: 'Error', description: 'Failed to add party.', variant: 'destructive'});
         }
@@ -245,7 +245,7 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
                                 </Select><FormMessage/></FormItem>
                             )}/>
                             <FormField control={form.control} name="partyId" render={({ field }) => (
-                                <FormItem><FormLabel>Vendor</FormLabel>
+                                <FormItem><FormLabel>Supplier</FormLabel>
                                 <div className="flex gap-2">
                                 <Popover><PopoverTrigger asChild><FormControl>
                                     <Button variant="outline" role="combobox" className="w-full justify-between">
@@ -438,8 +438,8 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
                     <Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm(p => ({...p, type: v}))}>
                         <SelectTrigger id="party-type"><SelectValue/></SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="Vendor">Vendor</SelectItem>
-                            <SelectItem value="Client">Client</SelectItem>
+                            <SelectItem value="Supplier">Supplier</SelectItem>
+                            <SelectItem value="Customer">Customer</SelectItem>
                             <SelectItem value="Both">Both</SelectItem>
                         </SelectContent>
                     </Select>
