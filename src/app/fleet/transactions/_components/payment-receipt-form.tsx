@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import type { Account, Party, BillingType } from '@/lib/types';
+import type { Account, Party, Vehicle } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, ChevronsUpDown, Check, Plus, Trash2 } from 'lucide-react';
@@ -36,6 +36,7 @@ const voucherItemSchema = z.object({
 const voucherSchema = z.object({
   voucherType: z.enum(['Payment', 'Receipt']),
   voucherNo: z.string().min(1, "Voucher number is required."),
+  vehicleId: z.string().min(1, "Vehicle is required."),
   date: z.date(),
   billingType: z.enum(['Cash', 'Bank']),
   accountId: z.string().optional(),
@@ -62,11 +63,12 @@ type VoucherFormValues = z.infer<typeof voucherSchema>;
 interface PaymentReceiptFormProps {
   accounts: Account[];
   parties: Party[];
+  vehicles: Vehicle[];
   onFormSubmit: (values: any) => Promise<void>;
   onCancel: () => void;
 }
 
-export function PaymentReceiptForm({ accounts, parties, onFormSubmit, onCancel }: PaymentReceiptFormProps) {
+export function PaymentReceiptForm({ accounts, parties, vehicles, onFormSubmit, onCancel }: PaymentReceiptFormProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   
@@ -135,6 +137,11 @@ export function PaymentReceiptForm({ accounts, parties, onFormSubmit, onCancel }
                   <FormMessage/>
                   </FormItem>
               )}/>
+              <FormField control={form.control} name="vehicleId" render={({ field }) => (
+                <FormItem><FormLabel>Vehicle</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select vehicle" /></SelectTrigger></FormControl>
+                    <SelectContent>{vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}</SelectContent>
+                </Select><FormMessage/></FormItem>
+              )}/>
                <FormField control={form.control} name="billingType" render={({ field }) => (
                 <FormItem><FormLabel>Billing</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select billing type" /></SelectTrigger></FormControl>
                     <SelectContent>
@@ -142,6 +149,7 @@ export function PaymentReceiptForm({ accounts, parties, onFormSubmit, onCancel }
                     </SelectContent>
                 </Select><FormMessage/></FormItem>
               )}/>
+              
 
                {watchedBillingType === 'Bank' && (
                  <>

@@ -179,9 +179,7 @@ export default function TransactionsPage() {
         name: "items"
     });
     
-    const watchBillingType = form.watch("billingType");
     const watchedFormValues = form.watch();
-
     const { subtotal, vatAmount, totalAmount } = useMemo(() => {
         const items = watchedFormValues.items || [];
         const sub = items.reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.rate) || 0), 0);
@@ -624,7 +622,7 @@ export default function TransactionsPage() {
                                     </SelectContent>
                                 </Select><FormMessage/></FormItem>
                             )}/>
-                            {watchBillingType === 'Bank' && (
+                            {watchedFormValues.billingType === 'Bank' && (
                                 <>
                                  <FormField control={form.control} name="accountId" render={({ field }) => (
                                      <FormItem><FormLabel>Bank Account</FormLabel>
@@ -652,7 +650,7 @@ export default function TransactionsPage() {
                                 </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage/></FormItem>)}/>
                                 </>
                             )}
-                             {watchBillingType === 'Credit' && (
+                             {watchedFormValues.billingType === 'Credit' && (
                                 <FormField control={form.control} name="dueDate" render={({ field }) => (<FormItem><FormLabel>Due Date</FormLabel><Popover><PopoverTrigger asChild><FormControl>
                                         <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button>
                                 </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage/></FormItem>)}/>
@@ -775,6 +773,7 @@ export default function TransactionsPage() {
                     <PaymentReceiptForm
                         accounts={accounts}
                         parties={parties}
+                        vehicles={vehicles}
                         onFormSubmit={async (values) => {
                             console.log(values);
                             setIsPaymentReceiptDialogOpen(false);
