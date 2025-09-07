@@ -25,7 +25,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-export default function CustomerTransactionsPage() {
+export default function PartyLedgerPage() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [parties, setParties] = useState<Party[]>([]);
@@ -194,8 +194,8 @@ export default function CustomerTransactionsPage() {
     return (
         <div className="flex flex-col gap-8">
             <header>
-                <h1 className="text-3xl font-bold tracking-tight">Customer Transactions</h1>
-                <p className="text-muted-foreground">View all sales and receipts from customers.</p>
+                <h1 className="text-3xl font-bold tracking-tight">Party Ledger</h1>
+                <p className="text-muted-foreground">View ledgers for all your clients and vendors.</p>
             </header>
             <div className="flex flex-col gap-4">
                  <div className="flex flex-col md:flex-row gap-2">

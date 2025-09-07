@@ -254,7 +254,7 @@ export function AppSidebar() {
                                 <SidebarMenuButton asChild isActive={getIsActive('/fleet/parties')}>
                                 <Link href="/fleet/parties">
                                     <Users />
-                                    <span>Customer Transactions</span>
+                                    <span>Party Ledger</span>
                                 </Link>
                                 </SidebarMenuButton>
                             </SidebarMenuItem>
