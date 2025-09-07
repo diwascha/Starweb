@@ -1,8 +1,6 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
-import useLocalStorage from '@/hooks/use-local-storage';
 import type { User, Permissions, Module, Action } from '@/lib/types';
 import { modules, actions } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -37,7 +35,7 @@ import { useRouter } from 'next/navigation';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { getAdminCredentials, setAdminPassword, validatePassword } from '@/lib/utils';
+import { getUsers, setUsers, getAdminCredentials, setAdminPassword, validatePassword } from '@/services/user-service';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -70,7 +68,7 @@ type PasswordFormValues = z.infer<typeof passwordSchema>;
 export default function SettingsPage() {
   const { user: currentUser, loading, hasPermission, login } = useAuth();
   const router = useRouter();
-  const [users, setUsers] = useLocalStorage<User[]>('users', []);
+  const [users, setUsersState] = useState<User[]>([]);
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
   
@@ -86,7 +84,10 @@ export default function SettingsPage() {
   const [showPassword, setShowPassword] = useState(false);
   const canEditSettings = hasPermission('settings', 'edit');
 
-  useEffect(() => { setIsClient(true) }, []);
+  useEffect(() => { 
+    setIsClient(true);
+    setUsersState(getUsers());
+  }, []);
   
   const { register, handleSubmit, formState: { errors }, reset } = useForm<PasswordFormValues>({
     resolver: zodResolver(passwordSchema)
@@ -154,6 +155,7 @@ export default function SettingsPage() {
 
     const passwordLastUpdated = new Date().toISOString();
 
+    let updatedUsers;
     if (editingUser) {
       const updatedUser: User = {
         ...editingUser,
@@ -162,7 +164,7 @@ export default function SettingsPage() {
         passwordLastUpdated: password.trim() ? passwordLastUpdated : editingUser.passwordLastUpdated,
         permissions: userPermissions,
       };
-      setUsers(users.map(u => (u.id === editingUser.id ? updatedUser : u)));
+      updatedUsers = users.map(u => (u.id === editingUser.id ? updatedUser : u));
       toast({ title: 'Success', description: 'User updated successfully.' });
     } else {
       if (users.some(u => u.username.toLowerCase() === username.trim().toLowerCase())) {
@@ -177,9 +179,11 @@ export default function SettingsPage() {
         passwordLastUpdated,
         permissions: userPermissions,
       };
-      setUsers([...users, newUser]);
+      updatedUsers = [...users, newUser];
       toast({ title: 'Success', description: 'New user added successfully.' });
     }
+    setUsers(updatedUsers);
+    setUsersState(updatedUsers);
     resetUserForm();
     setIsUserDialogOpen(false);
   };
@@ -189,7 +193,9 @@ export default function SettingsPage() {
         toast({ title: 'Permission Denied', description: 'You do not have permission to delete users.', variant: 'destructive' });
         return;
     }
-    setUsers(users.filter(user => user.id !== id));
+    const updatedUsers = users.filter(user => user.id !== id);
+    setUsers(updatedUsers);
+    setUsersState(updatedUsers);
     toast({ title: 'User Deleted', description: 'The user has been successfully deleted.' });
   };
   

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -13,9 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
-import useLocalStorage from '@/hooks/use-local-storage';
-import type { User } from '@/lib/types';
-import { getAdminCredentials } from '@/lib/utils';
+import { getUsers, getAdminCredentials } from '@/services/user-service';
 
 const loginSchema = z.object({
   username: z.string().min(1, { message: 'Username is required' }),
@@ -29,7 +26,6 @@ export default function LoginPage() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
-  const [users] = useLocalStorage<User[]>('users', []);
 
   const {
     register,
@@ -47,7 +43,6 @@ export default function LoginPage() {
         const adminCreds = getAdminCredentials();
         const defaultAdminPassword = 'Admin@123'; // Hardcoded fallback
         
-        // Allow login with either the stored password or the default fallback password.
         if (data.password === adminCreds.password || data.password === defaultAdminPassword) {
             await login({ id: 'admin', username: 'Administrator', permissions: {}, passwordLastUpdated: adminCreds.passwordLastUpdated });
             toast({
@@ -59,8 +54,8 @@ export default function LoginPage() {
         }
       }
       
-      // Then, check against users in local storage for non-admin users
-      const foundUser = users.find(
+      const allUsers = getUsers();
+      const foundUser = allUsers.find(
         (user) => user.username === data.username && user.password === data.password
       );
 

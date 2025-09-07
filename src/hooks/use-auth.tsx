@@ -5,7 +5,7 @@ import { useState, useEffect, createContext, useContext, ReactNode, useCallback 
 import { useRouter, usePathname } from 'next/navigation';
 import type { User, Permissions, Module, Action } from '@/lib/types';
 import { modules } from '@/lib/types';
-import { getAdminCredentials } from '@/lib/utils';
+import { getAdminCredentials } from '@/services/user-service';
 
 
 interface UserSession {
@@ -140,12 +140,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     setIsClient(true);
     try {
-      const storedUser = sessionStorage.getItem(USER_SESSION_KEY);
+      const storedUser = localStorage.getItem(USER_SESSION_KEY);
       if (storedUser) {
         setUser(JSON.parse(storedUser));
       }
     } catch (error) {
-      console.error("Failed to parse user from session storage", error);
+      console.error("Failed to parse user from local storage", error);
     } finally {
       setLoading(false);
     }
@@ -183,12 +183,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         };
     }
     
-    sessionStorage.setItem(USER_SESSION_KEY, JSON.stringify(sessionToStore));
+    localStorage.setItem(USER_SESSION_KEY, JSON.stringify(sessionToStore));
     setUser(sessionToStore);
   }, []);
 
   const logout = useCallback(async () => {
-    sessionStorage.removeItem(USER_SESSION_KEY);
+    localStorage.removeItem(USER_SESSION_KEY);
     setUser(null);
   }, []);
   
