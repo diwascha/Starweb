@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import type { RawMaterial, PurchaseOrder, Amendment } from '@/lib/types';
+import type { RawMaterial, PurchaseOrder, Amendment, UnitOfMeasurement } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
@@ -27,6 +27,7 @@ import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { onRawMaterialsUpdate, addRawMaterial } from '@/services/raw-material-service';
 import { onPurchaseOrdersUpdate, addPurchaseOrder, updatePurchaseOrder } from '@/services/purchase-order-service';
+import { onUomsUpdate, addUom } from '@/services/uom-service';
 import { Badge } from '@/components/ui/badge';
 
 const poItemSchema = z.object({
@@ -63,6 +64,7 @@ const paperTypes = ['Kraft Paper', 'Virgin Paper'];
 export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
+  const [uoms, setUoms] = useState<UnitOfMeasurement[]>([]);
   const router = useRouter();
   const { toast } = useToast();
   const { user } = useAuth();
@@ -104,9 +106,11 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     setIsClient(true);
     const unsubRawMaterials = onRawMaterialsUpdate(setRawMaterials);
     const unsubPOs = onPurchaseOrdersUpdate(setPurchaseOrders);
+    const unsubUoms = onUomsUpdate(setUoms);
     return () => {
       unsubRawMaterials();
       unsubPOs();
+      unsubUoms();
     };
   }, []);
   
@@ -321,7 +325,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         return;
     }
     if (units.length === 0) {
-        toast({ title: 'Error', description: 'Please provide units.', variant: 'destructive' });
+        toast({ title: 'Error', description: 'Please provide at least one unit of measurement.', variant: 'destructive' });
         return;
     }
 
@@ -331,6 +335,19 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         return;
     }
     
+    // Add any new units to the central UoM collection
+    for (const unitAbbr of units) {
+      const exists = uoms.some(u => u.abbreviation.toLowerCase() === unitAbbr.toLowerCase());
+      if (!exists) {
+        await addUom({
+          name: unitAbbr, // Or prompt for a full name
+          abbreviation: unitAbbr,
+          createdBy: user.username,
+          createdAt: new Date().toISOString(),
+        });
+      }
+    }
+
     const newMaterial: Omit<RawMaterial, 'id'> = {
         type,
         name: finalName,
@@ -354,14 +371,8 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   const isQuickAddPaper = paperTypes.includes(quickAddForm.type);
   
   const allUnits = useMemo(() => {
-    const unitsSet = new Set<string>();
-    rawMaterials.forEach(material => {
-      if (Array.isArray(material.units)) {
-        material.units.forEach(unit => unitsSet.add(unit));
-      }
-    });
-    return Array.from(unitsSet).sort();
-  }, [rawMaterials]);
+    return uoms.map(u => u.abbreviation).sort();
+  }, [uoms]);
   
   const handleQuickAddUnitSelect = (unit: string) => {
     if (!quickAddForm.units.includes(unit)) {

@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import type { UnitOfMeasurement } from '@/lib/types';
 
 const uomCollection = collection(db, 'uom');
@@ -17,6 +17,11 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): UnitOfMea
         lastModifiedAt: data.lastModifiedAt,
     };
 }
+
+export const getUoms = async (): Promise<UnitOfMeasurement[]> => {
+    const snapshot = await getDocs(uomCollection);
+    return snapshot.docs.map(fromFirestore);
+};
 
 export const addUom = async (uom: Omit<UnitOfMeasurement, 'id'>): Promise<string> => {
     const docRef = await addDoc(uomCollection, {
