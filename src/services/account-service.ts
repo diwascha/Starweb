@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import type { Account } from '@/lib/types';
 
 const accountsCollection = collection(db, 'accounts');
@@ -20,6 +20,11 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Account =
         lastModifiedAt: data.lastModifiedAt,
     };
 }
+
+export const getAccounts = async (): Promise<Account[]> => {
+    const snapshot = await getDocs(accountsCollection);
+    return snapshot.docs.map(fromFirestore);
+};
 
 export const addAccount = async (account: Omit<Account, 'id'>): Promise<string> => {
     const docRef = await addDoc(accountsCollection, {
