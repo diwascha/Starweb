@@ -249,15 +249,15 @@ export function AppSidebar() {
                             </Link>
                             </SidebarMenuButton>
                         </SidebarMenuItem>
-                         <SidebarMenuItem>
-                            <SidebarMenuButton asChild isActive={getIsActive('/fleet/trip-sheets')}>
-                            <Link href="/fleet/trip-sheets">
-                                <FileText />
-                                <span>Sales - Trip Sheet</span>
-                            </Link>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
                          <div className="ml-4">
+                            <SidebarMenuItem>
+                                <SidebarMenuButton asChild isActive={getIsActive('/fleet/trip-sheets')}>
+                                <Link href="/fleet/trip-sheets">
+                                    <FileText />
+                                    <span>Sales - Trip Sheet</span>
+                                </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
                             {hasPermission('fleet', 'create') && (
                                 <>
                                  <SidebarMenuItem>
@@ -320,5 +320,3 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
-
-    
