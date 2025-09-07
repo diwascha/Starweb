@@ -25,6 +25,18 @@ export const setUsers = (users: User[]): void => {
   }
 };
 
+export const updateUserPassword = (userId: string, newPassword: string): void => {
+    const users = getUsers();
+    const userIndex = users.findIndex(u => u.id === userId);
+    if (userIndex > -1) {
+        users[userIndex].password = newPassword;
+        users[userIndex].passwordLastUpdated = new Date().toISOString();
+        setUsers(users);
+    } else {
+        throw new Error("User not found.");
+    }
+};
+
 // --- Admin Credentials ---
 
 export const getAdminCredentials = (): { username: string, password?: string, passwordLastUpdated?: string } => {

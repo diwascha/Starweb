@@ -24,7 +24,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, MoreHorizontal, Search, Save } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, Search, Save, KeyRound } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
@@ -38,13 +38,13 @@ import { onAccountsUpdate, addAccount, updateAccount, deleteAccount } from '@/se
 import { onUomsUpdate, addUom, updateUom, deleteUom } from '@/services/uom-service';
 import { onSettingUpdate, setSetting } from '@/services/settings-service';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { getUsers, setUsers, validatePassword } from '@/services/user-service';
+import { getUsers, setUsers, validatePassword, setAdminPassword, updateUserPassword } from '@/services/user-service';
 import { modules, actions } from '@/lib/types';
 import { Checkbox } from '@/components/ui/checkbox';
 
 
 export default function SettingsPage() {
-  const { user, hasPermission } = useAuth();
+  const { user, hasPermission, logout } = useAuth();
   const { toast } = useToast();
   
   const [parties, setParties] = useState<Party[]>([]);
@@ -53,6 +53,7 @@ export default function SettingsPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState("security");
 
   // Report Prefix State
   const [reportPrefix, setReportPrefix] = useState('');
@@ -78,6 +79,13 @@ export default function SettingsPage() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [userForm, setUserForm] = useState({ username: '', password: '', permissions: {} as Permissions });
   const [passwordError, setPasswordError] = useState<string | null>(null);
+  
+  // Change Password State
+  const [isChangePasswordDialogOpen, setIsChangePasswordDialogOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changePasswordError, setChangePasswordError] = useState<string | null>(null);
 
 
   useEffect(() => {
@@ -89,10 +97,9 @@ export default function SettingsPage() {
         setReportPrefix(setting?.value || '2082/083-');
     });
 
-    // Since users are in localStorage, we poll for changes.
     const handleStorageChange = () => setUsers(getUsers());
     window.addEventListener('storage', handleStorageChange);
-    handleStorageChange(); // Initial load
+    handleStorageChange();
 
     setIsLoading(false);
     return () => {
@@ -116,8 +123,6 @@ export default function SettingsPage() {
     }
   };
 
-
-  // --- Party Management ---
   const openPartyDialog = (party: Party | null = null) => {
     if (party) {
         setEditingParty(party);
@@ -160,7 +165,6 @@ export default function SettingsPage() {
   
   const filteredParties = parties.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
-  // --- Account Management ---
   const openAccountDialog = (account: Account | null = null) => {
     if (account) {
         setEditingAccount(account);
@@ -208,7 +212,6 @@ export default function SettingsPage() {
   
   const filteredAccounts = accounts.filter(a => a.name.toLowerCase().includes(searchQuery.toLowerCase()) || (a.bankName || '').toLowerCase().includes(searchQuery.toLowerCase()));
   
-  // --- UoM Management ---
   const openUomDialog = (uom: UnitOfMeasurement | null = null) => {
     if (uom) {
         setEditingUom(uom);
@@ -251,7 +254,6 @@ export default function SettingsPage() {
   
   const filteredUoms = uoms.filter(u => u.name.toLowerCase().includes(searchQuery.toLowerCase()) || u.abbreviation.toLowerCase().includes(searchQuery.toLowerCase()));
 
-  // --- User Management ---
   const openUserDialog = (userToEdit: User | null = null) => {
     if (userToEdit) {
         setEditingUser(userToEdit);
@@ -278,7 +280,7 @@ export default function SettingsPage() {
 
   const handleUserSubmit = () => {
     const isEditing = !!editingUser;
-    const { isValid, error } = validatePassword(userForm.password, !isEditing); // Password is required only for new users
+    const { isValid, error } = validatePassword(userForm.password, !isEditing);
     if (!isValid) {
         setPasswordError(error!);
         return;
@@ -295,11 +297,7 @@ export default function SettingsPage() {
     if (isEditing) {
         updatedUsers = allUsers.map(u => {
             if (u.id === editingUser.id) {
-                const updatedUser: User = {
-                    ...u,
-                    username: userForm.username,
-                    permissions: userForm.permissions,
-                };
+                const updatedUser: User = { ...u, username: userForm.username, permissions: userForm.permissions };
                 if (userForm.password) {
                     updatedUser.password = userForm.password;
                     updatedUser.passwordLastUpdated = new Date().toISOString();
@@ -310,7 +308,7 @@ export default function SettingsPage() {
         });
     } else {
         const newUser: User = {
-            id: Date.now().toString(), // Simple unique ID
+            id: Date.now().toString(),
             username: userForm.username,
             password: userForm.password,
             permissions: userForm.permissions,
@@ -331,6 +329,37 @@ export default function SettingsPage() {
   };
   
   const filteredUsers = users.filter(u => u.username.toLowerCase().includes(searchQuery.toLowerCase()));
+  
+  const handleChangePassword = async () => {
+    if (!user) return;
+    if (newPassword !== confirmPassword) {
+        setChangePasswordError("New passwords do not match.");
+        return;
+    }
+    const { isValid, error } = validatePassword(newPassword);
+    if (!isValid) {
+        setChangePasswordError(error!);
+        return;
+    }
+    setChangePasswordError(null);
+
+    try {
+        if (user.is_admin) {
+            setAdminPassword(newPassword, new Date().toISOString());
+        } else {
+            const currentUser = getUsers().find(u => u.username === user.username);
+            if (currentUser) {
+                updateUserPassword(currentUser.id, newPassword);
+            }
+        }
+        toast({ title: 'Success', description: 'Password updated successfully. Please log in again.' });
+        setIsChangePasswordDialogOpen(false);
+        await logout();
+
+    } catch(e: any) {
+        setChangePasswordError(e.message);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -345,22 +374,37 @@ export default function SettingsPage() {
         <header className="flex items-center justify-between">
             <div>
                 <h1 className="text-3xl font-bold tracking-tight">General Settings</h1>
-                <p className="text-muted-foreground">Manage your application's master data.</p>
+                <p className="text-muted-foreground">Manage your application's master data and security.</p>
             </div>
             <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input type="search" placeholder="Search all settings..." className="pl-8 sm:w-[300px]" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                <Input type="search" placeholder="Search..." className="pl-8 sm:w-[300px]" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
             </div>
         </header>
         
-        <Tabs defaultValue="parties">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full grid-cols-5">
+                <TabsTrigger value="security">Security</TabsTrigger>
                 <TabsTrigger value="parties">Vendors & Suppliers</TabsTrigger>
                 <TabsTrigger value="accounts">Accounts</TabsTrigger>
                 <TabsTrigger value="uom">Units of Measurement</TabsTrigger>
-                <TabsTrigger value="users">User Management</TabsTrigger>
+                {user?.is_admin && <TabsTrigger value="users">User Management</TabsTrigger>}
                 <TabsTrigger value="application">Application</TabsTrigger>
             </TabsList>
+            <TabsContent value="security">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>My Account</CardTitle>
+                        <CardDescription>Manage your account settings.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex items-center gap-4">
+                            <p className="font-medium">User: {user?.username}</p>
+                            <Button onClick={() => setIsChangePasswordDialogOpen(true)}><KeyRound className="mr-2 h-4 w-4"/> Change Password</Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            </TabsContent>
             <TabsContent value="parties">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between">
@@ -457,45 +501,47 @@ export default function SettingsPage() {
                     </CardContent>
                 </Card>
             </TabsContent>
-             <TabsContent value="users">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                        <div>
-                            <CardTitle>User Management</CardTitle>
-                            <CardDescription>Manage users and their permissions.</CardDescription>
-                        </div>
-                        <Button onClick={() => openUserDialog()}><Plus className="mr-2 h-4 w-4" /> Add User</Button>
-                    </CardHeader>
-                    <CardContent>
-                        <Table><TableHeader><TableRow>
-                            <TableHead>Username</TableHead><TableHead>Permissions</TableHead><TableHead className="text-right">Actions</TableHead>
-                        </TableRow></TableHeader><TableBody>
-                        {filteredUsers.map(u => (
-                            <TableRow key={u.id}>
-                                <TableCell>{u.username}</TableCell>
-                                <TableCell className="max-w-md">
-                                    <div className="flex flex-wrap gap-1">
-                                    {Object.entries(u.permissions).flatMap(([module, actions]) => 
-                                        actions.map(action => <Badge key={`${module}-${action}`} variant="secondary">{`${module}: ${action}`}</Badge>)
-                                    )}
-                                    </div>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                    <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        <DropdownMenuItem onSelect={() => openUserDialog(u)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
-                                        <DropdownMenuSeparator />
-                                        <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()}><Trash2 className="mr-2 h-4 w-4 text-destructive" /> <span className="text-destructive">Delete</span></DropdownMenuItem></AlertDialogTrigger>
-                                        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the user account.</AlertDialogDescription></AlertDialogHeader>
-                                        <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteUser(u.id)}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
-                                    </DropdownMenuContent></DropdownMenu>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                        </TableBody></Table>
-                    </CardContent>
-                </Card>
-            </TabsContent>
+             {user?.is_admin && (
+                <TabsContent value="users">
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between">
+                            <div>
+                                <CardTitle>User Management</CardTitle>
+                                <CardDescription>Manage users and their permissions.</CardDescription>
+                            </div>
+                            <Button onClick={() => openUserDialog()}><Plus className="mr-2 h-4 w-4" /> Add User</Button>
+                        </CardHeader>
+                        <CardContent>
+                            <Table><TableHeader><TableRow>
+                                <TableHead>Username</TableHead><TableHead>Permissions</TableHead><TableHead className="text-right">Actions</TableHead>
+                            </TableRow></TableHeader><TableBody>
+                            {filteredUsers.map(u => (
+                                <TableRow key={u.id}>
+                                    <TableCell>{u.username}</TableCell>
+                                    <TableCell className="max-w-md">
+                                        <div className="flex flex-wrap gap-1">
+                                        {Object.entries(u.permissions).flatMap(([module, actions]) => 
+                                            actions.map(action => <Badge key={`${module}-${action}`} variant="secondary">{`${module}: ${action}`}</Badge>)
+                                        )}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onSelect={() => openUserDialog(u)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                            <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()}><Trash2 className="mr-2 h-4 w-4 text-destructive" /> <span className="text-destructive">Delete</span></DropdownMenuItem></AlertDialogTrigger>
+                                            <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the user account.</AlertDialogDescription></AlertDialogHeader>
+                                            <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteUser(u.id)}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+                                        </DropdownMenuContent></DropdownMenu>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                            </TableBody></Table>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+            )}
             <TabsContent value="application">
                  <Card>
                     <CardHeader>
@@ -518,7 +564,6 @@ export default function SettingsPage() {
             </TabsContent>
         </Tabs>
         
-        {/* Party Dialog */}
         <Dialog open={isPartyDialogOpen} onOpenChange={setIsPartyDialogOpen}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader><DialogTitle>{editingParty ? 'Edit Party' : 'Add New Party'}</DialogTitle></DialogHeader>
@@ -550,7 +595,6 @@ export default function SettingsPage() {
             </DialogContent>
         </Dialog>
         
-        {/* Account Dialog */}
         <Dialog open={isAccountDialogOpen} onOpenChange={setIsAccountDialogOpen}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader><DialogTitle>{editingAccount ? 'Edit Account' : 'Add New Account'}</DialogTitle></DialogHeader>
@@ -590,7 +634,6 @@ export default function SettingsPage() {
             </DialogContent>
         </Dialog>
         
-        {/* UoM Dialog */}
         <Dialog open={isUomDialogOpen} onOpenChange={setIsUomDialogOpen}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader><DialogTitle>{editingUom ? 'Edit Unit' : 'Add New Unit'}</DialogTitle></DialogHeader>
@@ -611,7 +654,6 @@ export default function SettingsPage() {
             </DialogContent>
         </Dialog>
 
-         {/* User Dialog */}
         <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
             <DialogContent className="sm:max-w-2xl">
                 <DialogHeader><DialogTitle>{editingUser ? 'Edit User' : 'Add New User'}</DialogTitle></DialogHeader>
@@ -651,6 +693,30 @@ export default function SettingsPage() {
                 <DialogFooter>
                     <Button variant="outline" onClick={() => setIsUserDialogOpen(false)}>Cancel</Button>
                     <Button onClick={handleUserSubmit}>{editingUser ? 'Save Changes' : 'Add User'}</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+        
+        <Dialog open={isChangePasswordDialogOpen} onOpenChange={setIsChangePasswordDialogOpen}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Change Password</DialogTitle>
+                    <DialogDescription>Enter a new password for your account.</DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="new-password">New Password</Label>
+                        <Input id="new-password" type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="confirm-password">Confirm New Password</Label>
+                        <Input id="confirm-password" type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
+                    </div>
+                    {changePasswordError && <p className="text-sm text-destructive">{changePasswordError}</p>}
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsChangePasswordDialogOpen(false)}>Cancel</Button>
+                    <Button onClick={handleChangePassword}>Save Changes</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
