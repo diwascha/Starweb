@@ -15,8 +15,8 @@ import { onPartiesUpdate } from '@/services/party-service';
 import { onAccountsUpdate } from '@/services/account-service';
 import { format } from 'date-fns';
 
-export default function VoucherViewPage({ params }: { params: { voucherId: string } }) {
-  const { voucherId } = params;
+export default function VoucherViewPage({ params }: { params: Promise<{ voucherId: string }> }) {
+  const { voucherId } = use(params);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [parties, setParties] = useState<Party[]>([]);
@@ -150,4 +150,3 @@ export default function VoucherViewPage({ params }: { params: { voucherId: strin
     </>
   );
 }
-

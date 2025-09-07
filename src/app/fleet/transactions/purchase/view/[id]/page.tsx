@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, use } from 'react';
 import { getTransaction } from '@/services/transaction-service';
 import type { Transaction, Vehicle, Party, Account } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -16,8 +16,8 @@ import { onAccountsUpdate } from '@/services/account-service';
 import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
 
-export default function PurchaseViewPage({ params }: { params: { id: string } }) {
-  const { id } = params;
+export default function PurchaseViewPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const router = useRouter();
   const [transaction, setTransaction] = useState<Transaction | null>(null);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);

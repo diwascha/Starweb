@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { getVoucherTransactions, updateVoucher } from '@/services/transaction-service';
 import type { Transaction, Vehicle, Party, Account } from '@/lib/types';
@@ -13,8 +13,8 @@ import { onPartiesUpdate } from '@/services/party-service';
 import { onAccountsUpdate } from '@/services/account-service';
 import { onTransactionsUpdate } from '@/services/transaction-service';
 
-export default function EditVoucherPage({ params }: { params: { voucherId: string } }) {
-  const { voucherId } = params;
+export default function EditVoucherPage({ params }: { params: Promise<{ voucherId: string }> }) {
+  const { voucherId } = use(params);
   const router = useRouter();
   const { toast } = useToast();
   const { user } = useAuth();
