@@ -42,6 +42,9 @@ const fuelEntrySchema = z.object({
   partyId: z.string().min(1, 'Fuel vendor is required.'),
   liters: z.number().optional(),
   amount: z.number().min(1, 'Fuel amount is required.'),
+  invoiceNumber: z.string().optional(),
+  invoiceDate: z.date().optional().nullable(),
+  purchaseTransactionId: z.string().optional(),
 });
 
 const extraExpenseSchema = z.object({
@@ -125,7 +128,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                 detentionStartDate: tripToEdit.detentionStartDate ? new Date(tripToEdit.detentionStartDate) : undefined,
                 detentionEndDate: tripToEdit.detentionEndDate ? new Date(tripToEdit.detentionEndDate) : undefined,
                 destinations: tripToEdit.destinations.map(d => ({ ...d, freight: Number(d.freight) })),
-                fuelEntries: tripToEdit.fuelEntries.map(f => ({ ...f, amount: Number(f.amount), liters: f.liters ? Number(f.liters) : undefined })),
+                fuelEntries: tripToEdit.fuelEntries.map(f => ({ ...f, amount: Number(f.amount), liters: f.liters ? Number(f.liters) : undefined, invoiceDate: f.invoiceDate ? new Date(f.invoiceDate) : null })),
                 extraExpenses: tripToEdit.extraExpenses.map(e => ({ ...e, amount: Number(e.amount) })),
                 returnTrips: tripToEdit.returnTrips.map(rt => ({
                     ...rt,
@@ -335,6 +338,9 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                         amount: Number(f.amount)
                     };
                     if (f.liters !== undefined && f.liters !== null) entry.liters = Number(f.liters);
+                    if (f.invoiceNumber) entry.invoiceNumber = f.invoiceNumber;
+                    if (f.invoiceDate) entry.invoiceDate = f.invoiceDate.toISOString();
+                    if (f.purchaseTransactionId) entry.purchaseTransactionId = f.purchaseTransactionId;
                     return entry;
                 }),
             extraExpenses: (values.extraExpenses || [])
@@ -742,9 +748,13 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                                     <div>
                                         <Label className="text-base font-medium">Fuel</Label>
                                         <div className="mt-2 space-y-4">
-                                            {fuelFields.map((item, index) => (<div key={item.id} className="grid grid-cols-1 md:grid-cols-3 items-start gap-2">
+                                            {fuelFields.map((item, index) => (<div key={item.id} className="p-4 border rounded-lg space-y-4 relative">
+                                                <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2 h-8 w-8" onClick={() => removeFuel(index)}>
+                                                    <X className="h-4 w-4 text-destructive" />
+                                                </Button>
                                                 <FormField control={form.control} name={`fuelEntries.${index}.partyId`} render={({ field }) => (
-                                                    <FormItem className="md:col-span-1">
+                                                    <FormItem>
+                                                        <FormLabel>Fuel Vendor</FormLabel>
                                                         <Popover>
                                                           <PopoverTrigger asChild>
                                                             <FormControl>
@@ -792,14 +802,28 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                                                         <FormMessage />
                                                       </FormItem>
                                                 )}/>
-                                                <div className="flex items-center gap-2 md:col-span-2">
-                                                    <FormField control={form.control} name={`fuelEntries.${index}.liters`} render={({ field }) => <FormItem className="flex-1"><FormControl><Input type="number" placeholder="Enter Liter" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl><FormMessage/></FormItem>} />
-                                                    <FormField control={form.control} name={`fuelEntries.${index}.amount`} render={({ field }) => <FormItem className="flex-1"><FormControl><Input type="number" placeholder="Enter fuel amount" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl><FormMessage/></FormItem>} />
-                                                    <Button type="button" variant="ghost" size="icon" onClick={() => removeFuel(index)} className="mt-2"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <FormField control={form.control} name={`fuelEntries.${index}.liters`} render={({ field }) => <FormItem><FormLabel>Liters</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl><FormMessage/></FormItem>} />
+                                                    <FormField control={form.control} name={`fuelEntries.${index}.amount`} render={({ field }) => <FormItem><FormLabel>Amount</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl><FormMessage/></FormItem>} />
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <FormField control={form.control} name={`fuelEntries.${index}.invoiceNumber`} render={({ field }) => <FormItem><FormLabel>Invoice # (Optional)</FormLabel><FormControl><Input {...field} value={field.value ?? ''} /></FormControl><FormMessage/></FormItem>} />
+                                                    <FormField control={form.control} name={`fuelEntries.${index}.invoiceDate`} render={({ field }) => (
+                                                        <FormItem className="flex flex-col"><FormLabel>Invoice Date (Optional)</FormLabel>
+                                                            <Popover><PopoverTrigger asChild><FormControl>
+                                                                <Button variant="outline" className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                                                    {field.value ? `${toNepaliDate(field.value.toISOString())} BS (${format(field.value, "PPP")})` : <span>Pick a date</span>}
+                                                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                                </Button>
+                                                            </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start">
+                                                                <DualCalendar selected={field.value ?? undefined} onSelect={field.onChange} />
+                                                            </PopoverContent></Popover><FormMessage />
+                                                        </FormItem>
+                                                    )}/>
                                                 </div>
                                             </div>))}
                                         </div>
-                                        <Button type="button" size="sm" variant="outline" onClick={() => appendFuel({ partyId: '', amount: undefined, liters: undefined })} className="mt-4"><PlusCircle className="mr-2 h-4 w-4" /> Add Fuel Entry</Button>
+                                        <Button type="button" size="sm" variant="outline" onClick={() => appendFuel({ partyId: '', amount: undefined, liters: undefined, invoiceNumber: '', invoiceDate: null })} className="mt-4"><PlusCircle className="mr-2 h-4 w-4" /> Add Fuel Entry</Button>
                                     </div>
                                     <div>
                                         <Label className="text-base font-medium">Extra Expenses</Label>
