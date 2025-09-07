@@ -24,7 +24,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, MoreHorizontal, Search, Save, KeyRound, Download, Upload } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, Search, Save, KeyRound, Download, Upload, View } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
@@ -43,11 +43,13 @@ import { modules, actions, documentTypes, getDocumentName } from '@/lib/types';
 import { Checkbox } from '@/components/ui/checkbox';
 import { exportData } from '@/services/backup-service';
 import { Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 
 export default function SettingsPage() {
   const { user, hasPermission, logout } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
   
   const [parties, setParties] = useState<Party[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -525,6 +527,7 @@ export default function SettingsPage() {
                                 <TableCell className="text-right">
                                     <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
+                                        <DropdownMenuItem onSelect={() => router.push(`/fleet/ledger/${party.id}`)}><View className="mr-2 h-4 w-4" /> View Ledger</DropdownMenuItem>
                                         <DropdownMenuItem onSelect={() => openPartyDialog(party)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
                                         <DropdownMenuSeparator />
                                         <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()}><Trash2 className="mr-2 h-4 w-4 text-destructive" /> <span className="text-destructive">Delete</span></DropdownMenuItem></AlertDialogTrigger>

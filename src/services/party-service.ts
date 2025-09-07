@@ -1,11 +1,11 @@
 
 import { db } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
 import type { Party } from '@/lib/types';
 
 const partiesCollection = collection(db, 'parties');
 
-const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Party => {
+const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentData): Party => {
     const data = snapshot.data();
     return {
         id: snapshot.id,
@@ -18,6 +18,15 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Party => 
         lastModifiedBy: data.lastModifiedBy,
         lastModifiedAt: data.lastModifiedAt,
     };
+}
+
+export const getParty = async (id: string): Promise<Party | null> => {
+    const docRef = doc(db, 'parties', id);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+        return fromFirestore(docSnap);
+    }
+    return null;
 }
 
 export const addParty = async (party: Omit<Party, 'id'>): Promise<string> => {

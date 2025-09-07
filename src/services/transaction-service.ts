@@ -34,6 +34,13 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
     };
 }
 
+export const getTransactionsForParty = async (partyId: string): Promise<Transaction[]> => {
+    const q = query(transactionsCollection, where("partyId", "==", partyId));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(fromFirestore);
+};
+
+
 export const addTransaction = async (transaction: Omit<Transaction, 'id' | 'createdAt' | 'lastModifiedAt'>): Promise<string> => {
     const docRef = await addDoc(transactionsCollection, {
         ...transaction,
