@@ -5,7 +5,7 @@ import { useEffect, useState, use } from 'react';
 import { getTransaction } from '@/services/transaction-service';
 import type { Transaction, Vehicle, Party, Account } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Printer, Loader2, Edit } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
@@ -134,20 +134,22 @@ export default function PurchaseViewPage({ params }: { params: Promise<{ id: str
                         </TableRow>
                     ))}
                 </TableBody>
-                <TableRow>
-                    <TableCell colSpan={5} className="text-right font-semibold">Subtotal</TableCell>
-                    <TableCell className="text-right font-semibold">{subtotal.toLocaleString()}</TableCell>
-                </TableRow>
-                 {transaction.invoiceType === 'Taxable' && (
-                     <TableRow>
-                        <TableCell colSpan={5} className="text-right font-semibold">VAT (13%)</TableCell>
-                        <TableCell className="text-right font-semibold">{vatAmount.toLocaleString()}</TableCell>
+                <TableFooter>
+                    <TableRow>
+                        <TableCell colSpan={5} className="text-right font-semibold">Subtotal</TableCell>
+                        <TableCell className="text-right font-semibold">{subtotal.toLocaleString()}</TableCell>
                     </TableRow>
-                 )}
-                 <TableRow className="border-t-2 border-black">
-                    <TableCell colSpan={5} className="text-right font-bold">Grand Total</TableCell>
-                    <TableCell className="text-right font-bold">{transaction.amount.toLocaleString()}</TableCell>
-                </TableRow>
+                    {transaction.invoiceType === 'Taxable' && (
+                        <TableRow>
+                            <TableCell colSpan={5} className="text-right font-semibold">VAT (13%)</TableCell>
+                            <TableCell className="text-right font-semibold">{vatAmount.toLocaleString()}</TableCell>
+                        </TableRow>
+                    )}
+                    <TableRow className="border-t-2 border-black">
+                        <TableCell colSpan={5} className="text-right font-bold">Grand Total</TableCell>
+                        <TableCell className="text-right font-bold">{transaction.amount.toLocaleString()}</TableCell>
+                    </TableRow>
+                </TableFooter>
             </Table>
             <div className="text-xs mt-2"><span className="font-semibold">Remarks:</span> {transaction.remarks}</div>
 
