@@ -231,15 +231,7 @@ export default function TransactionsPage() {
             </header>
             <section>
                 <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TransactionFilterType)}>
-                    <div className="flex flex-col md:flex-row gap-4 mb-4">
-                        <div className="flex-1">
-                           <TabsList className="grid w-full grid-cols-4 md:w-auto">
-                                <TabsTrigger value="All">All</TabsTrigger>
-                                <TabsTrigger value="Sales">Sales</TabsTrigger>
-                                <TabsTrigger value="Purchase">Purchase</TabsTrigger>
-                                <TabsTrigger value="PaymentReceipt">Payments & Receipts</TabsTrigger>
-                            </TabsList>
-                        </div>
+                    <div className="flex flex-col gap-4 mb-4">
                         <div className="flex flex-col md:flex-row gap-2">
                              <div className="relative flex-1">
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -254,6 +246,14 @@ export default function TransactionsPage() {
                             <Button variant="outline" onClick={handleExport}>
                                 <Download className="mr-2 h-4 w-4" /> Export
                             </Button>
+                        </div>
+                        <div>
+                           <TabsList className="grid w-full grid-cols-4 md:w-auto">
+                                <TabsTrigger value="All">All</TabsTrigger>
+                                <TabsTrigger value="Sales">Sales</TabsTrigger>
+                                <TabsTrigger value="Purchase">Purchase</TabsTrigger>
+                                <TabsTrigger value="PaymentReceipt">Payments & Receipts</TabsTrigger>
+                            </TabsList>
                         </div>
                     </div>
                      <TabsContent value={activeTab} className="mt-4">
