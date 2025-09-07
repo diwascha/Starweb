@@ -99,44 +99,43 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
   const totalPay = watchedItems.reduce((sum, item) => sum + (Number(item.payAmount) || 0), 0);
   const netAmount = totalRec - totalPay;
   
-  const summaryData = React.useMemo(() => {
-    return watchedItems.map(item => {
-        const { ledgerId, vehicleId, recAmount = 0, payAmount = 0 } = item;
-        
-        if (!ledgerId && !vehicleId) {
-            return {
-                ledgerName: 'N/A',
-                vehicleName: 'N/A',
-                receivable: 0,
-                payable: 0,
-            };
-        }
-        
-        const filteredTxns = transactions.filter(t => {
-            const partyMatch = ledgerId ? t.partyId === ledgerId : false;
-            const vehicleMatch = vehicleId ? t.vehicleId === vehicleId : false;
-            return partyMatch || vehicleMatch;
-        });
-        
-        const balances = filteredTxns.reduce((acc, t) => {
-            if (t.type === 'Sales') acc.receivables += t.amount;
-            if (t.type === 'Receipt') acc.receivables -= t.amount;
-            if (t.type === 'Purchase') acc.payables += t.amount;
-            if (t.type === 'Payment') acc.payables -= t.amount;
-            return acc;
-        }, { receivables: 0, payables: 0 });
-        
-        const finalReceivable = balances.receivables - recAmount;
-        const finalPayable = balances.payables - payAmount;
+  // Calculate summary data directly on each render from watched values
+  const summaryData = watchedItems.map(item => {
+    const { ledgerId, vehicleId, recAmount = 0, payAmount = 0 } = item;
+    
+    if (!ledgerId && !vehicleId) {
+      return {
+        ledgerName: 'N/A',
+        vehicleName: 'N/A',
+        receivable: 0,
+        payable: 0,
+      };
+    }
 
-        return {
-            ledgerName: parties.find(p => p.id === ledgerId)?.name || 'N/A',
-            vehicleName: vehicles.find(v => v.id === vehicleId)?.name || 'N/A',
-            receivable: finalReceivable,
-            payable: finalPayable,
-        };
+    const filteredTxns = transactions.filter(t => {
+      const partyMatch = ledgerId ? t.partyId === ledgerId : false;
+      const vehicleMatch = vehicleId ? t.vehicleId === vehicleId : false;
+      return partyMatch || vehicleMatch;
     });
-  }, [watchedItems, transactions, parties, vehicles]);
+
+    const balances = filteredTxns.reduce((acc, t) => {
+      if (t.type === 'Sales') acc.receivables += t.amount;
+      if (t.type === 'Receipt') acc.receivables -= t.amount;
+      if (t.type === 'Purchase') acc.payables += t.amount;
+      if (t.type === 'Payment') acc.payables -= t.amount;
+      return acc;
+    }, { receivables: 0, payables: 0 });
+
+    const finalReceivable = balances.receivables - recAmount;
+    const finalPayable = balances.payables - payAmount;
+
+    return {
+      ledgerName: parties.find(p => p.id === ledgerId)?.name || 'N/A',
+      vehicleName: vehicles.find(v => v.id === vehicleId)?.name || 'N/A',
+      receivable: finalReceivable,
+      payable: finalPayable,
+    };
+  });
 
 
   const handleSubmit = (values: VoucherFormValues) => {
@@ -314,11 +313,11 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
                             <Label>Net Amount in Rs</Label>
                             <span className="font-mono">{netAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
                         </div>
+                         <FormField control={form.control} name="remarks" render={({ field }) => (
+                            <FormItem className="mt-4"><FormLabel>Remarks</FormLabel><FormControl><Input {...field} value={field.value ?? ''} className="bg-white"/></FormControl><FormMessage /></FormItem>
+                        )}/>
                     </div>
                 </div>
-                 <FormField control={form.control} name="remarks" render={({ field }) => (
-                    <FormItem className="mt-4"><FormLabel>Remarks</FormLabel><FormControl><Input {...field} value={field.value ?? ''} className="bg-white"/></FormControl><FormMessage /></FormItem>
-                )}/>
             </CardContent>
         </Card>
 
@@ -330,3 +329,5 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
     </Form>
   );
 }
+
+    
