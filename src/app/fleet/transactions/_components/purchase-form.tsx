@@ -83,9 +83,10 @@ interface PurchaseFormProps {
   vehicles: Vehicle[];
   onFormSubmit: (values: any) => Promise<void>;
   onCancel: () => void;
+  initialValues?: Partial<TransactionFormValues> & { type: 'Purchase' | 'Sales' };
 }
 
-export function PurchaseForm({ accounts, parties, vehicles, onFormSubmit, onCancel }: PurchaseFormProps) {
+export function PurchaseForm({ accounts, parties, vehicles, onFormSubmit, onCancel, initialValues }: PurchaseFormProps) {
     const { toast } = useToast();
     const { user } = useAuth();
 
@@ -102,7 +103,7 @@ export function PurchaseForm({ accounts, parties, vehicles, onFormSubmit, onCanc
 
     const form = useForm<TransactionFormValues>({
         resolver: zodResolver(transactionSchema),
-        defaultValues: {
+        defaultValues: initialValues || {
             date: new Date(),
             invoiceType: 'Taxable',
             billingType: 'Cash',
@@ -339,7 +340,7 @@ export function PurchaseForm({ accounts, parties, vehicles, onFormSubmit, onCanc
             <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
                 <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : 'Save Transaction'}
+                    {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : (initialValues ? 'Save Changes' : 'Save Transaction')}
                 </Button>
             </div>
         </form>

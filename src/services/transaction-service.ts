@@ -6,7 +6,7 @@ import type { Transaction } from '@/lib/types';
 
 const transactionsCollection = collection(db, 'transactions');
 
-const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Transaction => {
+const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentData): Transaction => {
     const data = snapshot.data();
     return {
         id: snapshot.id,
@@ -99,6 +99,16 @@ export const onTransactionsUpdate = (callback: (transactions: Transaction[]) => 
     return onSnapshot(transactionsCollection, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
     });
+};
+
+export const getTransaction = async (id: string): Promise<Transaction | null> => {
+    const transactionDoc = doc(db, 'transactions', id);
+    const docSnap = await getDoc(transactionDoc);
+    if (docSnap.exists()) {
+        return fromFirestore(docSnap);
+    } else {
+        return null;
+    }
 };
 
 export const getVoucherTransactions = async (voucherId: string): Promise<Transaction[]> => {
