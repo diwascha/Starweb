@@ -35,7 +35,6 @@ const voucherItemSchema = z.object({
 });
 
 const voucherSchema = z.object({
-  voucherType: z.enum(['Payment', 'Receipt']),
   voucherNo: z.string().min(1, "Voucher number is required."),
   date: z.date(),
   billingType: z.enum(['Cash', 'Bank']),
@@ -80,7 +79,6 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
   const form = useForm<VoucherFormValues>({
     resolver: zodResolver(voucherSchema),
     defaultValues: initialValues || {
-      voucherType: 'Payment',
       billingType: 'Cash',
       voucherNo: '001', // Placeholder
       date: new Date(),
@@ -151,15 +149,7 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
         <Card className="bg-blue-100 border-blue-300 p-4">
           <CardContent className="p-0">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-              <FormField control={form.control} name="voucherType" render={({ field }) => (
-                <FormItem><FormLabel>Voucher Type</FormLabel><FormControl>
-                    <RadioGroup onValueChange={field.onChange} value={field.value} className="flex items-center space-x-4 pt-2">
-                        <FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="Payment" /></FormControl><FormLabel className="font-normal">Payment</FormLabel></FormItem>
-                        <FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="Receipt" /></FormControl><FormLabel className="font-normal">Receipt</FormLabel></FormItem>
-                    </RadioGroup>
-                </FormControl><FormMessage/></FormItem>
-              )}/>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
               <FormField control={form.control} name="voucherNo" render={({ field }) => (
                 <FormItem><FormLabel>Voucher No.</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
               )}/>

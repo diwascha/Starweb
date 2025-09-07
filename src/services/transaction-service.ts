@@ -53,13 +53,14 @@ export const saveVoucher = async (voucherData: any, createdBy: string) => {
         let amount = 0;
         let type: 'Payment' | 'Receipt' | null = null;
         
-        if (voucherData.voucherType === 'Payment' && payAmount > 0) {
+        if (payAmount > 0) {
             amount = payAmount;
             type = 'Payment';
-        } else if (voucherData.voucherType === 'Receipt' && recAmount > 0) {
+        } else if (recAmount > 0) {
             amount = recAmount;
             type = 'Receipt';
         }
+
 
         if (type && amount > 0) {
             const transactionRef = doc(transactionsCollection);
@@ -168,10 +169,10 @@ export const updateVoucher = async (voucherId: string, voucherData: any, modifie
         let amount = 0;
         let type: 'Payment' | 'Receipt' | null = null;
         
-        if (voucherData.voucherType === 'Payment' && payAmount > 0) {
+        if (payAmount > 0) {
             amount = payAmount;
             type = 'Payment';
-        } else if (voucherData.voucherType === 'Receipt' && recAmount > 0) {
+        } else if (recAmount > 0) {
             amount = recAmount;
             type = 'Receipt';
         }

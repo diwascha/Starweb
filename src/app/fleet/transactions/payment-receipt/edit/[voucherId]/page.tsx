@@ -58,7 +58,6 @@ export default function EditVoucherPage({ params }: { params: { voucherId: strin
     }));
     
     return {
-      voucherType: base.type as 'Payment' | 'Receipt',
       voucherNo: base.items[0]?.particular.replace(/ .*/,'') || 'N/A',
       date: new Date(base.date),
       billingType: base.billingType,
