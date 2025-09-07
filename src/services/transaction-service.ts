@@ -76,7 +76,12 @@ export const saveVoucher = async (voucherData: any, createdBy: string) => {
                 chequeDate: voucherData.chequeDate ? voucherData.chequeDate.toISOString() : null,
                 createdBy: createdBy,
                 createdAt: now,
-                lastModifiedAt: now
+                lastModifiedAt: now,
+                // These fields are not part of the voucher form but are required by the Transaction type
+                dueDate: null,
+                invoiceDate: null,
+                invoiceNumber: null,
+                tripId: undefined,
             };
             batch.set(transactionRef, newTransaction);
         }
