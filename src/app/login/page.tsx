@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { getUsers, getAdminCredentials } from '@/services/user-service';
+import { Progress } from '@/components/ui/progress';
 
 const loginSchema = z.object({
   username: z.string().min(1, { message: 'Username is required' }),
@@ -22,10 +23,22 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
+const loadingSteps = [
+  { progress: 0, text: 'Authenticating...' },
+  { progress: 20, text: 'Initializing workspace...' },
+  { progress: 40, text: 'Loading user settings...' },
+  { progress: 60, text: 'Fetching recent activities...' },
+  { progress: 80, text: 'Preparing dashboard...' },
+  { progress: 100, text: 'Finalizing setup...' },
+];
+
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [showProgress, setShowProgress] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [loadingText, setLoadingText] = useState('Initializing...');
   const { login } = useAuth();
 
   const {
@@ -35,6 +48,31 @@ export default function LoginPage() {
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
   });
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (showProgress) {
+      interval = setInterval(() => {
+        setProgress(prevProgress => {
+          const currentStep = loadingSteps.find(step => prevProgress < step.progress);
+          if (currentStep) {
+            setLoadingText(currentStep.text);
+            return currentStep.progress;
+          }
+          return 100;
+        });
+      }, 700);
+    }
+    return () => clearInterval(interval);
+  }, [showProgress]);
+
+  useEffect(() => {
+    if (progress >= 100) {
+      setTimeout(() => {
+        router.replace('/dashboard');
+      }, 500);
+    }
+  }, [progress, router]);
 
   const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
@@ -50,7 +88,7 @@ export default function LoginPage() {
               title: 'Success',
               description: 'Logged in successfully as Administrator.',
             });
-            router.push('/loading');
+            setShowProgress(true);
             return;
         }
       }
@@ -66,7 +104,7 @@ export default function LoginPage() {
           title: 'Success',
           description: 'Logged in successfully.',
         });
-        router.push('/loading');
+        setShowProgress(true);
         return;
       }
 
@@ -78,7 +116,6 @@ export default function LoginPage() {
         description: error.message,
         variant: 'destructive',
       });
-    } finally {
       setIsLoading(false);
     }
   };
@@ -113,10 +150,16 @@ export default function LoginPage() {
                 {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
               </div>
               <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isLoading ? 'Logging in...' : 'Login'}
+                {isLoading && !showProgress && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isLoading && !showProgress ? 'Logging in...' : 'Login'}
               </Button>
             </form>
+             {showProgress && (
+              <div className="space-y-2 mt-4 text-center">
+                  <Progress value={progress} className="w-full" />
+                  <p className="text-sm text-muted-foreground">{loadingText}</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
