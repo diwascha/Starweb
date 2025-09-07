@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import type { Account, Party, Vehicle } from '@/lib/types';
+import type { Account, Party, Vehicle, Transaction } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, ChevronsUpDown, Check, Plus, Trash2 } from 'lucide-react';
@@ -64,11 +64,12 @@ interface PaymentReceiptFormProps {
   accounts: Account[];
   parties: Party[];
   vehicles: Vehicle[];
+  transactions: Transaction[];
   onFormSubmit: (values: any) => Promise<void>;
   onCancel: () => void;
 }
 
-export function PaymentReceiptForm({ accounts, parties, vehicles, onFormSubmit, onCancel }: PaymentReceiptFormProps) {
+export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, onFormSubmit, onCancel }: PaymentReceiptFormProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   
@@ -93,6 +94,7 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, onFormSubmit, 
   
   const watchedItems = form.watch("items");
   const watchedBillingType = form.watch("billingType");
+  const watchedLedgerId = form.watch("items.0.ledgerId"); // Watch the first ledger for summary
   
   const { totalRec, totalPay, netAmount } = React.useMemo(() => {
     const rec = watchedItems.reduce((sum, item) => sum + (Number(item.recAmount) || 0), 0);
@@ -103,6 +105,23 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, onFormSubmit, 
       netAmount: rec - pay,
     };
   }, [watchedItems]);
+  
+  const partySummary = React.useMemo(() => {
+    if (!watchedLedgerId) return { receivables: 0, payables: 0 };
+    
+    const partyTxns = transactions.filter(t => t.partyId === watchedLedgerId);
+    
+    const receivables = partyTxns
+        .filter(t => t.type === 'Sales' || t.type === 'Receipt')
+        .reduce((sum, t) => sum + (t.type === 'Sales' ? t.amount : -t.amount), 0);
+        
+    const payables = partyTxns
+        .filter(t => t.type === 'Purchase' || t.type === 'Payment')
+        .reduce((sum, t) => sum + (t.type === 'Purchase' ? t.amount : -t.amount), 0);
+
+    return { receivables, payables };
+  }, [watchedLedgerId, transactions]);
+
 
   const handleSubmit = (values: VoucherFormValues) => {
     // This is a placeholder for the actual submission logic.
@@ -237,21 +256,39 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, onFormSubmit, 
         
         <Card className="bg-blue-100 border-blue-300 p-4 mt-4">
             <CardContent className="p-0 space-y-4">
-                 <div className="w-full md:w-1/2 md:ml-auto space-y-2">
-                    <div className="flex justify-between bg-gray-200 p-2 rounded-md">
-                        <Label>Total Rec Amt</Label>
-                        <span className="font-mono">{totalRec.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
-                    </div>
-                     <div className="flex justify-between bg-gray-200 p-2 rounded-md">
-                        <Label>Total Pay Amt</Label>
-                        <span className="font-mono">{totalPay.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
-                    </div>
-                    <div className="flex justify-between bg-gray-800 text-white p-2 rounded-md">
-                        <Label>Net Amount in Rs</Label>
-                        <span className="font-mono">{netAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     {watchedLedgerId && (
+                         <div className="space-y-2">
+                             <Label>Summary for {parties.find(p => p.id === watchedLedgerId)?.name}</Label>
+                             <div className="grid grid-cols-2 gap-2">
+                                <div className="p-2 rounded-lg bg-gray-200">
+                                    <p className="text-xs text-muted-foreground">Account Receivable</p>
+                                    <p className="font-mono font-bold">{partySummary.receivables.toLocaleString()}</p>
+                                </div>
+                                <div className="p-2 rounded-lg bg-gray-200">
+                                    <p className="text-xs text-muted-foreground">Account Payable</p>
+                                    <p className="font-mono font-bold">{partySummary.payables.toLocaleString()}</p>
+                                </div>
+                            </div>
+                         </div>
+                     )}
+                    <div className="space-y-2">
+                        <Label>Current Transaction Totals</Label>
+                        <div className="flex justify-between bg-gray-200 p-2 rounded-md">
+                            <Label>Total Rec Amt</Label>
+                            <span className="font-mono">{totalRec.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                        </div>
+                         <div className="flex justify-between bg-gray-200 p-2 rounded-md">
+                            <Label>Total Pay Amt</Label>
+                            <span className="font-mono">{totalPay.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                        </div>
+                        <div className="flex justify-between bg-gray-800 text-white p-2 rounded-md">
+                            <Label>Net Amount in Rs</Label>
+                            <span className="font-mono">{netAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                        </div>
                     </div>
                 </div>
-                <FormField control={form.control} name="remarks" render={({ field }) => (
+                 <FormField control={form.control} name="remarks" render={({ field }) => (
                     <FormItem><FormLabel>Remarks</FormLabel><FormControl><Input {...field} value={field.value ?? ''} className="bg-white"/></FormControl><FormMessage /></FormItem>
                 )}/>
             </CardContent>
@@ -265,3 +302,5 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, onFormSubmit, 
     </Form>
   );
 }
+
+    

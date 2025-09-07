@@ -142,10 +142,6 @@ export default function TransactionsPage() {
     const [sortConfig, setSortConfig] = useState<{ key: TransactionSortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
     const [filterVehicleId, setFilterVehicleId] = useState<string>('All');
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-
-    // Summary state
-    const [summaryPartyId, setSummaryPartyId] = useState<string>('All');
-    const [summaryVehicleId, setSummaryVehicleId] = useState<string>('All');
     
     const { toast } = useToast();
     const { hasPermission, user } = useAuth();
@@ -384,32 +380,6 @@ export default function TransactionsPage() {
         return { sortedAndFilteredTransactions: augmented };
     }, [transactions, searchQuery, sortConfig, vehiclesById, partiesById, filterVehicleId, dateRange]);
     
-     const calculationSummary = useMemo(() => {
-        let filteredTxns = transactions;
-        
-        if (summaryPartyId !== 'All') {
-            filteredTxns = filteredTxns.filter(t => t.partyId === summaryPartyId);
-        }
-
-        if (summaryVehicleId !== 'All') {
-            filteredTxns = filteredTxns.filter(t => t.vehicleId === summaryVehicleId);
-        }
-
-        const receivables = filteredTxns
-            .filter(t => t.type === 'Sales' || t.type === 'Receipt')
-            .reduce((sum, t) => sum + (t.type === 'Sales' ? t.amount : -t.amount), 0);
-            
-        const payables = filteredTxns
-            .filter(t => t.type === 'Purchase' || t.type === 'Payment')
-            .reduce((sum, t) => sum + (t.type === 'Purchase' ? t.amount : -t.amount), 0);
-
-        const recent = filteredTxns
-            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-            .slice(0, 5);
-
-        return { receivables, payables, recentTransactions: recent };
-    }, [transactions, summaryPartyId, summaryVehicleId]);
-
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     
     if (isLoading) {
@@ -427,75 +397,6 @@ export default function TransactionsPage() {
                     <h1 className="text-3xl font-bold tracking-tight">Fleet Accounting</h1>
                     <p className="text-muted-foreground">Manage your fleet's financial transactions and view summaries.</p>
                 </header>
-
-                <Card>
-                    <CardHeader>
-                         <CardTitle>Calculation Summary</CardTitle>
-                         <CardDescription>View real-time receivables and payables by client or vehicle.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label>Filter by Client</Label>
-                                <Select value={summaryPartyId} onValueChange={setSummaryPartyId}>
-                                    <SelectTrigger><SelectValue placeholder="Select a client..." /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="All">All Clients</SelectItem>
-                                        {parties.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Filter by Vehicle</Label>
-                                <Select value={summaryVehicleId} onValueChange={setSummaryVehicleId}>
-                                    <SelectTrigger><SelectValue placeholder="Select a vehicle..." /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="All">All Vehicles</SelectItem>
-                                        {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="p-4 rounded-lg bg-muted/50">
-                                <p className="text-sm text-muted-foreground">Account Receivable</p>
-                                <p className="text-2xl font-bold">{calculationSummary.receivables.toLocaleString()}</p>
-                            </div>
-                            <div className="p-4 rounded-lg bg-muted/50">
-                                <p className="text-sm text-muted-foreground">Account Payable</p>
-                                <p className="text-2xl font-bold">{calculationSummary.payables.toLocaleString()}</p>
-                            </div>
-                        </div>
-                        <div>
-                            <h4 className="text-md font-medium mb-2">Recent Transactions</h4>
-                            <div className="border rounded-lg">
-                            {calculationSummary.recentTransactions.length > 0 ? (
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Date</TableHead>
-                                            <TableHead>Type</TableHead>
-                                            <TableHead>Amount</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {calculationSummary.recentTransactions.map(txn => (
-                                            <TableRow key={txn.id}>
-                                                <TableCell>{toNepaliDate(txn.date)}</TableCell>
-                                                <TableCell><Badge variant="outline">{txn.type}</Badge></TableCell>
-                                                <TableCell className={cn(['Purchase', 'Payment'].includes(txn.type) ? 'text-red-600' : 'text-green-600')}>{txn.amount.toLocaleString()}</TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            ) : (
-                                <p className="p-4 text-center text-sm text-muted-foreground">No transactions for this selection.</p>
-                            )}
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
                 <section>
                     <div className="flex flex-col md:flex-row gap-4 items-center justify-between mb-4">
                         <div className="flex-1 w-full">
@@ -807,6 +708,7 @@ export default function TransactionsPage() {
                         accounts={accounts}
                         parties={parties}
                         vehicles={vehicles}
+                        transactions={transactions}
                         onFormSubmit={async (values) => {
                             console.log(values);
                             setIsPaymentReceiptDialogOpen(false);
@@ -818,5 +720,7 @@ export default function TransactionsPage() {
         </>
     );
 }
+
+    
 
     
