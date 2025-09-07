@@ -24,7 +24,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, MoreHorizontal, Search, Save, KeyRound } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, Search, Save, KeyRound, Download, Upload } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
@@ -41,6 +41,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { getUsers, setUsers, validatePassword, setAdminPassword, updateUserPassword } from '@/services/user-service';
 import { modules, actions } from '@/lib/types';
 import { Checkbox } from '@/components/ui/checkbox';
+import { exportData } from '@/services/backup-service';
+import { Loader2 } from 'lucide-react';
 
 
 export default function SettingsPage() {
@@ -53,11 +55,12 @@ export default function SettingsPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState("security");
+  const [activeTab, setActiveTab] = useState("users-security");
 
   // Report Prefix State
   const [reportPrefix, setReportPrefix] = useState('');
   const [isSavingPrefix, setIsSavingPrefix] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Party Dialog State
   const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
@@ -122,6 +125,25 @@ export default function SettingsPage() {
         setIsSavingPrefix(false);
     }
   };
+
+  const handleExportData = async () => {
+    setIsExporting(true);
+    try {
+        const data = await exportData();
+        const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(data, null, 2))}`;
+        const link = document.createElement("a");
+        link.href = jsonString;
+        link.download = `starweb-backup-${new Date().toISOString()}.json`;
+        link.click();
+        toast({ title: 'Export Successful', description: 'Your data has been downloaded.' });
+    } catch (error) {
+        console.error("Export failed:", error);
+        toast({ title: 'Export Failed', description: 'Could not export data.', variant: 'destructive' });
+    } finally {
+        setIsExporting(false);
+    }
+  };
+
 
   const openPartyDialog = (party: Party | null = null) => {
     if (party) {
@@ -383,14 +405,14 @@ export default function SettingsPage() {
         </header>
         
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="security">Users & Security</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-5">
+                <TabsTrigger value="users-security">Users & Security</TabsTrigger>
                 <TabsTrigger value="parties">Vendors & Suppliers</TabsTrigger>
                 <TabsTrigger value="accounts">Accounts</TabsTrigger>
                 <TabsTrigger value="uom">Units of Measurement</TabsTrigger>
                 <TabsTrigger value="application">Application</TabsTrigger>
             </TabsList>
-            <TabsContent value="security">
+            <TabsContent value="users-security">
                 <div className="space-y-6">
                     <Card>
                         <CardHeader>
@@ -542,24 +564,54 @@ export default function SettingsPage() {
                 </Card>
             </TabsContent>
             <TabsContent value="application">
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>Application Settings</CardTitle>
-                        <CardDescription>Configure global application settings.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                       <div className="space-y-2">
-                           <Label htmlFor="report-prefix">Report Number Prefix</Label>
-                           <div className="flex items-center gap-2">
-                            <Input id="report-prefix" value={reportPrefix} onChange={(e) => setReportPrefix(e.target.value)} className="max-w-xs" />
-                            <Button onClick={handleSavePrefix} disabled={isSavingPrefix}>
-                                <Save className="mr-2 h-4 w-4" /> Save Prefix
-                            </Button>
-                           </div>
-                           <p className="text-sm text-muted-foreground">This prefix is used for generating new test report serial numbers.</p>
-                       </div>
-                    </CardContent>
-                </Card>
+                <div className="space-y-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Application Settings</CardTitle>
+                            <CardDescription>Configure global application settings.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="report-prefix">Report Number Prefix</Label>
+                            <div className="flex items-center gap-2">
+                                <Input id="report-prefix" value={reportPrefix} onChange={(e) => setReportPrefix(e.target.value)} className="max-w-xs" />
+                                <Button onClick={handleSavePrefix} disabled={isSavingPrefix}>
+                                    <Save className="mr-2 h-4 w-4" /> Save Prefix
+                                </Button>
+                            </div>
+                            <p className="text-sm text-muted-foreground">This prefix is used for generating new test report serial numbers.</p>
+                        </div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Backup & Restore</CardTitle>
+                            <CardDescription>Export your application data or restore it from a backup file.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div>
+                                <h3 className="font-medium">Export Data</h3>
+                                <p className="text-sm text-muted-foreground mb-2">Download a complete backup of your database in JSON format. Keep this file in a safe place.</p>
+                                <Button onClick={handleExportData} disabled={isExporting}>
+                                    {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                                    {isExporting ? 'Exporting...' : 'Export All Data'}
+                                </Button>
+                            </div>
+                            <div className="pt-4 border-t">
+                                <h3 className="font-medium">Restore Data</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    Restoring data will overwrite all existing information in your database. This is a sensitive operation and should be done with caution using the official Google Cloud tools.
+                                </p>
+                                <div className="mt-2 text-xs p-3 bg-muted rounded-md space-y-1">
+                                    <p className="font-semibold">Instructions:</p>
+                                    <p>1. Install the Google Cloud CLI on your local machine.</p>
+                                    <p>2. Authenticate by running <code className="bg-background p-1 rounded">gcloud auth login</code>.</p>
+                                    <p>3. Use the <code className="bg-background p-1 rounded">gcloud firestore import</code> command with your backup file.</p>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
             </TabsContent>
         </Tabs>
         
