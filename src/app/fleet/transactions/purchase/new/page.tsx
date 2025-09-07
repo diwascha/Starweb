@@ -11,7 +11,7 @@ import { onAccountsUpdate } from '@/services/account-service';
 import { addTransaction } from '@/services/transaction-service';
 import { PurchaseForm } from '../../_components/purchase-form';
 import { useRouter } from 'next/navigation';
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { PlusCircle } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -108,6 +108,12 @@ export default function NewPurchasePage() {
                 </div>
             </div>
             <DialogContent className="max-w-4xl">
+                 <DialogHeader>
+                    <DialogTitle>Create New Purchase</DialogTitle>
+                    <DialogDescription>
+                        Fill in the details below to record a new purchase transaction.
+                    </DialogDescription>
+                </DialogHeader>
                  <PurchaseForm 
                     accounts={accounts}
                     parties={parties}
