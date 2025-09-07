@@ -12,15 +12,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -32,110 +23,28 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/use-auth';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { format, isWithinInterval, startOfDay, endOfDay, differenceInDays } from 'date-fns';
 import { cn, toNepaliDate } from '@/lib/utils';
-import { DualCalendar } from '@/components/ui/dual-calendar';
-import { Calendar } from '@/components/ui/calendar';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
 import type { DateRange } from 'react-day-picker';
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { onTransactionsUpdate, addTransaction, updateTransaction, deleteTransaction, saveVoucher } from '@/services/transaction-service';
+import { onTransactionsUpdate, deleteTransaction } from '@/services/transaction-service';
 import { onVehiclesUpdate } from '@/services/vehicle-service';
-import { onPartiesUpdate, addParty } from '@/services/party-service';
-import { onAccountsUpdate, addAccount, updateAccount } from '@/services/account-service';
-import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { onPartiesUpdate } from '@/services/party-service';
 import { useRouter } from 'next/navigation';
-import { useForm, useFieldArray } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { PaymentReceiptForm } from './_components/payment-receipt-form';
-
-
-const transactionItemSchema = z.object({
-    particular: z.string().min(1, 'Particular is required.'),
-    quantity: z.number().min(0, 'Quantity must be positive.'),
-    uom: z.string().optional(),
-    rate: z.number().min(0, 'Rate must be positive.'),
-});
-
-const transactionSchema = z.object({
-    vehicleId: z.string().min(1, 'Vehicle is required.'),
-    date: z.date({ required_error: 'Posting date is required.' }),
-    invoiceNumber: z.string().optional(),
-    invoiceDate: z.date().optional().nullable(),
-    invoiceType: z.enum(['Taxable', 'Normal']),
-    billingType: z.enum(['Cash', 'Bank', 'Credit']),
-    chequeNumber: z.string().optional(),
-    chequeDate: z.date().optional().nullable(),
-    dueDate: z.date().optional().nullable(),
-    partyId: z.string().optional(),
-    accountId: z.string().optional(),
-    items: z.array(transactionItemSchema).min(1, 'At least one item is required.'),
-    remarks: z.string().optional(),
-    type: z.enum(['Purchase', 'Sales', 'Payment', 'Receipt']),
-}).refine(data => {
-    if (data.billingType === 'Bank') return !!data.chequeDate;
-    return true;
-}, { message: 'Cheque Date is required for Bank billing.', path: ['chequeDate'] })
-.refine(data => {
-    if (data.billingType === 'Bank') return !!data.chequeNumber && data.chequeNumber.trim() !== '';
-    return true;
-}, { message: 'Cheque Number is required for Bank billing.', path: ['chequeNumber'] })
-.refine(data => {
-    if (data.billingType === 'Bank') return !!data.accountId;
-    return true;
-}, { message: 'Bank Account is required for Bank billing.', path: ['accountId'] })
-.refine(data => {
-    if (data.billingType === 'Credit') return !!data.dueDate;
-    return true;
-}, { message: 'Due Date is required for Credit billing.', path: ['dueDate'] })
-.refine(data => {
-    if (['Credit', 'Purchase', 'Sales'].includes(data.billingType) || ['Purchase', 'Sales'].includes(data.type)) return !!data.partyId;
-    return true;
-}, { message: 'Vendor/Party is required for this transaction type.', path: ['partyId'] });
-
-
-type TransactionFormValues = z.infer<typeof transactionSchema>;
+import { Badge } from '@/components/ui/badge';
 
 
 type TransactionSortKey = 'date' | 'vehicleName' | 'type' | 'partyName' | 'amount' | 'authorship' | 'dueDate';
 type SortDirection = 'asc' | 'desc';
 
-const initialAccountFormState = {
-    name: '',
-    type: 'Cash' as AccountType,
-    accountNumber: '',
-    bankName: '',
-    branch: '',
-};
-
 export default function TransactionsPage() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [parties, setParties] = useState<Party[]>([]);
-    const [accounts, setAccounts] = useState<Account[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
-    
-    // Dialogs
-    const [isTransactionDialogOpen, setIsTransactionDialogOpen] = useState(false);
-    const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
-    const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
-    const [isPaymentReceiptDialogOpen, setIsPaymentReceiptDialogOpen] = useState(false);
-
-    // Form states
-    const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
-    const [partyForm, setPartyForm] = useState<{name: string, type: PartyType}>({name: '', type: 'Vendor'});
-    const [accountForm, setAccountForm] = useState(initialAccountFormState);
-    const [editingAccount, setEditingAccount] = useState<Account | null>(null);
     
     // Search & Filter
     const [searchQuery, setSearchQuery] = useState('');
@@ -149,8 +58,6 @@ export default function TransactionsPage() {
     // Memos for performance
     const vehiclesById = useMemo(() => new Map(vehicles.map(v => [v.id, v.name])), [vehicles]);
     const partiesById = useMemo(() => new Map(parties.map(p => [p.id, p.name])), [parties]);
-    const accountsById = useMemo(() => new Map(accounts.map(a => [a.id, a.bankName ? `${a.bankName} - ${a.accountNumber}` : a.name])), [accounts]);
-    const bankAccounts = useMemo(() => accounts.filter(a => a.type === 'Bank'), [accounts]);
 
     // Data fetching
     useEffect(() => {
@@ -158,184 +65,14 @@ export default function TransactionsPage() {
         const unsubTxns = onTransactionsUpdate(setTransactions);
         const unsubVehicles = onVehiclesUpdate(setVehicles);
         const unsubParties = onPartiesUpdate(setParties);
-        const unsubAccounts = onAccountsUpdate(setAccounts);
         setIsLoading(false);
 
         return () => {
             unsubTxns();
             unsubVehicles();
             unsubParties();
-            unsubAccounts();
         }
     }, []);
-
-    // Form
-    const form = useForm<TransactionFormValues>({
-        resolver: zodResolver(transactionSchema),
-    });
-    
-    const { fields, append, remove } = useFieldArray({
-        control: form.control,
-        name: "items"
-    });
-    
-    const watchedFormValues = form.watch();
-    const { subtotal, vatAmount, totalAmount } = useMemo(() => {
-        const items = watchedFormValues.items || [];
-        const sub = items.reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.rate) || 0), 0);
-        const vat = watchedFormValues.invoiceType === 'Taxable' ? sub * 0.13 : 0;
-        const total = sub + vat;
-        return { subtotal: sub, vatAmount: vat, totalAmount: total };
-    }, [watchedFormValues.items, watchedFormValues.invoiceType]);
-
-
-    const handleOpenTransactionDialog = (transaction: Transaction | null = null, type?: TransactionType) => {
-        if (transaction) {
-            setEditingTransaction(transaction);
-            form.reset({
-                ...transaction,
-                date: new Date(transaction.date),
-                invoiceDate: transaction.invoiceDate ? new Date(transaction.invoiceDate) : null,
-                chequeDate: transaction.chequeDate ? new Date(transaction.chequeDate) : null,
-                dueDate: transaction.dueDate ? new Date(transaction.dueDate) : null,
-                items: transaction.items.map(item => ({...item, quantity: Number(item.quantity) || 0, rate: Number(item.rate) || 0 }))
-            });
-        } else {
-            setEditingTransaction(null);
-            form.reset({
-                date: new Date(),
-                invoiceType: 'Taxable',
-                billingType: 'Cash',
-                items: [{ particular: '', quantity: 0, uom: '', rate: 0 }],
-                type: type || 'Purchase',
-            });
-        }
-        setIsTransactionDialogOpen(true);
-    };
-    
-    const handleSubmitTransaction = async (values: TransactionFormValues) => {
-        if (!user) return;
-        
-        const calculatedSubtotal = (values.items || []).reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.rate) || 0), 0);
-        const calculatedVat = values.invoiceType === 'Taxable' ? calculatedSubtotal * 0.13 : 0;
-        const grandTotal = calculatedSubtotal + calculatedVat;
-        
-        const transactionData = {
-            ...values,
-            date: values.date.toISOString(),
-            invoiceNumber: values.invoiceNumber || null,
-            invoiceDate: values.invoiceDate?.toISOString() || null,
-            chequeNumber: values.chequeNumber || null,
-            chequeDate: values.chequeDate?.toISOString() || null,
-            dueDate: values.dueDate?.toISOString() || null,
-            items: values.items.map(item => ({
-                ...item,
-                quantity: Number(item.quantity) || 0,
-                rate: Number(item.rate) || 0,
-            })),
-            amount: grandTotal,
-            remarks: values.remarks || null,
-            accountId: values.accountId || null,
-            partyId: values.partyId || null,
-        };
-
-        try {
-            if (editingTransaction) {
-                await updateTransaction(editingTransaction.id, { ...transactionData, lastModifiedBy: user.username });
-                toast({ title: 'Success', description: 'Transaction updated.' });
-            } else {
-                await addTransaction({ ...transactionData, createdBy: user.username });
-                toast({ title: 'Success', description: 'New transaction recorded.' });
-            }
-            setIsTransactionDialogOpen(false);
-        } catch (error) {
-             console.error("Failed to save transaction:", error);
-             toast({ title: 'Error', description: 'Failed to save transaction.', variant: 'destructive' });
-        }
-    };
-
-    const handleVoucherSubmit = async (values: any) => {
-        if (!user) {
-            toast({ title: "Error", description: "You must be logged in to save.", variant: "destructive" });
-            return;
-        }
-        try {
-            await saveVoucher(values, user.username);
-            toast({ title: "Voucher Saved", description: "The voucher has been successfully recorded." });
-            setIsPaymentReceiptDialogOpen(false);
-        } catch (error) {
-            console.error("Failed to save voucher:", error);
-            toast({ title: "Error", description: "Failed to save voucher.", variant: "destructive" });
-        }
-    };
-    
-    const handleSubmitParty = async () => {
-        if(!user) return;
-        if(!partyForm.name || !partyForm.type) {
-            toast({title: 'Error', description: 'Party name and type are required.', variant: 'destructive'});
-            return;
-        }
-        try {
-            const newPartyId = await addParty({...partyForm, createdBy: user.username});
-            form.setValue('partyId', newPartyId);
-            toast({title: 'Success', description: 'New party added.'});
-            setIsPartyDialogOpen(false);
-            setPartyForm({name: '', type: 'Vendor'});
-        } catch {
-             toast({title: 'Error', description: 'Failed to add party.', variant: 'destructive'});
-        }
-    };
-    
-    const handleOpenAccountDialog = (account: Account | null = null) => {
-        if (account) {
-            setEditingAccount(account);
-            setAccountForm({
-                name: account.name,
-                type: account.type,
-                accountNumber: account.accountNumber || '',
-                bankName: account.bankName || '',
-                branch: account.branch || '',
-            });
-        } else {
-            setEditingAccount(null);
-            setAccountForm(initialAccountFormState);
-        }
-        setIsAccountDialogOpen(true);
-    };
-
-    const handleSubmitAccount = async () => {
-        if(!user) return;
-        if(!accountForm.name || !accountForm.type) {
-            toast({title: 'Error', description: 'Account name and type are required.', variant: 'destructive'});
-            return;
-        }
-         if (accountForm.type === 'Bank' && (!accountForm.bankName || !accountForm.accountNumber)) {
-            toast({ title: 'Error', description: 'Bank Name and Account Number are required for bank accounts.', variant: 'destructive' });
-            return;
-        }
-        try {
-            if (editingAccount) {
-                const updatedAccountData: Partial<Omit<Account, 'id'>> = {
-                    ...accountForm,
-                    lastModifiedBy: user.username,
-                };
-                await updateAccount(editingAccount.id, updatedAccountData);
-                toast({ title: 'Success', description: 'Account updated.' });
-            } else {
-                 const newAccountData: Omit<Account, 'id' | 'createdAt' | 'lastModifiedAt'> = {
-                    ...accountForm,
-                    createdBy: user.username,
-                };
-                const newAccountId = await addAccount(newAccountData);
-                form.setValue('accountId', newAccountId);
-                toast({title: 'Success', description: 'New account added.'});
-            }
-            
-            setIsAccountDialogOpen(false);
-        } catch {
-             toast({title: 'Error', description: 'Failed to add account.', variant: 'destructive'});
-        }
-    };
 
     const handleDelete = async (id: string) => {
         try {
@@ -395,8 +132,6 @@ export default function TransactionsPage() {
         return { sortedAndFilteredTransactions: augmented };
     }, [transactions, searchQuery, sortConfig, vehiclesById, partiesById, filterVehicleId, dateRange]);
     
-    const scrollContainerRef = useRef<HTMLDivElement>(null);
-    
     if (isLoading) {
         return (
             <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
@@ -406,335 +141,93 @@ export default function TransactionsPage() {
     }
     
     return (
-        <>
-            <div className="flex flex-col gap-8">
-                <header>
-                    <h1 className="text-3xl font-bold tracking-tight">Fleet Accounting</h1>
-                    <p className="text-muted-foreground">Manage your fleet's financial transactions and view summaries.</p>
-                </header>
-                <section>
-                    <div className="flex flex-col md:flex-row gap-4 items-center justify-between mb-4">
-                        <div className="flex-1 w-full">
-                            <h2 className="text-xl font-semibold">All Transactions</h2>
-                        </div>
-                        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                            {hasPermission('fleet', 'create') && (
-                                <>
-                                <Button onClick={() => router.push('/fleet/trip-sheets/new')} className="w-full">
-                                    <TrendingUp className="mr-2 h-4 w-4" /> New Sales
-                                </Button>
-                                <Button onClick={() => handleOpenTransactionDialog(null, 'Purchase')} className="w-full">
-                                    <ShoppingCart className="mr-2 h-4 w-4" /> New Purchase
-                                </Button>
-                                <Button onClick={() => setIsPaymentReceiptDialogOpen(true)} className="w-full">
-                                    <ArrowRightLeft className="mr-2 h-4 w-4" /> New Payment / Receipt
-                                </Button>
-                                </>
-                            )}
-                        </div>
+        <div className="flex flex-col gap-8">
+            <header>
+                <h1 className="text-3xl font-bold tracking-tight">Fleet Accounting</h1>
+                <p className="text-muted-foreground">Manage your fleet's financial transactions and view summaries.</p>
+            </header>
+            <section>
+                <div className="flex flex-col md:flex-row gap-4 items-center justify-between mb-4">
+                    <div className="flex-1 w-full">
+                        <h2 className="text-xl font-semibold">All Transactions</h2>
                     </div>
-
-                     <div className="flex flex-col md:flex-row gap-2 mb-4">
-                        <div className="relative flex-1">
-                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input type="search" placeholder="Search..." className="pl-8 w-full" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
-                        </div>
-                        <div className="flex gap-2">
-                            <Popover><PopoverTrigger asChild>
-                                <Button id="date" variant={"outline"} className={cn("w-full md:w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {dateRange?.from ? (dateRange.to ? (`${format(dateRange.from, "LLL dd, y")} - ${format(dateRange.to, "LLL dd, y")}`) : format(dateRange.from, "LLL dd, y")) : (<span>Pick a date range</span>)}
-                                </Button>
-                            </PopoverTrigger><PopoverContent className="w-auto p-0" align="end"><DualDateRangePicker selected={dateRange} onSelect={setDateRange} /></PopoverContent></Popover>
-                            <Select value={filterVehicleId} onValueChange={setFilterVehicleId}>
-                                <SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="All Vehicles" /></SelectTrigger>
-                                <SelectContent><SelectItem value="All">All Vehicles</SelectItem>{vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}</SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-                    <Card>
-                        <Table><TableHeader><TableRow>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('date')}>Date</Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('vehicleName')}>Vehicle</Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('type')}>Type</Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('partyName')}>Party</Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('amount')}>Amount</Button></TableHead>
-                             <TableHead><Button variant="ghost" onClick={() => requestSort('dueDate')}>Due In</Button></TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
-                        </TableRow></TableHeader>
-                        <TableBody>
-                            {sortedAndFilteredTransactions.map(txn => {
-                                const dueDate = txn.dueDate ? new Date(txn.dueDate) : null;
-                                const daysDue = dueDate ? differenceInDays(dueDate, new Date()) : null;
-                                return (
-                                <TableRow key={txn.id}>
-                                    <TableCell>{toNepaliDate(txn.date)}</TableCell>
-                                    <TableCell>{txn.vehicleName}</TableCell>
-                                    <TableCell><Badge variant="outline">{txn.type}</Badge></TableCell>
-                                    <TableCell>{txn.partyName}</TableCell>
-                                    <TableCell className={cn(['Purchase', 'Payment'].includes(txn.type) ? 'text-red-600' : 'text-green-600')}>{txn.amount.toLocaleString()}</TableCell>
-                                    <TableCell>
-                                        {daysDue !== null && (
-                                            <Badge variant={daysDue < 0 ? 'destructive' : 'secondary'}>
-                                                {daysDue < 0 ? `Overdue ${-daysDue}d` : `${daysDue}d`}
-                                            </Badge>
-                                        )}
-                                    </TableCell>
-                                    <TableCell className="text-right"><DropdownMenu>
-                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            {hasPermission('fleet', 'edit') && <DropdownMenuItem onSelect={() => handleOpenTransactionDialog(txn)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>}
-                                            {hasPermission('fleet', 'delete') && <DropdownMenuSeparator />}
-                                            {hasPermission('fleet', 'delete') && (
-                                                <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()}><Trash2 className="mr-2 h-4 w-4 text-destructive" /> <span className="text-destructive">Delete</span></DropdownMenuItem></AlertDialogTrigger>
-                                                <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the transaction.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(txn.id)}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
-                                            )}
-                                        </DropdownMenuContent>
-                                    </DropdownMenu></TableCell>
-                                </TableRow>
-                            )})}
-                        </TableBody></Table>
-                    </Card>
-                </section>
-            </div>
-            
-             <Dialog open={isTransactionDialogOpen} onOpenChange={setIsTransactionDialogOpen}>
-                <DialogContent className="sm:max-w-4xl">
-                    <DialogHeader><DialogTitle>{editingTransaction ? 'Edit Transaction' : 'Add New Transaction'}</DialogTitle></DialogHeader>
-                    <Form {...form}>
-                    <form onSubmit={form.handleSubmit(handleSubmitTransaction)}>
-                    <ScrollArea className="max-h-[70vh] p-1">
-                    <div className="grid gap-6 py-4 px-2">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            <FormField control={form.control} name="date" render={({ field }) => (
-                                <FormItem><FormLabel>Posting Date</FormLabel>
-                                <Popover><PopoverTrigger asChild><FormControl>
-                                    <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}>
-                                        <CalendarIcon className="mr-2 h-4 w-4" />{field.value ? `${toNepaliDate(field.value.toISOString())} BS (${format(field.value, "PPP")})` : <span>Pick a date</span>}
-                                    </Button>
-                                </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><DualCalendar selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover>
-                                <FormMessage/>
-                                </FormItem>
-                            )}/>
-                            <FormField control={form.control} name="vehicleId" render={({ field }) => (
-                                <FormItem><FormLabel>Vehicle</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select vehicle" /></SelectTrigger></FormControl>
-                                    <SelectContent>{vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}</SelectContent>
-                                </Select><FormMessage/></FormItem>
-                            )}/>
-                            <FormField control={form.control} name="partyId" render={({ field }) => (
-                                <FormItem><FormLabel>Vendor</FormLabel>
-                                <div className="flex gap-2">
-                                <Popover><PopoverTrigger asChild><FormControl>
-                                    <Button variant="outline" role="combobox" className="w-full justify-between">
-                                        {field.value ? partiesById.get(field.value) : "Select party..."}<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                    </Button>
-                                </FormControl></PopoverTrigger><PopoverContent className="p-0"><Command>
-                                    <CommandInput placeholder="Search party..." />
-                                    <CommandList><CommandEmpty>No party found.</CommandEmpty><CommandGroup>
-                                        {parties.map(party => <CommandItem key={party.id} value={party.name} onSelect={() => field.onChange(party.id)}>
-                                            <Check className={cn("mr-2 h-4 w-4", field.value === party.id ? "opacity-100" : "opacity-0")} />{party.name}
-                                        </CommandItem>)}
-                                    </CommandGroup></CommandList>
-                                </Command></PopoverContent></Popover>
-                                <Button type="button" size="icon" variant="outline" onClick={() => setIsPartyDialogOpen(true)}><Plus className="h-4 w-4"/></Button>
-                                </div><FormMessage/></FormItem>
-                             )}/>
-                        </div>
-                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            <FormField control={form.control} name="invoiceNumber" render={({ field }) => (
-                                <FormItem><FormLabel>Invoice Number (Optional)</FormLabel><FormControl><Input {...field} value={field.value ?? ''} /></FormControl><FormMessage/></FormItem>
-                            )}/>
-                            <FormField control={form.control} name="invoiceDate" render={({ field }) => (
-                                <FormItem><FormLabel>Invoice Date (Optional)</FormLabel>
-                                 <Popover><PopoverTrigger asChild><FormControl>
-                                    <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}>
-                                        <CalendarIcon className="mr-2 h-4 w-4" />{field.value ? `${toNepaliDate(field.value.toISOString())} BS (${format(field.value, "PPP")})` : <span>Pick a date</span>}
-                                    </Button>
-                                 </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><DualCalendar selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover>
-                                <FormMessage/></FormItem>
-                            )}/>
-                             <FormField control={form.control} name="invoiceType" render={({ field }) => (
-                                <FormItem className="space-y-3"><FormLabel>Invoice Type</FormLabel><FormControl>
-                                    <RadioGroup onValueChange={field.onChange} value={field.value} className="flex items-center space-x-4">
-                                        <FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="Taxable" /></FormControl><FormLabel className="font-normal">Taxable</FormLabel></FormItem>
-                                        <FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="Normal" /></FormControl><FormLabel className="font-normal">Normal</FormLabel></FormItem>
-                                    </RadioGroup>
-                                </FormControl><FormMessage/></FormItem>
-                            )}/>
-                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            <FormField control={form.control} name="billingType" render={({ field }) => (
-                                <FormItem><FormLabel>Billing</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select billing type" /></SelectTrigger></FormControl>
-                                    <SelectContent>
-                                        <SelectItem value="Cash">Cash</SelectItem><SelectItem value="Bank">Bank</SelectItem>
-                                        <SelectItem value="Credit">Credit</SelectItem>
-                                    </SelectContent>
-                                </Select><FormMessage/></FormItem>
-                            )}/>
-                            {watchedFormValues.billingType === 'Bank' && (
-                                <>
-                                 <FormField control={form.control} name="accountId" render={({ field }) => (
-                                     <FormItem><FormLabel>Bank Account</FormLabel>
-                                        <div className="flex gap-2">
-                                            <Popover><PopoverTrigger asChild><FormControl>
-                                                <Button variant="outline" role="combobox" className="w-full justify-between">
-                                                    {field.value ? accountsById.get(field.value) : "Select account..."}<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                                </Button>
-                                            </FormControl></PopoverTrigger><PopoverContent className="p-0 w-[--radix-popover-trigger-width]"><Command>
-                                                <CommandInput placeholder="Search accounts..." />
-                                                <CommandList><CommandEmpty>No accounts found.</CommandEmpty><CommandGroup>
-                                                    {bankAccounts.map(account => <CommandItem key={account.id} value={account.name} onSelect={() => field.onChange(account.id)} className="flex justify-between items-center">
-                                                        <div><Check className={cn("mr-2 h-4 w-4", field.value === account.id ? "opacity-100" : "opacity-0")} />{accountsById.get(account.id)}</div>
-                                                        <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => {e.stopPropagation(); handleOpenAccountDialog(account);}}><Edit className="h-4 w-4"/></Button>
-                                                    </CommandItem>)}
-                                                </CommandGroup></CommandList>
-                                            </Command></PopoverContent></Popover>
-                                            <Button type="button" size="icon" variant="outline" onClick={() => handleOpenAccountDialog(null)}><Plus className="h-4 w-4"/></Button>
-                                        </div>
-                                     <FormMessage/></FormItem>
-                                 )}/>
-                                 <FormField control={form.control} name="chequeNumber" render={({ field }) => (<FormItem><FormLabel>Cheque Number</FormLabel><FormControl><Input {...field} value={field.value ?? ''} /></FormControl><FormMessage/></FormItem>)}/>
-                                 <FormField control={form.control} name="chequeDate" render={({ field }) => (<FormItem><FormLabel>Cheque Date</FormLabel><Popover><PopoverTrigger asChild><FormControl>
-                                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button>
-                                </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage/></FormItem>)}/>
-                                </>
-                            )}
-                             {watchedFormValues.billingType === 'Credit' && (
-                                <FormField control={form.control} name="dueDate" render={({ field }) => (<FormItem><FormLabel>Due Date</FormLabel><Popover><PopoverTrigger asChild><FormControl>
-                                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button>
-                                </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage/></FormItem>)}/>
-                             )}
-                        </div>
-                        <div>
-                        <Label className="text-base font-medium">Particulars</Label>
-                        <Table><TableHeader><TableRow>
-                            <TableHead>Particular</TableHead><TableHead>Quantity</TableHead><TableHead>UOM</TableHead><TableHead>Rate</TableHead><TableHead>Amount</TableHead><TableHead/>
-                        </TableRow></TableHeader>
-                        <TableBody>
-                        {fields.map((item, index) => (
-                            <TableRow key={item.id}>
-                                <TableCell><FormField control={form.control} name={`items.${index}.particular`} render={({ field }) => <Input {...field} />} /></TableCell>
-                                <TableCell><FormField control={form.control} name={`items.${index}.quantity`} render={({ field }) => <Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />} /></TableCell>
-                                <TableCell><FormField control={form.control} name={`items.${index}.uom`} render={({ field }) => <Input {...field} value={field.value ?? ''} />} /></TableCell>
-                                <TableCell><FormField control={form.control} name={`items.${index}.rate`} render={({ field }) => <Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />} /></TableCell>
-                                <TableCell>{((watchedFormValues.items?.[index]?.quantity || 0) * (watchedFormValues.items?.[index]?.rate || 0)).toLocaleString()}</TableCell>
-                                <TableCell><Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}><X className="h-4 w-4 text-destructive"/></Button></TableCell>
-                            </TableRow>
-                        ))}
-                        </TableBody></Table>
-                        <Button type="button" size="sm" variant="outline" className="mt-2" onClick={() => append({ particular: '', quantity: 0, uom: '', rate: 0 })}>
-                            <Plus className="mr-2 h-4 w-4"/> Add Row
-                        </Button>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label>Calculation</Label>
-                                <div className="p-4 border rounded-md space-y-2">
-                                    <div className="flex justify-between text-sm"><span>Subtotal</span><span>{subtotal.toLocaleString(undefined, {maximumFractionDigits: 2})}</span></div>
-                                    {watchedFormValues.invoiceType === 'Taxable' && <div className="flex justify-between text-sm"><span>VAT (13%)</span><span>{vatAmount.toLocaleString(undefined, {maximumFractionDigits: 2})}</span></div>}
-                                    <div className="flex justify-between font-bold"><span>Grand Total</span><span>{totalAmount.toLocaleString(undefined, {maximumFractionDigits: 2})}</span></div>
-                                </div>
-                            </div>
-                            <FormField control={form.control} name="remarks" render={({ field }) => (
-                                <FormItem><FormLabel>Remarks</FormLabel><FormControl><Textarea className="min-h-[110px]" {...field} value={field.value ?? ''} /></FormControl><FormMessage/></FormItem>
-                            )}/>
-                        </div>
-                    </div>
-                    </ScrollArea>
-                    <DialogFooter>
-                        <Button variant="outline" type="button" onClick={() => setIsTransactionDialogOpen(false)}>Cancel</Button>
-                        <Button type="submit">{editingTransaction ? 'Save Changes' : 'Add Transaction'}</Button>
-                    </DialogFooter>
-                    </form>
-                    </Form>
-                </DialogContent>
-            </Dialog>
-            
-            <Dialog open={isPartyDialogOpen} onOpenChange={setIsPartyDialogOpen}>
-                <DialogContent className="sm:max-w-sm">
-                    <DialogHeader><DialogTitle>Add New Party</DialogTitle></DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="party-name">Party Name</Label>
-                            <Input id="party-name" value={partyForm.name} onChange={e => setPartyForm(p => ({...p, name: e.target.value}))} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="party-type">Party Type</Label>
-                            <Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm(p => ({...p, type: v}))}>
-                                <SelectTrigger id="party-type"><SelectValue/></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Vendor">Vendor</SelectItem>
-                                    <SelectItem value="Client">Client</SelectItem>
-                                    <SelectItem value="Both">Both</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsPartyDialogOpen(false)}>Cancel</Button>
-                        <Button onClick={handleSubmitParty}>Add Party</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            <Dialog open={isAccountDialogOpen} onOpenChange={setIsAccountDialogOpen}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader><DialogTitle>{editingAccount ? 'Edit Account' : 'Add New Account'}</DialogTitle></DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="account-type">Account Type</Label>
-                            <Select value={accountForm.type} onValueChange={(v: AccountType) => setAccountForm(p => ({...p, type: v}))}>
-                                <SelectTrigger id="account-type"><SelectValue/></SelectTrigger>
-                                <SelectContent><SelectItem value="Cash">Cash</SelectItem><SelectItem value="Bank">Bank</SelectItem></SelectContent>
-                            </Select>
-                        </div>
-                         <div className="space-y-2">
-                            <Label htmlFor="account-name">{accountForm.type === 'Bank' ? 'Account Holder Name' : 'Account Name'}</Label>
-                            <Input id="account-name" value={accountForm.name} onChange={e => setAccountForm(p => ({...p, name: e.target.value}))} />
-                        </div>
-                        {accountForm.type === 'Bank' && (
+                    <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                        {hasPermission('fleet', 'create') && (
                             <>
-                                <div className="space-y-2">
-                                    <Label htmlFor="bank-name">Bank Name</Label>
-                                    <Input id="bank-name" value={accountForm.bankName} onChange={e => setAccountForm(p => ({...p, bankName: e.target.value}))} />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="account-number">Account Number</Label>
-                                    <Input id="account-number" value={accountForm.accountNumber} onChange={e => setAccountForm(p => ({...p, accountNumber: e.target.value}))} />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="branch">Branch</Label>
-                                    <Input id="branch" value={accountForm.branch} onChange={e => setAccountForm(p => ({...p, branch: e.target.value}))} />
-                                </div>
+                            <Button onClick={() => router.push('/fleet/trip-sheets/new')} className="w-full">
+                                <TrendingUp className="mr-2 h-4 w-4" /> New Sales
+                            </Button>
+                            <Button onClick={() => router.push('/fleet/transactions/purchase/new')} className="w-full">
+                                <ShoppingCart className="mr-2 h-4 w-4" /> New Purchase
+                            </Button>
+                            <Button onClick={() => router.push('/fleet/transactions/payment-receipt/new')} className="w-full">
+                                <ArrowRightLeft className="mr-2 h-4 w-4" /> New Payment / Receipt
+                            </Button>
                             </>
                         )}
                     </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => { setIsAccountDialogOpen(false); setAccountForm(initialAccountFormState);}}>Cancel</Button>
-                        <Button onClick={handleSubmitAccount}>{editingAccount ? 'Save Changes' : 'Add Account'}</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-            
-             <Dialog open={isPaymentReceiptDialogOpen} onOpenChange={setIsPaymentReceiptDialogOpen}>
-                <DialogContent className="sm:max-w-4xl">
-                    <DialogHeader><DialogTitle>New Payment / Receipt</DialogTitle></DialogHeader>
-                    <PaymentReceiptForm
-                        accounts={accounts}
-                        parties={parties}
-                        vehicles={vehicles}
-                        transactions={transactions}
-                        onFormSubmit={handleVoucherSubmit}
-                        onCancel={() => setIsPaymentReceiptDialogOpen(false)}
-                    />
-                </DialogContent>
-            </Dialog>
-        </>
+                </div>
+
+                 <div className="flex flex-col md:flex-row gap-2 mb-4">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input type="search" placeholder="Search..." className="pl-8 w-full" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                    </div>
+                    <div className="flex gap-2">
+                        <Popover><PopoverTrigger asChild>
+                            <Button id="date" variant={"outline"} className={cn("w-full md:w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {dateRange?.from ? (dateRange.to ? (`${format(dateRange.from, "LLL dd, y")} - ${format(dateRange.to, "LLL dd, y")}`) : format(dateRange.from, "LLL dd, y")) : (<span>Pick a date range</span>)}
+                            </Button>
+                        </PopoverTrigger><PopoverContent className="w-auto p-0" align="end"><DualDateRangePicker selected={dateRange} onSelect={setDateRange} /></PopoverContent></Popover>
+                        <Select value={filterVehicleId} onValueChange={setFilterVehicleId}>
+                            <SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="All Vehicles" /></SelectTrigger>
+                            <SelectContent><SelectItem value="All">All Vehicles</SelectItem>{vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}</SelectContent>
+                        </Select>
+                    </div>
+                </div>
+                <Card>
+                    <Table><TableHeader><TableRow>
+                        <TableHead><Button variant="ghost" onClick={() => requestSort('date')}>Date</Button></TableHead>
+                        <TableHead><Button variant="ghost" onClick={() => requestSort('vehicleName')}>Vehicle</Button></TableHead>
+                        <TableHead><Button variant="ghost" onClick={() => requestSort('type')}>Type</Button></TableHead>
+                        <TableHead><Button variant="ghost" onClick={() => requestSort('partyName')}>Party</Button></TableHead>
+                        <TableHead><Button variant="ghost" onClick={() => requestSort('amount')}>Amount</Button></TableHead>
+                         <TableHead><Button variant="ghost" onClick={() => requestSort('dueDate')}>Due In</Button></TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                    </TableRow></TableHeader>
+                    <TableBody>
+                        {sortedAndFilteredTransactions.map(txn => {
+                            const dueDate = txn.dueDate ? new Date(txn.dueDate) : null;
+                            const daysDue = dueDate ? differenceInDays(dueDate, new Date()) : null;
+                            return (
+                            <TableRow key={txn.id}>
+                                <TableCell>{toNepaliDate(txn.date)}</TableCell>
+                                <TableCell>{txn.vehicleName}</TableCell>
+                                <TableCell><Badge variant="outline">{txn.type}</Badge></TableCell>
+                                <TableCell>{txn.partyName}</TableCell>
+                                <TableCell className={cn(['Purchase', 'Payment'].includes(txn.type) ? 'text-red-600' : 'text-green-600')}>{txn.amount.toLocaleString()}</TableCell>
+                                <TableCell>
+                                    {daysDue !== null && (
+                                        <Badge variant={daysDue < 0 ? 'destructive' : 'secondary'}>
+                                            {daysDue < 0 ? `Overdue ${-daysDue}d` : `${daysDue}d`}
+                                        </Badge>
+                                    )}
+                                </TableCell>
+                                <TableCell className="text-right"><DropdownMenu>
+                                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        {hasPermission('fleet', 'delete') && (
+                                            <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()}><Trash2 className="mr-2 h-4 w-4 text-destructive" /> <span className="text-destructive">Delete</span></DropdownMenuItem></AlertDialogTrigger>
+                                            <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the transaction.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(txn.id)}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+                                        )}
+                                    </DropdownMenuContent>
+                                </DropdownMenu></TableCell>
+                            </TableRow>
+                        )})}
+                    </TableBody></Table>
+                </Card>
+            </section>
+        </div>
     );
 }
-
-    
-
-    
-
-    
