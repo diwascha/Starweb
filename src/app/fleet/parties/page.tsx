@@ -22,6 +22,7 @@ import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function ClientTransactionsPage() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -30,6 +31,7 @@ export default function ClientTransactionsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+    const [filterVehicleId, setFilterVehicleId] = useState<string>('All');
     const router = useRouter();
     const { toast } = useToast();
     const { hasPermission } = useAuth();
@@ -79,8 +81,12 @@ export default function ClientTransactionsPage() {
             filtered = filtered.filter(t => isWithinInterval(new Date(t.date), interval));
         }
         
+        if (filterVehicleId !== 'All') {
+            filtered = filtered.filter(t => t.vehicleId === filterVehicleId);
+        }
+        
         return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    }, [transactions, searchQuery, dateRange, vehiclesById, partiesById]);
+    }, [transactions, searchQuery, dateRange, vehiclesById, partiesById, filterVehicleId]);
     
     const handleExport = async () => {
         const XLSX = (await import('xlsx'));
@@ -180,6 +186,15 @@ export default function ClientTransactionsPage() {
                         {dateRange?.from ? (dateRange.to ? (`${format(dateRange.from, "LLL dd, y")} - ${format(dateRange.to, "LLL dd, y")}`) : format(dateRange.from, "LLL dd, y")) : (<span>Pick a date range</span>)}
                     </Button>
                 </PopoverTrigger><PopoverContent className="w-auto p-0" align="end"><DualDateRangePicker selected={dateRange} onSelect={setDateRange} /></PopoverContent></Popover>
+                <Select value={filterVehicleId} onValueChange={setFilterVehicleId}>
+                    <SelectTrigger className="w-full md:w-[180px]">
+                        <SelectValue placeholder="All Vehicles" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="All">All Vehicles</SelectItem>
+                        {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
+                    </SelectContent>
+                </Select>
                 <Button variant="outline" onClick={handleExport}>
                     <Download className="mr-2 h-4 w-4" /> Export
                 </Button>
