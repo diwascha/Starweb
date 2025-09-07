@@ -95,15 +95,9 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
   const watchedItems = form.watch("items");
   const watchedBillingType = form.watch("billingType");
   
-  const { totalRec, totalPay, netAmount } = React.useMemo(() => {
-    const rec = watchedItems.reduce((sum, item) => sum + (Number(item.recAmount) || 0), 0);
-    const pay = watchedItems.reduce((sum, item) => sum + (Number(item.payAmount) || 0), 0);
-    return {
-      totalRec: rec,
-      totalPay: pay,
-      netAmount: rec - pay,
-    };
-  }, [watchedItems]);
+  const totalRec = watchedItems.reduce((sum, item) => sum + (Number(item.recAmount) || 0), 0);
+  const totalPay = watchedItems.reduce((sum, item) => sum + (Number(item.payAmount) || 0), 0);
+  const netAmount = totalRec - totalPay;
   
   const summaryData = React.useMemo(() => {
     return watchedItems.map(item => {
@@ -119,18 +113,11 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
         }
         
         const filteredTxns = transactions.filter(t => {
-            if (ledgerId && vehicleId) {
-                return t.partyId === ledgerId || t.vehicleId === vehicleId;
-            }
-            if (ledgerId) {
-                return t.partyId === ledgerId;
-            }
-            if (vehicleId) {
-                return t.vehicleId === vehicleId;
-            }
-            return false;
+            const partyMatch = ledgerId ? t.partyId === ledgerId : false;
+            const vehicleMatch = vehicleId ? t.vehicleId === vehicleId : false;
+            return partyMatch || vehicleMatch;
         });
-
+        
         const balances = filteredTxns.reduce((acc, t) => {
             if (t.type === 'Sales') acc.receivables += t.amount;
             if (t.type === 'Receipt') acc.receivables -= t.amount;
@@ -139,7 +126,6 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
             return acc;
         }, { receivables: 0, payables: 0 });
         
-        // Adjust with current form values
         const finalReceivable = balances.receivables - recAmount;
         const finalPayable = balances.payables - payAmount;
 
@@ -151,7 +137,6 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
         };
     });
   }, [watchedItems, transactions, parties, vehicles]);
-
 
 
   const handleSubmit = (values: VoucherFormValues) => {
