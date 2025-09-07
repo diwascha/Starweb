@@ -24,6 +24,11 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Driver =>
     };
 }
 
+export const getDrivers = async (): Promise<Driver[]> => {
+    const snapshot = await getDocs(driversCollection);
+    return snapshot.docs.map(fromFirestore);
+};
+
 export const addDriver = async (driver: Omit<Driver, 'id'>): Promise<string> => {
     const docRef = await addDoc(driversCollection, {
         ...driver,

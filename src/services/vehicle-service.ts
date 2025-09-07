@@ -23,6 +23,11 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Vehicle =
     };
 }
 
+export const getVehicles = async (): Promise<Vehicle[]> => {
+    const snapshot = await getDocs(vehiclesCollection);
+    return snapshot.docs.map(fromFirestore);
+};
+
 export const addVehicle = async (vehicle: Omit<Vehicle, 'id'>): Promise<string> => {
     const docRef = await addDoc(vehiclesCollection, {
         ...vehicle,
