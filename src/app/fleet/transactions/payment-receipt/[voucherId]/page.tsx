@@ -5,7 +5,7 @@ import { useEffect, useState, use } from 'react';
 import { getVoucherTransactions } from '@/services/transaction-service';
 import type { Transaction, Vehicle, Party, Account } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Printer, Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
@@ -124,10 +124,12 @@ export default function VoucherViewPage({ params }: { params: Promise<{ voucherI
                     </TableRow>
                 ))}
             </TableBody>
-            <TableRow>
-                <TableCell colSpan={4} className="text-right font-bold">Total</TableCell>
-                <TableCell className="text-right font-bold">{totalAmount.toLocaleString()}</TableCell>
-            </TableRow>
+            <TableFooter>
+              <TableRow>
+                  <TableCell colSpan={4} className="text-right font-bold">Total</TableCell>
+                  <TableCell className="text-right font-bold">{totalAmount.toLocaleString()}</TableCell>
+              </TableRow>
+            </TableFooter>
         </Table>
 
         <div className="mt-8 grid grid-cols-3 gap-8 pt-16 text-xs">
