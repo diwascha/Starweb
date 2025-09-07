@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Transaction, Vehicle, Party, Account } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -19,6 +19,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { toNepaliDate } from '@/lib/utils';
 import { cn } from '@/lib/utils';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 
 export default function NewPaymentReceiptPage() {
@@ -28,12 +29,14 @@ export default function NewPaymentReceiptPage() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [filterType, setFilterType] = useState<'All' | 'Payment' | 'Receipt'>('All');
+
     const { toast } = useToast();
     const { user } = useAuth();
     const router = useRouter();
 
-    const vehiclesById = new Map(vehicles.map(v => [v.id, v.name]));
-    const partiesById = new Map(parties.map(p => [p.id, p.name]));
+    const vehiclesById = useMemo(() => new Map(vehicles.map(v => [v.id, v.name])), [vehicles]);
+    const partiesById = useMemo(() => new Map(parties.map(p => [p.id, p.name])), [parties]);
 
     useEffect(() => {
         setIsLoading(true);
@@ -60,16 +63,22 @@ export default function NewPaymentReceiptPage() {
             await saveVoucher(values, user.username);
             toast({ title: "Voucher Saved", description: "The voucher has been successfully recorded." });
             setIsDialogOpen(false);
-            router.push('/fleet/transactions');
         } catch (error) {
             console.error("Failed to save voucher:", error);
             toast({ title: "Error", description: "Failed to save voucher.", variant: "destructive" });
         }
     };
     
-    const voucherTransactions = transactions
-      .filter(t => t.type === 'Payment' || t.type === 'Receipt')
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const filteredVoucherTransactions = useMemo(() => {
+        return transactions
+            .filter(t => {
+                const isVoucher = t.type === 'Payment' || t.type === 'Receipt';
+                if (!isVoucher) return false;
+                if (filterType === 'All') return true;
+                return t.type === filterType;
+            })
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }, [transactions, filterType]);
 
     if (isLoading) {
         return (
@@ -94,7 +103,7 @@ export default function NewPaymentReceiptPage() {
                     </DialogTrigger>
                 </header>
                  
-                {voucherTransactions.length === 0 ? (
+                {transactions.filter(t => t.type === 'Payment' || t.type === 'Receipt').length === 0 ? (
                     <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
                         <div className="flex flex-col items-center gap-1 text-center">
                             <h3 className="text-2xl font-bold tracking-tight">No Vouchers Recorded Yet</h3>
@@ -102,30 +111,39 @@ export default function NewPaymentReceiptPage() {
                         </div>
                     </div>
                 ) : (
-                    <Card>
-                         <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Date</TableHead>
-                                    <TableHead>Type</TableHead>
-                                    <TableHead>Vehicle</TableHead>
-                                    <TableHead>Party</TableHead>
-                                    <TableHead>Amount</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {voucherTransactions.map(txn => (
-                                    <TableRow key={txn.id}>
-                                        <TableCell>{toNepaliDate(txn.date)}</TableCell>
-                                        <TableCell><Badge variant="outline">{txn.type}</Badge></TableCell>
-                                        <TableCell>{vehiclesById.get(txn.vehicleId) || 'N/A'}</TableCell>
-                                        <TableCell>{partiesById.get(txn.partyId!) || 'N/A'}</TableCell>
-                                        <TableCell className={cn(txn.type === 'Payment' ? 'text-red-600' : 'text-green-600')}>{txn.amount.toLocaleString()}</TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </Card>
+                    <Tabs value={filterType} onValueChange={(value) => setFilterType(value as any)}>
+                        <TabsList>
+                            <TabsTrigger value="All">All</TabsTrigger>
+                            <TabsTrigger value="Payment">Payments</TabsTrigger>
+                            <TabsTrigger value="Receipt">Receipts</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value={filterType}>
+                            <Card className="mt-4">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Date</TableHead>
+                                            <TableHead>Type</TableHead>
+                                            <TableHead>Vehicle</TableHead>
+                                            <TableHead>Party</TableHead>
+                                            <TableHead>Amount</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {filteredVoucherTransactions.map(txn => (
+                                            <TableRow key={txn.id}>
+                                                <TableCell>{toNepaliDate(txn.date)}</TableCell>
+                                                <TableCell><Badge variant="outline">{txn.type}</Badge></TableCell>
+                                                <TableCell>{vehiclesById.get(txn.vehicleId) || 'N/A'}</TableCell>
+                                                <TableCell>{partiesById.get(txn.partyId!) || 'N/A'}</TableCell>
+                                                <TableCell className={cn(txn.type === 'Payment' ? 'text-red-600' : 'text-green-600')}>{txn.amount.toLocaleString()}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </Card>
+                        </TabsContent>
+                    </Tabs>
                 )}
             </div>
             <DialogContent className="max-w-4xl">
