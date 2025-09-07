@@ -16,7 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { CalendarIcon, PlusCircle, Trash2, ChevronsUpDown, Check, Plus, X } from 'lucide-react';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { format, differenceInDays } from 'date-fns';
-import { cn, toNepaliDate } from '@/lib/utils';
+import { cn, toNepaliDate, generateNextSalesNumber } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -64,6 +64,7 @@ const returnTripSchema = z.object({
 
 
 const tripSchema = z.object({
+  tripNumber: z.string(),
   date: z.date(),
   vehicleId: z.string().min(1, 'Vehicle is required.'),
   partyId: z.string().min(1, 'Client is required.'),
@@ -139,6 +140,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
             };
         }
         return {
+            tripNumber: '',
             date: new Date(),
             vehicleId: '',
             partyId: '',
@@ -196,6 +198,8 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
             if (tripToEdit.detentionStartDate) {
                 setDetentionDateRange({ from: new Date(tripToEdit.detentionStartDate), to: tripToEdit.detentionEndDate ? new Date(tripToEdit.detentionEndDate) : undefined });
             }
+        } else {
+            generateNextSalesNumber(trips).then(num => form.setValue('tripNumber', num));
         }
 
         return () => {
@@ -204,7 +208,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
             unsubDestinations();
             unsubTrips();
         };
-    }, [tripToEdit, form, defaultValues]);
+    }, [tripToEdit, form, defaultValues, trips]);
 
     const vendors = useMemo(() => parties.filter(p => p.type === 'Vendor' || p.type === 'Both'), [parties]);
     const clients = useMemo(() => parties.filter(p => p.type === 'Client' || p.type === 'Both'), [parties]);
@@ -323,6 +327,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
         setIsSubmitting(true);
 
         const tripDataForDb: Omit<Trip, 'id' | 'createdAt' | 'lastModifiedAt' | 'salesTransactionId'> = {
+            tripNumber: values.tripNumber,
             date: values.date.toISOString(),
             vehicleId: values.vehicleId,
             partyId: values.partyId,
@@ -503,6 +508,9 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                             <Card>
                                 <CardHeader><CardTitle>Trip Details</CardTitle></CardHeader>
                                 <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <FormField control={form.control} name="tripNumber" render={({ field }) => (
+                                        <FormItem><FormLabel>Trip Sheet No.</FormLabel><FormControl><Input {...field} readOnly className="bg-muted/50" /></FormControl><FormMessage/></FormItem>
+                                    )}/>
                                     <FormField control={form.control} name="date" render={({ field }) => (
                                         <FormItem className="flex flex-col"><FormLabel>Date</FormLabel>
                                             <Popover><PopoverTrigger asChild><FormControl>
@@ -521,7 +529,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                                         </SelectContent></Select><FormMessage /></FormItem>
                                     )}/>
                                      <FormField control={form.control} name="partyId" render={({ field }) => (
-                                        <FormItem className="md:col-span-2"><FormLabel>Client</FormLabel>
+                                        <FormItem><FormLabel>Client</FormLabel>
                                             <Popover>
                                                 <PopoverTrigger asChild>
                                                     <FormControl>

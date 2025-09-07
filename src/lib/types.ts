@@ -289,6 +289,7 @@ export interface ReturnTrip {
 
 export interface Trip {
     id: string;
+    tripNumber: string;
     date: string; // ISO string
     vehicleId: string;
     partyId: string;
@@ -348,12 +349,15 @@ export interface AppSetting {
     value: any;
 }
 
-export const documentTypes = ['report', 'purchaseOrder'] as const;
+export const documentTypes = ['report', 'purchaseOrder', 'sales', 'purchase', 'paymentReceipt'] as const;
 export type DocumentType = typeof documentTypes[number];
 
 export interface DocumentPrefixes {
     report?: string;
     purchaseOrder?: string;
+    sales?: string;
+    purchase?: string;
+    paymentReceipt?: string;
 }
 
 export const getDocumentName = (type: DocumentType): string => {
@@ -362,6 +366,12 @@ export const getDocumentName = (type: DocumentType): string => {
             return 'Test Report';
         case 'purchaseOrder':
             return 'Purchase Order';
+        case 'sales':
+            return 'Sales (Trip Sheet)';
+        case 'purchase':
+            return 'Purchase Voucher';
+        case 'paymentReceipt':
+            return 'Payment/Receipt Voucher';
         default:
             return 'Document';
     }

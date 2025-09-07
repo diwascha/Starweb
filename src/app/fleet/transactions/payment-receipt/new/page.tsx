@@ -17,7 +17,7 @@ import { PlusCircle, Download, CalendarIcon, ArrowUpDown, MoreHorizontal, View, 
 import { Card } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { toNepaliDate, cn } from '@/lib/utils';
+import { toNepaliDate, cn, generateNextVoucherNumber } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
@@ -60,6 +60,7 @@ export default function NewPaymentReceiptPage() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [nextVoucherNum, setNextVoucherNum] = useState('');
     
     // Filtering and Sorting state
     const [filterType, setFilterType] = useState<'All' | 'Payment' | 'Receipt'>('All');
@@ -88,6 +89,11 @@ export default function NewPaymentReceiptPage() {
             unsubTransactions();
         }
     }, []);
+
+    useEffect(() => {
+        const paymentReceipts = transactions.filter(t => t.type === 'Payment' || t.type === 'Receipt');
+        generateNextVoucherNumber(paymentReceipts).then(setNextVoucherNum);
+    }, [transactions]);
 
     const handleFormSubmit = async (values: any) => {
         if (!user) {
@@ -374,6 +380,7 @@ export default function NewPaymentReceiptPage() {
                         transactions={transactions}
                         onFormSubmit={handleFormSubmit}
                         onCancel={() => setIsDialogOpen(false)}
+                        initialValues={{ voucherNo: nextVoucherNum }}
                     />
                  </Suspense>
             </DialogContent>

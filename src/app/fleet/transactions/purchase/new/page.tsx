@@ -17,7 +17,7 @@ import { PlusCircle, Download, CalendarIcon, ArrowUpDown, MoreHorizontal, View, 
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { cn, generateNextPONumber, toNepaliDate } from '@/lib/utils';
+import { cn, generateNextPurchaseNumber, toNepaliDate } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 import type { DateRange } from 'react-day-picker';
@@ -50,6 +50,7 @@ export default function NewPurchasePage() {
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
     const [filterVehicleId, setFilterVehicleId] = useState<string>('All');
     const [filterPartyId, setFilterPartyId] = useState<string>('All');
+    const [nextPurchaseNum, setNextPurchaseNum] = useState('');
 
     const { toast } = useToast();
     const { user } = useAuth();
@@ -70,6 +71,12 @@ export default function NewPurchasePage() {
             unsubTransactions();
         }
     }, []);
+
+    useEffect(() => {
+        const purchaseTxns = transactions.filter(t => t.type === 'Purchase');
+        generateNextPurchaseNumber(purchaseTxns).then(setNextPurchaseNum);
+    }, [transactions]);
+
 
     const handleFormSubmit = async (values: any) => {
         if (!user) return;
@@ -222,7 +229,6 @@ export default function NewPurchasePage() {
     const purchaseTransactions = transactions.filter(t => t.type === 'Purchase');
     const vehiclesById = new Map(vehicles.map(v => [v.id, v.name]));
     const partiesById = new Map(parties.map(p => [p.id, p.name]));
-    const nextPurchaseNumber = generateNextPONumber(purchaseTransactions.map(t => ({ poNumber: t.purchaseNumber || '' } as any)));
 
 
     return (
@@ -352,7 +358,7 @@ export default function NewPurchasePage() {
                         vehicles={vehicles}
                         onFormSubmit={handleFormSubmit}
                         onCancel={() => setIsDialogOpen(false)}
-                        initialValues={{ purchaseNumber: nextPurchaseNumber, type: 'Purchase' }}
+                        initialValues={{ purchaseNumber: nextPurchaseNum, type: 'Purchase' }}
                     />
                  </Suspense>
             </DialogContent>
