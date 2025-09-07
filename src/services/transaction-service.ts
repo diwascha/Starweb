@@ -87,6 +87,7 @@ export const saveVoucher = async (voucherData: any, createdBy: string) => {
                 invoiceNumber: null,
                 tripId: undefined,
                 lastModifiedBy: undefined,
+                purchaseNumber: undefined,
             };
             batch.set(transactionRef, newTransaction);
         }
@@ -187,6 +188,7 @@ export const updateVoucher = async (voucherId: string, voucherData: any, modifie
                 invoiceDate: null,
                 invoiceNumber: null,
                 tripId: undefined,
+                purchaseNumber: undefined,
             };
             batch.set(transactionRef, newTransaction);
         }
