@@ -28,6 +28,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 
 const voucherItemSchema = z.object({
   ledgerId: z.string().min(1, "General Ledger is required."),
+  vehicleId: z.string().min(1, "Vehicle is required."),
   recAmount: z.number().optional(),
   payAmount: z.number().optional(),
   narration: z.string().optional(),
@@ -36,7 +37,6 @@ const voucherItemSchema = z.object({
 const voucherSchema = z.object({
   voucherType: z.enum(['Payment', 'Receipt']),
   voucherNo: z.string().min(1, "Voucher number is required."),
-  vehicleId: z.string().min(1, "Vehicle is required."),
   date: z.date(),
   billingType: z.enum(['Cash', 'Bank']),
   accountId: z.string().optional(),
@@ -82,7 +82,7 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, onFormSubmit, 
       billingType: 'Cash',
       voucherNo: '001', // Placeholder
       date: new Date(),
-      items: [{ ledgerId: '', recAmount: 0, payAmount: 0, narration: '' }],
+      items: [{ ledgerId: '', vehicleId: '', recAmount: 0, payAmount: 0, narration: '' }],
     },
   });
 
@@ -137,11 +137,6 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, onFormSubmit, 
                   <FormMessage/>
                   </FormItem>
               )}/>
-              <FormField control={form.control} name="vehicleId" render={({ field }) => (
-                <FormItem><FormLabel>Vehicle</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select vehicle" /></SelectTrigger></FormControl>
-                    <SelectContent>{vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}</SelectContent>
-                </Select><FormMessage/></FormItem>
-              )}/>
                <FormField control={form.control} name="billingType" render={({ field }) => (
                 <FormItem><FormLabel>Billing</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select billing type" /></SelectTrigger></FormControl>
                     <SelectContent>
@@ -150,7 +145,6 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, onFormSubmit, 
                 </Select><FormMessage/></FormItem>
               )}/>
               
-
                {watchedBillingType === 'Bank' && (
                  <>
                     <FormField control={form.control} name="accountId" render={({ field }) => (
@@ -187,6 +181,7 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, onFormSubmit, 
             <TableRow>
               <TableHead className="w-[50px]">S.No</TableHead>
               <TableHead>General Ledger</TableHead>
+              <TableHead>Vehicle</TableHead>
               <TableHead>Rec Amount</TableHead>
               <TableHead>Pay Amount</TableHead>
               <TableHead>Narration</TableHead>
@@ -214,6 +209,13 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, onFormSubmit, 
                   )}/>
                 </TableCell>
                 <TableCell>
+                  <FormField control={form.control} name={`items.${index}.vehicleId`} render={({ field }) => (
+                    <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select vehicle" /></SelectTrigger></FormControl>
+                        <SelectContent>{vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}</SelectContent>
+                    </Select>
+                  )}/>
+                </TableCell>
+                <TableCell>
                   <FormField control={form.control} name={`items.${index}.recAmount`} render={({ field }) => <Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />} />
                 </TableCell>
                 <TableCell>
@@ -229,7 +231,7 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, onFormSubmit, 
             ))}
           </TableBody>
         </Table>
-        <Button type="button" size="sm" variant="outline" className="mt-2" onClick={() => append({ ledgerId: '', recAmount: 0, payAmount: 0, narration: '' })}>
+        <Button type="button" size="sm" variant="outline" className="mt-2" onClick={() => append({ ledgerId: '', vehicleId: '', recAmount: 0, payAmount: 0, narration: '' })}>
             <Plus className="mr-2 h-4 w-4"/> Add Row
         </Button>
         
