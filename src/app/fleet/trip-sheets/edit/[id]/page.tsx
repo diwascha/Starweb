@@ -1,3 +1,4 @@
+'use client';
 export const runtime = 'nodejs';
 import { TripSheetForm } from '@/app/fleet/trip-sheets/new/_components/trip-sheet-form';
 import { getTrip } from '@/services/trip-service';

@@ -1,3 +1,4 @@
+'use client';
 export const runtime = 'nodejs';
 import PurchaseOrderView from './_components/purchase-order-view';
 import { use } from 'react';

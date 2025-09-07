@@ -1,6 +1,5 @@
-
-export const runtime = 'nodejs';
 'use client';
+export const runtime = 'nodejs';
 
 import { useEffect, useState, use } from 'react';
 import { getVoucherTransactions } from '@/services/transaction-service';
