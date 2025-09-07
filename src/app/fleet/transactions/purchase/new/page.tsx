@@ -17,7 +17,7 @@ import { PlusCircle, Download, CalendarIcon, ArrowUpDown, MoreHorizontal, View, 
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { cn, toNepaliDate } from '@/lib/utils';
+import { cn, generateNextPONumber, toNepaliDate } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 import type { DateRange } from 'react-day-picker';
@@ -174,8 +174,8 @@ export default function NewPurchasePage() {
                  aVal = partiesById.get(a.partyId!) || '';
                  bVal = partiesById.get(b.partyId!) || '';
             } else {
-                aVal = a[sortConfig.key];
-                bVal = b[sortConfig.key];
+                aVal = a[sortConfig.key as keyof Transaction];
+                bVal = b[sortConfig.key as keyof Transaction];
             }
 
             if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
@@ -217,6 +217,8 @@ export default function NewPurchasePage() {
     const purchaseTransactions = transactions.filter(t => t.type === 'Purchase');
     const vehiclesById = new Map(vehicles.map(v => [v.id, v.name]));
     const partiesById = new Map(parties.map(p => [p.id, p.name]));
+    const nextPurchaseNumber = generateNextPONumber(purchaseTransactions.map(t => ({ poNumber: t.purchaseNumber || '' } as any)));
+
 
     return (
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -344,6 +346,7 @@ export default function NewPurchasePage() {
                     vehicles={vehicles}
                     onFormSubmit={handleFormSubmit}
                     onCancel={() => setIsDialogOpen(false)}
+                    initialValues={{ purchaseNumber: nextPurchaseNumber, type: 'Purchase' }}
                 />
             </DialogContent>
         </Dialog>

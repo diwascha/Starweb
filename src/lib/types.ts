@@ -223,6 +223,7 @@ export type InvoiceType = 'Taxable' | 'Normal';
 
 export interface Transaction {
     id: string;
+    purchaseNumber?: string;
     vehicleId: string;
     date: string; // Posting Date (ISO string)
     invoiceNumber?: string | null;

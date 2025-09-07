@@ -74,7 +74,7 @@ export default function PurchaseViewPage({ params }: { params: Promise<{ id: str
        <div className="flex justify-between items-center mb-8 print:hidden">
         <div>
             <h1 className="text-3xl font-bold">Purchase Details</h1>
-            <p className="text-muted-foreground">Invoice #: {transaction.invoiceNumber || 'N/A'}</p>
+            <p className="text-muted-foreground">Purchase #: {transaction.purchaseNumber || 'N/A'}</p>
         </div>
         <div className="flex gap-2">
             <Button variant="outline" onClick={() => router.push(`/fleet/transactions/purchase/edit/${id}`)}>
@@ -93,9 +93,10 @@ export default function PurchaseViewPage({ params }: { params: Promise<{ id: str
             </header>
             
             <div className="grid grid-cols-2 text-xs mb-2 gap-x-4">
-                <div><span className="font-semibold">Date:</span> {toNepaliDate(transaction.date)} ({format(new Date(transaction.date), 'yyyy-MM-dd')})</div>
-                <div className="text-right"><span className="font-semibold">Vehicle:</span> {vehiclesById.get(transaction.vehicleId) || 'N/A'}</div>
-                <div><span className="font-semibold">Invoice No:</span> {transaction.invoiceNumber || 'N/A'}</div>
+                <div><span className="font-semibold">Purchase No:</span> {transaction.purchaseNumber || 'N/A'}</div>
+                <div className="text-right"><span className="font-semibold">Date:</span> {toNepaliDate(transaction.date)} ({format(new Date(transaction.date), 'yyyy-MM-dd')})</div>
+                <div><span className="font-semibold">Vehicle:</span> {vehiclesById.get(transaction.vehicleId) || 'N/A'}</div>
+                <div className="text-right"><span className="font-semibold">Invoice No:</span> {transaction.invoiceNumber || 'N/A'}</div>
                 <div className="text-right"><span className="font-semibold">Invoice Date:</span> {transaction.invoiceDate ? toNepaliDate(transaction.invoiceDate) : 'N/A'}</div>
             </div>
 
@@ -135,20 +136,20 @@ export default function PurchaseViewPage({ params }: { params: Promise<{ id: str
                     ))}
                 </TableBody>
                 <TableFooter>
-                    <TableRow>
-                        <TableCell colSpan={5} className="text-right font-semibold">Subtotal</TableCell>
-                        <TableCell className="text-right font-semibold">{subtotal.toLocaleString()}</TableCell>
-                    </TableRow>
-                    {transaction.invoiceType === 'Taxable' && (
-                        <TableRow>
-                            <TableCell colSpan={5} className="text-right font-semibold">VAT (13%)</TableCell>
-                            <TableCell className="text-right font-semibold">{vatAmount.toLocaleString()}</TableCell>
-                        </TableRow>
-                    )}
-                    <TableRow className="border-t-2 border-black">
-                        <TableCell colSpan={5} className="text-right font-bold">Grand Total</TableCell>
-                        <TableCell className="text-right font-bold">{transaction.amount.toLocaleString()}</TableCell>
-                    </TableRow>
+                  <TableRow>
+                      <TableCell colSpan={5} className="text-right font-semibold">Subtotal</TableCell>
+                      <TableCell className="text-right font-semibold">{subtotal.toLocaleString()}</TableCell>
+                  </TableRow>
+                  {transaction.invoiceType === 'Taxable' && (
+                      <TableRow>
+                          <TableCell colSpan={5} className="text-right font-semibold">VAT (13%)</TableCell>
+                          <TableCell className="text-right font-semibold">{vatAmount.toLocaleString()}</TableCell>
+                      </TableRow>
+                  )}
+                  <TableRow className="border-t-2 border-black">
+                      <TableCell colSpan={5} className="text-right font-bold">Grand Total</TableCell>
+                      <TableCell className="text-right font-bold">{transaction.amount.toLocaleString()}</TableCell>
+                  </TableRow>
                 </TableFooter>
             </Table>
             <div className="text-xs mt-2"><span className="font-semibold">Remarks:</span> {transaction.remarks}</div>

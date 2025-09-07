@@ -40,6 +40,7 @@ const transactionItemSchema = z.object({
 });
 
 const transactionSchema = z.object({
+    purchaseNumber: z.string().optional(),
     vehicleId: z.string().min(1, 'Vehicle is required.'),
     date: z.date({ required_error: 'Posting date is required.' }),
     invoiceNumber: z.string().optional(),
@@ -199,6 +200,9 @@ export function PurchaseForm({ accounts, parties, vehicles, onFormSubmit, onCanc
                     <ScrollArea className="max-h-[70vh] p-1">
                     <div className="grid gap-6 py-4 px-2">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                             <FormField control={form.control} name="purchaseNumber" render={({ field }) => (
+                                <FormItem><FormLabel>Purchase Number</FormLabel><FormControl><Input {...field} readOnly className="bg-muted/50" /></FormControl><FormMessage/></FormItem>
+                            )}/>
                             <FormField control={form.control} name="date" render={({ field }) => (
                                 <FormItem><FormLabel>Posting Date</FormLabel>
                                 <Popover><PopoverTrigger asChild><FormControl>
@@ -243,7 +247,7 @@ export function PurchaseForm({ accounts, parties, vehicles, onFormSubmit, onCanc
                                     <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}>
                                         <CalendarIcon className="mr-2 h-4 w-4" />{field.value ? `${toNepaliDate(field.value.toISOString())} BS (${format(field.value, "PPP")})` : <span>Pick a date</span>}
                                     </Button>
-                                 </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><DualCalendar selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover>
+                                 </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><DualCalendar selected={field.value ?? undefined} onSelect={field.onChange} /></PopoverContent></Popover>
                                 <FormMessage/></FormItem>
                             )}/>
                              <FormField control={form.control} name="invoiceType" render={({ field }) => (

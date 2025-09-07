@@ -1,7 +1,7 @@
 
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import type { Report, PurchaseOrder, PurchaseOrderStatus, AttendanceStatus, User } from './types';
+import type { Report, PurchaseOrder, PurchaseOrderStatus, AttendanceStatus, User, Transaction } from './types';
 import NepaliDate from 'nepali-date-converter';
 
 export function cn(...inputs: ClassValue[]) {
@@ -25,13 +25,14 @@ export const generateNextSerialNumber = (reports: Report[]): string => {
   return `${serialPrefix}${nextNumber.toString().padStart(3, '0')}`;
 };
 
-export const generateNextPONumber = (purchaseOrders: PurchaseOrder[]): string => {
+export const generateNextPONumber = (items: { poNumber?: string | null; purchaseNumber?: string | null }[]): string => {
     const poPrefix = 'SPI-';
     let maxNumber = 0;
 
-    purchaseOrders.forEach(po => {
-        if(po && po.poNumber && po.poNumber.startsWith(poPrefix)) {
-            const numPart = parseInt(po.poNumber.substring(poPrefix.length), 10);
+    items.forEach(item => {
+        const numToCheck = item.poNumber || item.purchaseNumber;
+        if(numToCheck && numToCheck.startsWith(poPrefix)) {
+            const numPart = parseInt(numToCheck.substring(poPrefix.length), 10);
             if(!isNaN(numPart) && numPart > maxNumber) {
                 maxNumber = numPart;
             }

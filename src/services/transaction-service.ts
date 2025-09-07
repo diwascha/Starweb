@@ -10,6 +10,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
     const data = snapshot.data();
     return {
         id: snapshot.id,
+        purchaseNumber: data.purchaseNumber,
         vehicleId: data.vehicleId,
         date: data.date,
         invoiceNumber: data.invoiceNumber,
@@ -122,32 +123,7 @@ export const getVoucherTransactions = async (voucherId: string): Promise<Transac
     const legacyId = voucherId.replace('legacy-', '');
     const docSnap = await getDoc(doc(db, 'transactions', legacyId));
     if (docSnap.exists()) {
-        const data = docSnap.data();
-        const transaction: Transaction = {
-            id: docSnap.id,
-            vehicleId: data.vehicleId,
-            date: data.date,
-            invoiceNumber: data.invoiceNumber,
-            invoiceDate: data.invoiceDate,
-            invoiceType: data.invoiceType,
-            billingType: data.billingType,
-            chequeNumber: data.chequeNumber,
-            chequeDate: data.chequeDate,
-            dueDate: data.dueDate,
-            partyId: data.partyId,
-            accountId: data.accountId,
-            items: data.items,
-            amount: data.amount,
-            remarks: data.remarks,
-            tripId: data.tripId,
-            type: data.type,
-            voucherId: data.voucherId,
-            createdBy: data.createdBy,
-            createdAt: data.createdAt,
-            lastModifiedBy: data.lastModifiedBy,
-            lastModifiedAt: data.lastModifiedAt,
-        };
-        return [transaction];
+        return [fromFirestore(docSnap)];
     }
 
     return [];

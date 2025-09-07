@@ -112,7 +112,7 @@ export default function EditPurchasePage({ params }: { params: Promise<{ id: str
     <div className="flex flex-col gap-8">
       <header>
         <h1 className="text-3xl font-bold tracking-tight">Edit Purchase</h1>
-        <p className="text-muted-foreground">Modify the details for this purchase transaction.</p>
+        <p className="text-muted-foreground">Modify the details for purchase #{initialFormValues.purchaseNumber}.</p>
       </header>
       <PurchaseForm
         accounts={accounts}
