@@ -26,7 +26,7 @@ export const generateNextSerialNumber = (reports: Report[]): string => {
 };
 
 export const generateNextPONumber = (purchaseOrders: PurchaseOrder[]): string => {
-    const poPrefix = 'PO-';
+    const poPrefix = 'SPI-';
     let maxNumber = 0;
 
     purchaseOrders.forEach(po => {
