@@ -25,31 +25,37 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): RawMateri
 
 // Function to consolidate units
 const consolidateUnits = async (materials: RawMaterial[], createdBy: string = 'System') => {
-    const existingUoms = await getUoms();
-    const existingAbbrs = new Set(existingUoms.map(u => u.abbreviation.toLowerCase()));
-    const newUnitsToAdd = new Set<string>();
+    try {
+        const existingUoms = await getUoms();
+        const existingAbbrs = new Set(existingUoms.map(u => u.abbreviation.toLowerCase()));
+        const newUnitsToAdd = new Set<string>();
 
-    materials.forEach(material => {
-        if (Array.isArray(material.units)) {
-            material.units.forEach(unit => {
-                if (unit && !existingAbbrs.has(unit.toLowerCase())) {
-                    newUnitsToAdd.add(unit);
-                }
-            });
-        }
-    });
-    
-    if (newUnitsToAdd.size > 0) {
-        const promises = Array.from(newUnitsToAdd).map(abbr => {
-             const newUom: Omit<UnitOfMeasurement, 'id'> = {
-                name: abbr,
-                abbreviation: abbr,
-                createdBy: createdBy,
-                createdAt: new Date().toISOString()
-            };
-            return addUom(newUom);
+        materials.forEach(material => {
+            if (Array.isArray(material.units)) {
+                material.units.forEach(unit => {
+                    if (unit && !existingAbbrs.has(unit.toLowerCase())) {
+                        newUnitsToAdd.add(unit);
+                    }
+                });
+            }
         });
-        await Promise.all(promises);
+        
+        if (newUnitsToAdd.size > 0) {
+            console.log(`Found ${newUnitsToAdd.size} new units to add:`, Array.from(newUnitsToAdd));
+            const promises = Array.from(newUnitsToAdd).map(abbr => {
+                 const newUom: Omit<UnitOfMeasurement, 'id'> = {
+                    name: abbr,
+                    abbreviation: abbr,
+                    createdBy: createdBy,
+                    createdAt: new Date().toISOString()
+                };
+                return addUom(newUom);
+            });
+            await Promise.all(promises);
+            console.log("Successfully added new units to the UoM collection.");
+        }
+    } catch (error) {
+        console.error("Error during unit consolidation:", error);
     }
 };
 
@@ -97,4 +103,3 @@ export const deleteRawMaterial = async (id: string): Promise<void> => {
     const materialDoc = doc(db, 'rawMaterials', id);
     await deleteDoc(materialDoc);
 };
-
