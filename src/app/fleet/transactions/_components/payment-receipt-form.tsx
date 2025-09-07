@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import type { Account, Party } from '@/lib/types';
+import type { Account, Party, BillingType } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, ChevronsUpDown, Check, Plus, Trash2 } from 'lucide-react';
@@ -23,6 +23,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Calendar } from '@/components/ui/calendar';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 
 
 const voucherItemSchema = z.object({
@@ -36,12 +37,30 @@ const voucherSchema = z.object({
   voucherType: z.enum(['Payment', 'Receipt']),
   voucherNo: z.string().min(1, "Voucher number is required."),
   date: z.date(),
-  accountId: z.string().min(1, "Cash/Bank account is required."),
+  billingType: z.enum(['Cash', 'Bank', 'Credit']),
+  accountId: z.string().optional(),
   chequeNo: z.string().optional(),
   chequeDate: z.date().optional().nullable(),
+  dueDate: z.date().optional().nullable(),
   items: z.array(voucherItemSchema).min(1, "At least one ledger entry is required."),
   remarks: z.string().optional(),
-});
+}).refine(data => {
+    if (data.billingType === 'Bank') return !!data.accountId;
+    return true;
+}, { message: 'Bank Account is required for Bank billing.', path: ['accountId'] })
+.refine(data => {
+    if (data.billingType === 'Bank') return !!data.chequeNo && data.chequeNo.trim() !== '';
+    return true;
+}, { message: 'Cheque Number is required for Bank billing.', path: ['chequeNo'] })
+.refine(data => {
+    if (data.billingType === 'Bank') return !!data.chequeDate;
+    return true;
+}, { message: 'Cheque Date is required for Bank billing.', path: ['chequeDate'] })
+.refine(data => {
+    if (data.billingType === 'Credit') return !!data.dueDate;
+    return true;
+}, { message: 'Due Date is required for Credit billing.', path: ['dueDate'] });
+
 
 type VoucherFormValues = z.infer<typeof voucherSchema>;
 
@@ -56,13 +75,14 @@ export function PaymentReceiptForm({ accounts, parties, onFormSubmit, onCancel }
   const { toast } = useToast();
   const { user } = useAuth();
   
-  const cashAndBankAccounts = React.useMemo(() => accounts.filter(a => a.type === 'Cash' || a.type === 'Bank'), [accounts]);
+  const bankAccounts = React.useMemo(() => accounts.filter(a => a.type === 'Bank'), [accounts]);
   const generalLedgers = parties;
 
   const form = useForm<VoucherFormValues>({
     resolver: zodResolver(voucherSchema),
     defaultValues: {
       voucherType: 'Payment',
+      billingType: 'Cash',
       voucherNo: '001', // Placeholder
       date: new Date(),
       items: [{ ledgerId: '', recAmount: 0, payAmount: 0, narration: '' }],
@@ -75,8 +95,7 @@ export function PaymentReceiptForm({ accounts, parties, onFormSubmit, onCancel }
   });
   
   const watchedItems = form.watch("items");
-  const watchedAccountId = form.watch("accountId");
-  const selectedAccount = cashAndBankAccounts.find(a => a.id === watchedAccountId);
+  const watchedBillingType = form.watch("billingType");
   
   const { totalRec, totalPay, netAmount } = React.useMemo(() => {
     const rec = watchedItems.reduce((sum, item) => sum + (Number(item.recAmount) || 0), 0);
@@ -94,8 +113,6 @@ export function PaymentReceiptForm({ accounts, parties, onFormSubmit, onCancel }
     onFormSubmit(values);
   };
   
-  const isBankSelected = selectedAccount?.type === 'Bank';
-
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
@@ -123,27 +140,32 @@ export function PaymentReceiptForm({ accounts, parties, onFormSubmit, onCancel }
                   <FormMessage/>
                   </FormItem>
               )}/>
-              <div className="bg-gray-800 text-white p-2 rounded-md text-right">
-                  <p className="text-sm">Current Balance</p>
-                  <p className="text-lg font-bold">500,000.00</p>
-              </div>
-               <FormField control={form.control} name="accountId" render={({ field }) => (
-                <FormItem><FormLabel>Cash/Bank</FormLabel>
-                <Popover><PopoverTrigger asChild><FormControl>
-                    <Button variant="outline" role="combobox" className="w-full justify-between bg-white">
-                        {field.value ? cashAndBankAccounts.find(a => a.id === field.value)?.name : "Select account..."}<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                </FormControl></PopoverTrigger><PopoverContent className="p-0 w-[--radix-popover-trigger-width]"><Command>
-                    <CommandInput placeholder="Search accounts..." />
-                    <CommandList><CommandEmpty>No accounts found.</CommandEmpty><CommandGroup>
-                        {cashAndBankAccounts.map(account => <CommandItem key={account.id} value={account.name} onSelect={() => field.onChange(account.id)}>
-                            <Check className={cn("mr-2 h-4 w-4", field.value === account.id ? "opacity-100" : "opacity-0")} />{account.name}
-                        </CommandItem>)}
-                    </CommandGroup></CommandList>
-                </Command></PopoverContent></Popover><FormMessage/></FormItem>
+               <FormField control={form.control} name="billingType" render={({ field }) => (
+                <FormItem><FormLabel>Billing</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select billing type" /></SelectTrigger></FormControl>
+                    <SelectContent>
+                        <SelectItem value="Cash">Cash</SelectItem><SelectItem value="Bank">Bank</SelectItem>
+                        <SelectItem value="Credit">Credit</SelectItem>
+                    </SelectContent>
+                </Select><FormMessage/></FormItem>
               )}/>
-               {isBankSelected && (
+
+               {watchedBillingType === 'Bank' && (
                  <>
+                    <FormField control={form.control} name="accountId" render={({ field }) => (
+                     <FormItem><FormLabel>Bank Account</FormLabel>
+                        <Popover><PopoverTrigger asChild><FormControl>
+                            <Button variant="outline" role="combobox" className="w-full justify-between bg-white">
+                                {field.value ? bankAccounts.find(a => a.id === field.value)?.name : "Select account..."}<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                        </FormControl></PopoverTrigger><PopoverContent className="p-0 w-[--radix-popover-trigger-width]"><Command>
+                            <CommandInput placeholder="Search accounts..." />
+                            <CommandList><CommandEmpty>No accounts found.</CommandEmpty><CommandGroup>
+                                {bankAccounts.map(account => <CommandItem key={account.id} value={account.name} onSelect={() => field.onChange(account.id)}>
+                                    <Check className={cn("mr-2 h-4 w-4", field.value === account.id ? "opacity-100" : "opacity-0")} />{account.bankName} - {account.accountNumber}
+                                </CommandItem>)}
+                            </CommandGroup></CommandList>
+                        </Command></PopoverContent></Popover><FormMessage/></FormItem>
+                    )}/>
                     <FormField control={form.control} name="chequeNo" render={({ field }) => (
                         <FormItem><FormLabel>Cheque No.</FormLabel><FormControl><Input {...field} value={field.value ?? ''} className="bg-white"/></FormControl><FormMessage /></FormItem>
                     )}/>
@@ -154,6 +176,11 @@ export function PaymentReceiptForm({ accounts, parties, onFormSubmit, onCancel }
                     )}/>
                  </>
                )}
+               {watchedBillingType === 'Credit' && (
+                    <FormField control={form.control} name="dueDate" render={({ field }) => (<FormItem><FormLabel>Due Date</FormLabel><Popover><PopoverTrigger asChild><FormControl>
+                            <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button>
+                    </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage/></FormItem>)}/>
+                )}
             </div>
           </CardContent>
         </Card>
