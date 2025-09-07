@@ -119,9 +119,16 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
         }
         
         const filteredTxns = transactions.filter(t => {
-            const partyMatch = ledgerId ? t.partyId === ledgerId : false;
-            const vehicleMatch = vehicleId ? t.vehicleId === vehicleId : false;
-            return partyMatch || vehicleMatch;
+             if (ledgerId && vehicleId) {
+                return t.partyId === ledgerId || t.vehicleId === vehicleId;
+            }
+            if (ledgerId) {
+                return t.partyId === ledgerId;
+            }
+            if (vehicleId) {
+                return t.vehicleId === vehicleId;
+            }
+            return false;
         });
 
         const balances = filteredTxns.reduce((acc, t) => {
@@ -133,8 +140,8 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
         }, { receivables: 0, payables: 0 });
         
         // Adjust with current form values
-        const finalReceivable = balances.receivables - recAmount;
-        const finalPayable = balances.payables - payAmount;
+        const finalReceivable = balances.receivables - recAmount + payAmount;
+        const finalPayable = balances.payables - payAmount + recAmount;
 
         return {
             ledgerName: parties.find(p => p.id === ledgerId)?.name || 'N/A',
