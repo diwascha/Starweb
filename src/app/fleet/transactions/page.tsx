@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -127,7 +126,7 @@ export default function TransactionsPage() {
             if (!aVal) return 1;
             if (!bVal) return -1;
             if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-            if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : 1;
+            if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
             return 0;
         });
         
@@ -229,3 +228,5 @@ export default function TransactionsPage() {
         </div>
     );
 }
+
+    
