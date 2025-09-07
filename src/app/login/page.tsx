@@ -27,7 +27,7 @@ const loadingSteps = [
   { progress: 0, text: 'Authenticating...' },
   { progress: 20, text: 'Initializing workspace...' },
   { progress: 40, text: 'Loading user settings...' },
-  { progress: 60, text: 'Fetching recent activities...' },
+  { progress: 60, text: 'Fetching initial data...' },
   { progress: 80, text: 'Preparing dashboard...' },
   { progress: 100, text: 'Finalizing setup...' },
 ];
@@ -61,7 +61,7 @@ export default function LoginPage() {
           }
           return 100;
         });
-      }, 700);
+      }, 1000); // Increased from 700ms to 1000ms
     }
     return () => clearInterval(interval);
   }, [showProgress]);
