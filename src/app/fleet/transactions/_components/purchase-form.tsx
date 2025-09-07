@@ -198,6 +198,7 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
     
     const handleAddUom = async (uomName: string) => {
         if (!user) return;
+        if (!uomName.trim()) return;
         const newUom = {
             name: uomName,
             abbreviation: uomName,
@@ -356,14 +357,18 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
                                             <CommandInput placeholder="Search unit..." onValueChange={setUomSearch} />
                                             <CommandList>
                                                 <CommandEmpty>
-                                                <CommandItem
-                                                    onSelect={() => {
-                                                    handleAddUom(uomSearch);
-                                                    field.onChange(uomSearch);
-                                                    }}
-                                                >
-                                                    Add "{uomSearch}"
-                                                </CommandItem>
+                                                    <button type="button" className="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none"
+                                                        onSelect={() => {
+                                                            handleAddUom(uomSearch);
+                                                            field.onChange(uomSearch);
+                                                        }}
+                                                         onClick={() => {
+                                                            handleAddUom(uomSearch);
+                                                            field.onChange(uomSearch);
+                                                        }}
+                                                    >
+                                                        Add "{uomSearch}"
+                                                    </button>
                                                 </CommandEmpty>
                                                 <CommandGroup>
                                                 {allUnits.map((uom) => (
