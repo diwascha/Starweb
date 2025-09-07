@@ -92,7 +92,7 @@ export default function TransactionsPage() {
         setSortConfig({ key, direction });
     };
 
-    const { sortedAndFilteredTransactions } = useMemo(() => {
+    const sortedAndFilteredTransactions = useMemo(() => {
         let augmented = transactions.map(t => ({
             ...t,
             vehicleName: vehiclesById.get(t.vehicleId) || 'N/A',
@@ -104,7 +104,8 @@ export default function TransactionsPage() {
             augmented = augmented.filter(t =>
                 t.vehicleName.toLowerCase().includes(lowercasedQuery) ||
                 t.partyName.toLowerCase().includes(lowercasedQuery) ||
-                (t.remarks || '').toLowerCase().includes(lowercasedQuery)
+                (t.remarks || '').toLowerCase().includes(lowercasedQuery) ||
+                t.type.toLowerCase().includes(lowercasedQuery)
             );
         }
         
@@ -123,14 +124,14 @@ export default function TransactionsPage() {
         augmented.sort((a, b) => {
             const aVal = a[sortConfig.key];
             const bVal = b[sortConfig.key];
-            if (!aVal) return 1;
-            if (!bVal) return -1;
+            if (aVal === null || aVal === undefined) return 1;
+            if (bVal === null || bVal === undefined) return -1;
             if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
             if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
             return 0;
         });
         
-        return { sortedAndFilteredTransactions: augmented };
+        return augmented;
     }, [transactions, searchQuery, sortConfig, vehiclesById, partiesById, filterVehicleId, dateRange]);
     
     if (isLoading) {
