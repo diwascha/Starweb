@@ -37,11 +37,10 @@ const voucherSchema = z.object({
   voucherType: z.enum(['Payment', 'Receipt']),
   voucherNo: z.string().min(1, "Voucher number is required."),
   date: z.date(),
-  billingType: z.enum(['Cash', 'Bank', 'Credit']),
+  billingType: z.enum(['Cash', 'Bank']),
   accountId: z.string().optional(),
   chequeNo: z.string().optional(),
   chequeDate: z.date().optional().nullable(),
-  dueDate: z.date().optional().nullable(),
   items: z.array(voucherItemSchema).min(1, "At least one ledger entry is required."),
   remarks: z.string().optional(),
 }).refine(data => {
@@ -55,11 +54,7 @@ const voucherSchema = z.object({
 .refine(data => {
     if (data.billingType === 'Bank') return !!data.chequeDate;
     return true;
-}, { message: 'Cheque Date is required for Bank billing.', path: ['chequeDate'] })
-.refine(data => {
-    if (data.billingType === 'Credit') return !!data.dueDate;
-    return true;
-}, { message: 'Due Date is required for Credit billing.', path: ['dueDate'] });
+}, { message: 'Cheque Date is required for Bank billing.', path: ['chequeDate'] });
 
 
 type VoucherFormValues = z.infer<typeof voucherSchema>;
@@ -144,7 +139,6 @@ export function PaymentReceiptForm({ accounts, parties, onFormSubmit, onCancel }
                 <FormItem><FormLabel>Billing</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select billing type" /></SelectTrigger></FormControl>
                     <SelectContent>
                         <SelectItem value="Cash">Cash</SelectItem><SelectItem value="Bank">Bank</SelectItem>
-                        <SelectItem value="Credit">Credit</SelectItem>
                     </SelectContent>
                 </Select><FormMessage/></FormItem>
               )}/>
@@ -176,11 +170,6 @@ export function PaymentReceiptForm({ accounts, parties, onFormSubmit, onCancel }
                     )}/>
                  </>
                )}
-               {watchedBillingType === 'Credit' && (
-                    <FormField control={form.control} name="dueDate" render={({ field }) => (<FormItem><FormLabel>Due Date</FormLabel><Popover><PopoverTrigger asChild><FormControl>
-                            <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button>
-                    </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage/></FormItem>)}/>
-                )}
             </div>
           </CardContent>
         </Card>
