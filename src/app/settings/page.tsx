@@ -383,27 +383,67 @@ export default function SettingsPage() {
         </header>
         
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-5">
-                <TabsTrigger value="security">Security</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="security">Users & Security</TabsTrigger>
                 <TabsTrigger value="parties">Vendors & Suppliers</TabsTrigger>
                 <TabsTrigger value="accounts">Accounts</TabsTrigger>
                 <TabsTrigger value="uom">Units of Measurement</TabsTrigger>
-                {user?.is_admin && <TabsTrigger value="users">User Management</TabsTrigger>}
                 <TabsTrigger value="application">Application</TabsTrigger>
             </TabsList>
             <TabsContent value="security">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>My Account</CardTitle>
-                        <CardDescription>Manage your account settings.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="flex items-center gap-4">
-                            <p className="font-medium">User: {user?.username}</p>
-                            <Button onClick={() => setIsChangePasswordDialogOpen(true)}><KeyRound className="mr-2 h-4 w-4"/> Change Password</Button>
-                        </div>
-                    </CardContent>
-                </Card>
+                <div className="space-y-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>My Account</CardTitle>
+                            <CardDescription>Manage your account settings.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="flex items-center gap-4">
+                                <p className="font-medium">User: {user?.username}</p>
+                                <Button onClick={() => setIsChangePasswordDialogOpen(true)}><KeyRound className="mr-2 h-4 w-4"/> Change Password</Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                    {user?.is_admin && (
+                        <Card>
+                            <CardHeader className="flex flex-row items-center justify-between">
+                                <div>
+                                    <CardTitle>User Management</CardTitle>
+                                    <CardDescription>Manage users and their permissions.</CardDescription>
+                                </div>
+                                <Button onClick={() => openUserDialog()}><Plus className="mr-2 h-4 w-4" /> Add User</Button>
+                            </CardHeader>
+                            <CardContent>
+                                <Table><TableHeader><TableRow>
+                                    <TableHead>Username</TableHead><TableHead>Permissions</TableHead><TableHead className="text-right">Actions</TableHead>
+                                </TableRow></TableHeader><TableBody>
+                                {filteredUsers.map(u => (
+                                    <TableRow key={u.id}>
+                                        <TableCell>{u.username}</TableCell>
+                                        <TableCell className="max-w-md">
+                                            <div className="flex flex-wrap gap-1">
+                                            {Object.entries(u.permissions).flatMap(([module, actions]) => 
+                                                actions.map(action => <Badge key={`${module}-${action}`} variant="secondary">{`${module}: ${action}`}</Badge>)
+                                            )}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem onSelect={() => openUserDialog(u)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
+                                                <DropdownMenuSeparator />
+                                                <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()}><Trash2 className="mr-2 h-4 w-4 text-destructive" /> <span className="text-destructive">Delete</span></DropdownMenuItem></AlertDialogTrigger>
+                                                <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the user account.</AlertDialogDescription></AlertDialogHeader>
+                                                <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteUser(u.id)}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+                                            </DropdownMenuContent></DropdownMenu>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                                </TableBody></Table>
+                            </CardContent>
+                        </Card>
+                    )}
+                </div>
             </TabsContent>
             <TabsContent value="parties">
                 <Card>
@@ -501,47 +541,6 @@ export default function SettingsPage() {
                     </CardContent>
                 </Card>
             </TabsContent>
-             {user?.is_admin && (
-                <TabsContent value="users">
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between">
-                            <div>
-                                <CardTitle>User Management</CardTitle>
-                                <CardDescription>Manage users and their permissions.</CardDescription>
-                            </div>
-                            <Button onClick={() => openUserDialog()}><Plus className="mr-2 h-4 w-4" /> Add User</Button>
-                        </CardHeader>
-                        <CardContent>
-                            <Table><TableHeader><TableRow>
-                                <TableHead>Username</TableHead><TableHead>Permissions</TableHead><TableHead className="text-right">Actions</TableHead>
-                            </TableRow></TableHeader><TableBody>
-                            {filteredUsers.map(u => (
-                                <TableRow key={u.id}>
-                                    <TableCell>{u.username}</TableCell>
-                                    <TableCell className="max-w-md">
-                                        <div className="flex flex-wrap gap-1">
-                                        {Object.entries(u.permissions).flatMap(([module, actions]) => 
-                                            actions.map(action => <Badge key={`${module}-${action}`} variant="secondary">{`${module}: ${action}`}</Badge>)
-                                        )}
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuItem onSelect={() => openUserDialog(u)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
-                                            <DropdownMenuSeparator />
-                                            <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()}><Trash2 className="mr-2 h-4 w-4 text-destructive" /> <span className="text-destructive">Delete</span></DropdownMenuItem></AlertDialogTrigger>
-                                            <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the user account.</AlertDialogDescription></AlertDialogHeader>
-                                            <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteUser(u.id)}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
-                                        </DropdownMenuContent></DropdownMenu>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                            </TableBody></Table>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-            )}
             <TabsContent value="application">
                  <Card>
                     <CardHeader>
