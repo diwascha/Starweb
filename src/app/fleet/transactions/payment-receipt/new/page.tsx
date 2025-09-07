@@ -13,13 +13,20 @@ import { onTransactionsUpdate, saveVoucher } from '@/services/transaction-servic
 import { PaymentReceiptForm } from '../../_components/payment-receipt-form';
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, Download, CalendarIcon, ArrowUpDown } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { toNepaliDate } from '@/lib/utils';
-import { cn } from '@/lib/utils';
+import { toNepaliDate, cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
+import type { DateRange } from 'react-day-picker';
+import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import * as XLSX from 'xlsx';
+
+type SortKey = 'date' | 'vehicleName' | 'partyName' | 'amount';
+type SortDirection = 'asc' | 'desc';
 
 
 export default function NewPaymentReceiptPage() {
@@ -29,7 +36,11 @@ export default function NewPaymentReceiptPage() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    
+    // Filtering and Sorting state
     const [filterType, setFilterType] = useState<'All' | 'Payment' | 'Receipt'>('All');
+    const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+    const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
 
     const { toast } = useToast();
     const { user } = useAuth();
@@ -69,16 +80,61 @@ export default function NewPaymentReceiptPage() {
         }
     };
     
-    const filteredVoucherTransactions = useMemo(() => {
-        return transactions
-            .filter(t => {
-                const isVoucher = t.type === 'Payment' || t.type === 'Receipt';
-                if (!isVoucher) return false;
-                if (filterType === 'All') return true;
-                return t.type === filterType;
-            })
-            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    }, [transactions, filterType]);
+    const requestSort = (key: SortKey) => {
+        let direction: SortDirection = 'asc';
+        if (sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const filteredAndSortedVouchers = useMemo(() => {
+        let filtered = transactions
+            .filter(t => t.type === 'Payment' || t.type === 'Receipt')
+            .map(t => ({
+                ...t,
+                vehicleName: vehiclesById.get(t.vehicleId) || 'N/A',
+                partyName: t.partyId ? partiesById.get(t.partyId) || 'N/A' : 'N/A'
+            }));
+
+        if (filterType !== 'All') {
+            filtered = filtered.filter(t => t.type === filterType);
+        }
+
+        if (dateRange?.from) {
+            const interval = {
+                start: startOfDay(dateRange.from),
+                end: endOfDay(dateRange.to || dateRange.from),
+            };
+            filtered = filtered.filter(t => isWithinInterval(new Date(t.date), interval));
+        }
+
+        filtered.sort((a, b) => {
+            const aVal = a[sortConfig.key];
+            const bVal = b[sortConfig.key];
+            if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        return filtered;
+    }, [transactions, filterType, dateRange, sortConfig, vehiclesById, partiesById]);
+    
+    const handleExport = () => {
+        const dataToExport = filteredAndSortedVouchers.map(v => ({
+            Date: toNepaliDate(v.date),
+            Type: v.type,
+            Vehicle: v.vehicleName,
+            Party: v.partyName,
+            Amount: v.amount,
+            Remarks: v.remarks,
+        }));
+        
+        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Vouchers");
+        XLSX.writeFile(workbook, `Vouchers-${new Date().toISOString().split('T')[0]}.xlsx`);
+    };
 
     if (isLoading) {
         return (
@@ -112,30 +168,43 @@ export default function NewPaymentReceiptPage() {
                     </div>
                 ) : (
                     <Tabs value={filterType} onValueChange={(value) => setFilterType(value as any)}>
-                        <TabsList>
-                            <TabsTrigger value="All">All</TabsTrigger>
-                            <TabsTrigger value="Payment">Payments</TabsTrigger>
-                            <TabsTrigger value="Receipt">Receipts</TabsTrigger>
-                        </TabsList>
+                        <div className="flex justify-between items-center">
+                            <TabsList>
+                                <TabsTrigger value="All">All</TabsTrigger>
+                                <TabsTrigger value="Payment">Payments</TabsTrigger>
+                                <TabsTrigger value="Receipt">Receipts</TabsTrigger>
+                            </TabsList>
+                             <div className="flex items-center gap-2">
+                                <Popover><PopoverTrigger asChild>
+                                    <Button id="date" variant={"outline"} className={cn("w-full md:w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {dateRange?.from ? (dateRange.to ? (`${format(dateRange.from, "LLL dd, y")} - ${format(dateRange.to, "LLL dd, y")}`) : format(dateRange.from, "LLL dd, y")) : (<span>Pick a date range</span>)}
+                                    </Button>
+                                </PopoverTrigger><PopoverContent className="w-auto p-0" align="end"><DualDateRangePicker selected={dateRange} onSelect={setDateRange} /></PopoverContent></Popover>
+                                <Button variant="outline" onClick={handleExport}>
+                                    <Download className="mr-2 h-4 w-4" /> Export
+                                </Button>
+                            </div>
+                        </div>
                         <TabsContent value={filterType}>
                             <Card className="mt-4">
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
-                                            <TableHead>Date</TableHead>
+                                            <TableHead><Button variant="ghost" onClick={() => requestSort('date')}>Date <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                                             <TableHead>Type</TableHead>
-                                            <TableHead>Vehicle</TableHead>
-                                            <TableHead>Party</TableHead>
-                                            <TableHead>Amount</TableHead>
+                                            <TableHead><Button variant="ghost" onClick={() => requestSort('vehicleName')}>Vehicle <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                            <TableHead><Button variant="ghost" onClick={() => requestSort('partyName')}>Party <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                            <TableHead><Button variant="ghost" onClick={() => requestSort('amount')}>Amount <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {filteredVoucherTransactions.map(txn => (
+                                        {filteredAndSortedVouchers.map(txn => (
                                             <TableRow key={txn.id}>
                                                 <TableCell>{toNepaliDate(txn.date)}</TableCell>
                                                 <TableCell><Badge variant="outline">{txn.type}</Badge></TableCell>
-                                                <TableCell>{vehiclesById.get(txn.vehicleId) || 'N/A'}</TableCell>
-                                                <TableCell>{partiesById.get(txn.partyId!) || 'N/A'}</TableCell>
+                                                <TableCell>{txn.vehicleName}</TableCell>
+                                                <TableCell>{txn.partyName}</TableCell>
                                                 <TableCell className={cn(txn.type === 'Payment' ? 'text-red-600' : 'text-green-600')}>{txn.amount.toLocaleString()}</TableCell>
                                             </TableRow>
                                         ))}
