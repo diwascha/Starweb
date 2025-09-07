@@ -86,49 +86,43 @@ const AuthRedirect = ({ children }: { children: (user: UserSession) => ReactNode
         if (user && !isAuthPage && !user.is_admin) {
             const pathSegments = pathname.split('/').filter(Boolean);
             if (pathSegments.length === 0 && pathname !== '/dashboard') return;
-
-            const currentModuleAttempt = kebabToCamel(pathSegments[0] || 'dashboard');
+            
+            const firstSegment = pathSegments[0] || 'dashboard';
+            const currentModuleAttempt = kebabToCamel(firstSegment);
             
             if (modules.includes(currentModuleAttempt as Module)) {
                 const currentModule = currentModuleAttempt as Module;
                 if (!hasPermission(currentModule, 'view')) {
                     const firstAllowedPage = pageOrder.find(module => hasPermission(module, 'view'));
-                    if (firstAllowedPage) {
-                        const redirectPath = moduleToPath(firstAllowedPage);
-                         if (pathname !== redirectPath) {
-                            router.push(redirectPath);
-                        }
-                    } else {
-                        if (pathname !== '/dashboard') {
-                           router.push('/dashboard');
-                        }
+                    
+                    const redirectPath = firstAllowedPage ? moduleToPath(firstAllowedPage) : '/dashboard';
+
+                    if (pathname !== redirectPath) {
+                        router.push(redirectPath);
                     }
                 }
             }
         }
     }, [user, loading, pathname, router, hasPermission]);
 
-    if (loading) {
+
+    if (loading || (!user && pathname !== '/login')) {
         return (
             <div className="flex h-screen items-center justify-center">
-                <p>Loading application...</p>
+                <p>Loading...</p>
             </div>
         );
     }
     
-    if (pathname === '/login') {
-        return <>{children(user!)}</>; // This is fine because the layout won't render for /login
+    if (!user && pathname === '/login') {
+        return <>{children(null as any)}</>; // Let login page render
+    }
+    
+    if (user) {
+         return <>{children(user)}</>;
     }
 
-    if (!user) {
-       return (
-            <div className="flex h-screen items-center justify-center">
-                <p>Redirecting to login...</p>
-            </div>
-        );
-    }
-    
-    return <>{children(user)}</>;
+    return null;
 };
 
 

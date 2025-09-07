@@ -4,9 +4,11 @@
 import { useAuth, AuthRedirect } from "@/hooks/use-auth";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "./ui/sidebar";
 import { AppSidebar } from "./app-sidebar";
+import { usePathname } from "next/navigation";
 
 export default function AuthAwareLayout({ children }: { children: React.ReactNode }) {
     const { user, loading } = useAuth();
+    const pathname = usePathname();
 
     if (loading) {
          return (
@@ -16,7 +18,11 @@ export default function AuthAwareLayout({ children }: { children: React.ReactNod
         );
     }
     
-    if (!user) {
+    if (!user && pathname !== '/login') {
+       return <AuthRedirect>{() => children}</AuthRedirect>
+    }
+    
+    if (!user && pathname === '/login') {
         return <>{children}</>;
     }
 
