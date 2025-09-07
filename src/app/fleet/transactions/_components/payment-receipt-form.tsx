@@ -109,7 +109,7 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
     };
   }, [watchedItems]);
   
- const summaryData = React.useMemo(() => {
+  const summaryData = React.useMemo(() => {
     const ledgerId = watchedFirstItem?.ledgerId;
     const vehicleId = watchedFirstItem?.vehicleId;
 
@@ -120,24 +120,24 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
 
     const selectedPartyName = parties.find(p => p.id === ledgerId)?.name;
     const selectedVehicleName = vehicles.find(v => v.id === vehicleId)?.name;
+    
+    titleParts.push(selectedPartyName);
+    if(vehicleId) titleParts.push(selectedVehicleName);
+
 
     if (ledgerId && vehicleId) {
       filteredTxns = transactions.filter(t => t.partyId === ledgerId || t.vehicleId === vehicleId);
-      titleParts.push(selectedPartyName);
-      titleParts.push(selectedVehicleName);
     } else if (ledgerId) {
       filteredTxns = transactions.filter(t => t.partyId === ledgerId);
-      titleParts.push(selectedPartyName);
     } else if (vehicleId) {
       filteredTxns = transactions.filter(t => t.vehicleId === vehicleId);
-      titleParts.push(selectedVehicleName);
     } else {
       filteredTxns = [];
     }
     
     const { receivables, payables } = filteredTxns.reduce((acc, t) => {
-        if (t.type === 'Sales') acc.receivables += t.amount;
-        if (t.type === 'Receipt') acc.receivables -= t.amount;
+        if (t.type === 'Sales' && t.partyId === ledgerId) acc.receivables += t.amount;
+        if (t.type === 'Receipt' && t.partyId === ledgerId) acc.receivables -= t.amount;
         if (t.type === 'Purchase') acc.payables += t.amount;
         if (t.type === 'Payment') acc.payables -= t.amount;
         return acc;
@@ -145,6 +145,7 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
 
     return { receivables, payables, title: titleParts.filter(Boolean).join(' & ') };
   }, [watchedFirstItem, transactions, parties, vehicles]);
+
 
 
   const handleSubmit = (values: VoucherFormValues) => {
