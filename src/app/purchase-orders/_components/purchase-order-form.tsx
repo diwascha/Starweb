@@ -111,9 +111,13 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   }, []);
   
   useEffect(() => {
-    if(isClient && !poToEdit) {
-        form.setValue('poNumber', generateNextPONumber(purchaseOrders));
+    const setInitialPoNumber = async () => {
+        if(isClient && !poToEdit) {
+            const nextPoNumber = await generateNextPONumber(purchaseOrders);
+            form.setValue('poNumber', nextPoNumber);
+        }
     }
+    setInitialPoNumber();
     if (poToEdit) {
       form.reset(defaultValues);
     }

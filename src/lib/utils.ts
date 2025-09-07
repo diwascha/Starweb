@@ -1,7 +1,7 @@
 
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import type { Report, PurchaseOrder, PurchaseOrderStatus, AttendanceStatus, User, Transaction } from './types';
+import type { Report, PurchaseOrder, PurchaseOrderStatus, AttendanceStatus, User, Transaction, DocumentPrefixes } from './types';
 import NepaliDate from 'nepali-date-converter';
 import { getSetting } from "@/services/settings-service";
 
@@ -10,8 +10,9 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export const generateNextSerialNumber = async (reports: Pick<Report, 'serialNumber'>[]): Promise<string> => {
-  const prefixSetting = await getSetting('reportNumberPrefix');
-  const serialPrefix = prefixSetting?.value || '2082/083-';
+  const prefixSetting = await getSetting('documentPrefixes');
+  const prefixes = prefixSetting?.value as DocumentPrefixes || {};
+  const serialPrefix = prefixes.report || '2082/083-';
   
   let maxNumber = 0;
 
@@ -28,8 +29,11 @@ export const generateNextSerialNumber = async (reports: Pick<Report, 'serialNumb
   return `${serialPrefix}${nextNumber.toString().padStart(3, '0')}`;
 };
 
-export const generateNextPONumber = (items: { poNumber?: string | null; purchaseNumber?: string | null }[]): string => {
-    const poPrefix = 'SPI-';
+export const generateNextPONumber = async (items: { poNumber?: string | null; purchaseNumber?: string | null }[]): Promise<string> => {
+    const prefixSetting = await getSetting('documentPrefixes');
+    const prefixes = prefixSetting?.value as DocumentPrefixes || {};
+    const poPrefix = prefixes.purchaseOrder || 'SPI-';
+    
     let maxNumber = 0;
 
     items.forEach(item => {

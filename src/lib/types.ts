@@ -347,3 +347,22 @@ export interface AppSetting {
     id: string;
     value: any;
 }
+
+export const documentTypes = ['report', 'purchaseOrder'] as const;
+export type DocumentType = typeof documentTypes[number];
+
+export interface DocumentPrefixes {
+    report?: string;
+    purchaseOrder?: string;
+}
+
+export const getDocumentName = (type: DocumentType): string => {
+    switch (type) {
+        case 'report':
+            return 'Test Report';
+        case 'purchaseOrder':
+            return 'Purchase Order';
+        default:
+            return 'Document';
+    }
+}

@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import type { Party, Account, PartyType, AccountType, UnitOfMeasurement, AppSetting, User, Permissions, Module, Action } from '@/lib/types';
+import type { Party, Account, PartyType, AccountType, UnitOfMeasurement, AppSetting, User, Permissions, Module, Action, DocumentPrefixes } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -39,7 +39,7 @@ import { onUomsUpdate, addUom, updateUom, deleteUom } from '@/services/uom-servi
 import { onSettingUpdate, setSetting } from '@/services/settings-service';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { getUsers, setUsers, validatePassword, setAdminPassword, updateUserPassword } from '@/services/user-service';
-import { modules, actions } from '@/lib/types';
+import { modules, actions, documentTypes, getDocumentName } from '@/lib/types';
 import { Checkbox } from '@/components/ui/checkbox';
 import { exportData } from '@/services/backup-service';
 import { Loader2 } from 'lucide-react';
@@ -56,11 +56,13 @@ export default function SettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState("users-security");
-
-  // Report Prefix State
-  const [reportPrefix, setReportPrefix] = useState('');
-  const [isSavingPrefix, setIsSavingPrefix] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+
+  // Prefixes State
+  const [prefixes, setPrefixes] = useState<DocumentPrefixes>({});
+  const [isPrefixDialogOpen, setIsPrefixDialogOpen] = useState(false);
+  const [editingPrefix, setEditingPrefix] = useState<{ key: keyof DocumentPrefixes; value: string } | null>(null);
+
 
   // Party Dialog State
   const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
@@ -96,8 +98,8 @@ export default function SettingsPage() {
     const unsubParties = onPartiesUpdate(setParties);
     const unsubAccounts = onAccountsUpdate(setAccounts);
     const unsubUoms = onUomsUpdate(setUoms);
-    const unsubPrefix = onSettingUpdate('reportNumberPrefix', (setting) => {
-        setReportPrefix(setting?.value || '2082/083-');
+    const unsubPrefixes = onSettingUpdate('documentPrefixes', (setting) => {
+        setPrefixes(setting?.value || {});
     });
 
     const handleStorageChange = () => setUsers(getUsers());
@@ -109,22 +111,29 @@ export default function SettingsPage() {
         unsubParties();
         unsubAccounts();
         unsubUoms();
-        unsubPrefix();
+        unsubPrefixes();
         window.removeEventListener('storage', handleStorageChange);
     }
   }, []);
   
+  const handleOpenPrefixDialog = (key: keyof DocumentPrefixes) => {
+    setEditingPrefix({ key, value: prefixes[key] || '' });
+    setIsPrefixDialogOpen(true);
+  };
+  
   const handleSavePrefix = async () => {
-    setIsSavingPrefix(true);
+    if (!editingPrefix) return;
+    const newPrefixes = { ...prefixes, [editingPrefix.key]: editingPrefix.value };
     try {
-        await setSetting('reportNumberPrefix', reportPrefix);
-        toast({ title: 'Success', description: 'Report number prefix updated.' });
+        await setSetting('documentPrefixes', newPrefixes);
+        toast({ title: 'Success', description: 'Prefix updated successfully.' });
+        setIsPrefixDialogOpen(false);
+        setEditingPrefix(null);
     } catch {
         toast({ title: 'Error', description: 'Failed to save prefix.', variant: 'destructive' });
-    } finally {
-        setIsSavingPrefix(false);
     }
   };
+
 
   const handleExportData = async () => {
     setIsExporting(true);
@@ -594,26 +603,36 @@ export default function SettingsPage() {
                 </Card>
             </TabsContent>
             <TabsContent value="report-numbering">
-                <div className="space-y-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Report Numbering</CardTitle>
-                            <CardDescription>Configure the prefix for test report serial numbers.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="report-prefix">Report Number Prefix</Label>
-                            <div className="flex items-center gap-2">
-                                <Input id="report-prefix" value={reportPrefix} onChange={(e) => setReportPrefix(e.target.value)} className="max-w-xs" />
-                                <Button onClick={handleSavePrefix} disabled={isSavingPrefix}>
-                                    <Save className="mr-2 h-4 w-4" /> Save Prefix
-                                </Button>
-                            </div>
-                            <p className="text-sm text-muted-foreground">This prefix is used for generating new test report serial numbers.</p>
-                        </div>
-                        </CardContent>
-                    </Card>
-                </div>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Document Numbering</CardTitle>
+                        <CardDescription>Configure prefixes for auto-generated document numbers.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Document Type</TableHead>
+                                    <TableHead>Prefix</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {documentTypes.map(type => (
+                                    <TableRow key={type}>
+                                        <TableCell>{getDocumentName(type)}</TableCell>
+                                        <TableCell>{prefixes[type] || 'Not Set'}</TableCell>
+                                        <TableCell className="text-right">
+                                            <Button variant="outline" size="sm" onClick={() => handleOpenPrefixDialog(type)}>
+                                                <Edit className="mr-2 h-4 w-4" /> Edit
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
             </TabsContent>
         </Tabs>
         
@@ -770,6 +789,28 @@ export default function SettingsPage() {
                 <DialogFooter>
                     <Button variant="outline" onClick={() => setIsChangePasswordDialogOpen(false)}>Cancel</Button>
                     <Button onClick={handleChangePassword}>Save Changes</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        <Dialog open={isPrefixDialogOpen} onOpenChange={setIsPrefixDialogOpen}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Edit Prefix for {editingPrefix ? getDocumentName(editingPrefix.key) : ''}</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="prefix-input">Prefix</Label>
+                        <Input 
+                            id="prefix-input" 
+                            value={editingPrefix?.value || ''}
+                            onChange={(e) => setEditingPrefix(prev => prev ? { ...prev, value: e.target.value } : null)}
+                        />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsPrefixDialogOpen(false)}>Cancel</Button>
+                    <Button onClick={handleSavePrefix}>Save Prefix</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
