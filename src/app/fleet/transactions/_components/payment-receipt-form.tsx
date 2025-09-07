@@ -99,7 +99,6 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
   const totalPay = watchedItems.reduce((sum, item) => sum + (Number(item.payAmount) || 0), 0);
   const netAmount = totalRec - totalPay;
   
-  // Calculate summary data directly on each render from watched values
   const summaryData = watchedItems.map(item => {
     const { ledgerId, vehicleId, recAmount = 0, payAmount = 0 } = item;
     
@@ -115,6 +114,10 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
     const filteredTxns = transactions.filter(t => {
       const partyMatch = ledgerId ? t.partyId === ledgerId : false;
       const vehicleMatch = vehicleId ? t.vehicleId === vehicleId : false;
+
+      if (ledgerId && vehicleId) {
+        return partyMatch && vehicleMatch;
+      }
       return partyMatch || vehicleMatch;
     });
 
