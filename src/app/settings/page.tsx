@@ -36,6 +36,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { onPartiesUpdate, addParty, updateParty, deleteParty } from '@/services/party-service';
 import { onAccountsUpdate, addAccount, updateAccount, deleteAccount } from '@/services/account-service';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 
 
 export default function SettingsPage() {
