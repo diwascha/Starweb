@@ -1,17 +1,22 @@
 
 'use client';
 
-import { useEffect, useState, useMemo, use } from 'react';
+import { useEffect, useState, useMemo, use, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { getVoucherTransactions, updateVoucher } from '@/services/transaction-service';
 import type { Transaction, Vehicle, Party, Account } from '@/lib/types';
-import { PaymentReceiptForm } from '../../../_components/payment-receipt-form';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onPartiesUpdate } from '@/services/party-service';
 import { onAccountsUpdate } from '@/services/account-service';
 import { onTransactionsUpdate } from '@/services/transaction-service';
+
+const PaymentReceiptForm = dynamic(() => import('../../../_components/payment-receipt-form').then(mod => mod.PaymentReceiptForm), {
+  ssr: false,
+  loading: () => <p>Loading form...</p>
+});
 
 export default function EditVoucherPage({ params }: { params: Promise<{ voucherId: string }> }) {
   const { voucherId } = use(params);
@@ -106,15 +111,17 @@ export default function EditVoucherPage({ params }: { params: Promise<{ voucherI
         <h1 className="text-3xl font-bold tracking-tight">Edit Voucher</h1>
         <p className="text-muted-foreground">Modify the details for voucher #{initialFormValues.voucherNo}.</p>
       </header>
-      <PaymentReceiptForm
-        accounts={accounts}
-        parties={parties}
-        vehicles={vehicles}
-        transactions={allTransactions}
-        onFormSubmit={handleFormSubmit}
-        onCancel={() => router.push('/fleet/transactions/payment-receipt/new')}
-        initialValues={initialFormValues}
-      />
+      <Suspense fallback={<div>Loading form...</div>}>
+        <PaymentReceiptForm
+          accounts={accounts}
+          parties={parties}
+          vehicles={vehicles}
+          transactions={allTransactions}
+          onFormSubmit={handleFormSubmit}
+          onCancel={() => router.push('/fleet/transactions/payment-receipt/new')}
+          initialValues={initialFormValues}
+        />
+      </Suspense>
     </div>
   );
 }

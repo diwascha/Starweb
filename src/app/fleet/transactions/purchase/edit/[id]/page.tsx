@@ -1,16 +1,21 @@
 
 'use client';
 
-import { useEffect, useState, useMemo, use } from 'react';
+import { useEffect, useState, useMemo, use, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { getTransaction, updateTransaction } from '@/services/transaction-service';
 import type { Transaction, Vehicle, Party, Account } from '@/lib/types';
-import { PurchaseForm } from '../../../_components/purchase-form';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onPartiesUpdate } from '@/services/party-service';
 import { onAccountsUpdate } from '@/services/account-service';
+
+const PurchaseForm = dynamic(() => import('../../../_components/purchase-form').then(mod => mod.PurchaseForm), {
+  ssr: false,
+  loading: () => <p>Loading form...</p>
+});
 
 export default function EditPurchasePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -114,14 +119,16 @@ export default function EditPurchasePage({ params }: { params: Promise<{ id: str
         <h1 className="text-3xl font-bold tracking-tight">Edit Purchase</h1>
         <p className="text-muted-foreground">Modify the details for purchase #{initialFormValues.purchaseNumber}.</p>
       </header>
-      <PurchaseForm
-        accounts={accounts}
-        parties={parties}
-        vehicles={vehicles}
-        onFormSubmit={handleFormSubmit}
-        onCancel={() => router.push('/fleet/transactions/purchase/new')}
-        initialValues={initialFormValues}
-      />
+      <Suspense fallback={<div>Loading form...</div>}>
+        <PurchaseForm
+          accounts={accounts}
+          parties={parties}
+          vehicles={vehicles}
+          onFormSubmit={handleFormSubmit}
+          onCancel={() => router.push('/fleet/transactions/purchase/new')}
+          initialValues={initialFormValues}
+        />
+      </Suspense>
     </div>
   );
 }

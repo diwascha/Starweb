@@ -1,8 +1,9 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import type { Transaction, Vehicle, Party, Account } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
@@ -10,7 +11,6 @@ import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onPartiesUpdate } from '@/services/party-service';
 import { onAccountsUpdate } from '@/services/account-service';
 import { onTransactionsUpdate, addTransaction, deleteTransaction } from '@/services/transaction-service';
-import { PurchaseForm } from '../../_components/purchase-form';
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Download, CalendarIcon, ArrowUpDown, MoreHorizontal, View, Edit, Printer, Trash2, User, Search } from 'lucide-react';
@@ -28,6 +28,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Input } from '@/components/ui/input';
+
+const PurchaseForm = dynamic(() => import('../../_components/purchase-form').then(mod => mod.PurchaseForm), {
+  ssr: false,
+  loading: () => <p>Loading form...</p>
+});
 
 type SortKey = 'date' | 'vehicleName' | 'partyName' | 'amount' | 'authorship';
 type SortDirection = 'asc' | 'desc';
@@ -340,14 +345,16 @@ export default function NewPurchasePage() {
                         Fill in the details below to record a new purchase transaction.
                     </DialogDescription>
                 </DialogHeader>
-                 <PurchaseForm 
-                    accounts={accounts}
-                    parties={parties}
-                    vehicles={vehicles}
-                    onFormSubmit={handleFormSubmit}
-                    onCancel={() => setIsDialogOpen(false)}
-                    initialValues={{ purchaseNumber: nextPurchaseNumber, type: 'Purchase' }}
-                />
+                 <Suspense fallback={<div>Loading form...</div>}>
+                    <PurchaseForm 
+                        accounts={accounts}
+                        parties={parties}
+                        vehicles={vehicles}
+                        onFormSubmit={handleFormSubmit}
+                        onCancel={() => setIsDialogOpen(false)}
+                        initialValues={{ purchaseNumber: nextPurchaseNumber, type: 'Purchase' }}
+                    />
+                 </Suspense>
             </DialogContent>
         </Dialog>
     );

@@ -1,8 +1,9 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import type { Transaction, Vehicle, Party, Account } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
@@ -10,7 +11,6 @@ import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onPartiesUpdate } from '@/services/party-service';
 import { onAccountsUpdate } from '@/services/account-service';
 import { onTransactionsUpdate, saveVoucher, deleteVoucher } from '@/services/transaction-service';
-import { PaymentReceiptForm } from '../../_components/payment-receipt-form';
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Download, CalendarIcon, ArrowUpDown, MoreHorizontal, View, Edit, Printer, Trash2, User } from 'lucide-react';
@@ -28,6 +28,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+
+const PaymentReceiptForm = dynamic(() => import('../../_components/payment-receipt-form').then(mod => mod.PaymentReceiptForm), {
+  ssr: false,
+  loading: () => <p>Loading form...</p>
+});
 
 
 type SortKey = 'date' | 'totalAmount' | 'voucherNo' | 'authorship';
@@ -361,14 +366,16 @@ export default function NewPaymentReceiptPage() {
                         Fill in the details below to record a new voucher.
                     </DialogDescription>
                 </DialogHeader>
-                 <PaymentReceiptForm
-                    accounts={accounts}
-                    parties={parties}
-                    vehicles={vehicles}
-                    transactions={transactions}
-                    onFormSubmit={handleFormSubmit}
-                    onCancel={() => setIsDialogOpen(false)}
-                />
+                 <Suspense fallback={<div>Loading form...</div>}>
+                    <PaymentReceiptForm
+                        accounts={accounts}
+                        parties={parties}
+                        vehicles={vehicles}
+                        transactions={transactions}
+                        onFormSubmit={handleFormSubmit}
+                        onCancel={() => setIsDialogOpen(false)}
+                    />
+                 </Suspense>
             </DialogContent>
         </Dialog>
     );
