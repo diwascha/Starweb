@@ -45,7 +45,7 @@ import { Badge } from '@/components/ui/badge';
 import type { DateRange } from 'react-day-picker';
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { onTransactionsUpdate, addTransaction, updateTransaction, deleteTransaction } from '@/services/transaction-service';
+import { onTransactionsUpdate, addTransaction, updateTransaction, deleteTransaction, saveVoucher } from '@/services/transaction-service';
 import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onPartiesUpdate, addParty } from '@/services/party-service';
 import { onAccountsUpdate, addAccount, updateAccount } from '@/services/account-service';
@@ -251,6 +251,21 @@ export default function TransactionsPage() {
         } catch (error) {
              console.error("Failed to save transaction:", error);
              toast({ title: 'Error', description: 'Failed to save transaction.', variant: 'destructive' });
+        }
+    };
+
+    const handleVoucherSubmit = async (values: any) => {
+        if (!user) {
+            toast({ title: "Error", description: "You must be logged in to save.", variant: "destructive" });
+            return;
+        }
+        try {
+            await saveVoucher(values, user.username);
+            toast({ title: "Voucher Saved", description: "The voucher has been successfully recorded." });
+            setIsPaymentReceiptDialogOpen(false);
+        } catch (error) {
+            console.error("Failed to save voucher:", error);
+            toast({ title: "Error", description: "Failed to save voucher.", variant: "destructive" });
         }
     };
     
@@ -709,10 +724,7 @@ export default function TransactionsPage() {
                         parties={parties}
                         vehicles={vehicles}
                         transactions={transactions}
-                        onFormSubmit={async (values) => {
-                            console.log(values);
-                            setIsPaymentReceiptDialogOpen(false);
-                        }}
+                        onFormSubmit={handleVoucherSubmit}
                         onCancel={() => setIsPaymentReceiptDialogOpen(false)}
                     />
                 </DialogContent>
@@ -720,6 +732,8 @@ export default function TransactionsPage() {
         </>
     );
 }
+
+    
 
     
 

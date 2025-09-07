@@ -1,7 +1,7 @@
 
 
 import { db } from '@/lib/firebase';
-import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, writeBatch } from 'firebase/firestore';
 import type { Transaction } from '@/lib/types';
 
 const transactionsCollection = collection(db, 'transactions');
@@ -41,6 +41,51 @@ export const addTransaction = async (transaction: Omit<Transaction, 'id' | 'crea
     return docRef.id;
 };
 
+export const saveVoucher = async (voucherData: any, createdBy: string) => {
+    const batch = writeBatch(db);
+    const now = new Date().toISOString();
+
+    voucherData.items.forEach((item: any) => {
+        const { ledgerId, vehicleId, recAmount, payAmount, narration } = item;
+        
+        let amount = 0;
+        let type: 'Payment' | 'Receipt' | null = null;
+        
+        if (voucherData.voucherType === 'Payment' && payAmount > 0) {
+            amount = payAmount;
+            type = 'Payment';
+        } else if (voucherData.voucherType === 'Receipt' && recAmount > 0) {
+            amount = recAmount;
+            type = 'Receipt';
+        }
+
+        if (type && amount > 0) {
+            const transactionRef = doc(transactionsCollection);
+            const newTransaction: Omit<Transaction, 'id'> = {
+                date: voucherData.date.toISOString(),
+                type: type,
+                billingType: voucherData.billingType,
+                vehicleId: vehicleId,
+                partyId: ledgerId,
+                amount: amount,
+                remarks: narration || voucherData.remarks || '',
+                invoiceType: 'Normal', // Default for payments/receipts
+                items: [{ particular: type, quantity: 1, rate: amount }],
+                accountId: voucherData.accountId || null,
+                chequeNumber: voucherData.chequeNo || null,
+                chequeDate: voucherData.chequeDate ? voucherData.chequeDate.toISOString() : null,
+                createdBy: createdBy,
+                createdAt: now,
+                lastModifiedAt: now
+            };
+            batch.set(transactionRef, newTransaction);
+        }
+    });
+
+    await batch.commit();
+};
+
+
 export const onTransactionsUpdate = (callback: (transactions: Transaction[]) => void): () => void => {
     return onSnapshot(transactionsCollection, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
@@ -59,3 +104,5 @@ export const deleteTransaction = async (id: string): Promise<void> => {
     const transactionDoc = doc(db, 'transactions', id);
     await deleteDoc(transactionDoc);
 };
+
+    
