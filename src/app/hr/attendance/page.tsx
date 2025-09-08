@@ -29,6 +29,7 @@ const nepaliMonths = [
 
 const cleanEmployeeName = (name: any): string => {
   if (typeof name !== 'string') return '';
+  // Trim whitespace, replace multiple spaces with a single space, and convert to lowercase
   return name.trim().replace(/\s+/g, ' ').toLowerCase();
 };
 
@@ -192,7 +193,13 @@ export default function AttendancePage() {
     const headerRow = jsonData[0].map(h => String(h).toLowerCase().trim());
     const dataRows = jsonData.slice(1);
 
-    const getIndex = (aliases: string[]) => headerRow.findIndex(h => aliases.includes(h));
+    const getIndex = (aliases: string[]) => {
+        for (const alias of aliases) {
+            const index = headerRow.findIndex(h => h === alias);
+            if (index !== -1) return index;
+        }
+        return -1;
+    }
 
     const nameIndex = getIndex(['name']);
     const dateIndex = getIndex(['date']);
@@ -362,6 +369,7 @@ export default function AttendancePage() {
               <TableHead><Button variant="ghost" onClick={() => requestSort('date')}>Date (AD) <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
               <TableHead>Date (BS)</TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('employeeName')}>Employee Name <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+              <TableHead>Weekday</TableHead>
               <TableHead>Schedule</TableHead>
               <TableHead>Actual</TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('status')}>Status <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
@@ -373,6 +381,7 @@ export default function AttendancePage() {
                 <TableCell className="font-medium">{format(new Date(record.date), 'yyyy-MM-dd')}</TableCell>
                 <TableCell>{record.bsDate}</TableCell>
                 <TableCell>{record.employeeName}</TableCell>
+                <TableCell>{format(new Date(record.date), 'EEEE')}</TableCell>
                 <TableCell>{record.onDuty} - {record.offDuty}</TableCell>
                 <TableCell>{record.clockIn} - {record.clockOut}</TableCell>
                 <TableCell><Badge variant={getAttendanceBadgeVariant(record.status)}>{record.status}</Badge></TableCell>
