@@ -116,7 +116,7 @@ export default function AttendancePage() {
   };
   
   const parseTime = (time: any): string | null => {
-      if (!time || (typeof time === 'string' && time.trim() === '')) return null;
+      if (!time || (typeof time === 'string' && time.trim() === '') || time === 0) return null;
       if (time instanceof Date) {
         return format(time, 'HH:mm');
       }
@@ -238,7 +238,8 @@ export default function AttendancePage() {
         const clockOutValue = parseTime(clockOutIndex > -1 ? row[clockOutIndex] : null);
 
         let status: AttendanceRecord['status'];
-        if (nepaliDate.getDay() === 6) {
+
+        if (nepaliDate.getDay() === 6) { // Saturday
             status = 'Saturday';
         } else {
             if (!clockInValue) {
@@ -520,3 +521,5 @@ export default function AttendancePage() {
     </div>
   );
 }
+
+    
