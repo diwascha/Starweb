@@ -2,13 +2,13 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import type { Employee, AttendanceRecord, Payroll, PunctualityInsight, BehaviorInsight, PatternInsight } from '@/lib/types';
+import type { Employee, AttendanceRecord, Payroll, PunctualityInsight, BehaviorInsight, PatternInsight, WorkforceAnalytics } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Download, Printer, Save, Loader2, Edit, AlertCircle } from 'lucide-react';
+import { Download, Printer, Save, Loader2, Edit, AlertCircle, Info } from 'lucide-react';
 import NepaliDate from 'nepali-date-converter';
 import { useAuth } from '@/hooks/use-auth';
 import { onEmployeesUpdate } from '@/services/employee-service';
@@ -19,7 +19,7 @@ import { Label } from '@/components/ui/label';
 import { generatePayrollAndAnalytics, PayrollAndAnalyticsData } from '@/services/payroll-service';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tooltip, TooltipProvider, TooltipContent } from '@/components/ui/tooltip';
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 const nepaliMonths = [
     { value: 0, name: "Baishakh" }, { value: 1, name: "Jestha" }, { value: 2, name: "Ashadh" },
@@ -287,9 +287,10 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
                 </CardHeader>
                 <CardContent>
                     <Tabs defaultValue="punctuality">
-                        <TabsList>
-                            <TabsTrigger value="punctuality">Attendance & Punctuality Insights</TabsTrigger>
-                            <TabsTrigger value="behavior">Behavioral & Performance Insights</TabsTrigger>
+                        <TabsList className="grid w-full grid-cols-3">
+                            <TabsTrigger value="punctuality">Punctuality</TabsTrigger>
+                            <TabsTrigger value="workforce">Workforce Analytics</TabsTrigger>
+                            <TabsTrigger value="behavior">Behavior & Patterns</TabsTrigger>
                         </TabsList>
                         <TabsContent value="punctuality" className="pt-4">
                             <ScrollArea className="w-full whitespace-nowrap">
@@ -319,6 +320,51 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
                                                 <TableCell>{p.earlyDepartures}</TableCell>
                                                 <TableCell>{p.onTimeDays}</TableCell>
                                                 <TableCell>{p.punctualityScore.toFixed(1)}%</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </ScrollArea>
+                        </TabsContent>
+                         <TabsContent value="workforce" className="pt-4">
+                            <ScrollArea className="w-full whitespace-nowrap">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="w-[150px] sticky left-0 bg-background z-10">Employee</TableHead>
+                                            <TableHead>
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger className="flex items-center gap-1">OT Ratio <Info className="h-3 w-3" /></TooltipTrigger>
+                                                        <TooltipContent>Overtime hours as a percentage of regular hours. High values may indicate burnout risk.</TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            </TableHead>
+                                            <TableHead>
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger className="flex items-center gap-1">On-Time Streak <Info className="h-3 w-3" /></TooltipTrigger>
+                                                        <TooltipContent>Longest streak of consecutive on-time (no lates/early departures) days this month.</TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            </TableHead>
+                                            <TableHead>
+                                                 <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger className="flex items-center gap-1">Saturdays Worked <Info className="h-3 w-3" /></TooltipTrigger>
+                                                        <TooltipContent>Total number of Saturdays worked this month. A measure of work-life balance.</TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            </TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {payrollData?.workforce.map(w => (
+                                            <TableRow key={w.employeeId}>
+                                                <TableCell className="font-medium sticky left-0 bg-background z-10">{w.employeeName}</TableCell>
+                                                <TableCell>{w.overtimeRatio.toFixed(1)}%</TableCell>
+                                                <TableCell>{w.onTimeStreak}</TableCell>
+                                                <TableCell>{w.saturdaysWorked}</TableCell>
                                             </TableRow>
                                         ))}
                                     </TableBody>

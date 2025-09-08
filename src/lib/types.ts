@@ -4,6 +4,7 @@
 
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -186,6 +187,14 @@ export interface BehaviorInsight {
 export interface PatternInsight {
     finding: string;
     description: string;
+}
+
+export interface WorkforceAnalytics {
+    employeeId: string;
+    employeeName: string;
+    overtimeRatio: number;
+    onTimeStreak: number;
+    saturdaysWorked: number;
 }
 
 

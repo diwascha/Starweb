@@ -1,9 +1,9 @@
 
 'use client';
 
-import { format, parse, getDay, startOfWeek, differenceInMinutes, addMinutes, setHours, setMinutes, setSeconds, startOfDay, endOfDay, getDaysInMonth, addDays } from 'date-fns';
+import { format, parse, getDay, startOfWeek, differenceInMinutes, addMinutes, setHours, setMinutes, setSeconds, startOfDay, endOfDay, getDaysInMonth, addDays, isSameDay } from 'date-fns';
 import NepaliDate from 'nepali-date-converter';
-import type { AttendanceRecord, Employee, Payroll, PunctualityInsight, BehaviorInsight, PatternInsight } from '@/lib/types';
+import type { AttendanceRecord, Employee, Payroll, PunctualityInsight, BehaviorInsight, PatternInsight, WorkforceAnalytics } from '@/lib/types';
 import { addEmployee } from './employee-service';
 
 // --- Constants translated from VBA ---
@@ -85,7 +85,7 @@ const roundToStep = (hours: number, step: number): number => {
 };
 
 const applyFixedBreak = (start: Date, end: Date): number => {
-    if (!start || !end || end <= start) return 0;
+    if (!start || !end || isBefore(end, start)) return 0;
 
     const totalMinutes = differenceInMinutes(end, start);
     
@@ -236,6 +236,7 @@ export interface PayrollAndAnalyticsData {
   payroll: Payroll[];
   punctuality: PunctualityInsight[];
   behavior: BehaviorInsight[];
+  workforce: WorkforceAnalytics[];
   dayOfWeek: { day: string; lateArrivals: number; absenteeism: number }[];
   patternInsights: PatternInsight[];
 }
@@ -362,6 +363,49 @@ export const generatePayrollAndAnalytics = (
             performanceInsight: performanceInsight,
         };
     });
+    
+    const workforce: WorkforceAnalytics[] = employees.map(employee => {
+        const empPayroll = payroll.find(p => p.employeeId === employee.id)!;
+        const empAttendance = filteredAttendance.filter(r => r.employeeName === employee.name);
+
+        const overtimeRatio = empPayroll.regularHours > 0 ? (empPayroll.otHours / empPayroll.regularHours) * 100 : 0;
+        const saturdaysWorked = empAttendance.filter(r => r.status === 'Saturday').length;
+
+        let onTimeStreak = 0;
+        let currentStreak = 0;
+        empAttendance
+            .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+            .forEach(r => {
+                let isLate = false;
+                let isEarly = false;
+                if (r.onDuty && r.clockIn) {
+                    const onDuty = parse(r.onDuty, 'HH:mm', new Date());
+                    const clockIn = parse(r.clockIn, 'HH:mm', new Date());
+                    if (differenceInMinutes(clockIn, onDuty) > kGraceMin) isLate = true;
+                }
+                if (r.offDuty && r.clockOut) {
+                    const offDuty = parse(r.offDuty, 'HH:mm', new Date());
+                    const clockOut = parse(r.clockOut, 'HH:mm', new Date());
+                    if (differenceInMinutes(offDuty, clockOut) > kGraceMin) isEarly = true;
+                }
+
+                if (!isLate && !isEarly && ['Present', 'Saturday'].includes(r.status)) {
+                    currentStreak++;
+                } else {
+                    onTimeStreak = Math.max(onTimeStreak, currentStreak);
+                    currentStreak = 0;
+                }
+            });
+        onTimeStreak = Math.max(onTimeStreak, currentStreak);
+
+        return {
+            employeeId: employee.id,
+            employeeName: employee.name,
+            overtimeRatio,
+            onTimeStreak,
+            saturdaysWorked,
+        };
+    });
 
     const dayOfWeekData = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((dayName, index) => {
         const dayRecords = filteredAttendance.filter(r => getDay(new Date(r.date)) === index);
@@ -419,13 +463,6 @@ export const generatePayrollAndAnalytics = (
     if (highOtNextDayLate > 0) {
         patternInsights.push({ finding: 'Employees with high OT may arrive late the next day', description: `There were ${highOtNextDayLate} instances of an employee being late the day after working significant overtime.` });
     }
-    
-    function isSameDay(date1: Date, date2: Date) {
-        return date1.getFullYear() === date2.getFullYear() &&
-               date1.getMonth() === date2.getMonth() &&
-               date1.getDate() === date2.getDate();
-    }
 
-
-    return { payroll, punctuality, behavior, dayOfWeek: dayOfWeekData, patternInsights };
+    return { payroll, punctuality, behavior, workforce, dayOfWeek: dayOfWeekData, patternInsights };
 };
