@@ -290,7 +290,7 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
                         <TabsList className="grid w-full grid-cols-3">
                             <TabsTrigger value="punctuality">Punctuality</TabsTrigger>
                             <TabsTrigger value="workforce">Workforce Analytics</TabsTrigger>
-                            <TabsTrigger value="behavior">Behavior & Patterns</TabsTrigger>
+                            <TabsTrigger value="behavior">Behavior &amp; Performance Insights</TabsTrigger>
                         </TabsList>
                         <TabsContent value="punctuality" className="pt-4">
                             <ScrollArea className="w-full whitespace-nowrap">
