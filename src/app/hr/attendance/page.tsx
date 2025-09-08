@@ -47,6 +47,7 @@ export default function AttendancePage() {
   
   const [selectedBsYear, setSelectedBsYear] = useState<string>('');
   const [selectedBsMonth, setSelectedBsMonth] = useState<string>('');
+  const [filterEmployeeName, setFilterEmployeeName] = useState<string>('All');
   
   const { availableYears, availableMonths } = useMemo(() => {
     const yearMonthSet = new Set<string>();
@@ -324,8 +325,17 @@ export default function AttendancePage() {
         record.employeeName.toLowerCase().includes(lowercasedQuery)
       );
     }
+    
+    if (filterEmployeeName !== 'All') {
+        filtered = filtered.filter(record => record.employeeName === filterEmployeeName);
+    }
 
     filtered.sort((a, b) => {
+      if (sortConfig.key === 'employeeName') {
+        const nameCompare = a.employeeName.localeCompare(b.employeeName);
+        if (nameCompare !== 0) return sortConfig.direction === 'asc' ? nameCompare : -nameCompare;
+      }
+
       const aVal = a[sortConfig.key];
       const bVal = b[sortConfig.key];
 
@@ -333,8 +343,6 @@ export default function AttendancePage() {
       if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
       
       // Secondary sort to keep things stable
-      if (a.employeeName < b.employeeName) return -1;
-      if (a.employeeName > b.employeeName) return 1;
       if (a.date < b.date) return -1;
       if (a.date > b.date) return 1;
 
@@ -342,7 +350,12 @@ export default function AttendancePage() {
     });
     
     return filtered;
-  }, [attendance, sortConfig, searchQuery, selectedBsYear, selectedBsMonth]);
+  }, [attendance, sortConfig, searchQuery, selectedBsYear, selectedBsMonth, filterEmployeeName]);
+  
+  const uniqueEmployeeNames = useMemo(() => {
+      const names = new Set(employees.map(e => e.name));
+      return ['All', ...Array.from(names).sort()];
+  }, [employees]);
   
   const renderContent = () => {
     if (!isClient) {
@@ -435,10 +448,10 @@ export default function AttendancePage() {
       </header>
 
       {attendance.length > 0 && (
-          <div className="flex flex-col sm:flex-row gap-2 items-center">
-              <Label>Filter by month:</Label>
+          <div className="flex flex-col sm:flex-row flex-wrap gap-2 items-center">
+              <Label>Filter by:</Label>
               <Select value={selectedBsYear} onValueChange={setSelectedBsYear}>
-                  <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectTrigger className="w-full sm:w-auto">
                       <SelectValue placeholder="Select Year (BS)" />
                   </SelectTrigger>
                   <SelectContent>
@@ -448,12 +461,22 @@ export default function AttendancePage() {
                   </SelectContent>
               </Select>
               <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth} disabled={!selectedBsYear}>
-                  <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectTrigger className="w-full sm:w-auto">
                       <SelectValue placeholder="Select Month (BS)" />
                   </SelectTrigger>
                   <SelectContent>
                       {availableMonths.map(month => (
                           <SelectItem key={month} value={month}>{nepaliMonths[parseInt(month, 10) - 1]}</SelectItem>
+                      ))}
+                  </SelectContent>
+              </Select>
+               <Select value={filterEmployeeName} onValueChange={setFilterEmployeeName}>
+                  <SelectTrigger className="w-full sm:w-auto">
+                      <SelectValue placeholder="Select Employee" />
+                  </SelectTrigger>
+                  <SelectContent>
+                      {uniqueEmployeeNames.map(name => (
+                          <SelectItem key={name} value={name}>{name}</SelectItem>
                       ))}
                   </SelectContent>
               </Select>
