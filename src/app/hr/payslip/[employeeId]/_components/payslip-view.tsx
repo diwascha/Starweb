@@ -7,7 +7,7 @@ import { Printer } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { toNepaliDate } from '@/lib/utils';
 import { format } from 'date-fns';
-import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableRow, TableHeader, TableHead } from '@/components/ui/table';
 
 interface PayslipViewProps {
   employee: Employee;
@@ -102,24 +102,32 @@ export default function PayslipView({ employee, payroll, bsYear, bsMonthName }: 
         <div className="grid grid-cols-2 gap-4">
             <div className="border border-gray-300 rounded-md">
                  <Table>
-                    <TableRow className="bg-gray-100 font-bold"><TableCell colSpan={2} className="h-8 px-2 text-xs">Earnings</TableCell></TableRow>
-                    {earnings.map(item => (
-                        <TableRow key={item.label} className="border-b-gray-300">
-                            <TableCell className="px-2 py-1 text-xs">{item.label}</TableCell>
-                            <TableCell className="px-2 py-1 text-xs text-right">{item.amount.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
-                        </TableRow>
-                    ))}
+                    <TableHeader>
+                        <TableRow className="bg-gray-100 font-bold"><TableHead colSpan={2} className="h-8 px-2 text-xs text-black">Earnings</TableHead></TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {earnings.map(item => (
+                            <TableRow key={item.label} className="border-b-gray-300">
+                                <TableCell className="px-2 py-1 text-xs">{item.label}</TableCell>
+                                <TableCell className="px-2 py-1 text-xs text-right">{item.amount.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
                  </Table>
             </div>
              <div className="border border-gray-300 rounded-md">
                  <Table>
-                    <TableRow className="bg-gray-100 font-bold"><TableCell colSpan={2} className="h-8 px-2 text-xs">Deductions</TableCell></TableRow>
-                     {deductions.map(item => (
-                        <TableRow key={item.label} className="border-b-gray-300">
-                            <TableCell className="px-2 py-1 text-xs">{item.label}</TableCell>
-                            <TableCell className="px-2 py-1 text-xs text-right">{item.amount.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
-                        </TableRow>
-                    ))}
+                    <TableHeader>
+                        <TableRow className="bg-gray-100 font-bold"><TableHead colSpan={2} className="h-8 px-2 text-xs text-black">Deductions</TableHead></TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {deductions.map(item => (
+                            <TableRow key={item.label} className="border-b-gray-300">
+                                <TableCell className="px-2 py-1 text-xs">{item.label}</TableCell>
+                                <TableCell className="px-2 py-1 text-xs text-right">{item.amount.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
                  </Table>
             </div>
         </div>
@@ -127,18 +135,22 @@ export default function PayslipView({ employee, payroll, bsYear, bsMonthName }: 
         <div className="grid grid-cols-2 gap-4 mt-2">
             <div className="border border-gray-300 rounded-md bg-gray-50">
                 <Table>
-                    <TableRow className="font-bold">
-                        <TableCell className="h-8 px-2 text-xs">Total Earnings</TableCell>
-                        <TableCell className="h-8 px-2 text-xs text-right">{totalEarnings.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
-                    </TableRow>
+                    <TableBody>
+                        <TableRow className="font-bold">
+                            <TableCell className="h-8 px-2 text-xs">Total Earnings</TableCell>
+                            <TableCell className="h-8 px-2 text-xs text-right">{totalEarnings.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                        </TableRow>
+                    </TableBody>
                 </Table>
             </div>
              <div className="border border-gray-300 rounded-md bg-gray-50">
                 <Table>
-                    <TableRow className="font-bold">
-                        <TableCell className="h-8 px-2 text-xs">Total Deductions</TableCell>
-                        <TableCell className="h-8 px-2 text-xs text-right">{totalDeductions.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
-                    </TableRow>
+                    <TableBody>
+                        <TableRow className="font-bold">
+                            <TableCell className="h-8 px-2 text-xs">Total Deductions</TableCell>
+                            <TableCell className="h-8 px-2 text-xs text-right">{totalDeductions.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                        </TableRow>
+                    </TableBody>
                 </Table>
             </div>
         </div>
