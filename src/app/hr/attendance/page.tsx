@@ -96,6 +96,7 @@ export default function AttendancePage() {
   
     const parseDate = (dateInput: any): Date | null => {
         if (!dateInput) return null;
+        // If it's already a valid Date object
         if (dateInput instanceof Date && !isNaN(dateInput.getTime())) {
             return dateInput;
         }
@@ -105,7 +106,9 @@ export default function AttendancePage() {
             return new Date(excelEpoch.getTime() + dateInput * 24 * 60 * 60 * 1000);
         }
         if (typeof dateInput === 'string') {
-            const parsedDate = new Date(dateInput);
+            // Handle combined date and time strings by parsing only the date part
+            const dateOnlyString = dateInput.split(' ')[0];
+            const parsedDate = new Date(dateOnlyString);
             if (!isNaN(parsedDate.getTime())) {
                 return parsedDate;
             }
@@ -125,12 +128,13 @@ export default function AttendancePage() {
     let nonexistentEmployees = new Set<string>();
     
     rows.forEach((row, index) => {
-      if (row.length < 7) {
+      // The row should have at least a Name and a Date
+      if (!row || row.length < 2) {
           skippedRows++;
           return;
       }
 
-      const [adDateRaw, name, onDuty, offDuty, clockIn, clockOut, absentDetails] = row;
+      const [name, adDateRaw, onDuty, offDuty, clockIn, clockOut, absentDetails] = row;
       
       const adDate = parseDate(adDateRaw);
 
@@ -190,7 +194,14 @@ export default function AttendancePage() {
             toast({ title: 'Error', description: 'Failed to save attendance data to the database.', variant: 'destructive' });
         }
     } else {
-        toast({ title: 'Info', description: 'No new valid attendance records found to import.' });
+        let description = 'No new valid attendance records found to import.';
+        if (skippedRows > 0) {
+            description += ` ${skippedRows} rows were skipped.`;
+            if (nonexistentEmployees.size > 0) {
+               description += ` Could not find employees: ${Array.from(nonexistentEmployees).join(', ')}.`;
+            }
+        }
+        toast({ title: 'Info', description: description });
     }
   };
   
