@@ -42,7 +42,7 @@ const parseDate = (dateInput: any): Date | null => {
 };
 
 const parseTime = (timeInput: any): { hours: number, minutes: number, seconds: number } | null => {
-    if (timeInput === null || timeInput === undefined || timeInput === '' || timeInput === 0 || (typeof timeInput === 'string' && timeInput.trim() === '-')) return null;
+    if (timeInput === null || timeInput === undefined || timeInput === '' || (typeof timeInput === 'string' && timeInput.trim() === '-')) return null;
 
     if (timeInput instanceof Date && !isNaN(timeInput.getTime())) {
         return { hours: timeInput.getHours(), minutes: timeInput.getMinutes(), seconds: timeInput.getSeconds() };
@@ -75,7 +75,7 @@ const parseTime = (timeInput: any): { hours: number, minutes: number, seconds: n
 
 const combineDateAndTime = (baseDate: Date, time: { hours: number, minutes: number, seconds: number } | null): Date | null => {
     if (!time) return null;
-    return setSeconds(setMinutes(setHours(baseDate, time.hours), time.minutes), time.seconds);
+    return setSeconds(setMinutes(setHours(startOfDay(baseDate), time.hours), time.minutes), time.seconds);
 };
 
 const roundToStep = (hours: number, step: number): number => {
@@ -86,17 +86,15 @@ const applyFixedBreak = (start: Date, end: Date): number => {
     const totalMinutes = differenceInMinutes(end, start);
     if (totalMinutes <= 0) return 0;
 
-    // Define break window on the same day as the shift start
     const breakStartOnDate = setSeconds(setMinutes(setHours(start, 12), 0), 0);
     const breakEndOnDate = setSeconds(setMinutes(setHours(start, 13), 0), 0);
     
-    // Calculate overlap
     const overlapStart = Math.max(start.getTime(), breakStartOnDate.getTime());
     const overlapEnd = Math.min(end.getTime(), breakEndOnDate.getTime());
     
     const overlapMinutes = Math.max(0, (overlapEnd - overlapStart) / (1000 * 60));
 
-    if (overlapMinutes > 0 && totalMinutes > 4 * 60) { // totalMinutes is > 4 hours
+    if (overlapMinutes > 0 && totalMinutes > 4 * 60) {
         return (totalMinutes - overlapMinutes) / 60;
     }
     
@@ -136,9 +134,6 @@ export const processAttendanceImport = async (
     const employeeMap = new Map(existingEmployees.map(e => [cleanEmployeeName(e.name), e.name]));
     let skippedRows = 0;
     const newlyAddedEmployees = new Set<string>();
-
-    const weeklyFreeLateUsed = new Map<string, boolean>();
-    const weeklyFreeEarlyUsed = new Map<string, boolean>();
 
     for (const row of dataRows) {
         const nameFromFile = String(row[nameIndex] || '').trim();
@@ -180,11 +175,11 @@ export const processAttendanceImport = async (
         let remarks: string | null = null;
         let regularHours = 0, overtimeHours = 0, grossHours = 0;
 
+        const clockInDate = combineDateAndTime(adDate, clockInTime);
+        const clockOutDate = combineDateAndTime(adDate, clockOutTime);
+
         if (weekday === 6) { // Saturday
             status = 'Saturday';
-            const clockInDate = combineDateAndTime(adDate, clockInTime);
-            const clockOutDate = combineDateAndTime(adDate, clockOutTime);
-
             if (clockInDate && clockOutDate) {
                 const workedHours = applyFixedBreak(clockInDate, clockOutDate);
                 overtimeHours = roundToStep(workedHours, kRoundStepHours);
@@ -195,74 +190,17 @@ export const processAttendanceImport = async (
         } else if (statusValue === 'PUBLIC') {
             status = 'Public Holiday';
         } else { // Workday
-            if (!clockInTime) {
+            if (!clockInDate) {
                 status = 'C/I Miss';
                 remarks = "Missing IN";
-            } else if (!clockOutTime) {
+            } else if (!clockOutDate) {
                 status = 'C/O Miss';
                 remarks = "Missing OUT";
-            } else if (!onDutyTime || !offDutyTime) {
-                status = 'Present';
-                remarks = "Missing schedule On/Off Duty";
-                const clockInDate = combineDateAndTime(adDate, clockInTime);
-                const clockOutDate = combineDateAndTime(adDate, clockOutTime);
-
-                if (clockInDate && clockOutDate) {
-                    const worked = applyFixedBreak(clockInDate, clockOutDate);
-                    grossHours = roundToStep(worked, kRoundStepHours);
-                    regularHours = Math.min(kBaseDayHours, grossHours);
-                    overtimeHours = Math.max(0, grossHours - kBaseDayHours);
-                }
             } else {
-                // Full calculation logic
-                const scheduleIn = combineDateAndTime(adDate, onDutyTime);
-                const scheduleOut = combineDateAndTime(adDate, offDutyTime);
-                const actualIn = combineDateAndTime(adDate, clockInTime);
-                const actualOut = combineDateAndTime(adDate, clockOutTime);
-
-                if (!scheduleIn || !scheduleOut || !actualIn || !actualOut) {
-                    // This case should be rare if we reached here, but as a safeguard
-                    remarks = "Invalid time data";
-                } else {
-                    let lateMin = Math.max(0, differenceInMinutes(actualIn, scheduleIn));
-                    let earlyMin = Math.max(0, differenceInMinutes(scheduleOut, actualOut));
-                    
-                    let latePenaltyMin = 0;
-                    let earlyPenaltyMin = 0;
-                    const weekKey = `${employeeNameInDb}-${format(startOfWeek(adDate, { weekStartsOn: 0 }), 'yyyy-MM-dd')}`;
-                    
-                    if (lateMin > 0) {
-                        if (lateMin <= kGraceMin) {
-                            if (kWeeklyFreeLate && !weeklyFreeLateUsed.has(weekKey)) {
-                                weeklyFreeLateUsed.set(weekKey, true);
-                            } else {
-                                latePenaltyMin = 30;
-                            }
-                        } else {
-                            latePenaltyMin = Math.ceil((lateMin - kGraceMin) / 30) * 30;
-                        }
-                    }
-                    
-                    if (earlyMin > 0) {
-                         if (earlyMin <= kGraceMin) {
-                            if (kWeeklyFreeEarly && !weeklyFreeEarlyUsed.has(weekKey)) {
-                                weeklyFreeEarlyUsed.set(weekKey, true);
-                            } else {
-                                earlyPenaltyMin = 30;
-                            }
-                        } else {
-                            earlyPenaltyMin = Math.ceil((earlyMin - kGraceMin) / 30) * 30;
-                        }
-                    }
-
-                    const effectiveIn = addMinutes(actualIn, latePenaltyMin); // Use actualIn as base
-                    const effectiveOut = addMinutes(actualOut, -earlyPenaltyMin); // Use actualOut as base
-                    
-                    const paidHours = effectiveOut > effectiveIn ? applyFixedBreak(effectiveIn, effectiveOut) : 0;
-                    grossHours = roundToStep(paidHours, kRoundStepHours);
-                    regularHours = Math.min(kBaseDayHours, grossHours);
-                    overtimeHours = Math.max(0, grossHours - kBaseDayHours);
-                }
+                const workedHours = applyFixedBreak(clockInDate, clockOutDate);
+                grossHours = roundToStep(workedHours, kRoundStepHours);
+                regularHours = Math.min(kBaseDayHours, grossHours);
+                overtimeHours = Math.max(0, grossHours - kBaseDayHours);
             }
         }
         
