@@ -114,7 +114,7 @@ export default function AttendancePage() {
         const workbook = XLSX.read(data, { type: 'array', cellDates: true });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json<any>(worksheet);
+        const jsonData = XLSX.utils.sheet_to_json<any>(worksheet, { header: 1 }); // Read as array of arrays
         
         parseAndStoreAttendance(jsonData);
       } catch (error) {
@@ -166,52 +166,57 @@ export default function AttendancePage() {
         }
         if (typeof dateInput === 'string') {
             const dateOnlyString = dateInput.split(' ')[0];
-            const parsedDate = new Date(dateOnlyString);
-            if (!isNaN(parsedDate.getTime())) {
-                return parsedDate;
+            const formats = ['MM/dd/yyyy', 'yyyy-MM-dd', 'M/d/yy', 'M/d/yyyy'];
+            for (const fmt of formats) {
+                try {
+                    const parsed = parse(dateOnlyString, fmt, new Date());
+                    if(!isNaN(parsed.getTime())) return parsed;
+                } catch {}
             }
         }
         return null;
     };
 
 
-  const parseAndStoreAttendance = async (jsonData: any[]) => {
+  const parseAndStoreAttendance = async (jsonData: any[][]) => {
     if (!user) {
         toast({ title: 'Error', description: 'You must be logged in to import attendance.', variant: 'destructive' });
         return;
     }
     
-    if (!jsonData || jsonData.length === 0) {
-        toast({ title: 'Error', description: 'Excel file is empty or has no data rows.', variant: 'destructive' });
+    if (!jsonData || jsonData.length < 2) {
+        toast({ title: 'Error', description: 'Excel file is empty or missing a header row.', variant: 'destructive' });
         return;
     }
     
+    const headerRow = jsonData[0].map(h => String(h).toLowerCase().trim());
+    const dataRows = jsonData.slice(1);
+
+    const getIndex = (aliases: string[]) => headerRow.findIndex(h => aliases.includes(h));
+
+    const nameIndex = getIndex(['name']);
+    const dateIndex = getIndex(['date']);
+    const onDutyIndex = getIndex(['on duty', 'onduty']);
+    const offDutyIndex = getIndex(['off duty', 'offduty']);
+    const clockInIndex = getIndex(['clock in', 'clockin']);
+    const clockOutIndex = getIndex(['clock out', 'clockout']);
+    
+    if (nameIndex === -1 || dateIndex === -1) {
+        toast({ title: 'Error', description: 'Missing required "Name" or "Date" columns in the Excel file.', variant: 'destructive'});
+        return;
+    }
+
     const newRecords: Omit<AttendanceRecord, 'id'>[] = [];
     const employeeMap = new Map(employees.map(e => [cleanEmployeeName(e.name), e.name]));
     let skippedRows = 0;
     const newlyAddedEmployees = new Set<string>();
     
-    for (const row of jsonData) {
-        const rowKeys = Object.keys(row);
-        const findKey = (aliases: string[]) => rowKeys.find(key => aliases.includes(key.toLowerCase()));
-        
-        const nameKey = findKey(['name']);
-        const dateKey = findKey(['date']);
-        const onDutyKey = findKey(['on duty', 'onduty']);
-        const offDutyKey = findKey(['off duty', 'offduty']);
-        const clockInKey = findKey(['clock in', 'clockin']);
-        const clockOutKey = findKey(['clock out', 'clockout']);
-
-        if (!nameKey || !dateKey) {
-            skippedRows++;
-            continue;
-        }
-
-        const nameFromFile = String(row[nameKey]).trim();
+    for (const row of dataRows) {
+        const nameFromFile = String(row[nameIndex] || '').trim();
         const cleanedNameFromFile = cleanEmployeeName(nameFromFile);
         let employeeNameInDb = employeeMap.get(cleanedNameFromFile);
         
-        const adDate = parseDate(row[dateKey]);
+        const adDate = parseDate(row[dateIndex]);
 
         if (!adDate || !nameFromFile) {
             skippedRows++;
@@ -228,7 +233,7 @@ export default function AttendancePage() {
                 };
                 await addEmployee(newEmployeeData);
                 employeeNameInDb = nameFromFile;
-                employeeMap.set(cleanedNameFromFile, nameFromFile); // Update map for subsequent rows in the same file
+                employeeMap.set(cleanedNameFromFile, nameFromFile);
                 newlyAddedEmployees.add(nameFromFile);
             } catch (error) {
                 console.error(`Failed to add new employee ${nameFromFile}:`, error);
@@ -241,7 +246,7 @@ export default function AttendancePage() {
         const nepaliDate = new NepaliDate(adDate);
         const bsDate = nepaliDate.format('YYYY-MM-DD');
         
-        const clockInValue = clockInKey ? row[clockInKey] : undefined;
+        const clockInValue = clockInIndex > -1 ? row[clockInIndex] : undefined;
 
         let status: AttendanceRecord['status'] = 'Present';
         if (nepaliDate.getDay() === 6) { 
@@ -254,10 +259,10 @@ export default function AttendancePage() {
             date: dateStr,
             bsDate,
             employeeName: employeeNameInDb,
-            onDuty: onDutyKey ? parseTime(row[onDutyKey]) : null,
-            offDuty: offDutyKey ? parseTime(row[offDutyKey]) : null,
-            clockIn: clockInKey ? parseTime(row[clockInKey]) : null,
-            clockOut: clockOutKey ? parseTime(row[clockOutKey]) : null,
+            onDuty: onDutyIndex > -1 ? parseTime(row[onDutyIndex]) : null,
+            offDuty: offDutyIndex > -1 ? parseTime(row[offDutyIndex]) : null,
+            clockIn: clockInIndex > -1 ? parseTime(row[clockInIndex]) : null,
+            clockOut: clockOutIndex > -1 ? parseTime(row[clockOutIndex]) : null,
             status,
             importedBy: user.username,
         };
