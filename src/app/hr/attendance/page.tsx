@@ -230,6 +230,7 @@ export default function AttendancePage() {
               <TableHead>Date (BS)</TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('employeeName')}>Employee Name <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('status')}>Status <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+              <TableHead>On/Off Duty</TableHead>
               <TableHead>Clock In/Out</TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('regularHours')}>Regular Hours <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('overtimeHours')}>Overtime Hours <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
@@ -245,6 +246,9 @@ export default function AttendancePage() {
                   <Badge variant={getAttendanceBadgeVariant(record.status)}>
                     {record.status}
                   </Badge>
+                </TableCell>
+                <TableCell>
+                    {record.onDuty || '-'} / {record.offDuty || '-'}
                 </TableCell>
                 <TableCell>
                     {record.clockIn || '-'} / {record.clockOut || '-'}
