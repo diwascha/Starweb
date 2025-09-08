@@ -1,5 +1,4 @@
 
-import type { AttendanceRecord } from '@/lib/types';
 import {
   addMinutes,
   differenceInMinutes,
@@ -15,7 +14,7 @@ import {
   format,
 } from 'date-fns';
 import NepaliDate from 'nepali-date-converter';
-import type { Employee, Payroll, PunctualityInsight, BehaviorInsight, PatternInsight, WorkforceAnalytics } from '@/lib/types';
+import type { Employee, Payroll, PunctualityInsight, BehaviorInsight, PatternInsight, WorkforceAnalytics, AttendanceRecord } from '@/lib/types';
 
 
 /* =========================
@@ -39,7 +38,7 @@ export type RawAttendanceRow = {
   status?: string;                           // "Present" | "TRUE" | "PUBLIC" | "EXTRAOK ..." etc.
   onDuty?: string | null;                    // "08:00" etc.
   offDuty?: string | null;                   // "17:00"
-  clockIn?: string | null;                   // "07:58"
+  clockIn?: string | null;                  // "07:58"
   clockOut?: string | null;                  // "17:00"
   remarks?: string | null;                   // may hold holiday name
 };
@@ -492,3 +491,5 @@ export function generatePayrollAndAnalytics(
 
     return { payroll, punctuality, behavior, patternInsights, workforce, dayOfWeek };
 }
+
+    
