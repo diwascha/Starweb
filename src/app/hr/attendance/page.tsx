@@ -262,26 +262,28 @@ export default function AttendancePage() {
   
   const filteredAndSortedRecords = useMemo(() => {
     let filtered = [...attendance];
-    
-    if (selectedBsYear && !dateRange) {
-      const yearInt = parseInt(selectedBsYear, 10);
-      if (!isNaN(yearInt)) {
-        filtered = filtered.filter(r => r.date && !isNaN(new Date(r.date).getTime()) && new NepaliDate(new Date(r.date)).getYear() === yearInt);
-      }
-    }
-    if (selectedBsMonth && !dateRange) {
-        const monthInt = parseInt(selectedBsMonth, 10);
-        if(!isNaN(monthInt)) {
-            filtered = filtered.filter(r => r.date && !isNaN(new Date(r.date).getTime()) && new NepaliDate(new Date(r.date)).getMonth() === monthInt);
-        }
-    }
 
-    if (dateRange?.from) {
-        const interval = {
-            start: startOfDay(dateRange.from),
-            end: endOfDay(dateRange.to || dateRange.from),
-        };
-        filtered = filtered.filter(record => record.date && isWithinInterval(new Date(record.date), interval));
+    // Apply BS Year/Month filter ONLY if AD date range is not active
+    if (!dateRange?.from && selectedBsYear && selectedBsMonth) {
+      const yearInt = parseInt(selectedBsYear, 10);
+      const monthInt = parseInt(selectedBsMonth, 10);
+      if (!isNaN(yearInt) && !isNaN(monthInt)) {
+        filtered = filtered.filter(r => {
+          if (!r.date || isNaN(new Date(r.date).getTime())) return false;
+          try {
+            const nepaliDate = new NepaliDate(new Date(r.date));
+            return nepaliDate.getYear() === yearInt && nepaliDate.getMonth() === monthInt;
+          } catch {
+            return false;
+          }
+        });
+      }
+    } else if (dateRange?.from) { // Apply AD date range if active
+      const interval = {
+        start: startOfDay(dateRange.from),
+        end: endOfDay(dateRange.to || dateRange.from),
+      };
+      filtered = filtered.filter(record => record.date && isWithinInterval(new Date(record.date), interval));
     }
     
     if (searchQuery) {
@@ -556,3 +558,4 @@ export default function AttendancePage() {
   );
 
     
+
