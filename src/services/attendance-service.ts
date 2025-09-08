@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { collection, doc, writeBatch, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs } from 'firebase/firestore';
+import { collection, doc, writeBatch, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, updateDoc, deleteDoc } from 'firebase/firestore';
 import type { AttendanceRecord } from '@/lib/types';
 
 const attendanceCollection = collection(db, 'attendance');
@@ -39,6 +39,16 @@ export const addAttendanceRecords = async (records: Omit<AttendanceRecord, 'id'>
         batch.set(docRef, record, { merge: true }); // Use merge to avoid overwriting existing fields if not provided
     });
     await batch.commit();
+};
+
+export const updateAttendanceRecord = async (id: string, record: Partial<AttendanceRecord>): Promise<void> => {
+    const recordDoc = doc(db, 'attendance', id);
+    await updateDoc(recordDoc, record);
+};
+
+export const deleteAttendanceRecord = async (id: string): Promise<void> => {
+    const recordDoc = doc(db, 'attendance', id);
+    await deleteDoc(recordDoc);
 };
 
 

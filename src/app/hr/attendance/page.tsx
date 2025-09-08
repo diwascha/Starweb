@@ -8,20 +8,24 @@ import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, Search, ArrowUpDown, CalendarIcon } from 'lucide-react';
+import { Upload, Search, ArrowUpDown, CalendarIcon, Edit, MoreHorizontal, Trash2 } from 'lucide-react';
 import NepaliDate from 'nepali-date-converter';
 import { useAuth } from '@/hooks/use-auth';
 import { Badge } from '@/components/ui/badge';
 import { format, parse, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { onEmployeesUpdate, addEmployee } from '@/services/employee-service';
-import { onAttendanceUpdate, addAttendanceRecords } from '@/services/attendance-service';
+import { onAttendanceUpdate, addAttendanceRecords, updateAttendanceRecord, deleteAttendanceRecord } from '@/services/attendance-service';
 import { getAttendanceBadgeVariant, cn } from '@/lib/utils';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 import type { DateRange } from 'react-day-picker';
-import { processAttendanceImport } from '@/services/payroll-service';
+import { processAttendanceImport, reprocessSingleRecord } from '@/services/payroll-service';
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
+
 
 type SortKey = 'date' | 'employeeName' | 'status' | 'regularHours' | 'overtimeHours';
 type SortDirection = 'asc' | 'desc';
@@ -33,7 +37,7 @@ const nepaliMonths = [
     { value: 9, name: "Magh" }, { value: 10, name: "Falgun" }, { value: 11, name: "Chaitra" }
 ];
 
-const attendanceStatuses: AttendanceStatus[] = ['Present', 'Absent', 'C/I Miss', 'C/O Miss', 'Saturday', 'Public Holiday'];
+const attendanceStatuses: AttendanceStatus[] = ['Present', 'Absent', 'C/I Miss', 'C/O Miss', 'Saturday', 'Public Holiday', 'EXTRAOK'];
 
 export default function AttendancePage() {
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
@@ -52,6 +56,12 @@ export default function AttendancePage() {
   const [bsYears, setBsYears] = useState<number[]>([]);
   const [selectedBsYear, setSelectedBsYear] = useState<string>('');
   const [selectedBsMonth, setSelectedBsMonth] = useState<string>('');
+  
+  // Edit Dialog State
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
+  const [editForm, setEditForm] = useState({ clockIn: '', clockOut: '', status: '' as AttendanceStatus });
+
 
   useEffect(() => {
     setIsClient(true);
@@ -128,6 +138,50 @@ export default function AttendancePage() {
       fileInputRef.current.value = '';
     }
   };
+  
+  const handleOpenEditDialog = (record: AttendanceRecord) => {
+    setEditingRecord(record);
+    setEditForm({
+        clockIn: record.clockIn || '',
+        clockOut: record.clockOut || '',
+        status: record.status
+    });
+    setIsEditDialogOpen(true);
+  };
+  
+  const handleSaveEdit = async () => {
+    if (!editingRecord || !user) return;
+
+    const updatedRecordData: Partial<AttendanceRecord> = {
+        clockIn: editForm.clockIn || null,
+        clockOut: editForm.clockOut || null,
+        status: editForm.status
+    };
+
+    const reprocessed = reprocessSingleRecord({
+        ...editingRecord,
+        ...updatedRecordData,
+    });
+    
+    try {
+        await updateAttendanceRecord(editingRecord.id, reprocessed);
+        toast({ title: 'Success', description: 'Attendance record updated.' });
+        setIsEditDialogOpen(false);
+        setEditingRecord(null);
+    } catch (error) {
+        toast({ title: 'Error', description: 'Failed to update record.', variant: 'destructive' });
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+        await deleteAttendanceRecord(id);
+        toast({ title: 'Success', description: 'Attendance record deleted.' });
+    } catch (error) {
+        toast({ title: 'Error', description: 'Failed to delete record.', variant: 'destructive' });
+    }
+  };
+
 
   const requestSort = (key: SortKey) => {
     let direction: SortDirection = 'asc';
@@ -234,6 +288,7 @@ export default function AttendancePage() {
               <TableHead>Clock In/Out</TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('regularHours')}>Regular Hours <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('overtimeHours')}>Overtime Hours <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -255,6 +310,39 @@ export default function AttendancePage() {
                 </TableCell>
                 <TableCell>{record.regularHours.toFixed(1)}</TableCell>
                 <TableCell>{record.overtimeHours.toFixed(1)}</TableCell>
+                <TableCell className="text-right">
+                  <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                          <DropdownMenuItem onSelect={() => handleOpenEditDialog(record)}>
+                              <Edit className="mr-2 h-4 w-4" /> Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                  <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                                      <Trash2 className="mr-2 h-4 w-4 text-destructive" />
+                                      <span className="text-destructive">Delete</span>
+                                  </DropdownMenuItem>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                      <AlertDialogDescription>This action cannot be undone. This will permanently delete the attendance record.</AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => handleDelete(record.id)}>Delete</AlertDialogAction>
+                                  </AlertDialogFooter>
+                              </AlertDialogContent>
+                          </AlertDialog>
+                      </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -264,6 +352,7 @@ export default function AttendancePage() {
   };
   
   return (
+    <>
     <div className="flex flex-col gap-8">
       <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
@@ -354,5 +443,41 @@ export default function AttendancePage() {
 
       {renderContent()}
     </div>
+     <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+                <DialogTitle>Edit Attendance for {editingRecord?.employeeName}</DialogTitle>
+                <DialogDescription>
+                    Date: {editingRecord ? format(new Date(editingRecord.date), 'PPP') : ''}
+                </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+                <div className="space-y-2">
+                    <Label htmlFor="edit-clock-in">Clock In Time (HH:mm)</Label>
+                    <Input id="edit-clock-in" value={editForm.clockIn} onChange={e => setEditForm(prev => ({...prev, clockIn: e.target.value}))} placeholder="e.g., 08:00"/>
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="edit-clock-out">Clock Out Time (HH:mm)</Label>
+                    <Input id="edit-clock-out" value={editForm.clockOut} onChange={e => setEditForm(prev => ({...prev, clockOut: e.target.value}))} placeholder="e.g., 17:00"/>
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="edit-status">Status</Label>
+                    <Select value={editForm.status} onValueChange={(value: AttendanceStatus) => setEditForm(prev => ({ ...prev, status: value }))}>
+                        <SelectTrigger id="edit-status">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {attendanceStatuses.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                </div>
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
+                <Button onClick={handleSaveEdit}>Save Changes</Button>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
+    </>
   );
 }
