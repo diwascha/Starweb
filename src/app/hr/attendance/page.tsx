@@ -148,7 +148,9 @@ export default function AttendancePage() {
         
         const processedRecords = calculateAttendance(rawAttendanceData);
 
-        const newRecords = processedRecords.map(p => ({
+        const newRecords = processedRecords
+          .filter(p => p.dateADISO && !isNaN(new Date(p.dateADISO).getTime()))
+          .map(p => ({
             date: p.dateADISO,
             bsDate: p.dateBS,
             employeeName: p.employeeName,
@@ -166,12 +168,22 @@ export default function AttendancePage() {
 
         if (newRecords.length > 0) {
             await addAttendanceRecords(newRecords);
-            let description = `${newRecords.length} attendance records processed and saved.`;
+
+            // Find the latest date from the imported records
+            const latestImportedRecord = newRecords.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+            const latestNepaliDate = new NepaliDate(new Date(latestImportedRecord.date));
+            
+            // Update the filters to show the imported month
+            setSelectedBsYear(String(latestNepaliDate.getYear()));
+            setSelectedBsMonth(String(latestNepaliDate.getMonth()));
+            setDateRange(undefined); // Clear date range filter to use BS month/year filter
+
+            let description = `${newRecords.length} records processed for ${nepaliMonths[latestNepaliDate.getMonth()].name}, ${latestNepaliDate.getYear()}.`;
             if (newlyAddedEmployees.size > 0) {
-                description += ` ${newlyAddedEmployees.size} new employees were added.`;
+                description += ` ${newlyAddedEmployees.size} new employees added.`;
             }
-            if (skippedRows > 0) {
-                description += ` ${skippedRows} rows were skipped due to missing data.`;
+             if (skippedRows > 0) {
+                description += ` ${skippedRows} rows skipped.`;
             }
             toast({ title: 'Import Complete', description });
         } else {
@@ -541,3 +553,5 @@ export default function AttendancePage() {
     </Dialog>
     </>
   );
+
+    
