@@ -44,7 +44,7 @@ export default function AttendancePage() {
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'employeeName', direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
@@ -116,7 +116,7 @@ export default function AttendancePage() {
   };
   
   const parseTime = (time: any): string | null => {
-      if (!time) return null;
+      if (!time || (typeof time === 'string' && time.trim() === '')) return null;
       if (time instanceof Date) {
         return format(time, 'HH:mm');
       }
@@ -238,7 +238,7 @@ export default function AttendancePage() {
         const clockOutValue = parseTime(clockOutIndex > -1 ? row[clockOutIndex] : undefined);
 
         let status: AttendanceRecord['status'];
-        if (nepaliDate.getDay() === 6) { // Saturday
+        if (nepaliDate.getDay() === 6) {
             status = 'Saturday';
         } else if (!clockInValue) {
             status = 'Absent';
