@@ -21,6 +21,8 @@ export function generatePayrollAndAnalytics(
     allAttendance: AttendanceRecord[]
 ): PayrollAndAnalyticsData {
     
+    const workingEmployees = employees.filter(e => e.status === 'Working');
+
     const monthlyAttendance = allAttendance.filter(r => {
         try {
             if (!r.date || isNaN(new Date(r.date).getTime())) return false;
@@ -31,7 +33,7 @@ export function generatePayrollAndAnalytics(
         }
     });
 
-    const payroll: Payroll[] = employees.map(employee => {
+    const payroll: Payroll[] = workingEmployees.map(employee => {
         const employeeAttendance = monthlyAttendance.filter(r => r.employeeName === employee.name);
         
         const regularHours = employeeAttendance.reduce((sum, r) => sum + (r.regularHours || 0), 0);
@@ -104,7 +106,7 @@ export function generatePayrollAndAnalytics(
     const GRACE_MIN = 5;
     const dayOfWeekStats = { 0: {l:0,a:0}, 1:{l:0,a:0}, 2:{l:0,a:0}, 3:{l:0,a:0}, 4:{l:0,a:0}, 5:{l:0,a:0}, 6:{l:0,a:0} };
 
-    employees.forEach(employee => {
+    workingEmployees.forEach(employee => {
         const empAttendance = monthlyAttendance.filter(r => r.employeeName === employee.name);
         if (empAttendance.length === 0) return;
 
