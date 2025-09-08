@@ -241,7 +241,7 @@ export default function AttendancePage() {
         if (nepaliDate.getDay() === 6) {
             status = 'Saturday';
         } else if (!clockInValue) {
-            status = 'Absent';
+            status = 'C/I Miss';
         } else if (!clockOutValue) {
             status = 'C/O Miss';
         } else {
