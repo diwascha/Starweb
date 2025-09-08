@@ -238,14 +238,16 @@ export default function AttendancePage() {
         const clockOutValue = parseTime(clockOutIndex > -1 ? row[clockOutIndex] : undefined);
 
         let status: AttendanceRecord['status'];
-        if (nepaliDate.getDay() === 6) { 
+        if (nepaliDate.getDay() === 6) {
             status = 'Saturday';
-        } else if (!clockInValue) { 
+        } else if (!clockInValue) {
             status = 'Absent';
         } else if (clockInValue && !clockOutValue) {
             status = 'C/O Miss';
-        } else {
+        } else if (clockInValue && clockOutValue) {
             status = 'Present';
+        } else {
+            status = 'Absent'; // Fallback case
         }
         
         const record: Omit<AttendanceRecord, 'id'> = {
