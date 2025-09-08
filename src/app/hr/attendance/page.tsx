@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import type { AttendanceRecord, Employee, AttendanceStatus } from '@/lib/types';
+import type { AttendanceRecord, Employee, AttendanceStatus, RawAttendanceRow } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -21,7 +21,7 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 import type { DateRange } from 'react-day-picker';
-import { calculateAttendance, reprocessSingleRecord, type RawAttendanceRow } from '@/lib/attendance';
+import { calculateAttendance, reprocessSingleRecord } from '@/lib/attendance';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
@@ -75,6 +75,7 @@ export default function AttendancePage() {
                 const sortedYears = Array.from(years).sort((a, b) => b - a);
                 setBsYears(sortedYears);
                 
+                // Set initial filter only if not already set by an import
                 if (!selectedBsYear && !selectedBsMonth) {
                     const latestRecord = validRecords.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
                     const latestNepaliDate = new NepaliDate(new Date(latestRecord.date));
