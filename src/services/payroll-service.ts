@@ -294,7 +294,7 @@ export const generatePayrollAndAnalytics = (
 
     // To get scheduled days correctly
     const nextMonthFirstDayBS = new NepaliDate(bsMonth === 11 ? bsYear + 1 : bsYear, (bsMonth + 1) % 12, 1);
-    const lastDayOfCurrentMonthBS = new NepaliDate(nextMonthFirstDayBS.getTime() - 86400000); // Subtract one day
+    const lastDayOfCurrentMonthBS = new NepaliDate(nextMonthFirstDayBS.toJsDate().getTime() - 86400000); // Subtract one day
     const scheduledDays = lastDayOfCurrentMonthBS.getDate();
 
 
@@ -487,7 +487,7 @@ export const generatePayrollAndAnalytics = (
 
     // End of month trend
     const nextMonthForDays = new NepaliDate(bsMonth === 11 ? bsYear + 1 : bsYear, (bsMonth + 1) % 12, 1);
-    const lastDayForDays = new NepaliDate(nextMonthForDays.getTime() - 86400000);
+    const lastDayForDays = new NepaliDate(nextMonthForDays.toJsDate().getTime() - 86400000);
     const nepaliDaysInMonth = lastDayForDays.getDate();
     if (nepaliDaysInMonth > 7) {
         const lastWeekStartDate = new NepaliDate(bsYear, bsMonth, nepaliDaysInMonth - 6).toJsDate();
