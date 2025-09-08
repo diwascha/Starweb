@@ -4,27 +4,6 @@ import NepaliDate from 'nepali-date-converter';
 import type { Employee, Payroll, PunctualityInsight, BehaviorInsight, PatternInsight, WorkforceAnalytics, AttendanceRecord, AttendanceStatus, RawAttendanceRow } from '@/lib/types';
 import { calculateAttendance } from '@/lib/attendance';
 
-const GRACE_MIN = 5;
-
-export type WebRow = RawAttendanceRow;
-
-export function reprocessSingleRecord(raw: WebRow): Partial<AttendanceRecord> {
-  const result = calculateAttendance([raw])[0];
-  return {
-    date: result.dateADISO,
-    bsDate: result.dateBS,
-    status: result.normalizedStatus as AttendanceStatus,
-    grossHours: result.grossHours,
-    regularHours: result.regularHours,
-    overtimeHours: result.overtimeHours,
-    remarks: result.calcRemarks,
-    onDuty: raw.onDuty,
-    offDuty: raw.offDuty,
-    clockIn: raw.clockIn,
-    clockOut: raw.clockOut,
-  };
-}
-
 export interface PayrollAndAnalyticsData {
     payroll: Payroll[];
     punctuality: PunctualityInsight[];
@@ -44,6 +23,7 @@ export function generatePayrollAndAnalytics(
     
     const monthlyAttendance = allAttendance.filter(r => {
         try {
+            if (!r.date || isNaN(new Date(r.date).getTime())) return false;
             const nepaliDate = new NepaliDate(new Date(r.date));
             return nepaliDate.getYear() === bsYear && nepaliDate.getMonth() === bsMonth;
         } catch (e) {
@@ -121,6 +101,7 @@ export function generatePayrollAndAnalytics(
     const patternInsights: PatternInsight[] = [];
     const workforce: WorkforceAnalytics[] = [];
     
+    const GRACE_MIN = 5;
     const dayOfWeekStats = { 0: {l:0,a:0}, 1:{l:0,a:0}, 2:{l:0,a:0}, 3:{l:0,a:0}, 4:{l:0,a:0}, 5:{l:0,a:0}, 6:{l:0,a:0} };
 
     employees.forEach(employee => {
@@ -225,5 +206,3 @@ export function generatePayrollAndAnalytics(
 
     return { payroll, punctuality, behavior, patternInsights, workforce, dayOfWeek };
 }
-
-    

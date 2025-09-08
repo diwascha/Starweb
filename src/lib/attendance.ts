@@ -14,6 +14,8 @@ import {
   min as dfMin,
 } from 'date-fns';
 import NepaliDate from 'nepali-date-converter';
+import type { AttendanceRecord, AttendanceStatus, RawAttendanceRow } from './types';
+
 
 /* =========================
    Config / policy constants
@@ -29,21 +31,8 @@ const LUNCH_END   = { h: 13, m: 0 };
 /* =========================
    Types
    ========================= */
-export type WebRow = {
-  employeeName: string;
-  dateAD: string | Date;          // e.g. "2025-07-17"
-  status?: string;                // "Present" | "Absent" | "Public" | "Saturday" | tokens like "EXTRAOK"
-  onOffDuty?: string | null;      // "08:00 / 17:00" or "-"
-  clockInOut?: string | null;     // "07:58 / 17:00" or "- / -"
-  // (if you already have split fields, include them — the adapter handles both)
-  onDuty?: string | null;
-  offDuty?: string | null;
-  clockIn?: string | null;
-  clockOut?: string | null;
-  remarks?: string | null;        // optional holiday label etc.
-};
 
-export type CalcRow = WebRow & {
+export type CalcAttendanceRow = RawAttendanceRow & {
   dateADISO: string;
   dateBS: string;
   weekdayAD: number;              // 0=Sun..6=Sat
@@ -67,15 +56,15 @@ function toBSString(dateAD: Date): string {
 }
 
 function parseADDateLoose(input: string | Date): Date | null {
-  if (input instanceof Date && !Number.isNaN(input.getTime())) {
-    return new Date(input.getFullYear(), input.getMonth(), input.getDate());
+  if (input instanceof Date && !isNaN(input.getTime())) {
+    return startOfDay(input);
   }
   if (typeof input !== 'string') return null;
   const candidates = ['yyyy-MM-dd', 'M/d/yyyy', 'd/M/yyyy', "yyyy-MM-dd'T'HH:mm:ssXXX"];
   for (const f of candidates) {
     try {
       const d = parse(input.trim(), f, new Date());
-      if (!Number.isNaN(d.getTime())) return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      if (!isNaN(d.getTime())) return startOfDay(d);
     } catch {}
   }
   return null;
@@ -92,7 +81,7 @@ function parseTimeLoose(s?: string | null): HMS | null {
   for (const f of fmts) {
     try {
       const d = parse(t, f, new Date());
-      if (!Number.isNaN(d.getTime())) return { hours: d.getHours(), minutes: d.getMinutes(), seconds: d.getSeconds() };
+      if (!isNaN(d.getTime())) return { hours: d.getHours(), minutes: d.getMinutes(), seconds: d.getSeconds() };
     } catch {}
   }
   return null;
@@ -158,7 +147,7 @@ function splitPair(s?: string | null): [string | null, string | null] {
   return [null, null];
 }
 
-function adaptWebRow(row: WebRow) {
+function adaptWebRow(row: RawAttendanceRow) {
   // prefer split fields if present; otherwise parse the pairs
   let onDuty = row.onDuty, offDuty = row.offDuty, clockIn = row.clockIn, clockOut = row.clockOut;
   if (!onDuty || !offDuty) {
@@ -177,15 +166,16 @@ function adaptWebRow(row: WebRow) {
 /* =========================
    Core calculator
    ========================= */
-export function calculateAttendance(rows: WebRow[]): CalcRow[] {
+export function calculateAttendance(rows: RawAttendanceRow[]): CalcAttendanceRow[] {
   const freeLateUsed = new Map<string, true>();
   const freeEarlyUsed = new Map<string, true>();
 
-  return rows.map((r0): CalcRow => {
+  return rows.map((r0): CalcAttendanceRow => {
     const row = adaptWebRow(r0);
 
-    const ad = parseADDateLoose(row.dateAD) ?? new Date(NaN);
-    const weekday = ad.getDay();
+    const ad = parseADDateLoose(row.dateAD);
+    const dateBS = ad ? toBSString(ad) : '';
+    const weekday = ad ? ad.getDay() : -1;
     const isSaturdayAD = weekday === 6;
 
     const status = (row.status || '').trim().toUpperCase();
@@ -199,21 +189,19 @@ export function calculateAttendance(rows: WebRow[]): CalcRow[] {
     const cIn = parseTimeLoose(row.clockIn);
     const cOut = parseTimeLoose(row.clockOut);
 
-    const baseIn = combine(ad, sIn);
-    const baseOut = combine(ad, sOut);
-    let actIn = combine(ad, cIn);
-    let actOut = combine(ad, cOut);
+    const baseIn = ad ? combine(ad, sIn) : null;
+    const baseOut = ad ? combine(ad, sOut) : null;
+    let actIn = ad ? combine(ad, cIn) : null;
+    let actOut = ad ? combine(ad, cOut) : null;
 
     let gross = 0, regular = 0, ot = 0;
     let remarks = '';
 
     // quick exits
-    if (Number.isNaN(ad.getTime())) {
-      remarks = 'Missing date';
+    if (!ad || isNaN(ad.getTime())) {
+      remarks = 'Missing or invalid date';
       return finalize();
     }
-
-    const dateBS = toBSString(ad);
 
     if (isAbsent) {
       return finalize();
@@ -250,7 +238,7 @@ export function calculateAttendance(rows: WebRow[]): CalcRow[] {
     }
 
     // guard cross-midnight
-    if (!isAfter(actOut, actIn)) actOut = addMinutes(actOut, 24 * 60);
+    if (isAfter(actIn, actOut)) actOut = addMinutes(actOut, 24 * 60);
 
     // Penalties (based on time-of-day mins)
     const lateMin0  = Math.max(0, minutesOfDay(actIn)  - minutesOfDay(baseIn));
@@ -304,12 +292,12 @@ export function calculateAttendance(rows: WebRow[]): CalcRow[] {
 
     return finalize();
 
-    function finalize(): CalcRow {
-      const isAdValid = !Number.isNaN(ad.getTime());
+    function finalize(): CalcAttendanceRow {
+      const isAdValid = ad && !isNaN(ad.getTime());
       return {
         ...row,
         dateADISO: isAdValid ? format(ad, 'yyyy-MM-dd') : '',
-        dateBS: isAdValid ? toBSString(ad) : '',
+        dateBS,
         weekdayAD: isAdValid ? weekday : -1,
         normalizedStatus: status,
         grossHours: +gross.toFixed(1),
@@ -321,10 +309,28 @@ export function calculateAttendance(rows: WebRow[]): CalcRow[] {
   });
 }
 
+export function reprocessSingleRecord(raw: RawAttendanceRow): Partial<AttendanceRecord> {
+  const result = calculateAttendance([raw])[0];
+  return {
+    date: result.dateADISO,
+    bsDate: result.dateBS,
+    status: result.normalizedStatus as AttendanceStatus,
+    grossHours: result.grossHours,
+    regularHours: result.regularHours,
+    overtimeHours: result.overtimeHours,
+    remarks: result.calcRemarks,
+    onDuty: raw.onDuty,
+    offDuty: raw.offDuty,
+    clockIn: raw.clockIn,
+    clockOut: raw.clockOut,
+  };
+}
+
+
 /* ===== helpers for holiday/saturday ===== */
 function workedIfBoth(actIn: Date | null, actOut: Date | null): number {
   if (!actIn || !actOut) return 0;
   let out = actOut;
-  if (!isAfter(out, actIn)) out = addMinutes(out, 24 * 60);
+  if (isAfter(actIn, out)) out = addMinutes(out, 24 * 60);
   return applyFixedLunch(actIn, out);
 }

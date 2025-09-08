@@ -251,10 +251,16 @@ export default function AttendancePage() {
     let filtered = [...attendance];
     
     if (selectedBsYear && !dateRange) {
-      filtered = filtered.filter(r => r.date && new NepaliDate(new Date(r.date)).getYear() === parseInt(selectedBsYear, 10));
+      const yearInt = parseInt(selectedBsYear, 10);
+      if (!isNaN(yearInt)) {
+        filtered = filtered.filter(r => r.date && !isNaN(new Date(r.date).getTime()) && new NepaliDate(new Date(r.date)).getYear() === yearInt);
+      }
     }
     if (selectedBsMonth && !dateRange) {
-        filtered = filtered.filter(r => r.date && new NepaliDate(new Date(r.date)).getMonth() === parseInt(selectedBsMonth, 10));
+        const monthInt = parseInt(selectedBsMonth, 10);
+        if(!isNaN(monthInt)) {
+            filtered = filtered.filter(r => r.date && !isNaN(new Date(r.date).getTime()) && new NepaliDate(new Date(r.date)).getMonth() === monthInt);
+        }
     }
 
     if (dateRange?.from) {
