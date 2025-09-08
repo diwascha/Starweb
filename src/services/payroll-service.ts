@@ -1,15 +1,13 @@
 
 'use client';
 
-import { format, parse, getDay, startOfWeek, differenceInMinutes, addMinutes, setHours, setMinutes, setSeconds } from 'date-fns';
+import { format, parse, getDay, startOfWeek, differenceInMinutes, addMinutes, setHours, setMinutes, setSeconds, startOfDay, endOfDay } from 'date-fns';
 import NepaliDate from 'nepali-date-converter';
 import type { AttendanceRecord, Employee } from '@/lib/types';
 import { addEmployee } from './employee-service';
 
 // --- Constants translated from VBA ---
 const kBaseDayHours = 8;
-const kBreakStart = setSeconds(setMinutes(setHours(new Date(), 12), 0), 0);
-const kBreakEnd = setSeconds(setMinutes(setHours(new Date(), 13), 0), 0);
 const kRoundStepHours = 0.5;
 const kGraceMin = 5;
 const kWeeklyFreeLate = true;
@@ -80,10 +78,10 @@ const roundToStep = (hours: number, step: number): number => {
 const applyFixedBreak = (start: Date, end: Date): number => {
     const totalHours = differenceInMinutes(end, start) / 60;
     if (totalHours <= 0) return 0;
-    
-    const breakStartOnDate = setHours(setMinutes(start, 0), 12);
-    const breakEndOnDate = setHours(setMinutes(start, 0), 13);
-    
+
+    const breakStartOnDate = setSeconds(setMinutes(setHours(start, 12), 0), 0);
+    const breakEndOnDate = setSeconds(setMinutes(setHours(start, 13), 0), 0);
+
     const overlapStart = Math.max(start.getTime(), breakStartOnDate.getTime());
     const overlapEnd = Math.min(end.getTime(), breakEndOnDate.getTime());
     
@@ -118,6 +116,8 @@ export const processAttendanceImport = async (
     const offDutyIndex = getIndex(['off duty', 'offduty']);
     const clockInIndex = getIndex(['clock in', 'clockin']);
     const clockOutIndex = getIndex(['clock out', 'clockout']);
+    const statusIndex = getIndex(['status']);
+
 
     if (nameIndex === -1 || dateIndex === -1) {
         throw new Error('Missing required "Name" or "Date" columns in the Excel file.');
@@ -160,10 +160,12 @@ export const processAttendanceImport = async (
         const bsDate = nepaliDate.format('YYYY-MM-DD');
         const weekday = getDay(adDate); // 0 = Sunday
 
-        const clockIn = parseTime(clockInIndex > -1 ? row[clockInIndex] : null);
-        const clockOut = parseTime(clockOutIndex > -1 ? row[clockOutIndex] : null);
-        const onDuty = parseTime(onDutyIndex > -1 ? row[onDutyIndex] : null);
-        const offDuty = parseTime(offDutyIndex > -1 ? row[offDutyIndex] : null);
+        const clockInValue = parseTime(clockInIndex > -1 ? row[clockInIndex] : null);
+        const clockOutValue = parseTime(clockOutIndex > -1 ? row[clockOutIndex] : null);
+        const onDutyValue = parseTime(onDutyIndex > -1 ? row[onDutyIndex] : null);
+        const offDutyValue = parseTime(offDutyIndex > -1 ? row[offDutyIndex] : null);
+        const statusValue = statusIndex > -1 ? String(row[statusIndex] || '').toUpperCase().trim() : '';
+
         
         let status: AttendanceRecord['status'] = 'Present';
         let remarks: string | null = null;
@@ -171,39 +173,42 @@ export const processAttendanceImport = async (
 
         if (weekday === 6) { // Saturday
             status = 'Saturday';
-            if (clockIn && clockOut) {
-                const workedHours = applyFixedBreak(combineDateAndTime(adDate, clockIn), combineDateAndTime(adDate, clockOut));
+            if (clockInValue && clockOutValue) {
+                const workedHours = applyFixedBreak(combineDateAndTime(adDate, clockInValue), combineDateAndTime(adDate, clockOutValue));
                 overtimeHours = roundToStep(workedHours, kRoundStepHours);
                 grossHours = overtimeHours;
             }
+        } else if (statusValue === 'TRUE') {
+            status = 'Absent';
+        } else if (statusValue === 'PUBLIC') {
+            status = 'Public Holiday';
         } else { // Workday
-            if (!clockIn) {
+            if (!clockInValue) {
                 status = 'C/I Miss';
                 remarks = "Missing IN";
-            } else if (!clockOut) {
+            } else if (!clockOutValue) {
                 status = 'C/O Miss';
                 remarks = "Missing OUT";
-            } else if (!onDuty || !offDuty) {
+            } else if (!onDutyValue || !offDutyValue) {
                 status = 'Present';
-                remarks = "Missing schedule E/F";
-                // Still calculate basic hours if punches exist
-                const worked = applyFixedBreak(combineDateAndTime(adDate, clockIn), combineDateAndTime(adDate, clockOut));
+                remarks = "Missing schedule On/Off Duty";
+                const worked = applyFixedBreak(combineDateAndTime(adDate, clockInValue), combineDateAndTime(adDate, clockOutValue));
                 grossHours = roundToStep(worked, kRoundStepHours);
                 regularHours = Math.min(kBaseDayHours, grossHours);
                 overtimeHours = Math.max(0, grossHours - kBaseDayHours);
             } else {
                 // Full calculation logic
-                const scheduleIn = combineDateAndTime(adDate, onDuty);
-                const scheduleOut = combineDateAndTime(adDate, offDuty);
-                const actualIn = combineDateAndTime(adDate, clockIn);
-                const actualOut = combineDateAndTime(adDate, clockOut);
+                const scheduleIn = combineDateAndTime(adDate, onDutyValue);
+                const scheduleOut = combineDateAndTime(adDate, offDutyValue);
+                const actualIn = combineDateAndTime(adDate, clockInValue);
+                const actualOut = combineDateAndTime(adDate, clockOutValue);
 
                 let lateMin = Math.max(0, differenceInMinutes(actualIn, scheduleIn));
                 let earlyMin = Math.max(0, differenceInMinutes(scheduleOut, actualOut));
                 
                 let latePenaltyMin = 0;
                 let earlyPenaltyMin = 0;
-                const weekKey = format(startOfWeek(adDate, { weekStartsOn: 0 }), 'yyyy-MM-dd');
+                const weekKey = `${employeeNameInDb}-${format(startOfWeek(adDate, { weekStartsOn: 0 }), 'yyyy-MM-dd')}`;
                 
                 if (lateMin > 0) {
                     if (lateMin <= kGraceMin) {
@@ -243,10 +248,10 @@ export const processAttendanceImport = async (
             date: dateStr,
             bsDate,
             employeeName: employeeNameInDb,
-            onDuty: onDuty ? format(onDuty, 'HH:mm') : null,
-            offDuty: offDuty ? format(offDuty, 'HH:mm') : null,
-            clockIn: clockIn ? format(clockIn, 'HH:mm') : null,
-            clockOut: clockOut ? format(clockOut, 'HH:mm') : null,
+            onDuty: onDutyValue ? format(onDutyValue, 'HH:mm') : null,
+            offDuty: offDutyValue ? format(offDutyValue, 'HH:mm') : null,
+            clockIn: clockInValue ? format(clockInValue, 'HH:mm') : null,
+            clockOut: clockOutValue ? format(clockOutValue, 'HH:mm') : null,
             status,
             grossHours,
             overtimeHours,
