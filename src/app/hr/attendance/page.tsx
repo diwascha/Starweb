@@ -123,7 +123,7 @@ export default function AttendancePage() {
         return;
     }
     const newRecords: Omit<AttendanceRecord, 'id'>[] = [];
-    const employeeNames = new Set(employees.map(e => e.name.toLowerCase()));
+    const employeeMap = new Map(employees.map(e => [e.name.toLowerCase(), e.name]));
     let skippedRows = 0;
     let nonexistentEmployees = new Set<string>();
     
@@ -144,10 +144,12 @@ export default function AttendancePage() {
          return;
       }
       
-      const employeeName = String(name).trim();
-      if (!employeeNames.has(employeeName.toLowerCase())) {
-        console.warn(`Skipping row ${index + 2}: Employee "${employeeName}" not found.`);
-        nonexistentEmployees.add(employeeName);
+      const employeeNameFromFile = String(name).trim();
+      const employeeNameInDb = employeeMap.get(employeeNameFromFile.toLowerCase());
+
+      if (!employeeNameInDb) {
+        console.warn(`Skipping row ${index + 2}: Employee "${employeeNameFromFile}" not found.`);
+        nonexistentEmployees.add(employeeNameFromFile);
         skippedRows++;
         return;
       }
@@ -167,7 +169,7 @@ export default function AttendancePage() {
       const record: Omit<AttendanceRecord, 'id'> = {
         date: dateStr,
         bsDate,
-        employeeName,
+        employeeName: employeeNameInDb,
         onDuty: parseTime(onDuty),
         offDuty: parseTime(offDuty),
         clockIn: parseTime(clockIn),
