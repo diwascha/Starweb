@@ -8,26 +8,23 @@ import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, Search, ArrowUpDown } from 'lucide-react';
+import { Upload, Search, ArrowUpDown, CalendarIcon } from 'lucide-react';
 import NepaliDate from 'nepali-date-converter';
 import { useAuth } from '@/hooks/use-auth';
 import { Badge } from '@/components/ui/badge';
-import { format, parse } from 'date-fns';
+import { format, parse, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { onEmployeesUpdate, addEmployee } from '@/services/employee-service';
 import { onAttendanceUpdate, addAttendanceRecords } from '@/services/attendance-service';
-import { getAttendanceBadgeVariant } from '@/lib/utils';
+import { getAttendanceBadgeVariant, cn } from '@/lib/utils';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
+import type { DateRange } from 'react-day-picker';
+
 
 type SortKey = 'date' | 'employeeName' | 'status';
 type SortDirection = 'asc' | 'desc';
-
-const nepaliMonths = [
-  "Baishakh", "Jestha", "Ashadh", "Shrawan", "Bhadra", "Ashwin",
-  "Kartik", "Mangsir", "Poush", "Magh", "Falgun", "Chaitra"
-];
-
-const nepaliWeekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const cleanEmployeeName = (name: any): string => {
   if (typeof name !== 'string') return '';
@@ -45,50 +42,13 @@ export default function AttendancePage() {
   const [isClient, setIsClient] = useState(false);
   const { hasPermission, user } = useAuth();
   
-  const [selectedBsYear, setSelectedBsYear] = useState<string>('');
-  const [selectedBsMonth, setSelectedBsMonth] = useState<string>('');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [filterEmployeeName, setFilterEmployeeName] = useState<string>('All');
-  
-  const { availableYears, availableMonths } = useMemo(() => {
-    const yearMonthSet = new Set<string>();
-    attendance.forEach(r => {
-        if(r.bsDate) {
-            yearMonthSet.add(r.bsDate.substring(0, 7)); // YYYY-MM
-        }
-    });
-    
-    const sortedYearMonths = Array.from(yearMonthSet).sort().reverse();
-    const years = [...new Set(sortedYearMonths.map(ym => ym.substring(0, 4)))];
-    
-    let monthsForYear: string[] = [];
-    if (selectedBsYear) {
-      monthsForYear = [...new Set(
-        sortedYearMonths
-          .filter(ym => ym.startsWith(selectedBsYear))
-          .map(ym => ym.substring(5, 7))
-      )];
-    }
-    
-    return { availableYears: years, availableMonths: monthsForYear };
-
-  }, [attendance, selectedBsYear]);
   
   useEffect(() => {
     setIsClient(true);
     const unsubEmployees = onEmployeesUpdate(setEmployees);
-    const unsubAttendance = onAttendanceUpdate((records) => {
-        setAttendance(records);
-        // Set default filter to the latest month with data
-        if (records.length > 0) {
-            const latestRecord = records.sort((a, b) => b.bsDate.localeCompare(a.bsDate))[0];
-            if (latestRecord && latestRecord.bsDate) {
-                const latestYear = latestRecord.bsDate.substring(0, 4);
-                const latestMonth = latestRecord.bsDate.substring(5, 7);
-                if (!selectedBsYear) setSelectedBsYear(latestYear);
-                if (!selectedBsMonth) setSelectedBsMonth(latestMonth);
-            }
-        }
-    });
+    const unsubAttendance = onAttendanceUpdate(setAttendance);
 
     return () => {
         unsubEmployees();
@@ -96,15 +56,6 @@ export default function AttendancePage() {
     }
   }, []);
   
-  useEffect(() => {
-      // If the selected year changes, update the available months and select the first one
-      if (selectedBsYear && availableMonths.length > 0) {
-          if (!availableMonths.includes(selectedBsMonth)) {
-              setSelectedBsMonth(availableMonths[0]);
-          }
-      }
-  }, [selectedBsYear, availableMonths, selectedBsMonth]);
-
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -314,9 +265,12 @@ export default function AttendancePage() {
   const filteredAndSortedRecords = useMemo(() => {
     let filtered = [...attendance];
     
-    if (selectedBsYear && selectedBsMonth) {
-        const yearMonthPrefix = `${selectedBsYear}-${selectedBsMonth}`;
-        filtered = filtered.filter(record => record.bsDate && record.bsDate.startsWith(yearMonthPrefix));
+    if (dateRange?.from) {
+        const interval = {
+            start: startOfDay(dateRange.from),
+            end: endOfDay(dateRange.to || dateRange.from),
+        };
+        filtered = filtered.filter(record => isWithinInterval(new Date(record.date), interval));
     }
     
     if (searchQuery) {
@@ -350,7 +304,7 @@ export default function AttendancePage() {
     });
     
     return filtered;
-  }, [attendance, sortConfig, searchQuery, selectedBsYear, selectedBsMonth, filterEmployeeName]);
+  }, [attendance, sortConfig, searchQuery, dateRange, filterEmployeeName]);
   
   const uniqueEmployeeNames = useMemo(() => {
       const names = new Set(employees.map(e => e.name));
@@ -450,26 +404,17 @@ export default function AttendancePage() {
       {attendance.length > 0 && (
           <div className="flex flex-col sm:flex-row flex-wrap gap-2 items-center">
               <Label>Filter by:</Label>
-              <Select value={selectedBsYear} onValueChange={setSelectedBsYear}>
-                  <SelectTrigger className="w-full sm:w-auto">
-                      <SelectValue placeholder="Select Year (BS)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                      {availableYears.map(year => (
-                          <SelectItem key={year} value={year}>{year}</SelectItem>
-                      ))}
-                  </SelectContent>
-              </Select>
-              <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth} disabled={!selectedBsYear}>
-                  <SelectTrigger className="w-full sm:w-auto">
-                      <SelectValue placeholder="Select Month (BS)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                      {availableMonths.map(month => (
-                          <SelectItem key={month} value={month}>{nepaliMonths[parseInt(month, 10) - 1]}</SelectItem>
-                      ))}
-                  </SelectContent>
-              </Select>
+               <Popover>
+                  <PopoverTrigger asChild>
+                      <Button id="date" variant={"outline"} className={cn("w-full sm:w-auto justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {dateRange?.from ? (dateRange.to ? (`${format(dateRange.from, "LLL dd, y")} - ${format(dateRange.to, "LLL dd, y")}`) : format(dateRange.from, "LLL dd, y")) : (<span>Pick a date range</span>)}
+                      </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                      <DualDateRangePicker selected={dateRange} onSelect={setDateRange} />
+                  </PopoverContent>
+              </Popover>
                <Select value={filterEmployeeName} onValueChange={setFilterEmployeeName}>
                   <SelectTrigger className="w-full sm:w-auto">
                       <SelectValue placeholder="Select Employee" />
@@ -487,3 +432,5 @@ export default function AttendancePage() {
     </div>
   );
 }
+
+    
