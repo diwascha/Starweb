@@ -21,8 +21,7 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 import type { DateRange } from 'react-day-picker';
-import { calculateAttendance, type RawAttendanceRow } from '@/lib/attendance';
-import { reprocessSingleRecord } from '@/services/payroll-service';
+import { calculateAttendance, reprocessSingleRecord, type RawAttendanceRow } from '@/lib/attendance';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
@@ -70,15 +69,18 @@ export default function AttendancePage() {
     const unsubAttendance = onAttendanceUpdate((records) => {
         setAttendance(records);
         if (records.length > 0) {
-            const years = new Set(records.map(r => new NepaliDate(new Date(r.date)).getYear()));
-            const sortedYears = Array.from(years).sort((a, b) => b - a);
-            setBsYears(sortedYears);
-            
-            if (!selectedBsYear && !selectedBsMonth) {
-                const latestRecord = records.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-                const latestNepaliDate = new NepaliDate(new Date(latestRecord.date));
-                setSelectedBsYear(String(latestNepaliDate.getYear()));
-                setSelectedBsMonth(String(latestNepaliDate.getMonth()));
+            const validRecords = records.filter(r => r.date && !isNaN(new Date(r.date).getTime()));
+            if (validRecords.length > 0) {
+                const years = new Set(validRecords.map(r => new NepaliDate(new Date(r.date)).getYear()));
+                const sortedYears = Array.from(years).sort((a, b) => b - a);
+                setBsYears(sortedYears);
+                
+                if (!selectedBsYear && !selectedBsMonth) {
+                    const latestRecord = validRecords.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+                    const latestNepaliDate = new NepaliDate(new Date(latestRecord.date));
+                    setSelectedBsYear(String(latestNepaliDate.getYear()));
+                    setSelectedBsMonth(String(latestNepaliDate.getMonth()));
+                }
             }
         }
     });
@@ -134,7 +136,7 @@ export default function AttendancePage() {
 
             rawAttendanceData.push({
                 employeeName: employeeName,
-                dateAD: dateValue instanceof Date ? dateValue : String(dateValue),
+                dateAD: dateValue,
                 onDuty: row[2] ? String(row[2]) : null,
                 offDuty: row[3] ? String(row[3]) : null,
                 clockIn: row[4] ? String(row[4]) : null,
@@ -249,10 +251,10 @@ export default function AttendancePage() {
     let filtered = [...attendance];
     
     if (selectedBsYear && !dateRange) {
-      filtered = filtered.filter(r => new NepaliDate(new Date(r.date)).getYear() === parseInt(selectedBsYear, 10));
+      filtered = filtered.filter(r => r.date && new NepaliDate(new Date(r.date)).getYear() === parseInt(selectedBsYear, 10));
     }
     if (selectedBsMonth && !dateRange) {
-        filtered = filtered.filter(r => new NepaliDate(new Date(r.date)).getMonth() === parseInt(selectedBsMonth, 10));
+        filtered = filtered.filter(r => r.date && new NepaliDate(new Date(r.date)).getMonth() === parseInt(selectedBsMonth, 10));
     }
 
     if (dateRange?.from) {
@@ -260,7 +262,7 @@ export default function AttendancePage() {
             start: startOfDay(dateRange.from),
             end: endOfDay(dateRange.to || dateRange.from),
         };
-        filtered = filtered.filter(record => isWithinInterval(new Date(record.date), interval));
+        filtered = filtered.filter(record => record.date && isWithinInterval(new Date(record.date), interval));
     }
     
     if (searchQuery) {
@@ -348,7 +350,7 @@ export default function AttendancePage() {
           <TableBody>
             {filteredAndSortedRecords.map(record => (
               <TableRow key={record.id}>
-                <TableCell className="font-medium">{format(new Date(record.date), 'yyyy-MM-dd')}</TableCell>
+                <TableCell className="font-medium">{record.date ? format(new Date(record.date), 'yyyy-MM-dd') : 'Invalid'}</TableCell>
                 <TableCell>{record.bsDate}</TableCell>
                 <TableCell>{record.employeeName}</TableCell>
                  <TableCell>
@@ -533,5 +535,3 @@ export default function AttendancePage() {
     </Dialog>
     </>
   );
-
-    

@@ -33,10 +33,12 @@ export const getAttendance = async (): Promise<AttendanceRecord[]> => {
 export const addAttendanceRecords = async (records: Omit<AttendanceRecord, 'id'>[]): Promise<void> => {
     const batch = writeBatch(db);
     records.forEach(record => {
-        // Use a consistent, predictable ID to prevent duplicates on re-import
-        const docId = `${record.date.substring(0, 10)}_${record.employeeName.replace(/\s+/g, '-')}`;
-        const docRef = doc(attendanceCollection, docId);
-        batch.set(docRef, record, { merge: true }); // Use merge to avoid overwriting existing fields if not provided
+        // Data validation: only add records with a valid date.
+        if (record.date && !isNaN(new Date(record.date).getTime())) {
+            const docId = `${record.date.substring(0, 10)}_${record.employeeName.replace(/\s+/g, '-')}`;
+            const docRef = doc(attendanceCollection, docId);
+            batch.set(docRef, record, { merge: true });
+        }
     });
     await batch.commit();
 };
