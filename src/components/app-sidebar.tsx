@@ -195,8 +195,8 @@ export function AppSidebar() {
                     </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={getIsActive('/hr/payslip')} disabled>
-                    <Link href="#">
+                    <SidebarMenuButton asChild isActive={getIsActive('/hr/payslip')}>
+                    <Link href="/hr/payslip">
                         <Wallet />
                         <span>Payslip</span>
                     </Link>

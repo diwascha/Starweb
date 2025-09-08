@@ -1,12 +1,12 @@
 
 import { db } from '@/lib/firebase';
-import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDoc } from 'firebase/firestore';
 import type { Employee } from '@/lib/types';
 import { deleteFile } from './storage-service';
 
 const employeesCollection = collection(db, 'employees');
 
-const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Employee => {
+const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentData): Employee => {
     const data = snapshot.data();
     return {
         id: snapshot.id,
@@ -37,6 +37,16 @@ export const getEmployees = async (): Promise<Employee[]> => {
     const snapshot = await getDocs(employeesCollection);
     return snapshot.docs.map(fromFirestore);
 };
+
+export const getEmployee = async (id: string): Promise<Employee | null> => {
+    const employeeDoc = doc(db, 'employees', id);
+    const docSnap = await getDoc(employeeDoc);
+    if (docSnap.exists()) {
+        return fromFirestore(docSnap);
+    }
+    return null;
+};
+
 
 export const addEmployee = async (employee: Omit<Employee, 'id'>): Promise<string> => {
     const docRef = await addDoc(employeesCollection, {
