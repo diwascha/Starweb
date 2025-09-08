@@ -1,325 +1,12 @@
-import {
-  addMinutes,
-  differenceInMinutes,
-  isAfter,
-  startOfDay,
-  startOfWeek,
-  parse,
-  setHours,
-  setMinutes,
-  setSeconds,
-  format,
-  max as dfMax,
-  min as dfMin,
-  getDay,
-} from 'date-fns';
+
+import { getDay, differenceInMinutes, parse, format } from 'date-fns';
 import NepaliDate from 'nepali-date-converter';
 import type { Employee, Payroll, PunctualityInsight, BehaviorInsight, PatternInsight, WorkforceAnalytics, AttendanceRecord, AttendanceStatus, RawAttendanceRow } from '@/lib/types';
+import { calculateAttendance, type CalcAttendanceRow } from '@/lib/attendance';
 
-
-/* =========================
-   Config / policy constants
-   ========================= */
-const BASE_DAY_HOURS = 8;
 const GRACE_MIN = 5;
-const BLOCK_MIN = 30;               // penalty/extra in 30-min blocks
-const ROUND_STEP_HOURS = 0.5;
-const WEEK_STARTS_ON: 0 | 1 = 0;    // 0 = Sunday
-const LUNCH_START = { h: 12, m: 0 };
-const LUNCH_END   = { h: 13, m: 0 };
 
-/* =========================
-   Types
-   ========================= */
-export type WebRow = {
-  employeeName: string;
-  dateAD: string | Date;          // e.g. "2025-07-17"
-  status?: string;                // "Present" | "Absent" | "Public" | "Saturday" | tokens like "EXTRAOK"
-  onOffDuty?: string | null;      // "08:00 / 17:00" or "-"
-  clockInOut?: string | null;     // "07:58 / 17:00" or "- / -"
-  // (if you already have split fields, include them — the adapter handles both)
-  onDuty?: string | null;
-  offDuty?: string | null;
-  clockIn?: string | null;
-  clockOut?: string | null;
-  remarks?: string | null;        // optional holiday label etc.
-};
-
-export type CalcRow = WebRow & {
-  dateADISO: string;
-  dateBS: string;
-  weekdayAD: number;              // 0=Sun..6=Sat
-  normalizedStatus: string;
-  grossHours: number;
-  regularHours: number;
-  overtimeHours: number;
-  calcRemarks: string;
-};
-
-/* =========================
-   Helpers
-   ========================= */
-function toBSString(dateAD: Date): string {
-  try {
-    const nd = new NepaliDate(dateAD);
-    return nd.format('YYYY-MM-DD');
-  } catch {
-    return '';
-  }
-}
-
-function parseADDateLoose(input: string | Date): Date | null {
-  if (input instanceof Date && !Number.isNaN(input.getTime())) {
-    return new Date(input.getFullYear(), input.getMonth(), input.getDate());
-  }
-  if (typeof input !== 'string') return null;
-  const candidates = ['yyyy-MM-dd', 'M/d/yyyy', 'd/M/yyyy', "yyyy-MM-dd'T'HH:mm:ssXXX"];
-  for (const f of candidates) {
-    try {
-      const d = parse(input.trim(), f, new Date());
-      if (!Number.isNaN(d.getTime())) return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    } catch {}
-  }
-  return null;
-}
-
-type HMS = { hours: number; minutes: number; seconds: number };
-
-function parseTimeLoose(s?: string | null): HMS | null {
-  if (!s) return null;
-  const t = s.trim();
-  if (t === '-' || t === '') return null;
-
-  const fmts = ['HH:mm:ss', 'H:mm:ss', 'h:mm:ss a', 'HH:mm', 'H:mm', 'h:mm a'];
-  for (const f of fmts) {
-    try {
-      const d = parse(t, f, new Date());
-      if (!Number.isNaN(d.getTime())) return { hours: d.getHours(), minutes: d.getMinutes(), seconds: d.getSeconds() };
-    } catch {}
-  }
-  return null;
-}
-
-function combine(base: Date, t: HMS | null): Date | null {
-  if (!t) return null;
-  return setSeconds(setMinutes(setHours(startOfDay(base), t.hours), t.minutes), t.seconds);
-}
-
-function minutesOfDay(d: Date): number {
-  return d.getHours() * 60 + d.getMinutes();
-}
-
-function roundToStepHours(x: number, step = ROUND_STEP_HOURS): number {
-  return Math.round(x / step) * step;
-}
-
-function overlapMinutes(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date): number {
-  const s = dfMax(aStart, bStart);
-  const e = dfMin(aEnd, bEnd);
-  return e > s ? differenceInMinutes(e, s) : 0;
-}
-
-/** Deduct lunch (12:00–13:00) only if the effective paid window overlaps it and total > 4h */
-function applyFixedLunch(paidIn: Date, paidOut: Date): number {
-  const totalMin = differenceInMinutes(paidOut, paidIn);
-  if (totalMin <= 0) return 0;
-  const base = startOfDay(paidIn);
-  const l0 = setMinutes(setHours(base, LUNCH_START.h), LUNCH_START.m);
-  const l1 = setMinutes(setHours(base, LUNCH_END.h), LUNCH_END.m);
-  const lunchOverlap = overlapMinutes(paidIn, paidOut, l0, l1);
-  const effectiveMin = (lunchOverlap > 0 && totalMin > 240) ? totalMin - lunchOverlap : totalMin;
-  return effectiveMin / 60;
-}
-
-function extraBefore(baseIn: Date, actIn: Date): number {
-  const extraMin = Math.max(0, minutesOfDay(baseIn) - minutesOfDay(actIn));
-  const blocks = Math.floor((extraMin + 5) / BLOCK_MIN);
-  return (blocks * BLOCK_MIN) / 60;
-}
-function extraAfter(baseOut: Date, actOut: Date): number {
-  const extraMin = Math.max(0, minutesOfDay(actOut) - minutesOfDay(baseOut));
-  const blocks = Math.floor((extraMin + 5) / BLOCK_MIN);
-  return (blocks * BLOCK_MIN) / 60;
-}
-
-function weekKey(dateAD: Date, employeeName: string): string {
-  const wk = startOfWeek(dateAD, { weekStartsOn: WEEK_STARTS_ON });
-  return `${employeeName}|${format(wk, 'yyyy-MM-dd')}`;
-}
-
-/* =========================
-   NEW: paired-time adapter
-   ========================= */
-function splitPair(s?: string | null): [string | null, string | null] {
-  if (!s) return [null, null];
-  const raw = s.replace(/\s+/g, ' ').trim();     // normalize spaces
-  if (raw === '-' || raw === '- / -') return [null, null];
-  // allow "08:00 / 17:00" or "08:00/17:00"
-  const m = raw.split('/').map(x => x.trim());
-  if (m.length === 2) return [m[0] || null, m[1] || null];
-  return [null, null];
-}
-
-function adaptWebRow(row: WebRow) {
-  // prefer split fields if present; otherwise parse the pairs
-  let onDuty = row.onDuty, offDuty = row.offDuty, clockIn = row.clockIn, clockOut = row.clockOut;
-  if (!onDuty || !offDuty) {
-    const [a, b] = splitPair(row.onOffDuty ?? null);
-    onDuty = onDuty ?? a;
-    offDuty = offDuty ?? b;
-  }
-  if (!clockIn || !clockOut) {
-    const [a, b] = splitPair(row.clockInOut ?? null);
-    clockIn = clockIn ?? a;
-    clockOut = clockOut ?? b;
-  }
-  return { ...row, onDuty, offDuty, clockIn, clockOut };
-}
-
-/* =========================
-   Core calculator
-   ========================= */
-export function calculateAttendance(rows: WebRow[]): CalcRow[] {
-  const freeLateUsed = new Map<string, true>();
-  const freeEarlyUsed = new Map<string, true>();
-
-  return rows.map((r0): CalcRow => {
-    const row = adaptWebRow(r0);
-
-    const ad = parseADDateLoose(row.dateAD) ?? new Date(NaN);
-    const weekday = ad.getDay();
-    const isSaturdayAD = weekday === 6;
-
-    const status = (row.status || '').trim().toUpperCase();
-    const isAbsent = status === 'ABSENT' || status === 'TRUE';   // VBA legacy used TRUE for absence
-    const isPublic = status.startsWith('PUBLIC');
-    const extraOK = status.includes('EXTRAOK');
-
-    const sIn = parseTimeLoose(row.onDuty);
-    const sOut = parseTimeLoose(row.offDuty);
-    const cIn = parseTimeLoose(row.clockIn);
-    const cOut = parseTimeLoose(row.clockOut);
-
-    const baseIn = combine(ad, sIn);
-    const baseOut = combine(ad, sOut);
-    let actIn = combine(ad, cIn);
-    let actOut = combine(ad, cOut);
-
-    let gross = 0, regular = 0, ot = 0;
-    let remarks = '';
-
-    // quick exits
-    if (Number.isNaN(ad.getTime())) {
-      remarks = 'Missing date';
-      return finalize();
-    }
-
-    const dateBS = toBSString(ad);
-
-    if (isAbsent) {
-      return finalize();
-    }
-
-    // PUBLIC HOLIDAY: Regular=8h baseline; any worked time is OT
-    if (isPublic) {
-      const worked = workedIfBoth(actIn, actOut);
-      const wRounded = roundToStepHours(worked);
-      regular = BASE_DAY_HOURS;
-      ot = wRounded;
-      gross = regular + ot;
-      remarks = row.remarks ? `Public Holiday - ${row.remarks}` : 'Public Holiday';
-      return finalize();
-    }
-
-    // SATURDAY: all worked time = OT
-    if (isSaturdayAD) {
-      const worked = workedIfBoth(actIn, actOut);
-      const satH = roundToStepHours(worked);
-      ot = satH;
-      gross = ot;
-      return finalize();
-    }
-
-    // Workday:
-    if (!baseIn || !baseOut) {
-      remarks = 'Missing schedule';
-      return finalize();
-    }
-    if (!actIn || !actOut) {
-      remarks = !actIn && !actOut ? 'Missing punches' : (!actIn ? 'C/I Miss' : 'C/O Miss');
-      return finalize();
-    }
-
-    // guard cross-midnight
-    if (!isAfter(actOut, actIn)) actOut = addMinutes(actOut, 24 * 60);
-
-    // Penalties (based on time-of-day mins)
-    const lateMin0  = Math.max(0, minutesOfDay(actIn)  - minutesOfDay(baseIn));
-    const earlyMin0 = Math.max(0, minutesOfDay(baseOut) - minutesOfDay(actOut));
-
-    const key = weekKey(ad, row.employeeName ?? '');
-    let latePen = 0, earlyPen = 0;
-
-    if (lateMin0 > 0) {
-      if (lateMin0 <= GRACE_MIN) {
-        if (!freeLateUsed.has(key)) freeLateUsed.set(key, true);
-        else latePen = BLOCK_MIN;
-      } else {
-        latePen = Math.ceil((lateMin0 - GRACE_MIN) / BLOCK_MIN) * BLOCK_MIN;
-      }
-    }
-
-    if (earlyMin0 > 0) {
-      if (earlyMin0 <= GRACE_MIN) {
-        if (!freeEarlyUsed.has(key)) freeEarlyUsed.set(key, true);
-        else earlyPen = BLOCK_MIN;
-      } else {
-        earlyPen = Math.ceil((earlyMin0 - GRACE_MIN) / BLOCK_MIN) * BLOCK_MIN;
-      }
-    }
-
-    // Effective paid window
-    const effIn = addMinutes(baseIn, latePen);
-    const effOut = addMinutes(baseOut, -earlyPen);
-
-    let paid = 0;
-    if (isAfter(effOut, effIn)) {
-      paid = applyFixedLunch(effIn, effOut);
-    }
-
-    // EXTRAOK before/after schedule (+5min rounding, 30-min blocks)
-    let extraAM = 0, extraPM = 0;
-    if (extraOK) {
-      extraAM = extraBefore(baseIn, actIn);
-      extraPM = extraAfter(baseOut, actOut);
-    }
-
-    gross = roundToStepHours(paid + extraAM + extraPM + 1e-6);
-    if (gross > BASE_DAY_HOURS) {
-      regular = BASE_DAY_HOURS;
-      ot = +(gross - BASE_DAY_HOURS).toFixed(1);
-    } else {
-      regular = gross;
-      ot = 0;
-    }
-
-    return finalize();
-
-    function finalize(): CalcRow {
-      return {
-        ...row,
-        dateADISO: format(ad, 'yyyy-MM-dd'),
-        dateBS,
-        weekdayAD: weekday,
-        normalizedStatus: status,
-        grossHours: +gross.toFixed(1),
-        regularHours: +regular.toFixed(1),
-        overtimeHours: +ot.toFixed(1),
-        calcRemarks: remarks,
-      };
-    }
-  });
-}
+export type WebRow = RawAttendanceRow;
 
 export function reprocessSingleRecord(raw: WebRow): Partial<AttendanceRecord> {
   const result = calculateAttendance([raw])[0];
@@ -338,16 +25,6 @@ export function reprocessSingleRecord(raw: WebRow): Partial<AttendanceRecord> {
   };
 }
 
-
-/* ===== helpers for holiday/saturday ===== */
-function workedIfBoth(actIn: Date | null, actOut: Date | null): number {
-  if (!actIn || !actOut) return 0;
-  let out = actOut;
-  if (!isAfter(out, actIn)) out = addMinutes(out, 24 * 60);
-  return applyFixedLunch(actIn, out);
-}
-
-// Placeholder for the main payroll and analytics function
 export interface PayrollAndAnalyticsData {
     payroll: Payroll[];
     punctuality: PunctualityInsight[];
@@ -392,7 +69,7 @@ export function generatePayrollAndAnalytics(
             const monthlySalary = employee.wageAmount;
             
             const nextMonthFirstDay = new NepaliDate(bsMonth === 11 ? bsYear + 1 : bsYear, (bsMonth + 1) % 12, 1);
-            const daysInMonth = (new NepaliDate(nextMonthFirstDay.valueOf() - 1)).getDate();
+            const daysInMonth = (new NepaliDate(nextMonthFirstDay.valueOf() - (24*60*60*1000))).getDate();
 
             const dailyRate = monthlySalary / daysInMonth;
             const hourlyRate = dailyRate / 8;
@@ -461,23 +138,27 @@ export function generatePayrollAndAnalytics(
             let isEarly = false;
 
             if(r.clockIn && r.onDuty) {
-                const clockInTime = parse(r.clockIn, 'HH:mm', new Date());
-                const onDutyTime = parse(r.onDuty, 'HH:mm', new Date());
-                if(differenceInMinutes(clockInTime, onDutyTime) > GRACE_MIN) {
-                    lateArrivals++;
-                    isLate = true;
-                    dayOfWeekStats[day as keyof typeof dayOfWeekStats].l++;
-                }
+                try {
+                    const clockInTime = parse(r.clockIn, 'HH:mm', new Date());
+                    const onDutyTime = parse(r.onDuty, 'HH:mm', new Date());
+                    if(differenceInMinutes(clockInTime, onDutyTime) > GRACE_MIN) {
+                        lateArrivals++;
+                        isLate = true;
+                        dayOfWeekStats[day as keyof typeof dayOfWeekStats].l++;
+                    }
+                } catch {}
             }
              if(r.clockOut && r.offDuty) {
-                const clockOutTime = parse(r.clockOut, 'HH:mm', new Date());
-                const offDutyTime = parse(r.offDuty, 'HH:mm', new Date());
-                if(differenceInMinutes(offDutyTime, clockOutTime) > GRACE_MIN) {
-                    earlyDepartures++;
-                    isEarly = true;
-                }
+                try {
+                    const clockOutTime = parse(r.clockOut, 'HH:mm', new Date());
+                    const offDutyTime = parse(r.offDuty, 'HH:mm', new Date());
+                    if(differenceInMinutes(offDutyTime, clockOutTime) > GRACE_MIN) {
+                        earlyDepartures++;
+                        isEarly = true;
+                    }
+                } catch {}
             }
-            if (r.status === 'Absent') {
+            if (r.status.toUpperCase() === 'ABSENT' || r.status.toUpperCase() === 'TRUE') {
                 dayOfWeekStats[day as keyof typeof dayOfWeekStats].a++;
             }
 
