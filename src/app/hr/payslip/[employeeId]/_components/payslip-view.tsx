@@ -89,6 +89,7 @@ export default function PayslipView({ employee, payroll, bsYear, bsMonthName }: 
       { label: "Normal Pay", amount: payroll.regularPay },
       { label: "Overtime Pay", amount: payroll.otPay },
       { label: "Allowance", amount: payroll.allowance },
+      { label: "Bonus", amount: payroll.bonus },
   ];
   
   const deductions = [

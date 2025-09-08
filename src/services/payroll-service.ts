@@ -69,7 +69,8 @@ export function generatePayrollAndAnalytics(
 
         const totalPay = regularPay + otPay;
         const allowance = employee.allowance || 0;
-        const salaryTotal = totalPay + allowance - deduction;
+        const bonus = 0; // Default bonus to 0
+        const salaryTotal = totalPay + allowance + bonus - deduction;
         const tds = salaryTotal * 0.01; // Simplified 1% TDS
         const gross = salaryTotal - tds;
         const advance = 0; // This will be handled by adjustments
@@ -88,6 +89,7 @@ export function generatePayrollAndAnalytics(
             absentDays,
             deduction: +deduction.toFixed(2),
             allowance,
+            bonus,
             salaryTotal: +salaryTotal.toFixed(2),
             tds: +tds.toFixed(2),
             gross: +gross.toFixed(2),

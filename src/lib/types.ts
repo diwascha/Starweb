@@ -166,6 +166,7 @@ export interface Payroll {
     absentDays: number;
     deduction: number;
     allowance: number;
+    bonus: number;
     salaryTotal: number;
     tds: number;
     gross: number;

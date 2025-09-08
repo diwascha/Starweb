@@ -59,7 +59,7 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
     
     const [payrollData, setPayrollData] = useState<PayrollAndAnalyticsData | null>(null);
     
-    const [adjustmentForm, setAdjustmentForm] = useState({ employeeId: '', allowance: '', advance: '' });
+    const [adjustmentForm, setAdjustmentForm] = useState({ employeeId: '', allowance: '', advance: '', bonus: '' });
 
     const { toast } = useToast();
     const { user } = useAuth();
@@ -134,7 +134,7 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
     
     
     const handlePostAdjustment = () => {
-        const { employeeId, allowance, advance } = adjustmentForm;
+        const { employeeId, allowance, advance, bonus } = adjustmentForm;
         if (!employeeId || !payrollData) {
             toast({ title: 'Error', description: 'Please select an employee.', variant: 'destructive' });
             return;
@@ -142,6 +142,7 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
 
         const allowanceNum = parseFloat(allowance) || 0;
         const advanceNum = parseFloat(advance) || 0;
+        const bonusNum = parseFloat(bonus) || 0;
 
         const updatedPayroll = payrollData.payroll.map(p => {
             if (p.employeeId === employeeId) {
@@ -149,19 +150,19 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
                 const otPay = p.otPay;
                 const totalPay = regularPay + otPay;
                 const deduction = p.deduction;
-                const salaryTotal = totalPay + allowanceNum - deduction;
+                const salaryTotal = totalPay + allowanceNum + bonusNum - deduction;
                 const tds = salaryTotal * 0.01;
                 const gross = salaryTotal - tds;
                 const netPay = gross - advanceNum;
 
-                return { ...p, allowance: allowanceNum, advance: advanceNum, totalPay, salaryTotal, tds, gross, netPayment: netPay };
+                return { ...p, allowance: allowanceNum, advance: advanceNum, bonus: bonusNum, totalPay, salaryTotal, tds, gross, netPayment: netPay };
             }
             return p;
         });
         
         setPayrollData(prev => prev ? { ...prev, payroll: updatedPayroll } : null);
         toast({ title: 'Success', description: `Adjustments for ${employees.find(e => e.id === employeeId)?.name} applied.` });
-        setAdjustmentForm({ employeeId: '', allowance: '', advance: '' }); // Reset form
+        setAdjustmentForm({ employeeId: '', allowance: '', advance: '', bonus: '' }); // Reset form
     };
 
     const totals = useMemo(() => {
@@ -175,6 +176,7 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
             totalPay: acc.totalPay + curr.totalPay,
             deduction: acc.deduction + curr.deduction,
             allowance: acc.allowance + curr.allowance,
+            bonus: acc.bonus + curr.bonus,
             salaryTotal: acc.salaryTotal + curr.salaryTotal,
             tds: acc.tds + curr.tds,
             gross: acc.gross + curr.gross,
@@ -182,7 +184,7 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
             netPayment: acc.netPayment + curr.netPayment,
         }), { 
             totalHours: 0, otHours: 0, regularHours: 0, regularPay: 0, otPay: 0, totalPay: 0,
-            deduction: 0, allowance: 0, salaryTotal: 0, tds: 0, gross: 0, advance: 0, netPayment: 0
+            deduction: 0, allowance: 0, bonus: 0, salaryTotal: 0, tds: 0, gross: 0, advance: 0, netPayment: 0
         });
     }, [payrollData]);
 
@@ -197,7 +199,7 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
             'Name': p.employeeName,
             'Total Hours': p.totalHours, 'OT Hours': p.otHours, 'Normal Hours': p.regularHours,
             'Rate': p.rate, 'Regular Pay': p.regularPay, 'OT Pay': p.otPay, 'Total Pay': p.totalPay,
-            'Absent Days': p.absentDays, 'Deduction': p.deduction, 'Allowance': p.allowance,
+            'Absent Days': p.absentDays, 'Deduction': p.deduction, 'Allowance': p.allowance, 'Bonus': p.bonus,
             'Salary Total': p.salaryTotal, 'TDS (%)': p.tds, 'Gross': p.gross, 'Advance': p.advance,
             'Net Payment': p.netPayment, 'Remark': p.remark
         }));
@@ -239,34 +241,36 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
                 <Card>
                     <CardHeader>
                         <CardTitle>Quick Adjustments</CardTitle>
-                        <CardDescription>Add allowance or advance for an employee in this period.</CardDescription>
+                        <CardDescription>Add allowance, bonus, or advance for an employee in this period.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                             <div className="space-y-2">
-                                <Label>Employee</Label>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button variant="outline" role="combobox" className="w-full justify-between">
-                                            {adjustmentForm.employeeId ? employees.find(e => e.id === adjustmentForm.employeeId)?.name : "Select employee..."}
-                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="p-0 w-[--radix-popover-trigger-width]"><Command>
-                                        <CommandInput placeholder="Search employee..." />
-                                        <CommandList><CommandEmpty>No employee found.</CommandEmpty><CommandGroup>
-                                            {employees.map(emp => <CommandItem key={emp.id} value={emp.name} onSelect={() => setAdjustmentForm(prev => ({...prev, employeeId: emp.id}))}>
-                                                <Check className={cn("mr-2 h-4 w-4", adjustmentForm.employeeId === emp.id ? "opacity-100" : "opacity-0")} />{emp.name}
-                                            </CommandItem>)}
-                                        </CommandGroup></CommandList>
-                                    </Command></PopoverContent>
-                                </Popover>
-                             </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label>Employee</Label>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" role="combobox" className="w-full justify-between">
+                                        {adjustmentForm.employeeId ? employees.find(e => e.id === adjustmentForm.employeeId)?.name : "Select employee..."}
+                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="p-0 w-[--radix-popover-trigger-width]"><Command>
+                                    <CommandInput placeholder="Search employee..." />
+                                    <CommandList><CommandEmpty>No employee found.</CommandEmpty><CommandGroup>
+                                        {employees.map(emp => <CommandItem key={emp.id} value={emp.name} onSelect={() => setAdjustmentForm(prev => ({...prev, employeeId: emp.id}))}>
+                                            <Check className={cn("mr-2 h-4 w-4", adjustmentForm.employeeId === emp.id ? "opacity-100" : "opacity-0")} />{emp.name}
+                                        </CommandItem>)}
+                                    </CommandGroup></CommandList>
+                                </Command></PopoverContent>
+                            </Popover>
+                         </div>
+                        <div className="grid grid-cols-3 gap-2">
                             <div className="space-y-2">
                                 <Label htmlFor="quick-allowance">Allowance</Label>
                                 <Input id="quick-allowance" type="number" placeholder="0.00" value={adjustmentForm.allowance} onChange={e => setAdjustmentForm(prev => ({...prev, allowance: e.target.value}))}/>
+                            </div>
+                             <div className="space-y-2">
+                                <Label htmlFor="quick-bonus">Bonus</Label>
+                                <Input id="quick-bonus" type="number" placeholder="0.00" value={adjustmentForm.bonus} onChange={e => setAdjustmentForm(prev => ({...prev, bonus: e.target.value}))}/>
                             </div>
                              <div className="space-y-2">
                                 <Label htmlFor="quick-advance">Advance</Label>
@@ -274,7 +278,7 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
                             </div>
                         </div>
                          <div className="flex justify-end gap-2">
-                            <Button variant="outline" onClick={() => setAdjustmentForm({ employeeId: '', allowance: '', advance: '' })}>Cancel</Button>
+                            <Button variant="outline" onClick={() => setAdjustmentForm({ employeeId: '', allowance: '', advance: '', bonus: '' })}>Cancel</Button>
                             <Button onClick={handlePostAdjustment}><PlusCircle className="mr-2 h-4 w-4" /> Post Adjustment</Button>
                         </div>
                     </CardContent>
@@ -313,6 +317,7 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
                                         <TableHead>Absent Days</TableHead>
                                         <TableHead>Deduction</TableHead>
                                         <TableHead>Allowance</TableHead>
+                                        <TableHead>Bonus</TableHead>
                                         <TableHead>Salary Total</TableHead>
                                         <TableHead>TDS (1%)</TableHead>
                                         <TableHead>Gross</TableHead>
@@ -322,7 +327,7 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {isProcessing && <TableRow><TableCell colSpan={17} className="text-center">Processing payroll...</TableCell></TableRow>}
+                                    {isProcessing && <TableRow><TableCell colSpan={18} className="text-center">Processing payroll...</TableCell></TableRow>}
                                     {!isProcessing && payrollData?.payroll.map(p => {
                                         const employee = employees.find(e => e.id === p.employeeId);
                                         return (
@@ -338,6 +343,7 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
                                             <TableCell>{p.absentDays}</TableCell>
                                             <TableCell>{p.deduction.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                             <TableCell>{p.allowance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                            <TableCell>{p.bonus.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                             <TableCell>{p.salaryTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                             <TableCell>{p.tds.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                             <TableCell>{p.gross.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
@@ -361,6 +367,7 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
                                         <TableCell></TableCell>
                                         <TableCell>{totals.deduction.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell>{totals.allowance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                        <TableCell>{totals.bonus.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell>{totals.salaryTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell>{totals.tds.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell>{totals.gross.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
