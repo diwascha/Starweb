@@ -151,7 +151,7 @@ export default function PartyLedgerPage() {
                                 <TableCell>{toNepaliDate(txn.date)}</TableCell>
                                 <TableCell>{vehiclesById.get(txn.vehicleId)}</TableCell>
                                 <TableCell><Badge variant="outline">{txn.type}</Badge></TableCell>
-                                <TableCell>{txn.partyId ? partiesById.get(t.partyId) : 'N/A'}</TableCell>
+                                <TableCell>{txn.partyId ? partiesById.get(txn.partyId) : 'N/A'}</TableCell>
                                 <TableCell className={cn(['Sales', 'Receipt'].includes(txn.type) ? 'text-green-600' : 'text-red-600')}>
                                   {txn.amount.toLocaleString()}
                                 </TableCell>
