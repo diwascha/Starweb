@@ -394,7 +394,8 @@ export default function AttendancePage() {
               <TableHead>Date (BS)</TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('employeeName')}>Employee Name <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
               <TableHead>Weekday</TableHead>
-              <TableHead>Schedule</TableHead>
+              <TableHead>On Duty</TableHead>
+              <TableHead>Off Duty</TableHead>
               <TableHead>Clock In</TableHead>
               <TableHead>Clock Out</TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('status')}>Status <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
@@ -407,7 +408,8 @@ export default function AttendancePage() {
                 <TableCell>{record.bsDate}</TableCell>
                 <TableCell>{record.employeeName}</TableCell>
                 <TableCell>{format(new Date(record.date), 'EEEE')}</TableCell>
-                <TableCell>{record.onDuty} - {record.offDuty}</TableCell>
+                <TableCell>{record.onDuty || '-'}</TableCell>
+                <TableCell>{record.offDuty || '-'}</TableCell>
                 <TableCell>{record.clockIn || '-'}</TableCell>
                 <TableCell>{record.clockOut || '-'}</TableCell>
                 <TableCell>
