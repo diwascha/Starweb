@@ -33,6 +33,20 @@ const nepaliMonths = [
     { value: 9, name: "Magh" }, { value: 10, name: "Falgun" }, { value: 11, name: "Chaitra" }
 ];
 
+const customEmployeeOrder = [
+    "Tika Gurung",
+    "Anju Bista",
+    "Madhu Bhandari",
+    "Amrita Lama",
+    "sunil chaudhary",
+    "KUMAR SHRESTHA",
+    "Niroj Koirala",
+    "Binod Magar",
+    "SANDEEP CHAUDARY",
+    "SANGITA PYAKUREL",
+    "Sunita Gurung"
+];
+
 
 export default function PayrollClientPage({ initialEmployees, initialAttendance }: { initialEmployees: Employee[], initialAttendance: AttendanceRecord[] }) {
     const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
@@ -95,6 +109,24 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
                 employees,
                 attendance
             );
+            
+            // Apply custom sort order
+            data.payroll.sort((a, b) => {
+                const indexA = customEmployeeOrder.indexOf(a.employeeName);
+                const indexB = customEmployeeOrder.indexOf(b.employeeName);
+                
+                // If both are in the custom list, sort by that order
+                if (indexA !== -1 && indexB !== -1) {
+                    return indexA - indexB;
+                }
+                // If only A is in the list, it comes first
+                if (indexA !== -1) return -1;
+                // If only B is in the list, it comes first
+                if (indexB !== -1) return 1;
+                // Otherwise, sort alphabetically
+                return a.employeeName.localeCompare(b.employeeName);
+            });
+
             setPayrollData(data);
             setIsProcessing(false);
         }
