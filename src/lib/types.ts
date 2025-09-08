@@ -3,6 +3,7 @@
 
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -180,6 +181,11 @@ export interface BehaviorInsight {
     otImpact: string;
     shiftEndBehavior: string;
     performanceInsight: string;
+}
+
+export interface PatternInsight {
+    finding: string;
+    description: string;
 }
 
 

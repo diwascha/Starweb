@@ -2,13 +2,13 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import type { Employee, AttendanceRecord, Payroll, PunctualityInsight, BehaviorInsight } from '@/lib/types';
+import type { Employee, AttendanceRecord, Payroll, PunctualityInsight, BehaviorInsight, PatternInsight } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Download, Printer, Save, Loader2, Edit } from 'lucide-react';
+import { Download, Printer, Save, Loader2, Edit, AlertCircle } from 'lucide-react';
 import NepaliDate from 'nepali-date-converter';
 import { useAuth } from '@/hooks/use-auth';
 import { onEmployeesUpdate } from '@/services/employee-service';
@@ -19,6 +19,7 @@ import { Label } from '@/components/ui/label';
 import { generatePayrollAndAnalytics, PayrollAndAnalyticsData } from '@/services/payroll-service';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tooltip, TooltipProvider, TooltipContent } from '@/components/ui/tooltip';
 
 const nepaliMonths = [
     { value: 0, name: "Baishakh" }, { value: 1, name: "Jestha" }, { value: 2, name: "Ashadh" },
@@ -102,10 +103,16 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
 
         const updatedPayroll = payrollData.payroll.map(p => {
             if (p.employeeId === editingEmployee.id) {
-                const grossPay = p.basePay + p.otPay + allowance;
-                const tds = grossPay * 0.01;
-                const netPay = grossPay - tds - advance;
-                return { ...p, allowance, advance, grossPay, tds, netPay };
+                const regularPay = p.regularPay;
+                const otPay = p.otPay;
+                const totalPay = regularPay + otPay;
+                const deduction = p.deduction;
+                const salaryTotal = totalPay + allowance - deduction;
+                const tds = salaryTotal * 0.01;
+                const gross = salaryTotal - tds;
+                const netPay = gross - advance;
+
+                return { ...p, allowance, advance, totalPay, salaryTotal, tds, gross, netPay };
             }
             return p;
         });
@@ -319,45 +326,67 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
                             </ScrollArea>
                         </TabsContent>
                         <TabsContent value="behavior" className="pt-4 space-y-6">
-                             <Card>
-                                <CardHeader><CardTitle>Enhanced Employee Insights</CardTitle></CardHeader>
-                                <CardContent>
-                                    <Table>
-                                        <TableHeader><TableRow>
-                                            <TableHead>Employee</TableHead><TableHead>Punctuality Trend</TableHead>
-                                            <TableHead>Absence Pattern</TableHead><TableHead>OT Impact</TableHead>
-                                            <TableHead>Shift-End Behavior</TableHead><TableHead>Performance Insight</TableHead>
-                                        </TableRow></TableHeader>
-                                        <TableBody>
-                                            {payrollData?.behavior.map(b => (
-                                                <TableRow key={b.employeeId}>
-                                                    <TableCell className="font-medium">{b.employeeName}</TableCell>
-                                                    <TableCell>{b.punctualityTrend}</TableCell><TableCell>{b.absencePattern}</TableCell>
-                                                    <TableCell>{b.otImpact}</TableCell><TableCell>{b.shiftEndBehavior}</TableCell>
-                                                    <TableCell>{b.performanceInsight}</TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </CardContent>
-                             </Card>
-                             <Card>
-                                <CardHeader><CardTitle>Day of Week Patterns</CardTitle></CardHeader>
-                                <CardContent>
-                                    <Table>
-                                        <TableHeader><TableRow>
-                                            <TableHead>Day</TableHead><TableHead>Late Arrivals</TableHead><TableHead>Absenteeism</TableHead>
-                                        </TableRow></TableHeader>
-                                        <TableBody>
-                                            {payrollData?.dayOfWeek.map(d => (
-                                                <TableRow key={d.day}>
-                                                    <TableCell>{d.day}</TableCell><TableCell>{d.lateArrivals}</TableCell><TableCell>{d.absenteeism}</TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </CardContent>
-                             </Card>
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                <Card className="lg:col-span-2">
+                                    <CardHeader><CardTitle>Enhanced Employee Insights</CardTitle></CardHeader>
+                                    <CardContent>
+                                        <Table>
+                                            <TableHeader><TableRow>
+                                                <TableHead>Employee</TableHead><TableHead>Punctuality Trend</TableHead>
+                                                <TableHead>Absence Pattern</TableHead><TableHead>OT Impact</TableHead>
+                                                <TableHead>Shift-End Behavior</TableHead><TableHead>Performance Insight</TableHead>
+                                            </TableRow></TableHeader>
+                                            <TableBody>
+                                                {payrollData?.behavior.map(b => (
+                                                    <TableRow key={b.employeeId}>
+                                                        <TableCell className="font-medium">{b.employeeName}</TableCell>
+                                                        <TableCell>{b.punctualityTrend}</TableCell><TableCell>{b.absencePattern}</TableCell>
+                                                        <TableCell>{b.otImpact}</TableCell><TableCell>{b.shiftEndBehavior}</TableCell>
+                                                        <TableCell>{b.performanceInsight}</TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </CardContent>
+                                </Card>
+                                <div className="space-y-6">
+                                    <Card>
+                                        <CardHeader><CardTitle>Day of Week Patterns</CardTitle></CardHeader>
+                                        <CardContent>
+                                            <Table>
+                                                <TableHeader><TableRow>
+                                                    <TableHead>Day</TableHead><TableHead>Late Arrivals</TableHead><TableHead>Absenteeism</TableHead>
+                                                </TableRow></TableHeader>
+                                                <TableBody>
+                                                    {payrollData?.dayOfWeek.map(d => (
+                                                        <TableRow key={d.day}>
+                                                            <TableCell>{d.day}</TableCell><TableCell>{d.lateArrivals}</TableCell><TableCell>{d.absenteeism}</TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </CardContent>
+                                    </Card>
+                                    <Card>
+                                        <CardHeader><CardTitle>Pattern Insights</CardTitle></CardHeader>
+                                        <CardContent>
+                                            <ul className="space-y-2 text-sm">
+                                                {payrollData?.patternInsights.map((insight, index) => (
+                                                    <li key={index} className="flex items-start gap-2">
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipContent>{insight.description}</TooltipContent>
+                                                                <span className="flex-shrink-0 mt-1"><AlertCircle className="h-4 w-4 text-muted-foreground" /></span>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
+                                                        <span>{insight.finding}</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </CardContent>
+                                    </Card>
+                                </div>
+                            </div>
                         </TabsContent>
                     </Tabs>
                 </CardContent>
