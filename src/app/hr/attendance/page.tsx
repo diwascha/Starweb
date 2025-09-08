@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { format, parse } from 'date-fns';
 import { onEmployeesUpdate } from '@/services/employee-service';
 import { onAttendanceUpdate, addAttendanceRecords } from '@/services/attendance-service';
+import { getAttendanceBadgeVariant } from '@/lib/utils';
 
 type SortKey = 'date' | 'employeeName' | 'status';
 type SortDirection = 'asc' | 'desc';
@@ -48,7 +49,7 @@ export default function AttendancePage() {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const data = new UintArray(e.target?.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: 'array', cellDates: true });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
@@ -78,8 +79,12 @@ export default function AttendancePage() {
         return format(time, 'HH:mm');
       }
       if (typeof time === 'string') {
-        const parsedTime = parse(time, 'HH:mm:ss', new Date());
-        if (!isNaN(parsedTime.getTime())) return format(parsedTime, 'HH:mm');
+        // Try parsing different common time formats from Excel
+        const formats = ['HH:mm:ss', 'h:mm:ss a', 'HH:mm', 'h:mm a'];
+        for (const fmt of formats) {
+            const parsedTime = parse(time, fmt, new Date());
+            if (!isNaN(parsedTime.getTime())) return format(parsedTime, 'HH:mm');
+        }
       }
       if (typeof time === 'number') { // Excel time is a fraction of a day
         const excelEpoch = new Date(1899, 11, 30);
@@ -89,6 +94,25 @@ export default function AttendancePage() {
       return null;
   };
   
+    const parseDate = (dateInput: any): Date | null => {
+        if (!dateInput) return null;
+        if (dateInput instanceof Date && !isNaN(dateInput.getTime())) {
+            return dateInput;
+        }
+        // Excel can sometimes pass dates as numbers (days since 1900)
+        if (typeof dateInput === 'number') {
+            const excelEpoch = new Date(1899, 11, 30);
+            return new Date(excelEpoch.getTime() + dateInput * 24 * 60 * 60 * 1000);
+        }
+        if (typeof dateInput === 'string') {
+            const parsedDate = new Date(dateInput);
+            if (!isNaN(parsedDate.getTime())) {
+                return parsedDate;
+            }
+        }
+        return null;
+    };
+
 
   const parseAndStoreAttendance = async (rows: any[][]) => {
     if (!user) {
@@ -97,20 +121,30 @@ export default function AttendancePage() {
     }
     const newRecords: Omit<AttendanceRecord, 'id'>[] = [];
     const employeeNames = new Set(employees.map(e => e.name.toLowerCase()));
+    let skippedRows = 0;
+    let nonexistentEmployees = new Set<string>();
     
     rows.forEach((row, index) => {
-      if (row.length < 7) return; // Skip incomplete rows
+      if (row.length < 7) {
+          skippedRows++;
+          return;
+      }
 
-      const [adDate, name, onDuty, offDuty, clockIn, clockOut, absentDetails] = row;
+      const [adDateRaw, name, onDuty, offDuty, clockIn, clockOut, absentDetails] = row;
       
-      if (!adDate || !(adDate instanceof Date) || !name) {
+      const adDate = parseDate(adDateRaw);
+
+      if (!adDate || !name) {
          console.warn(`Skipping row ${index + 2}: Invalid date or name.`);
+         skippedRows++;
          return;
       }
       
       const employeeName = String(name).trim();
       if (!employeeNames.has(employeeName.toLowerCase())) {
         console.warn(`Skipping row ${index + 2}: Employee "${employeeName}" not found.`);
+        nonexistentEmployees.add(employeeName);
+        skippedRows++;
         return;
       }
 
@@ -143,7 +177,14 @@ export default function AttendancePage() {
     if (newRecords.length > 0) {
         try {
             await addAttendanceRecords(newRecords);
-            toast({ title: 'Success', description: `${newRecords.length} attendance records imported successfully.` });
+            let description = `${newRecords.length} attendance records imported successfully.`;
+            if (skippedRows > 0) {
+                description += ` ${skippedRows} rows were skipped.`;
+                if (nonexistentEmployees.size > 0) {
+                    description += ` Could not find employees: ${Array.from(nonexistentEmployees).join(', ')}.`;
+                }
+            }
+            toast({ title: 'Import Complete', description });
         } catch (error) {
             console.error("Firestore import error:", error);
             toast({ title: 'Error', description: 'Failed to save attendance data to the database.', variant: 'destructive' });
@@ -184,17 +225,6 @@ export default function AttendancePage() {
     return filtered;
   }, [attendance, sortConfig, searchQuery]);
   
-  const getStatusBadgeVariant = (status: AttendanceRecord['status']) => {
-    switch (status) {
-        case 'Present': return 'outline';
-        case 'Absent': return 'destructive';
-        case 'Saturday': return 'secondary';
-        case 'Public Holiday': return 'default';
-        default: return 'secondary';
-    }
-  };
-
-
   const renderContent = () => {
     if (!isClient) {
       return (
@@ -241,7 +271,7 @@ export default function AttendancePage() {
                 <TableCell>{record.employeeName}</TableCell>
                 <TableCell>{record.onDuty} - {record.offDuty}</TableCell>
                 <TableCell>{record.clockIn} - {record.clockOut}</TableCell>
-                <TableCell><Badge variant={getStatusBadgeVariant(record.status)}>{record.status}</Badge></TableCell>
+                <TableCell><Badge variant={getAttendanceBadgeVariant(record.status)}>{record.status}</Badge></TableCell>
               </TableRow>
             ))}
           </TableBody>
