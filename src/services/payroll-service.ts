@@ -1,21 +1,20 @@
-
 import {
   addMinutes,
   differenceInMinutes,
   isAfter,
-  max as dfMax,
-  min as dfMin,
-  parse,
   startOfDay,
   startOfWeek,
+  parse,
   setHours,
   setMinutes,
   setSeconds,
   format,
+  max as dfMax,
+  min as dfMin,
   getDay,
 } from 'date-fns';
 import NepaliDate from 'nepali-date-converter';
-import type { Employee, Payroll, PunctualityInsight, BehaviorInsight, PatternInsight, WorkforceAnalytics, AttendanceRecord, AttendanceStatus } from '@/lib/types';
+import type { Employee, Payroll, PunctualityInsight, BehaviorInsight, PatternInsight, WorkforceAnalytics, AttendanceRecord, AttendanceStatus, RawAttendanceRow } from '@/lib/types';
 
 
 /* =========================
@@ -29,27 +28,27 @@ const WEEK_STARTS_ON: 0 | 1 = 0;    // 0 = Sunday
 const LUNCH_START = { h: 12, m: 0 };
 const LUNCH_END   = { h: 13, m: 0 };
 
-
 /* =========================
    Types
    ========================= */
-export type RawAttendanceRow = {
+export type WebRow = {
   employeeName: string;
-  dateAD: string | Date;                     // e.g., "2025-07-17"
-  status?: string;                           // "Present" | "TRUE" | "PUBLIC" | "EXTRAOK ..." etc.
-  onDuty?: string | null;                    // "08:00" etc.
-  offDuty?: string | null;                   // "17:00"
-  clockIn?: string | null;                   // "07:58"
-  clockOut?: string | null;                  // "17:00"
+  dateAD: string | Date;          // e.g. "2025-07-17"
+  status?: string;                // "Present" | "Absent" | "Public" | "Saturday" | tokens like "EXTRAOK"
   onOffDuty?: string | null;      // "08:00 / 17:00" or "-"
   clockInOut?: string | null;     // "07:58 / 17:00" or "- / -"
-  remarks?: string | null;                   // may hold holiday name
+  // (if you already have split fields, include them — the adapter handles both)
+  onDuty?: string | null;
+  offDuty?: string | null;
+  clockIn?: string | null;
+  clockOut?: string | null;
+  remarks?: string | null;        // optional holiday label etc.
 };
 
-export type CalcAttendanceRow = RawAttendanceRow & {
-  dateADISO: string;                         // ISO date (local midnight)
-  dateBS: string;                            // "YYYY-MM-DD" (BS)
-  weekdayAD: number;                         // 0=Sun ... 6=Sat (AD)
+export type CalcRow = WebRow & {
+  dateADISO: string;
+  dateBS: string;
+  weekdayAD: number;              // 0=Sun..6=Sat
   normalizedStatus: string;
   grossHours: number;
   regularHours: number;
@@ -58,9 +57,9 @@ export type CalcAttendanceRow = RawAttendanceRow & {
 };
 
 /* =========================
-   AD <-> BS helpers
+   Helpers
    ========================= */
-export function toBSString(dateAD: Date): string {
+function toBSString(dateAD: Date): string {
   try {
     const nd = new NepaliDate(dateAD);
     return nd.format('YYYY-MM-DD');
@@ -69,7 +68,7 @@ export function toBSString(dateAD: Date): string {
   }
 }
 
-export function parseADDateLoose(input: string | Date): Date | null {
+function parseADDateLoose(input: string | Date): Date | null {
   if (input instanceof Date && !Number.isNaN(input.getTime())) {
     return new Date(input.getFullYear(), input.getMonth(), input.getDate());
   }
@@ -84,9 +83,6 @@ export function parseADDateLoose(input: string | Date): Date | null {
   return null;
 }
 
-/* =========================
-   Time parsing & utilities
-   ========================= */
 type HMS = { hours: number; minutes: number; seconds: number };
 
 function parseTimeLoose(s?: string | null): HMS | null {
@@ -164,7 +160,7 @@ function splitPair(s?: string | null): [string | null, string | null] {
   return [null, null];
 }
 
-function adaptWebRow(row: RawAttendanceRow) {
+function adaptWebRow(row: WebRow) {
   // prefer split fields if present; otherwise parse the pairs
   let onDuty = row.onDuty, offDuty = row.offDuty, clockIn = row.clockIn, clockOut = row.clockOut;
   if (!onDuty || !offDuty) {
@@ -180,15 +176,14 @@ function adaptWebRow(row: RawAttendanceRow) {
   return { ...row, onDuty, offDuty, clockIn, clockOut };
 }
 
-
 /* =========================
    Core calculator
    ========================= */
-export function calculateAttendanceRows(rows: RawAttendanceRow[]): CalcAttendanceRow[] {
+export function calculateAttendance(rows: WebRow[]): CalcRow[] {
   const freeLateUsed = new Map<string, true>();
   const freeEarlyUsed = new Map<string, true>();
 
-  return rows.map((r0): CalcAttendanceRow => {
+  return rows.map((r0): CalcRow => {
     const row = adaptWebRow(r0);
 
     const ad = parseADDateLoose(row.dateAD) ?? new Date(NaN);
@@ -326,8 +321,8 @@ export function calculateAttendanceRows(rows: RawAttendanceRow[]): CalcAttendanc
   });
 }
 
-export function reprocessSingleRecord(raw: RawAttendanceRow): Partial<AttendanceRecord> {
-  const result = calculateAttendanceRows([raw])[0];
+export function reprocessSingleRecord(raw: WebRow): Partial<AttendanceRecord> {
+  const result = calculateAttendance([raw])[0];
   return {
     date: result.dateADISO,
     bsDate: result.dateBS,
@@ -336,6 +331,10 @@ export function reprocessSingleRecord(raw: RawAttendanceRow): Partial<Attendance
     regularHours: result.regularHours,
     overtimeHours: result.overtimeHours,
     remarks: result.calcRemarks,
+    onDuty: raw.onDuty,
+    offDuty: raw.offDuty,
+    clockIn: raw.clockIn,
+    clockOut: raw.clockOut,
   };
 }
 
@@ -347,7 +346,6 @@ function workedIfBoth(actIn: Date | null, actOut: Date | null): number {
   if (!isAfter(out, actIn)) out = addMinutes(out, 24 * 60);
   return applyFixedLunch(actIn, out);
 }
-
 
 // Placeholder for the main payroll and analytics function
 export interface PayrollAndAnalyticsData {
@@ -392,7 +390,10 @@ export function generatePayrollAndAnalytics(
         
         if (employee.wageBasis === 'Monthly') {
             const monthlySalary = employee.wageAmount;
-            const daysInMonth = new NepaliDate(bsYear, bsMonth, 1).getDaysInMonth();
+            
+            const nextMonthFirstDay = new NepaliDate(bsMonth === 11 ? bsYear + 1 : bsYear, (bsMonth + 1) % 12, 1);
+            const daysInMonth = (new NepaliDate(nextMonthFirstDay.valueOf() - 1)).getDate();
+
             const dailyRate = monthlySalary / daysInMonth;
             const hourlyRate = dailyRate / 8;
             rate = hourlyRate;
@@ -454,7 +455,7 @@ export function generatePayrollAndAnalytics(
         let onTimeStreak = 0;
         let currentStreak = 0;
 
-        empAttendance.forEach(r => {
+        empAttendance.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).forEach(r => {
             const day = getDay(new Date(r.date));
             let isLate = false;
             let isEarly = false;
@@ -507,10 +508,13 @@ export function generatePayrollAndAnalytics(
             punctualityScore: presentDays > 0 ? ((presentDays - lateArrivals - earlyDepartures) / presentDays) * 100 : 0,
         });
 
+        const totalRegularHours = empAttendance.reduce((sum, r) => sum + r.regularHours, 0);
+        const totalOvertimeHours = empAttendance.reduce((sum, r) => sum + r.overtimeHours, 0);
+
         workforce.push({
             employeeId: employee.id,
             employeeName: employee.name,
-            overtimeRatio: (employeeAttendance.reduce((sum, r) => sum + r.overtimeHours, 0) / employeeAttendance.reduce((sum, r) => sum + r.regularHours, 1)) * 100,
+            overtimeRatio: totalRegularHours > 0 ? (totalOvertimeHours / totalRegularHours) * 100 : 0,
             onTimeStreak,
             saturdaysWorked: empAttendance.filter(r => getDay(new Date(r.date)) === 6 && r.grossHours > 0).length,
         });
