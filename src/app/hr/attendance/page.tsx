@@ -21,7 +21,8 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 import type { DateRange } from 'react-day-picker';
-import { calculateAttendance, reprocessSingleRecord, type RawAttendanceRow } from '@/services/payroll-service';
+import { calculateAttendance, type RawAttendanceRow } from '@/lib/attendance';
+import { reprocessSingleRecord } from '@/services/payroll-service';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
@@ -493,7 +494,6 @@ export default function AttendancePage() {
               </Select>
           </div>
       )}
-
       {renderContent()}
     </div>
      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
@@ -533,3 +533,5 @@ export default function AttendancePage() {
     </Dialog>
     </>
   );
+
+    

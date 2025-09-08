@@ -2,7 +2,7 @@
 import { getDay, differenceInMinutes, parse, format } from 'date-fns';
 import NepaliDate from 'nepali-date-converter';
 import type { Employee, Payroll, PunctualityInsight, BehaviorInsight, PatternInsight, WorkforceAnalytics, AttendanceRecord, AttendanceStatus, RawAttendanceRow } from '@/lib/types';
-import { calculateAttendance, type CalcAttendanceRow } from '@/lib/attendance';
+import { calculateAttendance } from '@/lib/attendance';
 
 const GRACE_MIN = 5;
 
@@ -225,3 +225,5 @@ export function generatePayrollAndAnalytics(
 
     return { payroll, punctuality, behavior, patternInsights, workforce, dayOfWeek };
 }
+
+    
