@@ -38,7 +38,7 @@ const nepaliMonths = [
     { value: 9, name: "Magh" }, { value: 10, name: "Falgun" }, { value: 11, name: "Chaitra" }
 ];
 
-const attendanceStatuses: AttendanceStatus[] = ['Present', 'Absent', 'Saturday', 'Public Holiday', 'Incomplete'];
+const attendanceStatuses: AttendanceStatus[] = ['Present', 'Absent', 'Saturday', 'Public Holiday', 'C/I Miss', 'C/O Miss'];
 
 export default function AttendancePage() {
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
@@ -243,7 +243,7 @@ export default function AttendancePage() {
         } else if (!clockInValue) { 
             status = 'Absent';
         } else if (clockInValue && !clockOutValue) {
-            status = 'Incomplete';
+            status = 'C/O Miss';
         } else {
             status = 'Present';
         }
