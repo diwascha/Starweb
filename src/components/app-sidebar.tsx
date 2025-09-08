@@ -179,8 +179,8 @@ export function AppSidebar() {
                     </SidebarMenuButton>
                 </SidebarMenuItem>
                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={getIsActive('/hr/payroll')} disabled>
-                    <Link href="#">
+                    <SidebarMenuButton asChild isActive={getIsActive('/hr/payroll')}>
+                    <Link href="/hr/payroll">
                         <FileText />
                         <span>Payroll</span>
                     </Link>

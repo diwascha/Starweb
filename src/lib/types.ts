@@ -1,6 +1,7 @@
 
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -134,6 +135,23 @@ export interface AttendanceRecord {
     regularHours: number;
     remarks: string | null;
     importedBy: string;
+}
+
+export interface Payroll {
+    employeeId: string;
+    employeeName: string;
+    regularHours: number;
+    otHours: number;
+    absentDays: number;
+    missPunchDays: number;
+    baseText: string;
+    basePay: number;
+    otPay: number;
+    allowance: number;
+    grossPay: number;
+    tds: number;
+    advance: number;
+    netPay: number;
 }
 
 
