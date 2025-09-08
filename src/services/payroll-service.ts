@@ -433,16 +433,21 @@ export const generatePayrollAndAnalytics = (
         const mostAbsentDay = dayOfWeekData.reduce((max, day) => day.absenteeism > max.absenteeism ? day : max);
         patternInsights.push({ finding: `Highest absenteeism on: ${mostAbsentDay.day}`, description: `${mostAbsentDay.absenteeism} absences occurred on ${mostAbsentDay.day}s this month.` });
     }
+    
+    if (punctuality.length > 0) {
+        const mostPunctual = punctuality.reduce((max, p) => p.punctualityScore > max.punctualityScore ? p : max);
+        if(mostPunctual) patternInsights.push({ finding: `Most Punctual: ${mostPunctual.employeeName}`, description: `${mostPunctual.employeeName} had the highest punctuality score of ${mostPunctual.punctualityScore.toFixed(1)}%.` });
 
-    const punctualityScores = punctuality.map(p => p.punctualityScore);
-    const mostPunctual = punctuality.reduce((max, p) => p.punctualityScore > max.punctualityScore ? p : max, punctuality[0]);
-    if(mostPunctual) patternInsights.push({ finding: `Most Punctual: ${mostPunctual.employeeName}`, description: `${mostPunctual.employeeName} had the highest punctuality score of ${mostPunctual.punctualityScore.toFixed(1)}%.` });
-
-    const leastPunctual = punctuality.reduce((min, p) => p.punctualityScore < min.punctualityScore ? p : min, punctuality[0]);
-    if(leastPunctual && leastPunctual.punctualityScore < 90) patternInsights.push({ finding: `Least Punctual: ${leastPunctual.employeeName}`, description: `${leastPunctual.employeeName} had the lowest punctuality score of ${leastPunctual.punctualityScore.toFixed(1)}%.` });
-
-    const highestOvertime = payroll.reduce((max, p) => p.otHours > max.otHours ? p : max, payroll[0]);
-    if(highestOvertime && highestOvertime.otHours > 0) patternInsights.push({ finding: `Highest Overtime: ${highestOvertime.employeeName}`, description: `${highestOvertime.employeeName} worked the most overtime this month with ${highestOvertime.otHours.toFixed(1)} hours.` });
+        const leastPunctual = punctuality.reduce((min, p) => p.punctualityScore < min.punctualityScore ? p : min);
+        if(leastPunctual && leastPunctual.punctualityScore < 90 && punctuality.length > 1 && leastPunctual.employeeId !== mostPunctual.employeeId) {
+            patternInsights.push({ finding: `Least Punctual: ${leastPunctual.employeeName}`, description: `${leastPunctual.employeeName} had the lowest punctuality score of ${leastPunctual.punctualityScore.toFixed(1)}%.` });
+        }
+    }
+    
+    if (payroll.length > 0) {
+        const highestOvertime = payroll.reduce((max, p) => p.otHours > max.otHours ? p : max, payroll[0]);
+        if(highestOvertime && highestOvertime.otHours > 0) patternInsights.push({ finding: `Highest Overtime: ${highestOvertime.employeeName}`, description: `${highestOvertime.employeeName} worked the most overtime this month with ${highestOvertime.otHours.toFixed(1)} hours.` });
+    }
 
     const perfectAttendance = punctuality.filter(p => p.absentDays === 0 && p.lateArrivals === 0 && p.earlyDepartures === 0);
     if(perfectAttendance.length > 0) patternInsights.push({ finding: `Perfect Attendance: ${perfectAttendance.length} employee(s)`, description: `${perfectAttendance.map(p => p.employeeName).join(', ')} had perfect attendance this month.` });
@@ -491,6 +496,46 @@ export const generatePayrollAndAnalytics = (
     if (highOtNextDayLate > 0) {
         patternInsights.push({ finding: 'High OT may affect next-day punctuality', description: `There were ${highOtNextDayLate} instances of an employee being late the day after working significant overtime.` });
     }
+
+    const nepaliDaysInMonth = new NepaliDate(bsYear, bsMonth, 1).daysInMonth;
+    const lastWeekStartDate = new NepaliDate(bsYear, bsMonth, Math.max(1, nepaliDaysInMonth - 6)).toJsDate();
+    
+    const lastWeekRecords = filteredAttendance.filter(r => isAfter(new Date(r.date), lastWeekStartDate));
+    const priorRecords = filteredAttendance.filter(r => !isAfter(new Date(r.date), lastWeekStartDate));
+
+    const lastWeekLates = lastWeekRecords.filter(r => {
+        if (r.onDuty && r.clockIn) {
+            const onDuty = parse(r.onDuty, 'HH:mm', new Date());
+            const clockIn = parse(r.clockIn, 'HH:mm', new Date());
+            return differenceInMinutes(clockIn, onDuty) > kGraceMin;
+        }
+        return false;
+    }).length;
+
+    const priorLates = priorRecords.filter(r => {
+        if (r.onDuty && r.clockIn) {
+            const onDuty = parse(r.onDuty, 'HH:mm', new Date());
+            const clockIn = parse(r.clockIn, 'HH:mm', new Date());
+            return differenceInMinutes(clockIn, onDuty) > kGraceMin;
+        }
+        return false;
+    }).length;
+
+    const lastWeekDays = 7;
+    const priorDays = nepaliDaysInMonth - lastWeekDays;
+    
+    if (priorDays > 0 && lastWeekDays > 0) {
+        const lastWeekAvg = lastWeekLates / lastWeekDays;
+        const priorAvg = priorLates / priorDays;
+        
+        if (priorAvg > 0 && lastWeekAvg > priorAvg) {
+            const increasePercent = ((lastWeekAvg - priorAvg) / priorAvg) * 100;
+            if (increasePercent > 10) {
+                 patternInsights.push({ finding: `End-of-month trend: Late arrivals increase by ${increasePercent.toFixed(0)}%`, description: 'Punctuality decreased towards the end of the month.' });
+            }
+        }
+    }
+
 
     return { payroll, punctuality, behavior, workforce, dayOfWeek: dayOfWeekData, patternInsights };
 };
