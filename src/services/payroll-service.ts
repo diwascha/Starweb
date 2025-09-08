@@ -83,17 +83,23 @@ const roundToStep = (hours: number, step: number): number => {
 };
 
 const applyFixedBreak = (start: Date, end: Date): number => {
+    if (!start || !end || end <= start) return 0;
+
     const totalMinutes = differenceInMinutes(end, start);
-    if (totalMinutes <= 0) return 0;
-
-    const breakStartOnDate = setSeconds(setMinutes(setHours(start, 12), 0), 0);
-    const breakEndOnDate = setSeconds(setMinutes(setHours(start, 13), 0), 0);
     
-    const overlapStart = Math.max(start.getTime(), breakStartOnDate.getTime());
-    const overlapEnd = Math.min(end.getTime(), breakEndOnDate.getTime());
-    
-    const overlapMinutes = Math.max(0, (overlapEnd - overlapStart) / (1000 * 60));
+    // Break is from 12:00 (720 minutes) to 13:00 (780 minutes)
+    const breakStartMinutes = 12 * 60;
+    const breakEndMinutes = 13 * 60;
 
+    const startMinutes = start.getHours() * 60 + start.getMinutes();
+    const endMinutes = end.getHours() * 60 + end.getMinutes();
+
+    const overlapStart = Math.max(startMinutes, breakStartMinutes);
+    const overlapEnd = Math.min(endMinutes, breakEndMinutes);
+    
+    const overlapMinutes = Math.max(0, overlapEnd - overlapStart);
+
+    // Only apply break if they worked more than 4 hours total
     if (overlapMinutes > 0 && totalMinutes > 4 * 60) {
         return (totalMinutes - overlapMinutes) / 60;
     }
@@ -223,3 +229,5 @@ export const processAttendanceImport = async (
 
     return { newRecords, newlyAddedEmployees, skippedRows };
 };
+
+    
