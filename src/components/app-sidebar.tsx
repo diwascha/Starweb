@@ -157,7 +157,7 @@ export function AppSidebar() {
                 <SidebarMenuButton asChild isActive={getIsActive('/hr')}>
                 <Link href="/hr">
                     <Building2 />
-                    <span>HR Management</span>
+                    <span>HRMS</span>
                 </Link>
                 </SidebarMenuButton>
             </SidebarMenuItem>
