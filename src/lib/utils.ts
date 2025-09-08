@@ -133,7 +133,7 @@ export const getAttendanceBadgeVariant = (status: AttendanceStatus) => {
     switch (status) {
         case 'Present': return 'outline';
         case 'Absent': return 'destructive';
-        case 'Saturday': return 'secondary';
+        case 'Saturday': return 'default';
         case 'Public Holiday': return 'default';
         default: return 'secondary';
     }

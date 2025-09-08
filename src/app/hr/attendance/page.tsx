@@ -27,6 +27,8 @@ const nepaliMonths = [
   "Kartik", "Mangsir", "Poush", "Magh", "Falgun", "Chaitra"
 ];
 
+const nepaliWeekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
 const cleanEmployeeName = (name: any): string => {
   if (typeof name !== 'string') return '';
   // Trim whitespace, replace multiple spaces with a single space, and convert to lowercase
@@ -384,7 +386,11 @@ export default function AttendancePage() {
                 <TableCell>{format(new Date(record.date), 'EEEE')}</TableCell>
                 <TableCell>{record.onDuty} - {record.offDuty}</TableCell>
                 <TableCell>{record.clockIn} - {record.clockOut}</TableCell>
-                <TableCell><Badge variant={getAttendanceBadgeVariant(record.status)}>{record.status}</Badge></TableCell>
+                <TableCell>
+                  <Badge variant={getAttendanceBadgeVariant(record.status)}>
+                    {record.status === 'Saturday' ? 'Day Off' : record.status}
+                  </Badge>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
