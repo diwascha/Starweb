@@ -44,7 +44,7 @@ export default function AttendancePage() {
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
+  const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'employeeName', direction: 'asc' });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
@@ -234,8 +234,8 @@ export default function AttendancePage() {
         const nepaliDate = new NepaliDate(adDate);
         const bsDate = nepaliDate.format('YYYY-MM-DD');
         
-        const clockInValue = parseTime(clockInIndex > -1 ? row[clockInIndex] : undefined);
-        const clockOutValue = parseTime(clockOutIndex > -1 ? row[clockOutIndex] : undefined);
+        const clockInValue = parseTime(clockInIndex > -1 ? row[clockInIndex] : null);
+        const clockOutValue = parseTime(clockOutIndex > -1 ? row[clockOutIndex] : null);
 
         let status: AttendanceRecord['status'];
         if (nepaliDate.getDay() === 6) {
@@ -360,19 +360,6 @@ export default function AttendancePage() {
       return ['All', ...Array.from(names).sort()];
   }, [employees]);
   
-  const getActualTimeDisplay = (record: AttendanceRecord) => {
-    if (!record.clockIn && !record.clockOut) {
-      return '-';
-    }
-    if (record.clockIn && !record.clockOut) {
-      return `${record.clockIn} - (Missing clock out)`;
-    }
-    if (!record.clockIn && record.clockOut) {
-      return `(Missing clock in)`;
-    }
-    return `${record.clockIn} - ${record.clockOut}`;
-  };
-
   const renderContent = () => {
     if (!isClient) {
       return (
@@ -408,7 +395,8 @@ export default function AttendancePage() {
               <TableHead><Button variant="ghost" onClick={() => requestSort('employeeName')}>Employee Name <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
               <TableHead>Weekday</TableHead>
               <TableHead>Schedule</TableHead>
-              <TableHead>Actual</TableHead>
+              <TableHead>Clock In</TableHead>
+              <TableHead>Clock Out</TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('status')}>Status <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
             </TableRow>
           </TableHeader>
@@ -420,7 +408,8 @@ export default function AttendancePage() {
                 <TableCell>{record.employeeName}</TableCell>
                 <TableCell>{format(new Date(record.date), 'EEEE')}</TableCell>
                 <TableCell>{record.onDuty} - {record.offDuty}</TableCell>
-                <TableCell>{getActualTimeDisplay(record)}</TableCell>
+                <TableCell>{record.clockIn || '-'}</TableCell>
+                <TableCell>{record.clockOut || '-'}</TableCell>
                 <TableCell>
                   <Badge variant={getAttendanceBadgeVariant(record.status)}>
                     {record.status === 'Saturday' ? 'Day Off' : record.status}
