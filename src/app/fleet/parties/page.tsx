@@ -22,7 +22,6 @@ import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function PartyLedgerPage() {
@@ -32,7 +31,7 @@ export default function PartyLedgerPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-    const [activePartyTab, setActivePartyTab] = useState<string>('All');
+    const [filterPartyId, setFilterPartyId] = useState<string>('All');
     const [filterVehicleId, setFilterVehicleId] = useState<string>('All');
     const router = useRouter();
     const { toast } = useToast();
@@ -83,8 +82,8 @@ export default function PartyLedgerPage() {
             filtered = filtered.filter(t => isWithinInterval(new Date(t.date), interval));
         }
         
-        if (activePartyTab !== 'All') {
-            filtered = filtered.filter(t => t.partyId === activePartyTab);
+        if (filterPartyId !== 'All') {
+            filtered = filtered.filter(t => t.partyId === filterPartyId);
         }
         
         if (filterVehicleId !== 'All') {
@@ -92,7 +91,7 @@ export default function PartyLedgerPage() {
         }
         
         return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    }, [transactions, searchQuery, dateRange, vehiclesById, partiesById, activePartyTab, filterVehicleId]);
+    }, [transactions, searchQuery, dateRange, vehiclesById, partiesById, filterPartyId, filterVehicleId]);
     
     const handleExport = async () => {
         const XLSX = (await import('xlsx'));
@@ -152,7 +151,7 @@ export default function PartyLedgerPage() {
                                 <TableCell>{toNepaliDate(txn.date)}</TableCell>
                                 <TableCell>{vehiclesById.get(txn.vehicleId)}</TableCell>
                                 <TableCell><Badge variant="outline">{txn.type}</Badge></TableCell>
-                                <TableCell>{txn.partyId ? partiesById.get(txn.partyId) : 'N/A'}</TableCell>
+                                <TableCell>{txn.partyId ? partiesById.get(t.partyId) : 'N/A'}</TableCell>
                                 <TableCell className={cn(['Sales', 'Receipt'].includes(txn.type) ? 'text-green-600' : 'text-red-600')}>
                                   {txn.amount.toLocaleString()}
                                 </TableCell>
@@ -195,6 +194,15 @@ export default function PartyLedgerPage() {
                             {dateRange?.from ? (dateRange.to ? (`${format(dateRange.from, "LLL dd, y")} - ${format(dateRange.to, "LLL dd, y")}`) : format(dateRange.from, "LLL dd, y")) : (<span>Pick a date range</span>)}
                         </Button>
                     </PopoverTrigger><PopoverContent className="w-auto p-0" align="end"><DualDateRangePicker selected={dateRange} onSelect={setDateRange} /></PopoverContent></Popover>
+                    <Select value={filterPartyId} onValueChange={setFilterPartyId}>
+                        <SelectTrigger className="w-full md:w-[180px]">
+                            <SelectValue placeholder="All Parties" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="All">All Parties</SelectItem>
+                            {parties.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
                     <Select value={filterVehicleId} onValueChange={setFilterVehicleId}>
                         <SelectTrigger className="w-full md:w-[180px]">
                             <SelectValue placeholder="All Vehicles" />
@@ -204,8 +212,8 @@ export default function PartyLedgerPage() {
                             {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
                         </SelectContent>
                     </Select>
-                    {activePartyTab !== 'All' && (
-                        <Button variant="outline" onClick={() => router.push(`/fleet/ledger/${activePartyTab}`)}>
+                    {filterPartyId !== 'All' && (
+                        <Button variant="outline" onClick={() => router.push(`/fleet/ledger/${filterPartyId}`)}>
                             <View className="mr-2 h-4 w-4" /> View Ledger
                         </Button>
                     )}
@@ -214,17 +222,9 @@ export default function PartyLedgerPage() {
                     </Button>
                 </div>
             </div>
-             <Tabs value={activePartyTab} onValueChange={setActivePartyTab}>
-                <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-6">
-                    <TabsTrigger value="All">All Parties</TabsTrigger>
-                    {parties.map(p => (
-                        <TabsTrigger key={p.id} value={p.id}>{p.name}</TabsTrigger>
-                    ))}
-                </TabsList>
-                <TabsContent value={activePartyTab} className="mt-4">
-                    {renderContent()}
-                </TabsContent>
-            </Tabs>
+            <div className="mt-4">
+              {renderContent()}
+            </div>
         </div>
     );
 }
