@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -39,7 +38,7 @@ const nepaliMonths = [
     { value: 9, name: "Magh" }, { value: 10, name: "Falgun" }, { value: 11, name: "Chaitra" }
 ];
 
-const attendanceStatuses: AttendanceStatus[] = ['Present', 'C/I Miss', 'C/O Miss', 'Saturday', 'Public Holiday', 'Missing Details'];
+const attendanceStatuses: AttendanceStatus[] = ['Present', 'Absent', 'Saturday', 'Public Holiday'];
 
 export default function AttendancePage() {
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
@@ -251,10 +250,8 @@ export default function AttendancePage() {
         if (nepaliDate.getDay() === 6) {
           status = 'Saturday';
         } else {
-            if (!clockInValue) {
-                status = 'C/I Miss';
-            } else if (!clockOutValue) {
-                status = 'C/O Miss';
+            if (!clockInValue || !clockOutValue) {
+                status = 'Absent';
             } else {
                 status = 'Present';
             }
