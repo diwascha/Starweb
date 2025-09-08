@@ -28,9 +28,15 @@ type SortDirection = 'asc' | 'desc';
 
 const cleanEmployeeName = (name: any): string => {
   if (typeof name !== 'string') return '';
-  // Trim whitespace, replace multiple spaces with a single space, and convert to lowercase
   return name.trim().replace(/\s+/g, ' ').toLowerCase();
 };
+
+const nepaliMonths = [
+    { value: 0, name: "Baishakh" }, { value: 1, name: "Jestha" }, { value: 2, name: "Ashadh" },
+    { value: 3, name: "Shrawan" }, { value: 4, name: "Bhadra" }, { value: 5, name: "Ashwin" },
+    { value: 6, name: "Kartik" }, { value: 7, name: "Mangsir" }, { value: 8, name: "Poush" },
+    { value: 9, name: "Magh" }, { value: 10, name: "Falgun" }, { value: 11, name: "Chaitra" }
+];
 
 export default function AttendancePage() {
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
@@ -45,10 +51,29 @@ export default function AttendancePage() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [filterEmployeeName, setFilterEmployeeName] = useState<string>('All');
   
+  const [bsYears, setBsYears] = useState<number[]>([]);
+  const [selectedBsYear, setSelectedBsYear] = useState<string>('');
+  const [selectedBsMonth, setSelectedBsMonth] = useState<string>('');
+
   useEffect(() => {
     setIsClient(true);
     const unsubEmployees = onEmployeesUpdate(setEmployees);
-    const unsubAttendance = onAttendanceUpdate(setAttendance);
+    const unsubAttendance = onAttendanceUpdate((records) => {
+        setAttendance(records);
+        if (records.length > 0) {
+            const years = new Set(records.map(r => new NepaliDate(new Date(r.date)).getYear()));
+            const sortedYears = Array.from(years).sort((a, b) => b - a);
+            setBsYears(sortedYears);
+            
+            // Set default filter to the latest month with data
+            if (!selectedBsYear && !selectedBsMonth) {
+                const latestRecord = records.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+                const latestNepaliDate = new NepaliDate(new Date(latestRecord.date));
+                setSelectedBsYear(String(latestNepaliDate.getYear()));
+                setSelectedBsMonth(String(latestNepaliDate.getMonth()));
+            }
+        }
+    });
 
     return () => {
         unsubEmployees();
@@ -69,7 +94,7 @@ export default function AttendancePage() {
         const workbook = XLSX.read(data, { type: 'array', cellDates: true });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json<any>(worksheet, { header: 1 }); // Read as array of arrays
+        const jsonData = XLSX.utils.sheet_to_json<any>(worksheet, { header: 1 });
         
         parseAndStoreAttendance(jsonData);
       } catch (error) {
@@ -265,6 +290,13 @@ export default function AttendancePage() {
   const filteredAndSortedRecords = useMemo(() => {
     let filtered = [...attendance];
     
+    if (selectedBsYear) {
+      filtered = filtered.filter(r => new NepaliDate(new Date(r.date)).getYear() === parseInt(selectedBsYear, 10));
+    }
+    if (selectedBsMonth) {
+        filtered = filtered.filter(r => new NepaliDate(new Date(r.date)).getMonth() === parseInt(selectedBsMonth, 10));
+    }
+
     if (dateRange?.from) {
         const interval = {
             start: startOfDay(dateRange.from),
@@ -296,15 +328,21 @@ export default function AttendancePage() {
       if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
       if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
       
-      // Secondary sort to keep things stable
-      if (a.date < b.date) return -1;
-      if (a.date > b.date) return 1;
+      if (sortConfig.key !== 'employeeName') {
+         const nameCompare = a.employeeName.localeCompare(b.employeeName);
+         if (nameCompare !== 0) return nameCompare;
+      } else {
+          const dateA = new Date(a.date).getTime();
+          const dateB = new Date(b.date).getTime();
+          if (dateA < dateB) return -1;
+          if (dateA > dateB) return 1;
+      }
 
       return 0;
     });
     
     return filtered;
-  }, [attendance, sortConfig, searchQuery, dateRange, filterEmployeeName]);
+  }, [attendance, sortConfig, searchQuery, dateRange, filterEmployeeName, selectedBsYear, selectedBsMonth]);
   
   const uniqueEmployeeNames = useMemo(() => {
       const names = new Set(employees.map(e => e.name));
@@ -404,7 +442,27 @@ export default function AttendancePage() {
       {attendance.length > 0 && (
           <div className="flex flex-col sm:flex-row flex-wrap gap-2 items-center">
               <Label>Filter by:</Label>
-               <Popover>
+              <Select value={selectedBsYear} onValueChange={setSelectedBsYear}>
+                  <SelectTrigger className="w-full sm:w-[120px]">
+                      <SelectValue placeholder="Year (BS)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                      {bsYears.map(year => (
+                          <SelectItem key={year} value={String(year)}>{year}</SelectItem>
+                      ))}
+                  </SelectContent>
+              </Select>
+              <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth}>
+                  <SelectTrigger className="w-full sm:w-[150px]">
+                      <SelectValue placeholder="Month (BS)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                      {nepaliMonths.map(month => (
+                          <SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>
+                      ))}
+                  </SelectContent>
+              </Select>
+              <Popover>
                   <PopoverTrigger asChild>
                       <Button id="date" variant={"outline"} className={cn("w-full sm:w-auto justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
                           <CalendarIcon className="mr-2 h-4 w-4" />
@@ -416,7 +474,7 @@ export default function AttendancePage() {
                   </PopoverContent>
               </Popover>
                <Select value={filterEmployeeName} onValueChange={setFilterEmployeeName}>
-                  <SelectTrigger className="w-full sm:w-auto">
+                  <SelectTrigger className="w-full sm:w-[180px]">
                       <SelectValue placeholder="Select Employee" />
                   </SelectTrigger>
                   <SelectContent>
@@ -432,5 +490,3 @@ export default function AttendancePage() {
     </div>
   );
 }
-
-    
