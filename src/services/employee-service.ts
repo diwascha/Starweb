@@ -11,7 +11,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Employee 
     return {
         id: snapshot.id,
         name: data.name,
-        status: data.status,
+        status: data.status || 'Working', // Default to 'Working' if status is not set
         department: data.department,
         position: data.position,
         wageBasis: data.wageBasis,
