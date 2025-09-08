@@ -135,7 +135,6 @@ export default function PayslipView({ employee, payroll, bsYear, bsMonthName }: 
             <div><span className="font-semibold">Employee Name:</span> {employee.name}</div>
             <div><span className="font-semibold">Department:</span> {employee.department}</div>
             <div><span className="font-semibold">Position:</span> {employee.position}</div>
-            <div><span className="font-semibold">Joining Date:</span> {employee.joiningDate ? toNepaliDate(employee.joiningDate) : 'N/A'}</div>
         </div>
 
         <Separator className="my-2 bg-gray-300"/>
