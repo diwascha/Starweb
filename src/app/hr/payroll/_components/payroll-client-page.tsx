@@ -287,7 +287,7 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
                 </CardHeader>
                 <CardContent>
                     <Tabs defaultValue="punctuality">
-                        <TabsList className="grid w-full grid-cols-3">
+                        <TabsList>
                             <TabsTrigger value="punctuality">Punctuality</TabsTrigger>
                             <TabsTrigger value="workforce">Workforce Analytics</TabsTrigger>
                             <TabsTrigger value="behavior">Behavior &amp; Performance Insights</TabsTrigger>
