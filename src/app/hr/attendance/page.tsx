@@ -28,6 +28,7 @@ type SortDirection = 'asc' | 'desc';
 
 const cleanEmployeeName = (name: any): string => {
   if (typeof name !== 'string') return '';
+  // More robust cleaning: trim, replace multiple spaces, and convert to lowercase
   return name.trim().replace(/\s+/g, ' ').toLowerCase();
 };
 
@@ -293,10 +294,10 @@ export default function AttendancePage() {
   const filteredAndSortedRecords = useMemo(() => {
     let filtered = [...attendance];
     
-    if (selectedBsYear) {
+    if (selectedBsYear && !dateRange) {
       filtered = filtered.filter(r => new NepaliDate(new Date(r.date)).getYear() === parseInt(selectedBsYear, 10));
     }
-    if (selectedBsMonth) {
+    if (selectedBsMonth && !dateRange) {
         filtered = filtered.filter(r => new NepaliDate(new Date(r.date)).getMonth() === parseInt(selectedBsMonth, 10));
     }
 
@@ -356,6 +357,19 @@ export default function AttendancePage() {
       return ['All', ...Array.from(names).sort()];
   }, [employees]);
   
+  const getActualTimeDisplay = (record: AttendanceRecord) => {
+    if (!record.clockIn && !record.clockOut) {
+      return '-';
+    }
+    if (record.clockIn && !record.clockOut) {
+      return `${record.clockIn} - (Missing clock out)`;
+    }
+    if (!record.clockIn && record.clockOut) {
+      return `(Missing clock in)`;
+    }
+    return `${record.clockIn} - ${record.clockOut}`;
+  };
+
   const renderContent = () => {
     if (!isClient) {
       return (
@@ -403,7 +417,7 @@ export default function AttendancePage() {
                 <TableCell>{record.employeeName}</TableCell>
                 <TableCell>{format(new Date(record.date), 'EEEE')}</TableCell>
                 <TableCell>{record.onDuty} - {record.offDuty}</TableCell>
-                <TableCell>{record.clockIn} - {record.clockOut}</TableCell>
+                <TableCell>{getActualTimeDisplay(record)}</TableCell>
                 <TableCell>
                   <Badge variant={getAttendanceBadgeVariant(record.status)}>
                     {record.status === 'Saturday' ? 'Day Off' : record.status}
