@@ -1,4 +1,5 @@
 
+import type { AttendanceRecord } from '@/lib/types';
 import {
   addMinutes,
   differenceInMinutes,
@@ -14,6 +15,8 @@ import {
   format,
 } from 'date-fns';
 import NepaliDate from 'nepali-date-converter';
+import type { Employee, Payroll, PunctualityInsight, BehaviorInsight, PatternInsight, WorkforceAnalytics } from '@/lib/types';
+
 
 /* =========================
    Config / policy constants
@@ -173,9 +176,9 @@ function missingMessage(hasIn: boolean, okIn: boolean, hasOut: boolean, okOut: b
 /* =========================
    Core daily calculation
    ========================= */
-export function calculateAttendanceRows(rows: RawAttendanceRow[]): CalcAttendanceRow[] {
-  const freeLateUsed = new Map<string, true>();
-  const freeEarlyUsed = new Map<string, true>();
+export function calculateAttendanceRows(rows: RawAttendanceRow[], weeklyGraceState?: { freeLateUsed: Map<string, true>, freeEarlyUsed: Map<string, true> }): CalcAttendanceRow[] {
+  const freeLateUsed = weeklyGraceState?.freeLateUsed || new Map<string, true>();
+  const freeEarlyUsed = weeklyGraceState?.freeEarlyUsed || new Map<string, true>();
 
   return rows.map((raw): CalcAttendanceRow => {
     const name = (raw.employeeName || '').trim();
@@ -329,6 +332,19 @@ export function calculateAttendanceRows(rows: RawAttendanceRow[]): CalcAttendanc
   });
 }
 
+export function reprocessSingleRecord(raw: RawAttendanceRow): Partial<AttendanceRecord> {
+  const result = calculateAttendanceRows([raw])[0];
+  return {
+    date: result.dateADISO,
+    bsDate: result.dateBS,
+    status: result.normalizedStatus as any,
+    grossHours: result.grossHours,
+    regularHours: result.regularHours,
+    overtimeHours: result.overtimeHours,
+    remarks: result.calcRemarks,
+  };
+}
+
 /* =========================
    Worked-if-both-valid (holiday/Saturday)
    ========================= */
@@ -368,4 +384,111 @@ export function aggregateByEmployee(rows: CalcAttendanceRow[]): MonthlyEmployeeT
     a.grossHours = +a.grossHours.toFixed(1);
   }
   return [...byEmp.values()];
+}
+
+
+// Placeholder for the main payroll and analytics function
+export interface PayrollAndAnalyticsData {
+    payroll: Payroll[];
+    punctuality: PunctualityInsight[];
+    behavior: BehaviorInsight[];
+    patternInsights: PatternInsight[];
+    workforce: WorkforceAnalytics[];
+    dayOfWeek: { day: string; lateArrivals: number; absenteeism: number }[];
+}
+
+
+export function generatePayrollAndAnalytics(
+    bsYear: number,
+    bsMonth: number,
+    employees: Employee[],
+    allAttendance: AttendanceRecord[]
+): PayrollAndAnalyticsData {
+    // This is a placeholder implementation.
+    // A full implementation would filter attendance for the month,
+    // calculate payroll for each employee based on their wage and hours,
+    // and generate the various analytics insights.
+    
+    const monthlyAttendance = allAttendance.filter(r => {
+        const nepaliDate = new NepaliDate(new Date(r.date));
+        return nepaliDate.getYear() === bsYear && nepaliDate.getMonth() === bsMonth;
+    });
+
+    const payroll: Payroll[] = employees.map(employee => {
+        const employeeAttendance = monthlyAttendance.filter(r => r.employeeName === employee.name);
+        
+        const regularHours = employeeAttendance.reduce((sum, r) => sum + (r.regularHours || 0), 0);
+        const overtimeHours = employeeAttendance.reduce((sum, r) => sum + (r.overtimeHours || 0), 0);
+        const totalHours = regularHours + overtimeHours;
+        
+        const absentDays = employeeAttendance.filter(r => r.status === 'Absent' || r.status === 'C/I Miss' || r.status === 'C/O Miss').length;
+        
+        let rate = 0;
+        let regularPay = 0;
+        let otPay = 0;
+        let deduction = 0;
+        
+        if (employee.wageBasis === 'Monthly') {
+            const monthlySalary = employee.wageAmount;
+            const daysInMonth = new NepaliDate(bsYear, bsMonth, 1).getDaysInMonth();
+            const dailyRate = monthlySalary / daysInMonth;
+            const hourlyRate = dailyRate / 8;
+            rate = hourlyRate;
+
+            regularPay = regularHours * hourlyRate;
+            otPay = overtimeHours * hourlyRate * 1.5; // Assuming 1.5x OT rate
+            deduction = absentDays * dailyRate;
+
+        } else { // Hourly
+            rate = employee.wageAmount;
+            regularPay = regularHours * rate;
+            otPay = overtimeHours * rate * 1.5;
+        }
+
+        const totalPay = regularPay + otPay;
+        const allowance = employee.allowance || 0;
+        const salaryTotal = totalPay + allowance - deduction;
+        const tds = salaryTotal * 0.01; // Simplified 1% TDS
+        const gross = salaryTotal - tds;
+        const advance = 0; // This will be handled by adjustments
+        const netPayment = gross - advance;
+        
+        return {
+            employeeId: employee.id,
+            employeeName: employee.name,
+            totalHours,
+            otHours: overtimeHours,
+            regularHours,
+            rate,
+            regularPay,
+            otPay,
+            totalPay,
+            absentDays,
+            deduction,
+            allowance,
+            salaryTotal,
+            tds,
+            gross,
+            advance,
+            netPayment,
+            remark: '',
+        };
+    });
+
+    // Placeholder for analytics data
+    const punctuality: PunctualityInsight[] = [];
+    const behavior: BehaviorInsight[] = [];
+    const patternInsights: PatternInsight[] = [];
+    const workforce: WorkforceAnalytics[] = [];
+    const dayOfWeek = [
+        { day: 'Sunday', lateArrivals: 0, absenteeism: 0 },
+        { day: 'Monday', lateArrivals: 0, absenteeism: 0 },
+        { day: 'Tuesday', lateArrivals: 0, absenteeism: 0 },
+        { day: 'Wednesday', lateArrivals: 0, absenteeism: 0 },
+        { day: 'Thursday', lateArrivals: 0, absenteeism: 0 },
+        { day: 'Friday', lateArrivals: 0, absenteeism: 0 },
+    ];
+
+
+    return { payroll, punctuality, behavior, patternInsights, workforce, dayOfWeek };
 }

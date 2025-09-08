@@ -21,7 +21,7 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 import type { DateRange } from 'react-day-picker';
-import { processAttendanceImport, reprocessSingleRecord } from '@/services/payroll-service';
+import { calculateAttendanceRows, reprocessSingleRecord, type RawAttendanceRow } from '@/services/payroll-service';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
@@ -103,7 +103,63 @@ export default function AttendancePage() {
         const worksheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json<any>(worksheet, { header: 1 });
         
-        const { newRecords, newlyAddedEmployees, skippedRows } = await processAttendanceImport(jsonData, employees, user.username);
+        const existingEmployeeNames = new Set(employees.map(emp => emp.name.toLowerCase()));
+        const newlyAddedEmployees = new Set<string>();
+        let skippedRows = 0;
+        
+        const rawAttendanceData: RawAttendanceRow[] = [];
+        
+        for (const row of jsonData.slice(1)) {
+            if (!row[0] || !row[1]) {
+                skippedRows++;
+                continue;
+            }
+            const employeeName = String(row[0]).trim();
+            const dateValue = row[1];
+            
+            if (!existingEmployeeNames.has(employeeName.toLowerCase())) {
+                 const newEmployee: Omit<Employee, 'id'> = {
+                    name: employeeName,
+                    wageBasis: 'Monthly',
+                    wageAmount: 0, 
+                    createdBy: user.username,
+                    createdAt: new Date().toISOString(),
+                    status: 'Working'
+                };
+                await addEmployee(newEmployee);
+                existingEmployeeNames.add(employeeName.toLowerCase());
+                newlyAddedEmployees.add(employeeName);
+            }
+
+            rawAttendanceData.push({
+                employeeName: employeeName,
+                dateAD: dateValue instanceof Date ? dateValue : String(dateValue),
+                onDuty: row[2] ? String(row[2]) : null,
+                offDuty: row[3] ? String(row[3]) : null,
+                clockIn: row[4] ? String(row[4]) : null,
+                clockOut: row[5] ? String(row[5]) : null,
+                status: row[6] ? String(row[6]) : '',
+                remarks: row[8] ? String(row[8]) : null,
+            });
+        }
+        
+        const processedRecords = calculateAttendanceRows(rawAttendanceData);
+
+        const newRecords = processedRecords.map(p => ({
+            date: p.dateADISO,
+            bsDate: p.dateBS,
+            employeeName: p.employeeName,
+            onDuty: p.onDuty || null,
+            offDuty: p.offDuty || null,
+            clockIn: p.clockIn || null,
+            clockOut: p.clockOut || null,
+            status: p.normalizedStatus as AttendanceStatus,
+            grossHours: p.grossHours,
+            overtimeHours: p.overtimeHours,
+            regularHours: p.regularHours,
+            remarks: p.calcRemarks,
+            importedBy: user.username,
+        }));
 
         if (newRecords.length > 0) {
             await addAttendanceRecords(newRecords);
@@ -152,15 +208,11 @@ export default function AttendancePage() {
   const handleSaveEdit = async () => {
     if (!editingRecord || !user) return;
 
-    const updatedRecordData: Partial<AttendanceRecord> = {
+    const reprocessed = reprocessSingleRecord({
+        ...editingRecord,
         clockIn: editForm.clockIn || null,
         clockOut: editForm.clockOut || null,
         status: editForm.status
-    };
-
-    const reprocessed = reprocessSingleRecord({
-        ...editingRecord,
-        ...updatedRecordData,
     });
     
     try {
