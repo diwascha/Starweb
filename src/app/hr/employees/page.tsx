@@ -48,7 +48,7 @@ import { DualCalendar } from '@/components/ui/dual-calendar';
 import { cn, toNepaliDate } from '@/lib/utils';
 
 
-type EmployeeSortKey = 'name' | 'wageBasis' | 'wageAmount' | 'allowance' | 'authorship' | 'mobileNumber' | 'gender';
+type EmployeeSortKey = 'name' | 'wageBasis' | 'wageAmount' | 'allowance' | 'authorship' | 'mobileNumber' | 'gender' | 'joiningDate';
 type SortDirection = 'asc' | 'desc';
 
 const initialFormState = {
@@ -60,6 +60,7 @@ const initialFormState = {
     gender: 'Male' as Gender,
     mobileNumber: '',
     dateOfBirth: new Date().toISOString(),
+    joiningDate: new Date().toISOString(),
     identityType: 'Citizenship' as IdentityType,
     documentNumber: ''
 };
@@ -113,6 +114,7 @@ export default function EmployeesPage() {
         gender: employee.gender || 'Male',
         mobileNumber: employee.mobileNumber || '',
         dateOfBirth: employee.dateOfBirth || new Date().toISOString(),
+        joiningDate: employee.joiningDate || new Date().toISOString(),
         identityType: employee.identityType || 'Citizenship',
         documentNumber: employee.documentNumber || ''
     });
@@ -128,9 +130,9 @@ export default function EmployeesPage() {
       setFormState(prev => ({ ...prev, [name]: value }));
   };
   
-  const handleDateChange = (date: Date | undefined) => {
+  const handleDateChange = (fieldName: 'dateOfBirth' | 'joiningDate', date: Date | undefined) => {
     if (date) {
-        setFormState(prev => ({...prev, dateOfBirth: date.toISOString()}));
+        setFormState(prev => ({...prev, [fieldName]: date.toISOString()}));
     }
   };
 
@@ -158,6 +160,7 @@ export default function EmployeesPage() {
           gender: formState.gender,
           mobileNumber: formState.mobileNumber,
           dateOfBirth: formState.dateOfBirth,
+          joiningDate: formState.joiningDate,
           identityType: formState.identityType,
           documentNumber: formState.documentNumber,
       };
@@ -265,8 +268,8 @@ export default function EmployeesPage() {
           <TableHeader>
             <TableRow>
               <TableHead><Button variant="ghost" onClick={() => requestSort('name')}>Employee Name <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+              <TableHead><Button variant="ghost" onClick={() => requestSort('joiningDate')}>Joining Date <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('mobileNumber')}>Mobile Number <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-              <TableHead><Button variant="ghost" onClick={() => requestSort('gender')}>Gender <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('wageAmount')}>Amount <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('allowance')}>Allowance <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('authorship')}>Authorship <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
@@ -277,8 +280,8 @@ export default function EmployeesPage() {
             {filteredAndSortedEmployees.map(employee => (
               <TableRow key={employee.id}>
                 <TableCell className="font-medium">{employee.name}</TableCell>
+                <TableCell>{employee.joiningDate ? toNepaliDate(employee.joiningDate) : 'N/A'}</TableCell>
                 <TableCell>{employee.mobileNumber || 'N/A'}</TableCell>
-                <TableCell>{employee.gender || 'N/A'}</TableCell>
                 <TableCell>{employee.wageAmount.toLocaleString()}</TableCell>
                 <TableCell>{(employee.allowance || 0).toLocaleString()}</TableCell>
                 <TableCell>
@@ -381,19 +384,35 @@ export default function EmployeesPage() {
                         <Label htmlFor="address">Address</Label>
                         <Textarea id="address" name="address" value={formState.address} onChange={handleFormChange} />
                     </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="dateOfBirth">Date of Birth</Label>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formState.dateOfBirth && "text-muted-foreground")}>
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {formState.dateOfBirth ? `${toNepaliDate(formState.dateOfBirth)} BS (${format(new Date(formState.dateOfBirth), "PPP")})` : <span>Pick a date</span>}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0">
-                                <DualCalendar selected={new Date(formState.dateOfBirth)} onSelect={handleDateChange} />
-                            </PopoverContent>
-                        </Popover>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formState.dateOfBirth && "text-muted-foreground")}>
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {formState.dateOfBirth ? `${toNepaliDate(formState.dateOfBirth)} BS (${format(new Date(formState.dateOfBirth), "PPP")})` : <span>Pick a date</span>}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0">
+                                    <DualCalendar selected={new Date(formState.dateOfBirth)} onSelect={(date) => handleDateChange('dateOfBirth', date)} />
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="joiningDate">Joining Date</Label>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formState.joiningDate && "text-muted-foreground")}>
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {formState.joiningDate ? `${toNepaliDate(formState.joiningDate)} BS (${format(new Date(formState.joiningDate), "PPP")})` : <span>Pick a date</span>}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0">
+                                    <DualCalendar selected={new Date(formState.joiningDate)} onSelect={(date) => handleDateChange('joiningDate', date)} />
+                                </PopoverContent>
+                            </Popover>
+                        </div>
                     </div>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">

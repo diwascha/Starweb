@@ -7,6 +7,7 @@
 
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -125,6 +126,7 @@ export interface Employee {
   gender?: Gender;
   mobileNumber?: string;
   dateOfBirth?: string; // ISO string
+  joiningDate?: string; // ISO string
   identityType?: IdentityType;
   documentNumber?: string;
   createdBy: string;
