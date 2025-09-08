@@ -16,11 +16,16 @@ import { format, parse } from 'date-fns';
 import { onEmployeesUpdate, addEmployee } from '@/services/employee-service';
 import { onAttendanceUpdate, addAttendanceRecords } from '@/services/attendance-service';
 import { getAttendanceBadgeVariant } from '@/lib/utils';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 
 type SortKey = 'date' | 'employeeName' | 'status';
 type SortDirection = 'asc' | 'desc';
 
-// More robust name cleaning function
+const nepaliMonths = [
+  "Baishakh", "Jestha", "Ashadh", "Shrawan", "Bhadra", "Ashwin",
+  "Kartik", "Mangsir", "Poush", "Magh", "Falgun", "Chaitra"
+];
+
 const cleanEmployeeName = (name: any): string => {
   if (typeof name !== 'string') return '';
   return name.trim().replace(/\s+/g, ' ').toLowerCase();
@@ -36,16 +41,65 @@ export default function AttendancePage() {
   const [isClient, setIsClient] = useState(false);
   const { hasPermission, user } = useAuth();
   
+  const [selectedBsYear, setSelectedBsYear] = useState<string>('');
+  const [selectedBsMonth, setSelectedBsMonth] = useState<string>('');
+  
+  const { availableYears, availableMonths } = useMemo(() => {
+    const yearMonthSet = new Set<string>();
+    attendance.forEach(r => {
+        if(r.bsDate) {
+            yearMonthSet.add(r.bsDate.substring(0, 7)); // YYYY-MM
+        }
+    });
+    
+    const sortedYearMonths = Array.from(yearMonthSet).sort().reverse();
+    const years = [...new Set(sortedYearMonths.map(ym => ym.substring(0, 4)))];
+    
+    let monthsForYear: string[] = [];
+    if (selectedBsYear) {
+      monthsForYear = [...new Set(
+        sortedYearMonths
+          .filter(ym => ym.startsWith(selectedBsYear))
+          .map(ym => ym.substring(5, 7))
+      )];
+    }
+    
+    return { availableYears: years, availableMonths: monthsForYear };
+
+  }, [attendance, selectedBsYear]);
+  
   useEffect(() => {
     setIsClient(true);
     const unsubEmployees = onEmployeesUpdate(setEmployees);
-    const unsubAttendance = onAttendanceUpdate(setAttendance);
+    const unsubAttendance = onAttendanceUpdate((records) => {
+        setAttendance(records);
+        // Set default filter to the latest month with data
+        if (records.length > 0) {
+            const latestRecord = records.sort((a, b) => b.bsDate.localeCompare(a.bsDate))[0];
+            if (latestRecord && latestRecord.bsDate) {
+                const latestYear = latestRecord.bsDate.substring(0, 4);
+                const latestMonth = latestRecord.bsDate.substring(5, 7);
+                if (!selectedBsYear) setSelectedBsYear(latestYear);
+                if (!selectedBsMonth) setSelectedBsMonth(latestMonth);
+            }
+        }
+    });
 
     return () => {
         unsubEmployees();
         unsubAttendance();
     }
   }, []);
+  
+  useEffect(() => {
+      // If the selected year changes, update the available months and select the first one
+      if (selectedBsYear && availableMonths.length > 0) {
+          if (!availableMonths.includes(selectedBsMonth)) {
+              setSelectedBsMonth(availableMonths[0]);
+          }
+      }
+  }, [selectedBsYear, availableMonths, selectedBsMonth]);
+
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -244,6 +298,11 @@ export default function AttendancePage() {
   const filteredAndSortedRecords = useMemo(() => {
     let filtered = [...attendance];
     
+    if (selectedBsYear && selectedBsMonth) {
+        const yearMonthPrefix = `${selectedBsYear}-${selectedBsMonth}`;
+        filtered = filtered.filter(record => record.bsDate && record.bsDate.startsWith(yearMonthPrefix));
+    }
+    
     if (searchQuery) {
       const lowercasedQuery = searchQuery.toLowerCase();
       filtered = filtered.filter(record =>
@@ -262,7 +321,7 @@ export default function AttendancePage() {
     });
     
     return filtered;
-  }, [attendance, sortConfig, searchQuery]);
+  }, [attendance, sortConfig, searchQuery, selectedBsYear, selectedBsMonth]);
   
   const renderContent = () => {
     if (!isClient) {
@@ -321,18 +380,18 @@ export default function AttendancePage() {
   
   return (
     <div className="flex flex-col gap-8">
-      <header className="flex items-center justify-between">
+      <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Attendance</h1>
           <p className="text-muted-foreground">Manage and import employee attendance records.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row items-center gap-2">
            <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
               placeholder="Search by employee..."
-              className="pl-8 sm:w-[300px]"
+              className="pl-8 w-full sm:w-auto"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -340,13 +399,40 @@ export default function AttendancePage() {
           {hasPermission('hr', 'create') && (
             <>
                 <Input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".xlsx, .xls"/>
-                <Button onClick={() => fileInputRef.current?.click()}>
+                <Button onClick={() => fileInputRef.current?.click()} className="w-full sm:w-auto">
                     <Upload className="mr-2 h-4 w-4" /> Import Attendance
                 </Button>
             </>
            )}
         </div>
       </header>
+
+      {attendance.length > 0 && (
+          <div className="flex flex-col sm:flex-row gap-2 items-center">
+              <Label>Filter by month:</Label>
+              <Select value={selectedBsYear} onValueChange={setSelectedBsYear}>
+                  <SelectTrigger className="w-full sm:w-[180px]">
+                      <SelectValue placeholder="Select Year (BS)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                      {availableYears.map(year => (
+                          <SelectItem key={year} value={year}>{year}</SelectItem>
+                      ))}
+                  </SelectContent>
+              </Select>
+              <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth} disabled={!selectedBsYear}>
+                  <SelectTrigger className="w-full sm:w-[180px]">
+                      <SelectValue placeholder="Select Month (BS)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                      {availableMonths.map(month => (
+                          <SelectItem key={month} value={month}>{nepaliMonths[parseInt(month, 10) - 1]}</SelectItem>
+                      ))}
+                  </SelectContent>
+              </Select>
+          </div>
+      )}
+
       {renderContent()}
     </div>
   );
