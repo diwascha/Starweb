@@ -1,4 +1,5 @@
 
+
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import type { Report, PurchaseOrder, PurchaseOrderStatus, AttendanceStatus, User, Transaction, DocumentPrefixes, Trip } from './types';
@@ -137,6 +138,7 @@ export const getAttendanceBadgeVariant = (status: AttendanceStatus) => {
         case 'Public Holiday': return 'default';
         case 'C/I Miss': return 'secondary';
         case 'C/O Miss': return 'secondary';
+        case 'Missing Details': return 'secondary';
         default: return 'secondary';
     }
 };

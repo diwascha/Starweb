@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -38,7 +39,7 @@ const nepaliMonths = [
     { value: 9, name: "Magh" }, { value: 10, name: "Falgun" }, { value: 11, name: "Chaitra" }
 ];
 
-const attendanceStatuses: AttendanceStatus[] = ['Present', 'Absent', 'Saturday', 'Public Holiday', 'C/I Miss', 'C/O Miss'];
+const attendanceStatuses: AttendanceStatus[] = ['Present', 'Absent', 'Saturday', 'Public Holiday', 'C/I Miss', 'C/O Miss', 'Missing Details'];
 
 export default function AttendancePage() {
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
@@ -119,7 +120,6 @@ export default function AttendancePage() {
       if (time === null || time === undefined || time === '' || time === 0 || (typeof time === 'string' && time.trim() === '-')) return null;
       
       if (time instanceof Date) {
-        // Check for invalid date objects that can result from parsing
         if (isNaN(time.getTime())) return null;
         return format(time, 'HH:mm');
       }
@@ -135,9 +135,8 @@ export default function AttendancePage() {
         }
       }
       
-      // Handle Excel's numeric time format
       if (typeof time === 'number') { 
-        if (time < 0 || time >= 1) return null; // Excel time is a fraction of a day
+        if (time < 0 || time >= 1) return null;
         const excelEpoch = new Date(1899, 11, 30);
         const date = new Date(excelEpoch.getTime() + time * 24 * 60 * 60 * 1000);
         return format(date, 'HH:mm');
@@ -251,10 +250,8 @@ export default function AttendancePage() {
         if (nepaliDate.getDay() === 6) {
             status = 'Saturday';
         } else {
-            if (clockInValue === null) {
-                status = 'C/I Miss';
-            } else if (clockOutValue === null) {
-                status = 'C/O Miss';
+            if (!clockInValue || !clockOutValue) {
+                status = 'Missing Details';
             } else {
                 status = 'Present';
             }
