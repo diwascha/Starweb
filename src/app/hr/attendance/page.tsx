@@ -326,18 +326,18 @@ export default function AttendancePage() {
     }
 
     filtered.sort((a, b) => {
-      // Primary sort by employee name
-      const nameA = a.employeeName.toLowerCase();
-      const nameB = b.employeeName.toLowerCase();
-      if (nameA < nameB) return -1;
-      if (nameA > nameB) return 1;
+      const aVal = a[sortConfig.key];
+      const bVal = b[sortConfig.key];
 
-      // Secondary sort by date
-      const dateA = new Date(a.date).getTime();
-      const dateB = new Date(b.date).getTime();
-      if (dateA < dateB) return -1;
-      if (dateA > dateB) return 1;
+      if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
       
+      // Secondary sort to keep things stable
+      if (a.employeeName < b.employeeName) return -1;
+      if (a.employeeName > b.employeeName) return 1;
+      if (a.date < b.date) return -1;
+      if (a.date > b.date) return 1;
+
       return 0;
     });
     
