@@ -305,11 +305,12 @@ export function calculateAttendance(rows: WebRow[]): CalcRow[] {
     return finalize();
 
     function finalize(): CalcRow {
+      const isAdValid = !Number.isNaN(ad.getTime());
       return {
         ...row,
-        dateADISO: format(ad, 'yyyy-MM-dd'),
-        dateBS,
-        weekdayAD: weekday,
+        dateADISO: isAdValid ? format(ad, 'yyyy-MM-dd') : '',
+        dateBS: isAdValid ? toBSString(ad) : '',
+        weekdayAD: isAdValid ? weekday : -1,
         normalizedStatus: status,
         grossHours: +gross.toFixed(1),
         regularHours: +regular.toFixed(1),
