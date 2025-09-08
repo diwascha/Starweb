@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import type { AttendanceRecord, Employee } from '@/lib/types';
+import type { AttendanceRecord, Employee, AttendanceStatus } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -38,11 +38,13 @@ const nepaliMonths = [
     { value: 9, name: "Magh" }, { value: 10, name: "Falgun" }, { value: 11, name: "Chaitra" }
 ];
 
+const attendanceStatuses: AttendanceStatus[] = ['Present', 'Absent', 'Saturday', 'Public Holiday'];
+
 export default function AttendancePage() {
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
+  const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'employeeName', direction: 'asc' });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
@@ -50,6 +52,7 @@ export default function AttendancePage() {
   
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [filterEmployeeName, setFilterEmployeeName] = useState<string>('All');
+  const [filterStatus, setFilterStatus] = useState<'All' | AttendanceStatus>('All');
   
   const [bsYears, setBsYears] = useState<number[]>([]);
   const [selectedBsYear, setSelectedBsYear] = useState<string>('');
@@ -316,6 +319,10 @@ export default function AttendancePage() {
         filtered = filtered.filter(record => record.employeeName === filterEmployeeName);
     }
 
+    if (filterStatus !== 'All') {
+        filtered = filtered.filter(record => record.status === filterStatus);
+    }
+
     filtered.sort((a, b) => {
       if (sortConfig.key === 'employeeName') {
         const nameCompare = a.employeeName.localeCompare(b.employeeName);
@@ -342,7 +349,7 @@ export default function AttendancePage() {
     });
     
     return filtered;
-  }, [attendance, sortConfig, searchQuery, dateRange, filterEmployeeName, selectedBsYear, selectedBsMonth]);
+  }, [attendance, sortConfig, searchQuery, dateRange, filterEmployeeName, selectedBsYear, selectedBsMonth, filterStatus]);
   
   const uniqueEmployeeNames = useMemo(() => {
       const names = new Set(employees.map(e => e.name));
@@ -480,6 +487,19 @@ export default function AttendancePage() {
                   <SelectContent>
                       {uniqueEmployeeNames.map(name => (
                           <SelectItem key={name} value={name}>{name}</SelectItem>
+                      ))}
+                  </SelectContent>
+              </Select>
+               <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as 'All' | AttendanceStatus)}>
+                  <SelectTrigger className="w-full sm:w-[180px]">
+                      <SelectValue placeholder="Select Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                      <SelectItem value="All">All Statuses</SelectItem>
+                      {attendanceStatuses.map(status => (
+                          <SelectItem key={status} value={status}>
+                              {status === 'Saturday' ? 'Day Off' : status}
+                          </SelectItem>
                       ))}
                   </SelectContent>
               </Select>
