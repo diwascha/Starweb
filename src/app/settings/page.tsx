@@ -24,7 +24,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, MoreHorizontal, Search, Save, KeyRound, Download, Upload, View } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, Search, Save, KeyRound, Download, Upload, View, ChevronDown } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
@@ -37,7 +37,7 @@ import { onPartiesUpdate, addParty, updateParty, deleteParty } from '@/services/
 import { onAccountsUpdate, addAccount, updateAccount, deleteAccount } from '@/services/account-service';
 import { onUomsUpdate, addUom, updateUom, deleteUom } from '@/services/uom-service';
 import { onSettingUpdate, setSetting } from '@/services/settings-service';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuRadioGroup, DropdownMenuRadioItem } from '@/components/ui/dropdown-menu';
 import { getUsers, setUsers, validatePassword, setAdminPassword, updateUserPassword } from '@/services/user-service';
 import { modules, actions, documentTypes, getDocumentName } from '@/lib/types';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -393,6 +393,13 @@ export default function SettingsPage() {
         setChangePasswordError(e.message);
     }
   };
+  
+  const otherTabs = [
+    { value: "parties", label: "Vendors & Suppliers" },
+    { value: "accounts", label: "Accounts" },
+    { value: "uom", label: "Units of Measurement" },
+    { value: "document-numbering", label: "Document Numbering" },
+  ];
 
   if (isLoading) {
     return (
@@ -416,12 +423,25 @@ export default function SettingsPage() {
         </header>
         
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-5">
+             <TabsList>
                 <TabsTrigger value="users-security">Users & Security</TabsTrigger>
-                <TabsTrigger value="parties">Vendors & Suppliers</TabsTrigger>
-                <TabsTrigger value="accounts">Accounts</TabsTrigger>
-                <TabsTrigger value="uom">Units of Measurement</TabsTrigger>
-                <TabsTrigger value="document-numbering">Document Numbering</TabsTrigger>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="flex items-center gap-1">
+                            More Settings
+                            <ChevronDown className="h-4 w-4" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                        <DropdownMenuRadioGroup value={activeTab} onValueChange={setActiveTab}>
+                        {otherTabs.map(tab => (
+                            <DropdownMenuRadioItem key={tab.value} value={tab.value}>
+                                {tab.label}
+                            </DropdownMenuRadioItem>
+                        ))}
+                        </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </TabsList>
             <TabsContent value="users-security">
                 <div className="space-y-6">
