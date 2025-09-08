@@ -266,7 +266,16 @@ export default function EmployeesPage() {
   };
   
   const filteredAndSortedEmployees = useMemo(() => {
-    let filtered = [...employees];
+    // Regex to check for time-like strings (e.g., 08:00, 17:30:00)
+    const timeRegex = /^\d{2}:\d{2}(:\d{2})?$/;
+
+    let filtered = employees.filter(employee => {
+        // Filter out employees whose names are just time formats
+        if (timeRegex.test(employee.name)) {
+            return false;
+        }
+        return true;
+    });
     
     if (searchQuery) {
       const lowercasedQuery = searchQuery.toLowerCase();
