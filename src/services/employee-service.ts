@@ -11,6 +11,9 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Employee 
     return {
         id: snapshot.id,
         name: data.name,
+        status: data.status,
+        department: data.department,
+        position: data.position,
         wageBasis: data.wageBasis,
         wageAmount: data.wageAmount,
         allowance: data.allowance,
