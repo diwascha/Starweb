@@ -266,12 +266,11 @@ export default function EmployeesPage() {
   };
   
   const filteredAndSortedEmployees = useMemo(() => {
-    // Regex to check for time-like strings (e.g., 08:00, 17:30:00)
     const timeRegex = /^\d{2}:\d{2}(:\d{2})?$/;
+    const dateRegex = /^\w{3} \w{3} \d{2} \d{4} \d{2}:\d{2}:\d{2} GMT[+-]\d{4}/;
 
     let filtered = employees.filter(employee => {
-        // Filter out employees whose names are just time formats
-        if (timeRegex.test(employee.name)) {
+        if (timeRegex.test(employee.name) || dateRegex.test(employee.name)) {
             return false;
         }
         return true;
@@ -410,7 +409,7 @@ export default function EmployeesPage() {
                 </TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
-                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="ml-2 h-4 w-4" /></Button></DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       {hasPermission('hr', 'edit') && <DropdownMenuItem onSelect={() => openEditEmployeeDialog(employee)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>}
                       {hasPermission('hr', 'delete') && <DropdownMenuSeparator />}
