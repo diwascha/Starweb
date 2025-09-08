@@ -326,12 +326,18 @@ export default function AttendancePage() {
     }
 
     filtered.sort((a, b) => {
-      if (a[sortConfig.key] < b[sortConfig.key]) {
-        return sortConfig.direction === 'asc' ? -1 : 1;
-      }
-      if (a[sortConfig.key] > b[sortConfig.key]) {
-        return sortConfig.direction === 'asc' ? 1 : -1;
-      }
+      // Primary sort by employee name
+      const nameA = a.employeeName.toLowerCase();
+      const nameB = b.employeeName.toLowerCase();
+      if (nameA < nameB) return -1;
+      if (nameA > nameB) return 1;
+
+      // Secondary sort by date
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      if (dateA < dateB) return -1;
+      if (dateA > dateB) return 1;
+      
       return 0;
     });
     
