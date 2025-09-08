@@ -12,10 +12,10 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Attendanc
         date: data.date,
         bsDate: data.bsDate,
         employeeName: data.employeeName,
-        onDuty: data.onDuty,
-        offDuty: data.offDuty,
-        clockIn: data.clockIn,
-        clockOut: data.clockOut,
+        onDuty: data.onDuty || null,
+        offDuty: data.offDuty || null,
+        clockIn: data.clockIn || null,
+        clockOut: data.clockOut || null,
         status: data.status,
         grossHours: data.grossHours || 0,
         overtimeHours: data.overtimeHours || 0,
@@ -33,9 +33,11 @@ export const getAttendance = async (): Promise<AttendanceRecord[]> => {
 export const addAttendanceRecords = async (records: Omit<AttendanceRecord, 'id'>[]): Promise<void> => {
     const batch = writeBatch(db);
     records.forEach(record => {
-        // Data validation: only add records with a valid date.
-        if (record.date && !isNaN(new Date(record.date).getTime())) {
-            const docId = `${record.date.substring(0, 10)}_${record.employeeName.replace(/\s+/g, '-')}`;
+        // Ensure date is a string and valid before creating docId
+        const recordDate = new Date(record.date);
+        if (record.date && !isNaN(recordDate.getTime())) {
+            const dateString = recordDate.toISOString().substring(0, 10);
+            const docId = `${dateString}_${record.employeeName.replace(/\s+/g, '-')}`;
             const docRef = doc(attendanceCollection, docId);
             batch.set(docRef, record, { merge: true });
         }
