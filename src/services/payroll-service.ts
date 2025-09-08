@@ -1,9 +1,9 @@
 
 'use client';
 
-import { format, parse, getDay, startOfWeek, differenceInMinutes, addMinutes, setHours, setMinutes, setSeconds, startOfDay, endOfDay } from 'date-fns';
+import { format, parse, getDay, startOfWeek, differenceInMinutes, addMinutes, setHours, setMinutes, setSeconds, startOfDay, endOfDay, getDaysInMonth } from 'date-fns';
 import NepaliDate from 'nepali-date-converter';
-import type { AttendanceRecord, Employee } from '@/lib/types';
+import type { AttendanceRecord, Employee, Payroll, PunctualityInsight, BehaviorInsight } from '@/lib/types';
 import { addEmployee } from './employee-service';
 
 // --- Constants translated from VBA ---
@@ -12,6 +12,7 @@ const kRoundStepHours = 0.5;
 const kGraceMin = 5;
 const kWeeklyFreeLate = true;
 const kWeeklyFreeEarly = true;
+const PR_MONTH_DAYS = 30;
 
 // --- Helper Functions ---
 const cleanEmployeeName = (name: any): string => {
@@ -87,7 +88,6 @@ const applyFixedBreak = (start: Date, end: Date): number => {
 
     const totalMinutes = differenceInMinutes(end, start);
     
-    // Break is from 12:00 (720 minutes) to 13:00 (780 minutes)
     const breakStartMinutes = 12 * 60;
     const breakEndMinutes = 13 * 60;
 
@@ -98,8 +98,7 @@ const applyFixedBreak = (start: Date, end: Date): number => {
     const overlapEnd = Math.min(endMinutes, breakEndMinutes);
     
     const overlapMinutes = Math.max(0, overlapEnd - overlapStart);
-
-    // Only apply break if they worked more than 4 hours total
+    
     if (overlapMinutes > 0 && totalMinutes > 4 * 60) {
         return (totalMinutes - overlapMinutes) / 60;
     }
@@ -175,7 +174,6 @@ export const processAttendanceImport = async (
         const onDutyTime = parseTime(onDutyIndex > -1 ? row[onDutyIndex] : null);
         const offDutyTime = parseTime(offDutyIndex > -1 ? row[offDutyIndex] : null);
         const statusValue = statusIndex > -1 ? String(row[statusIndex] || '').toUpperCase().trim() : '';
-
         
         let status: AttendanceRecord['status'] = 'Present';
         let remarks: string | null = null;
@@ -230,4 +228,118 @@ export const processAttendanceImport = async (
     return { newRecords, newlyAddedEmployees, skippedRows };
 };
 
+export interface PayrollAndAnalyticsData {
+  payroll: Payroll[];
+  punctuality: PunctualityInsight[];
+  behavior: BehaviorInsight[];
+  dayOfWeek: { day: string; lateArrivals: number; absenteeism: number }[];
+}
+
+export const generatePayrollAndAnalytics = (
+    bsYear: number, bsMonth: number, employees: Employee[], attendance: AttendanceRecord[]
+): PayrollAndAnalyticsData => {
     
+    const filteredAttendance = attendance.filter(r => {
+        const nepaliDate = new NepaliDate(new Date(r.date));
+        return nepaliDate.getYear() === bsYear && nepaliDate.getMonth() === bsMonth;
+    });
+
+    const payroll: Payroll[] = employees.map(employee => {
+        const empAttendance = filteredAttendance.filter(r => r.employeeName === employee.name);
+        
+        const totalHours = empAttendance.reduce((sum, r) => sum + r.grossHours, 0);
+        const regularHours = empAttendance.reduce((sum, r) => sum + r.regularHours, 0);
+        const otHours = empAttendance.reduce((sum, r) => sum + r.overtimeHours, 0);
+        const absentDays = empAttendance.filter(r => r.status === 'Absent').length;
+        
+        let rate = 0;
+        let regularPay = 0;
+        let otPay = 0;
+
+        if (employee.wageBasis === 'Monthly') {
+            const dailyRate = employee.wageAmount / PR_MONTH_DAYS;
+            rate = dailyRate / kBaseDayHours;
+            regularPay = employee.wageAmount - (absentDays * dailyRate);
+            otPay = rate * otHours;
+        } else { // Hourly
+            rate = employee.wageAmount;
+            regularPay = regularHours * rate;
+            otPay = otHours * rate;
+        }
+        
+        const totalPay = regularPay + otPay;
+        const deduction = (employee.wageBasis === 'Monthly' ? (employee.wageAmount / PR_MONTH_DAYS) * absentDays : 0);
+        const allowance = 0; // Will be set by user
+        const salaryTotal = totalPay + allowance - deduction;
+        const tds = salaryTotal * 0.01;
+        const gross = salaryTotal - tds;
+        const advance = 0; // Will be set by user
+        const netPayment = gross - advance;
+
+        return {
+            employeeId: employee.id, employeeName: employee.name,
+            totalHours, otHours, regularHours, rate,
+            regularPay, otPay, totalPay, absentDays, deduction, allowance,
+            salaryTotal, tds, gross, advance, netPayment, remark: ''
+        };
+    });
+
+    const scheduledDays = new NepaliDate(bsYear, bsMonth, 1).daysInMonth;
+    const punctuality: PunctualityInsight[] = employees.map(employee => {
+        const empAttendance = filteredAttendance.filter(r => r.employeeName === employee.name);
+        const presentDays = empAttendance.filter(r => ['Present', 'C/I Miss', 'C/O Miss', 'Saturday', 'Public Holiday'].includes(r.status) && r.grossHours > 0).length;
+        const absentDays = empAttendance.filter(r => r.status === 'Absent').length;
+        const attendanceRate = scheduledDays > 0 ? (presentDays / scheduledDays) * 100 : 0;
+        
+        let lateArrivals = 0;
+        let earlyDepartures = 0;
+
+        empAttendance.forEach(r => {
+            if (r.onDuty && r.clockIn) {
+                const onDuty = parse(r.onDuty, 'HH:mm', new Date());
+                const clockIn = parse(r.clockIn, 'HH:mm', new Date());
+                if (differenceInMinutes(clockIn, onDuty) > kGraceMin) lateArrivals++;
+            }
+             if (r.offDuty && r.clockOut) {
+                const offDuty = parse(r.offDuty, 'HH:mm', new Date());
+                const clockOut = parse(r.clockOut, 'HH:mm', new Date());
+                if (differenceInMinutes(offDuty, clockOut) > kGraceMin) earlyDepartures++;
+            }
+        });
+        
+        const onTimeDays = presentDays - lateArrivals - earlyDepartures;
+        const punctualityScore = presentDays > 0 ? (onTimeDays / presentDays) * 100 : 0;
+
+        return { employeeId: employee.id, employeeName: employee.name, scheduledDays, presentDays, absentDays, attendanceRate, lateArrivals, earlyDepartures, onTimeDays, punctualityScore };
+    });
+    
+    const behavior: BehaviorInsight[] = employees.map(employee => {
+        const empPunctuality = punctuality.find(p => p.employeeId === employee.id)!;
+        const empPayroll = payroll.find(p => p.employeeId === employee.id)!;
+        
+        return {
+            employeeId: employee.id, employeeName: employee.name,
+            punctualityTrend: empPunctuality.punctualityScore > 95 ? 'Consistently punctual' : empPunctuality.punctualityScore > 85 ? 'Stable with some delays' : 'Often late',
+            absencePattern: empPunctuality.absentDays === 0 ? 'Perfect attendance' : empPunctuality.absentDays <= 2 ? 'Occasional absences' : `Frequent absences (${empPunctuality.absentDays} days)`,
+            otImpact: empPayroll.otHours >= 15 ? 'High OT - monitor workload' : empPayroll.otHours >= 5 ? 'Moderate OT' : 'Balanced workload',
+            shiftEndBehavior: empPunctuality.earlyDepartures > empPunctuality.lateArrivals ? 'Tends to leave early' : 'Consistent timing',
+            performanceInsight: empPunctuality.punctualityScore > 95 ? 'Dedicated with extra effort' : empPunctuality.punctualityScore > 90 ? 'Solid performance' : empPunctuality.punctualityScore < 80 ? 'Needs improvement' : 'Improving punctuality',
+        };
+    });
+
+    const dayOfWeekData = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((dayName, index) => {
+        const dayRecords = filteredAttendance.filter(r => getDay(new Date(r.date)) === index);
+        let lateArrivals = 0;
+        dayRecords.forEach(r => {
+             if (r.onDuty && r.clockIn) {
+                const onDuty = parse(r.onDuty, 'HH:mm', new Date());
+                const clockIn = parse(r.clockIn, 'HH:mm', new Date());
+                if (differenceInMinutes(clockIn, onDuty) > kGraceMin) lateArrivals++;
+            }
+        });
+        const absenteeism = dayRecords.filter(r => r.status === 'Absent').length;
+        return { day: dayName, lateArrivals, absenteeism };
+    });
+
+    return { payroll, punctuality, behavior, dayOfWeek: dayOfWeekData };
+};

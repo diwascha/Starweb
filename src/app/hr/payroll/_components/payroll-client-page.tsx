@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import type { Employee, AttendanceRecord, Payroll } from '@/lib/types';
+import type { Employee, AttendanceRecord, Payroll, PunctualityInsight, BehaviorInsight } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
@@ -16,6 +16,9 @@ import { onAttendanceUpdate } from '@/services/attendance-service';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { generatePayrollAndAnalytics, PayrollAndAnalyticsData } from '@/services/payroll-service';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const nepaliMonths = [
     { value: 0, name: "Baishakh" }, { value: 1, name: "Jestha" }, { value: 2, name: "Ashadh" },
@@ -24,8 +27,6 @@ const nepaliMonths = [
     { value: 9, name: "Magh" }, { value: 10, name: "Falgun" }, { value: 11, name: "Chaitra" }
 ];
 
-const PR_TDS_RATE = 0.01;
-const PR_MONTH_DAYS = 30;
 
 export default function PayrollClientPage({ initialEmployees, initialAttendance }: { initialEmployees: Employee[], initialAttendance: AttendanceRecord[] }) {
     const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
@@ -35,9 +36,9 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
     const [selectedBsYear, setSelectedBsYear] = useState<string>('');
     const [selectedBsMonth, setSelectedBsMonth] = useState<string>('');
     const [isProcessing, setIsProcessing] = useState(false);
+    
+    const [payrollData, setPayrollData] = useState<PayrollAndAnalyticsData | null>(null);
 
-    const [allowances, setAllowances] = useState<Record<string, number>>({});
-    const [advances, setAdvances] = useState<Record<string, number>>({});
     const [isAdjustmentDialogOpen, setIsAdjustmentDialogOpen] = useState(false);
     const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
     const [currentAllowance, setCurrentAllowance] = useState('');
@@ -68,93 +69,74 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
             unsubEmployees();
             unsubAttendance();
         }
-    }, [selectedBsYear, selectedBsMonth]);
+    }, []);
+
+    useEffect(() => {
+        if (selectedBsYear && selectedBsMonth && employees.length > 0) {
+            setIsProcessing(true);
+            const data = generatePayrollAndAnalytics(
+                parseInt(selectedBsYear, 10),
+                parseInt(selectedBsMonth, 10),
+                employees,
+                attendance
+            );
+            setPayrollData(data);
+            setIsProcessing(false);
+        }
+    }, [selectedBsYear, selectedBsMonth, employees, attendance]);
+    
     
     const openAdjustmentDialog = (employee: Employee) => {
         setEditingEmployee(employee);
-        setCurrentAllowance(String(allowances[employee.id] || ''));
-        setCurrentAdvance(String(advances[employee.id] || ''));
+        const currentPayrollItem = payrollData?.payroll.find(p => p.employeeId === employee.id);
+        setCurrentAllowance(String(currentPayrollItem?.allowance || ''));
+        setCurrentAdvance(String(currentPayrollItem?.advance || ''));
         setIsAdjustmentDialogOpen(true);
     };
 
     const handleSaveAdjustments = () => {
-        if (!editingEmployee) return;
-        setAllowances(prev => ({ ...prev, [editingEmployee.id]: parseFloat(currentAllowance) || 0 }));
-        setAdvances(prev => ({ ...prev, [editingEmployee.id]: parseFloat(currentAdvance) || 0 }));
+        if (!editingEmployee || !payrollData) return;
+        
+        const allowance = parseFloat(currentAllowance) || 0;
+        const advance = parseFloat(currentAdvance) || 0;
+
+        const updatedPayroll = payrollData.payroll.map(p => {
+            if (p.employeeId === editingEmployee.id) {
+                const grossPay = p.basePay + p.otPay + allowance;
+                const tds = grossPay * 0.01;
+                const netPay = grossPay - tds - advance;
+                return { ...p, allowance, advance, grossPay, tds, netPay };
+            }
+            return p;
+        });
+
+        setPayrollData(prev => prev ? { ...prev, payroll: updatedPayroll } : null);
         setIsAdjustmentDialogOpen(false);
-        toast({ title: 'Success', description: `Adjustments for ${editingEmployee.name} saved.` });
+        toast({ title: 'Success', description: `Adjustments for ${editingEmployee.name} applied locally.` });
     };
 
-    const payrollData = useMemo<Payroll[]>(() => {
-        if (!selectedBsYear || !selectedBsMonth || employees.length === 0) {
-            return [];
-        }
-
-        const filteredAttendance = attendance.filter(r => {
-            const nepaliDate = new NepaliDate(new Date(r.date));
-            return nepaliDate.getYear() === parseInt(selectedBsYear, 10) &&
-                   nepaliDate.getMonth() === parseInt(selectedBsMonth, 10);
-        });
-
-        return employees.map(employee => {
-            const empAttendance = filteredAttendance.filter(r => r.employeeName === employee.name);
-            
-            const totalRegularHours = empAttendance.reduce((sum, r) => sum + r.regularHours, 0);
-            const totalOtHours = empAttendance.reduce((sum, r) => sum + r.overtimeHours, 0);
-            const absentDays = empAttendance.filter(r => r.status === 'Absent').length;
-            const missPunchDays = empAttendance.filter(r => r.status === 'C/I Miss' || r.status === 'C/O Miss').length;
-
-            let basePay = 0;
-            let otPay = 0;
-            let baseText = '';
-
-            if (employee.wageBasis === 'Monthly') {
-                const dailyRate = employee.wageAmount / PR_MONTH_DAYS;
-                basePay = Math.max(0, employee.wageAmount - (absentDays * dailyRate));
-                otPay = (employee.wageAmount / PR_MONTH_DAYS / 8) * totalOtHours;
-                baseText = `Monthly (${employee.wageAmount.toLocaleString()})`;
-            } else { // Hourly
-                basePay = totalRegularHours * employee.wageAmount;
-                otPay = totalOtHours * employee.wageAmount;
-                baseText = `Hourly (${employee.wageAmount.toLocaleString()}/hr)`;
-            }
-
-            const allowance = allowances[employee.id] || 0;
-            const advance = advances[employee.id] || 0;
-            const grossPay = basePay + otPay + allowance;
-            const tds = grossPay * PR_TDS_RATE;
-            const netPay = grossPay - tds - advance;
-
-            return {
-                employeeId: employee.id,
-                employeeName: employee.name,
-                regularHours: totalRegularHours,
-                otHours: totalOtHours,
-                absentDays,
-                missPunchDays,
-                baseText,
-                basePay,
-                otPay,
-                allowance,
-                grossPay,
-                tds,
-                advance,
-                netPay,
-            };
-        });
-    }, [selectedBsYear, selectedBsMonth, employees, attendance, allowances, advances]);
-    
     const totals = useMemo(() => {
-        return payrollData.reduce((acc, curr) => ({
-            basePay: acc.basePay + curr.basePay,
+        if (!payrollData) return null;
+        return payrollData.payroll.reduce((acc, curr) => ({
+            totalHours: acc.totalHours + curr.totalHours,
+            otHours: acc.otHours + curr.otHours,
+            regularHours: acc.regularHours + curr.regularHours,
+            regularPay: acc.regularPay + curr.regularPay,
             otPay: acc.otPay + curr.otPay,
+            totalPay: acc.totalPay + curr.totalPay,
+            deduction: acc.deduction + curr.deduction,
             allowance: acc.allowance + curr.allowance,
-            grossPay: acc.grossPay + curr.grossPay,
+            salaryTotal: acc.salaryTotal + curr.salaryTotal,
             tds: acc.tds + curr.tds,
+            gross: acc.gross + curr.gross,
             advance: acc.advance + curr.advance,
-            netPay: acc.netPay + curr.netPay,
-        }), { basePay: 0, otPay: 0, allowance: 0, grossPay: 0, tds: 0, advance: 0, netPay: 0 });
+            netPayment: acc.netPayment + curr.netPayment,
+        }), { 
+            totalHours: 0, otHours: 0, regularHours: 0, regularPay: 0, otPay: 0, totalPay: 0,
+            deduction: 0, allowance: 0, salaryTotal: 0, tds: 0, gross: 0, advance: 0, netPayment: 0
+        });
     }, [payrollData]);
+
 
     const handlePrint = () => {
         window.print();
@@ -162,22 +144,16 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
 
     const handleExport = async () => {
         const XLSX = (await import('xlsx'));
-        const dataToExport = payrollData.map(p => ({
-            'Employee': p.employeeName,
-            'Regular Hours': p.regularHours,
-            'OT Hours': p.otHours,
-            'Absent Days': p.absentDays,
-            'Base': p.baseText,
-            'Basic Pay': p.basePay,
-            'OT Pay': p.otPay,
-            'Allowance': p.allowance,
-            'Gross Pay': p.grossPay,
-            'TDS': p.tds,
-            'Advance': p.advance,
-            'Net Pay': p.netPay,
+        const payrollExport = payrollData?.payroll.map(p => ({
+            'Name': p.employeeName,
+            'Total Hours': p.totalHours, 'OT Hours': p.otHours, 'Normal Hours': p.regularHours,
+            'Rate': p.rate, 'Regular Pay': p.regularPay, 'OT Pay': p.otPay, 'Total Pay': p.totalPay,
+            'Absent Days': p.absentDays, 'Deduction': p.deduction, 'Allowance': p.allowance,
+            'Salary Total': p.salaryTotal, 'TDS (%)': p.tds, 'Gross': p.gross, 'Advance': p.advance,
+            'Net Payment': p.netPayment, 'Remark': p.remark
         }));
         
-        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+        const worksheet = XLSX.utils.json_to_sheet(payrollExport || []);
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Payroll");
         XLSX.writeFile(workbook, `Payroll-${selectedBsYear}-${nepaliMonths[parseInt(selectedBsMonth)].name}.xlsx`);
@@ -211,65 +187,179 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
                 </CardHeader>
                 <CardContent>
                     <div className="mb-4 flex justify-end gap-2">
-                        <Button variant="outline" onClick={handleExport} disabled={payrollData.length === 0}><Download className="mr-2 h-4 w-4" /> Export</Button>
-                        <Button onClick={handlePrint} disabled={payrollData.length === 0}><Printer className="mr-2 h-4 w-4" /> Print</Button>
+                        <Button variant="outline" onClick={handleExport} disabled={!payrollData}><Download className="mr-2 h-4 w-4" /> Export</Button>
+                        <Button onClick={handlePrint} disabled={!payrollData}><Printer className="mr-2 h-4 w-4" /> Print</Button>
                     </div>
                     <div className="printable-area">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="w-[200px]">Employee</TableHead>
-                                    <TableHead>Regular</TableHead>
-                                    <TableHead>OT</TableHead>
-                                    <TableHead>Absent</TableHead>
-                                    <TableHead>Basic Pay</TableHead>
-                                    <TableHead>OT Pay</TableHead>
-                                    <TableHead>Allowance</TableHead>
-                                    <TableHead>Gross</TableHead>
-                                    <TableHead>TDS</TableHead>
-                                    <TableHead>Advance</TableHead>
-                                    <TableHead>Net Pay</TableHead>
-                                    <TableHead className="print:hidden">Adjust</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {payrollData.map(p => {
-                                    const employee = employees.find(e => e.id === p.employeeId);
-                                    return (
+                        <ScrollArea className="w-full whitespace-nowrap">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="w-[150px] sticky left-0 bg-background z-10">Name</TableHead>
+                                        <TableHead>Total Hours</TableHead>
+                                        <TableHead>OT Hours</TableHead>
+                                        <TableHead>Normal Hours</TableHead>
+                                        <TableHead>Rate</TableHead>
+                                        <TableHead>Regular Pay</TableHead>
+                                        <TableHead>OT Pay</TableHead>
+                                        <TableHead>Total Pay</TableHead>
+                                        <TableHead>Absent Days</TableHead>
+                                        <TableHead>Deduction</TableHead>
+                                        <TableHead>Allowance</TableHead>
+                                        <TableHead>Salary Total</TableHead>
+                                        <TableHead>TDS (1%)</TableHead>
+                                        <TableHead>Gross</TableHead>
+                                        <TableHead>Advance</TableHead>
+                                        <TableHead>Net Payment</TableHead>
+                                        <TableHead>Remark</TableHead>
+                                        <TableHead className="print:hidden">Adjust</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {isProcessing && <TableRow><TableCell colSpan={18} className="text-center">Processing payroll...</TableCell></TableRow>}
+                                    {!isProcessing && payrollData?.payroll.map(p => {
+                                        const employee = employees.find(e => e.id === p.employeeId);
+                                        return (
                                         <TableRow key={p.employeeId}>
-                                            <TableCell className="font-medium">{p.employeeName}</TableCell>
-                                            <TableCell>{p.regularHours.toFixed(1)}</TableCell>
+                                            <TableCell className="font-medium sticky left-0 bg-background z-10">{p.employeeName}</TableCell>
+                                            <TableCell>{p.totalHours.toFixed(1)}</TableCell>
                                             <TableCell>{p.otHours.toFixed(1)}</TableCell>
-                                            <TableCell>{p.absentDays}</TableCell>
-                                            <TableCell>{p.basePay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                            <TableCell>{p.regularHours.toFixed(1)}</TableCell>
+                                            <TableCell>{p.rate.toFixed(2)}</TableCell>
+                                            <TableCell>{p.regularPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                             <TableCell>{p.otPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                            <TableCell>{p.totalPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                            <TableCell>{p.absentDays}</TableCell>
+                                            <TableCell>{p.deduction.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                             <TableCell>{p.allowance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                            <TableCell>{p.grossPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                            <TableCell>{p.salaryTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                             <TableCell>{p.tds.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                            <TableCell>{p.gross.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                             <TableCell>{p.advance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                            <TableCell className="font-bold">{p.netPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                            <TableCell className="font-bold">{p.netPayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                            <TableCell>{p.remark}</TableCell>
                                             <TableCell className="print:hidden">
                                                 {employee && <Button variant="ghost" size="icon" onClick={() => openAdjustmentDialog(employee)}><Edit className="h-4 w-4"/></Button>}
                                             </TableCell>
                                         </TableRow>
-                                    )
-                                })}
-                            </TableBody>
-                             <TableFooter>
-                                <TableRow className="font-bold">
-                                    <TableCell colSpan={4}>Totals</TableCell>
-                                    <TableCell>{totals.basePay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                    <TableCell>{totals.otPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                    <TableCell>{totals.allowance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                    <TableCell>{totals.grossPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                    <TableCell>{totals.tds.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                    <TableCell>{totals.advance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                    <TableCell>{totals.netPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                    <TableCell className="print:hidden"></TableCell>
-                                </TableRow>
-                            </TableFooter>
-                        </Table>
+                                    )})}
+                                </TableBody>
+                                {totals && (
+                                <TableFooter>
+                                    <TableRow className="font-bold">
+                                        <TableCell className="sticky left-0 bg-background z-10">Totals</TableCell>
+                                        <TableCell>{totals.totalHours.toFixed(1)}</TableCell>
+                                        <TableCell>{totals.otHours.toFixed(1)}</TableCell>
+                                        <TableCell>{totals.regularHours.toFixed(1)}</TableCell>
+                                        <TableCell></TableCell>
+                                        <TableCell>{totals.regularPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                        <TableCell>{totals.otPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                        <TableCell>{totals.totalPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                        <TableCell></TableCell>
+                                        <TableCell>{totals.deduction.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                        <TableCell>{totals.allowance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                        <TableCell>{totals.salaryTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                        <TableCell>{totals.tds.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                        <TableCell>{totals.gross.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                        <TableCell>{totals.advance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                        <TableCell>{totals.netPayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                        <TableCell></TableCell>
+                                        <TableCell className="print:hidden"></TableCell>
+                                    </TableRow>
+                                </TableFooter>
+                                )}
+                            </Table>
+                        </ScrollArea>
                     </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Analytics Dashboard</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <Tabs defaultValue="punctuality">
+                        <TabsList>
+                            <TabsTrigger value="punctuality">Attendance & Punctuality Insights</TabsTrigger>
+                            <TabsTrigger value="behavior">Behavioral & Performance Insights</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="punctuality" className="pt-4">
+                            <ScrollArea className="w-full whitespace-nowrap">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="w-[150px] sticky left-0 bg-background z-10">Employee</TableHead>
+                                            <TableHead>Scheduled</TableHead>
+                                            <TableHead>Present</TableHead>
+                                            <TableHead>Absent</TableHead>
+                                            <TableHead>Attendance Rate</TableHead>
+                                            <TableHead>Late Arrivals</TableHead>
+                                            <TableHead>Early Departures</TableHead>
+                                            <TableHead>On Time Days</TableHead>
+                                            <TableHead>Punctuality Score</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {payrollData?.punctuality.map(p => (
+                                            <TableRow key={p.employeeId}>
+                                                <TableCell className="font-medium sticky left-0 bg-background z-10">{p.employeeName}</TableCell>
+                                                <TableCell>{p.scheduledDays}</TableCell>
+                                                <TableCell>{p.presentDays}</TableCell>
+                                                <TableCell>{p.absentDays}</TableCell>
+                                                <TableCell>{p.attendanceRate.toFixed(1)}%</TableCell>
+                                                <TableCell>{p.lateArrivals}</TableCell>
+                                                <TableCell>{p.earlyDepartures}</TableCell>
+                                                <TableCell>{p.onTimeDays}</TableCell>
+                                                <TableCell>{p.punctualityScore.toFixed(1)}%</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </ScrollArea>
+                        </TabsContent>
+                        <TabsContent value="behavior" className="pt-4 space-y-6">
+                             <Card>
+                                <CardHeader><CardTitle>Enhanced Employee Insights</CardTitle></CardHeader>
+                                <CardContent>
+                                    <Table>
+                                        <TableHeader><TableRow>
+                                            <TableHead>Employee</TableHead><TableHead>Punctuality Trend</TableHead>
+                                            <TableHead>Absence Pattern</TableHead><TableHead>OT Impact</TableHead>
+                                            <TableHead>Shift-End Behavior</TableHead><TableHead>Performance Insight</TableHead>
+                                        </TableRow></TableHeader>
+                                        <TableBody>
+                                            {payrollData?.behavior.map(b => (
+                                                <TableRow key={b.employeeId}>
+                                                    <TableCell className="font-medium">{b.employeeName}</TableCell>
+                                                    <TableCell>{b.punctualityTrend}</TableCell><TableCell>{b.absencePattern}</TableCell>
+                                                    <TableCell>{b.otImpact}</TableCell><TableCell>{b.shiftEndBehavior}</TableCell>
+                                                    <TableCell>{b.performanceInsight}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </CardContent>
+                             </Card>
+                             <Card>
+                                <CardHeader><CardTitle>Day of Week Patterns</CardTitle></CardHeader>
+                                <CardContent>
+                                    <Table>
+                                        <TableHeader><TableRow>
+                                            <TableHead>Day</TableHead><TableHead>Late Arrivals</TableHead><TableHead>Absenteeism</TableHead>
+                                        </TableRow></TableHeader>
+                                        <TableBody>
+                                            {payrollData?.dayOfWeek.map(d => (
+                                                <TableRow key={d.day}>
+                                                    <TableCell>{d.day}</TableCell><TableCell>{d.lateArrivals}</TableCell><TableCell>{d.absenteeism}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </CardContent>
+                             </Card>
+                        </TabsContent>
+                    </Tabs>
                 </CardContent>
             </Card>
 
@@ -293,7 +383,7 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsAdjustmentDialogOpen(false)}>Cancel</Button>
-                        <Button onClick={handleSaveAdjustments}>Save Adjustments</Button>
+                        <Button onClick={handleSaveAdjustments}>Apply Adjustments</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -303,7 +393,7 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
                   body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background-color: #fff; }
                   body * { visibility: hidden; }
                   .printable-area, .printable-area * { visibility: visible; }
-                  .printable-area { position: absolute; left: 0; top: 0; width: 100%; height: auto; margin: 0; padding: 0; border: none; font-size: 10px; }
+                  .printable-area { position: absolute; left: 0; top: 0; width: 100%; height: auto; margin: 0; padding: 0; border: none; font-size: 8px; }
                   .print\\:hidden { display: none; }
                 }
             `}</style>

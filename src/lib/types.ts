@@ -2,6 +2,7 @@
 
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -140,18 +141,45 @@ export interface AttendanceRecord {
 export interface Payroll {
     employeeId: string;
     employeeName: string;
-    regularHours: number;
+    totalHours: number;
     otHours: number;
-    absentDays: number;
-    missPunchDays: number;
-    baseText: string;
-    basePay: number;
+    regularHours: number;
+    rate: number;
+    regularPay: number;
     otPay: number;
+    totalPay: number;
+    absentDays: number;
+    deduction: number;
     allowance: number;
-    grossPay: number;
+    salaryTotal: number;
     tds: number;
+    gross: number;
     advance: number;
-    netPay: number;
+    netPayment: number;
+    remark: string;
+}
+
+export interface PunctualityInsight {
+    employeeId: string;
+    employeeName: string;
+    scheduledDays: number;
+    presentDays: number;
+    absentDays: number;
+    attendanceRate: number;
+    lateArrivals: number;
+    earlyDepartures: number;
+    onTimeDays: number;
+    punctualityScore: number;
+}
+
+export interface BehaviorInsight {
+    employeeId: string;
+    employeeName: string;
+    punctualityTrend: string;
+    absencePattern: string;
+    otImpact: string;
+    shiftEndBehavior: string;
+    performanceInsight: string;
 }
 
 
