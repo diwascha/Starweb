@@ -17,6 +17,7 @@ import { onEmployeesUpdate, addEmployee } from '@/services/employee-service';
 import { onAttendanceUpdate, addAttendanceRecords } from '@/services/attendance-service';
 import { getAttendanceBadgeVariant } from '@/lib/utils';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 
 type SortKey = 'date' | 'employeeName' | 'status';
 type SortDirection = 'asc' | 'desc';
@@ -437,4 +438,3 @@ export default function AttendancePage() {
     </div>
   );
 }
-
