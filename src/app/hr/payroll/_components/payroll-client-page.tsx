@@ -112,7 +112,7 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
                 const gross = salaryTotal - tds;
                 const netPay = gross - advance;
 
-                return { ...p, allowance, advance, totalPay, salaryTotal, tds, gross, netPay };
+                return { ...p, allowance, advance, totalPay, salaryTotal, tds, gross, netPayment: netPay };
             }
             return p;
         });
@@ -287,7 +287,7 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
                 </CardHeader>
                 <CardContent>
                     <Tabs defaultValue="punctuality">
-                        <TabsList>
+                        <TabsList className="w-auto">
                             <TabsTrigger value="punctuality">Punctuality</TabsTrigger>
                             <TabsTrigger value="workforce">Workforce Analytics</TabsTrigger>
                             <TabsTrigger value="behavior">Behavior &amp; Performance Insights</TabsTrigger>

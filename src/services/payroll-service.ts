@@ -292,9 +292,8 @@ export const generatePayrollAndAnalytics = (
         };
     });
 
-    // To get scheduled days correctly
     const nextMonthFirstDayBS = new NepaliDate(bsMonth === 11 ? bsYear + 1 : bsYear, (bsMonth + 1) % 12, 1);
-    const lastDayOfCurrentMonthBS = new NepaliDate(nextMonthFirstDayBS.toJsDate().getTime() - 86400000); // Subtract one day
+    const lastDayOfCurrentMonthBS = new NepaliDate(nextMonthFirstDayBS.toJsDate().getTime() - 86400000);
     const scheduledDays = lastDayOfCurrentMonthBS.getDate();
 
 
@@ -425,118 +424,65 @@ export const generatePayrollAndAnalytics = (
             }
         });
         const absenteeism = dayRecords.filter(r => r.status === 'Absent').length;
-        return { day: dayName, lateArrivals, absenteeism };
+        const incidents = lateArrivals + absenteeism;
+        return { day: dayName, lateArrivals, absenteeism, incidents };
     });
 
-    // --- Expanded Pattern Insights Calculation ---
     const patternInsights: PatternInsight[] = [];
-    const totalLateArrivals = dayOfWeekData.reduce((sum, d) => sum + d.lateArrivals, 0);
-    const totalAbsenteeism = dayOfWeekData.reduce((sum, d) => sum + d.absenteeism, 0);
-
-    if (totalLateArrivals > 0) {
+    
+    if (filteredAttendance.length > 0) {
+        // Highest late arrivals
         const mostLateDay = dayOfWeekData.reduce((max, day) => day.lateArrivals > max.lateArrivals ? day : max);
-        patternInsights.push({ finding: `Highest late arrivals on: ${mostLateDay.day}`, description: `${mostLateDay.lateArrivals} late arrivals occurred on ${mostLateDay.day}s this month.` });
-    }
+        if (mostLateDay.lateArrivals > 0) {
+            patternInsights.push({ finding: `Highest late arrivals: ${mostLateDay.day} (${mostLateDay.lateArrivals})`, description: `${mostLateDay.lateArrivals} late arrivals occurred on ${mostLateDay.day}s this month.` });
+        }
 
-    if (totalAbsenteeism > 0) {
+        // Highest absenteeism
         const mostAbsentDay = dayOfWeekData.reduce((max, day) => day.absenteeism > max.absenteeism ? day : max);
-        patternInsights.push({ finding: `Highest absenteeism on: ${mostAbsentDay.day}`, description: `${mostAbsentDay.absenteeism} absences occurred on ${mostAbsentDay.day}s this month.` });
-    }
-    
-    if (punctuality.length > 1) {
-        const mostPunctual = punctuality.reduce((max, p) => p.punctualityScore > max.punctualityScore ? p : max);
-        patternInsights.push({ finding: `Most Punctual: ${mostPunctual.employeeName}`, description: `${mostPunctual.employeeName} had the highest punctuality score of ${mostPunctual.punctualityScore.toFixed(1)}%.` });
-
-        const leastPunctual = punctuality.reduce((min, p) => p.punctualityScore < min.punctualityScore ? p : min);
-        if (leastPunctual && leastPunctual.employeeId !== mostPunctual.employeeId && leastPunctual.punctualityScore < 90) {
-            patternInsights.push({ finding: `Least Punctual: ${leastPunctual.employeeName}`, description: `${leastPunctual.employeeName} had the lowest punctuality score of ${leastPunctual.punctualityScore.toFixed(1)}%.` });
+        if (mostAbsentDay.absenteeism > 0) {
+            patternInsights.push({ finding: `Highest absenteeism: ${mostAbsentDay.day} (${mostAbsentDay.absenteeism})`, description: `${mostAbsentDay.absenteeism} absences occurred on ${mostAbsentDay.day}s this month.` });
         }
-    }
-    
-    // Friday vs Monday Absenteeism
-    const fridayAbsences = dayOfWeekData.find(d => d.day === 'Friday')?.absenteeism || 0;
-    const mondayAbsences = dayOfWeekData.find(d => d.day === 'Monday')?.absenteeism || 0;
-    if (fridayAbsences > mondayAbsences + 2) {
-        patternInsights.push({ finding: "Potential 'Friday Rush'", description: `Absenteeism is significantly higher on Fridays (${fridayAbsences}) compared to Mondays (${mondayAbsences}), suggesting employees may be extending their weekends.` });
-    }
-
-    // Missed punches
-    const employeesWithMissedPunches = filteredAttendance.reduce((acc, r) => {
-        if (r.status === 'C/I Miss' || r.status === 'C/O Miss') {
-            acc.add(r.employeeName);
-        }
-        return acc;
-    }, new Set<string>());
-
-    if (employeesWithMissedPunches.size > 0) {
-        const names = Array.from(employeesWithMissedPunches).join(', ');
-        patternInsights.push({ finding: `Frequent Missed Punches: ${names}`, description: `${employeesWithMissedPunches.size} employee(s) frequently missed clocking in or out, which may require manual adjustments and follow-up.` });
-    }
-
-    // Perfect Attendance
-    const perfectAttendanceEmployees = punctuality.filter(p => p.absentDays === 0 && p.lateArrivals === 0 && p.earlyDepartures === 0);
-    if (perfectAttendanceEmployees.length > 0) {
-        patternInsights.push({ finding: `${perfectAttendanceEmployees.length} Employee(s) with Perfect Attendance`, description: `Kudos to ${perfectAttendanceEmployees.map(p => p.employeeName).join(', ')} for their exemplary attendance record this month.` });
-    }
-
-    // High Overtime
-    const highOTEmployees = workforce.filter(w => w.overtimeRatio > 25); // OT is >25% of regular hours
-    if (highOTEmployees.length > 0) {
-        patternInsights.push({ finding: `${highOTEmployees.length} Employee(s) with High Overtime`, description: `Employees like ${highOTEmployees.map(e => e.employeeName).join(', ')} have a high overtime ratio, which could indicate a risk of burnout.` });
-    }
-
-    // End of month trend
-    const nextMonthForDays = new NepaliDate(bsMonth === 11 ? bsYear + 1 : bsYear, (bsMonth + 1) % 12, 1);
-    const lastDayForDays = new NepaliDate(nextMonthForDays.toJsDate().getTime() - 86400000);
-    const nepaliDaysInMonth = lastDayForDays.getDate();
-    if (nepaliDaysInMonth > 7) {
-        const lastWeekStartDate = new NepaliDate(bsYear, bsMonth, nepaliDaysInMonth - 6).toJsDate();
         
-        const lastWeekRecords = filteredAttendance.filter(r => isAfter(new Date(r.date), lastWeekStartDate));
-        const priorRecords = filteredAttendance.filter(r => !isAfter(new Date(r.date), lastWeekStartDate));
+        // Most punctual weekday
+        const mostPunctualDay = dayOfWeekData.filter(d => d.day !== 'Saturday').reduce((min, day) => day.incidents < min.incidents ? day : min);
+        patternInsights.push({ finding: `Most punctual weekday: ${mostPunctualDay.day}`, description: `${mostPunctualDay.day} had the fewest incidents (${mostPunctualDay.incidents}) this month.` });
+        
+        // Saturday Utilization
+        const totalSaturdaysInMonth = filteredAttendance.filter(r => r.status === 'Saturday').map(r => r.date.substring(0, 10)).filter((v, i, a) => a.indexOf(v) === i).length;
+        const workedSaturdays = filteredAttendance.filter(r => r.status === 'Saturday' && r.grossHours > 0).length > 0 ? 1 : 0; // Simplified to any work
+        const saturdayUtilization = totalSaturdaysInMonth > 0 ? (workedSaturdays / totalSaturdaysInMonth) * 100 : 0;
+        patternInsights.push({ finding: `Saturday utilization: ${saturdayUtilization.toFixed(0)}%`, description: `Work occurred on ${saturdayUtilization.toFixed(0)}% of Saturdays this month.` });
 
-        if (lastWeekRecords.length > 0 && priorRecords.length > 0) {
-            const lastWeekLateRate = (lastWeekRecords.filter(r => r.onDuty && r.clockIn && differenceInMinutes(parse(r.clockIn, 'HH:mm', new Date()), parse(r.onDuty, 'HH:mm', new Date())) > kGraceMin).length / lastWeekRecords.length) * 100;
-            const priorLateRate = (priorRecords.filter(r => r.onDuty && r.clockIn && differenceInMinutes(parse(r.clockIn, 'HH:mm', new Date()), parse(r.onDuty, 'HH:mm', new Date())) > kGraceMin).length / priorRecords.length) * 100;
-            
-            const change = lastWeekLateRate - priorLateRate;
-            if (Math.abs(change) > 10) { // More than 10% change
-                patternInsights.push({
-                    finding: `End-of-month trend: Late arrivals ${change > 0 ? 'increased' : 'decreased'} by ${Math.abs(change).toFixed(0)}%`,
-                    description: `Punctuality changed in the last week compared to the rest of the month.`
-                });
+        // Worst shift-start for lateness
+        const lateArrivalsByShift = filteredAttendance.reduce((acc, r) => {
+            if (r.onDuty && r.clockIn && differenceInMinutes(parse(r.clockIn, 'HH:mm', new Date()), parse(r.onDuty, 'HH:mm', new Date())) > kGraceMin) {
+                acc[r.onDuty] = (acc[r.onDuty] || 0) + 1;
             }
+            return acc;
+        }, {} as Record<string, number>);
+        const worstShift = Object.entries(lateArrivalsByShift).sort((a, b) => b[1] - a[1])[0];
+        if (worstShift) {
+             patternInsights.push({ finding: `Worst shift-start for lateness: ${worstShift[0]}`, description: `The ${worstShift[0]} shift had the highest number of late arrivals (${worstShift[1]}).` });
+        }
+        
+        // Public Holiday OT
+        const holidayOT = filteredAttendance.filter(r => r.status === 'Public Holiday').reduce((sum, r) => sum + r.overtimeHours, 0);
+        patternInsights.push({ finding: `Public Holiday OT total: ${holidayOT.toFixed(1)} hours`, description: `A total of ${holidayOT.toFixed(1)} overtime hours were worked on public holidays.` });
+
+        // Late Hotspots
+        const lateHotspots = filteredAttendance.reduce((acc, r) => {
+             if (r.onDuty && r.clockIn && differenceInMinutes(parse(r.clockIn, 'HH:mm', new Date()), parse(r.onDuty, 'HH:mm', new Date())) > kGraceMin) {
+                const date = r.date.substring(0, 10);
+                acc[date] = (acc[date] || 0) + 1;
+            }
+            return acc;
+        }, {} as Record<string, number>);
+        const sortedHotspots = Object.entries(lateHotspots).sort((a, b) => b[1] - a[1]).slice(0, 3);
+        if (sortedHotspots.length > 0) {
+            patternInsights.push({ finding: `Late hotspots: ${sortedHotspots.map(([date, count]) => `${date} (${count})`).join(', ')}`, description: `These dates had the highest number of late arrivals.` });
         }
     }
 
-    // High OT correlation with next day tardiness
-    const highOTDays = new Set<string>();
-    filteredAttendance.forEach(r => {
-        if (r.overtimeHours > 2) { // 2+ hours of OT
-            highOTDays.add(r.date.substring(0, 10));
-        }
-    });
-
-    if (highOTDays.size > 0) {
-        let lateAfterOT = 0;
-        let totalAfterOT = 0;
-        highOTDays.forEach(otDateStr => {
-            const nextDay = addDays(new Date(otDateStr), 1);
-            const nextDayRecords = filteredAttendance.filter(r => isSameDay(new Date(r.date), nextDay));
-            nextDayRecords.forEach(r => {
-                totalAfterOT++;
-                 if (r.onDuty && r.clockIn && differenceInMinutes(parse(r.clockIn, 'HH:mm', new Date()), parse(r.onDuty, 'HH:mm', new Date())) > kGraceMin) {
-                     lateAfterOT++;
-                 }
-            });
-        });
-        if (totalAfterOT > 0 && (lateAfterOT / totalAfterOT) > 0.3) { // more than 30% tardiness rate
-            patternInsights.push({
-                finding: `High OT may impact next-day punctuality`,
-                description: `A significant number of late arrivals were observed on days following high overtime.`
-            });
-        }
-    }
 
     return {
         payroll,
