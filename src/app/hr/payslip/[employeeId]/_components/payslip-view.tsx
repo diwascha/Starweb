@@ -217,7 +217,7 @@ export default function PayslipView({ employee, payroll, bsYear, bsMonthName }: 
         </div>
         
          <div className="mt-8 text-center pt-8 text-xs text-gray-500">
-              <p>This is a computer-generated payslip and does not require a signature.</p>
+              <p>This is a computer-generated payslip. Please review it carefully and report any discrepancies to the HR department within seven (7) days of receipt.</p>
         </div>
 
       </div>
