@@ -2,7 +2,7 @@
 'use client';
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Users, CheckCircle, XCircle } from 'lucide-react';
+import { Users, CheckCircle, XCircle, Clock, Timer } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import type { Employee, AttendanceRecord } from '@/lib/types';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from '@/components/ui/chart';
@@ -33,12 +33,15 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
        }
     }, []);
    
-   const { totalEmployees, presentToday, absentToday, monthlyAttendanceData, wageBasisData } = useMemo(() => {
+   const { 
+       totalEmployees, presentToday, absentToday, monthlyAttendanceData, 
+       wageBasisData, totalRegularHours, totalOvertimeHours 
+    } = useMemo(() => {
         const today = startOfToday();
         const todaysAttendance = attendance.filter(r => isToday(new Date(r.date)));
         
         const present = todaysAttendance.filter(r => r.status === 'Present').length;
-        const absent = todaysAttendance.filter(r => r.status === 'Absent').length;
+        const absent = todaysAttendance.filter(r => r.status === 'Absent' || r.status === 'C/I Miss' || r.status === 'C/O Miss').length;
 
         const start = startOfMonth(today);
         const end = endOfMonth(today);
@@ -46,6 +49,9 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
             const rDate = new Date(r.date);
             return rDate >= start && rDate <= end;
         });
+        
+        const totalRegular = monthlyRecords.reduce((sum, r) => sum + (r.regularHours || 0), 0);
+        const totalOvertime = monthlyRecords.reduce((sum, r) => sum + (r.overtimeHours || 0), 0);
 
         const monthlyStatusCounts = monthlyRecords.reduce((acc, r) => {
             acc[r.status] = (acc[r.status] || 0) + 1;
@@ -67,6 +73,8 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
             absentToday: absent,
             monthlyAttendanceData: monthlyData,
             wageBasisData: wageData,
+            totalRegularHours: totalRegular,
+            totalOvertimeHours: totalOvertime
         };
 
    }, [employees, attendance]);
@@ -87,7 +95,7 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
 
   return (
     <div className="grid gap-6">
-       <div className="grid gap-6 md:grid-cols-3">
+       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Total Employees</CardTitle>
@@ -113,6 +121,24 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold text-red-600">{absentToday}</div>
+                </CardContent>
+            </Card>
+             <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Regular Hours (This Month)</CardTitle>
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">{totalRegularHours.toFixed(1)}</div>
+                </CardContent>
+            </Card>
+             <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Overtime Hours (This Month)</CardTitle>
+                    <Timer className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">{totalOvertimeHours.toFixed(1)}</div>
                 </CardContent>
             </Card>
        </div>

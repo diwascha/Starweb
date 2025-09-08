@@ -17,6 +17,10 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Attendanc
         clockIn: data.clockIn,
         clockOut: data.clockOut,
         status: data.status,
+        grossHours: data.grossHours || 0,
+        overtimeHours: data.overtimeHours || 0,
+        regularHours: data.regularHours || 0,
+        remarks: data.remarks || null,
         importedBy: data.importedBy,
     };
 };
@@ -29,12 +33,14 @@ export const getAttendance = async (): Promise<AttendanceRecord[]> => {
 export const addAttendanceRecords = async (records: Omit<AttendanceRecord, 'id'>[]): Promise<void> => {
     const batch = writeBatch(db);
     records.forEach(record => {
-        const docId = `${record.date}-${record.employeeName}`;
+        // Use a consistent, predictable ID to prevent duplicates on re-import
+        const docId = `${record.date.substring(0, 10)}_${record.employeeName.replace(/\s+/g, '-')}`;
         const docRef = doc(attendanceCollection, docId);
-        batch.set(docRef, record);
+        batch.set(docRef, record, { merge: true }); // Use merge to avoid overwriting existing fields if not provided
     });
     await batch.commit();
 };
+
 
 export const onAttendanceUpdate = (callback: (records: AttendanceRecord[]) => void): () => void => {
     return onSnapshot(attendanceCollection, (snapshot) => {

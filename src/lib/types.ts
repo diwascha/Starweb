@@ -1,5 +1,6 @@
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -128,8 +129,13 @@ export interface AttendanceRecord {
     clockIn: string | null;
     clockOut: string | null;
     status: AttendanceStatus;
+    grossHours: number;
+    overtimeHours: number;
+    regularHours: number;
+    remarks: string | null;
     importedBy: string;
 }
+
 
 // --- Fleet Management Types ---
 export type VehicleStatus = 'Active' | 'In Maintenance' | 'Decommissioned';

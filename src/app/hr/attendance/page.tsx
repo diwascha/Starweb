@@ -21,15 +21,10 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 import type { DateRange } from 'react-day-picker';
+import { processAttendanceImport } from '@/services/payroll-service';
 
-
-type SortKey = 'date' | 'employeeName' | 'status';
+type SortKey = 'date' | 'employeeName' | 'status' | 'regularHours' | 'overtimeHours';
 type SortDirection = 'asc' | 'desc';
-
-const cleanEmployeeName = (name: any): string => {
-  if (typeof name !== 'string') return '';
-  return name.trim().replace(/\s+/g, ' ').toLowerCase();
-};
 
 const nepaliMonths = [
     { value: 0, name: "Baishakh" }, { value: 1, name: "Jestha" }, { value: 2, name: "Ashadh" },
@@ -44,7 +39,7 @@ export default function AttendancePage() {
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'employeeName', direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
@@ -86,11 +81,11 @@ export default function AttendancePage() {
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file || !user) return;
 
     const XLSX = await import('xlsx');
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: 'array', cellDates: true });
@@ -98,10 +93,29 @@ export default function AttendancePage() {
         const worksheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json<any>(worksheet, { header: 1 });
         
-        parseAndStoreAttendance(jsonData);
+        const { newRecords, newlyAddedEmployees, skippedRows } = await processAttendanceImport(jsonData, employees, user.username);
+
+        if (newRecords.length > 0) {
+            await addAttendanceRecords(newRecords);
+            let description = `${newRecords.length} attendance records processed and saved.`;
+            if (newlyAddedEmployees.size > 0) {
+                description += ` ${newlyAddedEmployees.size} new employees were added.`;
+            }
+            if (skippedRows > 0) {
+                description += ` ${skippedRows} rows were skipped due to missing data.`;
+            }
+            toast({ title: 'Import Complete', description });
+        } else {
+            let description = 'No new valid attendance records found to import.';
+            if (skippedRows > 0) {
+                description += ` ${skippedRows} rows were skipped.`;
+            }
+            toast({ title: 'Info', description: description });
+        }
+
       } catch (error) {
-        console.error("File parsing error:", error);
-        toast({ title: 'Error', description: 'Failed to parse the Excel file.', variant: 'destructive' });
+        console.error("File processing error:", error);
+        toast({ title: 'Error', description: 'Failed to process the Excel file.', variant: 'destructive' });
       }
     };
     reader.onerror = (error) => {
@@ -114,189 +128,7 @@ export default function AttendancePage() {
       fileInputRef.current.value = '';
     }
   };
-  
-  const parseTime = (time: any): string | null => {
-      if (time === null || time === undefined || time === '' || time === 0 || (typeof time === 'string' && time.trim() === '-')) return null;
-      
-      if (time instanceof Date) {
-        if (isNaN(time.getTime())) return null;
-        return format(time, 'HH:mm');
-      }
-      
-      if (typeof time === 'string') {
-        const trimmedTime = time.trim();
-        const formats = ['HH:mm:ss', 'h:mm:ss a', 'HH:mm', 'h:mm a'];
-        for (const fmt of formats) {
-            try {
-                const parsedTime = parse(trimmedTime, fmt, new Date());
-                if (!isNaN(parsedTime.getTime())) return format(parsedTime, 'HH:mm');
-            } catch {}
-        }
-      }
-      
-      if (typeof time === 'number') { 
-        if (time < 0 || time >= 1) return null;
-        const excelEpoch = new Date(1899, 11, 30);
-        const date = new Date(excelEpoch.getTime() + time * 24 * 60 * 60 * 1000);
-        if (isNaN(date.getTime())) return null;
-        return format(date, 'HH:mm');
-      }
-      
-      return null;
-  };
-  
-    const parseDate = (dateInput: any): Date | null => {
-        if (!dateInput) return null;
-        if (dateInput instanceof Date && !isNaN(dateInput.getTime())) {
-            return dateInput;
-        }
-        if (typeof dateInput === 'number') {
-            const excelEpoch = new Date(1899, 11, 30);
-            return new Date(excelEpoch.getTime() + dateInput * 24 * 60 * 60 * 1000);
-        }
-        if (typeof dateInput === 'string') {
-            const dateOnlyString = dateInput.split(' ')[0];
-            const formats = ['MM/dd/yyyy', 'yyyy-MM-dd', 'M/d/yy', 'M/d/yyyy'];
-            for (const fmt of formats) {
-                try {
-                    const parsed = parse(dateOnlyString, fmt, new Date());
-                    if(!isNaN(parsed.getTime())) return parsed;
-                } catch {}
-            }
-        }
-        return null;
-    };
 
-
-  const parseAndStoreAttendance = async (jsonData: any[][]) => {
-    if (!user) {
-        toast({ title: 'Error', description: 'You must be logged in to import attendance.', variant: 'destructive' });
-        return;
-    }
-    
-    if (!jsonData || jsonData.length < 2) {
-        toast({ title: 'Error', description: 'Excel file is empty or missing a header row.', variant: 'destructive' });
-        return;
-    }
-    
-    const headerRow = jsonData[0].map(h => String(h).toLowerCase().trim());
-    const dataRows = jsonData.slice(1);
-
-    const getIndex = (aliases: string[]) => {
-        for (const alias of aliases) {
-            const index = headerRow.findIndex(h => h === alias);
-            if (index !== -1) return index;
-        }
-        return -1;
-    }
-
-    const nameIndex = getIndex(['name']);
-    const dateIndex = getIndex(['date']);
-    const onDutyIndex = getIndex(['on duty', 'onduty']);
-    const offDutyIndex = getIndex(['off duty', 'offduty']);
-    const clockInIndex = getIndex(['clock in', 'clockin']);
-    const clockOutIndex = getIndex(['clock out', 'clockout']);
-    
-    if (nameIndex === -1 || dateIndex === -1) {
-        toast({ title: 'Error', description: 'Missing required "Name" or "Date" columns in the Excel file.', variant: 'destructive'});
-        return;
-    }
-
-    const newRecords: Omit<AttendanceRecord, 'id'>[] = [];
-    const employeeMap = new Map(employees.map(e => [cleanEmployeeName(e.name), e.name]));
-    let skippedRows = 0;
-    const newlyAddedEmployees = new Set<string>();
-    
-    for (const row of dataRows) {
-        const nameFromFile = String(row[nameIndex] || '').trim();
-        const cleanedNameFromFile = cleanEmployeeName(nameFromFile);
-        let employeeNameInDb = employeeMap.get(cleanedNameFromFile);
-        
-        const adDate = parseDate(row[dateIndex]);
-
-        if (!adDate || !nameFromFile) {
-            skippedRows++;
-            continue;
-        }
-
-        if (!employeeNameInDb) {
-            try {
-                const newEmployeeData = {
-                    name: nameFromFile,
-                    wageBasis: 'Monthly' as const,
-                    wageAmount: 0,
-                    createdBy: user.username,
-                };
-                await addEmployee(newEmployeeData);
-                employeeNameInDb = nameFromFile;
-                employeeMap.set(cleanedNameFromFile, nameFromFile);
-                newlyAddedEmployees.add(nameFromFile);
-            } catch (error) {
-                console.error(`Failed to add new employee ${nameFromFile}:`, error);
-                skippedRows++;
-                continue;
-            }
-        }
-      
-        const dateStr = adDate.toISOString();
-        const nepaliDate = new NepaliDate(adDate);
-        const bsDate = nepaliDate.format('YYYY-MM-DD');
-        
-        const clockInValue = parseTime(clockInIndex > -1 ? row[clockInIndex] : null);
-        const clockOutValue = parseTime(clockOutIndex > -1 ? row[clockOutIndex] : null);
-
-        let status: AttendanceRecord['status'];
-
-        if (nepaliDate.getDay() === 6) {
-          status = 'Saturday';
-        } else {
-            if (!clockInValue) {
-                status = 'C/I Miss';
-            } else if (!clockOutValue) {
-                status = 'C/O Miss';
-            } else {
-                status = 'Present';
-            }
-        }
-        
-        const record: Omit<AttendanceRecord, 'id'> = {
-            date: dateStr,
-            bsDate,
-            employeeName: employeeNameInDb,
-            onDuty: onDutyIndex > -1 ? parseTime(row[onDutyIndex]) : null,
-            offDuty: offDutyIndex > -1 ? parseTime(row[offDutyIndex]) : null,
-            clockIn: clockInValue,
-            clockOut: clockOutValue,
-            status,
-            importedBy: user.username,
-        };
-        newRecords.push(record);
-    }
-    
-    if (newRecords.length > 0) {
-        try {
-            await addAttendanceRecords(newRecords);
-            let description = `${newRecords.length} attendance records imported.`;
-            if (newlyAddedEmployees.size > 0) {
-                description += ` ${newlyAddedEmployees.size} new employees were added.`;
-            }
-            if (skippedRows > 0) {
-                description += ` ${skippedRows} rows were skipped.`;
-            }
-            toast({ title: 'Import Complete', description });
-        } catch (error) {
-            console.error("Firestore import error:", error);
-            toast({ title: 'Error', description: 'Failed to save attendance data to the database.', variant: 'destructive' });
-        }
-    } else {
-        let description = 'No new valid attendance records found to import.';
-        if (skippedRows > 0) {
-            description += ` ${skippedRows} rows were skipped due to missing data.`;
-        }
-        toast({ title: 'Info', description: description });
-    }
-  };
-  
   const requestSort = (key: SortKey) => {
     let direction: SortDirection = 'asc';
     if (sortConfig.key === key && sortConfig.direction === 'asc') {
@@ -339,21 +171,14 @@ export default function AttendancePage() {
     }
 
     filtered.sort((a, b) => {
-      if (sortConfig.key === 'employeeName') {
-        const nameCompare = a.employeeName.localeCompare(b.employeeName);
-        if (nameCompare !== 0) return sortConfig.direction === 'asc' ? nameCompare : -nameCompare;
-      }
-
       const aVal = a[sortConfig.key];
       const bVal = b[sortConfig.key];
 
       if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
       if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
       
-      if (sortConfig.key !== 'employeeName') {
-         const nameCompare = a.employeeName.localeCompare(b.employeeName);
-         if (nameCompare !== 0) return nameCompare;
-      } else {
+      // Secondary sort
+      if (sortConfig.key !== 'date') {
           const dateA = new Date(a.date).getTime();
           const dateB = new Date(b.date).getTime();
           if (dateA < dateB) return -1;
@@ -404,12 +229,10 @@ export default function AttendancePage() {
               <TableHead><Button variant="ghost" onClick={() => requestSort('date')}>Date (AD) <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
               <TableHead>Date (BS)</TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('employeeName')}>Employee Name <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-              <TableHead>Weekday</TableHead>
-              <TableHead>On Duty</TableHead>
-              <TableHead>Off Duty</TableHead>
-              <TableHead>Clock In</TableHead>
-              <TableHead>Clock Out</TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('status')}>Status <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+              <TableHead>Clock In/Out</TableHead>
+              <TableHead><Button variant="ghost" onClick={() => requestSort('regularHours')}>Regular Hours <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+              <TableHead><Button variant="ghost" onClick={() => requestSort('overtimeHours')}>Overtime Hours <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -418,16 +241,16 @@ export default function AttendancePage() {
                 <TableCell className="font-medium">{format(new Date(record.date), 'yyyy-MM-dd')}</TableCell>
                 <TableCell>{record.bsDate}</TableCell>
                 <TableCell>{record.employeeName}</TableCell>
-                <TableCell>{format(new Date(record.date), 'EEEE')}</TableCell>
-                <TableCell>{record.onDuty || '-'}</TableCell>
-                <TableCell>{record.offDuty || '-'}</TableCell>
-                <TableCell>{record.clockIn || '-'}</TableCell>
-                <TableCell>{record.clockOut || '-'}</TableCell>
-                <TableCell>
+                 <TableCell>
                   <Badge variant={getAttendanceBadgeVariant(record.status)}>
-                    {record.status === 'Saturday' ? 'Day Off' : record.status}
+                    {record.status}
                   </Badge>
                 </TableCell>
+                <TableCell>
+                    {record.clockIn || '-'} / {record.clockOut || '-'}
+                </TableCell>
+                <TableCell>{record.regularHours.toFixed(1)}</TableCell>
+                <TableCell>{record.overtimeHours.toFixed(1)}</TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -517,7 +340,7 @@ export default function AttendancePage() {
                       <SelectItem value="All">All Statuses</SelectItem>
                       {attendanceStatuses.map(status => (
                           <SelectItem key={status} value={status}>
-                              {status === 'Saturday' ? 'Day Off' : status}
+                              {status}
                           </SelectItem>
                       ))}
                   </SelectContent>
