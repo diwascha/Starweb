@@ -1,19 +1,16 @@
 
 'use client';
 
-import { format, parse, getDay, startOfWeek, differenceInMinutes, addMinutes, setHours, setMinutes, setSeconds, startOfDay, endOfDay, getDaysInMonth, addDays, isSameDay, isAfter, isBefore } from 'date-fns';
+import { format, parse, getDay, differenceInMinutes, startOfDay, getDaysInMonth, isAfter, isBefore, isEqual, setHours, setMinutes, setSeconds } from 'date-fns';
 import NepaliDate from 'nepali-date-converter';
 import type { AttendanceRecord, Employee, Payroll, PunctualityInsight, BehaviorInsight, PatternInsight, WorkforceAnalytics } from '@/lib/types';
 import { addEmployee } from './employee-service';
 
-// --- Constants translated from VBA ---
+// --- Constants ---
 const kBaseDayHours = 8;
 const kRoundStepHours = 0.5;
 const kGraceMin = 5;
-const kWeeklyFreeLate = true;
-const kWeeklyFreeEarly = true;
 const PR_MONTH_DAYS = 30;
-const PR_BLOCK_MIN = 30;
 
 // --- Helper Functions ---
 const cleanEmployeeName = (name: any): string => {
@@ -85,30 +82,6 @@ const roundToStep = (hours: number, step: number): number => {
     return Math.round(hours / step) * step;
 };
 
-const applyFixedBreak = (start: Date, end: Date): number => {
-    if (!start || !end || isAfter(start, end)) return 0;
-
-    const totalMinutes = differenceInMinutes(end, start);
-    
-    const breakStartMinutes = 12 * 60;
-    const breakEndMinutes = 13 * 60;
-
-    const startMinutes = start.getHours() * 60 + start.getMinutes();
-    const endMinutes = end.getHours() * 60 + end.getMinutes();
-
-    const overlapStart = Math.max(startMinutes, breakStartMinutes);
-    const overlapEnd = Math.min(endMinutes, breakEndMinutes);
-    
-    const overlapMinutes = Math.max(0, overlapEnd - overlapStart);
-    
-    if (overlapMinutes > 0 && totalMinutes > 4 * 60) {
-        return (totalMinutes - overlapMinutes) / 60;
-    }
-    
-    return totalMinutes / 60;
-};
-
-
 // --- Main Processing Logic ---
 export const processAttendanceImport = async (
     jsonData: any[][], 
@@ -155,7 +128,7 @@ export const processAttendanceImport = async (
 
         if (!employeeNameInDb) {
             try {
-                await addEmployee({ name: nameFromFile, wageBasis: 'Monthly', wageAmount: 0, createdBy: username });
+                await addEmployee({ name: nameFromFile, wageBasis: 'Monthly', wageAmount: 0, createdBy: username, status: 'Working' });
                 employeeNameInDb = nameFromFile;
                 employeeMap.set(cleanedNameFromFile, nameFromFile);
                 newlyAddedEmployees.add(nameFromFile);
@@ -186,8 +159,9 @@ export const processAttendanceImport = async (
 
         if (weekday === 6) { // Saturday
             status = 'Saturday';
-            if (clockInDate && clockOutDate) {
-                const workedHours = applyFixedBreak(clockInDate, clockOutDate);
+            if (clockInDate && clockOutDate && isAfter(clockOutDate, clockInDate)) {
+                const totalMinutes = differenceInMinutes(clockOutDate, clockInDate);
+                const workedHours = totalMinutes / 60;
                 overtimeHours = roundToStep(workedHours, kRoundStepHours);
                 grossHours = overtimeHours;
             }
@@ -202,8 +176,21 @@ export const processAttendanceImport = async (
             } else if (!clockOutDate) {
                 status = 'C/O Miss';
                 remarks = "Missing OUT";
-            } else {
-                const workedHours = applyFixedBreak(clockInDate, clockOutDate);
+            } else if (isAfter(clockOutDate, clockInDate)) {
+                let totalMinutes = differenceInMinutes(clockOutDate, clockInDate);
+                
+                // Break deduction logic
+                const breakStart = setMinutes(setHours(startOfDay(adDate), 12), 0);
+                const breakEnd = setMinutes(setHours(startOfDay(adDate), 13), 0);
+                
+                const shiftOverlapsBreak = isBefore(clockInDate, breakEnd) && isAfter(clockOutDate, breakStart);
+                const longEnoughForBreak = totalMinutes > 4 * 60;
+
+                if(shiftOverlapsBreak && longEnoughForBreak) {
+                    totalMinutes -= 60;
+                }
+
+                const workedHours = Math.max(0, totalMinutes / 60);
                 grossHours = roundToStep(workedHours, kRoundStepHours);
                 regularHours = Math.min(kBaseDayHours, grossHours);
                 overtimeHours = Math.max(0, grossHours - kBaseDayHours);
