@@ -101,8 +101,8 @@ function roundToStepHours(x: number, step = ROUND_STEP_HOURS): number {
 }
 
 function overlapMinutes(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date): number {
-  const s = dfMax(aStart, bStart);
-  const e = dfMin(aEnd, bEnd);
+  const s = dfMax([aStart, bStart]);
+  const e = dfMin([aEnd, bEnd]);
   return e > s ? differenceInMinutes(e, s) : 0;
 }
 
