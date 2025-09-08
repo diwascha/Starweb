@@ -206,7 +206,7 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
                                         <TableHead>Total Hours</TableHead>
                                         <TableHead>OT Hours</TableHead>
                                         <TableHead>Normal Hours</TableHead>
-                                        <TableHead>Rate</TableHead>
+                                        <TableHead className="print:hidden">Rate</TableHead>
                                         <TableHead>Regular Pay</TableHead>
                                         <TableHead>OT Pay</TableHead>
                                         <TableHead>Total Pay</TableHead>
@@ -232,7 +232,7 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
                                             <TableCell>{p.totalHours.toFixed(1)}</TableCell>
                                             <TableCell>{p.otHours.toFixed(1)}</TableCell>
                                             <TableCell>{p.regularHours.toFixed(1)}</TableCell>
-                                            <TableCell>{p.rate.toFixed(2)}</TableCell>
+                                            <TableCell className="print:hidden">{p.rate.toFixed(2)}</TableCell>
                                             <TableCell>{p.regularPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                             <TableCell>{p.otPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                             <TableCell>{p.totalPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
@@ -258,7 +258,7 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
                                         <TableCell>{totals.totalHours.toFixed(1)}</TableCell>
                                         <TableCell>{totals.otHours.toFixed(1)}</TableCell>
                                         <TableCell>{totals.regularHours.toFixed(1)}</TableCell>
-                                        <TableCell></TableCell>
+                                        <TableCell className="print:hidden"></TableCell>
                                         <TableCell>{totals.regularPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell>{totals.otPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell>{totals.totalPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
