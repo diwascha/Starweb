@@ -121,16 +121,21 @@ export default function AttendancePage() {
         return format(time, 'HH:mm');
       }
       if (typeof time === 'string') {
+        // Handle cases like "08:00 AM" or "17:30"
         const formats = ['HH:mm:ss', 'h:mm:ss a', 'HH:mm', 'h:mm a'];
         for (const fmt of formats) {
             try {
+                // Attempt to parse with a base date of today
                 const parsedTime = parse(time, fmt, new Date());
+                // Check if parsing resulted in a valid date object
                 if (!isNaN(parsedTime.getTime())) return format(parsedTime, 'HH:mm');
             } catch {}
         }
       }
+      // Handle Excel's time format (decimal number)
       if (typeof time === 'number') { 
-        const excelEpoch = new Date(1899, 11, 30);
+        // Excel stores time as a fraction of a day. 0.5 is noon.
+        const excelEpoch = new Date(1899, 11, 30); // Excel's epoch starts on a funky date
         const date = new Date(excelEpoch.getTime() + time * 24 * 60 * 60 * 1000);
         return format(date, 'HH:mm');
       }
@@ -139,13 +144,16 @@ export default function AttendancePage() {
   
     const parseDate = (dateInput: any): Date | null => {
         if (!dateInput) return null;
+        // If it's already a valid Date object
         if (dateInput instanceof Date && !isNaN(dateInput.getTime())) {
             return dateInput;
         }
+        // If it's an Excel date number
         if (typeof dateInput === 'number') {
             const excelEpoch = new Date(1899, 11, 30);
             return new Date(excelEpoch.getTime() + dateInput * 24 * 60 * 60 * 1000);
         }
+        // If it's a string, try various formats
         if (typeof dateInput === 'string') {
             const dateOnlyString = dateInput.split(' ')[0];
             const formats = ['MM/dd/yyyy', 'yyyy-MM-dd', 'M/d/yy', 'M/d/yyyy'];
@@ -238,14 +246,16 @@ export default function AttendancePage() {
         const clockOutValue = parseTime(clockOutIndex > -1 ? row[clockOutIndex] : null);
 
         let status: AttendanceRecord['status'];
-        if (nepaliDate.getDay() === 6) {
+        if (nepaliDate.getDay() === 6) { // Saturday
             status = 'Saturday';
-        } else if (!clockInValue) {
-            status = 'C/I Miss';
-        } else if (!clockOutValue) {
-            status = 'C/O Miss';
         } else {
-            status = 'Present';
+            if (!clockInValue) {
+                status = 'C/I Miss';
+            } else if (!clockOutValue) {
+                status = 'C/O Miss';
+            } else {
+                status = 'Present';
+            }
         }
         
         const record: Omit<AttendanceRecord, 'id'> = {
