@@ -422,7 +422,9 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
                                                         <TooltipProvider>
                                                             <Tooltip>
                                                                 <TooltipContent>{insight.description}</TooltipContent>
-                                                                <span className="flex-shrink-0 mt-1"><AlertCircle className="h-4 w-4 text-muted-foreground" /></span>
+                                                                <TooltipTrigger asChild>
+                                                                     <span className="flex-shrink-0 mt-1"><AlertCircle className="h-4 w-4 text-muted-foreground" /></span>
+                                                                </TooltipTrigger>
                                                             </Tooltip>
                                                         </TooltipProvider>
                                                         <span>{insight.finding}</span>

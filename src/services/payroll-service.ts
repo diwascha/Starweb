@@ -1,7 +1,7 @@
 
 'use client';
 
-import { format, parse, getDay, startOfWeek, differenceInMinutes, addMinutes, setHours, setMinutes, setSeconds, startOfDay, endOfDay, getDaysInMonth, addDays, isSameDay } from 'date-fns';
+import { format, parse, getDay, startOfWeek, differenceInMinutes, addMinutes, setHours, setMinutes, setSeconds, startOfDay, endOfDay, getDaysInMonth, addDays, isSameDay, isAfter } from 'date-fns';
 import NepaliDate from 'nepali-date-converter';
 import type { AttendanceRecord, Employee, Payroll, PunctualityInsight, BehaviorInsight, PatternInsight, WorkforceAnalytics } from '@/lib/types';
 import { addEmployee } from './employee-service';
@@ -43,6 +43,11 @@ const parseDate = (dateInput: any): Date | null => {
     return null;
 };
 
+const combineDateAndTime = (baseDate: Date, time: { hours: number, minutes: number, seconds: number } | null): Date | null => {
+    if (!time) return null;
+    return setSeconds(setMinutes(setHours(startOfDay(baseDate), time.hours), time.minutes), time.seconds);
+};
+
 const parseTime = (timeInput: any): { hours: number, minutes: number, seconds: number } | null => {
     if (timeInput === null || timeInput === undefined || timeInput === '' || (typeof timeInput === 'string' && timeInput.trim() === '-')) return null;
 
@@ -75,34 +80,27 @@ const parseTime = (timeInput: any): { hours: number, minutes: number, seconds: n
     return null;
 };
 
-const combineDateAndTime = (baseDate: Date, time: { hours: number, minutes: number, seconds: number } | null): Date | null => {
-    if (!time) return null;
-    return setSeconds(setMinutes(setHours(startOfDay(baseDate), time.hours), time.minutes), time.seconds);
-};
 
 const roundToStep = (hours: number, step: number): number => {
     return Math.round(hours / step) * step;
 };
 
 const applyFixedBreak = (start: Date, end: Date): number => {
-    if (!start || !end || isBefore(end, start)) return 0;
+    if (!start || !end || isAfter(start, end)) return 0;
 
     const totalMinutes = differenceInMinutes(end, start);
     
-    // Break is from 12:00 PM to 1:00 PM
     const breakStartMinutes = 12 * 60;
     const breakEndMinutes = 13 * 60;
 
     const startMinutes = start.getHours() * 60 + start.getMinutes();
     const endMinutes = end.getHours() * 60 + end.getMinutes();
 
-    // Calculate overlap between work period and break period
     const overlapStart = Math.max(startMinutes, breakStartMinutes);
     const overlapEnd = Math.min(endMinutes, breakEndMinutes);
     
     const overlapMinutes = Math.max(0, overlapEnd - overlapStart);
     
-    // Only apply break if they worked more than 4 hours, to avoid penalizing short shifts
     if (overlapMinutes > 0 && totalMinutes > 4 * 60) {
         return (totalMinutes - overlapMinutes) / 60;
     }
@@ -421,30 +419,60 @@ export const generatePayrollAndAnalytics = (
         return { day: dayName, lateArrivals, absenteeism };
     });
 
-    // Pattern Insights Calculation
+    // --- Expanded Pattern Insights Calculation ---
     const patternInsights: PatternInsight[] = [];
     const totalLateArrivals = dayOfWeekData.reduce((sum, d) => sum + d.lateArrivals, 0);
     const totalAbsenteeism = dayOfWeekData.reduce((sum, d) => sum + d.absenteeism, 0);
 
     if (totalLateArrivals > 0) {
         const mostLateDay = dayOfWeekData.reduce((max, day) => day.lateArrivals > max.lateArrivals ? day : max);
-        patternInsights.push({ finding: `Highest late arrivals: ${mostLateDay.day}`, description: `${mostLateDay.lateArrivals} late arrivals occurred on ${mostLateDay.day}s this month.` });
+        patternInsights.push({ finding: `Highest late arrivals on: ${mostLateDay.day}`, description: `${mostLateDay.lateArrivals} late arrivals occurred on ${mostLateDay.day}s this month.` });
     }
 
     if (totalAbsenteeism > 0) {
         const mostAbsentDay = dayOfWeekData.reduce((max, day) => day.absenteeism > max.absenteeism ? day : max);
-        patternInsights.push({ finding: `Highest absenteeism: ${mostAbsentDay.day}`, description: `${mostAbsentDay.absenteeism} absences occurred on ${mostAbsentDay.day}s this month.` });
+        patternInsights.push({ finding: `Highest absenteeism on: ${mostAbsentDay.day}`, description: `${mostAbsentDay.absenteeism} absences occurred on ${mostAbsentDay.day}s this month.` });
     }
 
-    const firstWeekLate = filteredAttendance.filter(r => new NepaliDate(new Date(r.date)).getDate() <= 7 && r.clockIn && r.onDuty && differenceInMinutes(parse(r.clockIn, 'HH:mm', new Date()), parse(r.onDuty, 'HH:mm', new Date())) > kGraceMin).length;
-    const lastWeekLate = filteredAttendance.filter(r => new NepaliDate(new Date(r.date)).getDate() >= scheduledDays - 6 && r.clockIn && r.onDuty && differenceInMinutes(parse(r.clockIn, 'HH:mm', new Date()), parse(r.onDuty, 'HH:mm', new Date())) > kGraceMin).length;
-    if (lastWeekLate > firstWeekLate && firstWeekLate > 0) {
-        const increase = ((lastWeekLate - firstWeekLate) / firstWeekLate) * 100;
-        patternInsights.push({ finding: `End-of-month trend: Late arrivals increase by ${increase.toFixed(0)}%`, description: `Compared to the first week, late arrivals increased by ${increase.toFixed(0)}% in the last week of the month.` });
+    const punctualityScores = punctuality.map(p => p.punctualityScore);
+    const mostPunctual = punctuality.reduce((max, p) => p.punctualityScore > max.punctualityScore ? p : max, punctuality[0]);
+    if(mostPunctual) patternInsights.push({ finding: `Most Punctual: ${mostPunctual.employeeName}`, description: `${mostPunctual.employeeName} had the highest punctuality score of ${mostPunctual.punctualityScore.toFixed(1)}%.` });
+
+    const leastPunctual = punctuality.reduce((min, p) => p.punctualityScore < min.punctualityScore ? p : min, punctuality[0]);
+    if(leastPunctual && leastPunctual.punctualityScore < 90) patternInsights.push({ finding: `Least Punctual: ${leastPunctual.employeeName}`, description: `${leastPunctual.employeeName} had the lowest punctuality score of ${leastPunctual.punctualityScore.toFixed(1)}%.` });
+
+    const highestOvertime = payroll.reduce((max, p) => p.otHours > max.otHours ? p : max, payroll[0]);
+    if(highestOvertime && highestOvertime.otHours > 0) patternInsights.push({ finding: `Highest Overtime: ${highestOvertime.employeeName}`, description: `${highestOvertime.employeeName} worked the most overtime this month with ${highestOvertime.otHours.toFixed(1)} hours.` });
+
+    const perfectAttendance = punctuality.filter(p => p.absentDays === 0 && p.lateArrivals === 0 && p.earlyDepartures === 0);
+    if(perfectAttendance.length > 0) patternInsights.push({ finding: `Perfect Attendance: ${perfectAttendance.length} employee(s)`, description: `${perfectAttendance.map(p => p.employeeName).join(', ')} had perfect attendance this month.` });
+
+    const mondayLates = dayOfWeekData.find(d => d.day === 'Monday')?.lateArrivals || 0;
+    const fridayLates = dayOfWeekData.find(d => d.day === 'Friday')?.lateArrivals || 0;
+    if (mondayLates > fridayLates && mondayLates > 0) {
+        patternInsights.push({ finding: "Potential 'Monday Blues'", description: `There were more late arrivals on Mondays (${mondayLates}) than Fridays (${fridayLates}).` });
+    } else if (fridayLates > mondayLates && fridayLates > 0) {
+         patternInsights.push({ finding: "Potential 'Friday Rush'", description: `There were more late arrivals on Fridays (${fridayLates}) than Mondays (${mondayLates}).` });
     }
 
+    let postHolidayAbsences = 0;
+    const holidays = filteredAttendance.filter(r => r.status === 'Public Holiday').map(r => r.date);
+    holidays.forEach(holiday => {
+        const nextDay = addDays(new Date(holiday), 1);
+        const nextDayAbsences = filteredAttendance.filter(r => isSameDay(new Date(r.date), nextDay) && r.status === 'Absent').length;
+        postHolidayAbsences += nextDayAbsences;
+    });
+    if (postHolidayAbsences > 0) {
+        patternInsights.push({ finding: `Post-Holiday Absenteeism`, description: `There were ${postHolidayAbsences} instances of absence on the day immediately following a public holiday.` });
+    }
+    
+    const highMissedPunches = punctuality.filter(p => (p.lateArrivals + p.earlyDepartures) > 3);
+    if (highMissedPunches.length > 0) {
+        patternInsights.push({ finding: `Frequent Missed Punches: ${highMissedPunches.length} employee(s)`, description: `${highMissedPunches.map(p => p.employeeName).join(', ')} had more than 3 missed clock-ins or clock-outs.` });
+    }
+    
     let highOtNextDayLate = 0;
-    const highOtThreshold = 3; // e.g., 3 hours of OT
+    const highOtThreshold = 3;
     employees.forEach(emp => {
         const empAttendance = filteredAttendance.filter(r => r.employeeName === emp.name).sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         for (let i = 0; i < empAttendance.length - 1; i++) {
@@ -459,9 +487,8 @@ export const generatePayrollAndAnalytics = (
             }
         }
     });
-
     if (highOtNextDayLate > 0) {
-        patternInsights.push({ finding: 'Employees with high OT may arrive late the next day', description: `There were ${highOtNextDayLate} instances of an employee being late the day after working significant overtime.` });
+        patternInsights.push({ finding: 'High OT may affect next-day punctuality', description: `There were ${highOtNextDayLate} instances of an employee being late the day after working significant overtime.` });
     }
 
     return { payroll, punctuality, behavior, workforce, dayOfWeek: dayOfWeekData, patternInsights };
