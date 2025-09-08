@@ -115,25 +115,34 @@ export default function AttendancePage() {
     }
   };
   
-  const parseTime = (time: any): string | null => {
-      if (!time || (typeof time === 'string' && time.trim() === '') || time === 0) return null;
+    const parseTime = (time: any): string | null => {
+      if (time === null || time === undefined || time === '' || time === 0 || (typeof time === 'string' && time.trim() === '-')) return null;
+      
       if (time instanceof Date) {
+        // Check for invalid date objects that can result from parsing
+        if (isNaN(time.getTime())) return null;
         return format(time, 'HH:mm');
       }
+      
       if (typeof time === 'string') {
+        const trimmedTime = time.trim();
         const formats = ['HH:mm:ss', 'h:mm:ss a', 'HH:mm', 'h:mm a'];
         for (const fmt of formats) {
             try {
-                const parsedTime = parse(time, fmt, new Date());
+                const parsedTime = parse(trimmedTime, fmt, new Date());
                 if (!isNaN(parsedTime.getTime())) return format(parsedTime, 'HH:mm');
             } catch {}
         }
       }
+      
+      // Handle Excel's numeric time format
       if (typeof time === 'number') { 
+        if (time < 0 || time >= 1) return null; // Excel time is a fraction of a day
         const excelEpoch = new Date(1899, 11, 30);
         const date = new Date(excelEpoch.getTime() + time * 24 * 60 * 60 * 1000);
         return format(date, 'HH:mm');
       }
+      
       return null;
   };
   
@@ -239,12 +248,12 @@ export default function AttendancePage() {
 
         let status: AttendanceRecord['status'];
 
-        if (nepaliDate.getDay() === 6) { // Saturday
+        if (nepaliDate.getDay() === 6) {
             status = 'Saturday';
         } else {
-            if (!clockInValue) {
+            if (clockInValue === null) {
                 status = 'C/I Miss';
-            } else if (!clockOutValue) {
+            } else if (clockOutValue === null) {
                 status = 'C/O Miss';
             } else {
                 status = 'Present';
@@ -521,5 +530,3 @@ export default function AttendancePage() {
     </div>
   );
 }
-
-    
