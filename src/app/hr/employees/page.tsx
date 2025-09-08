@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, User, CalendarIcon, Image as ImageIcon, X } from 'lucide-react';
-import type { Employee, WageBasis, Gender, IdentityType, EmployeeStatus } from '@/lib/types';
+import type { Employee, WageBasis, Gender, IdentityType, EmployeeStatus, Department, Position } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import {
@@ -51,14 +51,19 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 
-type EmployeeSortKey = 'name' | 'wageBasis' | 'wageAmount' | 'allowance' | 'authorship' | 'mobileNumber' | 'gender' | 'joiningDate' | 'status';
+type EmployeeSortKey = 'name' | 'wageBasis' | 'wageAmount' | 'allowance' | 'authorship' | 'mobileNumber' | 'gender' | 'joiningDate' | 'status' | 'department' | 'position';
 type SortDirection = 'asc' | 'desc';
 
 const employeeStatuses: EmployeeStatus[] = ['Working', 'Long Leave', 'Resigned', 'Dismissed'];
+const departments: Department[] = ['Production', 'Admin'];
+const positions: Position[] = ['Manager', 'Supervisor', 'Machine Operator', 'Helpers'];
+
 
 const initialFormState = {
     name: '',
     status: 'Working' as EmployeeStatus,
+    department: 'Production' as Department,
+    position: 'Helpers' as Position,
     wageBasis: 'Monthly' as WageBasis,
     wageAmount: '',
     allowance: '',
@@ -124,6 +129,8 @@ export default function EmployeesPage() {
     setFormState({
         name: employee.name,
         status: employee.status || 'Working',
+        department: employee.department || 'Production',
+        position: employee.position || 'Helpers',
         wageBasis: employee.wageBasis,
         wageAmount: String(employee.wageAmount),
         allowance: String(employee.allowance || ''),
@@ -209,6 +216,8 @@ export default function EmployeesPage() {
       const employeeData = {
           name: formState.name.trim(),
           status: formState.status,
+          department: formState.department,
+          position: formState.position,
           wageBasis: formState.wageBasis,
           wageAmount: amount,
           allowance: allowanceAmount,
@@ -337,6 +346,8 @@ export default function EmployeesPage() {
             <TableRow>
               <TableHead><Button variant="ghost" onClick={() => requestSort('name')}>Employee Name <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('status')}>Status <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+              <TableHead><Button variant="ghost" onClick={() => requestSort('department')}>Department <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+              <TableHead><Button variant="ghost" onClick={() => requestSort('position')}>Position <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('joiningDate')}>Joining Date <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('mobileNumber')}>Mobile Number <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('wageAmount')}>Amount <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
@@ -360,6 +371,8 @@ export default function EmployeesPage() {
                 <TableCell>
                   <Badge variant={getStatusBadgeVariant(employee.status)}>{employee.status || 'Working'}</Badge>
                 </TableCell>
+                 <TableCell>{employee.department || 'N/A'}</TableCell>
+                <TableCell>{employee.position || 'N/A'}</TableCell>
                 <TableCell>{employee.joiningDate ? toNepaliDate(employee.joiningDate) : 'N/A'}</TableCell>
                 <TableCell>{employee.mobileNumber || 'N/A'}</TableCell>
                 <TableCell>{employee.wageAmount.toLocaleString()}</TableCell>
@@ -549,6 +562,26 @@ export default function EmployeesPage() {
                                 {employeeStatuses.map(status => (
                                     <SelectItem key={status} value={status}>{status}</SelectItem>
                                 ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                 </div>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="department">Department</Label>
+                        <Select value={formState.department} onValueChange={(value: Department) => handleSelectChange('department', value)}>
+                            <SelectTrigger id="department"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                {departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="position">Position</Label>
+                        <Select value={formState.position} onValueChange={(value: Position) => handleSelectChange('position', value)}>
+                            <SelectTrigger id="position"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                {positions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                             </SelectContent>
                         </Select>
                     </div>

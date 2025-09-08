@@ -1,15 +1,4 @@
 
-
-
-
-
-
-
-
-
-
-
-
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -117,12 +106,16 @@ export type WageBasis = 'Monthly' | 'Hourly';
 export type Gender = 'Male' | 'Female' | 'Other';
 export type IdentityType = 'Citizenship' | 'Voters Card' | 'License';
 export type EmployeeStatus = 'Working' | 'Long Leave' | 'Resigned' | 'Dismissed';
+export type Department = 'Production' | 'Admin';
+export type Position = 'Manager' | 'Supervisor' | 'Machine Operator' | 'Helpers';
 
 
 export interface Employee {
   id: string;
   name: string;
   status: EmployeeStatus;
+  department?: Department;
+  position?: Position;
   wageBasis: WageBasis;
   wageAmount: number;
   allowance?: number;
@@ -463,5 +456,3 @@ export const getDocumentName = (type: DocumentType): string => {
             return 'Document';
     }
 }
-
-    
