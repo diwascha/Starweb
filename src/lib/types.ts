@@ -5,6 +5,7 @@
 
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -115,6 +116,7 @@ export interface Employee {
   name: string;
   wageBasis: WageBasis;
   wageAmount: number;
+  allowance?: number;
   createdBy: string;
   createdAt: string; // ISO string
   lastModifiedBy?: string;

@@ -12,6 +12,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Employee 
         name: data.name,
         wageBasis: data.wageBasis,
         wageAmount: data.wageAmount,
+        allowance: data.allowance,
         createdBy: data.createdBy,
         createdAt: data.createdAt,
         lastModifiedBy: data.lastModifiedBy,

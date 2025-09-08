@@ -44,7 +44,7 @@ import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/comp
 import { format } from 'date-fns';
 
 
-type EmployeeSortKey = 'name' | 'wageBasis' | 'wageAmount' | 'authorship';
+type EmployeeSortKey = 'name' | 'wageBasis' | 'wageAmount' | 'allowance' | 'authorship';
 type SortDirection = 'asc' | 'desc';
 
 export default function EmployeesPage() {
@@ -57,6 +57,7 @@ export default function EmployeesPage() {
   const [employeeName, setEmployeeName] = useState('');
   const [wageBasis, setWageBasis] = useState<WageBasis>('Monthly');
   const [wageAmount, setWageAmount] = useState('');
+  const [allowance, setAllowance] = useState('');
 
   const [searchQuery, setSearchQuery] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: EmployeeSortKey; direction: SortDirection }>({
@@ -80,6 +81,7 @@ export default function EmployeesPage() {
     setEmployeeName('');
     setWageBasis('Monthly');
     setWageAmount('');
+    setAllowance('');
     setEditingEmployee(null);
   };
 
@@ -93,6 +95,7 @@ export default function EmployeesPage() {
     setEmployeeName(employee.name);
     setWageBasis(employee.wageBasis);
     setWageAmount(String(employee.wageAmount));
+    setAllowance(String(employee.allowance || ''));
     setIsEmployeeDialogOpen(true);
   };
 
@@ -103,6 +106,7 @@ export default function EmployeesPage() {
     }
 
     const amount = parseFloat(wageAmount);
+    const allowanceAmount = parseFloat(allowance) || 0;
     if (employeeName.trim() === '' || isNaN(amount) || amount <= 0) {
       toast({ title: 'Error', description: 'Please fill all fields with valid values.', variant: 'destructive' });
       return;
@@ -114,6 +118,7 @@ export default function EmployeesPage() {
           name: employeeName.trim(),
           wageBasis,
           wageAmount: amount,
+          allowance: allowanceAmount,
           lastModifiedBy: user.username,
         };
         await updateEmployee(editingEmployee.id, updatedEmployeeData);
@@ -123,6 +128,7 @@ export default function EmployeesPage() {
           name: employeeName.trim(),
           wageBasis,
           wageAmount: amount,
+          allowance: allowanceAmount,
           createdBy: user.username,
         };
         await addEmployee(newEmployeeData);
@@ -217,6 +223,7 @@ export default function EmployeesPage() {
               <TableHead><Button variant="ghost" onClick={() => requestSort('name')}>Employee Name <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('wageBasis')}>Wage Basis <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('wageAmount')}>Amount <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+              <TableHead><Button variant="ghost" onClick={() => requestSort('allowance')}>Allowance <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('authorship')}>Authorship <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -227,6 +234,7 @@ export default function EmployeesPage() {
                 <TableCell className="font-medium">{employee.name}</TableCell>
                 <TableCell>{employee.wageBasis}</TableCell>
                 <TableCell>{employee.wageAmount.toLocaleString()}</TableCell>
+                <TableCell>{(employee.allowance || 0).toLocaleString()}</TableCell>
                 <TableCell>
                     <TooltipProvider>
                         <Tooltip>
@@ -319,6 +327,10 @@ export default function EmployeesPage() {
                   <div className="space-y-2">
                     <Label htmlFor="wage-amount">Amount</Label>
                     <Input id="wage-amount" type="number" value={wageAmount} onChange={e => setWageAmount(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="allowance">Allowance</Label>
+                    <Input id="allowance" type="number" value={allowance} onChange={e => setAllowance(e.target.value)} placeholder="e.g. 500" />
                   </div>
                 </div>
                 <DialogFooter>
