@@ -8,6 +8,7 @@
 
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -129,6 +130,8 @@ export interface Employee {
   joiningDate?: string; // ISO string
   identityType?: IdentityType;
   documentNumber?: string;
+  referredBy?: string;
+  photoURL?: string;
   createdBy: string;
   createdAt: string; // ISO string
   lastModifiedBy?: string;

@@ -2,6 +2,7 @@
 import { db } from '@/lib/firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import type { Employee } from '@/lib/types';
+import { deleteFile } from './storage-service';
 
 const employeesCollection = collection(db, 'employees');
 
@@ -20,6 +21,8 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Employee 
         joiningDate: data.joiningDate,
         identityType: data.identityType,
         documentNumber: data.documentNumber,
+        referredBy: data.referredBy,
+        photoURL: data.photoURL,
         createdBy: data.createdBy,
         createdAt: data.createdAt,
         lastModifiedBy: data.lastModifiedBy,
@@ -54,7 +57,15 @@ export const updateEmployee = async (id: string, employee: Partial<Omit<Employee
     });
 };
 
-export const deleteEmployee = async (id: string): Promise<void> => {
+export const deleteEmployee = async (id: string, photoURL?: string): Promise<void> => {
+    if (photoURL) {
+        try {
+            await deleteFile(photoURL);
+        } catch (error) {
+            console.error("Failed to delete employee photo from storage:", error);
+            // Don't block employee deletion if photo deletion fails
+        }
+    }
     const employeeDoc = doc(db, 'employees', id);
     await deleteDoc(employeeDoc);
 };

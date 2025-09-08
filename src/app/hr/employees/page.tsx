@@ -1,8 +1,8 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, User, CalendarIcon } from 'lucide-react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, User, CalendarIcon, Image as ImageIcon, X } from 'lucide-react';
 import type { Employee, WageBasis, Gender, IdentityType } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -46,7 +46,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { cn, toNepaliDate } from '@/lib/utils';
-
+import { uploadFile } from '@/services/storage-service';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import Image from 'next/image';
 
 type EmployeeSortKey = 'name' | 'wageBasis' | 'wageAmount' | 'allowance' | 'authorship' | 'mobileNumber' | 'gender' | 'joiningDate';
 type SortDirection = 'asc' | 'desc';
@@ -62,7 +64,9 @@ const initialFormState = {
     dateOfBirth: new Date().toISOString(),
     joiningDate: new Date().toISOString(),
     identityType: 'Citizenship' as IdentityType,
-    documentNumber: ''
+    documentNumber: '',
+    referredBy: '',
+    photoURL: '',
 };
 
 export default function EmployeesPage() {
@@ -73,7 +77,10 @@ export default function EmployeesPage() {
   const [isEmployeeDialogOpen, setIsEmployeeDialogOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [formState, setFormState] = useState(initialFormState);
-
+  
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: EmployeeSortKey; direction: SortDirection }>({
@@ -96,6 +103,11 @@ export default function EmployeesPage() {
   const resetForm = () => {
     setFormState(initialFormState);
     setEditingEmployee(null);
+    setPhotoFile(null);
+    setPhotoPreview(null);
+    if (photoInputRef.current) {
+        photoInputRef.current.value = '';
+    }
   };
 
   const openAddEmployeeDialog = () => {
@@ -116,10 +128,40 @@ export default function EmployeesPage() {
         dateOfBirth: employee.dateOfBirth || new Date().toISOString(),
         joiningDate: employee.joiningDate || new Date().toISOString(),
         identityType: employee.identityType || 'Citizenship',
-        documentNumber: employee.documentNumber || ''
+        documentNumber: employee.documentNumber || '',
+        referredBy: employee.referredBy || '',
+        photoURL: employee.photoURL || '',
     });
+    if (employee.photoURL) {
+      setPhotoPreview(employee.photoURL);
+    }
     setIsEmployeeDialogOpen(true);
   };
+
+   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            if (file.size > 25 * 1024) { // 25 KB size limit
+                toast({
+                    title: 'Image Too Large',
+                    description: 'Please select a photo smaller than 25 KB.',
+                    variant: 'destructive',
+                });
+                return;
+            }
+            setPhotoFile(file);
+            setPhotoPreview(URL.createObjectURL(file));
+        }
+    };
+
+    const removePhoto = () => {
+        setPhotoFile(null);
+        setPhotoPreview(null);
+        setFormState(prev => ({...prev, photoURL: ''}));
+        if (photoInputRef.current) {
+            photoInputRef.current.value = '';
+        }
+    };
   
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -151,6 +193,14 @@ export default function EmployeesPage() {
     }
 
     try {
+      let photoURL = editingEmployee?.photoURL || '';
+      if (photoFile) {
+        const filePath = `employee-photos/${user.username}-${Date.now()}-${photoFile.name}`;
+        photoURL = await uploadFile(photoFile, filePath);
+      } else if (formState.photoURL === '') {
+        photoURL = '';
+      }
+
       const employeeData = {
           name: formState.name.trim(),
           wageBasis: formState.wageBasis,
@@ -163,6 +213,8 @@ export default function EmployeesPage() {
           joiningDate: formState.joiningDate,
           identityType: formState.identityType,
           documentNumber: formState.documentNumber,
+          referredBy: formState.referredBy,
+          photoURL: photoURL,
       };
 
       if (editingEmployee) {
@@ -181,9 +233,9 @@ export default function EmployeesPage() {
     }
   };
   
-  const handleDeleteEmployee = async (id: string) => {
+  const handleDeleteEmployee = async (id: string, photoURL?: string) => {
     try {
-      await deleteEmployee(id);
+      await deleteEmployee(id, photoURL);
       toast({ title: 'Employee Deleted', description: 'The employee record has been deleted.' });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to delete employee.', variant: 'destructive' });
@@ -279,7 +331,15 @@ export default function EmployeesPage() {
           <TableBody>
             {filteredAndSortedEmployees.map(employee => (
               <TableRow key={employee.id}>
-                <TableCell className="font-medium">{employee.name}</TableCell>
+                <TableCell className="font-medium">
+                    <div className="flex items-center gap-3">
+                        <Avatar>
+                            <AvatarImage src={employee.photoURL} alt={employee.name} />
+                            <AvatarFallback>{employee.name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        {employee.name}
+                    </div>
+                </TableCell>
                 <TableCell>{employee.joiningDate ? toNepaliDate(employee.joiningDate) : 'N/A'}</TableCell>
                 <TableCell>{employee.mobileNumber || 'N/A'}</TableCell>
                 <TableCell>{employee.wageAmount.toLocaleString()}</TableCell>
@@ -317,7 +377,7 @@ export default function EmployeesPage() {
                           <AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()}><Trash2 className="mr-2 h-4 w-4 text-destructive" /> <span className="text-destructive">Delete</span></DropdownMenuItem></AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the employee record. This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
-                            <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteEmployee(employee.id)}>Delete</AlertDialogAction></AlertDialogFooter>
+                            <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteEmployee(employee.id, employee.photoURL)}>Delete</AlertDialogAction></AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>
                       )}
@@ -353,105 +413,135 @@ export default function EmployeesPage() {
           {hasPermission('hr', 'create') && (
             <Dialog open={isEmployeeDialogOpen} onOpenChange={setIsEmployeeDialogOpen}>
               <DialogTrigger asChild><Button onClick={openAddEmployeeDialog}><Plus className="mr-2 h-4 w-4" /> Add Employee</Button></DialogTrigger>
-              <DialogContent className="sm:max-w-xl">
+              <DialogContent className="sm:max-w-2xl">
                 <DialogHeader>
                   <DialogTitle>{editingEmployee ? 'Edit Employee' : 'Add New Employee'}</DialogTitle>
                   <DialogDescription>{editingEmployee ? 'Update the details for this employee.' : 'Enter the details for the new employee.'}</DialogDescription>
                 </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="employee-name">Employee Name</Label>
-                    <Input id="employee-name" name="name" value={formState.name} onChange={handleFormChange} />
-                  </div>
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="mobileNumber">Mobile Number</Label>
-                            <Input id="mobileNumber" name="mobileNumber" type="tel" value={formState.mobileNumber} onChange={handleFormChange} />
+                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4">
+                    <div className="md:col-span-1 flex flex-col items-center gap-4">
+                        <Label htmlFor="photo">Passport Photo (Max 25KB)</Label>
+                         <div className="w-40 h-40 rounded-lg border border-dashed flex items-center justify-center bg-muted/50 relative overflow-hidden">
+                            {photoPreview ? (
+                                <>
+                                    <Image src={photoPreview} alt="Employee preview" layout="fill" objectFit="cover" />
+                                    <Button variant="destructive" size="icon" className="absolute top-1 right-1 h-7 w-7 rounded-full" onClick={removePhoto}>
+                                        <X className="h-4 w-4" />
+                                    </Button>
+                                </>
+                            ) : (
+                                <ImageIcon className="h-16 w-16 text-muted-foreground" />
+                            )}
+                        </div>
+                         <Input id="photo" type="file" accept="image/*" onChange={handlePhotoChange} ref={photoInputRef} className="hidden" />
+                        <Button type="button" variant="outline" onClick={() => photoInputRef.current?.click()}>
+                            {photoPreview ? 'Change Photo' : 'Upload Photo'}
+                        </Button>
+                    </div>
+                    <div className="md:col-span-2 grid gap-4">
+                         <div className="space-y-2">
+                            <Label htmlFor="employee-name">Employee Name</Label>
+                            <Input id="employee-name" name="name" value={formState.name} onChange={handleFormChange} />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="mobileNumber">Mobile Number</Label>
+                                <Input id="mobileNumber" name="mobileNumber" type="tel" value={formState.mobileNumber} onChange={handleFormChange} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="gender">Gender</Label>
+                                <Select value={formState.gender} onValueChange={(value: Gender) => handleSelectChange('gender', value)}>
+                                    <SelectTrigger id="gender"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Male">Male</SelectItem>
+                                        <SelectItem value="Female">Female</SelectItem>
+                                        <SelectItem value="Other">Other</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="gender">Gender</Label>
-                            <Select value={formState.gender} onValueChange={(value: Gender) => handleSelectChange('gender', value)}>
-                                <SelectTrigger id="gender"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Male">Male</SelectItem>
-                                    <SelectItem value="Female">Female</SelectItem>
-                                    <SelectItem value="Other">Other</SelectItem>
-                                </SelectContent>
-                            </Select>
+                            <Label htmlFor="address">Address</Label>
+                            <Textarea id="address" name="address" value={formState.address} onChange={handleFormChange} />
                         </div>
+                    </div>
+                 </div>
+
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formState.dateOfBirth && "text-muted-foreground")}>
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {formState.dateOfBirth ? `${toNepaliDate(formState.dateOfBirth)} BS (${format(new Date(formState.dateOfBirth), "PPP")})` : <span>Pick a date</span>}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0">
+                                <DualCalendar selected={new Date(formState.dateOfBirth)} onSelect={(date) => handleDateChange('dateOfBirth', date)} />
+                            </PopoverContent>
+                        </Popover>
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="address">Address</Label>
-                        <Textarea id="address" name="address" value={formState.address} onChange={handleFormChange} />
+                        <Label htmlFor="referredBy">Referred By</Label>
+                        <Input id="referredBy" name="referredBy" value={formState.referredBy} onChange={handleFormChange} />
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="dateOfBirth">Date of Birth</Label>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formState.dateOfBirth && "text-muted-foreground")}>
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {formState.dateOfBirth ? `${toNepaliDate(formState.dateOfBirth)} BS (${format(new Date(formState.dateOfBirth), "PPP")})` : <span>Pick a date</span>}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0">
-                                    <DualCalendar selected={new Date(formState.dateOfBirth)} onSelect={(date) => handleDateChange('dateOfBirth', date)} />
-                                </PopoverContent>
-                            </Popover>
-                        </div>
-                         <div className="space-y-2">
-                            <Label htmlFor="joiningDate">Joining Date</Label>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formState.joiningDate && "text-muted-foreground")}>
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {formState.joiningDate ? `${toNepaliDate(formState.joiningDate)} BS (${format(new Date(formState.joiningDate), "PPP")})` : <span>Pick a date</span>}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0">
-                                    <DualCalendar selected={new Date(formState.joiningDate)} onSelect={(date) => handleDateChange('joiningDate', date)} />
-                                </PopoverContent>
-                            </Popover>
-                        </div>
-                    </div>
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="identityType">Type of Identity</Label>
-                            <Select value={formState.identityType} onValueChange={(value: IdentityType) => handleSelectChange('identityType', value)}>
-                                <SelectTrigger id="identityType"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Citizenship">Citizenship</SelectItem>
-                                    <SelectItem value="Voters Card">Voters Card</SelectItem>
-                                    <SelectItem value="License">License</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="documentNumber">Document Number</Label>
-                            <Input id="documentNumber" name="documentNumber" value={formState.documentNumber} onChange={handleFormChange} />
-                        </div>
-                     </div>
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
-                        <div className="space-y-2">
-                            <Label htmlFor="wage-basis">Wage Basis</Label>
-                            <Select value={formState.wageBasis} onValueChange={(value: WageBasis) => handleSelectChange('wageBasis', value)}>
-                            <SelectTrigger id="wage-basis"><SelectValue placeholder="Select a basis" /></SelectTrigger>
+                 </div>
+
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="identityType">Type of Identity</Label>
+                        <Select value={formState.identityType} onValueChange={(value: IdentityType) => handleSelectChange('identityType', value)}>
+                            <SelectTrigger id="identityType"><SelectValue /></SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="Monthly">Monthly</SelectItem>
-                                <SelectItem value="Hourly">Hourly</SelectItem>
+                                <SelectItem value="Citizenship">Citizenship</SelectItem>
+                                <SelectItem value="Voters Card">Voters Card</SelectItem>
+                                <SelectItem value="License">License</SelectItem>
                             </SelectContent>
-                            </Select>
-                        </div>
-                         <div className="space-y-2">
-                            <Label htmlFor="wage-amount">Amount</Label>
-                            <Input id="wage-amount" name="wageAmount" type="number" value={formState.wageAmount} onChange={handleFormChange} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="allowance">Allowance</Label>
-                            <Input id="allowance" name="allowance" type="number" value={formState.allowance} onChange={handleFormChange} placeholder="e.g. 500" />
-                        </div>
-                     </div>
-                </div>
+                        </Select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="documentNumber">Document Number</Label>
+                        <Input id="documentNumber" name="documentNumber" value={formState.documentNumber} onChange={handleFormChange} />
+                    </div>
+                 </div>
+                 
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
+                     <div className="space-y-2">
+                        <Label htmlFor="joiningDate">Joining Date</Label>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formState.joiningDate && "text-muted-foreground")}>
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {formState.joiningDate ? `${toNepaliDate(formState.joiningDate)} BS (${format(new Date(formState.joiningDate), "PPP")})` : <span>Pick a date</span>}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0">
+                                <DualCalendar selected={new Date(formState.joiningDate)} onSelect={(date) => handleDateChange('joiningDate', date)} />
+                            </PopoverContent>
+                        </Popover>
+                    </div>
+                 </div>
+                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="wage-basis">Wage Basis</Label>
+                        <Select value={formState.wageBasis} onValueChange={(value: WageBasis) => handleSelectChange('wageBasis', value)}>
+                        <SelectTrigger id="wage-basis"><SelectValue placeholder="Select a basis" /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="Monthly">Monthly</SelectItem>
+                            <SelectItem value="Hourly">Hourly</SelectItem>
+                        </SelectContent>
+                        </Select>
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="wage-amount">Amount</Label>
+                        <Input id="wage-amount" name="wageAmount" type="number" value={formState.wageAmount} onChange={handleFormChange} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="allowance">Allowance</Label>
+                        <Input id="allowance" name="allowance" type="number" value={formState.allowance} onChange={handleFormChange} placeholder="e.g. 500" />
+                    </div>
+                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setIsEmployeeDialogOpen(false)}>Cancel</Button>
                   <Button onClick={handleEmployeeSubmit}>{editingEmployee ? 'Save Changes' : 'Save Employee'}</Button>
