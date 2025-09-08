@@ -238,7 +238,7 @@ export default function AttendancePage() {
         const clockOutValue = parseTime(clockOutIndex > -1 ? row[clockOutIndex] : undefined);
 
         let status: AttendanceRecord['status'];
-        if (nepaliDate.getDay() === 6) {
+        if (nepaliDate.getDay() === 6) { // Saturday
             status = 'Saturday';
         } else if (!clockInValue) {
             status = 'Absent';
