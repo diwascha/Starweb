@@ -28,7 +28,6 @@ type SortDirection = 'asc' | 'desc';
 
 const cleanEmployeeName = (name: any): string => {
   if (typeof name !== 'string') return '';
-  // More robust cleaning: trim, replace multiple spaces, and convert to lowercase
   return name.trim().replace(/\s+/g, ' ').toLowerCase();
 };
 
@@ -39,7 +38,7 @@ const nepaliMonths = [
     { value: 9, name: "Magh" }, { value: 10, name: "Falgun" }, { value: 11, name: "Chaitra" }
 ];
 
-const attendanceStatuses: AttendanceStatus[] = ['Present', 'Absent', 'Saturday', 'Public Holiday'];
+const attendanceStatuses: AttendanceStatus[] = ['Present', 'Absent', 'Saturday', 'Public Holiday', 'Incomplete'];
 
 export default function AttendancePage() {
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
@@ -69,7 +68,6 @@ export default function AttendancePage() {
             const sortedYears = Array.from(years).sort((a, b) => b - a);
             setBsYears(sortedYears);
             
-            // Set default filter to the latest month with data
             if (!selectedBsYear && !selectedBsMonth) {
                 const latestRecord = records.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
                 const latestNepaliDate = new NepaliDate(new Date(latestRecord.date));
@@ -236,13 +234,18 @@ export default function AttendancePage() {
         const nepaliDate = new NepaliDate(adDate);
         const bsDate = nepaliDate.format('YYYY-MM-DD');
         
-        const clockInValue = clockInIndex > -1 ? row[clockInIndex] : undefined;
+        const clockInValue = parseTime(clockInIndex > -1 ? row[clockInIndex] : undefined);
+        const clockOutValue = parseTime(clockOutIndex > -1 ? row[clockOutIndex] : undefined);
 
-        let status: AttendanceRecord['status'] = 'Present';
+        let status: AttendanceRecord['status'];
         if (nepaliDate.getDay() === 6) { 
             status = 'Saturday';
         } else if (!clockInValue) { 
             status = 'Absent';
+        } else if (clockInValue && !clockOutValue) {
+            status = 'Incomplete';
+        } else {
+            status = 'Present';
         }
         
         const record: Omit<AttendanceRecord, 'id'> = {
@@ -251,8 +254,8 @@ export default function AttendancePage() {
             employeeName: employeeNameInDb,
             onDuty: onDutyIndex > -1 ? parseTime(row[onDutyIndex]) : null,
             offDuty: offDutyIndex > -1 ? parseTime(row[offDutyIndex]) : null,
-            clockIn: clockInIndex > -1 ? parseTime(row[clockInIndex]) : null,
-            clockOut: clockOutIndex > -1 ? parseTime(row[clockOutIndex]) : null,
+            clockIn: clockInValue,
+            clockOut: clockOutValue,
             status,
             importedBy: user.username,
         };

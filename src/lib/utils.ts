@@ -135,6 +135,7 @@ export const getAttendanceBadgeVariant = (status: AttendanceStatus) => {
         case 'Absent': return 'destructive';
         case 'Saturday': return 'default';
         case 'Public Holiday': return 'default';
+        case 'Incomplete': return 'secondary';
         default: return 'secondary';
     }
 };

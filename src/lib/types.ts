@@ -116,7 +116,7 @@ export interface Employee {
   lastModifiedAt?: string; // ISO string
 }
 
-export type AttendanceStatus = 'Present' | 'Absent' | 'Public Holiday' | 'Saturday';
+export type AttendanceStatus = 'Present' | 'Absent' | 'Public Holiday' | 'Saturday' | 'Incomplete';
 
 export interface AttendanceRecord {
     id: string;
