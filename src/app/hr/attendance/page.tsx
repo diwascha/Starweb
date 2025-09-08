@@ -39,7 +39,7 @@ const nepaliMonths = [
     { value: 9, name: "Magh" }, { value: 10, name: "Falgun" }, { value: 11, name: "Chaitra" }
 ];
 
-const attendanceStatuses: AttendanceStatus[] = ['Present', 'Absent', 'Saturday', 'Public Holiday', 'C/I Miss', 'C/O Miss', 'Missing Details'];
+const attendanceStatuses: AttendanceStatus[] = ['Present', 'C/I Miss', 'C/O Miss', 'Saturday', 'Public Holiday', 'Missing Details'];
 
 export default function AttendancePage() {
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
@@ -116,7 +116,7 @@ export default function AttendancePage() {
     }
   };
   
-    const parseTime = (time: any): string | null => {
+  const parseTime = (time: any): string | null => {
       if (time === null || time === undefined || time === '' || time === 0 || (typeof time === 'string' && time.trim() === '-')) return null;
       
       if (time instanceof Date) {
@@ -139,6 +139,7 @@ export default function AttendancePage() {
         if (time < 0 || time >= 1) return null;
         const excelEpoch = new Date(1899, 11, 30);
         const date = new Date(excelEpoch.getTime() + time * 24 * 60 * 60 * 1000);
+        if (isNaN(date.getTime())) return null;
         return format(date, 'HH:mm');
       }
       
