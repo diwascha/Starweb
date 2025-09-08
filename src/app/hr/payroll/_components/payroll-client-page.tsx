@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Download, Printer, Save, Loader2, Edit, AlertCircle, Info } from 'lucide-react';
+import { Download, Printer, Save, Loader2, Edit, AlertCircle, Info, ChevronsUpDown, Check, PlusCircle } from 'lucide-react';
 import NepaliDate from 'nepali-date-converter';
 import { useAuth } from '@/hooks/use-auth';
 import { onEmployeesUpdate } from '@/services/employee-service';
@@ -21,6 +21,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { format } from 'date-fns';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { cn } from '@/lib/utils';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 
 const nepaliMonths = [
@@ -41,12 +44,9 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
     const [isProcessing, setIsProcessing] = useState(false);
     
     const [payrollData, setPayrollData] = useState<PayrollAndAnalyticsData | null>(null);
-
-    const [isAdjustmentDialogOpen, setIsAdjustmentDialogOpen] = useState(false);
-    const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
-    const [currentAllowance, setCurrentAllowance] = useState('');
-    const [currentAdvance, setCurrentAdvance] = useState('');
     
+    const [adjustmentForm, setAdjustmentForm] = useState({ employeeId: '', allowance: '', advance: '' });
+
     const { toast } = useToast();
     const { user } = useAuth();
 
@@ -91,39 +91,35 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
     }, [selectedBsYear, selectedBsMonth, employees, attendance]);
     
     
-    const openAdjustmentDialog = (employee: Employee) => {
-        setEditingEmployee(employee);
-        const currentPayrollItem = payrollData?.payroll.find(p => p.employeeId === employee.id);
-        setCurrentAllowance(String(currentPayrollItem?.allowance || ''));
-        setCurrentAdvance(String(currentPayrollItem?.advance || ''));
-        setIsAdjustmentDialogOpen(true);
-    };
+    const handlePostAdjustment = () => {
+        const { employeeId, allowance, advance } = adjustmentForm;
+        if (!employeeId || !payrollData) {
+            toast({ title: 'Error', description: 'Please select an employee.', variant: 'destructive' });
+            return;
+        }
 
-    const handleSaveAdjustments = () => {
-        if (!editingEmployee || !payrollData) return;
-        
-        const allowance = parseFloat(currentAllowance) || 0;
-        const advance = parseFloat(currentAdvance) || 0;
+        const allowanceNum = parseFloat(allowance) || 0;
+        const advanceNum = parseFloat(advance) || 0;
 
         const updatedPayroll = payrollData.payroll.map(p => {
-            if (p.employeeId === editingEmployee.id) {
+            if (p.employeeId === employeeId) {
                 const regularPay = p.regularPay;
                 const otPay = p.otPay;
                 const totalPay = regularPay + otPay;
                 const deduction = p.deduction;
-                const salaryTotal = totalPay + allowance - deduction;
+                const salaryTotal = totalPay + allowanceNum - deduction;
                 const tds = salaryTotal * 0.01;
                 const gross = salaryTotal - tds;
-                const netPay = gross - advance;
+                const netPay = gross - advanceNum;
 
-                return { ...p, allowance, advance, totalPay, salaryTotal, tds, gross, netPayment: netPay };
+                return { ...p, allowance: allowanceNum, advance: advanceNum, totalPay, salaryTotal, tds, gross, netPayment: netPay };
             }
             return p;
         });
-
+        
         setPayrollData(prev => prev ? { ...prev, payroll: updatedPayroll } : null);
-        setIsAdjustmentDialogOpen(false);
-        toast({ title: 'Success', description: `Adjustments for ${editingEmployee.name} applied locally.` });
+        toast({ title: 'Success', description: `Adjustments for ${employees.find(e => e.id === employeeId)?.name} applied.` });
+        setAdjustmentForm({ employeeId: '', allowance: '', advance: '' }); // Reset form
     };
 
     const totals = useMemo(() => {
@@ -177,26 +173,74 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
                 <p className="text-muted-foreground">Calculate and view payroll reports for your employees.</p>
             </header>
             
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <Card className="lg:col-span-2">
+                    <CardHeader>
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                            <div className="space-y-1.5">
+                                <CardTitle>Payroll for {nepaliMonths[parseInt(selectedBsMonth)]?.name}, {selectedBsYear}</CardTitle>
+                                <CardDescription>Select a Nepali month and year to generate the payroll report.</CardDescription>
+                            </div>
+                            <div className="flex flex-col sm:flex-row gap-2">
+                                <Select value={selectedBsYear} onValueChange={setSelectedBsYear}>
+                                    <SelectTrigger className="w-full sm:w-[120px]"><SelectValue placeholder="Year (BS)" /></SelectTrigger>
+                                    <SelectContent>{bsYears.map(year => <SelectItem key={year} value={String(year)}>{year}</SelectItem>)}</SelectContent>
+                                </Select>
+                                <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth}>
+                                    <SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Month (BS)" /></SelectTrigger>
+                                    <SelectContent>{nepaliMonths.map(month => <SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>)}</SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                    </CardHeader>
+                </Card>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Quick Adjustments</CardTitle>
+                        <CardDescription>Add allowance or advance for an employee in this period.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                             <div className="space-y-2">
+                                <Label>Employee</Label>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" role="combobox" className="w-full justify-between">
+                                            {adjustmentForm.employeeId ? employees.find(e => e.id === adjustmentForm.employeeId)?.name : "Select employee..."}
+                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="p-0 w-[--radix-popover-trigger-width]"><Command>
+                                        <CommandInput placeholder="Search employee..." />
+                                        <CommandList><CommandEmpty>No employee found.</CommandEmpty><CommandGroup>
+                                            {employees.map(emp => <CommandItem key={emp.id} value={emp.name} onSelect={() => setAdjustmentForm(prev => ({...prev, employeeId: emp.id}))}>
+                                                <Check className={cn("mr-2 h-4 w-4", adjustmentForm.employeeId === emp.id ? "opacity-100" : "opacity-0")} />{emp.name}
+                                            </CommandItem>)}
+                                        </CommandGroup></CommandList>
+                                    </Command></PopoverContent>
+                                </Popover>
+                             </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="quick-allowance">Allowance</Label>
+                                <Input id="quick-allowance" type="number" placeholder="0.00" value={adjustmentForm.allowance} onChange={e => setAdjustmentForm(prev => ({...prev, allowance: e.target.value}))}/>
+                            </div>
+                             <div className="space-y-2">
+                                <Label htmlFor="quick-advance">Advance</Label>
+                                <Input id="quick-advance" type="number" placeholder="0.00" value={adjustmentForm.advance} onChange={e => setAdjustmentForm(prev => ({...prev, advance: e.target.value}))}/>
+                            </div>
+                        </div>
+                         <div className="flex justify-end gap-2">
+                            <Button variant="outline" onClick={() => setAdjustmentForm({ employeeId: '', allowance: '', advance: '' })}>Cancel</Button>
+                            <Button onClick={handlePostAdjustment}><PlusCircle className="mr-2 h-4 w-4" /> Post Adjustment</Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+
             <Card>
-                <CardHeader>
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                        <div className="space-y-1.5">
-                            <CardTitle>Payroll for {nepaliMonths[parseInt(selectedBsMonth)]?.name}, {selectedBsYear}</CardTitle>
-                            <CardDescription>Select a Nepali month and year to generate the payroll report.</CardDescription>
-                        </div>
-                        <div className="flex flex-col sm:flex-row gap-2">
-                             <Select value={selectedBsYear} onValueChange={setSelectedBsYear}>
-                                <SelectTrigger className="w-full sm:w-[120px]"><SelectValue placeholder="Year (BS)" /></SelectTrigger>
-                                <SelectContent>{bsYears.map(year => <SelectItem key={year} value={String(year)}>{year}</SelectItem>)}</SelectContent>
-                            </Select>
-                            <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth}>
-                                <SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Month (BS)" /></SelectTrigger>
-                                <SelectContent>{nepaliMonths.map(month => <SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>)}</SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-                </CardHeader>
-                <CardContent>
+                <CardContent className="pt-6">
                     <div className="mb-4 flex justify-end gap-2">
                         <Button variant="outline" onClick={handleExport} disabled={!payrollData}><Download className="mr-2 h-4 w-4" /> Export</Button>
                         <Button onClick={handlePrint} disabled={!payrollData}><Printer className="mr-2 h-4 w-4" /> Print</Button>
@@ -233,11 +277,10 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
                                         <TableHead>Advance</TableHead>
                                         <TableHead>Net Payment</TableHead>
                                         <TableHead>Remark</TableHead>
-                                        <TableHead className="print:hidden">Adjust</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {isProcessing && <TableRow><TableCell colSpan={18} className="text-center">Processing payroll...</TableCell></TableRow>}
+                                    {isProcessing && <TableRow><TableCell colSpan={17} className="text-center">Processing payroll...</TableCell></TableRow>}
                                     {!isProcessing && payrollData?.payroll.map(p => {
                                         const employee = employees.find(e => e.id === p.employeeId);
                                         return (
@@ -259,9 +302,6 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
                                             <TableCell>{p.advance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                             <TableCell className="font-bold">{p.netPayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                             <TableCell>{p.remark}</TableCell>
-                                            <TableCell className="print:hidden">
-                                                {employee && <Button variant="ghost" size="icon" onClick={() => openAdjustmentDialog(employee)}><Edit className="h-4 w-4"/></Button>}
-                                            </TableCell>
                                         </TableRow>
                                     )})}
                                 </TableBody>
@@ -285,7 +325,6 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
                                         <TableCell>{totals.advance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell>{totals.netPayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell></TableCell>
-                                        <TableCell className="print:hidden"></TableCell>
                                     </TableRow>
                                 </TableFooter>
                                 )}
@@ -454,30 +493,6 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
                 </CardContent>
             </Card>
 
-            <Dialog open={isAdjustmentDialogOpen} onOpenChange={setIsAdjustmentDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Adjustments for {editingEmployee?.name}</DialogTitle>
-                        <DialogDescription>
-                            Enter any allowances or advances for this payroll period.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="allowance">Allowance</Label>
-                            <Input id="allowance" type="number" value={currentAllowance} onChange={(e) => setCurrentAllowance(e.target.value)} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="advance">Advance</Label>
-                            <Input id="advance" type="number" value={currentAdvance} onChange={(e) => setCurrentAdvance(e.target.value)} />
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsAdjustmentDialogOpen(false)}>Cancel</Button>
-                        <Button onClick={handleSaveAdjustments}>Apply Adjustments</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
             <style jsx global>{`
                 @media print {
                   @page { size: A4 landscape; margin: 0.5in; }
