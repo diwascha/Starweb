@@ -292,10 +292,10 @@ export const generatePayrollAndAnalytics = (
         };
     });
 
-    const firstDayOfMonthBS = new NepaliDate(bsYear, bsMonth, 1);
+    // To get scheduled days correctly
     const nextMonthFirstDayBS = new NepaliDate(bsMonth === 11 ? bsYear + 1 : bsYear, (bsMonth + 1) % 12, 1);
-    nextMonthFirstDayBS.setDate(nextMonthFirstDayBS.getDate() - 1);
-    const scheduledDays = nextMonthFirstDayBS.getDate();
+    const lastDayOfCurrentMonthBS = new NepaliDate(nextMonthFirstDayBS.getTime() - 86400000); // Subtract one day
+    const scheduledDays = lastDayOfCurrentMonthBS.getDate();
 
 
     const punctuality: PunctualityInsight[] = employees.map(employee => {
@@ -486,7 +486,9 @@ export const generatePayrollAndAnalytics = (
     }
 
     // End of month trend
-    const nepaliDaysInMonth = new NepaliDate(bsYear, bsMonth, 1).getDaysInMonth();
+    const nextMonthForDays = new NepaliDate(bsMonth === 11 ? bsYear + 1 : bsYear, (bsMonth + 1) % 12, 1);
+    const lastDayForDays = new NepaliDate(nextMonthForDays.getTime() - 86400000);
+    const nepaliDaysInMonth = lastDayForDays.getDate();
     if (nepaliDaysInMonth > 7) {
         const lastWeekStartDate = new NepaliDate(bsYear, bsMonth, nepaliDaysInMonth - 6).toJsDate();
         
