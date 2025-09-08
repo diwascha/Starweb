@@ -57,15 +57,18 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
         const unsubAttendance = onAttendanceUpdate((records) => {
             setAttendance(records);
             if (records.length > 0) {
-                const years = new Set(records.map(r => new NepaliDate(new Date(r.date)).getYear()));
-                const sortedYears = Array.from(years).sort((a, b) => b - a);
-                setBsYears(sortedYears);
-                
-                if (!selectedBsYear && !selectedBsMonth) {
-                    const latestRecord = records.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-                    const latestNepaliDate = new NepaliDate(new Date(latestRecord.date));
-                    setSelectedBsYear(String(latestNepaliDate.getYear()));
-                    setSelectedBsMonth(String(latestNepaliDate.getMonth()));
+                const validRecords = records.filter(r => r.date && !isNaN(new Date(r.date).getTime()));
+                if (validRecords.length > 0) {
+                    const years = new Set(validRecords.map(r => new NepaliDate(new Date(r.date)).getYear()));
+                    const sortedYears = Array.from(years).sort((a, b) => b - a);
+                    setBsYears(sortedYears);
+                    
+                    if (!selectedBsYear && !selectedBsMonth) {
+                        const latestRecord = validRecords.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+                        const latestNepaliDate = new NepaliDate(new Date(latestRecord.date));
+                        setSelectedBsYear(String(latestNepaliDate.getYear()));
+                        setSelectedBsMonth(String(latestNepaliDate.getMonth()));
+                    }
                 }
             }
         });
