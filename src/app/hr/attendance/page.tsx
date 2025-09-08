@@ -55,7 +55,7 @@ export default function AttendancePage() {
         const worksheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json<any>(worksheet, { header: 1 });
         
-        parseAndStoreAttendance(jsonData.slice(1)); // Assuming first row is header
+        parseAndStoreAttendance(jsonData);
       } catch (error) {
         console.error("File parsing error:", error);
         toast({ title: 'Error', description: 'Failed to parse the Excel file.', variant: 'destructive' });
@@ -67,7 +67,6 @@ export default function AttendancePage() {
     };
     reader.readAsArrayBuffer(file);
 
-    // Reset file input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -79,14 +78,15 @@ export default function AttendancePage() {
         return format(time, 'HH:mm');
       }
       if (typeof time === 'string') {
-        // Try parsing different common time formats from Excel
         const formats = ['HH:mm:ss', 'h:mm:ss a', 'HH:mm', 'h:mm a'];
         for (const fmt of formats) {
-            const parsedTime = parse(time, fmt, new Date());
-            if (!isNaN(parsedTime.getTime())) return format(parsedTime, 'HH:mm');
+            try {
+                const parsedTime = parse(time, fmt, new Date());
+                if (!isNaN(parsedTime.getTime())) return format(parsedTime, 'HH:mm');
+            } catch {}
         }
       }
-      if (typeof time === 'number') { // Excel time is a fraction of a day
+      if (typeof time === 'number') { 
         const excelEpoch = new Date(1899, 11, 30);
         const date = new Date(excelEpoch.getTime() + time * 24 * 60 * 60 * 1000);
         return format(date, 'HH:mm');
@@ -114,23 +114,56 @@ export default function AttendancePage() {
     };
 
 
-  const parseAndStoreAttendance = async (rows: any[][]) => {
+  const parseAndStoreAttendance = async (jsonData: any[][]) => {
     if (!user) {
         toast({ title: 'Error', description: 'You must be logged in to import attendance.', variant: 'destructive' });
         return;
     }
+    
+    if (!jsonData || jsonData.length < 2) {
+        toast({ title: 'Error', description: 'Excel file is empty or has no data rows.', variant: 'destructive' });
+        return;
+    }
+
+    const headers = jsonData[0].map(h => String(h).trim().toLowerCase());
+    const rows = jsonData.slice(1);
+
+    const requiredHeaders = ['name', 'date', 'clock in'];
+    for (const req of requiredHeaders) {
+        if (!headers.includes(req)) {
+            toast({ title: 'Error', description: `Missing required column in Excel file: "${req}"`, variant: 'destructive' });
+            return;
+        }
+    }
+
     const newRecords: Omit<AttendanceRecord, 'id'>[] = [];
     const employeeMap = new Map(employees.map(e => [e.name.toLowerCase(), e.name]));
     let skippedRows = 0;
     let nonexistentEmployees = new Set<string>();
+
+    const getColumnIndex = (aliases: string[]) => {
+      for (const alias of aliases) {
+        const index = headers.indexOf(alias.toLowerCase());
+        if (index > -1) return index;
+      }
+      return -1;
+    }
+
+    const nameIndex = getColumnIndex(['name']);
+    const dateIndex = getColumnIndex(['date']);
+    const onDutyIndex = getColumnIndex(['on duty', 'onduty']);
+    const offDutyIndex = getColumnIndex(['off duty', 'offduty']);
+    const clockInIndex = getColumnIndex(['clock in', 'clockin']);
+    const clockOutIndex = getColumnIndex(['clock out', 'clockout']);
     
     rows.forEach((row, index) => {
-      if (!row || row.length < 2) {
+      if (!row || row.length === 0) {
           skippedRows++;
           return;
       }
 
-      const [name, adDateRaw, onDuty, offDuty, clockIn, clockOut, absentDetails] = row;
+      const name = row[nameIndex];
+      const adDateRaw = row[dateIndex];
       
       const adDate = parseDate(adDateRaw);
 
@@ -154,10 +187,12 @@ export default function AttendancePage() {
       const nepaliDate = new NepaliDate(adDate);
       const bsDate = nepaliDate.format('YYYY-MM-DD');
       
+      const clockIn = row[clockInIndex];
+
       let status: AttendanceRecord['status'] = 'Present';
-      if (nepaliDate.getDay() === 6) { // Saturday is 6
+      if (nepaliDate.getDay() === 6) { 
           status = 'Saturday';
-      } else if (!clockIn) { // If there is no clock-in time, they are absent
+      } else if (!clockIn) { 
           status = 'Absent';
       }
       
@@ -165,10 +200,10 @@ export default function AttendancePage() {
         date: dateStr,
         bsDate,
         employeeName: employeeNameInDb,
-        onDuty: parseTime(onDuty),
-        offDuty: parseTime(offDuty),
-        clockIn: parseTime(clockIn),
-        clockOut: parseTime(clockOut),
+        onDuty: onDutyIndex > -1 ? parseTime(row[onDutyIndex]) : null,
+        offDuty: offDutyIndex > -1 ? parseTime(row[offDutyIndex]) : null,
+        clockIn: clockInIndex > -1 ? parseTime(row[clockInIndex]) : null,
+        clockOut: clockOutIndex > -1 ? parseTime(row[clockOutIndex]) : null,
         status,
         importedBy: user.username,
       };
@@ -193,7 +228,7 @@ export default function AttendancePage() {
     } else {
         let description = 'No new valid attendance records found to import.';
         if (skippedRows > 0) {
-            description += ` ${skippedRows} rows were skipped.`;
+            description += ` ${skippedRows} rows were skipped due to missing data or unmatched employee names.`;
             if (nonexistentEmployees.size > 0) {
                description += ` Could not find employees: ${Array.from(nonexistentEmployees).join(', ')}.`;
             }
@@ -320,3 +355,5 @@ export default function AttendancePage() {
     </div>
   );
 }
+
+    
