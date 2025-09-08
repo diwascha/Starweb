@@ -323,7 +323,8 @@ export default function EmployeesPage() {
   }, [employees, sortConfig, searchQuery]);
 
   const getStatusBadgeVariant = (status?: EmployeeStatus) => {
-    switch (status) {
+    const currentStatus = status || 'Working';
+    switch (currentStatus) {
       case 'Working': return 'default';
       case 'Long Leave': return 'secondary';
       case 'Resigned': return 'outline';
