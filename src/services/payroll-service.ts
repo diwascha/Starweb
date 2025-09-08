@@ -199,6 +199,8 @@ export const processAttendanceImport = async (
           wageAmount: 0,
           createdBy: username,
           status: 'Working',
+          department: 'Production',
+          position: 'Helpers'
         });
         employeeNameInDb = nameFromFile;
         employeeMap.set(cleanedNameFromFile, nameFromFile);
@@ -338,6 +340,87 @@ export const processAttendanceImport = async (
 
   return { newRecords, newlyAddedEmployees, skippedRows };
 };
+
+
+export const reprocessSingleRecord = (record: Partial<AttendanceRecord>): Partial<AttendanceRecord> => {
+    
+    const adDate = new Date(record.date!);
+    const weekday = getDay(adDate);
+    const clockInTime = parseTime(record.clockIn);
+    const clockOutTime = parseTime(record.clockOut);
+    const onDutyTime = parseTime(record.onDuty);
+    const offDutyTime = parseTime(record.offDuty);
+    const statusValue = record.status || 'Present';
+
+    let regularHours = 0, overtimeHours = 0, grossHours = 0, remarks = record.remarks || null;
+    let status = record.status || 'Present';
+
+    const clockInDate = combineDateAndTime(adDate, clockInTime);
+    const clockOutDate = combineDateAndTime(adDate, clockOutTime);
+    const onDutyDate = combineDateAndTime(adDate, onDutyTime);
+    const offDutyDate = combineDateAndTime(adDate, offDutyTime);
+    
+    if (weekday === 6) { // Saturday logic
+      status = 'Saturday';
+      if (clockInDate && clockOutDate && isAfter(clockOutDate, clockInDate)) {
+        const totalMinutes = differenceInMinutes(clockOutDate, clockInDate);
+        overtimeHours = roundToStep(totalMinutes / 60, kRoundStepHours);
+        grossHours = overtimeHours;
+      }
+    } else if (status === 'Public Holiday') {
+        regularHours = 8.0; 
+        if (clockInDate && clockOutDate && isAfter(clockOutDate, clockInDate)) {
+            const totalMinutes = differenceInMinutes(clockOutDate, clockInDate);
+            overtimeHours = roundToStep(totalMinutes / 60, kRoundStepHours);
+        }
+        grossHours = regularHours + overtimeHours;
+    } else if (status === 'Absent') {
+      // No hours
+    } else {
+      if (!clockInDate || !onDutyDate) {
+        status = 'C/I Miss';
+        remarks = 'Missing IN';
+      } else if (!clockOutDate || !offDutyDate) {
+        status = 'C/O Miss';
+        remarks = 'Missing OUT';
+      } else {
+        const totalMinutesWorked = differenceInMinutes(clockOutDate, clockInDate);
+        let paidMinutes = totalMinutesWorked;
+
+        const breakStart = setMinutes(setHours(startOfDay(adDate), 12), 0);
+        const breakEnd = setMinutes(setHours(startOfDay(adDate), 13), 0);
+        
+        const overlapsBreak = isBefore(clockInDate, breakEnd) && isAfter(clockOutDate, breakStart);
+        const longEnoughForBreak = paidMinutes > 4 * 60;
+
+        if (overlapsBreak && longEnoughForBreak) {
+            paidMinutes -= 60;
+        }
+
+        const paidHours = Math.max(0, paidMinutes / 60);
+
+        if (status === 'EXTRAOK') {
+            regularHours = kBaseDayHours;
+            overtimeHours = roundToStep(Math.max(0, paidHours - kBaseDayHours), kRoundStepHours);
+        } else {
+            regularHours = roundToStep(Math.min(paidHours, kBaseDayHours), kRoundStepHours);
+            overtimeHours = 0; // No automatic OT unless EXTRAOK
+        }
+        
+        grossHours = regularHours + overtimeHours;
+      }
+    }
+    
+    return {
+        ...record,
+        status,
+        regularHours,
+        overtimeHours,
+        grossHours,
+        remarks
+    };
+}
+
 
 export interface PayrollAndAnalyticsData {
   payroll: Payroll[];
