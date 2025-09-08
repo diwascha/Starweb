@@ -103,7 +103,12 @@ export default function EmployeesPage() {
   useEffect(() => {
     setIsLoading(true);
     const unsubscribe = onEmployeesUpdate((employeesData) => {
-        setEmployees(employeesData);
+        const validEmployees = employeesData.filter(employee => {
+            const timeRegex = /^\d{2}:\d{2}(:\d{2})?$/;
+            const dateRegex = /^\w{3} \w{3} \d{2} \d{4} \d{2}:\d{2}:\d{2} GMT[+-]\d{4}/;
+            return !timeRegex.test(employee.name) && !dateRegex.test(employee.name);
+        });
+        setEmployees(validEmployees);
         setIsLoading(false);
     });
     return () => unsubscribe();
@@ -197,12 +202,25 @@ export default function EmployeesPage() {
       return;
     }
 
-    const amount = parseFloat(formState.wageAmount);
-    const allowanceAmount = parseFloat(formState.allowance) || 0;
-    if (formState.name.trim() === '' || isNaN(amount) || amount <= 0) {
-      toast({ title: 'Error', description: 'Please fill all fields with valid values.', variant: 'destructive' });
-      return;
+    const requiredFields: (keyof typeof formState)[] = ['name', 'department', 'position', 'wageAmount', 'address', 'mobileNumber'];
+    const emptyFields = requiredFields.filter(field => !formState[field] || String(formState[field]).trim() === '');
+
+    if (emptyFields.length > 0) {
+        toast({
+            title: 'Missing Information',
+            description: `Please fill out all required fields: ${emptyFields.join(', ')}`,
+            variant: 'destructive',
+        });
+        return;
     }
+
+    const amount = parseFloat(formState.wageAmount);
+    if (isNaN(amount) || amount <= 0) {
+        toast({ title: 'Invalid Wage Amount', description: 'Please enter a valid, positive number for the wage amount.', variant: 'destructive' });
+        return;
+    }
+    
+    const allowanceAmount = parseFloat(formState.allowance) || 0;
 
     try {
       let photoURL = editingEmployee?.photoURL || '';
@@ -266,15 +284,7 @@ export default function EmployeesPage() {
   };
   
   const filteredAndSortedEmployees = useMemo(() => {
-    const timeRegex = /^\d{2}:\d{2}(:\d{2})?$/;
-    const dateRegex = /^\w{3} \w{3} \d{2} \d{4} \d{2}:\d{2}:\d{2} GMT[+-]\d{4}/;
-
-    let filtered = employees.filter(employee => {
-        if (timeRegex.test(employee.name) || dateRegex.test(employee.name)) {
-            return false;
-        }
-        return true;
-    });
+    let filtered = employees;
     
     if (searchQuery) {
       const lowercasedQuery = searchQuery.toLowerCase();
