@@ -468,7 +468,8 @@ export const generatePayrollAndAnalytics = (
     
     const highMissedPunches = punctuality.filter(p => (p.lateArrivals + p.earlyDepartures) > 3);
     if (highMissedPunches.length > 0) {
-        patternInsights.push({ finding: `Frequent Missed Punches: ${highMissedPunches.length} employee(s)`, description: `${highMissedPunches.map(p => p.employeeName).join(', ')} had more than 3 missed clock-ins or clock-outs.` });
+        const employeeNames = highMissedPunches.map(p => p.employeeName).join(', ');
+        patternInsights.push({ finding: `Frequent Missed Punches: ${employeeNames}`, description: `${employeeNames} had more than 3 missed clock-ins or clock-outs.` });
     }
     
     let highOtNextDayLate = 0;
