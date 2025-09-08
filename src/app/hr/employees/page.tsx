@@ -202,7 +202,7 @@ export default function EmployeesPage() {
       return;
     }
 
-    const requiredFields: (keyof typeof formState)[] = ['name', 'department', 'position', 'wageAmount', 'address', 'mobileNumber'];
+    const requiredFields: (keyof typeof formState)[] = ['name', 'department', 'position', 'wageAmount', 'address', 'mobileNumber', 'status'];
     const emptyFields = requiredFields.filter(field => !formState[field] || String(formState[field]).trim() === '');
 
     if (emptyFields.length > 0) {
