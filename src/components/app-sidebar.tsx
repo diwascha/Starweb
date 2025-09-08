@@ -304,6 +304,17 @@ export function AppSidebar() {
                 </>
             )}
         </SidebarMenu>
+        <SidebarMenu>
+            <SidebarSeparator />
+            <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={getIsActive('/trial')}>
+                    <Link href="#">
+                        <TrendingUp />
+                        <span>Trial Tab</span>
+                    </Link>
+                </SidebarMenuButton>
+            </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarContent>
        <SidebarFooter>
         <SidebarMenu>
