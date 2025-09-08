@@ -20,6 +20,12 @@ import { getAttendanceBadgeVariant } from '@/lib/utils';
 type SortKey = 'date' | 'employeeName' | 'status';
 type SortDirection = 'asc' | 'desc';
 
+// More robust name cleaning function
+const cleanEmployeeName = (name: any): string => {
+  if (typeof name !== 'string') return '';
+  return name.trim().replace(/\s+/g, ' ').toLowerCase();
+};
+
 export default function AttendancePage() {
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -127,17 +133,10 @@ export default function AttendancePage() {
 
     const headers = jsonData[0].map(h => String(h).trim().toLowerCase());
     const rows = jsonData.slice(1);
-
-    const requiredHeaders = ['name', 'date', 'clock in'];
-    for (const req of requiredHeaders) {
-        if (!headers.includes(req)) {
-            toast({ title: 'Error', description: `Missing required column in Excel file: "${req}"`, variant: 'destructive' });
-            return;
-        }
-    }
-
+    
     const newRecords: Omit<AttendanceRecord, 'id'>[] = [];
-    const employeeMap = new Map(employees.map(e => [e.name.toLowerCase(), e.name]));
+    // Use the robust cleaning function for both the map key and the lookup value
+    const employeeMap = new Map(employees.map(e => [cleanEmployeeName(e.name), e.name]));
     let skippedRows = 0;
     let nonexistentEmployees = new Set<string>();
 
@@ -156,6 +155,11 @@ export default function AttendancePage() {
     const clockInIndex = getColumnIndex(['clock in', 'clockin']);
     const clockOutIndex = getColumnIndex(['clock out', 'clockout']);
     
+    if (nameIndex === -1 || dateIndex === -1) {
+        toast({ title: 'Error', description: `Missing required column in Excel file: "Name" or "Date"`, variant: 'destructive' });
+        return;
+    }
+
     rows.forEach((row, index) => {
       if (!row || row.length === 0) {
           skippedRows++;
@@ -174,7 +178,8 @@ export default function AttendancePage() {
       }
       
       const employeeNameFromFile = String(name).trim();
-      const employeeNameInDb = employeeMap.get(employeeNameFromFile.toLowerCase());
+      const cleanedNameFromFile = cleanEmployeeName(employeeNameFromFile);
+      const employeeNameInDb = employeeMap.get(cleanedNameFromFile);
 
       if (!employeeNameInDb) {
         console.warn(`Skipping row ${index + 2}: Employee "${employeeNameFromFile}" not found.`);
@@ -356,4 +361,3 @@ export default function AttendancePage() {
   );
 }
 
-    
