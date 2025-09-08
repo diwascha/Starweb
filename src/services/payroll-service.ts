@@ -76,8 +76,8 @@ const roundToStep = (hours: number, step: number): number => {
 };
 
 const applyFixedBreak = (start: Date, end: Date): number => {
-    const totalHours = differenceInMinutes(end, start) / 60;
-    if (totalHours <= 0) return 0;
+    const totalMinutes = differenceInMinutes(end, start);
+    if (totalMinutes <= 0) return 0;
 
     const breakStartOnDate = setSeconds(setMinutes(setHours(start, 12), 0), 0);
     const breakEndOnDate = setSeconds(setMinutes(setHours(start, 13), 0), 0);
@@ -86,12 +86,11 @@ const applyFixedBreak = (start: Date, end: Date): number => {
     const overlapEnd = Math.min(end.getTime(), breakEndOnDate.getTime());
     
     const overlapMinutes = Math.max(0, (overlapEnd - overlapStart) / (1000 * 60));
-    const overlapHours = overlapMinutes / 60;
 
-    if (overlapHours > 0 && totalHours > 4) {
-        return totalHours - overlapHours;
+    if (overlapMinutes > 0 && totalMinutes > 4 * 60) { // totalMinutes is > 4 hours
+        return (totalMinutes - overlapMinutes) / 60;
     }
-    return totalHours;
+    return totalMinutes / 60;
 };
 
 
