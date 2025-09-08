@@ -9,6 +9,7 @@
 
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -115,11 +116,13 @@ export interface PurchaseOrder {
 export type WageBasis = 'Monthly' | 'Hourly';
 export type Gender = 'Male' | 'Female' | 'Other';
 export type IdentityType = 'Citizenship' | 'Voters Card' | 'License';
+export type EmployeeStatus = 'Working' | 'Long Leave' | 'Resigned' | 'Dismissed';
 
 
 export interface Employee {
   id: string;
   name: string;
+  status: EmployeeStatus;
   wageBasis: WageBasis;
   wageAmount: number;
   allowance?: number;

@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, User, CalendarIcon, Image as ImageIcon, X } from 'lucide-react';
-import type { Employee, WageBasis, Gender, IdentityType } from '@/lib/types';
+import type { Employee, WageBasis, Gender, IdentityType, EmployeeStatus } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import {
@@ -49,12 +49,16 @@ import { cn, toNepaliDate } from '@/lib/utils';
 import { uploadFile } from '@/services/storage-service';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Image from 'next/image';
+import { Badge } from '@/components/ui/badge';
 
-type EmployeeSortKey = 'name' | 'wageBasis' | 'wageAmount' | 'allowance' | 'authorship' | 'mobileNumber' | 'gender' | 'joiningDate';
+type EmployeeSortKey = 'name' | 'wageBasis' | 'wageAmount' | 'allowance' | 'authorship' | 'mobileNumber' | 'gender' | 'joiningDate' | 'status';
 type SortDirection = 'asc' | 'desc';
+
+const employeeStatuses: EmployeeStatus[] = ['Working', 'Long Leave', 'Resigned', 'Dismissed'];
 
 const initialFormState = {
     name: '',
+    status: 'Working' as EmployeeStatus,
     wageBasis: 'Monthly' as WageBasis,
     wageAmount: '',
     allowance: '',
@@ -119,6 +123,7 @@ export default function EmployeesPage() {
     setEditingEmployee(employee);
     setFormState({
         name: employee.name,
+        status: employee.status || 'Working',
         wageBasis: employee.wageBasis,
         wageAmount: String(employee.wageAmount),
         allowance: String(employee.allowance || ''),
@@ -203,6 +208,7 @@ export default function EmployeesPage() {
 
       const employeeData = {
           name: formState.name.trim(),
+          status: formState.status,
           wageBasis: formState.wageBasis,
           wageAmount: amount,
           allowance: allowanceAmount,
@@ -289,6 +295,16 @@ export default function EmployeesPage() {
     return filtered;
   }, [employees, sortConfig, searchQuery]);
 
+  const getStatusBadgeVariant = (status?: EmployeeStatus) => {
+    switch (status) {
+      case 'Working': return 'default';
+      case 'Long Leave': return 'secondary';
+      case 'Resigned': return 'outline';
+      case 'Dismissed': return 'destructive';
+      default: return 'secondary';
+    }
+  };
+
   const renderContent = () => {
     if (isLoading) {
       return (
@@ -320,6 +336,7 @@ export default function EmployeesPage() {
           <TableHeader>
             <TableRow>
               <TableHead><Button variant="ghost" onClick={() => requestSort('name')}>Employee Name <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+              <TableHead><Button variant="ghost" onClick={() => requestSort('status')}>Status <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('joiningDate')}>Joining Date <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('mobileNumber')}>Mobile Number <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('wageAmount')}>Amount <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
@@ -339,6 +356,9 @@ export default function EmployeesPage() {
                         </Avatar>
                         {employee.name}
                     </div>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={getStatusBadgeVariant(employee.status)}>{employee.status || 'Working'}</Badge>
                 </TableCell>
                 <TableCell>{employee.joiningDate ? toNepaliDate(employee.joiningDate) : 'N/A'}</TableCell>
                 <TableCell>{employee.mobileNumber || 'N/A'}</TableCell>
@@ -520,6 +540,17 @@ export default function EmployeesPage() {
                                 <DualCalendar selected={new Date(formState.joiningDate)} onSelect={(date) => handleDateChange('joiningDate', date)} />
                             </PopoverContent>
                         </Popover>
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="status">Status</Label>
+                        <Select value={formState.status} onValueChange={(value: EmployeeStatus) => handleSelectChange('status', value)}>
+                            <SelectTrigger id="status"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                {employeeStatuses.map(status => (
+                                    <SelectItem key={status} value={status}>{status}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
                  </div>
                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
