@@ -24,6 +24,20 @@ const nepaliMonths = [
     { value: 9, name: "Magh" }, { value: 10, name: "Falgun" }, { value: 11, name: "Chaitra" }
 ];
 
+const customEmployeeOrder = [
+    "Tika Gurung",
+    "Anju Bista",
+    "Madhu Bhandari",
+    "Amrita Lama",
+    "sunil chaudhary",
+    "KUMAR SHRESTHA",
+    "Niroj Koirala",
+    "Binod Magar",
+    "SANDEEP CHAUDARY",
+    "SANGITA PYAKUREL",
+    "Sunita Gurung"
+];
+
 export default function PayslipPage() {
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [attendance, setAttendance] = useState<any[]>([]);
@@ -74,6 +88,17 @@ export default function PayslipPage() {
                 employees,
                 attendance
             );
+             payroll.sort((a, b) => {
+                const indexA = customEmployeeOrder.indexOf(a.employeeName);
+                const indexB = customEmployeeOrder.indexOf(b.employeeName);
+                
+                if (indexA !== -1 && indexB !== -1) {
+                    return indexA - indexB;
+                }
+                if (indexA !== -1) return -1;
+                if (indexB !== -1) return 1;
+                return a.employeeName.localeCompare(b.employeeName);
+            });
             setPayrollData(payroll);
             setIsProcessing(false);
         }
