@@ -116,8 +116,10 @@ export default function PayslipView({ employee, payroll, bsYear, bsMonthName }: 
        <div className="printable-area space-y-4 p-4 border rounded-lg bg-white text-black">
         <header className="text-center space-y-1 mb-4">
             <h1 className="text-xl font-bold">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
+            <h2 className="text-lg font-semibold">शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.</h2>
             <p className="text-sm">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
             <h2 className="text-lg font-semibold">Payslip for {bsMonthName}, {bsYear}</h2>
+            <p className="text-xs text-gray-500">Generated on: {format(new Date(), 'PPpp')}</p>
         </header>
         
         <Separator className="my-2 bg-gray-300"/>
