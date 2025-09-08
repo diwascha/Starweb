@@ -13,6 +13,7 @@ const kGraceMin = 5;
 const kWeeklyFreeLate = true;
 const kWeeklyFreeEarly = true;
 const PR_MONTH_DAYS = 30;
+const PR_BLOCK_MIN = 30;
 
 // --- Helper Functions ---
 const cleanEmployeeName = (name: any): string => {
@@ -316,14 +317,44 @@ export const generatePayrollAndAnalytics = (
     const behavior: BehaviorInsight[] = employees.map(employee => {
         const empPunctuality = punctuality.find(p => p.employeeId === employee.id)!;
         const empPayroll = payroll.find(p => p.employeeId === employee.id)!;
+        const empAttendance = filteredAttendance.filter(r => r.employeeName === employee.name);
+
+        let stayLateDays = 0;
+        let leaveEarlyDays = 0;
+        empAttendance.forEach(r => {
+             if (r.offDuty && r.clockOut) {
+                const offDuty = parse(r.offDuty, 'HH:mm', new Date());
+                const clockOut = parse(r.clockOut, 'HH:mm', new Date());
+                const diff = differenceInMinutes(clockOut, offDuty);
+                if (diff >= 5) stayLateDays++;
+                else if (diff <= -5) leaveEarlyDays++;
+            }
+        });
+
+        const shiftEndBehavior = (leaveEarlyDays > stayLateDays) && (leaveEarlyDays >= 3) 
+            ? 'Tends to leave early'
+            : (stayLateDays >= 3) && (stayLateDays > leaveEarlyDays) 
+            ? 'Stays late often'
+            : 'Consistent timing';
+
+        let performanceInsight = '';
+        if (empPunctuality.punctualityScore >= 95 && empPayroll.otHours >= 2 && empAttendance.filter(r => r.status === 'C/I Miss' || r.status === 'C/O Miss').length <= 1) {
+            performanceInsight = 'Dedicated with extra effort';
+        } else if (empPunctuality.punctualityScore >= 90 && empAttendance.filter(r => r.status === 'C/I Miss' || r.status === 'C/O Miss').length <= 2) {
+            performanceInsight = 'Solid performance';
+        } else if (empPunctuality.punctualityScore < 80 || empAttendance.filter(r => r.status === 'C/I Miss' || r.status === 'C/O Miss').length >= 3) {
+            performanceInsight = 'Needs improvement';
+        } else {
+            performanceInsight = 'Improving punctuality';
+        }
         
         return {
             employeeId: employee.id, employeeName: employee.name,
             punctualityTrend: empPunctuality.punctualityScore > 95 ? 'Consistently punctual' : empPunctuality.punctualityScore > 85 ? 'Stable with some delays' : 'Often late',
             absencePattern: empPunctuality.absentDays === 0 ? 'Perfect attendance' : empPunctuality.absentDays <= 2 ? 'Occasional absences' : `Frequent absences (${empPunctuality.absentDays} days)`,
             otImpact: empPayroll.otHours >= 15 ? 'High OT - monitor workload' : empPayroll.otHours >= 5 ? 'Moderate OT' : 'Balanced workload',
-            shiftEndBehavior: empPunctuality.earlyDepartures > empPunctuality.lateArrivals ? 'Tends to leave early' : 'Consistent timing',
-            performanceInsight: empPunctuality.punctualityScore > 95 ? 'Dedicated with extra effort' : empPunctuality.punctualityScore > 90 ? 'Solid performance' : empPunctuality.punctualityScore < 80 ? 'Needs improvement' : 'Improving punctuality',
+            shiftEndBehavior: shiftEndBehavior,
+            performanceInsight: performanceInsight,
         };
     });
 
