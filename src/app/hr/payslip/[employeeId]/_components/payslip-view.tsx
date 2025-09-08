@@ -9,6 +9,8 @@ import { toNepaliDate } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Table, TableBody, TableCell, TableRow, TableHeader, TableHead } from '@/components/ui/table';
 import { useState } from 'react';
+import NepaliDate from 'nepali-date-converter';
+
 
 interface PayslipViewProps {
   employee: Employee;
@@ -46,6 +48,8 @@ const toWords = (num: number): string => {
 
 export default function PayslipView({ employee, payroll, bsYear, bsMonthName }: PayslipViewProps) {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const generationDate = new Date();
+  const nepaliGenerationDate = new NepaliDate(generationDate);
   
   const handlePrint = () => {
     setTimeout(() => {
@@ -119,9 +123,12 @@ export default function PayslipView({ employee, payroll, bsYear, bsMonthName }: 
             <h2 className="text-lg font-semibold">शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.</h2>
             <p className="text-sm">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
             <h2 className="text-lg font-semibold">Payslip for {bsMonthName}, {bsYear}</h2>
-            <p className="text-xs text-gray-500">Generated on: {format(new Date(), 'PPpp')}</p>
         </header>
         
+        <div className="text-right text-xs">
+          <span className="font-semibold">Date:</span> {nepaliGenerationDate.format('YYYY/MM/DD')} B.S. ({format(generationDate, 'yyyy-MM-dd')})
+        </div>
+
         <Separator className="my-2 bg-gray-300"/>
 
         <div className="grid grid-cols-2 text-xs mb-2 gap-x-4">
@@ -137,9 +144,9 @@ export default function PayslipView({ employee, payroll, bsYear, bsMonthName }: 
             <div className="border border-gray-300 rounded-md">
                  <Table>
                     <TableHeader>
-                        <TableRow className="bg-gray-100 font-bold">
-                            <TableHead colSpan={2} className="h-8 px-2 text-xs text-black">Earnings</TableHead>
-                        </TableRow>
+                      <TableRow className="bg-gray-100 font-bold">
+                        <TableHead colSpan={2} className="h-8 px-2 text-xs text-black">Earnings</TableHead>
+                      </TableRow>
                     </TableHeader>
                     <TableBody>
                         {earnings.map(item => (
@@ -154,9 +161,9 @@ export default function PayslipView({ employee, payroll, bsYear, bsMonthName }: 
              <div className="border border-gray-300 rounded-md">
                  <Table>
                     <TableHeader>
-                        <TableRow className="bg-gray-100 font-bold">
-                            <TableHead colSpan={2} className="h-8 px-2 text-xs text-black">Deductions</TableHead>
-                        </TableRow>
+                      <TableRow className="bg-gray-100 font-bold">
+                        <TableHead colSpan={2} className="h-8 px-2 text-xs text-black">Deductions</TableHead>
+                      </TableRow>
                     </TableHeader>
                     <TableBody>
                         {deductions.map(item => (
