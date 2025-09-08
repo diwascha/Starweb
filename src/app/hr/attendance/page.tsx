@@ -248,10 +248,12 @@ export default function AttendancePage() {
         let status: AttendanceRecord['status'];
 
         if (nepaliDate.getDay() === 6) {
-            status = 'Saturday';
+          status = 'Saturday';
         } else {
-            if (!clockInValue || !clockOutValue) {
-                status = 'Missing Details';
+            if (!clockInValue) {
+                status = 'C/I Miss';
+            } else if (!clockOutValue) {
+                status = 'C/O Miss';
             } else {
                 status = 'Present';
             }
