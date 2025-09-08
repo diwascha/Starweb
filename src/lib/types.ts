@@ -6,6 +6,7 @@
 
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -110,6 +111,9 @@ export interface PurchaseOrder {
 
 // --- HR Module Types ---
 export type WageBasis = 'Monthly' | 'Hourly';
+export type Gender = 'Male' | 'Female' | 'Other';
+export type IdentityType = 'Citizenship' | 'Voters Card' | 'License';
+
 
 export interface Employee {
   id: string;
@@ -117,6 +121,12 @@ export interface Employee {
   wageBasis: WageBasis;
   wageAmount: number;
   allowance?: number;
+  address?: string;
+  gender?: Gender;
+  mobileNumber?: string;
+  dateOfBirth?: string; // ISO string
+  identityType?: IdentityType;
+  documentNumber?: string;
   createdBy: string;
   createdAt: string; // ISO string
   lastModifiedBy?: string;

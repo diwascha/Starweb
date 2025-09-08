@@ -2,8 +2,8 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, User } from 'lucide-react';
-import type { Employee, WageBasis } from '@/lib/types';
+import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, User, CalendarIcon } from 'lucide-react';
+import type { Employee, WageBasis, Gender, IdentityType } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import {
@@ -42,10 +42,27 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { onEmployeesUpdate, addEmployee, updateEmployee, deleteEmployee } from '@/services/employee-service';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { format } from 'date-fns';
+import { Textarea } from '@/components/ui/textarea';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { DualCalendar } from '@/components/ui/dual-calendar';
+import { cn, toNepaliDate } from '@/lib/utils';
 
 
-type EmployeeSortKey = 'name' | 'wageBasis' | 'wageAmount' | 'allowance' | 'authorship';
+type EmployeeSortKey = 'name' | 'wageBasis' | 'wageAmount' | 'allowance' | 'authorship' | 'mobileNumber' | 'gender';
 type SortDirection = 'asc' | 'desc';
+
+const initialFormState = {
+    name: '',
+    wageBasis: 'Monthly' as WageBasis,
+    wageAmount: '',
+    allowance: '',
+    address: '',
+    gender: 'Male' as Gender,
+    mobileNumber: '',
+    dateOfBirth: new Date().toISOString(),
+    identityType: 'Citizenship' as IdentityType,
+    documentNumber: ''
+};
 
 export default function EmployeesPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -54,10 +71,8 @@ export default function EmployeesPage() {
   // Dialog State
   const [isEmployeeDialogOpen, setIsEmployeeDialogOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
-  const [employeeName, setEmployeeName] = useState('');
-  const [wageBasis, setWageBasis] = useState<WageBasis>('Monthly');
-  const [wageAmount, setWageAmount] = useState('');
-  const [allowance, setAllowance] = useState('');
+  const [formState, setFormState] = useState(initialFormState);
+
 
   const [searchQuery, setSearchQuery] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: EmployeeSortKey; direction: SortDirection }>({
@@ -78,10 +93,7 @@ export default function EmployeesPage() {
   }, []);
   
   const resetForm = () => {
-    setEmployeeName('');
-    setWageBasis('Monthly');
-    setWageAmount('');
-    setAllowance('');
+    setFormState(initialFormState);
     setEditingEmployee(null);
   };
 
@@ -92,12 +104,36 @@ export default function EmployeesPage() {
 
   const openEditEmployeeDialog = (employee: Employee) => {
     setEditingEmployee(employee);
-    setEmployeeName(employee.name);
-    setWageBasis(employee.wageBasis);
-    setWageAmount(String(employee.wageAmount));
-    setAllowance(String(employee.allowance || ''));
+    setFormState({
+        name: employee.name,
+        wageBasis: employee.wageBasis,
+        wageAmount: String(employee.wageAmount),
+        allowance: String(employee.allowance || ''),
+        address: employee.address || '',
+        gender: employee.gender || 'Male',
+        mobileNumber: employee.mobileNumber || '',
+        dateOfBirth: employee.dateOfBirth || new Date().toISOString(),
+        identityType: employee.identityType || 'Citizenship',
+        documentNumber: employee.documentNumber || ''
+    });
     setIsEmployeeDialogOpen(true);
   };
+  
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormState(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSelectChange = (name: keyof typeof initialFormState, value: string) => {
+      setFormState(prev => ({ ...prev, [name]: value }));
+  };
+  
+  const handleDateChange = (date: Date | undefined) => {
+    if (date) {
+        setFormState(prev => ({...prev, dateOfBirth: date.toISOString()}));
+    }
+  };
+
 
   const handleEmployeeSubmit = async () => {
     if (!user) {
@@ -105,32 +141,33 @@ export default function EmployeesPage() {
       return;
     }
 
-    const amount = parseFloat(wageAmount);
-    const allowanceAmount = parseFloat(allowance) || 0;
-    if (employeeName.trim() === '' || isNaN(amount) || amount <= 0) {
+    const amount = parseFloat(formState.wageAmount);
+    const allowanceAmount = parseFloat(formState.allowance) || 0;
+    if (formState.name.trim() === '' || isNaN(amount) || amount <= 0) {
       toast({ title: 'Error', description: 'Please fill all fields with valid values.', variant: 'destructive' });
       return;
     }
 
     try {
-      if (editingEmployee) {
-        const updatedEmployeeData: Partial<Omit<Employee, 'id'>> = {
-          name: employeeName.trim(),
-          wageBasis,
+      const employeeData = {
+          name: formState.name.trim(),
+          wageBasis: formState.wageBasis,
           wageAmount: amount,
           allowance: allowanceAmount,
-          lastModifiedBy: user.username,
-        };
+          address: formState.address,
+          gender: formState.gender,
+          mobileNumber: formState.mobileNumber,
+          dateOfBirth: formState.dateOfBirth,
+          identityType: formState.identityType,
+          documentNumber: formState.documentNumber,
+      };
+
+      if (editingEmployee) {
+        const updatedEmployeeData = { ...employeeData, lastModifiedBy: user.username };
         await updateEmployee(editingEmployee.id, updatedEmployeeData);
         toast({ title: 'Success', description: 'Employee updated.' });
       } else {
-        const newEmployeeData: Omit<Employee, 'id' | 'createdAt' | 'lastModifiedAt'> = {
-          name: employeeName.trim(),
-          wageBasis,
-          wageAmount: amount,
-          allowance: allowanceAmount,
-          createdBy: user.username,
-        };
+        const newEmployeeData = { ...employeeData, createdBy: user.username };
         await addEmployee(newEmployeeData);
         toast({ title: 'Success', description: 'New employee added.' });
       }
@@ -164,7 +201,8 @@ export default function EmployeesPage() {
     if (searchQuery) {
       const lowercasedQuery = searchQuery.toLowerCase();
       filtered = filtered.filter(employee =>
-        employee.name.toLowerCase().includes(lowercasedQuery)
+        employee.name.toLowerCase().includes(lowercasedQuery) ||
+        (employee.mobileNumber || '').toLowerCase().includes(lowercasedQuery)
       );
     }
 
@@ -178,10 +216,16 @@ export default function EmployeesPage() {
              return 0;
         }
 
-      if (a[sortConfig.key] < b[sortConfig.key]) {
+      const aVal = a[sortConfig.key as keyof Employee];
+      const bVal = b[sortConfig.key as keyof Employee];
+
+      if (aVal === undefined || aVal === null) return 1;
+      if (bVal === undefined || bVal === null) return -1;
+
+      if (aVal < bVal) {
         return sortConfig.direction === 'asc' ? -1 : 1;
       }
-      if (a[sortConfig.key] > b[sortConfig.key]) {
+      if (aVal > bVal) {
         return sortConfig.direction === 'asc' ? 1 : -1;
       }
       return 0;
@@ -221,7 +265,8 @@ export default function EmployeesPage() {
           <TableHeader>
             <TableRow>
               <TableHead><Button variant="ghost" onClick={() => requestSort('name')}>Employee Name <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-              <TableHead><Button variant="ghost" onClick={() => requestSort('wageBasis')}>Wage Basis <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+              <TableHead><Button variant="ghost" onClick={() => requestSort('mobileNumber')}>Mobile Number <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+              <TableHead><Button variant="ghost" onClick={() => requestSort('gender')}>Gender <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('wageAmount')}>Amount <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('allowance')}>Allowance <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('authorship')}>Authorship <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
@@ -232,7 +277,8 @@ export default function EmployeesPage() {
             {filteredAndSortedEmployees.map(employee => (
               <TableRow key={employee.id}>
                 <TableCell className="font-medium">{employee.name}</TableCell>
-                <TableCell>{employee.wageBasis}</TableCell>
+                <TableCell>{employee.mobileNumber || 'N/A'}</TableCell>
+                <TableCell>{employee.gender || 'N/A'}</TableCell>
                 <TableCell>{employee.wageAmount.toLocaleString()}</TableCell>
                 <TableCell>{(employee.allowance || 0).toLocaleString()}</TableCell>
                 <TableCell>
@@ -304,7 +350,7 @@ export default function EmployeesPage() {
           {hasPermission('hr', 'create') && (
             <Dialog open={isEmployeeDialogOpen} onOpenChange={setIsEmployeeDialogOpen}>
               <DialogTrigger asChild><Button onClick={openAddEmployeeDialog}><Plus className="mr-2 h-4 w-4" /> Add Employee</Button></DialogTrigger>
-              <DialogContent className="sm:max-w-md">
+              <DialogContent className="sm:max-w-xl">
                 <DialogHeader>
                   <DialogTitle>{editingEmployee ? 'Edit Employee' : 'Add New Employee'}</DialogTitle>
                   <DialogDescription>{editingEmployee ? 'Update the details for this employee.' : 'Enter the details for the new employee.'}</DialogDescription>
@@ -312,26 +358,80 @@ export default function EmployeesPage() {
                 <div className="grid gap-4 py-4">
                   <div className="space-y-2">
                     <Label htmlFor="employee-name">Employee Name</Label>
-                    <Input id="employee-name" value={employeeName} onChange={e => setEmployeeName(e.target.value)} />
+                    <Input id="employee-name" name="name" value={formState.name} onChange={handleFormChange} />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="wage-basis">Wage Basis</Label>
-                    <Select value={wageBasis} onValueChange={(value: WageBasis) => setWageBasis(value)}>
-                      <SelectTrigger id="wage-basis"><SelectValue placeholder="Select a basis" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Monthly">Monthly</SelectItem>
-                        <SelectItem value="Hourly">Hourly</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="wage-amount">Amount</Label>
-                    <Input id="wage-amount" type="number" value={wageAmount} onChange={e => setWageAmount(e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="allowance">Allowance</Label>
-                    <Input id="allowance" type="number" value={allowance} onChange={e => setAllowance(e.target.value)} placeholder="e.g. 500" />
-                  </div>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="mobileNumber">Mobile Number</Label>
+                            <Input id="mobileNumber" name="mobileNumber" type="tel" value={formState.mobileNumber} onChange={handleFormChange} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="gender">Gender</Label>
+                            <Select value={formState.gender} onValueChange={(value: Gender) => handleSelectChange('gender', value)}>
+                                <SelectTrigger id="gender"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Male">Male</SelectItem>
+                                    <SelectItem value="Female">Female</SelectItem>
+                                    <SelectItem value="Other">Other</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="address">Address</Label>
+                        <Textarea id="address" name="address" value={formState.address} onChange={handleFormChange} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formState.dateOfBirth && "text-muted-foreground")}>
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {formState.dateOfBirth ? `${toNepaliDate(formState.dateOfBirth)} BS (${format(new Date(formState.dateOfBirth), "PPP")})` : <span>Pick a date</span>}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0">
+                                <DualCalendar selected={new Date(formState.dateOfBirth)} onSelect={handleDateChange} />
+                            </PopoverContent>
+                        </Popover>
+                    </div>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="identityType">Type of Identity</Label>
+                            <Select value={formState.identityType} onValueChange={(value: IdentityType) => handleSelectChange('identityType', value)}>
+                                <SelectTrigger id="identityType"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Citizenship">Citizenship</SelectItem>
+                                    <SelectItem value="Voters Card">Voters Card</SelectItem>
+                                    <SelectItem value="License">License</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="documentNumber">Document Number</Label>
+                            <Input id="documentNumber" name="documentNumber" value={formState.documentNumber} onChange={handleFormChange} />
+                        </div>
+                     </div>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
+                        <div className="space-y-2">
+                            <Label htmlFor="wage-basis">Wage Basis</Label>
+                            <Select value={formState.wageBasis} onValueChange={(value: WageBasis) => handleSelectChange('wageBasis', value)}>
+                            <SelectTrigger id="wage-basis"><SelectValue placeholder="Select a basis" /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Monthly">Monthly</SelectItem>
+                                <SelectItem value="Hourly">Hourly</SelectItem>
+                            </SelectContent>
+                            </Select>
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="wage-amount">Amount</Label>
+                            <Input id="wage-amount" name="wageAmount" type="number" value={formState.wageAmount} onChange={handleFormChange} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="allowance">Allowance</Label>
+                            <Input id="allowance" name="allowance" type="number" value={formState.allowance} onChange={handleFormChange} placeholder="e.g. 500" />
+                        </div>
+                     </div>
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setIsEmployeeDialogOpen(false)}>Cancel</Button>
