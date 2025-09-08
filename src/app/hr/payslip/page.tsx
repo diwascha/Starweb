@@ -5,9 +5,9 @@ import { useState, useEffect, useMemo } from 'react';
 import type { Employee, Payroll } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Download, Printer, Save, Loader2, View, Search } from 'lucide-react';
+import { Printer, Download, Save, Loader2, View, Search, MoreHorizontal, FileDown } from 'lucide-react';
 import NepaliDate from 'nepali-date-converter';
 import { useAuth } from '@/hooks/use-auth';
 import { onEmployeesUpdate, getEmployee } from '@/services/employee-service';
@@ -16,6 +16,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { generatePayrollAndAnalytics, PayrollAndAnalyticsData } from '@/services/payroll-service';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 
 const nepaliMonths = [
     { value: 0, name: "Baishakh" }, { value: 1, name: "Jestha" }, { value: 2, name: "Ashadh" },
@@ -49,6 +50,7 @@ export default function PayslipPage() {
     const [payrollData, setPayrollData] = useState<Payroll[] | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const router = useRouter();
+    const { toast } = useToast();
 
     useEffect(() => {
         setIsClient(true);
@@ -110,6 +112,32 @@ export default function PayslipPage() {
         return payrollData.filter(p => p.employeeName.toLowerCase().includes(searchQuery.toLowerCase()));
     }, [payrollData, searchQuery]);
 
+    const openPrintWindow = (employeeId?: string) => {
+        const url = `/hr/payslip/${employeeId}?year=${selectedBsYear}&month=${selectedBsMonth}`;
+        const printWindow = window.open(url, '_blank');
+        if (printWindow) {
+            printWindow.onload = () => {
+                setTimeout(() => {
+                    printWindow.print();
+                }, 1000); // Increased timeout for rendering
+            };
+        }
+    };
+
+    const handlePrintAll = () => {
+        toast({ title: "Printing All", description: "Preparing all payslips for printing..." });
+        filteredPayroll?.forEach((p, index) => {
+             // Stagger the opening of print windows
+            setTimeout(() => {
+                openPrintWindow(p.employeeId);
+            }, index * 2000);
+        });
+    };
+
+    const handleExportAll = () => {
+        toast({ title: "Feature Coming Soon", description: "Bulk PDF export is under development." });
+    }
+
     return (
         <div className="flex flex-col gap-8">
             <header>
@@ -152,10 +180,18 @@ export default function PayslipPage() {
                                     Payslips for {nepaliMonths[parseInt(selectedBsMonth)]?.name}, {selectedBsYear}
                                 </CardDescription>
                             </div>
-                             <div className="relative">
-                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input placeholder="Search employee..." className="pl-8" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
-                            </div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                                 <div className="relative">
+                                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                    <Input placeholder="Search employee..." className="pl-8 w-full sm:w-auto" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+                                </div>
+                                <Button variant="outline" onClick={handlePrintAll}>
+                                    <Printer className="mr-2 h-4 w-4" /> Print All
+                                </Button>
+                                <Button variant="outline" onClick={handleExportAll}>
+                                    <FileDown className="mr-2 h-4 w-4" /> Export All as PDF
+                                </Button>
+                             </div>
                         </div>
                     </CardHeader>
                     <CardContent>
@@ -173,13 +209,24 @@ export default function PayslipPage() {
                                         <TableCell className="font-medium">{p.employeeName}</TableCell>
                                         <TableCell>{p.netPayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell className="text-right">
-                                            <Button 
-                                                variant="outline" 
-                                                size="sm"
-                                                onClick={() => router.push(`/hr/payslip/${p.employeeId}?year=${selectedBsYear}&month=${selectedBsMonth}`)}
-                                            >
-                                                <View className="mr-2 h-4 w-4" /> View Payslip
-                                            </Button>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                        <MoreHorizontal className="h-4 w-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem onSelect={() => router.push(`/hr/payslip/${p.employeeId}?year=${selectedBsYear}&month=${selectedBsMonth}`)}>
+                                                        <View className="mr-2 h-4 w-4" /> View
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onSelect={() => openPrintWindow(p.employeeId)}>
+                                                        <Printer className="mr-2 h-4 w-4" /> Print
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onSelect={() => toast({ title: "Feature Coming Soon", description: "PDF export is under development." })}>
+                                                        <FileDown className="mr-2 h-4 w-4" /> Export PDF
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
                                         </TableCell>
                                     </TableRow>
                                 )) : (
