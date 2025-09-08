@@ -96,17 +96,14 @@ export default function AttendancePage() {
   
     const parseDate = (dateInput: any): Date | null => {
         if (!dateInput) return null;
-        // If it's already a valid Date object
         if (dateInput instanceof Date && !isNaN(dateInput.getTime())) {
             return dateInput;
         }
-        // Excel can sometimes pass dates as numbers (days since 1900)
         if (typeof dateInput === 'number') {
             const excelEpoch = new Date(1899, 11, 30);
             return new Date(excelEpoch.getTime() + dateInput * 24 * 60 * 60 * 1000);
         }
         if (typeof dateInput === 'string') {
-            // Handle combined date and time strings by parsing only the date part
             const dateOnlyString = dateInput.split(' ')[0];
             const parsedDate = new Date(dateOnlyString);
             if (!isNaN(parsedDate.getTime())) {
@@ -128,7 +125,6 @@ export default function AttendancePage() {
     let nonexistentEmployees = new Set<string>();
     
     rows.forEach((row, index) => {
-      // The row should have at least a Name and a Date
       if (!row || row.length < 2) {
           skippedRows++;
           return;
@@ -158,12 +154,11 @@ export default function AttendancePage() {
       const nepaliDate = new NepaliDate(adDate);
       const bsDate = nepaliDate.format('YYYY-MM-DD');
       
-      const statusText = String(absentDetails || '').trim().toLowerCase();
       let status: AttendanceRecord['status'] = 'Present';
-      if (statusText === 'true' || statusText.includes('absent')) {
-          status = 'Absent';
-      } else if (nepaliDate.getDay() === 6) { // Saturday
+      if (nepaliDate.getDay() === 6) { // Saturday is 6
           status = 'Saturday';
+      } else if (!clockIn) { // If there is no clock-in time, they are absent
+          status = 'Absent';
       }
       
       const record: Omit<AttendanceRecord, 'id'> = {
