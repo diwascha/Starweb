@@ -107,6 +107,29 @@ export default function AttendancePage() {
         const worksheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json<any>(worksheet, { header: 1 });
         
+        if (jsonData.length < 2) {
+            toast({ title: 'Error', description: 'The Excel file is empty or has no data rows.', variant: 'destructive' });
+            return;
+        }
+
+        const headerRow = jsonData[0];
+        const headerMap: { [key: string]: number } = {};
+        headerRow.forEach((header: any, index: number) => {
+            const normalizedHeader = String(header).trim().toLowerCase();
+            if (normalizedHeader.includes('name')) headerMap['name'] = index;
+            if (normalizedHeader.includes('date')) headerMap['date'] = index;
+            if (normalizedHeader.includes('on duty')) headerMap['onDuty'] = index;
+            if (normalizedHeader.includes('off duty')) headerMap['offDuty'] = index;
+            if (normalizedHeader.includes('clock in')) headerMap['clockIn'] = index;
+            if (normalizedHeader.includes('clock out')) headerMap['clockOut'] = index;
+            if (normalizedHeader.includes('absent')) headerMap['status'] = index; // Assuming 'Absent' column implies status
+        });
+
+        if (headerMap['name'] === undefined || headerMap['date'] === undefined) {
+            toast({ title: 'Error', description: 'The Excel file must contain "Name" and "Date" columns.', variant: 'destructive' });
+            return;
+        }
+
         const existingEmployeeNames = new Set(employees.map(emp => emp.name.toLowerCase()));
         const newlyAddedEmployees = new Set<string>();
         let skippedRows = 0;
@@ -114,12 +137,13 @@ export default function AttendancePage() {
         const rawAttendanceData: RawAttendanceRow[] = [];
         
         for (const row of jsonData.slice(1)) {
-            if (!row[0] || !row[1]) {
+            const employeeName = row[headerMap['name']] ? String(row[headerMap['name']]).trim() : '';
+            const dateValue = row[headerMap['date']];
+            
+            if (!employeeName || !dateValue) {
                 skippedRows++;
                 continue;
             }
-            const employeeName = String(row[0]).trim();
-            const dateValue = row[1];
             
             if (!existingEmployeeNames.has(employeeName.toLowerCase())) {
                  const newEmployee: Omit<Employee, 'id'> = {
@@ -138,12 +162,12 @@ export default function AttendancePage() {
             rawAttendanceData.push({
                 employeeName: employeeName,
                 dateAD: dateValue,
-                onDuty: row[2] ? String(row[2]) : null,
-                offDuty: row[3] ? String(row[3]) : null,
-                clockIn: row[4] ? String(row[4]) : null,
-                clockOut: row[5] ? String(row[5]) : null,
-                status: row[6] ? String(row[6]) : '',
-                remarks: row[8] ? String(row[8]) : null,
+                onDuty: row[headerMap['onDuty']] ? String(row[headerMap['onDuty']]) : null,
+                offDuty: row[headerMap['offDuty']] ? String(row[headerMap['offDuty']]) : null,
+                clockIn: row[headerMap['clockIn']] ? String(row[headerMap['clockIn']]) : null,
+                clockOut: row[headerMap['clockOut']] ? String(row[headerMap['clockOut']]) : null,
+                status: row[headerMap['status']] ? String(row[headerMap['status']]) : '',
+                remarks: null,
             });
         }
         
@@ -170,34 +194,32 @@ export default function AttendancePage() {
         if (newRecords.length > 0) {
             await addAttendanceRecords(newRecords);
 
-            // Find the latest date from the imported records
             const latestImportedRecord = newRecords.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
             const latestNepaliDate = new NepaliDate(new Date(latestImportedRecord.date));
             
-            // Update the filters to show the imported month
             setSelectedBsYear(String(latestNepaliDate.getYear()));
             setSelectedBsMonth(String(latestNepaliDate.getMonth()));
-            setDateRange(undefined); // Clear date range filter to use BS month/year filter
+            setDateRange(undefined);
 
             let description = `${newRecords.length} records processed for ${nepaliMonths[latestNepaliDate.getMonth()].name}, ${latestNepaliDate.getYear()}.`;
             if (newlyAddedEmployees.size > 0) {
                 description += ` ${newlyAddedEmployees.size} new employees added.`;
             }
              if (skippedRows > 0) {
-                description += ` ${skippedRows} rows skipped.`;
+                description += ` ${skippedRows} rows skipped due to missing name or date.`;
             }
             toast({ title: 'Import Complete', description });
         } else {
             let description = 'No new valid attendance records found to import.';
             if (skippedRows > 0) {
-                description += ` ${skippedRows} rows were skipped.`;
+                description += ` ${skippedRows} rows were skipped due to missing name or date.`;
             }
             toast({ title: 'Info', description: description });
         }
 
       } catch (error) {
         console.error("File processing error:", error);
-        toast({ title: 'Error', description: 'Failed to process the Excel file.', variant: 'destructive' });
+        toast({ title: 'Error', description: 'Failed to process the Excel file. Check column names and data format.', variant: 'destructive' });
       }
     };
     reader.onerror = (error) => {
@@ -263,7 +285,6 @@ export default function AttendancePage() {
   const filteredAndSortedRecords = useMemo(() => {
     let filtered = [...attendance];
 
-    // Apply BS Year/Month filter ONLY if AD date range is not active
     if (!dateRange?.from && selectedBsYear && selectedBsMonth) {
       const yearInt = parseInt(selectedBsYear, 10);
       const monthInt = parseInt(selectedBsMonth, 10);
@@ -278,7 +299,7 @@ export default function AttendancePage() {
           }
         });
       }
-    } else if (dateRange?.from) { // Apply AD date range if active
+    } else if (dateRange?.from) {
       const interval = {
         start: startOfDay(dateRange.from),
         end: endOfDay(dateRange.to || dateRange.from),
@@ -308,7 +329,6 @@ export default function AttendancePage() {
       if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
       if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
       
-      // Secondary sort
       if (sortConfig.key !== 'date') {
           const dateA = new Date(a.date).getTime();
           const dateB = new Date(b.date).getTime();
@@ -558,4 +578,5 @@ export default function AttendancePage() {
   );
 
     
+
 
