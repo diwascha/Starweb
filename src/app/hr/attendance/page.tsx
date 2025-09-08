@@ -242,12 +242,10 @@ export default function AttendancePage() {
             status = 'Saturday';
         } else if (!clockInValue) {
             status = 'Absent';
-        } else if (clockInValue && !clockOutValue) {
+        } else if (!clockOutValue) {
             status = 'C/O Miss';
-        } else if (clockInValue && clockOutValue) {
-            status = 'Present';
         } else {
-            status = 'Absent'; // Fallback case
+            status = 'Present';
         }
         
         const record: Omit<AttendanceRecord, 'id'> = {
