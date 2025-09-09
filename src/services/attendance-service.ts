@@ -1,9 +1,11 @@
 
 
 import { db } from '@/lib/firebase';
-import { collection, doc, writeBatch, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
+import { collection, doc, writeBatch, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, updateDoc, deleteDoc, query, where, getDoc } from 'firebase/firestore';
 import type { AttendanceRecord } from '@/lib/types';
 import NepaliDate from 'nepali-date-converter';
+import { format } from 'date-fns';
+
 
 const attendanceCollection = collection(db, 'attendance');
 
@@ -35,9 +37,37 @@ export const getAttendance = async (): Promise<AttendanceRecord[]> => {
 
 export const addAttendanceRecords = async (records: Omit<AttendanceRecord, 'id'>[]): Promise<void> => {
     const batch = writeBatch(db);
+
+    // Fetch existing records for the dates and employees being imported
+    const dates = [...new Set(records.map(r => r.date))];
+    const employeeNames = [...new Set(records.map(r => r.employeeName))];
+    
+    const existingRecordsQuery = query(
+        attendanceCollection,
+        where('date', 'in', dates),
+        where('employeeName', 'in', employeeNames)
+    );
+    const snapshot = await getDocs(existingRecordsQuery);
+    const existingRecordsMap = new Map<string, { id: string, data: AttendanceRecord }>();
+    snapshot.docs.forEach(doc => {
+        const data = fromFirestore(doc);
+        const key = `${data.employeeName}-${data.date}`;
+        existingRecordsMap.set(key, { id: doc.id, data });
+    });
+
+
     records.forEach(record => {
-        const docRef = doc(attendanceCollection); // Creates a new doc with a unique random ID
-        batch.set(docRef, record);
+        const key = `${record.employeeName}-${record.date}`;
+        const existing = existingRecordsMap.get(key);
+
+        if (existing) {
+            // Update existing record
+            batch.update(doc(attendanceCollection, existing.id), record);
+        } else {
+            // Add new record
+            const docRef = doc(attendanceCollection); // Creates a new doc with a unique random ID
+            batch.set(docRef, record);
+        }
     });
     await batch.commit();
 };
