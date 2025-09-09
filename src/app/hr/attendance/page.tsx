@@ -75,12 +75,14 @@ export default function AttendancePage() {
                 const sortedYears = Array.from(years).sort((a, b) => b - a);
                 setBsYears(sortedYears);
                 
-                // Set initial filter only if not already set by an import
+                // Set initial filter only if not already set by user interaction
                 if (!selectedBsYear && !selectedBsMonth) {
                     const latestRecord = validRecords.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-                    const latestNepaliDate = new NepaliDate(new Date(latestRecord.date));
-                    setSelectedBsYear(String(latestNepaliDate.getYear()));
-                    setSelectedBsMonth(String(latestNepaliDate.getMonth()));
+                    if (latestRecord) {
+                        const latestNepaliDate = new NepaliDate(new Date(latestRecord.date));
+                        setSelectedBsYear(String(latestNepaliDate.getYear()));
+                        setSelectedBsMonth(String(latestNepaliDate.getMonth()));
+                    }
                 }
             }
         }
@@ -578,5 +580,6 @@ export default function AttendancePage() {
   );
 
     
+
 
 
