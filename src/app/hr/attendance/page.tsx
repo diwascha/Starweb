@@ -75,15 +75,13 @@ export default function AttendancePage() {
         const years = Array.from(new Set(validRecords.map(r => new NepaliDate(new Date(r.date)).getYear()))).sort((a, b) => b - a);
         setBsYears(years);
 
-        if (!selectedBsYear) { // Set initial year/month only if not already set
-            const latestRecord = validRecords.reduce((latest, current) => 
-                new Date(current.date) > new Date(latest.date) ? current : latest
-            );
-            if (latestRecord) {
-                const latestNepaliDate = new NepaliDate(new Date(latestRecord.date));
-                setSelectedBsYear(String(latestNepaliDate.getYear()));
-                setSelectedBsMonth(String(latestNepaliDate.getMonth()));
-            }
+        const latestRecord = validRecords.reduce((latest, current) => 
+            new Date(current.date) > new Date(latest.date) ? current : latest
+        );
+        if (latestRecord) {
+            const latestNepaliDate = new NepaliDate(new Date(latestRecord.date));
+            setSelectedBsYear(String(latestNepaliDate.getYear()));
+            setSelectedBsMonth(String(latestNepaliDate.getMonth()));
         }
       }
     });
@@ -92,7 +90,7 @@ export default function AttendancePage() {
         unsubEmployees();
         unsubAttendance();
     }
-  }, [selectedBsYear]);
+  }, []);
   
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -234,7 +232,7 @@ export default function AttendancePage() {
         } else {
             let description = 'No new valid attendance records found to import.';
             if (totalSkippedRows > 0) {
-                description += ` ${totalSkippedRows} rows were skipped due to missing name or date.`;
+                description += ` ${totalSkippedRows} rows skipped due to missing name or date.`;
             }
             toast({ title: 'Info', description: description });
         }
@@ -642,3 +640,4 @@ export default function AttendancePage() {
 
 
     
+
