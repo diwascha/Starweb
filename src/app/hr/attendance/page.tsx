@@ -116,15 +116,24 @@ export default function AttendancePage() {
 
         const headerRow = jsonData[0];
         const headerMap: { [key: string]: number } = {};
+        
+        const headerVariations: { [key: string]: string[] } = {
+            name: ['name'],
+            date: ['date'],
+            onDuty: ['on duty'],
+            offDuty: ['off duty'],
+            clockIn: ['clock in'],
+            clockOut: ['clock out'],
+            status: ['absent', 'status']
+        };
+
         headerRow.forEach((header: any, index: number) => {
             const normalizedHeader = String(header).trim().toLowerCase();
-            if (normalizedHeader === 'name') headerMap['name'] = index;
-            if (normalizedHeader === 'date') headerMap['date'] = index;
-            if (normalizedHeader.includes('on duty')) headerMap['onDuty'] = index;
-            if (normalizedHeader.includes('off duty')) headerMap['offDuty'] = index;
-            if (normalizedHeader.includes('clock in')) headerMap['clockIn'] = index;
-            if (normalizedHeader.includes('clock out')) headerMap['clockOut'] = index;
-            if (normalizedHeader.includes('absent')) headerMap['status'] = index; // Assuming 'Absent' column implies status
+            for (const key in headerVariations) {
+                if (headerVariations[key].includes(normalizedHeader)) {
+                    headerMap[key] = index;
+                }
+            }
         });
 
         if (headerMap['name'] === undefined || headerMap['date'] === undefined) {
@@ -614,4 +623,5 @@ export default function AttendancePage() {
   );
 
     
+
 
