@@ -13,7 +13,7 @@ import { Upload, Search, ArrowUpDown, CalendarIcon, Edit, MoreHorizontal, Trash2
 import NepaliDate from 'nepali-date-converter';
 import { useAuth } from '@/hooks/use-auth';
 import { Badge } from '@/components/ui/badge';
-import { format, parse, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { format as formatDate, parse, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { onEmployeesUpdate, addEmployee } from '@/services/employee-service';
 import { onAttendanceUpdate, addAttendanceRecords, updateAttendanceRecord, deleteAttendanceRecord, deleteAttendanceForMonth, batchUpdateAttendance } from '@/services/attendance-service';
 import { getAttendanceBadgeVariant, cn } from '@/lib/utils';
@@ -39,6 +39,18 @@ const nepaliMonths = [
 ];
 
 const attendanceStatuses: AttendanceStatus[] = ['Present', 'Absent', 'C/I Miss', 'C/O Miss', 'Saturday', 'Public Holiday', 'EXTRAOK'];
+
+const formatTimeForDisplay = (timeString: string | null | undefined): string => {
+    if (!timeString) return '-';
+    try {
+        // Assuming timeString is in 'HH:mm:ss' format as per our new logic
+        return timeString;
+    } catch {
+        // Fallback for any unexpected formats
+        return timeString;
+    }
+};
+
 
 export default function AttendancePage() {
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
@@ -470,7 +482,7 @@ export default function AttendancePage() {
           <TableBody>
             {filteredAndSortedRecords.map(record => (
               <TableRow key={record.id}>
-                <TableCell className="font-medium">{record.date ? format(new Date(record.date), 'yyyy-MM-dd') : 'Invalid'}</TableCell>
+                <TableCell className="font-medium">{record.date ? formatDate(new Date(record.date), 'yyyy-MM-dd') : 'Invalid'}</TableCell>
                 <TableCell>{record.bsDate}</TableCell>
                 <TableCell>{record.employeeName}</TableCell>
                 <TableCell><Badge variant="outline">{record.sourceSheet}</Badge></TableCell>
@@ -480,10 +492,10 @@ export default function AttendancePage() {
                   </Badge>
                 </TableCell>
                 <TableCell>
-                    {record.onDuty || '-'} / {record.offDuty || '-'}
+                    {formatTimeForDisplay(record.onDuty)} / {formatTimeForDisplay(record.offDuty)}
                 </TableCell>
                 <TableCell>
-                    {record.clockIn || '-'} / {record.clockOut || '-'}
+                    {formatTimeForDisplay(record.clockIn)} / {formatTimeForDisplay(record.clockOut)}
                 </TableCell>
                 <TableCell>{record.regularHours.toFixed(1)}</TableCell>
                 <TableCell>{record.overtimeHours.toFixed(1)}</TableCell>
@@ -585,7 +597,7 @@ export default function AttendancePage() {
                   <PopoverTrigger asChild>
                       <Button id="date" variant={"outline"} className={cn("w-full sm:w-auto justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {dateRange?.from ? (dateRange.to ? (`${format(dateRange.from, "LLL dd, y")} - ${format(dateRange.to, "LLL dd, y")}`) : format(dateRange.from, "LLL dd, y")) : (<span>Pick a date range</span>)}
+                          {dateRange?.from ? (dateRange.to ? (`${formatDate(dateRange.from, "LLL dd, y")} - ${formatDate(dateRange.to, "LLL dd, y")}`) : formatDate(dateRange.from, "LLL dd, y")) : (<span>Pick a date range</span>)}
                       </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
@@ -645,7 +657,7 @@ export default function AttendancePage() {
             <DialogHeader>
                 <DialogTitle>Edit Attendance for {editingRecord?.employeeName}</DialogTitle>
                 <DialogDescription>
-                    Date: {editingRecord ? format(new Date(editingRecord.date), 'PPP') : ''}
+                    Date: {editingRecord ? formatDate(new Date(editingRecord.date), 'PPP') : ''}
                 </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
