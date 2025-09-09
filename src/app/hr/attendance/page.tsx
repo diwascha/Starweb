@@ -15,7 +15,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Badge } from '@/components/ui/badge';
 import { format as formatDate, parse, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { onEmployeesUpdate, addEmployee } from '@/services/employee-service';
-import { addAttendanceRecords, updateAttendanceRecord, deleteAttendanceRecord, deleteAttendanceForMonth, batchUpdateAttendance } from '@/services/attendance-service';
+import { onAttendanceUpdate, addAttendanceRecords, updateAttendanceRecord, deleteAttendanceRecord, deleteAttendanceForMonth, batchUpdateAttendance } from '@/services/attendance-service';
 import { getAttendanceBadgeVariant, cn, formatTimeForDisplay } from '@/lib/utils';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
