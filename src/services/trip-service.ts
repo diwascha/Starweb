@@ -36,7 +36,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
     };
 }
 
-const calculateNetPay = (trip: Omit<Trip, 'id' | 'salesTransactionId'>): number => {
+const calculateNetPay = (trip: Omit<Trip, 'id' | 'salesTransactionId' | 'createdAt'>): number => {
     const days = trip.detentionStartDate && trip.detentionEndDate ? differenceInDays(new Date(trip.detentionEndDate), new Date(trip.detentionStartDate)) + 1 : 0;
     
     const totalFreight = (trip.destinations || []).reduce((sum, dest) => sum + (Number(dest.freight) || 0), 0);
@@ -54,9 +54,17 @@ const calculateNetPay = (trip: Omit<Trip, 'id' | 'salesTransactionId'>): number 
     return grossAmount - tdsAmount;
 };
 
+const BATCH_LIMIT = 499; // Firestore batch limit is 500
+
+const commitBatch = async (batch: ReturnType<typeof writeBatch>) => {
+    await batch.commit();
+    return writeBatch(db); // Return a new batch
+};
+
 
 export const addTrip = async (trip: Omit<Trip, 'id' | 'createdAt' | 'salesTransactionId'>): Promise<string> => {
-    const batch = writeBatch(db);
+    let batch = writeBatch(db);
+    let writeCount = 0;
     const now = new Date().toISOString();
     
     const tripRef = doc(collection(db, 'trips'));
@@ -76,12 +84,16 @@ export const addTrip = async (trip: Omit<Trip, 'id' | 'createdAt' | 'salesTransa
         createdAt: now,
         billingType: 'Credit',
         invoiceType: 'Taxable',
-        // Omitted optional fields will not be written
     };
     batch.set(salesTransactionRef, salesTransaction);
+    writeCount++;
 
     const fuelEntriesWithPurchaseIds = [];
     for (const fuelEntry of trip.fuelEntries) {
+        if (writeCount >= BATCH_LIMIT) {
+            batch = await commitBatch(batch);
+            writeCount = 0;
+        }
         const purchaseTransactionRef = doc(collection(db, 'transactions'));
         const purchaseTx: Omit<Transaction, 'id'> = {
             vehicleId: trip.vehicleId,
@@ -100,7 +112,13 @@ export const addTrip = async (trip: Omit<Trip, 'id' | 'createdAt' | 'salesTransa
             createdAt: now,
         };
         batch.set(purchaseTransactionRef, purchaseTx);
+        writeCount++;
         fuelEntriesWithPurchaseIds.push({ ...fuelEntry, purchaseTransactionId: purchaseTransactionRef.id });
+    }
+
+    if (writeCount >= BATCH_LIMIT) {
+        batch = await commitBatch(batch);
+        writeCount = 0;
     }
 
     const newTripData = {
@@ -110,6 +128,7 @@ export const addTrip = async (trip: Omit<Trip, 'id' | 'createdAt' | 'salesTransa
       salesTransactionId: salesTransactionRef.id,
     };
     batch.set(tripRef, newTripData);
+    writeCount++;
 
     await batch.commit();
     return tripRef.id;
@@ -131,15 +150,16 @@ export const getTrip = async (id: string): Promise<Trip | null> => {
     }
 };
 
-export const updateTrip = async (id: string, tripUpdate: Partial<Omit<Trip, 'id'>>): Promise<void> => {
-    const batch = writeBatch(db);
+export const updateTrip = async (id: string, tripUpdate: Partial<Omit<Trip, 'id' | 'createdAt'>>): Promise<void> => {
+    let batch = writeBatch(db);
+    let writeCount = 0;
     const tripRef = doc(db, 'trips', id);
     const now = new Date().toISOString();
 
     const originalTrip = await getTrip(id);
     if (!originalTrip) throw new Error("Trip not found");
 
-    const fullTripDataForCalc: Omit<Trip, 'id'> = { ...originalTrip, ...tripUpdate };
+    const fullTripDataForCalc: Omit<Trip, 'id' | 'createdAt'> = { ...originalTrip, ...tripUpdate };
     
     // 1. Update Sales Transaction
     const netPay = calculateNetPay(fullTripDataForCalc);
@@ -153,6 +173,7 @@ export const updateTrip = async (id: string, tripUpdate: Partial<Omit<Trip, 'id'
             lastModifiedBy: tripUpdate.lastModifiedBy,
             lastModifiedAt: now,
         });
+        writeCount++;
     }
     
     // 2. Handle Fuel Entries
@@ -163,11 +184,21 @@ export const updateTrip = async (id: string, tripUpdate: Partial<Omit<Trip, 'id'
     // Delete purchase transactions for removed fuel entries
     for (const oldEntry of oldFuelEntries) {
         if (oldEntry.purchaseTransactionId && !newFuelEntries.some(newEntry => newEntry.purchaseTransactionId === oldEntry.purchaseTransactionId)) {
+            if (writeCount >= BATCH_LIMIT) {
+                batch = await commitBatch(batch);
+                writeCount = 0;
+            }
             batch.delete(doc(db, 'transactions', oldEntry.purchaseTransactionId));
+            writeCount++;
         }
     }
 
     for (const fuelEntry of newFuelEntries) {
+        if (writeCount >= BATCH_LIMIT) {
+            batch = await commitBatch(batch);
+            writeCount = 0;
+        }
+
         if (fuelEntry.purchaseTransactionId) {
             // Update existing purchase transaction
             const purchaseTxRef = doc(db, 'transactions', fuelEntry.purchaseTransactionId);
@@ -182,6 +213,7 @@ export const updateTrip = async (id: string, tripUpdate: Partial<Omit<Trip, 'id'
                 lastModifiedBy: tripUpdate.lastModifiedBy,
                 lastModifiedAt: now,
             });
+            writeCount++;
             fuelEntriesWithPurchaseIds.push(fuelEntry);
         } else {
             // Create new purchase transaction for new fuel entry
@@ -205,8 +237,14 @@ export const updateTrip = async (id: string, tripUpdate: Partial<Omit<Trip, 'id'
                 lastModifiedAt: now,
             };
             batch.set(purchaseTransactionRef, purchaseTx);
+            writeCount++;
             fuelEntriesWithPurchaseIds.push({ ...fuelEntry, purchaseTransactionId: purchaseTransactionRef.id });
         }
+    }
+    
+    if (writeCount >= BATCH_LIMIT) {
+        batch = await commitBatch(batch);
+        writeCount = 0;
     }
 
     // 3. Update the Trip document itself
@@ -221,28 +259,42 @@ export const updateTrip = async (id: string, tripUpdate: Partial<Omit<Trip, 'id'
 
 
 export const deleteTrip = async (id: string): Promise<void> => {
+    let batch = writeBatch(db);
+    let writeCount = 0;
+
     const trip = await getTrip(id);
     if (!trip) return;
 
-    const batch = writeBatch(db);
-    
-    // Delete the trip itself
-    const tripRef = doc(db, 'trips', id);
-    batch.delete(tripRef);
+    const allRefsToDelete = [];
 
-    // Delete the associated sales transaction
+    // Add associated sales transaction to delete list
     if (trip.salesTransactionId) {
-        const transactionRef = doc(db, 'transactions', trip.salesTransactionId);
-        batch.delete(transactionRef);
+        allRefsToDelete.push(doc(db, 'transactions', trip.salesTransactionId));
     }
     
-    // Delete associated fuel purchase transactions
+    // Add associated fuel purchase transactions to delete list
     for (const fuelEntry of trip.fuelEntries) {
         if (fuelEntry.purchaseTransactionId) {
-            const purchaseTxRef = doc(db, 'transactions', fuelEntry.purchaseTransactionId);
-            batch.delete(purchaseTxRef);
+            allRefsToDelete.push(doc(db, 'transactions', fuelEntry.purchaseTransactionId));
         }
     }
+    
+    // Add the trip itself to delete list
+    allRefsToDelete.push(doc(db, 'trips', id));
 
-    await batch.commit();
+    for (const docRef of allRefsToDelete) {
+        if (writeCount >= BATCH_LIMIT) {
+            await batch.commit();
+            batch = writeBatch(db);
+            writeCount = 0;
+        }
+        batch.delete(docRef);
+        writeCount++;
+    }
+
+    if (writeCount > 0) {
+        await batch.commit();
+    }
 };
+
+    
