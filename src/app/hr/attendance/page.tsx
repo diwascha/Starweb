@@ -14,7 +14,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Badge } from '@/components/ui/badge';
 import { format, parse, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { onEmployeesUpdate, addEmployee } from '@/services/employee-service';
-import { onAttendanceUpdate, addAttendanceRecords, updateAttendanceRecord, deleteAttendanceRecord } from '@/services/attendance-service';
+import { onAttendanceUpdate, addAttendanceRecords, updateAttendanceRecord, deleteAttendanceRecord, deleteAttendanceForMonth } from '@/services/attendance-service';
 import { getAttendanceBadgeVariant, cn } from '@/lib/utils';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -67,25 +67,25 @@ export default function AttendancePage() {
     setIsClient(true);
     const unsubEmployees = onEmployeesUpdate(setEmployees);
     const unsubAttendance = onAttendanceUpdate((records) => {
-        setAttendance(records);
-        if (records.length > 0) {
-            const validRecords = records.filter(r => r.date && !isNaN(new Date(r.date).getTime()));
-            if (validRecords.length > 0) {
-                const years = new Set(validRecords.map(r => new NepaliDate(new Date(r.date)).getYear()));
-                const sortedYears = Array.from(years).sort((a, b) => b - a);
-                setBsYears(sortedYears);
-                
-                // Set initial filter only if not already set by user interaction
-                if (!selectedBsYear && !selectedBsMonth) {
-                    const latestRecord = validRecords.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-                    if (latestRecord) {
-                        const latestNepaliDate = new NepaliDate(new Date(latestRecord.date));
-                        setSelectedBsYear(String(latestNepaliDate.getYear()));
-                        setSelectedBsMonth(String(latestNepaliDate.getMonth()));
-                    }
-                }
+      setAttendance(records);
+      if (records.length > 0) {
+        const validRecords = records.filter(r => r.date && !isNaN(new Date(r.date).getTime()));
+        if (validRecords.length > 0) {
+          const years = new Set(validRecords.map(r => new NepaliDate(new Date(r.date)).getYear()));
+          const sortedYears = Array.from(years).sort((a, b) => b - a);
+          setBsYears(sortedYears);
+
+          // Set initial filter only if not already set by user interaction
+          if (!selectedBsYear && !selectedBsMonth) {
+            const latestRecord = validRecords.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+            if (latestRecord) {
+              const latestNepaliDate = new NepaliDate(new Date(latestRecord.date));
+              setSelectedBsYear(String(latestNepaliDate.getYear()));
+              setSelectedBsMonth(String(latestNepaliDate.getMonth()));
             }
+          }
         }
+      }
     });
 
     return () => {
@@ -272,6 +272,23 @@ export default function AttendancePage() {
         toast({ title: 'Success', description: 'Attendance record deleted.' });
     } catch (error) {
         toast({ title: 'Error', description: 'Failed to delete record.', variant: 'destructive' });
+    }
+  };
+  
+  const handleCleanBaishakhData = async () => {
+    try {
+        await deleteAttendanceForMonth(2081, 0); // Year 2081, Month 0 (Baishakh)
+        toast({
+            title: 'Cleanup Successful',
+            description: 'Attendance data for Baishakh 2081 has been removed.',
+        });
+    } catch (error) {
+        console.error("Failed to clean Baishakh data:", error);
+        toast({
+            title: 'Cleanup Failed',
+            description: 'Could not remove the old attendance data.',
+            variant: 'destructive',
+        });
     }
   };
 
@@ -537,6 +554,23 @@ export default function AttendancePage() {
                       ))}
                   </SelectContent>
               </Select>
+              <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                      <Button variant="destructive" size="sm">Clean Baishakh Data</Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                      <AlertDialogHeader>
+                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                              This action will permanently delete all attendance records for the Nepali month of Baishakh, 2081. This cannot be undone.
+                          </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleCleanBaishakhData}>Yes, Delete Data</AlertDialogAction>
+                      </AlertDialogFooter>
+                  </AlertDialogContent>
+              </AlertDialog>
           </div>
       )}
       {renderContent()}
@@ -580,6 +614,3 @@ export default function AttendancePage() {
   );
 
     
-
-
-
