@@ -185,13 +185,9 @@ export function calculateAttendance(rows: RawAttendanceRow[]): CalcAttendanceRow
     const grossMinutes = differenceInMinutes(actOut, actIn);
     gross = Math.max(0, grossMinutes / 60);
     
-    if (gross > BASE_DAY_HOURS) {
-        regular = BASE_DAY_HOURS;
-        ot = gross - BASE_DAY_HOURS;
-    } else {
-        regular = gross;
-        ot = 0;
-    }
+    // Set regular hours to the total worked time.
+    regular = gross;
+    ot = 0; // Overtime is not automatically calculated here.
 
     return finalize();
   });
