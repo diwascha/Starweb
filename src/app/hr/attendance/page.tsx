@@ -105,88 +105,98 @@ export default function AttendancePage() {
       try {
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: 'array', cellDates: true });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json<any>(worksheet, { header: 1 });
         
-        if (jsonData.length < 2) {
-            toast({ title: 'Error', description: 'The Excel file is empty or has no data rows.', variant: 'destructive' });
-            return;
-        }
-
-        const headerRow = jsonData[0];
-        const headerMap: { [key: string]: number } = {};
-        
-        const headerVariations: { [key: string]: string[] } = {
-            name: ['name'],
-            date: ['date'],
-            onDuty: ['on duty'],
-            offDuty: ['off duty'],
-            clockIn: ['clock in'],
-            clockOut: ['clock out'],
-            status: ['absent', 'status']
-        };
-
-        headerRow.forEach((header: any, index: number) => {
-            const normalizedHeader = String(header).trim().toLowerCase();
-            for (const key in headerVariations) {
-                if (headerVariations[key].includes(normalizedHeader)) {
-                    headerMap[key] = index;
-                }
-            }
-        });
-
-        if (headerMap['name'] === undefined || headerMap['date'] === undefined) {
-            toast({ title: 'Error', description: 'The Excel file must contain "Name" and "Date" columns.', variant: 'destructive' });
-            return;
-        }
-
         const existingEmployeeNames = new Set(employees.map(emp => emp.name.toLowerCase()));
         const newlyAddedEmployees = new Set<string>();
-        let skippedRows = 0;
-        
-        const rawAttendanceData: RawAttendanceRow[] = [];
-        
-        for (const row of jsonData.slice(1)) {
-            const employeeName = row[headerMap['name']] ? String(row[headerMap['name']]).trim() : '';
-            const dateValue = row[headerMap['date']];
+        let totalSkippedRows = 0;
+        const allRawAttendanceData: RawAttendanceRow[] = [];
+
+        for (const sheetName of workbook.SheetNames) {
+            const worksheet = workbook.Sheets[sheetName];
+            const jsonData = XLSX.utils.sheet_to_json<any>(worksheet, { header: 1 });
+
+            if (jsonData.length < 2) continue;
+
+            const headerRow = jsonData[0];
+            const headerMap: { [key: string]: number } = {};
             
-            if (!employeeName || !dateValue) {
-                skippedRows++;
+            const headerVariations: { [key: string]: string[] } = {
+                name: ['name', 'employee name'],
+                date: ['date'],
+                onDuty: ['on duty', 'onduty'],
+                offDuty: ['off duty', 'offduty'],
+                clockIn: ['clock in', 'clockin'],
+                clockOut: ['clock out', 'clockout'],
+                status: ['absent', 'status']
+            };
+
+            headerRow.forEach((header: any, index: number) => {
+                const normalizedHeader = String(header).trim().toLowerCase();
+                for (const key in headerVariations) {
+                    if (headerVariations[key].includes(normalizedHeader)) {
+                        headerMap[key] = index;
+                    }
+                }
+            });
+
+            if (headerMap['name'] === undefined || headerMap['date'] === undefined) {
+                toast({ title: 'Skipping Sheet', description: `Sheet "${sheetName}" was skipped because it must contain "Name" and "Date" columns.`, variant: 'destructive' });
                 continue;
             }
             
-            if (!existingEmployeeNames.has(employeeName.toLowerCase())) {
-                 const newEmployee: Omit<Employee, 'id'> = {
-                    name: employeeName,
-                    wageBasis: 'Monthly',
-                    wageAmount: 0, 
-                    createdBy: user.username,
-                    createdAt: new Date().toISOString(),
-                    status: 'Working'
-                };
-                await addEmployee(newEmployee);
-                existingEmployeeNames.add(employeeName.toLowerCase());
-                newlyAddedEmployees.add(employeeName);
-            }
+            let sheetSkippedRows = 0;
+            for (const row of jsonData.slice(1)) {
+                const employeeName = row[headerMap['name']] ? String(row[headerMap['name']]).trim() : '';
+                const dateValue = row[headerMap['date']];
+                
+                if (!employeeName || !dateValue) {
+                    sheetSkippedRows++;
+                    continue;
+                }
+                
+                if (!existingEmployeeNames.has(employeeName.toLowerCase())) {
+                     const newEmployee: Omit<Employee, 'id'> = {
+                        name: employeeName,
+                        wageBasis: 'Monthly',
+                        wageAmount: 0, 
+                        createdBy: user.username,
+                        createdAt: new Date().toISOString(),
+                        status: 'Working'
+                    };
+                    await addEmployee(newEmployee);
+                    existingEmployeeNames.add(employeeName.toLowerCase());
+                    newlyAddedEmployees.add(employeeName);
+                }
 
-            rawAttendanceData.push({
-                employeeName: employeeName,
-                dateAD: dateValue,
-                onDuty: row[headerMap['onDuty']] ? String(row[headerMap['onDuty']]) : null,
-                offDuty: row[headerMap['offDuty']] ? String(row[headerMap['offDuty']]) : null,
-                clockIn: row[headerMap['clockIn']] ? String(row[headerMap['clockIn']]) : null,
-                clockOut: row[headerMap['clockOut']] ? String(row[headerMap['clockOut']]) : null,
-                status: row[headerMap['status']] ? String(row[headerMap['status']]) : '',
-                remarks: null,
-            });
+                allRawAttendanceData.push({
+                    employeeName: employeeName,
+                    dateAD: dateValue,
+                    onDuty: row[headerMap['onDuty']] ? String(row[headerMap['onDuty']]) : null,
+                    offDuty: row[headerMap['offDuty']] ? String(row[headerMap['offDuty']]) : null,
+                    clockIn: row[headerMap['clockIn']] ? String(row[headerMap['clockIn']]) : null,
+                    clockOut: row[headerMap['clockOut']] ? String(row[headerMap['clockOut']]) : null,
+                    status: row[headerMap['status']] ? String(row[headerMap['status']]) : '',
+                    remarks: null,
+                });
+            }
+            totalSkippedRows += sheetSkippedRows;
         }
         
-        const processedRecords = calculateAttendance(rawAttendanceData);
+        if (allRawAttendanceData.length === 0) {
+            let description = 'No valid attendance records found to import.';
+            if (totalSkippedRows > 0) {
+                description += ` ${totalSkippedRows} rows were skipped due to missing name or date.`;
+            }
+            toast({ title: 'Import Finished', description: description });
+            return;
+        }
+
+        const processedRecords = calculateAttendance(allRawAttendanceData);
 
         const newRecords = processedRecords
           .filter(p => p.dateADISO && !isNaN(new Date(p.dateADISO).getTime()))
           .map(p => ({
+            id: `${p.employeeName}-${p.dateADISO}`, // Use a consistent ID
             date: p.dateADISO,
             bsDate: p.dateBS,
             employeeName: p.employeeName,
@@ -212,18 +222,18 @@ export default function AttendancePage() {
             setSelectedBsMonth(String(latestNepaliDate.getMonth()));
             setDateRange(undefined);
 
-            let description = `${newRecords.length} records processed for ${nepaliMonths[latestNepaliDate.getMonth()].name}, ${latestNepaliDate.getYear()}.`;
+            let description = `${newRecords.length} records processed from all sheets.`;
             if (newlyAddedEmployees.size > 0) {
                 description += ` ${newlyAddedEmployees.size} new employees added.`;
             }
-             if (skippedRows > 0) {
-                description += ` ${skippedRows} rows skipped due to missing name or date.`;
+             if (totalSkippedRows > 0) {
+                description += ` ${totalSkippedRows} rows skipped due to missing name or date.`;
             }
             toast({ title: 'Import Complete', description });
         } else {
             let description = 'No new valid attendance records found to import.';
-            if (skippedRows > 0) {
-                description += ` ${skippedRows} rows were skipped due to missing name or date.`;
+            if (totalSkippedRows > 0) {
+                description += ` ${totalSkippedRows} rows were skipped due to missing name or date.`;
             }
             toast({ title: 'Info', description: description });
         }
@@ -497,7 +507,7 @@ export default function AttendancePage() {
           </div>
           {hasPermission('hr', 'create') && (
             <>
-                <Input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".xlsx, .xls"/>
+                <Input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".xlsx, .xls" />
                 <Button onClick={() => fileInputRef.current?.click()} className="w-full sm:w-auto">
                     <Upload className="mr-2 h-4 w-4" /> Import Attendance
                 </Button>
@@ -623,5 +633,6 @@ export default function AttendancePage() {
   );
 
     
+
 
 
