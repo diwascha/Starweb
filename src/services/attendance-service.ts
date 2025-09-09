@@ -33,14 +33,10 @@ export const getAttendance = async (): Promise<AttendanceRecord[]> => {
 export const addAttendanceRecords = async (records: Omit<AttendanceRecord, 'id'>[]): Promise<void> => {
     const batch = writeBatch(db);
     records.forEach(record => {
-        // Ensure date is a string and valid before creating docId
-        const recordDate = new Date(record.date);
-        if (record.date && !isNaN(recordDate.getTime())) {
-            const dateString = recordDate.toISOString().substring(0, 10);
-            const docId = `${dateString}_${record.employeeName.replace(/\s+/g, '-')}`;
-            const docRef = doc(attendanceCollection, docId);
-            batch.set(docRef, record, { merge: true });
-        }
+        // Use doc() with collection ref to generate a new unique ID for each record
+        const docRef = doc(attendanceCollection);
+        // We set the record, which will never overwrite another record because the ID is always new.
+        batch.set(docRef, record);
     });
     await batch.commit();
 };
