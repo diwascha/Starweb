@@ -55,7 +55,11 @@ export default function PayslipPage() {
     useEffect(() => {
         setIsClient(true);
         const unsubEmployees = onEmployeesUpdate((employeesData) => {
-            const validEmployees = employeesData.filter(e => e.status === 'Working' && !/^\d{2}:\d{2}/.test(e.name) && !/^\w{3} \w{3}/.test(e.name));
+            const validEmployees = employeesData.filter(e => {
+                const timeRegex = /^\d{2}:\d{2}(:\d{2})?$/;
+                const dateRegex = /^\w{3} \w{3} \d{2} \d{4} \d{2}:\d{2}:\d{2} GMT[+-]\d{4}/;
+                return e.status === 'Working' && !timeRegex.test(e.name) && !dateRegex.test(e.name)
+            });
             setEmployees(validEmployees);
         });
         const unsubAttendance = onAttendanceUpdate((records) => {
