@@ -116,4 +116,28 @@ export const onAttendanceUpdate = (callback: (records: AttendanceRecord[]) => vo
     });
 };
 
+export const getAttendanceForMonth = async (bsYear: number, bsMonth: number): Promise<AttendanceRecord[]> => {
+    const allRecords = await getAttendance();
+    return allRecords.filter(r => {
+        try {
+            if (!r.date || isNaN(new Date(r.date).getTime())) return false;
+            const nepaliDate = new NepaliDate(new Date(r.date));
+            return nepaliDate.getYear() === bsYear && nepaliDate.getMonth() === bsMonth;
+        } catch {
+            return false;
+        }
+    });
+};
 
+export const getAttendanceYears = async (): Promise<number[]> => {
+    const allRecords = await getAttendance();
+    const years = new Set(allRecords.map(r => {
+        try {
+            if (!r.date || isNaN(new Date(r.date).getTime())) return null;
+            return new NepaliDate(new Date(r.date)).getYear();
+        } catch {
+            return null;
+        }
+    }).filter(year => year !== null) as number[]);
+    return Array.from(years).sort((a, b) => b - a);
+};
