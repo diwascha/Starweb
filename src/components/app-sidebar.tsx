@@ -187,8 +187,8 @@ export function AppSidebar() {
                     </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={getIsActive('/hr/bonus')} disabled>
-                    <Link href="#">
+                    <SidebarMenuButton asChild isActive={getIsActive('/hr/bonus')}>
+                    <Link href="/hr/bonus">
                         <Award />
                         <span>Bonus</span>
                     </Link>

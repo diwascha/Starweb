@@ -1,0 +1,215 @@
+
+'use client';
+
+import { useState, useEffect, useMemo } from 'react';
+import type { Employee, AttendanceRecord } from '@/lib/types';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
+import { useToast } from '@/hooks/use-toast';
+import { onEmployeesUpdate } from '@/services/employee-service';
+import { onAttendanceUpdate } from '@/services/attendance-service';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import NepaliDate from 'nepali-date-converter';
+import { Badge } from '@/components/ui/badge';
+import { Award, CheckCircle, XCircle } from 'lucide-react';
+
+const nepaliMonths = [
+    { value: 0, name: "Baishakh" }, { value: 1, name: "Jestha" }, { value: 2, name: "Ashadh" },
+    { value: 3, name: "Shrawan" }, { value: 4, name: "Bhadra" }, { value: 5, name: "Ashwin" },
+    { value: 6, name: "Kartik" }, { value: 7, name: "Mangsir" }, { value: 8, name: "Poush" },
+    { value: 9, name: "Magh" }, { value: 10, name: "Falgun" }, { value: 11, "name": "Chaitra" }
+];
+
+interface BonusCalculationResult {
+    employeeId: string;
+    employeeName: string;
+    presentDays: number;
+    isEligible: boolean;
+    bonusAmount: number;
+}
+
+export default function BonusPage() {
+    const [employees, setEmployees] = useState<Employee[]>([]);
+    const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    
+    const [bsYears, setBsYears] = useState<number[]>([]);
+    const [selectedBsYear, setSelectedBsYear] = useState<string>('');
+    const [selectedBsMonth, setSelectedBsMonth] = useState<string>('');
+    
+    const [bonusAmount, setBonusAmount] = useState<number>(1000);
+    const [minPresentDays, setMinPresentDays] = useState<number>(26);
+    
+    const { toast } = useToast();
+
+    useEffect(() => {
+        setIsLoading(true);
+        const unsubEmployees = onEmployeesUpdate(setEmployees);
+        const unsubAttendance = onAttendanceUpdate((records) => {
+            setAttendance(records);
+            if (records.length > 0) {
+                const validRecords = records.filter(r => r.date && !isNaN(new Date(r.date).getTime()));
+                if (validRecords.length > 0) {
+                    const years = new Set(validRecords.map(r => new NepaliDate(new Date(r.date)).getYear()));
+                    const sortedYears = Array.from(years).sort((a, b) => b - a);
+                    setBsYears(sortedYears);
+                    
+                    if (!selectedBsYear) {
+                        const latestNepaliDate = new NepaliDate();
+                        setSelectedBsYear(String(latestNepaliDate.getYear()));
+                        setSelectedBsMonth(String(latestNepaliDate.getMonth()));
+                    }
+                }
+            }
+        });
+
+        setIsLoading(false);
+        return () => {
+            unsubEmployees();
+            unsubAttendance();
+        }
+    }, []);
+
+    const bonusData = useMemo((): BonusCalculationResult[] => {
+        if (!selectedBsYear || !selectedBsMonth) {
+            return [];
+        }
+
+        const year = parseInt(selectedBsYear, 10);
+        const month = parseInt(selectedBsMonth, 10);
+
+        const workingEmployees = employees.filter(e => e.status === 'Working');
+
+        return workingEmployees.map(employee => {
+            const employeeAttendance = attendance.filter(r => {
+                if (r.employeeName !== employee.name) return false;
+                try {
+                    const nepaliDate = new NepaliDate(new Date(r.date));
+                    return nepaliDate.getYear() === year && nepaliDate.getMonth() === month;
+                } catch {
+                    return false;
+                }
+            });
+
+            const qualifyingStasuses: string[] = ['Present', 'Public Holiday', 'Saturday', 'EXTRAOK'];
+            const presentDays = employeeAttendance.filter(r => qualifyingStasuses.includes(r.status)).length;
+
+            const isEligible = presentDays >= minPresentDays;
+            
+            return {
+                employeeId: employee.id,
+                employeeName: employee.name,
+                presentDays: presentDays,
+                isEligible: isEligible,
+                bonusAmount: isEligible ? bonusAmount : 0,
+            };
+        });
+
+    }, [employees, attendance, selectedBsYear, selectedBsMonth, bonusAmount, minPresentDays]);
+
+    const handleApplyBonuses = () => {
+        // This is a placeholder for future functionality to apply bonuses to payroll.
+        toast({
+            title: "Functionality Coming Soon",
+            description: "Applying bonuses directly to payroll is under development."
+        });
+    };
+
+    return (
+        <div className="flex flex-col gap-8">
+            <header>
+                <h1 className="text-3xl font-bold tracking-tight">Bonus Calculation</h1>
+                <p className="text-muted-foreground">Calculate attendance-based bonuses for employees.</p>
+            </header>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <Card className="lg:col-span-1">
+                     <CardHeader>
+                        <CardTitle>Bonus Configuration</CardTitle>
+                        <CardDescription>Set the rules for the bonus calculation for the selected period.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                         <div className="flex flex-col sm:flex-row gap-2">
+                            <Select value={selectedBsYear} onValueChange={setSelectedBsYear}>
+                                <SelectTrigger className="w-full sm:w-[120px]"><SelectValue placeholder="Year (BS)" /></SelectTrigger>
+                                <SelectContent>{bsYears.map(year => <SelectItem key={year} value={String(year)}>{year}</SelectItem>)}</SelectContent>
+                            </Select>
+                            <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth}>
+                                <SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Month (BS)" /></SelectTrigger>
+                                <SelectContent>{nepaliMonths.map(month => <SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>)}</SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="bonus-amount">Bonus Amount (NPR)</Label>
+                            <Input 
+                                id="bonus-amount" 
+                                type="number" 
+                                value={bonusAmount}
+                                onChange={(e) => setBonusAmount(Number(e.target.value) || 0)}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="min-present-days">Minimum Present Days to Qualify</Label>
+                             <Input 
+                                id="min-present-days" 
+                                type="number" 
+                                value={minPresentDays}
+                                onChange={(e) => setMinPresentDays(Number(e.target.value) || 0)}
+                            />
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card className="lg:col-span-2">
+                    <CardHeader>
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                            <div>
+                                <CardTitle>Bonus Eligibility Report</CardTitle>
+                                <CardDescription>
+                                    For {nepaliMonths[parseInt(selectedBsMonth)]?.name}, {selectedBsYear}
+                                </CardDescription>
+                            </div>
+                             <Button onClick={handleApplyBonuses}>
+                                <Award className="mr-2 h-4 w-4"/> Apply Bonuses to Payroll
+                            </Button>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Employee Name</TableHead>
+                                    <TableHead>Present Days</TableHead>
+                                    <TableHead>Eligible</TableHead>
+                                    <TableHead>Bonus Amount</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {bonusData.length > 0 ? bonusData.map(item => (
+                                    <TableRow key={item.employeeId}>
+                                        <TableCell className="font-medium">{item.employeeName}</TableCell>
+                                        <TableCell>{item.presentDays}</TableCell>
+                                        <TableCell>
+                                            {item.isEligible ? 
+                                                <Badge variant="outline" className="text-green-600 border-green-600"><CheckCircle className="mr-1 h-3 w-3"/> Yes</Badge> : 
+                                                <Badge variant="destructive"><XCircle className="mr-1 h-3 w-3"/> No</Badge>
+                                            }
+                                        </TableCell>
+                                        <TableCell>{item.bonusAmount.toLocaleString()}</TableCell>
+                                    </TableRow>
+                                )) : (
+                                    <TableRow>
+                                        <TableCell colSpan={4} className="text-center">Select a period to see bonus data.</TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            </div>
+        </div>
+    );
+}
