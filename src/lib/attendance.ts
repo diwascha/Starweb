@@ -86,7 +86,23 @@ export function calculateAttendance(rows: RawAttendanceRow[]): CalcAttendanceRow
 
   return rows.map((row): CalcAttendanceRow => {
     const ad = parseADDateLoose(row.dateAD);
-    const dateBS = ad ? toBSString(ad) : '';
+    
+    // --- Date Checks ---
+    let isNewLogicPeriod = false;
+    let nepaliDate: NepaliDate | null = null;
+    if (ad && isValid(ad)) {
+        try {
+            nepaliDate = new NepaliDate(ad);
+            // Shrawan is month 3 (0-indexed) in nepali-date-converter
+            if (nepaliDate.getYear() > 2082 || (nepaliDate.getYear() === 2082 && nepaliDate.getMonth() >= 3)) {
+                isNewLogicPeriod = true;
+            }
+        } catch (e) {
+            console.error("Could not convert to Nepali date:", ad);
+        }
+    }
+    
+    const dateBS = nepaliDate ? nepaliDate.format('YYYY-MM-DD') : '';
     const weekday = ad ? ad.getDay() : -1;
     const isSaturdayAD = weekday === 6;
 
@@ -97,13 +113,11 @@ export function calculateAttendance(rows: RawAttendanceRow[]): CalcAttendanceRow
     let gross = 0, regular = 0, ot = 0;
     let remarks = '';
     
-    // Clean and store time-only strings
     const onDutyTimeStr = parseTimeToString(row.onDuty);
     const offDutyTimeStr = parseTimeToString(row.offDuty);
     const clockInTimeStr = parseTimeToString(row.clockIn);
     const clockOutTimeStr = parseTimeToString(row.clockOut);
     
-    // Finalize with default values
     const finalize = (): CalcAttendanceRow => {
       const isAdValid = ad && isValid(ad);
       
@@ -150,14 +164,28 @@ export function calculateAttendance(rows: RawAttendanceRow[]): CalcAttendanceRow
     let actOut = combineDateAndTime(ad, clockOutTimeStr);
 
     if (isAfter(actIn, actOut)) {
-      actOut = new Date(actOut.getTime() + 24 * 60 * 60 * 1000); // Handle overnight shifts
+      actOut = new Date(actOut.getTime() + 24 * 60 * 60 * 1000);
     }
 
     const grossMinutes = differenceInMinutes(actOut, actIn);
     gross = Math.max(0, grossMinutes / 60);
     
-    regular = gross; // As requested: regular hours = gross hours
-    ot = 0; // As requested: overtime is not auto-calculated here
+    // Apply conditional logic based on date
+    if (isNewLogicPeriod) {
+        // New Logic: Regular hours = Gross hours, OT = 0
+        regular = gross;
+        ot = 0;
+        remarks = 'New Calculation Logic Applied';
+    } else {
+        // Old Logic: Split into regular and OT based on 8 hours
+        if (gross > 8) {
+            regular = 8;
+            ot = gross - 8;
+        } else {
+            regular = gross;
+            ot = 0;
+        }
+    }
 
     return finalize();
   });
