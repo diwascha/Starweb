@@ -8,6 +8,7 @@ import {
   setMinutes,
   setSeconds,
   format,
+  isValid,
 } from 'date-fns';
 import NepaliDate from 'nepali-date-converter';
 import type { AttendanceRecord, AttendanceStatus, RawAttendanceRow } from './types';
@@ -40,7 +41,7 @@ function toBSString(dateAD: Date): string {
 }
 
 function parseADDateLoose(input: string | Date): Date | null {
-  if (input instanceof Date && !isNaN(input.getTime())) {
+  if (input instanceof Date && isValid(input)) {
     return startOfDay(input);
   }
   if (typeof input !== 'string') return null;
@@ -48,15 +49,15 @@ function parseADDateLoose(input: string | Date): Date | null {
   for (const f of candidates) {
     try {
       const d = parse(input.trim(), f, new Date());
-      if (!isNaN(d.getTime())) return startOfDay(d);
+      if (isValid(d)) return startOfDay(d);
     } catch {}
   }
   return null;
 }
 
-function parseTimeAndCombine(baseDate: Date, timeStr: string | null | undefined): Date | null {
-    if (!timeStr) return null;
-    const t = String(timeStr).trim();
+function parseTimeToString(timeInput: string | null | undefined): string | null {
+    if (!timeInput) return null;
+    const t = String(timeInput).trim();
     if (t === '-' || t === '') return null;
 
     // Handle different time formats
@@ -64,12 +65,17 @@ function parseTimeAndCombine(baseDate: Date, timeStr: string | null | undefined)
     for (const f of formats) {
         try {
             const parsedTime = parse(t, f, new Date());
-            if (!isNaN(parsedTime.getTime())) {
-                return setSeconds(setMinutes(setHours(baseDate, parsedTime.getHours()), parsedTime.getMinutes()), parsedTime.getSeconds());
+            if (isValid(parsedTime)) {
+                return format(parsedTime, 'HH:mm:ss');
             }
         } catch {}
     }
     return null;
+}
+
+function combineDateAndTime(baseDate: Date, timeStr: string): Date {
+    const [hours, minutes, seconds] = timeStr.split(':').map(Number);
+    return setSeconds(setMinutes(setHours(baseDate, hours), minutes), seconds || 0);
 }
 
 
@@ -91,20 +97,30 @@ export function calculateAttendance(rows: RawAttendanceRow[]): CalcAttendanceRow
     let gross = 0, regular = 0, ot = 0;
     let remarks = '';
     
+    // Clean and store time-only strings
+    const onDutyTimeStr = parseTimeToString(row.onDuty);
+    const offDutyTimeStr = parseTimeToString(row.offDuty);
+    const clockInTimeStr = parseTimeToString(row.clockIn);
+    const clockOutTimeStr = parseTimeToString(row.clockOut);
+    
     // Finalize with default values
-    const finalize = (actIn: Date | null, actOut: Date | null): CalcAttendanceRow => {
-      const isAdValid = ad && !isNaN(ad.getTime());
+    const finalize = (): CalcAttendanceRow => {
+      const isAdValid = ad && isValid(ad);
       
       let finalStatus: AttendanceStatus = 'Present';
       if (isAbsent) finalStatus = 'Absent';
       else if (isPublic) finalStatus = 'Public Holiday';
       else if (isSaturdayAD) finalStatus = 'Saturday';
-      else if (!actIn && actOut) finalStatus = 'C/I Miss';
-      else if (actIn && !actOut) finalStatus = 'C/O Miss';
-      else if (!actIn && !actOut && !isSaturdayAD && !isPublic) finalStatus = 'Absent';
+      else if (!clockInTimeStr && clockOutTimeStr) finalStatus = 'C/I Miss';
+      else if (clockInTimeStr && !clockOutTimeStr) finalStatus = 'C/O Miss';
+      else if (!clockInTimeStr && !clockOutTimeStr && !isSaturdayAD && !isPublic) finalStatus = 'Absent';
       
       return {
         ...row,
+        onDuty: onDutyTimeStr,
+        offDuty: offDutyTimeStr,
+        clockIn: clockInTimeStr,
+        clockOut: clockOutTimeStr,
         dateADISO: isAdValid ? format(ad, 'yyyy-MM-dd') : '',
         dateBS,
         weekdayAD: isAdValid ? weekday : -1,
@@ -116,22 +132,22 @@ export function calculateAttendance(rows: RawAttendanceRow[]): CalcAttendanceRow
       };
     };
 
-    if (!ad || isNaN(ad.getTime())) {
+    if (!ad || !isValid(ad)) {
       remarks = 'Missing or invalid date';
-      return finalize(null, null);
+      return finalize();
     }
     
     if (isAbsent || isPublic || isSaturdayAD) {
-        return finalize(null, null);
+        return finalize();
     }
     
-    const actIn = parseTimeAndCombine(ad, row.clockIn);
-    let actOut = parseTimeAndCombine(ad, row.clockOut);
-
-    if (!actIn || !actOut) {
-      remarks = !actIn && !actOut ? 'Missing punches' : (!actIn ? 'C/I Miss' : 'C/O Miss');
-      return finalize(actIn, actOut);
+    if (!clockInTimeStr || !clockOutTimeStr) {
+      remarks = !clockInTimeStr && !clockOutTimeStr ? 'Missing punches' : (!clockInTimeStr ? 'C/I Miss' : 'C/O Miss');
+      return finalize();
     }
+    
+    let actIn = combineDateAndTime(ad, clockInTimeStr);
+    let actOut = combineDateAndTime(ad, clockOutTimeStr);
 
     if (isAfter(actIn, actOut)) {
       actOut = new Date(actOut.getTime() + 24 * 60 * 60 * 1000); // Handle overnight shifts
@@ -140,10 +156,10 @@ export function calculateAttendance(rows: RawAttendanceRow[]): CalcAttendanceRow
     const grossMinutes = differenceInMinutes(actOut, actIn);
     gross = Math.max(0, grossMinutes / 60);
     
-    regular = gross;
-    ot = 0;
+    regular = gross; // As requested: regular hours = gross hours
+    ot = 0; // As requested: overtime is not auto-calculated here
 
-    return finalize(actIn, actOut);
+    return finalize();
   });
 }
 
@@ -157,10 +173,10 @@ export function reprocessSingleRecord(raw: RawAttendanceRow): Partial<Attendance
     regularHours: result.regularHours,
     overtimeHours: result.overtimeHours,
     remarks: result.calcRemarks,
-    onDuty: raw.onDuty,
-    offDuty: raw.offDuty,
-    clockIn: raw.clockIn,
-    clockOut: raw.clockOut,
-    sourceSheet: raw.sourceSheet || null, // Ensure sourceSheet is null, not undefined
+    onDuty: result.onDuty,
+    offDuty: result.offDuty,
+    clockIn: result.clockIn,
+    clockOut: result.clockOut,
+    sourceSheet: raw.sourceSheet || null,
   };
 }

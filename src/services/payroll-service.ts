@@ -57,6 +57,7 @@ export function generatePayrollAndAnalytics(
             const hourlyRate = dailyRate / 8; // Standard 8 hours for rate calculation
             rate = hourlyRate;
 
+            // Use the hours directly from the attendance record, do not recalculate.
             regularPay = regularHours * hourlyRate;
             otPay = overtimeHours * hourlyRate * 1.5; // Assuming 1.5x OT rate
             deduction = absentDays * dailyRate;
@@ -118,14 +119,15 @@ export function generatePayrollAndAnalytics(
         let currentStreak = 0;
 
         empAttendance.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).forEach(r => {
-            const day = getDay(new Date(r.date));
+            const dateAD = new Date(r.date);
+            const day = getDay(dateAD);
             let isLate = false;
             let isEarly = false;
 
             if(r.clockIn && r.onDuty) {
                 try {
-                    const clockInTime = parse(r.clockIn, 'HH:mm', new Date());
-                    const onDutyTime = parse(r.onDuty, 'HH:mm', new Date());
+                    const clockInTime = parse(r.clockIn, 'HH:mm:ss', new Date());
+                    const onDutyTime = parse(r.onDuty, 'HH:mm:ss', new Date());
                     if(differenceInMinutes(clockInTime, onDutyTime) > GRACE_MIN) {
                         lateArrivals++;
                         isLate = true;
@@ -135,8 +137,8 @@ export function generatePayrollAndAnalytics(
             }
              if(r.clockOut && r.offDuty) {
                 try {
-                    const clockOutTime = parse(r.clockOut, 'HH:mm', new Date());
-                    const offDutyTime = parse(r.offDuty, 'HH:mm', new Date());
+                    const clockOutTime = parse(r.clockOut, 'HH:mm:ss', new Date());
+                    const offDutyTime = parse(r.offDuty, 'HH:mm:ss', new Date());
                     if(differenceInMinutes(offDutyTime, clockOutTime) > GRACE_MIN) {
                         earlyDepartures++;
                         isEarly = true;

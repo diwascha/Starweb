@@ -40,6 +40,8 @@ export const addAttendanceRecords = async (records: Omit<AttendanceRecord, 'id'>
 
     // Fetch existing records for the dates and employees being imported
     const dates = [...new Set(records.map(r => r.date))];
+    if (dates.length === 0) return;
+
     const employeeNames = [...new Set(records.map(r => r.employeeName))];
     
     const existingRecordsQuery = query(
