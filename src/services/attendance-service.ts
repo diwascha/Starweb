@@ -61,12 +61,16 @@ export const updateAttendanceRecord = async (id: string, record: Partial<Attenda
 };
 
 export const batchUpdateAttendance = async (updates: { id: string; updates: Partial<AttendanceRecord> }[]): Promise<void> => {
-    const batch = writeBatch(db);
-    updates.forEach(({ id, updates }) => {
-        const docRef = doc(db, 'attendance', id);
-        batch.update(docRef, updates);
-    });
-    await batch.commit();
+    const CHUNK_SIZE = 499;
+    for (let i = 0; i < updates.length; i += CHUNK_SIZE) {
+        const chunk = updates.slice(i, i + CHUNK_SIZE);
+        const batch = writeBatch(db);
+        chunk.forEach(({ id, updates }) => {
+            const docRef = doc(db, 'attendance', id);
+            batch.update(docRef, updates);
+        });
+        await batch.commit();
+    }
 };
 
 
@@ -91,12 +95,16 @@ export const deleteAttendanceForMonth = async (bsYear: number, bsMonth: number):
         return;
     }
 
-    const batch = writeBatch(db);
-    recordsToDelete.forEach(doc => {
-        batch.delete(doc.ref);
-    });
+    const CHUNK_SIZE = 499;
+    for (let i = 0; i < recordsToDelete.length; i += CHUNK_SIZE) {
+        const chunk = recordsToDelete.slice(i, i + CHUNK_SIZE);
+        const batch = writeBatch(db);
+        chunk.forEach(doc => {
+            batch.delete(doc.ref);
+        });
+        await batch.commit();
+    }
 
-    await batch.commit();
     console.log(`Deleted ${recordsToDelete.length} records for ${bsYear}-${bsMonth + 1}.`);
 };
 
