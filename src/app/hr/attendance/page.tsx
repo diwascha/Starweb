@@ -62,7 +62,7 @@ export default function AttendancePage() {
   // Edit Dialog State
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
-  const [editForm, setEditForm] = useState({ clockIn: '', clockOut: '', status: '' as AttendanceStatus });
+  const [editForm, setEditForm] = useState({ onDuty: '', offDuty: '', clockIn: '', clockOut: '', status: '' as AttendanceStatus });
   const [isRecalculating, setIsRecalculating] = useState(false);
 
 
@@ -298,6 +298,8 @@ export default function AttendancePage() {
   const handleOpenEditDialog = (record: AttendanceRecord) => {
     setEditingRecord(record);
     setEditForm({
+        onDuty: record.onDuty || '',
+        offDuty: record.offDuty || '',
         clockIn: record.clockIn || '',
         clockOut: record.clockOut || '',
         status: record.status
@@ -310,6 +312,8 @@ export default function AttendancePage() {
 
     const reprocessed = reprocessSingleRecord({
         ...editingRecord,
+        onDuty: editForm.onDuty || null,
+        offDuty: editForm.offDuty || null,
         clockIn: editForm.clockIn || null,
         clockOut: editForm.clockOut || null,
         status: editForm.status,
@@ -650,13 +654,25 @@ export default function AttendancePage() {
                 </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
-                <div className="space-y-2">
-                    <Label htmlFor="edit-clock-in">Clock In Time (HH:mm)</Label>
-                    <Input id="edit-clock-in" value={editForm.clockIn} onChange={e => setEditForm(prev => ({...prev, clockIn: e.target.value}))} placeholder="e.g., 08:00"/>
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="edit-on-duty">On Duty Time (HH:mm)</Label>
+                        <Input id="edit-on-duty" value={editForm.onDuty} onChange={e => setEditForm(prev => ({...prev, onDuty: e.target.value}))} placeholder="e.g., 08:00"/>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="edit-off-duty">Off Duty Time (HH:mm)</Label>
+                        <Input id="edit-off-duty" value={editForm.offDuty} onChange={e => setEditForm(prev => ({...prev, offDuty: e.target.value}))} placeholder="e.g., 17:00"/>
+                    </div>
                 </div>
-                <div className="space-y-2">
-                    <Label htmlFor="edit-clock-out">Clock Out Time (HH:mm)</Label>
-                    <Input id="edit-clock-out" value={editForm.clockOut} onChange={e => setEditForm(prev => ({...prev, clockOut: e.target.value}))} placeholder="e.g., 17:00"/>
+                 <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="edit-clock-in">Clock In Time (HH:mm)</Label>
+                        <Input id="edit-clock-in" value={editForm.clockIn} onChange={e => setEditForm(prev => ({...prev, clockIn: e.target.value}))} placeholder="e.g., 08:00"/>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="edit-clock-out">Clock Out Time (HH:mm)</Label>
+                        <Input id="edit-clock-out" value={editForm.clockOut} onChange={e => setEditForm(prev => ({...prev, clockOut: e.target.value}))} placeholder="e.g., 17:00"/>
+                    </div>
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="edit-status">Status</Label>
