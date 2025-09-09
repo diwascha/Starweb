@@ -1,5 +1,4 @@
 
-
 import { db } from '@/lib/firebase';
 import { collection, doc, writeBatch, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, updateDoc, deleteDoc, query, where, getDoc } from 'firebase/firestore';
 import type { AttendanceRecord } from '@/lib/types';
@@ -43,29 +42,22 @@ export const addAttendanceRecords = async (records: Omit<AttendanceRecord, 'id'>
         const chunk = records.slice(i, i + CHUNK_SIZE);
         
         const dates = [...new Set(chunk.map(r => r.date))];
-        if (dates.length === 0) continue;
-
         const employeeNames = [...new Set(chunk.map(r => r.employeeName))];
-        if (employeeNames.length === 0) continue;
-
-        // Firestore 'in' query has a limit of 30 values. We need to handle this.
-        // We'll query for dates and names separately if either exceeds the limit, although chunking should prevent this.
-        const dateChunks = [];
-        for (let j = 0; j < dates.length; j += 30) {
-            dateChunks.push(dates.slice(j, j + 30));
-        }
-
-        const employeeNameChunks = [];
-        for (let j = 0; j < employeeNames.length; j += 30) {
-            employeeNameChunks.push(employeeNames.slice(j, j + 30));
-        }
         
+        if (dates.length === 0 || employeeNames.length === 0) continue;
+
         const existingRecordsMap = new Map<string, { id: string, data: AttendanceRecord }>();
 
-        // Query for existing records in chunks to avoid the 30-value limit
-        for (const dateChunk of dateChunks) {
-            for (const nameChunk of employeeNameChunks) {
-                 const existingRecordsQuery = query(
+        // Query for existing records in smaller, manageable chunks to avoid Firestore limits
+        const DATE_CHUNK_SIZE = 10;
+        const NAME_CHUNK_SIZE = 10;
+        
+        for (let j = 0; j < dates.length; j += DATE_CHUNK_SIZE) {
+            const dateChunk = dates.slice(j, j + DATE_CHUNK_SIZE);
+            for (let k = 0; k < employeeNames.length; k += NAME_CHUNK_SIZE) {
+                const nameChunk = employeeNames.slice(k, k + NAME_CHUNK_SIZE);
+                
+                const existingRecordsQuery = query(
                     attendanceCollection,
                     where('date', 'in', dateChunk),
                     where('employeeName', 'in', nameChunk)
