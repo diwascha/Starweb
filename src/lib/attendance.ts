@@ -9,6 +9,9 @@ import {
   setSeconds,
   format,
   isValid,
+  isBefore,
+  max,
+  min,
 } from 'date-fns';
 import NepaliDate from 'nepali-date-converter';
 import type { AttendanceRecord, AttendanceStatus, RawAttendanceRow } from './types';
@@ -29,6 +32,13 @@ export type CalcAttendanceRow = RawAttendanceRow & {
 };
 
 /* =========================
+   Constants from VBA
+   ========================= */
+const kBaseDayHours = 8.0;
+const kGraceMin = 5; // 5 minutes grace period
+const kBlockMin = 30; // 30-minute penalty blocks
+
+/* =========================
    Helpers
    ========================= */
 function toBSString(dateAD: Date): string {
@@ -45,7 +55,7 @@ function parseADDateLoose(input: string | Date): Date | null {
     return startOfDay(input);
   }
   if (typeof input !== 'string') return null;
-  const candidates = ['yyyy-MM-dd', 'M/d/yyyy', 'd/M/yyyy', "yyyy-MM-dd'T'HH:mm:ssXXX"];
+  const candidates = ['yyyy-MM-dd', 'M/d/yyyy', 'd/M/yyyy', "yyyy-MM-dd'T'HH:mm:ssXXX", "M/d/yy"];
   for (const f of candidates) {
     try {
       const d = parse(input.trim(), f, new Date());
@@ -55,13 +65,29 @@ function parseADDateLoose(input: string | Date): Date | null {
   return null;
 }
 
+
 function parseTimeToString(timeInput: string | null | undefined): string | null {
     if (!timeInput) return null;
     const t = String(timeInput).trim();
     if (t === '-' || t === '') return null;
+    
+    // Check if it's already HH:mm or HH:mm:ss
+    if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(t)) {
+        const parts = t.split(':');
+        const h = parts[0].padStart(2, '0');
+        const m = parts[1];
+        const s = parts.length > 2 ? parts[2] : '00';
+        return `${h}:${m}:${s}`;
+    }
 
-    // Handle different time formats
-    const formats = ['HH:mm:ss', 'HH:mm', 'h:mm:ss a', 'h:mm a', 'h:mm', 'H:mm'];
+    try {
+        const d = new Date(timeInput);
+        if (isValid(d)) {
+            return format(d, 'HH:mm:ss');
+        }
+    } catch {}
+
+    const formats = ['h:mm:ss a', 'h:mm a', 'HH:mm:ss', 'HH:mm', 'h:mm'];
     for (const f of formats) {
         try {
             const parsedTime = parse(t, f, new Date());
@@ -73,10 +99,40 @@ function parseTimeToString(timeInput: string | null | undefined): string | null 
     return null;
 }
 
+
 function combineDateAndTime(baseDate: Date, timeStr: string): Date {
     const [hours, minutes, seconds] = timeStr.split(':').map(Number);
     return setSeconds(setMinutes(setHours(baseDate, hours), minutes), seconds || 0);
 }
+
+function ceilDiv(a: number, b: number): number {
+    if (a <= 0) return 0;
+    return Math.ceil(a / b);
+}
+
+function applyFixedBreak(gIn: Date, gOut: Date): number {
+    const totalH = differenceInMinutes(gOut, gIn) / 60.0;
+    if (totalH <= 0) return 0;
+
+    const breakStart = setMinutes(setHours(gIn, 12), 0);
+    const breakEnd = setMinutes(setHours(gIn, 13), 0);
+    
+    const overlapStart = max(gIn, breakStart);
+    const overlapEnd = min(gOut, breakEnd);
+    
+    let overlapMinutes = 0;
+    if (isAfter(overlapEnd, overlapStart)) {
+        overlapMinutes = differenceInMinutes(overlapEnd, overlapStart);
+    }
+    
+    const overlapH = overlapMinutes / 60.0;
+
+    if (overlapH > 0 && totalH > 4) {
+        return totalH - overlapH;
+    }
+    return totalH;
+}
+
 
 
 /* =========================
@@ -170,21 +226,52 @@ export function calculateAttendance(rows: RawAttendanceRow[]): CalcAttendanceRow
     const grossMinutes = differenceInMinutes(actOut, actIn);
     gross = Math.max(0, grossMinutes / 60);
     
-    // Apply conditional logic based on date
     if (isNewLogicPeriod) {
-        // New Logic: Regular hours = Gross hours, OT = 0
+        // --- New Logic from VBA ---
+        if (!onDutyTimeStr || !offDutyTimeStr) {
+            remarks = 'Missing schedule';
+            return finalize();
+        }
+        
+        const schedIn = combineDateAndTime(ad, onDutyTimeStr);
+        const schedOut = combineDateAndTime(ad, offDutyTimeStr);
+
+        let lateMin = Math.max(0, differenceInMinutes(actIn, schedIn));
+        let earlyMin = Math.max(0, differenceInMinutes(schedOut, actOut));
+
+        let latePenaltyMin = 0;
+        let earlyPenaltyMin = 0;
+        
+        // No weekly freebie logic in the TS version for simplicity, applying penalty directly.
+        if (lateMin > kGraceMin) {
+            latePenaltyMin = ceilDiv(lateMin - kGraceMin, kBlockMin) * kBlockMin;
+        }
+
+        if (earlyMin > kGraceMin) {
+            earlyPenaltyMin = ceilDiv(earlyMin - kGraceMin, kBlockMin) * kBlockMin;
+        }
+        
+        const effectiveIn = new Date(schedIn.getTime() + latePenaltyMin * 60000);
+        const effectiveOut = new Date(schedOut.getTime() - earlyPenaltyMin * 60000);
+
+        let paidHours = 0;
+        if (isAfter(effectiveOut, effectiveIn)) {
+            paidHours = applyFixedBreak(effectiveIn, effectiveOut);
+        }
+        
+        gross = Math.max(0, differenceInMinutes(actOut, actIn) / 60); // Gross is still actual punch times
+        regular = Math.max(0, paidHours);
+        ot = 0; // Per VBA logic for a normal working day
+        
+        let remarkParts = [];
+        if (lateMin > 0) remarkParts.push(`Late by ${lateMin}m`);
+        if (earlyMin > 0) remarkParts.push(`Left early by ${earlyMin}m`);
+        remarks = remarkParts.join('; ');
+        
+    } else {
+        // --- Old Logic ---
         regular = gross;
         ot = 0;
-        remarks = 'New Calculation Logic Applied';
-    } else {
-        // Old Logic: Split into regular and OT based on 8 hours
-        if (gross > 8) {
-            regular = 8;
-            ot = gross - 8;
-        } else {
-            regular = gross;
-            ot = 0;
-        }
     }
 
     return finalize();
