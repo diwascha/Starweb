@@ -71,19 +71,17 @@ export default function AttendancePage() {
       const validRecords = records.filter(r => r.date && !isNaN(new Date(r.date).getTime()));
       setAttendance(validRecords);
 
-      if (validRecords.length > 0) {
+      if (validRecords.length > 0 && !selectedBsYear) {
         const years = Array.from(new Set(validRecords.map(r => new NepaliDate(new Date(r.date)).getYear()))).sort((a, b) => b - a);
         setBsYears(years);
 
-        if (!selectedBsYear && !selectedBsMonth) {
-          const latestRecord = validRecords.reduce((latest, current) => 
+        const latestRecord = validRecords.reduce((latest, current) => 
             new Date(current.date) > new Date(latest.date) ? current : latest
-          );
-          if (latestRecord) {
+        );
+        if (latestRecord) {
             const latestNepaliDate = new NepaliDate(new Date(latestRecord.date));
             setSelectedBsYear(String(latestNepaliDate.getYear()));
             setSelectedBsMonth(String(latestNepaliDate.getMonth()));
-          }
         }
       }
     });
@@ -92,7 +90,7 @@ export default function AttendancePage() {
         unsubEmployees();
         unsubAttendance();
     }
-  }, []);
+  }, [selectedBsYear]);
   
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -110,6 +108,7 @@ export default function AttendancePage() {
         const newlyAddedEmployees = new Set<string>();
         let totalSkippedRows = 0;
         const allRawAttendanceData: RawAttendanceRow[] = [];
+        const processedSheets: string[] = [];
 
         for (const sheetName of workbook.SheetNames) {
             const worksheet = workbook.Sheets[sheetName];
@@ -117,8 +116,7 @@ export default function AttendancePage() {
 
             if (jsonData.length < 2) continue;
 
-            const headerRow = jsonData[0];
-            const headerMap: { [key: string]: number } = {};
+            const headerRow = jsonData[0].map((h: any) => String(h || '').trim().toLowerCase());
             
             const headerVariations: { [key: string]: string[] } = {
                 name: ['name', 'employee name'],
@@ -129,21 +127,21 @@ export default function AttendancePage() {
                 clockOut: ['clock out', 'clockout'],
                 status: ['absent', 'status']
             };
-
-            headerRow.forEach((header: any, index: number) => {
-                const normalizedHeader = String(header).trim().toLowerCase();
-                for (const key in headerVariations) {
-                    if (headerVariations[key].includes(normalizedHeader)) {
-                        headerMap[key] = index;
-                    }
+            
+            const headerMap: { [key: string]: number } = {};
+            for (const key in headerVariations) {
+                const index = headerRow.findIndex((header: string) => headerVariations[key].includes(header));
+                if (index !== -1) {
+                    headerMap[key] = index;
                 }
-            });
+            }
 
             if (headerMap['name'] === undefined || headerMap['date'] === undefined) {
-                toast({ title: 'Skipping Sheet', description: `Sheet "${sheetName}" was skipped because it must contain "Name" and "Date" columns.`, variant: 'destructive' });
+                console.warn(`Skipping sheet "${sheetName}": Missing "Name" or "Date" column.`);
                 continue;
             }
-            
+
+            processedSheets.push(sheetName);
             let sheetSkippedRows = 0;
             for (const row of jsonData.slice(1)) {
                 const employeeName = row[headerMap['name']] ? String(row[headerMap['name']]).trim() : '';
@@ -196,7 +194,6 @@ export default function AttendancePage() {
         const newRecords = processedRecords
           .filter(p => p.dateADISO && !isNaN(new Date(p.dateADISO).getTime()))
           .map(p => ({
-            id: `${p.employeeName}-${p.dateADISO}`, // Use a consistent ID
             date: p.dateADISO,
             bsDate: p.dateBS,
             employeeName: p.employeeName,
@@ -222,14 +219,14 @@ export default function AttendancePage() {
             setSelectedBsMonth(String(latestNepaliDate.getMonth()));
             setDateRange(undefined);
 
-            let description = `${newRecords.length} records processed from all sheets.`;
+            let description = `${newRecords.length} records processed from sheets: ${processedSheets.join(', ')}.`;
             if (newlyAddedEmployees.size > 0) {
                 description += ` ${newlyAddedEmployees.size} new employees added.`;
             }
              if (totalSkippedRows > 0) {
                 description += ` ${totalSkippedRows} rows skipped due to missing name or date.`;
             }
-            toast({ title: 'Import Complete', description });
+            toast({ title: 'Import Complete', description, duration: 8000 });
         } else {
             let description = 'No new valid attendance records found to import.';
             if (totalSkippedRows > 0) {
@@ -636,3 +633,6 @@ export default function AttendancePage() {
 
 
 
+
+
+    
