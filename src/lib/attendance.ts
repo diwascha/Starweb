@@ -1,4 +1,5 @@
 
+
 import {
   differenceInMinutes,
   isAfter,
@@ -10,8 +11,8 @@ import {
   format,
   isValid,
   isBefore,
-  max,
-  min,
+  max as dateMax,
+  min as dateMin,
 } from 'date-fns';
 import NepaliDate from 'nepali-date-converter';
 import type { AttendanceRecord, AttendanceStatus, RawAttendanceRow } from './types';
@@ -55,7 +56,8 @@ function parseADDateLoose(input: string | Date): Date | null {
     return startOfDay(input);
   }
   if (typeof input !== 'string') return null;
-  const candidates = ['yyyy-MM-dd', 'M/d/yyyy', 'd/M/yyyy', "yyyy-MM-dd'T'HH:mm:ssXXX", "M/d/yy"];
+  // Prioritize yyyy-mm-dd format
+  const candidates = ['yyyy-MM-dd', "yyyy-MM-dd'T'HH:mm:ssXXX", 'M/d/yyyy', 'd/M/yyyy', "M/d/yy"];
   for (const f of candidates) {
     try {
       const d = parse(input.trim(), f, new Date());
@@ -66,7 +68,7 @@ function parseADDateLoose(input: string | Date): Date | null {
 }
 
 
-function parseTimeToString(timeInput: string | null | undefined): string | null {
+function parseTimeToString(timeInput: any): string | null {
     if (!timeInput) return null;
     const t = String(timeInput).trim();
     if (t === '-' || t === '') return null;
@@ -117,8 +119,8 @@ function applyFixedBreak(gIn: Date, gOut: Date): number {
     const breakStart = setMinutes(setHours(gIn, 12), 0);
     const breakEnd = setMinutes(setHours(gIn, 13), 0);
     
-    const overlapStart = max(gIn, breakStart);
-    const overlapEnd = min(gOut, breakEnd);
+    const overlapStart = dateMax([gIn, breakStart]);
+    const overlapEnd = dateMin([gOut, breakEnd]);
     
     let overlapMinutes = 0;
     if (isAfter(overlapEnd, overlapStart)) {
@@ -141,7 +143,14 @@ function applyFixedBreak(gIn: Date, gOut: Date): number {
 export function calculateAttendance(rows: RawAttendanceRow[]): CalcAttendanceRow[] {
 
   return rows.map((row): CalcAttendanceRow => {
-    const ad = parseADDateLoose(row.dateAD);
+    let ad = parseADDateLoose(row.dateAD);
+    if (!ad && row.mitiBS) {
+        try {
+            ad = new NepaliDate(row.mitiBS).toJsDate();
+        } catch (e) {
+            console.error("Could not parse Nepali date:", row.mitiBS);
+        }
+    }
     
     // --- Date Checks ---
     let isNewLogicPeriod = false;
@@ -158,7 +167,7 @@ export function calculateAttendance(rows: RawAttendanceRow[]): CalcAttendanceRow
         }
     }
     
-    const dateBS = nepaliDate ? nepaliDate.format('YYYY-MM-DD') : '';
+    const dateBS = nepaliDate ? nepaliDate.format('YYYY-MM-DD') : (row.mitiBS || '');
     const weekday = ad ? ad.getDay() : -1;
     const isSaturdayAD = weekday === 6;
 
@@ -187,10 +196,8 @@ export function calculateAttendance(rows: RawAttendanceRow[]): CalcAttendanceRow
       
       return {
         ...row,
-        onDuty: onDutyTimeStr,
-        offDuty: offDutyTimeStr,
-        clockIn: clockInTimeStr,
-        clockOut: clockOutTimeStr,
+        onDuty: onDutyTimeStr, offDuty: offDutyTimeStr,
+        clockIn: clockInTimeStr, clockOut: clockOutTimeStr,
         dateADISO: isAdValid ? format(ad, 'yyyy-MM-dd') : '',
         dateBS,
         weekdayAD: isAdValid ? weekday : -1,
@@ -205,6 +212,15 @@ export function calculateAttendance(rows: RawAttendanceRow[]): CalcAttendanceRow
     if (!ad || !isValid(ad)) {
       remarks = 'Missing or invalid date';
       return finalize();
+    }
+    
+    // Handle pre-calculated hours from import
+    if (row.normalHours !== undefined && row.normalHours !== null && row.otHours !== undefined && row.otHours !== null) {
+        regular = Number(row.normalHours) || 0;
+        ot = Number(row.otHours) || 0;
+        gross = regular + ot;
+        remarks = 'Used imported hours';
+        return finalize();
     }
     
     if (isAbsent || isPublic || isSaturdayAD) {
@@ -242,7 +258,6 @@ export function calculateAttendance(rows: RawAttendanceRow[]): CalcAttendanceRow
         let latePenaltyMin = 0;
         let earlyPenaltyMin = 0;
         
-        // No weekly freebie logic in the TS version for simplicity, applying penalty directly.
         if (lateMin > kGraceMin) {
             latePenaltyMin = ceilDiv(lateMin - kGraceMin, kBlockMin) * kBlockMin;
         }
@@ -259,9 +274,9 @@ export function calculateAttendance(rows: RawAttendanceRow[]): CalcAttendanceRow
             paidHours = applyFixedBreak(effectiveIn, effectiveOut);
         }
         
-        gross = Math.max(0, differenceInMinutes(actOut, actIn) / 60); // Gross is still actual punch times
+        gross = Math.max(0, differenceInMinutes(actOut, actIn) / 60);
         regular = Math.max(0, paidHours);
-        ot = 0; // Per VBA logic for a normal working day
+        ot = 0;
         
         let remarkParts = [];
         if (lateMin > 0) remarkParts.push(`Late by ${lateMin}m`);
@@ -269,7 +284,6 @@ export function calculateAttendance(rows: RawAttendanceRow[]): CalcAttendanceRow
         remarks = remarkParts.join('; ');
         
     } else {
-        // --- Old Logic ---
         regular = gross;
         ot = 0;
     }
@@ -281,17 +295,12 @@ export function calculateAttendance(rows: RawAttendanceRow[]): CalcAttendanceRow
 export function reprocessSingleRecord(raw: RawAttendanceRow): Partial<AttendanceRecord> {
   const result = calculateAttendance([raw])[0];
   return {
-    date: result.dateADISO,
-    bsDate: result.dateBS,
+    date: result.dateADISO, bsDate: result.dateBS,
     status: result.normalizedStatus as AttendanceStatus,
-    grossHours: result.grossHours,
-    regularHours: result.regularHours,
-    overtimeHours: result.overtimeHours,
-    remarks: result.calcRemarks,
-    onDuty: result.onDuty,
-    offDuty: result.offDuty,
-    clockIn: result.clockIn,
-    clockOut: result.clockOut,
+    grossHours: result.grossHours, regularHours: result.regularHours,
+    overtimeHours: result.overtimeHours, remarks: result.calcRemarks,
+    onDuty: result.onDuty, offDuty: result.offDuty,
+    clockIn: result.clockIn, clockOut: result.clockOut,
     sourceSheet: raw.sourceSheet || null,
   };
 }

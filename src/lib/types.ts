@@ -1,5 +1,6 @@
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -139,16 +140,17 @@ export type AttendanceStatus = 'Present' | 'Absent' | 'Public Holiday' | 'Saturd
 
 export interface RawAttendanceRow {
     employeeName: string;
-    dateAD: string | Date;
-    onDuty?: string | null;
-    offDuty?: string | null;
-    onOffDuty?: string | null;
-    clockIn?: string | null;
-    clockOut?: string | null;
-    clockInOut?: string | null;
-    status?: string;
+    dateAD?: string | Date | null;
+    mitiBS?: string | null;
+    onDuty?: any;
+    offDuty?: any;
+    clockIn?: any;
+    clockOut?: any;
+    status?: any;
     remarks?: string | null;
     sourceSheet?: string;
+    normalHours?: any;
+    otHours?: any;
 }
 
 
