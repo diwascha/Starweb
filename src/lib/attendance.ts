@@ -1,5 +1,4 @@
 
-
 import {
   differenceInMinutes,
   isAfter,
@@ -55,7 +54,7 @@ function parseADDateLoose(input: string | Date): Date | null {
   if (input instanceof Date && isValid(input)) {
     return startOfDay(input);
   }
-  if (typeof input !== 'string') return null;
+  if (typeof input !== 'string' || !input.trim()) return null;
   // Prioritize yyyy-mm-dd format
   const candidates = ['yyyy-MM-dd', "yyyy-MM-dd'T'HH:mm:ssXXX", 'M/d/yyyy', 'd/M/yyyy', "M/d/yy"];
   for (const f of candidates) {
@@ -70,9 +69,25 @@ function parseADDateLoose(input: string | Date): Date | null {
 
 function parseTimeToString(timeInput: any): string | null {
     if (!timeInput) return null;
+    
+    // Handle JS Date objects
+    if (timeInput instanceof Date && isValid(timeInput)) {
+        return format(timeInput, 'HH:mm:ss');
+    }
+
     const t = String(timeInput).trim();
     if (t === '-' || t === '') return null;
     
+    // Handle Excel's numeric time format (fraction of a day)
+    const numericTime = parseFloat(t);
+    if (!isNaN(numericTime) && numericTime < 1 && numericTime > 0) {
+        const totalSeconds = Math.round(numericTime * 86400);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+
     // Check if it's already HH:mm or HH:mm:ss
     if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(t)) {
         const parts = t.split(':');
@@ -82,13 +97,7 @@ function parseTimeToString(timeInput: any): string | null {
         return `${h}:${m}:${s}`;
     }
 
-    try {
-        const d = new Date(timeInput);
-        if (isValid(d)) {
-            return format(d, 'HH:mm:ss');
-        }
-    } catch {}
-
+    // Attempt to parse various string formats
     const formats = ['h:mm:ss a', 'h:mm a', 'HH:mm:ss', 'HH:mm', 'h:mm'];
     for (const f of formats) {
         try {
@@ -98,12 +107,18 @@ function parseTimeToString(timeInput: any): string | null {
             }
         } catch {}
     }
+    
+    // If all else fails, return null
     return null;
 }
 
 
 function combineDateAndTime(baseDate: Date, timeStr: string): Date {
     const [hours, minutes, seconds] = timeStr.split(':').map(Number);
+    if (isNaN(hours) || isNaN(minutes)) {
+        // Return an invalid date if parsing fails
+        return new Date(NaN);
+    }
     return setSeconds(setMinutes(setHours(baseDate, hours), minutes), seconds || 0);
 }
 
@@ -113,6 +128,7 @@ function ceilDiv(a: number, b: number): number {
 }
 
 function applyFixedBreak(gIn: Date, gOut: Date): number {
+    if (!isValid(gIn) || !isValid(gOut)) return 0;
     const totalH = differenceInMinutes(gOut, gIn) / 60.0;
     if (totalH <= 0) return 0;
 
@@ -234,6 +250,11 @@ export function calculateAttendance(rows: RawAttendanceRow[]): CalcAttendanceRow
     
     let actIn = combineDateAndTime(ad, clockInTimeStr);
     let actOut = combineDateAndTime(ad, clockOutTimeStr);
+    
+    if (!isValid(actIn) || !isValid(actOut)) {
+        remarks = 'Invalid clock-in or clock-out time format.';
+        return finalize();
+    }
 
     if (isAfter(actIn, actOut)) {
       actOut = new Date(actOut.getTime() + 24 * 60 * 60 * 1000);
@@ -251,6 +272,11 @@ export function calculateAttendance(rows: RawAttendanceRow[]): CalcAttendanceRow
         
         const schedIn = combineDateAndTime(ad, onDutyTimeStr);
         const schedOut = combineDateAndTime(ad, offDutyTimeStr);
+
+        if (!isValid(schedIn) || !isValid(schedOut)) {
+            remarks = 'Invalid on-duty or off-duty time format.';
+            return finalize();
+        }
 
         let lateMin = Math.max(0, differenceInMinutes(actIn, schedIn));
         let earlyMin = Math.max(0, differenceInMinutes(schedOut, actOut));
