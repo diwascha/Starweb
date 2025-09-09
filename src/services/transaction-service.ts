@@ -50,11 +50,19 @@ export const addTransaction = async (transaction: Omit<Transaction, 'id' | 'crea
 };
 
 export const saveVoucher = async (voucherData: any, createdBy: string) => {
-    const batch = writeBatch(db);
+    let batch = writeBatch(db);
+    let writeCount = 0;
+    const BATCH_LIMIT = 499;
     const now = new Date().toISOString();
     const voucherId = doc(collection(db, 'transactions')).id; // Generate a unique ID for the voucher group
 
-    voucherData.items.forEach((item: any) => {
+    for (const item of voucherData.items) {
+        if (writeCount >= BATCH_LIMIT) {
+            await batch.commit();
+            batch = writeBatch(db);
+            writeCount = 0;
+        }
+
         const { ledgerId, vehicleId, recAmount, payAmount, narration } = item;
         
         let amount = 0;
@@ -67,7 +75,6 @@ export const saveVoucher = async (voucherData: any, createdBy: string) => {
             amount = recAmount;
             type = 'Receipt';
         }
-
 
         if (type && amount > 0) {
             const transactionRef = doc(transactionsCollection);
@@ -96,10 +103,13 @@ export const saveVoucher = async (voucherData: any, createdBy: string) => {
                 purchaseNumber: null,
             };
             batch.set(transactionRef, newTransaction);
+            writeCount++;
         }
-    });
-
-    await batch.commit();
+    }
+    
+    if (writeCount > 0) {
+        await batch.commit();
+    }
 };
 
 
@@ -118,6 +128,12 @@ export const getTransaction = async (id: string): Promise<Transaction | null> =>
         return null;
     }
 };
+
+export const getTransactions = async (): Promise<Transaction[]> => {
+    const snapshot = await getDocs(transactionsCollection);
+    return snapshot.docs.map(fromFirestore);
+};
+
 
 export const getVoucherTransactions = async (voucherId: string): Promise<Transaction[]> => {
     const q = query(transactionsCollection, where("voucherId", "==", voucherId));
@@ -146,17 +162,37 @@ export const updateTransaction = async (id: string, transaction: Partial<Omit<Tr
 };
 
 export const updateVoucher = async (voucherId: string, voucherData: any, modifiedBy: string) => {
-    const batch = writeBatch(db);
+    let batch = writeBatch(db);
+    let writeCount = 0;
+    const BATCH_LIMIT = 499;
     const now = new Date().toISOString();
 
     // 1. Delete all existing transactions for this voucher
     const existingTxns = await getVoucherTransactions(voucherId);
-    existingTxns.forEach(txn => {
+    for (const txn of existingTxns) {
+        if (writeCount >= BATCH_LIMIT) {
+            await batch.commit();
+            batch = writeBatch(db);
+            writeCount = 0;
+        }
         batch.delete(doc(db, 'transactions', txn.id));
-    });
+        writeCount++;
+    }
+    if (writeCount > 0) {
+        await batch.commit();
+        batch = writeBatch(db);
+        writeCount = 0;
+    }
+
 
     // 2. Create new transactions based on the updated form data
-    voucherData.items.forEach((item: any) => {
+    for (const item of voucherData.items) {
+        if (writeCount >= BATCH_LIMIT) {
+            await batch.commit();
+            batch = writeBatch(db);
+            writeCount = 0;
+        }
+        
         const { ledgerId, vehicleId, recAmount, payAmount, narration } = item;
         
         let amount = 0;
@@ -197,10 +233,13 @@ export const updateVoucher = async (voucherId: string, voucherData: any, modifie
                 purchaseNumber: null,
             };
             batch.set(transactionRef, newTransaction);
+            writeCount++;
         }
-    });
+    }
 
-    await batch.commit();
+    if (writeCount > 0) {
+        await batch.commit();
+    }
 };
 
 
@@ -210,7 +249,9 @@ export const deleteTransaction = async (id: string): Promise<void> => {
 };
 
 export const deleteVoucher = async (voucherId: string): Promise<void> => {
-    const batch = writeBatch(db);
+    let batch = writeBatch(db);
+    let writeCount = 0;
+    const BATCH_LIMIT = 499;
 
     if (voucherId.startsWith('legacy-')) {
         const docId = voucherId.replace('legacy-', '');
@@ -219,10 +260,18 @@ export const deleteVoucher = async (voucherId: string): Promise<void> => {
     } else {
         const q = query(transactionsCollection, where("voucherId", "==", voucherId));
         const querySnapshot = await getDocs(q);
-        querySnapshot.forEach((doc) => {
+        for (const doc of querySnapshot.docs) {
+            if (writeCount >= BATCH_LIMIT) {
+                await batch.commit();
+                batch = writeBatch(db);
+                writeCount = 0;
+            }
             batch.delete(doc.ref);
-        });
+            writeCount++;
+        }
     }
     
-    await batch.commit();
+    if (writeCount > 0) {
+        await batch.commit();
+    }
 };
