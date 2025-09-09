@@ -16,8 +16,6 @@ import type { AttendanceRecord, AttendanceStatus, RawAttendanceRow } from './typ
    Config / policy constants
    ========================= */
 const BASE_DAY_HOURS = 8;
-const LUNCH_DURATION_MINUTES = 60;
-const MIN_HOURS_FOR_LUNCH_DEDUCTION = 5;
 
 
 /* =========================
@@ -84,28 +82,8 @@ function combine(base: Date, t: HMS | null): Date | null {
   return setSeconds(setMinutes(setHours(startOfDay(base), t.hours), t.minutes), t.seconds);
 }
 
-function splitPair(s?: string | null): [string | null, string | null] {
-  if (!s) return [null, null];
-  const raw = s.replace(/\s+/g, ' ').trim();
-  if (raw === '-' || raw === '- / -') return [null, null];
-  const m = raw.split('/').map(x => x.trim());
-  if (m.length === 2) return [m[0] || null, m[1] || null];
-  return [null, null];
-}
-
 function adaptWebRow(row: RawAttendanceRow) {
-  let onDuty = row.onDuty, offDuty = row.offDuty, clockIn = row.clockIn, clockOut = row.clockOut;
-  if (!onDuty || !offDuty) {
-    const [a, b] = splitPair(row.onOffDuty ?? null);
-    onDuty = onDuty ?? a;
-    offDuty = offDuty ?? b;
-  }
-  if (!clockIn || !clockOut) {
-    const [a, b] = splitPair(row.clockInOut ?? null);
-    clockIn = clockIn ?? a;
-    clockOut = clockOut ?? b;
-  }
-  return { ...row, onDuty, offDuty, clockIn, clockOut };
+  return row;
 }
 
 /* =========================
@@ -124,7 +102,6 @@ export function calculateAttendance(rows: RawAttendanceRow[]): CalcAttendanceRow
     const status = (row.status || '').trim().toUpperCase();
     const isAbsent = status === 'ABSENT' || status === 'TRUE';
     const isPublic = status.startsWith('PUBLIC');
-    const extraOK = status.includes('EXTRAOK'); // Retained for Saturday/Holiday OT
 
     const cIn = parseTimeLoose(row.clockIn);
     const cOut = parseTimeLoose(row.clockOut);
@@ -138,12 +115,21 @@ export function calculateAttendance(rows: RawAttendanceRow[]): CalcAttendanceRow
     // Finalize with default values
     const finalize = (): CalcAttendanceRow => {
       const isAdValid = ad && !isNaN(ad.getTime());
+      
+      let finalStatus: AttendanceStatus = 'Present';
+      if (isAbsent) finalStatus = 'Absent';
+      else if (isPublic) finalStatus = 'Public Holiday';
+      else if (isSaturdayAD) finalStatus = 'Saturday';
+      else if (!actIn && actOut) finalStatus = 'C/I Miss';
+      else if (actIn && !actOut) finalStatus = 'C/O Miss';
+      else if (!actIn && !actOut && !isSaturdayAD && !isPublic) finalStatus = 'Absent';
+      
       return {
         ...row,
         dateADISO: isAdValid ? format(ad, 'yyyy-MM-dd') : '',
         dateBS,
         weekdayAD: isAdValid ? weekday : -1,
-        normalizedStatus: status,
+        normalizedStatus: finalStatus,
         grossHours: +gross.toFixed(2),
         regularHours: +regular.toFixed(2),
         overtimeHours: +ot.toFixed(2),
@@ -155,32 +141,38 @@ export function calculateAttendance(rows: RawAttendanceRow[]): CalcAttendanceRow
       remarks = 'Missing or invalid date';
       return finalize();
     }
-
+    
+    // Handle special statuses first
     if (isAbsent) {
       return finalize();
     }
-
+    
     if (isPublic) {
-      regular = BASE_DAY_HOURS;
-      if (actIn && actOut) {
-        if (isAfter(actIn, actOut)) actOut = new Date(actOut.getTime() + 24 * 60 * 60 * 1000);
-        const workedMinutes = differenceInMinutes(actOut, actIn);
-        ot = Math.max(0, workedMinutes / 60);
-      }
-      gross = regular + ot;
-      remarks = row.remarks ? `Public Holiday - ${row.remarks}` : 'Public Holiday';
-      return finalize();
+        regular = BASE_DAY_HOURS; // Employee gets paid for the day
+        // If they also worked, that's OT
+        if (actIn && actOut) {
+            if (isAfter(actIn, actOut)) actOut = new Date(actOut.getTime() + 24 * 60 * 60 * 1000);
+            const workedMinutes = differenceInMinutes(actOut, actIn);
+            ot = Math.max(0, workedMinutes / 60);
+            gross = regular + ot;
+        } else {
+            gross = regular;
+        }
+        remarks = row.remarks ? `Public Holiday - ${row.remarks}` : 'Public Holiday';
+        return finalize();
     }
-
+    
     if (isSaturdayAD) {
+       // On Saturday, all work is considered overtime
        if (actIn && actOut) {
         if (isAfter(actIn, actOut)) actOut = new Date(actOut.getTime() + 24 * 60 * 60 * 1000);
         const workedMinutes = differenceInMinutes(actOut, actIn);
         ot = Math.max(0, workedMinutes / 60);
+        gross = ot;
       }
-      gross = ot;
       return finalize();
     }
+
 
     // Normal Workday
     if (!actIn || !actOut) {
@@ -191,14 +183,7 @@ export function calculateAttendance(rows: RawAttendanceRow[]): CalcAttendanceRow
     if (isAfter(actIn, actOut)) actOut = new Date(actOut.getTime() + 24 * 60 * 60 * 1000);
 
     const grossMinutes = differenceInMinutes(actOut, actIn);
-    
-    let paidMinutes = grossMinutes;
-    if (grossMinutes / 60 > MIN_HOURS_FOR_LUNCH_DEDUCTION) {
-      paidMinutes -= LUNCH_DURATION_MINUTES;
-    }
-    
-    paidMinutes = Math.max(0, paidMinutes);
-    gross = paidMinutes / 60;
+    gross = Math.max(0, grossMinutes / 60);
     
     if (gross > BASE_DAY_HOURS) {
         regular = BASE_DAY_HOURS;
