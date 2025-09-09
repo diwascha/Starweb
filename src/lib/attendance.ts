@@ -67,7 +67,8 @@ function parseTimeLoose(s?: string | null): HMS | null {
   const t = s.trim();
   if (t === '-' || t === '') return null;
 
-  const fmts = ['HH:mm:ss', 'H:mm:ss', 'h:mm:ss a', 'HH:mm', 'H:mm', 'h:mm a'];
+  // Added HH:mm at a higher priority
+  const fmts = ['HH:mm', 'H:mm', 'HH:mm:ss', 'H:mm:ss', 'h:mm:ss a', 'h:mm a'];
   for (const f of fmts) {
     try {
       const d = parse(t, f, new Date());
@@ -148,29 +149,15 @@ export function calculateAttendance(rows: RawAttendanceRow[]): CalcAttendanceRow
     }
     
     if (isPublic) {
-        regular = BASE_DAY_HOURS; // Employee gets paid for the day
-        // If they also worked, that's OT
-        if (actIn && actOut) {
-            if (isAfter(actIn, actOut)) actOut = new Date(actOut.getTime() + 24 * 60 * 60 * 1000);
-            const workedMinutes = differenceInMinutes(actOut, actIn);
-            ot = Math.max(0, workedMinutes / 60);
-            gross = regular + ot;
-        } else {
-            gross = regular;
-        }
-        remarks = row.remarks ? `Public Holiday - ${row.remarks}` : 'Public Holiday';
+        regular = 0;
+        gross = 0;
         return finalize();
     }
     
     if (isSaturdayAD) {
-       // On Saturday, all work is considered overtime
-       if (actIn && actOut) {
-        if (isAfter(actIn, actOut)) actOut = new Date(actOut.getTime() + 24 * 60 * 60 * 1000);
-        const workedMinutes = differenceInMinutes(actOut, actIn);
-        ot = Math.max(0, workedMinutes / 60);
-        gross = ot;
-      }
-      return finalize();
+       regular = 0;
+       gross = 0;
+       return finalize();
     }
 
 
@@ -185,9 +172,8 @@ export function calculateAttendance(rows: RawAttendanceRow[]): CalcAttendanceRow
     const grossMinutes = differenceInMinutes(actOut, actIn);
     gross = Math.max(0, grossMinutes / 60);
     
-    // Set regular hours to the total worked time.
     regular = gross;
-    ot = 0; // Overtime is not automatically calculated here.
+    ot = 0;
 
     return finalize();
   });
