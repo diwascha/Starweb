@@ -38,13 +38,14 @@ export default function HrDashboardClient({ initialEmployees, initialAttendance 
        wageBasisData, totalRegularHours, totalOvertimeHours 
     } = useMemo(() => {
         const today = startOfToday();
+        const start = startOfMonth(today);
+        const end = endOfMonth(today);
+
         const todaysAttendance = attendance.filter(r => isToday(new Date(r.date)));
         
         const present = todaysAttendance.filter(r => r.status === 'Present').length;
         const absent = todaysAttendance.filter(r => r.status === 'Absent' || r.status === 'C/I Miss' || r.status === 'C/O Miss').length;
 
-        const start = startOfMonth(today);
-        const end = endOfMonth(today);
         const monthlyRecords = attendance.filter(r => {
             const rDate = new Date(r.date);
             return rDate >= start && rDate <= end;
