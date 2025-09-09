@@ -67,22 +67,20 @@ export default function AttendancePage() {
     setIsClient(true);
     const unsubEmployees = onEmployeesUpdate(setEmployees);
     const unsubAttendance = onAttendanceUpdate((records) => {
-      setAttendance(records);
-      if (records.length > 0) {
-        const validRecords = records.filter(r => r.date && !isNaN(new Date(r.date).getTime()));
-        if (validRecords.length > 0) {
-          const years = new Set(validRecords.map(r => new NepaliDate(new Date(r.date)).getYear()));
-          const sortedYears = Array.from(years).sort((a, b) => b - a);
-          setBsYears(sortedYears);
+      const validRecords = records.filter(r => r.date && !isNaN(new Date(r.date).getTime()));
+      setAttendance(validRecords);
+      if (validRecords.length > 0) {
+        const years = new Set(validRecords.map(r => new NepaliDate(new Date(r.date)).getYear()));
+        const sortedYears = Array.from(years).sort((a, b) => b - a);
+        setBsYears(sortedYears);
 
-          // Set initial filter only if not already set by user interaction
-          if (!selectedBsYear && !selectedBsMonth) {
-            const latestRecord = validRecords.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-            if (latestRecord) {
-              const latestNepaliDate = new NepaliDate(new Date(latestRecord.date));
-              setSelectedBsYear(String(latestNepaliDate.getYear()));
-              setSelectedBsMonth(String(latestNepaliDate.getMonth()));
-            }
+        // Set initial filter only if not already set by user interaction
+        if (!selectedBsYear && !selectedBsMonth) {
+          const latestRecord = validRecords.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+          if (latestRecord) {
+            const latestNepaliDate = new NepaliDate(new Date(latestRecord.date));
+            setSelectedBsYear(String(latestNepaliDate.getYear()));
+            setSelectedBsMonth(String(latestNepaliDate.getMonth()));
           }
         }
       }
@@ -277,10 +275,10 @@ export default function AttendancePage() {
   
   const handleCleanBaishakhData = async () => {
     try {
-        await deleteAttendanceForMonth(2081, 0); // Year 2081, Month 0 (Baishakh)
+        await deleteAttendanceForMonth(2082, 0); // Year 2082, Month 0 (Baishakh)
         toast({
             title: 'Cleanup Successful',
-            description: 'Attendance data for Baishakh 2081 has been removed.',
+            description: 'Attendance data for Baishakh 2082 has been removed.',
         });
     } catch (error) {
         console.error("Failed to clean Baishakh data:", error);
@@ -562,7 +560,7 @@ export default function AttendancePage() {
                       <AlertDialogHeader>
                           <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                           <AlertDialogDescription>
-                              This action will permanently delete all attendance records for the Nepali month of Baishakh, 2081. This cannot be undone.
+                              This action will permanently delete all attendance records for the Nepali month of Baishakh, 2082. This cannot be undone.
                           </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
