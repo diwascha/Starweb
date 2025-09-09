@@ -677,15 +677,4 @@ export default function AttendancePage() {
     </Dialog>
     </>
   );
-
-    
-
-
-
-
-
-    
-
-
-
-    
+}
