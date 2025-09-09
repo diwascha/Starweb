@@ -1,7 +1,8 @@
 
+
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { Employee, AttendanceRecord, Payroll, PunctualityInsight, BehaviorInsight, PatternInsight, WorkforceAnalytics } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,7 +13,6 @@ import { Download, Printer, Save, Loader2, Edit, AlertCircle, Info, ChevronsUpDo
 import NepaliDate from 'nepali-date-converter';
 import { useAuth } from '@/hooks/use-auth';
 import { onEmployeesUpdate } from '@/services/employee-service';
-import { onAttendanceUpdate } from '@/services/attendance-service';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -24,6 +24,7 @@ import { format } from 'date-fns';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { getAttendanceYears } from '@/services/attendance-service';
 
 
 const nepaliMonths = [
@@ -48,9 +49,8 @@ const customEmployeeOrder = [
 ];
 
 
-export default function PayrollClientPage({ initialEmployees, initialAttendance }: { initialEmployees: Employee[], initialAttendance: AttendanceRecord[] }) {
-    const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
-    const [attendance, setAttendance] = useState<AttendanceRecord[]>(initialAttendance);
+export default function PayrollClientPage() {
+    const [employees, setEmployees] = useState<Employee[]>([]);
     const [isClient, setIsClient] = useState(false);
     const [bsYears, setBsYears] = useState<number[]>([]);
     const [selectedBsYear, setSelectedBsYear] = useState<string>('');
@@ -75,62 +75,59 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
             });
             setEmployees(validEmployees);
         });
-        const unsubAttendance = onAttendanceUpdate((records) => {
-            setAttendance(records);
-            if (records.length > 0) {
-                const validRecords = records.filter(r => r.date && !isNaN(new Date(r.date).getTime()));
-                if (validRecords.length > 0) {
-                    const years = new Set(validRecords.map(r => new NepaliDate(new Date(r.date)).getYear()));
-                    const sortedYears = Array.from(years).sort((a, b) => b - a);
-                    setBsYears(sortedYears);
-                    
-                    if (!selectedBsYear) { // Set initial filter only once
-                        const latestRecord = validRecords.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-                        const latestNepaliDate = new NepaliDate(new Date(latestRecord.date));
-                        setSelectedBsYear(String(latestNepaliDate.getYear()));
-                        setSelectedBsMonth(String(latestNepaliDate.getMonth()));
-                    }
+
+        getAttendanceYears().then(years => {
+            setBsYears(years);
+            if (years.length > 0 && !selectedBsYear) {
+                const currentNepaliDate = new NepaliDate();
+                const currentYear = currentNepaliDate.getYear();
+                if (years.includes(currentYear)) {
+                    setSelectedBsYear(String(currentYear));
+                    setSelectedBsMonth(String(currentNepaliDate.getMonth()));
+                } else {
+                    setSelectedBsYear(String(years[0]));
+                    setSelectedBsMonth('0'); // Default to Baishakh
                 }
             }
         });
 
         return () => {
             unsubEmployees();
-            unsubAttendance();
         }
-    }, [selectedBsYear]); // Depend on selectedBsYear to prevent re-running unnecessarily
+    }, [selectedBsYear]);
 
-    useEffect(() => {
+    const generateReport = useCallback(async () => {
         if (selectedBsYear && selectedBsMonth && employees.length > 0) {
             setIsProcessing(true);
-            const data = generatePayrollAndAnalytics(
-                parseInt(selectedBsYear, 10),
-                parseInt(selectedBsMonth, 10),
-                employees,
-                attendance
-            );
-            
-            // Apply custom sort order
-            data.payroll.sort((a, b) => {
-                const indexA = customEmployeeOrder.indexOf(a.employeeName);
-                const indexB = customEmployeeOrder.indexOf(b.employeeName);
-                
-                // If both are in the custom list, sort by that order
-                if (indexA !== -1 && indexB !== -1) {
-                    return indexA - indexB;
-                }
-                // If only A is in the list, it comes first
-                if (indexA !== -1) return -1;
-                // If only B is in the list, it comes first
-                if (indexB !== -1) return 1;
-                // Otherwise, sort alphabetically
-                return a.employeeName.localeCompare(b.employeeName);
-            });
+            try {
+                const data = await generatePayrollAndAnalytics(
+                    parseInt(selectedBsYear, 10),
+                    parseInt(selectedBsMonth, 10),
+                    employees
+                );
 
-            setPayrollData(data);
-            setIsProcessing(false);
+                data.payroll.sort((a, b) => {
+                    const indexA = customEmployeeOrder.indexOf(a.employeeName);
+                    const indexB = customEmployeeOrder.indexOf(b.employeeName);
+                    if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+                    if (indexA !== -1) return -1;
+                    if (indexB !== -1) return 1;
+                    return a.employeeName.localeCompare(b.employeeName);
+                });
+
+                setPayrollData(data);
+            } catch (error) {
+                console.error("Failed to generate payroll:", error);
+                toast({ title: "Error", description: "Could not generate payroll data.", variant: "destructive" });
+            } finally {
+                setIsProcessing(false);
+            }
         }
-    }, [selectedBsYear, selectedBsMonth, employees, attendance]);
+    }, [selectedBsYear, selectedBsMonth, employees, toast]);
+
+    useEffect(() => {
+        generateReport();
+    }, [generateReport]);
     
     
     const handlePostAdjustment = () => {
@@ -327,7 +324,7 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {isProcessing && <TableRow><TableCell colSpan={18} className="text-center">Processing payroll...</TableCell></TableRow>}
+                                    {isProcessing && <TableRow><TableCell colSpan={18} className="text-center"><Loader2 className="mr-2 h-4 w-4 animate-spin inline-block" /> Processing payroll...</TableCell></TableRow>}
                                     {!isProcessing && payrollData?.payroll.map(p => {
                                         const employee = employees.find(e => e.id === p.employeeId);
                                         return (

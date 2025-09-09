@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import type { AttendanceRecord, Employee, AttendanceStatus, RawAttendanceRow } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
@@ -15,7 +15,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Badge } from '@/components/ui/badge';
 import { format as formatDate, parse, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { onEmployeesUpdate, addEmployee } from '@/services/employee-service';
-import { onAttendanceUpdate, addAttendanceRecords, updateAttendanceRecord, deleteAttendanceRecord, deleteAttendanceForMonth, batchUpdateAttendance } from '@/services/attendance-service';
+import { addAttendanceRecords, updateAttendanceRecord, deleteAttendanceRecord, deleteAttendanceForMonth, batchUpdateAttendance, getAttendanceForMonth, getAttendanceYears } from '@/services/attendance-service';
 import { getAttendanceBadgeVariant, cn, formatTimeForDisplay } from '@/lib/utils';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -71,6 +71,7 @@ export default function AttendancePage() {
   const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
   const [editForm, setEditForm] = useState({ onDuty: '', offDuty: '', clockIn: '', clockOut: '', status: '' as AttendanceStatus });
   const [isRecalculating, setIsRecalculating] = useState(false);
+  const [isDataLoading, setIsDataLoading] = useState(true);
 
   const [isSheetSelectDialogOpen, setIsSheetSelectDialogOpen] = useState(false);
   const [availableSheets, setAvailableSheets] = useState<SheetInfo[]>([]);
@@ -78,35 +79,46 @@ export default function AttendancePage() {
   const [importProgress, setImportProgress] = useState<string | null>(null);
 
 
+  const fetchAttendanceData = useCallback(async () => {
+    if (selectedBsYear && selectedBsMonth) {
+      setIsDataLoading(true);
+      const year = parseInt(selectedBsYear, 10);
+      const month = parseInt(selectedBsMonth, 10);
+      if (!isNaN(year) && !isNaN(month)) {
+        const records = await getAttendanceForMonth(year, month);
+        setAttendance(records);
+      }
+      setIsDataLoading(false);
+    }
+  }, [selectedBsYear, selectedBsMonth]);
+
   useEffect(() => {
     setIsClient(true);
     const unsubEmployees = onEmployeesUpdate(setEmployees);
-    const unsubAttendance = onAttendanceUpdate((records) => {
-      const validRecords = records.filter(r => r.date && !isNaN(new Date(r.date).getTime()));
-      setAttendance(validRecords);
 
-      if (validRecords.length > 0) {
-        const years = Array.from(new Set(validRecords.map(r => new NepaliDate(new Date(r.date)).getYear()))).sort((a, b) => b - a);
+    getAttendanceYears().then(years => {
         setBsYears(years);
-
-        const latestRecord = validRecords.reduce((latest, current) => 
-            new Date(current.date) > new Date(latest.date) ? current : latest
-        );
-        if (latestRecord) {
-            const latestNepaliDate = new NepaliDate(new Date(latestRecord.date));
-            if (!selectedBsYear) {
-              setSelectedBsYear(String(latestNepaliDate.getYear()));
-              setSelectedBsMonth(String(latestNepaliDate.getMonth()));
+        if (years.length > 0 && !selectedBsYear) {
+            const currentNepaliDate = new NepaliDate();
+            const currentYear = currentNepaliDate.getYear();
+            if (years.includes(currentYear)) {
+                setSelectedBsYear(String(currentYear));
+                setSelectedBsMonth(String(currentNepaliDate.getMonth()));
+            } else {
+                setSelectedBsYear(String(years[0]));
+                setSelectedBsMonth('0');
             }
         }
-      }
     });
 
     return () => {
         unsubEmployees();
-        unsubAttendance();
     }
   }, [selectedBsYear]);
+  
+  useEffect(() => {
+    fetchAttendanceData();
+  }, [fetchAttendanceData]);
   
   const handleRecalculate = async () => {
     setIsRecalculating(true);
@@ -136,6 +148,7 @@ export default function AttendancePage() {
         });
 
         await batchUpdateAttendance(updates);
+        await fetchAttendanceData(); // Refetch data after update
 
         toast({ title: 'Success', description: `${updates.length} records have been recalculated and updated.` });
     } catch (error) {
@@ -301,6 +314,7 @@ export default function AttendancePage() {
         setSelectedBsYear(String(latestNepaliDate.getYear()));
         setSelectedBsMonth(String(latestNepaliDate.getMonth()));
         setDateRange(undefined);
+        await fetchAttendanceData(); // Refetch data
         
         let description = `${newRecords.length} records processed.`;
         if (newlyAddedEmployees.size > 0) description += ` ${newlyAddedEmployees.size} new employees added.`;
@@ -336,6 +350,7 @@ export default function AttendancePage() {
     
     try {
         await updateAttendanceRecord(editingRecord.id, reprocessed);
+        await fetchAttendanceData(); // Refetch data
         toast({ title: 'Success', description: 'Attendance record updated.' });
         setIsEditDialogOpen(false);
         setEditingRecord(null);
@@ -347,19 +362,27 @@ export default function AttendancePage() {
   const handleDelete = async (id: string) => {
     try {
         await deleteAttendanceRecord(id);
+        await fetchAttendanceData(); // Refetch data
         toast({ title: 'Success', description: 'Attendance record deleted.' });
     } catch (error) {
         toast({ title: 'Error', description: 'Failed to delete record.', variant: 'destructive' });
     }
   };
   
-  const handleCleanBaishakhData = async () => {
+  const handleDeleteMonthData = async () => {
+    if (!selectedBsYear || !selectedBsMonth) {
+        toast({ title: 'Error', description: 'Please select a year and month to delete.', variant: 'destructive' });
+        return;
+    }
     try {
-        await deleteAttendanceForMonth(2082, 0); // Year 2082, Month 0 (Baishakh)
-        toast({ title: 'Cleanup Successful', description: 'Attendance data for Baishakh 2082 has been removed.' });
+        const year = parseInt(selectedBsYear);
+        const month = parseInt(selectedBsMonth);
+        await deleteAttendanceForMonth(year, month);
+        await fetchAttendanceData(); // Refetch data
+        toast({ title: 'Cleanup Successful', description: `Attendance data for ${nepaliMonths[month].name} ${year} has been removed.` });
     } catch (error) {
-        console.error("Failed to clean Baishakh data:", error);
-        toast({ title: 'Cleanup Failed', description: 'Could not remove the old attendance data.', variant: 'destructive' });
+        console.error("Failed to clean month data:", error);
+        toast({ title: 'Cleanup Failed', description: 'Could not remove the attendance data.', variant: 'destructive' });
     }
   };
 
@@ -371,23 +394,6 @@ export default function AttendancePage() {
   
   const filteredAndSortedRecords = useMemo(() => {
     let filtered = [...attendance];
-
-    if (!dateRange?.from && selectedBsYear && selectedBsMonth) {
-      const yearInt = parseInt(selectedBsYear, 10);
-      const monthInt = parseInt(selectedBsMonth, 10);
-      if (!isNaN(yearInt) && !isNaN(monthInt)) {
-        filtered = filtered.filter(r => {
-          if (!r.date || isNaN(new Date(r.date).getTime())) return false;
-          try {
-            const nepaliDate = new NepaliDate(new Date(r.date));
-            return nepaliDate.getYear() === yearInt && nepaliDate.getMonth() === monthInt;
-          } catch { return false; }
-        });
-      }
-    } else if (dateRange?.from) {
-      const interval = { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to || dateRange.from) };
-      filtered = filtered.filter(record => record.date && isWithinInterval(new Date(record.date), interval));
-    }
     
     if (searchQuery) {
       const lowercasedQuery = searchQuery.toLowerCase();
@@ -416,7 +422,7 @@ export default function AttendancePage() {
       return 0;
     });
     return filtered;
-  }, [attendance, sortConfig, searchQuery, dateRange, filterEmployeeName, selectedBsYear, selectedBsMonth, filterStatus]);
+  }, [attendance, sortConfig, searchQuery, filterEmployeeName, filterStatus]);
   
   const uniqueEmployeeNames = useMemo(() => {
       const names = new Set(employees.map(e => e.name));
@@ -424,13 +430,13 @@ export default function AttendancePage() {
   }, [employees]);
   
   const renderContent = () => {
-    if (!isClient) return <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24"><h3 className="text-2xl font-bold tracking-tight">Loading...</h3></div>;
+    if (!isClient || isDataLoading) return <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24"><h3 className="text-2xl font-bold tracking-tight">Loading...</h3></div>;
     
     if (attendance.length === 0) {
       return (
         <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
           <div className="flex flex-col items-center gap-1 text-center">
-            <h3 className="text-2xl font-bold tracking-tight">No attendance records found</h3>
+            <h3 className="text-2xl font-bold tracking-tight">No attendance records for this period</h3>
             <p className="text-sm text-muted-foreground">Get started by importing an Excel file.</p>
              {hasPermission('hr', 'create') && (
                 <Button className="mt-4" onClick={() => fileInputRef.current?.click()} disabled={!!importProgress}>
@@ -524,10 +530,18 @@ export default function AttendancePage() {
               <Label>Filter by:</Label>
               <Select value={selectedBsYear} onValueChange={setSelectedBsYear}><SelectTrigger className="w-full sm:w-[120px]"><SelectValue placeholder="Year (BS)" /></SelectTrigger><SelectContent>{bsYears.map(year => (<SelectItem key={year} value={String(year)}>{year}</SelectItem>))}</SelectContent></Select>
               <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth}><SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Month (BS)" /></SelectTrigger><SelectContent>{nepaliMonths.map(month => (<SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>))}</SelectContent></Select>
-              <Popover><PopoverTrigger asChild><Button id="date" variant={"outline"} className={cn("w-full sm:w-auto justify-start text-left font-normal", !dateRange && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{dateRange?.from ? (dateRange.to ? (`${formatDate(dateRange.from, "LLL dd, y")} - ${formatDate(dateRange.to, "LLL dd, y")}`) : formatDate(dateRange.from, "LLL dd, y")) : (<span>Pick a date range</span>)}</Button></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><DualDateRangePicker selected={dateRange} onSelect={setDateRange} /></PopoverContent></Popover>
                <Select value={filterEmployeeName} onValueChange={setFilterEmployeeName}><SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Select Employee" /></SelectTrigger><SelectContent>{uniqueEmployeeNames.map(name => (<SelectItem key={name} value={name}>{name}</SelectItem>))}</SelectContent></Select>
                <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as 'All' | AttendanceStatus)}><SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Select Status" /></SelectTrigger><SelectContent><SelectItem value="All">All Statuses</SelectItem>{attendanceStatuses.map(status => (<SelectItem key={status} value={status}>{status}</SelectItem>))}</SelectContent></Select>
                <Button variant="secondary" onClick={handleRecalculate} disabled={isRecalculating}>{isRecalculating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}Recalculate</Button>
+               <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="destructive-outline"><Trash2 className="mr-2 h-4 w-4" /> Delete Month Data</Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader><AlertDialogTitle>Delete All Data for {nepaliMonths[parseInt(selectedBsMonth)]?.name}, {selectedBsYear}?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone. This will permanently delete all attendance records for the selected month.</AlertDialogDescription></AlertDialogHeader>
+                        <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDeleteMonthData}>Confirm Delete</AlertDialogAction></AlertDialogFooter>
+                    </AlertDialogContent>
+               </AlertDialog>
           </div>
       )}
       {renderContent()}

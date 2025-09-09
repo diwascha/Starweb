@@ -1,6 +1,5 @@
 
-import { getEmployees } from '@/services/employee-service';
-import { getAttendance } from '@/services/attendance-service';
+
 import PayrollClientPage from './_components/payroll-client-page';
 import { Suspense } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -21,12 +20,11 @@ function PayrollSkeleton() {
 }
 
 export default async function PayrollPage() {
-    const initialEmployees = await getEmployees();
-    const initialAttendance = await getAttendance();
-
+    // Data fetching is now handled on the client side in PayrollClientPage
+    // to allow for dynamic filtering by month/year without reloading the page.
     return (
         <Suspense fallback={<PayrollSkeleton />}>
-            <PayrollClientPage initialEmployees={initialEmployees} initialAttendance={initialAttendance} />
+            <PayrollClientPage />
         </Suspense>
     );
 }
