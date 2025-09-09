@@ -1,33 +1,24 @@
 
-
 import {
-  addMinutes,
   differenceInMinutes,
   isAfter,
   startOfDay,
-  startOfWeek,
   parse,
   setHours,
   setMinutes,
   setSeconds,
   format,
-  max as dfMax,
-  min as dfMin,
 } from 'date-fns';
 import NepaliDate from 'nepali-date-converter';
 import type { AttendanceRecord, AttendanceStatus, RawAttendanceRow } from './types';
-
 
 /* =========================
    Config / policy constants
    ========================= */
 const BASE_DAY_HOURS = 8;
-const GRACE_MIN = 5;
-const BLOCK_MIN = 30;               // penalty/extra in 30-min blocks
-const ROUND_STEP_HOURS = 0.5;
-const WEEK_STARTS_ON: 0 | 1 = 0;    // 0 = Sunday
-const LUNCH_START = { h: 12, m: 0 };
-const LUNCH_END   = { h: 13, m: 0 };
+const LUNCH_DURATION_MINUTES = 60;
+const MIN_HOURS_FOR_LUNCH_DEDUCTION = 5;
+
 
 /* =========================
    Types
@@ -93,63 +84,16 @@ function combine(base: Date, t: HMS | null): Date | null {
   return setSeconds(setMinutes(setHours(startOfDay(base), t.hours), t.minutes), t.seconds);
 }
 
-function minutesOfDay(d: Date): number {
-  return d.getHours() * 60 + d.getMinutes();
-}
-
-function roundToStepHours(x: number, step = ROUND_STEP_HOURS): number {
-  return Math.round(x / step) * step;
-}
-
-function overlapMinutes(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date): number {
-  const s = dfMax([aStart, bStart]);
-  const e = dfMin([aEnd, bEnd]);
-  return e > s ? differenceInMinutes(e, s) : 0;
-}
-
-/** Deduct lunch (12:00–13:00) only if the effective paid window overlaps it and total > 4h */
-function applyFixedLunch(paidIn: Date, paidOut: Date): number {
-  const totalMin = differenceInMinutes(paidOut, paidIn);
-  if (totalMin <= 0) return 0;
-  const base = startOfDay(paidIn);
-  const l0 = setMinutes(setHours(base, LUNCH_START.h), LUNCH_START.m);
-  const l1 = setMinutes(setHours(base, LUNCH_END.h), LUNCH_END.m);
-  const lunchOverlap = overlapMinutes(paidIn, paidOut, l0, l1);
-  const effectiveMin = (lunchOverlap > 0 && totalMin > 240) ? totalMin - lunchOverlap : totalMin;
-  return effectiveMin / 60;
-}
-
-function extraBefore(baseIn: Date, actIn: Date): number {
-  const extraMin = Math.max(0, minutesOfDay(baseIn) - minutesOfDay(actIn));
-  const blocks = Math.floor((extraMin + 5) / BLOCK_MIN);
-  return (blocks * BLOCK_MIN) / 60;
-}
-function extraAfter(baseOut: Date, actOut: Date): number {
-  const extraMin = Math.max(0, minutesOfDay(actOut) - minutesOfDay(baseOut));
-  const blocks = Math.floor((extraMin + 5) / BLOCK_MIN);
-  return (blocks * BLOCK_MIN) / 60;
-}
-
-function weekKey(dateAD: Date, employeeName: string): string {
-  const wk = startOfWeek(dateAD, { weekStartsOn: WEEK_STARTS_ON });
-  return `${employeeName}|${format(wk, 'yyyy-MM-dd')}`;
-}
-
-/* =========================
-   NEW: paired-time adapter
-   ========================= */
 function splitPair(s?: string | null): [string | null, string | null] {
   if (!s) return [null, null];
-  const raw = s.replace(/\s+/g, ' ').trim();     // normalize spaces
+  const raw = s.replace(/\s+/g, ' ').trim();
   if (raw === '-' || raw === '- / -') return [null, null];
-  // allow "08:00 / 17:00" or "08:00/17:00"
   const m = raw.split('/').map(x => x.trim());
   if (m.length === 2) return [m[0] || null, m[1] || null];
   return [null, null];
 }
 
 function adaptWebRow(row: RawAttendanceRow) {
-  // prefer split fields if present; otherwise parse the pairs
   let onDuty = row.onDuty, offDuty = row.offDuty, clockIn = row.clockIn, clockOut = row.clockOut;
   if (!onDuty || !offDuty) {
     const [a, b] = splitPair(row.onOffDuty ?? null);
@@ -168,8 +112,6 @@ function adaptWebRow(row: RawAttendanceRow) {
    Core calculator
    ========================= */
 export function calculateAttendance(rows: RawAttendanceRow[]): CalcAttendanceRow[] {
-  const freeLateUsed = new Map<string, true>();
-  const freeEarlyUsed = new Map<string, true>();
 
   return rows.map((r0): CalcAttendanceRow => {
     const row = adaptWebRow(r0);
@@ -180,25 +122,35 @@ export function calculateAttendance(rows: RawAttendanceRow[]): CalcAttendanceRow
     const isSaturdayAD = weekday === 6;
 
     const status = (row.status || '').trim().toUpperCase();
-    const isAbsent = status === 'ABSENT' || status === 'TRUE';   // VBA legacy used TRUE for absence
+    const isAbsent = status === 'ABSENT' || status === 'TRUE';
     const isPublic = status.startsWith('PUBLIC');
-    const extraOK = status.includes('EXTRAOK');
+    const extraOK = status.includes('EXTRAOK'); // Retained for Saturday/Holiday OT
 
-    // Use default shift if not provided in data
-    const sIn = parseTimeLoose(row.onDuty || "08:00");
-    const sOut = parseTimeLoose(row.offDuty || "17:00");
     const cIn = parseTimeLoose(row.clockIn);
     const cOut = parseTimeLoose(row.clockOut);
 
-    const baseIn = ad ? combine(ad, sIn) : null;
-    const baseOut = ad ? combine(ad, sOut) : null;
-    let actIn = ad ? combine(ad, cIn) : null;
+    const actIn = ad ? combine(ad, cIn) : null;
     let actOut = ad ? combine(ad, cOut) : null;
 
     let gross = 0, regular = 0, ot = 0;
     let remarks = '';
+    
+    // Finalize with default values
+    const finalize = (): CalcAttendanceRow => {
+      const isAdValid = ad && !isNaN(ad.getTime());
+      return {
+        ...row,
+        dateADISO: isAdValid ? format(ad, 'yyyy-MM-dd') : '',
+        dateBS,
+        weekdayAD: isAdValid ? weekday : -1,
+        normalizedStatus: status,
+        grossHours: +gross.toFixed(2),
+        regularHours: +regular.toFixed(2),
+        overtimeHours: +ot.toFixed(2),
+        calcRemarks: remarks,
+      };
+    };
 
-    // quick exits
     if (!ad || isNaN(ad.getTime())) {
       remarks = 'Missing or invalid date';
       return finalize();
@@ -208,105 +160,55 @@ export function calculateAttendance(rows: RawAttendanceRow[]): CalcAttendanceRow
       return finalize();
     }
 
-    // PUBLIC HOLIDAY: Regular=8h baseline; any worked time is OT
     if (isPublic) {
-      const worked = workedIfBoth(actIn, actOut);
-      const wRounded = roundToStepHours(worked);
       regular = BASE_DAY_HOURS;
-      ot = wRounded;
+      if (actIn && actOut) {
+        if (isAfter(actIn, actOut)) actOut = new Date(actOut.getTime() + 24 * 60 * 60 * 1000);
+        const workedMinutes = differenceInMinutes(actOut, actIn);
+        ot = Math.max(0, workedMinutes / 60);
+      }
       gross = regular + ot;
       remarks = row.remarks ? `Public Holiday - ${row.remarks}` : 'Public Holiday';
       return finalize();
     }
 
-    // SATURDAY: all worked time = OT
     if (isSaturdayAD) {
-      const worked = workedIfBoth(actIn, actOut);
-      const satH = roundToStepHours(worked);
-      ot = satH;
+       if (actIn && actOut) {
+        if (isAfter(actIn, actOut)) actOut = new Date(actOut.getTime() + 24 * 60 * 60 * 1000);
+        const workedMinutes = differenceInMinutes(actOut, actIn);
+        ot = Math.max(0, workedMinutes / 60);
+      }
       gross = ot;
       return finalize();
     }
 
-    // Workday:
-    if (!baseIn || !baseOut) {
-      remarks = 'Missing schedule';
-      return finalize();
-    }
+    // Normal Workday
     if (!actIn || !actOut) {
       remarks = !actIn && !actOut ? 'Missing punches' : (!actIn ? 'C/I Miss' : 'C/O Miss');
       return finalize();
     }
 
-    // guard cross-midnight
-    if (isAfter(actIn, actOut)) actOut = addMinutes(actOut, 24 * 60);
+    if (isAfter(actIn, actOut)) actOut = new Date(actOut.getTime() + 24 * 60 * 60 * 1000);
 
-    // Penalties (based on time-of-day mins)
-    const lateMin0  = Math.max(0, minutesOfDay(actIn)  - minutesOfDay(baseIn));
-    const earlyMin0 = Math.max(0, minutesOfDay(baseOut) - minutesOfDay(actOut));
-
-    const key = weekKey(ad, row.employeeName ?? '');
-    let latePen = 0, earlyPen = 0;
-
-    if (lateMin0 > 0) {
-      if (lateMin0 <= GRACE_MIN) {
-        if (!freeLateUsed.has(key)) freeLateUsed.set(key, true);
-        else latePen = BLOCK_MIN;
-      } else {
-        latePen = Math.ceil((lateMin0 - GRACE_MIN) / BLOCK_MIN) * BLOCK_MIN;
-      }
+    const grossMinutes = differenceInMinutes(actOut, actIn);
+    
+    let paidMinutes = grossMinutes;
+    if (grossMinutes / 60 > MIN_HOURS_FOR_LUNCH_DEDUCTION) {
+      paidMinutes -= LUNCH_DURATION_MINUTES;
     }
-
-    if (earlyMin0 > 0) {
-      if (earlyMin0 <= GRACE_MIN) {
-        if (!freeEarlyUsed.has(key)) freeEarlyUsed.set(key, true);
-        else earlyPen = BLOCK_MIN;
-      } else {
-        earlyPen = Math.ceil((earlyMin0 - GRACE_MIN) / BLOCK_MIN) * BLOCK_MIN;
-      }
-    }
-
-    // Effective paid window
-    const effIn = addMinutes(baseIn, latePen);
-    const effOut = addMinutes(baseOut, -earlyPen);
-
-    let paid = 0;
-    if (isAfter(effOut, effIn)) {
-      paid = applyFixedLunch(effIn, effOut);
-    }
-
-    // EXTRAOK before/after schedule (+5min rounding, 30-min blocks)
-    let extraAM = 0, extraPM = 0;
-    if (extraOK) {
-      extraAM = extraBefore(baseIn, actIn);
-      extraPM = extraAfter(baseOut, actOut);
-    }
-
-    gross = roundToStepHours(paid + extraAM + extraPM + 1e-6);
+    
+    paidMinutes = Math.max(0, paidMinutes);
+    gross = paidMinutes / 60;
+    
     if (gross > BASE_DAY_HOURS) {
-      regular = BASE_DAY_HOURS;
-      ot = +(gross - BASE_DAY_HOURS).toFixed(1);
+        regular = BASE_DAY_HOURS;
+        ot = gross - BASE_DAY_HOURS;
     } else {
-      regular = gross;
-      ot = 0;
+        regular = gross;
+        ot = 0;
     }
 
     return finalize();
-
-    function finalize(): CalcAttendanceRow {
-      const isAdValid = ad && !isNaN(ad.getTime());
-      return {
-        ...row,
-        dateADISO: isAdValid ? format(ad, 'yyyy-MM-dd') : '',
-        dateBS,
-        weekdayAD: isAdValid ? weekday : -1,
-        normalizedStatus: status,
-        grossHours: +gross.toFixed(1),
-        regularHours: +regular.toFixed(1),
-        overtimeHours: +ot.toFixed(1),
-        calcRemarks: remarks,
-      };
-    }
   });
 }
 
@@ -326,13 +228,4 @@ export function reprocessSingleRecord(raw: RawAttendanceRow): Partial<Attendance
     clockOut: raw.clockOut,
     sourceSheet: raw.sourceSheet,
   };
-}
-
-
-/* ===== helpers for holiday/saturday ===== */
-function workedIfBoth(actIn: Date | null, actOut: Date | null): number {
-  if (!actIn || !actOut) return 0;
-  let out = actOut;
-  if (isAfter(actIn, out)) out = addMinutes(out, 24 * 60);
-  return applyFixedLunch(actIn, out);
 }
