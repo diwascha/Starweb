@@ -77,6 +77,16 @@ export const updateAttendanceRecord = async (id: string, record: Partial<Attenda
     await updateDoc(recordDoc, record);
 };
 
+export const batchUpdateAttendance = async (updates: { id: string; updates: Partial<AttendanceRecord> }[]): Promise<void> => {
+    const batch = writeBatch(db);
+    updates.forEach(({ id, updates }) => {
+        const docRef = doc(db, 'attendance', id);
+        batch.update(docRef, updates);
+    });
+    await batch.commit();
+};
+
+
 export const deleteAttendanceRecord = async (id: string): Promise<void> => {
     const recordDoc = doc(db, 'attendance', id);
     await deleteDoc(recordDoc);
@@ -114,5 +124,7 @@ export const onAttendanceUpdate = (callback: (records: AttendanceRecord[]) => vo
         callback(snapshot.docs.map(fromFirestore));
     });
 };
+
+    
 
     

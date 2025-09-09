@@ -9,13 +9,13 @@ import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, Search, ArrowUpDown, CalendarIcon, Edit, MoreHorizontal, Trash2 } from 'lucide-react';
+import { Upload, Search, ArrowUpDown, CalendarIcon, Edit, MoreHorizontal, Trash2, RefreshCw, Loader2 } from 'lucide-react';
 import NepaliDate from 'nepali-date-converter';
 import { useAuth } from '@/hooks/use-auth';
 import { Badge } from '@/components/ui/badge';
 import { format, parse, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { onEmployeesUpdate, addEmployee } from '@/services/employee-service';
-import { onAttendanceUpdate, addAttendanceRecords, updateAttendanceRecord, deleteAttendanceRecord, deleteAttendanceForMonth } from '@/services/attendance-service';
+import { onAttendanceUpdate, addAttendanceRecords, updateAttendanceRecord, deleteAttendanceRecord, deleteAttendanceForMonth, batchUpdateAttendance } from '@/services/attendance-service';
 import { getAttendanceBadgeVariant, cn } from '@/lib/utils';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -62,6 +62,7 @@ export default function AttendancePage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
   const [editForm, setEditForm] = useState({ clockIn: '', clockOut: '', status: '' as AttendanceStatus });
+  const [isRecalculating, setIsRecalculating] = useState(false);
 
 
   useEffect(() => {
@@ -80,8 +81,10 @@ export default function AttendancePage() {
         );
         if (latestRecord) {
             const latestNepaliDate = new NepaliDate(new Date(latestRecord.date));
-            setSelectedBsYear(String(latestNepaliDate.getYear()));
-            setSelectedBsMonth(String(latestNepaliDate.getMonth()));
+            if (!selectedBsYear) {
+              setSelectedBsYear(String(latestNepaliDate.getYear()));
+              setSelectedBsMonth(String(latestNepaliDate.getMonth()));
+            }
         }
       }
     });
@@ -90,8 +93,46 @@ export default function AttendancePage() {
         unsubEmployees();
         unsubAttendance();
     }
-  }, []);
+  }, [selectedBsYear]);
   
+  const handleRecalculate = async () => {
+    setIsRecalculating(true);
+    toast({ title: 'Recalculating...', description: `Processing ${filteredAndSortedRecords.length} records.` });
+
+    try {
+        const rawRows: RawAttendanceRow[] = filteredAndSortedRecords.map(r => ({
+            employeeName: r.employeeName,
+            dateAD: r.date,
+            onDuty: r.onDuty,
+            offDuty: r.offDuty,
+            clockIn: r.clockIn,
+            clockOut: r.clockOut,
+            status: r.status,
+            remarks: r.remarks,
+            sourceSheet: r.sourceSheet
+        }));
+
+        const reprocessedRecords = calculateAttendance(rawRows);
+
+        const updates = reprocessedRecords.map((reprocessed, index) => {
+            const originalRecord = filteredAndSortedRecords[index];
+            return {
+                id: originalRecord.id,
+                updates: reprocessSingleRecord(reprocessed),
+            };
+        });
+
+        await batchUpdateAttendance(updates);
+
+        toast({ title: 'Success', description: `${updates.length} records have been recalculated and updated.` });
+    } catch (error) {
+        console.error("Recalculation failed:", error);
+        toast({ title: 'Error', description: 'An error occurred during recalculation.', variant: 'destructive' });
+    } finally {
+        setIsRecalculating(false);
+    }
+  };
+
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -574,6 +615,10 @@ export default function AttendancePage() {
                       ))}
                   </SelectContent>
               </Select>
+               <Button variant="secondary" onClick={handleRecalculate} disabled={isRecalculating}>
+                  {isRecalculating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                  Recalculate
+               </Button>
               <AlertDialog>
                   <AlertDialogTrigger asChild>
                       <Button variant="destructive" size="sm">Clean Baishakh Data</Button>
@@ -641,3 +686,6 @@ export default function AttendancePage() {
 
     
 
+
+
+    
