@@ -1,4 +1,5 @@
 
+
 import { db } from '@/lib/firebase';
 import { collection, doc, writeBatch, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
 import type { AttendanceRecord } from '@/lib/types';
@@ -23,6 +24,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Attendanc
         regularHours: data.regularHours || 0,
         remarks: data.remarks || null,
         importedBy: data.importedBy,
+        sourceSheet: data.sourceSheet,
     };
 };
 
@@ -34,7 +36,7 @@ export const getAttendance = async (): Promise<AttendanceRecord[]> => {
 export const addAttendanceRecords = async (records: Omit<AttendanceRecord, 'id'>[]): Promise<void> => {
     const batch = writeBatch(db);
     records.forEach(record => {
-        const docRef = doc(attendanceCollection);
+        const docRef = doc(attendanceCollection); // Creates a new doc with a unique random ID
         batch.set(docRef, record);
     });
     await batch.commit();

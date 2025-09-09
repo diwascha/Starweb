@@ -1,4 +1,5 @@
 
+
 import {
   addMinutes,
   differenceInMinutes,
@@ -323,6 +324,7 @@ export function reprocessSingleRecord(raw: RawAttendanceRow): Partial<Attendance
     offDuty: raw.offDuty,
     clockIn: raw.clockIn,
     clockOut: raw.clockOut,
+    sourceSheet: raw.sourceSheet,
   };
 }
 

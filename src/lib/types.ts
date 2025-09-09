@@ -1,4 +1,5 @@
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -136,6 +137,21 @@ export interface Employee {
 
 export type AttendanceStatus = 'Present' | 'Absent' | 'Public Holiday' | 'Saturday' | 'C/I Miss' | 'C/O Miss' | 'EXTRAOK';
 
+export interface RawAttendanceRow {
+    employeeName: string;
+    dateAD: string | Date;
+    onDuty?: string | null;
+    offDuty?: string | null;
+    onOffDuty?: string | null;
+    clockIn?: string | null;
+    clockOut?: string | null;
+    clockInOut?: string | null;
+    status?: string;
+    remarks?: string | null;
+    sourceSheet?: string;
+}
+
+
 export interface AttendanceRecord {
     id: string;
     date: string; // AD Date as ISO string
@@ -151,6 +167,7 @@ export interface AttendanceRecord {
     regularHours: number;
     remarks: string | null;
     importedBy: string;
+    sourceSheet?: string;
 }
 
 export interface Payroll {

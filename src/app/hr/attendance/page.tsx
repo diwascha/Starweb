@@ -71,17 +71,19 @@ export default function AttendancePage() {
       const validRecords = records.filter(r => r.date && !isNaN(new Date(r.date).getTime()));
       setAttendance(validRecords);
 
-      if (validRecords.length > 0 && !selectedBsYear) {
+      if (validRecords.length > 0) {
         const years = Array.from(new Set(validRecords.map(r => new NepaliDate(new Date(r.date)).getYear()))).sort((a, b) => b - a);
         setBsYears(years);
 
-        const latestRecord = validRecords.reduce((latest, current) => 
-            new Date(current.date) > new Date(latest.date) ? current : latest
-        );
-        if (latestRecord) {
-            const latestNepaliDate = new NepaliDate(new Date(latestRecord.date));
-            setSelectedBsYear(String(latestNepaliDate.getYear()));
-            setSelectedBsMonth(String(latestNepaliDate.getMonth()));
+        if (!selectedBsYear) { // Set initial year/month only if not already set
+            const latestRecord = validRecords.reduce((latest, current) => 
+                new Date(current.date) > new Date(latest.date) ? current : latest
+            );
+            if (latestRecord) {
+                const latestNepaliDate = new NepaliDate(new Date(latestRecord.date));
+                setSelectedBsYear(String(latestNepaliDate.getYear()));
+                setSelectedBsMonth(String(latestNepaliDate.getMonth()));
+            }
         }
       }
     });
@@ -119,7 +121,7 @@ export default function AttendancePage() {
             const headerRow = jsonData[0].map((h: any) => String(h || '').trim().toLowerCase());
             
             const headerVariations: { [key: string]: string[] } = {
-                name: ['name', 'employee name'],
+                name: ['name'],
                 date: ['date'],
                 onDuty: ['on duty', 'onduty'],
                 offDuty: ['off duty', 'offduty'],
@@ -175,6 +177,7 @@ export default function AttendancePage() {
                     clockOut: row[headerMap['clockOut']] ? String(row[headerMap['clockOut']]) : null,
                     status: row[headerMap['status']] ? String(row[headerMap['status']]) : '',
                     remarks: null,
+                    sourceSheet: sheetName,
                 });
             }
             totalSkippedRows += sheetSkippedRows;
@@ -207,6 +210,7 @@ export default function AttendancePage() {
             regularHours: p.regularHours,
             remarks: p.calcRemarks,
             importedBy: user.username,
+            sourceSheet: p.sourceSheet,
         }));
 
         if (newRecords.length > 0) {
@@ -415,6 +419,7 @@ export default function AttendancePage() {
               <TableHead><Button variant="ghost" onClick={() => requestSort('date')}>Date (AD) <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
               <TableHead>Date (BS)</TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('employeeName')}>Employee Name <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+              <TableHead>Source Sheet</TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('status')}>Status <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
               <TableHead>On/Off Duty</TableHead>
               <TableHead>Clock In/Out</TableHead>
@@ -429,6 +434,7 @@ export default function AttendancePage() {
                 <TableCell className="font-medium">{record.date ? format(new Date(record.date), 'yyyy-MM-dd') : 'Invalid'}</TableCell>
                 <TableCell>{record.bsDate}</TableCell>
                 <TableCell>{record.employeeName}</TableCell>
+                <TableCell><Badge variant="outline">{record.sourceSheet}</Badge></TableCell>
                  <TableCell>
                   <Badge variant={getAttendanceBadgeVariant(record.status)}>
                     {record.status}
