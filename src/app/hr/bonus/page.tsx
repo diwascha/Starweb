@@ -23,6 +23,21 @@ const nepaliMonths = [
     { value: 9, name: "Magh" }, { value: 10, name: "Falgun" }, { value: 11, "name": "Chaitra" }
 ];
 
+const customEmployeeOrder = [
+    "Tika Gurung",
+    "Anju Bista",
+    "Madhu Bhandari",
+    "Amrita Lama",
+    "sunil chaudhary",
+    "KUMAR SHRESTHA",
+    "Niroj Koirala",
+    "Binod Magar",
+    "SANDEEP CHAUDARY",
+    "SANGITA PYAKUREL",
+    "Sunita Gurung"
+];
+
+
 interface BonusCalculationResult {
     employeeId: string;
     employeeName: string;
@@ -90,7 +105,7 @@ export default function BonusPage() {
 
         const workingEmployees = employees.filter(e => e.status === 'Working');
 
-        return workingEmployees.map(employee => {
+        const calculatedData = workingEmployees.map(employee => {
             const employeeAttendance = attendance.filter(r => {
                 if (r.employeeName !== employee.name) return false;
                 try {
@@ -114,6 +129,20 @@ export default function BonusPage() {
                 bonusAmount: isEligible ? bonusAmount : 0,
             };
         });
+        
+        calculatedData.sort((a, b) => {
+            const indexA = customEmployeeOrder.indexOf(a.employeeName);
+            const indexB = customEmployeeOrder.indexOf(b.employeeName);
+
+            if (indexA !== -1 && indexB !== -1) {
+                return indexA - indexB;
+            }
+            if (indexA !== -1) return -1;
+            if (indexB !== -1) return 1;
+            return a.employeeName.localeCompare(b.employeeName);
+        });
+
+        return calculatedData;
 
     }, [employees, attendance, selectedBsYear, selectedBsMonth, bonusAmount, minPresentDays]);
 
