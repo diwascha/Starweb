@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -69,14 +70,15 @@ export default function AttendancePage() {
     const unsubAttendance = onAttendanceUpdate((records) => {
       const validRecords = records.filter(r => r.date && !isNaN(new Date(r.date).getTime()));
       setAttendance(validRecords);
-      if (validRecords.length > 0) {
-        const years = new Set(validRecords.map(r => new NepaliDate(new Date(r.date)).getYear()));
-        const sortedYears = Array.from(years).sort((a, b) => b - a);
-        setBsYears(sortedYears);
 
-        // Set initial filter only if not already set by user interaction
+      if (validRecords.length > 0) {
+        const years = Array.from(new Set(validRecords.map(r => new NepaliDate(new Date(r.date)).getYear()))).sort((a, b) => b - a);
+        setBsYears(years);
+
         if (!selectedBsYear && !selectedBsMonth) {
-          const latestRecord = validRecords.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+          const latestRecord = validRecords.reduce((latest, current) => 
+            new Date(current.date) > new Date(latest.date) ? current : latest
+          );
           if (latestRecord) {
             const latestNepaliDate = new NepaliDate(new Date(latestRecord.date));
             setSelectedBsYear(String(latestNepaliDate.getYear()));
@@ -116,8 +118,8 @@ export default function AttendancePage() {
         const headerMap: { [key: string]: number } = {};
         headerRow.forEach((header: any, index: number) => {
             const normalizedHeader = String(header).trim().toLowerCase();
-            if (normalizedHeader.includes('name')) headerMap['name'] = index;
-            if (normalizedHeader.includes('date')) headerMap['date'] = index;
+            if (normalizedHeader === 'name') headerMap['name'] = index;
+            if (normalizedHeader === 'date') headerMap['date'] = index;
             if (normalizedHeader.includes('on duty')) headerMap['onDuty'] = index;
             if (normalizedHeader.includes('off duty')) headerMap['offDuty'] = index;
             if (normalizedHeader.includes('clock in')) headerMap['clockIn'] = index;
@@ -612,3 +614,4 @@ export default function AttendancePage() {
   );
 
     
+
