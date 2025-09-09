@@ -56,11 +56,11 @@ function parseADDateLoose(input: string | Date): Date | null {
 
 function parseTimeAndCombine(baseDate: Date, timeStr: string | null | undefined): Date | null {
     if (!timeStr) return null;
-    const t = timeStr.trim();
+    const t = String(timeStr).trim();
     if (t === '-' || t === '') return null;
 
     // Handle different time formats
-    const formats = ['HH:mm:ss', 'HH:mm', 'h:mm:ss a', 'h:mm a'];
+    const formats = ['HH:mm:ss', 'HH:mm', 'h:mm:ss a', 'h:mm a', 'h:mm', 'H:mm'];
     for (const f of formats) {
         try {
             const parsedTime = parse(t, f, new Date());
@@ -71,6 +71,7 @@ function parseTimeAndCombine(baseDate: Date, timeStr: string | null | undefined)
     }
     return null;
 }
+
 
 /* =========================
    Core calculator
@@ -139,8 +140,8 @@ export function calculateAttendance(rows: RawAttendanceRow[]): CalcAttendanceRow
     const grossMinutes = differenceInMinutes(actOut, actIn);
     gross = Math.max(0, grossMinutes / 60);
     
-    regular = gross; // As per user request, regular hours are total hours worked.
-    ot = 0; // As per user request, OT is not auto-calculated here.
+    regular = gross;
+    ot = 0;
 
     return finalize(actIn, actOut);
   });
@@ -160,6 +161,6 @@ export function reprocessSingleRecord(raw: RawAttendanceRow): Partial<Attendance
     offDuty: raw.offDuty,
     clockIn: raw.clockIn,
     clockOut: raw.clockOut,
-    sourceSheet: raw.sourceSheet,
+    sourceSheet: raw.sourceSheet || null, // Ensure sourceSheet is null, not undefined
   };
 }
