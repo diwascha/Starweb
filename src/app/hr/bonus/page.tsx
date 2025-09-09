@@ -41,6 +41,7 @@ const customEmployeeOrder = [
 interface BonusCalculationResult {
     employeeId: string;
     employeeName: string;
+    joiningDate?: string; // ISO string
     presentDays: number;
     isEligible: boolean;
     bonusAmount: number;
@@ -124,6 +125,7 @@ export default function BonusPage() {
             return {
                 employeeId: employee.id,
                 employeeName: employee.name,
+                joiningDate: employee.joiningDate,
                 presentDays: presentDays,
                 isEligible: isEligible,
                 bonusAmount: isEligible ? bonusAmount : 0,
@@ -135,10 +137,20 @@ export default function BonusPage() {
             const indexB = customEmployeeOrder.indexOf(b.employeeName);
 
             if (indexA !== -1 && indexB !== -1) {
-                return indexA - indexB;
+                return indexA - indexB; // Both are in the custom list, sort by its order
             }
-            if (indexA !== -1) return -1;
-            if (indexB !== -1) return 1;
+            if (indexA !== -1) return -1; // Only A is in the list, so A comes first
+            if (indexB !== -1) return 1;  // Only B is in the list, so B comes first
+
+            // Neither are in the custom list, sort by joining date (seniority)
+            const dateA = a.joiningDate ? new Date(a.joiningDate).getTime() : 0;
+            const dateB = b.joiningDate ? new Date(b.joiningDate).getTime() : 0;
+
+            if (dateA !== dateB) {
+                return dateA - dateB; // Earlier date first
+            }
+
+            // As a fallback for same joining date, sort alphabetically
             return a.employeeName.localeCompare(b.employeeName);
         });
 
