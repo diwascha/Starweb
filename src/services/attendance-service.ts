@@ -35,10 +35,11 @@ export const getAttendance = async (): Promise<AttendanceRecord[]> => {
     return snapshot.docs.map(fromFirestore);
 };
 
-export const addAttendanceRecords = async (records: Omit<AttendanceRecord, 'id'>[]): Promise<void> => {
-    const batch = writeBatch(db);
+export const addAttendanceRecords = async (records: Omit<AttendanceRecord, 'id'>[], onProgress: (progress: number) => void): Promise<void> => {
+    let batch = writeBatch(db);
+    let operationCount = 0;
+    let progressCount = 0;
 
-    // Fetch existing records for the dates and employees being imported
     const dates = [...new Set(records.map(r => r.date))];
     if (dates.length === 0) return;
 
@@ -57,21 +58,32 @@ export const addAttendanceRecords = async (records: Omit<AttendanceRecord, 'id'>
         existingRecordsMap.set(key, { id: doc.id, data });
     });
 
-
-    records.forEach(record => {
+    for (const record of records) {
         const key = `${record.employeeName}-${record.date}`;
         const existing = existingRecordsMap.get(key);
 
         if (existing) {
-            // Update existing record
             batch.update(doc(attendanceCollection, existing.id), record);
         } else {
-            // Add new record
-            const docRef = doc(attendanceCollection); // Creates a new doc with a unique random ID
+            const docRef = doc(attendanceCollection);
             batch.set(docRef, record);
         }
-    });
-    await batch.commit();
+
+        operationCount++;
+        progressCount++;
+
+        if (operationCount >= 499) { // Firestore batch limit is 500
+            await batch.commit();
+            onProgress(progressCount);
+            batch = writeBatch(db);
+            operationCount = 0;
+        }
+    }
+
+    if (operationCount > 0) {
+        await batch.commit();
+        onProgress(progressCount);
+    }
 };
 
 export const updateAttendanceRecord = async (id: string, record: Partial<AttendanceRecord>): Promise<void> => {
@@ -126,7 +138,3 @@ export const onAttendanceUpdate = (callback: (records: AttendanceRecord[]) => vo
         callback(snapshot.docs.map(fromFirestore));
     });
 };
-
-    
-
-    
