@@ -42,13 +42,21 @@ const attendanceStatuses: AttendanceStatus[] = ['Present', 'Absent', 'C/I Miss',
 
 const formatTimeForDisplay = (timeString: string | null | undefined): string => {
     if (!timeString) return '-';
-    try {
-        // Assuming timeString is in 'HH:mm:ss' format as per our new logic
-        return timeString;
-    } catch {
-        // Fallback for any unexpected formats
+    // Check if it's already a simple time string like HH:mm:ss
+    if (/^\d{2}:\d{2}:\d{2}$/.test(timeString)) {
         return timeString;
     }
+    // Check if it's a full date string
+    try {
+        const date = new Date(timeString);
+        if (!isNaN(date.getTime())) {
+            return formatDate(date, 'HH:mm:ss');
+        }
+    } catch {
+        // Fallback for other unexpected formats
+        return timeString;
+    }
+    return timeString;
 };
 
 
