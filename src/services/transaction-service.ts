@@ -249,29 +249,33 @@ export const deleteTransaction = async (id: string): Promise<void> => {
 };
 
 export const deleteVoucher = async (voucherId: string): Promise<void> => {
-    let batch = writeBatch(db);
-    let writeCount = 0;
     const BATCH_LIMIT = 499;
-
+    
     if (voucherId.startsWith('legacy-')) {
         const docId = voucherId.replace('legacy-', '');
         const docRef = doc(db, 'transactions', docId);
-        batch.delete(docRef);
+        await deleteDoc(docRef);
     } else {
         const q = query(transactionsCollection, where("voucherId", "==", voucherId));
         const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) return;
+
+        let batch = writeBatch(db);
+        let writeCount = 0;
+
         for (const doc of querySnapshot.docs) {
+            batch.delete(doc.ref);
+            writeCount++;
             if (writeCount >= BATCH_LIMIT) {
                 await batch.commit();
                 batch = writeBatch(db);
                 writeCount = 0;
             }
-            batch.delete(doc.ref);
-            writeCount++;
         }
-    }
-    
-    if (writeCount > 0) {
-        await batch.commit();
+        
+        if (writeCount > 0) {
+            await batch.commit();
+        }
     }
 };
