@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import NepaliDate from 'nepali-date-converter';
 import { Badge } from '@/components/ui/badge';
 import { Award, CheckCircle, XCircle } from 'lucide-react';
+import { differenceInYears, endOfMonth } from 'date-fns';
 
 const nepaliMonths = [
     { value: 0, name: "Baishakh" }, { value: 1, name: "Jestha" }, { value: 2, name: "Ashadh" },
@@ -56,7 +57,6 @@ export default function BonusPage() {
     const [selectedBsYear, setSelectedBsYear] = useState<string>('');
     const [selectedBsMonth, setSelectedBsMonth] = useState<string>('');
     
-    const [bonusAmount, setBonusAmount] = useState<number>(1000);
     const [minPresentDays, setMinPresentDays] = useState<number>(26);
     
     const { toast } = useToast();
@@ -103,6 +103,12 @@ export default function BonusPage() {
 
         const year = parseInt(selectedBsYear, 10);
         const month = parseInt(selectedBsMonth, 10);
+        
+        // Determine the end date of the selected Nepali month for tenure calculation
+        const endOfBonusMonthNepali = new NepaliDate(month === 11 ? year + 1 : year, (month + 1) % 12, 1);
+        endOfBonusMonthNepali.setDate(endOfBonusMonthNepali.getDate() - 1);
+        const endOfBonusMonthAD = endOfBonusMonthNepali.toJsDate();
+
 
         const workingEmployees = employees.filter(e => e.status === 'Working');
 
@@ -119,8 +125,16 @@ export default function BonusPage() {
 
             const qualifyingStasuses: string[] = ['Present', 'Public Holiday', 'Saturday', 'EXTRAOK'];
             const presentDays = employeeAttendance.filter(r => qualifyingStasuses.includes(r.status)).length;
+            
+            // Tenure check
+            let tenureYears = 0;
+            if (employee.joiningDate) {
+                tenureYears = differenceInYears(endOfBonusMonthAD, new Date(employee.joiningDate));
+            }
 
-            const isEligible = presentDays >= minPresentDays;
+            const isEligibleByTenure = tenureYears >= 1;
+            const isEligibleByAttendance = presentDays >= minPresentDays;
+            const isEligible = isEligibleByTenure && isEligibleByAttendance;
             
             return {
                 employeeId: employee.id,
@@ -128,7 +142,7 @@ export default function BonusPage() {
                 joiningDate: employee.joiningDate,
                 presentDays: presentDays,
                 isEligible: isEligible,
-                bonusAmount: isEligible ? bonusAmount : 0,
+                bonusAmount: isEligible ? employee.wageAmount : 0,
             };
         });
         
@@ -156,7 +170,7 @@ export default function BonusPage() {
 
         return calculatedData;
 
-    }, [employees, attendance, selectedBsYear, selectedBsMonth, bonusAmount, minPresentDays]);
+    }, [employees, attendance, selectedBsYear, selectedBsMonth, minPresentDays]);
 
     const handleApplyBonuses = () => {
         // This is a placeholder for future functionality to apply bonuses to payroll.
@@ -191,15 +205,6 @@ export default function BonusPage() {
                             </Select>
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="bonus-amount">Bonus Amount (NPR)</Label>
-                            <Input 
-                                id="bonus-amount" 
-                                type="number" 
-                                value={bonusAmount}
-                                onChange={(e) => setBonusAmount(Number(e.target.value) || 0)}
-                            />
-                        </div>
-                        <div className="space-y-2">
                             <Label htmlFor="min-present-days">Minimum Present Days to Qualify</Label>
                              <Input 
                                 id="min-present-days" 
@@ -207,6 +212,14 @@ export default function BonusPage() {
                                 value={minPresentDays}
                                 onChange={(e) => setMinPresentDays(Number(e.target.value) || 0)}
                             />
+                        </div>
+                        <div className="text-sm text-muted-foreground p-3 bg-muted/50 rounded-lg">
+                           <p className="font-semibold">Bonus Rules:</p>
+                           <ul className="list-disc pl-5 mt-1 space-y-1">
+                               <li>Employee tenure must be at least 1 year.</li>
+                               <li>Bonus amount equals one month's salary.</li>
+                               <li>Must meet minimum present days for the month.</li>
+                           </ul>
                         </div>
                     </CardContent>
                 </Card>
