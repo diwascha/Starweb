@@ -54,7 +54,7 @@ export function generatePayrollAndAnalytics(
             const daysInMonth = (new NepaliDate(nextMonthFirstDay.valueOf() - (24*60*60*1000))).getDate();
 
             const dailyRate = monthlySalary / daysInMonth;
-            const hourlyRate = dailyRate / 8;
+            const hourlyRate = dailyRate / 8; // Standard 8 hours for rate calculation
             rate = hourlyRate;
 
             regularPay = regularHours * hourlyRate;

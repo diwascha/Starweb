@@ -143,21 +143,8 @@ export function calculateAttendance(rows: RawAttendanceRow[]): CalcAttendanceRow
       return finalize();
     }
     
-    // Handle special statuses first
-    if (isAbsent) {
-      return finalize();
-    }
-    
-    if (isPublic) {
-        regular = 0;
-        gross = 0;
+    if (isAbsent || isPublic || isSaturdayAD) {
         return finalize();
-    }
-    
-    if (isSaturdayAD) {
-       regular = 0;
-       gross = 0;
-       return finalize();
     }
 
 
