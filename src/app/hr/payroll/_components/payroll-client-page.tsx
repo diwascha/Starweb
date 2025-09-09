@@ -84,7 +84,7 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
                     const sortedYears = Array.from(years).sort((a, b) => b - a);
                     setBsYears(sortedYears);
                     
-                    if (!selectedBsYear && !selectedBsMonth) {
+                    if (!selectedBsYear) { // Set initial filter only once
                         const latestRecord = validRecords.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
                         const latestNepaliDate = new NepaliDate(new Date(latestRecord.date));
                         setSelectedBsYear(String(latestNepaliDate.getYear()));
@@ -98,7 +98,7 @@ export default function PayrollClientPage({ initialEmployees, initialAttendance 
             unsubEmployees();
             unsubAttendance();
         }
-    }, []);
+    }, [selectedBsYear]); // Depend on selectedBsYear to prevent re-running unnecessarily
 
     useEffect(() => {
         if (selectedBsYear && selectedBsMonth && employees.length > 0) {

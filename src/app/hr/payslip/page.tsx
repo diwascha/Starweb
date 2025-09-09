@@ -71,8 +71,9 @@ export default function PayslipPage() {
                 const sortedYears = Array.from(years).sort((a, b) => b - a);
                 setBsYears(sortedYears);
                 
-                if (!selectedBsYear) {
-                    const latestNepaliDate = new NepaliDate(new Date());
+                if (!selectedBsYear) { // Set initial filter only once
+                    const latestRecord = validRecords.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+                    const latestNepaliDate = new NepaliDate(new Date(latestRecord.date));
                     setSelectedBsYear(String(latestNepaliDate.getYear()));
                     setSelectedBsMonth(String(latestNepaliDate.getMonth()));
                 }
@@ -83,7 +84,7 @@ export default function PayslipPage() {
             unsubEmployees();
             unsubAttendance();
         }
-    }, []);
+    }, [selectedBsYear]); // Depend on selectedBsYear to prevent re-running unnecessarily
 
     const handleGeneratePayslips = () => {
         if (selectedBsYear && selectedBsMonth && employees.length > 0) {
