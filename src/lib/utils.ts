@@ -5,6 +5,7 @@ import { twMerge } from "tailwind-merge"
 import type { Report, PurchaseOrder, PurchaseOrderStatus, AttendanceStatus, User, Transaction, DocumentPrefixes, Trip } from './types';
 import NepaliDate from 'nepali-date-converter';
 import { getSetting } from "@/services/settings-service";
+import { format, parse } from 'date-fns';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -152,4 +153,31 @@ export const toNepaliDate = (isoDate: string): string => {
     }
 };
 
+export const formatTimeForDisplay = (timeString: string | null | undefined): string => {
+    if (!timeString) return '-';
+    // Check if it's already a simple time string like HH:mm:ss
+    if (/^\d{2}:\d{2}:\d{2}$/.test(timeString)) {
+        return timeString;
+    }
+    // Check if it's a full date string
+    try {
+        const date = new Date(timeString);
+        if (!isNaN(date.getTime())) {
+            return format(date, 'HH:mm:ss');
+        }
+    } catch {
+        // Fallback for other unexpected formats, like just "HH:mm"
+        try {
+            const parsed = parse(timeString, 'HH:mm', new Date());
+            if (!isNaN(parsed.getTime())) {
+                return format(parsed, 'HH:mm:ss');
+            }
+        } catch {
+            return timeString; // Return original string if all parsing fails
+        }
+    }
+    return timeString;
+};
+
     
+
