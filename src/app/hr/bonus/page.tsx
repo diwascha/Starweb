@@ -80,7 +80,7 @@ export default function BonusPage() {
                     const sortedYears = Array.from(years).sort((a, b) => b - a);
                     setBsYears(sortedYears);
                     
-                    if (!selectedBsYear) { // Set initial filter only once
+                    if (!selectedBsYear) {
                         const latestRecord = validRecords.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
                         const latestNepaliDate = new NepaliDate(new Date(latestRecord.date));
                         setSelectedBsYear(String(latestNepaliDate.getYear()));
@@ -95,7 +95,7 @@ export default function BonusPage() {
             unsubEmployees();
             unsubAttendance();
         }
-    }, [selectedBsYear]); // Depend on selectedBsYear to prevent re-running unnecessarily
+    }, []);
 
     const bonusData = useMemo((): BonusCalculationResult[] => {
         if (!selectedBsYear || !selectedBsMonth) {
@@ -105,7 +105,6 @@ export default function BonusPage() {
         const year = parseInt(selectedBsYear, 10);
         const month = parseInt(selectedBsMonth, 10);
         
-        // Determine the end date of the selected Nepali month for tenure calculation
         const endOfBonusMonthNepali = new NepaliDate(month === 11 ? year + 1 : year, (month + 1) % 12, 1);
         endOfBonusMonthNepali.setDate(endOfBonusMonthNepali.getDate() - 1);
         const endOfBonusMonthAD = endOfBonusMonthNepali.toJsDate();
@@ -127,7 +126,6 @@ export default function BonusPage() {
             const qualifyingStasuses: string[] = ['Present', 'Public Holiday', 'Saturday', 'EXTRAOK'];
             const presentDays = employeeAttendance.filter(r => qualifyingStasuses.includes(r.status)).length;
             
-            // Tenure check
             let tenureYears = 0;
             if (employee.joiningDate) {
                 tenureYears = differenceInYears(endOfBonusMonthAD, new Date(employee.joiningDate));
@@ -152,20 +150,18 @@ export default function BonusPage() {
             const indexB = customEmployeeOrder.indexOf(b.employeeName);
 
             if (indexA !== -1 && indexB !== -1) {
-                return indexA - indexB; // Both are in the custom list, sort by its order
+                return indexA - indexB;
             }
-            if (indexA !== -1) return -1; // Only A is in the list, so A comes first
-            if (indexB !== -1) return 1;  // Only B is in the list, so B comes first
+            if (indexA !== -1) return -1;
+            if (indexB !== -1) return 1;
 
-            // Neither are in the custom list, sort by joining date (seniority)
             const dateA = a.joiningDate ? new Date(a.joiningDate).getTime() : 0;
             const dateB = b.joiningDate ? new Date(b.joiningDate).getTime() : 0;
 
             if (dateA !== dateB) {
-                return dateA - dateB; // Earlier date first
+                return dateA - dateB;
             }
 
-            // As a fallback for same joining date, sort alphabetically
             return a.employeeName.localeCompare(b.employeeName);
         });
 
@@ -174,7 +170,6 @@ export default function BonusPage() {
     }, [employees, attendance, selectedBsYear, selectedBsMonth, minPresentDays]);
 
     const handleApplyBonuses = () => {
-        // This is a placeholder for future functionality to apply bonuses to payroll.
         toast({
             title: "Functionality Coming Soon",
             description: "Applying bonuses directly to payroll is under development."
