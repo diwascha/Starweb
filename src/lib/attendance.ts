@@ -13,12 +13,6 @@ import NepaliDate from 'nepali-date-converter';
 import type { AttendanceRecord, AttendanceStatus, RawAttendanceRow } from './types';
 
 /* =========================
-   Config / policy constants
-   ========================= */
-const BASE_DAY_HOURS = 8;
-
-
-/* =========================
    Types
    ========================= */
 
@@ -60,32 +54,22 @@ function parseADDateLoose(input: string | Date): Date | null {
   return null;
 }
 
-type HMS = { hours: number; minutes: number; seconds: number };
+function parseTimeAndCombine(baseDate: Date, timeStr: string | null | undefined): Date | null {
+    if (!timeStr) return null;
+    const t = timeStr.trim();
+    if (t === '-' || t === '') return null;
 
-function parseTimeLoose(s?: string | null): HMS | null {
-  if (!s) return null;
-  const t = s.trim();
-  if (t === '-' || t === '') return null;
-
-  // Added HH:mm at a higher priority
-  const fmts = ['HH:mm', 'H:mm', 'HH:mm:ss', 'H:mm:ss', 'h:mm:ss a', 'h:mm a'];
-  for (const f of fmts) {
-    try {
-      const d = parse(t, f, new Date());
-      if (!isNaN(d.getTime())) return { hours: d.getHours(), minutes: d.getMinutes(), seconds: d.getSeconds() };
-    } catch {}
-  }
-  return null;
-}
-
-
-function combine(base: Date, t: HMS | null): Date | null {
-  if (!t) return null;
-  return setSeconds(setMinutes(setHours(startOfDay(base), t.hours), t.minutes), t.seconds);
-}
-
-function adaptWebRow(row: RawAttendanceRow) {
-  return row;
+    // Handle different time formats
+    const formats = ['HH:mm:ss', 'HH:mm', 'h:mm:ss a', 'h:mm a'];
+    for (const f of formats) {
+        try {
+            const parsedTime = parse(t, f, new Date());
+            if (!isNaN(parsedTime.getTime())) {
+                return setSeconds(setMinutes(setHours(baseDate, parsedTime.getHours()), parsedTime.getMinutes()), parsedTime.getSeconds());
+            }
+        } catch {}
+    }
+    return null;
 }
 
 /* =========================
@@ -93,9 +77,7 @@ function adaptWebRow(row: RawAttendanceRow) {
    ========================= */
 export function calculateAttendance(rows: RawAttendanceRow[]): CalcAttendanceRow[] {
 
-  return rows.map((r0): CalcAttendanceRow => {
-    const row = adaptWebRow(r0);
-
+  return rows.map((row): CalcAttendanceRow => {
     const ad = parseADDateLoose(row.dateAD);
     const dateBS = ad ? toBSString(ad) : '';
     const weekday = ad ? ad.getDay() : -1;
@@ -105,17 +87,11 @@ export function calculateAttendance(rows: RawAttendanceRow[]): CalcAttendanceRow
     const isAbsent = status === 'ABSENT' || status === 'TRUE';
     const isPublic = status.startsWith('PUBLIC');
 
-    const cIn = parseTimeLoose(row.clockIn);
-    const cOut = parseTimeLoose(row.clockOut);
-
-    const actIn = ad ? combine(ad, cIn) : null;
-    let actOut = ad ? combine(ad, cOut) : null;
-
     let gross = 0, regular = 0, ot = 0;
     let remarks = '';
     
     // Finalize with default values
-    const finalize = (): CalcAttendanceRow => {
+    const finalize = (actIn: Date | null, actOut: Date | null): CalcAttendanceRow => {
       const isAdValid = ad && !isNaN(ad.getTime());
       
       let finalStatus: AttendanceStatus = 'Present';
@@ -141,29 +117,32 @@ export function calculateAttendance(rows: RawAttendanceRow[]): CalcAttendanceRow
 
     if (!ad || isNaN(ad.getTime())) {
       remarks = 'Missing or invalid date';
-      return finalize();
+      return finalize(null, null);
     }
     
     if (isAbsent || isPublic || isSaturdayAD) {
-        return finalize();
+        return finalize(null, null);
     }
+    
+    const actIn = parseTimeAndCombine(ad, row.clockIn);
+    let actOut = parseTimeAndCombine(ad, row.clockOut);
 
-
-    // Normal Workday
     if (!actIn || !actOut) {
       remarks = !actIn && !actOut ? 'Missing punches' : (!actIn ? 'C/I Miss' : 'C/O Miss');
-      return finalize();
+      return finalize(actIn, actOut);
     }
 
-    if (isAfter(actIn, actOut)) actOut = new Date(actOut.getTime() + 24 * 60 * 60 * 1000);
+    if (isAfter(actIn, actOut)) {
+      actOut = new Date(actOut.getTime() + 24 * 60 * 60 * 1000); // Handle overnight shifts
+    }
 
     const grossMinutes = differenceInMinutes(actOut, actIn);
     gross = Math.max(0, grossMinutes / 60);
     
-    regular = gross;
-    ot = 0;
+    regular = gross; // As per user request, regular hours are total hours worked.
+    ot = 0; // As per user request, OT is not auto-calculated here.
 
-    return finalize();
+    return finalize(actIn, actOut);
   });
 }
 
