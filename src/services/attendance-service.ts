@@ -35,7 +35,7 @@ export const getAttendance = async (): Promise<AttendanceRecord[]> => {
 };
 
 export const addAttendanceRecords = async (records: Omit<AttendanceRecord, 'id'>[], onProgress: (progress: number) => void): Promise<void> => {
-    const CHUNK_SIZE = 499; // Firestore batch write limit is 500 operations
+    const CHUNK_SIZE = 400; // Use a safe chunk size of 400
     let progressCount = 0;
 
     for (let i = 0; i < records.length; i += CHUNK_SIZE) {
@@ -61,7 +61,7 @@ export const updateAttendanceRecord = async (id: string, record: Partial<Attenda
 };
 
 export const batchUpdateAttendance = async (updates: { id: string; updates: Partial<AttendanceRecord> }[]): Promise<void> => {
-    const CHUNK_SIZE = 499;
+    const CHUNK_SIZE = 400; // Use a safe chunk size of 400
     for (let i = 0; i < updates.length; i += CHUNK_SIZE) {
         const chunk = updates.slice(i, i + CHUNK_SIZE);
         const batch = writeBatch(db);
@@ -95,7 +95,7 @@ export const deleteAttendanceForMonth = async (bsYear: number, bsMonth: number):
         return;
     }
 
-    const CHUNK_SIZE = 499;
+    const CHUNK_SIZE = 400; // Use a safe chunk size of 400
     for (let i = 0; i < recordsToDelete.length; i += CHUNK_SIZE) {
         const chunk = recordsToDelete.slice(i, i + CHUNK_SIZE);
         const batch = writeBatch(db);
@@ -115,4 +115,5 @@ export const onAttendanceUpdate = (callback: (records: AttendanceRecord[]) => vo
         callback(snapshot.docs.map(fromFirestore));
     });
 };
+
 
