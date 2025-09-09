@@ -36,55 +36,81 @@ export const getAttendance = async (): Promise<AttendanceRecord[]> => {
 };
 
 export const addAttendanceRecords = async (records: Omit<AttendanceRecord, 'id'>[], onProgress: (progress: number) => void): Promise<void> => {
-    let batch = writeBatch(db);
-    let operationCount = 0;
+    const CHUNK_SIZE = 200; // Process records in chunks
     let progressCount = 0;
 
-    const dates = [...new Set(records.map(r => r.date))];
-    if (dates.length === 0) return;
+    for (let i = 0; i < records.length; i += CHUNK_SIZE) {
+        const chunk = records.slice(i, i + CHUNK_SIZE);
+        
+        const dates = [...new Set(chunk.map(r => r.date))];
+        if (dates.length === 0) continue;
 
-    const employeeNames = [...new Set(records.map(r => r.employeeName))];
-    
-    const existingRecordsQuery = query(
-        attendanceCollection,
-        where('date', 'in', dates),
-        where('employeeName', 'in', employeeNames)
-    );
-    const snapshot = await getDocs(existingRecordsQuery);
-    const existingRecordsMap = new Map<string, { id: string, data: AttendanceRecord }>();
-    snapshot.docs.forEach(doc => {
-        const data = fromFirestore(doc);
-        const key = `${data.employeeName}-${data.date}`;
-        existingRecordsMap.set(key, { id: doc.id, data });
-    });
+        const employeeNames = [...new Set(chunk.map(r => r.employeeName))];
+        if (employeeNames.length === 0) continue;
 
-    for (const record of records) {
-        const key = `${record.employeeName}-${record.date}`;
-        const existing = existingRecordsMap.get(key);
-
-        if (existing) {
-            batch.update(doc(attendanceCollection, existing.id), record);
-        } else {
-            const docRef = doc(attendanceCollection);
-            batch.set(docRef, record);
+        // Firestore 'in' query has a limit of 30 values. We need to handle this.
+        // We'll query for dates and names separately if either exceeds the limit, although chunking should prevent this.
+        const dateChunks = [];
+        for (let j = 0; j < dates.length; j += 30) {
+            dateChunks.push(dates.slice(j, j + 30));
         }
 
-        operationCount++;
-        progressCount++;
+        const employeeNameChunks = [];
+        for (let j = 0; j < employeeNames.length; j += 30) {
+            employeeNameChunks.push(employeeNames.slice(j, j + 30));
+        }
+        
+        const existingRecordsMap = new Map<string, { id: string, data: AttendanceRecord }>();
 
-        if (operationCount >= 499) { // Firestore batch limit is 500
+        // Query for existing records in chunks to avoid the 30-value limit
+        for (const dateChunk of dateChunks) {
+            for (const nameChunk of employeeNameChunks) {
+                 const existingRecordsQuery = query(
+                    attendanceCollection,
+                    where('date', 'in', dateChunk),
+                    where('employeeName', 'in', nameChunk)
+                );
+                const snapshot = await getDocs(existingRecordsQuery);
+                 snapshot.docs.forEach(doc => {
+                    const data = fromFirestore(doc);
+                    const key = `${data.employeeName}-${data.date}`;
+                    existingRecordsMap.set(key, { id: doc.id, data });
+                });
+            }
+        }
+        
+        let batch = writeBatch(db);
+        let operationCount = 0;
+
+        for (const record of chunk) {
+            const key = `${record.employeeName}-${record.date}`;
+            const existing = existingRecordsMap.get(key);
+
+            if (existing) {
+                batch.update(doc(attendanceCollection, existing.id), record);
+            } else {
+                const docRef = doc(attendanceCollection);
+                batch.set(docRef, record);
+            }
+
+            operationCount++;
+
+            if (operationCount >= 499) { // Firestore batch write limit
+                await batch.commit();
+                batch = writeBatch(db);
+                operationCount = 0;
+            }
+        }
+        
+        if (operationCount > 0) {
             await batch.commit();
-            onProgress(progressCount);
-            batch = writeBatch(db);
-            operationCount = 0;
         }
-    }
-
-    if (operationCount > 0) {
-        await batch.commit();
+        
+        progressCount += chunk.length;
         onProgress(progressCount);
     }
 };
+
 
 export const updateAttendanceRecord = async (id: string, record: Partial<AttendanceRecord>): Promise<void> => {
     const recordDoc = doc(db, 'attendance', id);
