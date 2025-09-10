@@ -78,7 +78,7 @@ export default function PayrollClientPage() {
             unsubEmployees();
             unsubPayroll();
         }
-    }, [selectedBsYear]);
+    }, []); // Changed dependency array to fix bug
     
     const monthlyPayroll = useMemo(() => {
         if (!selectedBsYear || !selectedBsMonth) return [];

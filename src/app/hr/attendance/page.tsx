@@ -125,7 +125,7 @@ export default function AttendancePage() {
     return () => {
         unsubEmployees();
     }
-  }, [selectedBsYear]);
+  }, []); // Changed dependency array to fix bug
   
   useEffect(() => {
     fetchAttendanceData();

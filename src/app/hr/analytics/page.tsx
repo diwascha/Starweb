@@ -46,7 +46,8 @@ export default function AnalyticsPage() {
                 const sortedYears = Array.from(years).sort((a, b) => b - a);
                 setBsYears(sortedYears);
                 
-                if (!selectedBsYear) {
+                // Set default year/month only if they are not already set
+                if (!selectedBsYear && sortedYears.length > 0) {
                     const latestRecord = validRecords.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
                     const latestNepaliDate = new NepaliDate(new Date(latestRecord.date));
                     setSelectedBsYear(String(latestNepaliDate.getYear()));
@@ -59,7 +60,7 @@ export default function AnalyticsPage() {
             unsubEmployees();
             unsubAttendance();
         }
-    }, [selectedBsYear]);
+    }, []); // Removed selectedBsYear from dependency array to fix bug
 
     const handleGenerateAnalytics = () => {
         if (selectedBsYear && selectedBsMonth && employees.length > 0) {

@@ -56,7 +56,7 @@ export default function PayslipPage() {
             unsubEmployees();
             unsubPayroll();
         }
-    }, [selectedBsYear]);
+    }, []); // Changed dependency array to fix bug
 
     const filteredPayroll = useMemo(() => {
         if (!selectedBsYear || !selectedBsMonth) return [];

@@ -73,7 +73,7 @@ export default function BonusPage() {
                     const sortedYears = Array.from(years).sort((a, b) => b - a);
                     setBsYears(sortedYears);
                     
-                    if (!selectedBsYear) {
+                    if (!selectedBsYear && sortedYears.length > 0) {
                         const latestRecord = validRecords.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
                         const latestNepaliDate = new NepaliDate(new Date(latestRecord.date));
                         setSelectedBsYear(String(latestNepaliDate.getYear()));
@@ -88,7 +88,7 @@ export default function BonusPage() {
             unsubEmployees();
             unsubAttendance();
         }
-    }, [selectedBsYear]);
+    }, []); // Changed dependency array to fix bug
 
     const bonusData = useMemo((): BonusCalculationResult[] => {
         if (!selectedBsYear || !selectedBsMonth) {
