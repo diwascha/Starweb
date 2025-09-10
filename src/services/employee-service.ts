@@ -6,6 +6,22 @@ import { deleteFile } from './storage-service';
 
 const employeesCollection = collection(db, 'employees');
 
+const isValidEmployeeName = (name: string): boolean => {
+    if (!name || typeof name !== 'string') return false;
+    const trimmedName = name.trim();
+    if (trimmedName.length === 0) return false;
+
+    // Reject names that are just numbers or look like dates/times
+    if (/^\d+$/.test(trimmedName)) return false;
+    if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(trimmedName)) return false; // HH:mm:ss
+    if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(trimmedName)) return false; // MM/DD/YYYY
+    if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(trimmedName)) return false; // YYYY-MM-DD
+    if (trimmedName.toLowerCase().includes('gmt')) return false; // Full date strings
+
+    return true;
+};
+
+
 const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentData): Employee => {
     const data = snapshot.data();
     return {
@@ -35,14 +51,15 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
 
 export const getEmployees = async (): Promise<Employee[]> => {
     const snapshot = await getDocs(employeesCollection);
-    return snapshot.docs.map(fromFirestore);
+    return snapshot.docs.map(fromFirestore).filter(emp => isValidEmployeeName(emp.name));
 };
 
 export const getEmployee = async (id: string): Promise<Employee | null> => {
     const employeeDoc = doc(db, 'employees', id);
     const docSnap = await getDoc(employeeDoc);
     if (docSnap.exists()) {
-        return fromFirestore(docSnap);
+        const employee = fromFirestore(docSnap);
+        return isValidEmployeeName(employee.name) ? employee : null;
     }
     return null;
 };
@@ -58,7 +75,8 @@ export const addEmployee = async (employee: Omit<Employee, 'id'>): Promise<strin
 
 export const onEmployeesUpdate = (callback: (employees: Employee[]) => void): () => void => {
     return onSnapshot(employeesCollection, (snapshot) => {
-        callback(snapshot.docs.map(fromFirestore));
+        const validEmployees = snapshot.docs.map(fromFirestore).filter(emp => isValidEmployeeName(emp.name));
+        callback(validEmployees);
     });
 };
 
