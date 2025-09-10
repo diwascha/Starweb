@@ -55,7 +55,6 @@ export default function AttendancePage() {
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'employeeName', direction: 'asc' });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
-  const [isClient, setIsClient] = useState(false);
   const { hasPermission, user } = useAuth();
   
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
@@ -104,12 +103,11 @@ export default function AttendancePage() {
   }, [selectedBsYear, selectedBsMonth, toast]);
 
   useEffect(() => {
-    setIsClient(true);
     const unsubEmployees = onEmployeesUpdate(setEmployees);
 
     getAttendanceYears().then(years => {
       setBsYears(years);
-      if (years.length > 0) {
+      if (years.length > 0 && selectedBsYear === '') {
         const currentNepaliDate = new NepaliDate();
         const currentYear = currentNepaliDate.getYear();
         if (years.includes(currentYear)) {
@@ -119,17 +117,21 @@ export default function AttendancePage() {
           setSelectedBsYear(String(years[0]));
           setSelectedBsMonth('0'); 
         }
+      } else if (years.length === 0) {
+        setIsDataLoading(false);
       }
     });
 
     return () => {
         unsubEmployees();
     }
-  }, []);
+  }, [attendance, selectedBsYear]);
   
   useEffect(() => {
-    fetchAttendanceData();
-  }, [fetchAttendanceData]);
+    if (selectedBsYear && selectedBsMonth) {
+      fetchAttendanceData();
+    }
+  }, [fetchAttendanceData, selectedBsYear, selectedBsMonth]);
   
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -441,7 +443,7 @@ export default function AttendancePage() {
   }, [employees]);
   
   const renderContent = () => {
-    if (!isClient || isDataLoading) return <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24"><h3 className="text-2xl font-bold tracking-tight">Loading...</h3></div>;
+    if (isDataLoading) return <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24"><h3 className="text-2xl font-bold tracking-tight">Loading...</h3></div>;
     
     if (attendance.length === 0) {
       return (
@@ -536,7 +538,7 @@ export default function AttendancePage() {
         </div>
       </header>
 
-      {attendance.length > 0 && (
+      {(attendance.length > 0 || !isDataLoading) && (
           <div className="flex flex-col sm:flex-row flex-wrap gap-2 items-center">
               <Label>Filter by:</Label>
               <Select value={selectedBsYear} onValueChange={setSelectedBsYear}><SelectTrigger className="w-full sm:w-[120px]"><SelectValue placeholder="Year (BS)" /></SelectTrigger><SelectContent>{bsYears.map(year => (<SelectItem key={year} value={String(year)}>{year}</SelectItem>))}</SelectContent></Select>

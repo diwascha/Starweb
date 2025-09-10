@@ -44,7 +44,6 @@ const customEmployeeOrder = [
 export default function PayrollClientPage() {
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [allPayroll, setAllPayroll] = useState<Payroll[]>([]);
-    const [isClient, setIsClient] = useState(false);
     const [bsYears, setBsYears] = useState<number[]>([]);
     const [selectedBsYear, setSelectedBsYear] = useState<string>('');
     const [selectedBsMonth, setSelectedBsMonth] = useState<string>('');
@@ -56,40 +55,34 @@ export default function PayrollClientPage() {
 
 
     useEffect(() => {
-        setIsClient(true);
         const unsubEmployees = onEmployeesUpdate(setEmployees);
+        
         const unsubPayroll = onPayrollUpdate(payrollData => {
             setAllPayroll(payrollData);
-            // Re-calculate available years whenever payroll data changes
-            const years = new Set(payrollData.map(r => r.bsYear));
-            const sortedYears = Array.from(years).sort((a, b) => b - a);
-            setBsYears(sortedYears);
+            const years = Array.from(new Set(payrollData.map(r => r.bsYear))).sort((a, b) => b - a);
+            setBsYears(years);
             
-            // If no year is selected, or if the selected year is no longer valid, pick a new default
-            if (sortedYears.length > 0 && (!selectedBsYear || !sortedYears.includes(parseInt(selectedBsYear, 10)))) {
-                const latestYear = sortedYears[0];
+            // Set default year and month only once after initial data load
+            if (years.length > 0 && selectedBsYear === '') {
+                const latestYear = years[0];
                 const latestRecordForYear = payrollData
                     .filter(p => p.bsYear === latestYear)
                     .sort((a,b) => b.bsMonth - a.bsMonth)[0];
                 
                 setSelectedBsYear(String(latestYear));
                 setSelectedBsMonth(String(latestRecordForYear?.bsMonth || 0));
-            } else if (sortedYears.length === 0) {
-                // If no data, reset selectors
-                setSelectedBsYear('');
-                setSelectedBsMonth('');
             }
+            setIsLoading(false);
         });
 
         return () => {
             unsubEmployees();
             unsubPayroll();
         }
-    }, []); 
+    }, [selectedBsYear]); 
     
     const monthlyPayroll = useMemo(() => {
-        if (!selectedBsYear || !selectedBsMonth) return [];
-        setIsLoading(true);
+        if (!selectedBsYear || !selectedBsMonth || isLoading) return [];
 
         const year = parseInt(selectedBsYear);
         const month = parseInt(selectedBsMonth);
@@ -105,9 +98,8 @@ export default function PayrollClientPage() {
             return a.employeeName.localeCompare(b.employeeName);
         });
         
-        setIsLoading(false);
         return filtered;
-    }, [allPayroll, selectedBsYear, selectedBsMonth]);
+    }, [allPayroll, selectedBsYear, selectedBsMonth, isLoading]);
 
 
     const totals = useMemo(() => {

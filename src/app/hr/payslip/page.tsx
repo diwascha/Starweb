@@ -40,7 +40,7 @@ export default function PayslipPage() {
         
         getPayrollYears().then(years => {
             setBsYears(years);
-            if (years.length > 0) {
+            if (years.length > 0 && selectedBsYear === '') {
                 const currentNepaliDate = new NepaliDate();
                 const currentYear = currentNepaliDate.getYear();
                 if (years.includes(currentYear)) {
@@ -57,7 +57,7 @@ export default function PayslipPage() {
             unsubEmployees();
             unsubPayroll();
         }
-    }, []);
+    }, [allPayroll, selectedBsYear]);
 
     const filteredPayroll = useMemo(() => {
         if (!selectedBsYear || !selectedBsMonth) return [];

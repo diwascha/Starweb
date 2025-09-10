@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -10,7 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { BarChart2, Loader2, Download } from 'lucide-react';
 import NepaliDate from 'nepali-date-converter';
 import { onEmployeesUpdate } from '@/services/employee-service';
-import { onAttendanceUpdate } from '@/services/attendance-service';
+import { onAttendanceUpdate, getAttendanceYears } from '@/services/attendance-service';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { generateAnalyticsForMonth, AnalyticsData } from '@/services/payroll-service';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -37,21 +38,19 @@ export default function AnalyticsPage() {
 
     useEffect(() => {
         const unsubEmployees = onEmployeesUpdate(setEmployees);
-        const unsubAttendance = onAttendanceUpdate((records) => {
-            const validRecords = records.filter(r => r.date && !isNaN(new Date(r.date).getTime()));
-            setAttendance(validRecords);
-            
-            if (validRecords.length > 0) {
-                const years = new Set(validRecords.map(r => new NepaliDate(new Date(r.date)).getYear()));
-                const sortedYears = Array.from(years).sort((a, b) => b - a);
-                setBsYears(sortedYears);
-                
-                // Set default year/month only if they are not already set
-                if (!selectedBsYear && sortedYears.length > 0) {
-                    const latestRecord = validRecords.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+        const unsubAttendance = onAttendanceUpdate(setAttendance);
+
+        getAttendanceYears().then(years => {
+            setBsYears(years);
+            if (years.length > 0 && selectedBsYear === '') {
+                const latestRecord = attendance.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+                if (latestRecord) {
                     const latestNepaliDate = new NepaliDate(new Date(latestRecord.date));
                     setSelectedBsYear(String(latestNepaliDate.getYear()));
                     setSelectedBsMonth(String(latestNepaliDate.getMonth()));
+                } else {
+                    setSelectedBsYear(String(years[0]));
+                    setSelectedBsMonth('0');
                 }
             }
         });
@@ -60,7 +59,7 @@ export default function AnalyticsPage() {
             unsubEmployees();
             unsubAttendance();
         }
-    }, []); // Removed selectedBsYear from dependency array to fix bug
+    }, [attendance, selectedBsYear]);
 
     const handleGenerateAnalytics = () => {
         if (selectedBsYear && selectedBsMonth && employees.length > 0) {

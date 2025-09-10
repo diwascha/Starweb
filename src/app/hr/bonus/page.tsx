@@ -69,7 +69,7 @@ export default function BonusPage() {
 
         getAttendanceYears().then(years => {
             setBsYears(years);
-            if (years.length > 0) {
+            if (years.length > 0 && selectedBsYear === '') {
                 const currentNepaliDate = new NepaliDate();
                 const currentYear = currentNepaliDate.getYear();
                 if (years.includes(currentYear)) {
@@ -80,14 +80,14 @@ export default function BonusPage() {
                     setSelectedBsMonth('0');
                 }
             }
+            setIsLoading(false);
         });
 
-        setIsLoading(false);
         return () => {
             unsubEmployees();
             unsubAttendance();
         }
-    }, []);
+    }, [attendance, selectedBsYear]);
 
     const bonusData = useMemo((): BonusCalculationResult[] => {
         if (!selectedBsYear || !selectedBsMonth) {
