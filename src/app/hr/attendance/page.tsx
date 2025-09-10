@@ -69,8 +69,7 @@ export default function AttendancePage() {
   
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
-  const [editForm, setEditForm] = useState({ onDuty: '', offDuty: '', clockIn: '', clockOut: '', status: '' as AttendanceStatus });
-  const [isRecalculating, setIsRecalculating] = useState(false);
+  const [editForm, setEditForm] = useState({ onDuty: '', offDuty: '', clockIn: '', clockOut: '', status: '' as AttendanceStatus, regularHours: 0, overtimeHours: 0 });
   const [isDataLoading, setIsDataLoading] = useState(true);
 
   const [isSheetSelectDialogOpen, setIsSheetSelectDialogOpen] = useState(false);
@@ -133,45 +132,6 @@ export default function AttendancePage() {
     fetchAttendanceData();
   }, [fetchAttendanceData]);
   
-  const handleRecalculate = async () => {
-    setIsRecalculating(true);
-    toast({ title: 'Recalculating...', description: `Processing ${filteredAndSortedRecords.length} records.` });
-
-    try {
-        const rawRows: RawAttendanceRow[] = filteredAndSortedRecords.map(r => ({
-            employeeName: r.employeeName,
-            dateAD: r.date,
-            onDuty: r.onDuty,
-            offDuty: r.offDuty,
-            clockIn: r.clockIn,
-            clockOut: r.clockOut,
-            status: r.status,
-            remarks: r.remarks,
-            sourceSheet: r.sourceSheet
-        }));
-
-        const reprocessedRecords = calculateAttendance(rawRows);
-
-        const updates = reprocessedRecords.map((reprocessed, index) => {
-            const originalRecord = filteredAndSortedRecords[index];
-            return {
-                id: originalRecord.id,
-                updates: reprocessSingleRecord(reprocessed),
-            };
-        });
-
-        await batchUpdateAttendance(updates);
-        await fetchAttendanceData(); // Refetch data after update
-
-        toast({ title: 'Success', description: `${updates.length} records have been recalculated and updated.` });
-    } catch (error) {
-        console.error("Recalculation failed:", error);
-        toast({ title: 'Error', description: 'An error occurred during recalculation.', variant: 'destructive' });
-    } finally {
-        setIsRecalculating(false);
-    }
-  };
-
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -346,7 +306,9 @@ export default function AttendancePage() {
     setEditForm({
         onDuty: record.onDuty || '', offDuty: record.offDuty || '',
         clockIn: record.clockIn || '', clockOut: record.clockOut || '',
-        status: record.status
+        status: record.status,
+        regularHours: record.regularHours,
+        overtimeHours: record.overtimeHours
     });
     setIsEditDialogOpen(true);
   };
@@ -354,15 +316,18 @@ export default function AttendancePage() {
   const handleSaveEdit = async () => {
     if (!editingRecord || !user) return;
 
-    const reprocessed = reprocessSingleRecord({
-        ...editingRecord,
-        onDuty: editForm.onDuty || null, offDuty: editForm.offDuty || null,
-        clockIn: editForm.clockIn || null, clockOut: editForm.clockOut || null,
-        status: editForm.status, dateAD: editingRecord.date
-    });
-    
     try {
-        await updateAttendanceRecord(editingRecord.id, reprocessed);
+        const updates: Partial<AttendanceRecord> = {
+            onDuty: editForm.onDuty || null,
+            offDuty: editForm.offDuty || null,
+            clockIn: editForm.clockIn || null,
+            clockOut: editForm.clockOut || null,
+            status: editForm.status,
+            regularHours: Number(editForm.regularHours) || 0,
+            overtimeHours: Number(editForm.overtimeHours) || 0,
+            grossHours: (Number(editForm.regularHours) || 0) + (Number(editForm.overtimeHours) || 0)
+        };
+        await updateAttendanceRecord(editingRecord.id, updates);
         await fetchAttendanceData(); // Refetch data
         toast({ title: 'Success', description: 'Attendance record updated.' });
         setIsEditDialogOpen(false);
@@ -545,7 +510,6 @@ export default function AttendancePage() {
               <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth}><SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Month (BS)" /></SelectTrigger><SelectContent>{nepaliMonths.map(month => (<SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>))}</SelectContent></Select>
                <Select value={filterEmployeeName} onValueChange={setFilterEmployeeName}><SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Select Employee" /></SelectTrigger><SelectContent>{uniqueEmployeeNames.map(name => (<SelectItem key={name} value={name}>{name}</SelectItem>))}</SelectContent></Select>
                <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as 'All' | AttendanceStatus)}><SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Select Status" /></SelectTrigger><SelectContent><SelectItem value="All">All Statuses</SelectItem>{attendanceStatuses.map(status => (<SelectItem key={status} value={status}>{status}</SelectItem>))}</SelectContent></Select>
-               <Button variant="secondary" onClick={handleRecalculate} disabled={isRecalculating}>{isRecalculating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}Recalculate</Button>
                <AlertDialog>
                     <AlertDialogTrigger asChild>
                         <Button variant="destructive-outline"><Trash2 className="mr-2 h-4 w-4" /> Delete Month Data</Button>
@@ -565,6 +529,7 @@ export default function AttendancePage() {
             <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="edit-on-duty">On Duty Time (HH:mm)</Label><Input id="edit-on-duty" value={editForm.onDuty} onChange={e => setEditForm(prev => ({...prev, onDuty: e.target.value}))} placeholder="e.g., 08:00"/></div><div className="space-y-2"><Label htmlFor="edit-off-duty">Off Duty Time (HH:mm)</Label><Input id="edit-off-duty" value={editForm.offDuty} onChange={e => setEditForm(prev => ({...prev, offDuty: e.target.value}))} placeholder="e.g., 17:00"/></div></div>
                  <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="edit-clock-in">Clock In Time (HH:mm)</Label><Input id="edit-clock-in" value={editForm.clockIn} onChange={e => setEditForm(prev => ({...prev, clockIn: e.target.value}))} placeholder="e.g., 08:00"/></div><div className="space-y-2"><Label htmlFor="edit-clock-out">Clock Out Time (HH:mm)</Label><Input id="edit-clock-out" value={editForm.clockOut} onChange={e => setEditForm(prev => ({...prev, clockOut: e.target.value}))} placeholder="e.g., 17:00"/></div></div>
+                 <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="edit-regular-hours">Regular Hours</Label><Input id="edit-regular-hours" type="number" value={editForm.regularHours} onChange={e => setEditForm(prev => ({...prev, regularHours: Number(e.target.value) || 0}))} /></div><div className="space-y-2"><Label htmlFor="edit-overtime-hours">Overtime Hours</Label><Input id="edit-overtime-hours" type="number" value={editForm.overtimeHours} onChange={e => setEditForm(prev => ({...prev, overtimeHours: Number(e.target.value) || 0}))} /></div></div>
                 <div className="space-y-2"><Label htmlFor="edit-status">Status</Label><Select value={editForm.status} onValueChange={(value: AttendanceStatus) => setEditForm(prev => ({ ...prev, status: value }))}><SelectTrigger id="edit-status"><SelectValue /></SelectTrigger><SelectContent>{attendanceStatuses.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></div>
             </div>
             <DialogFooter><Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button><Button onClick={handleSaveEdit}>Save Changes</Button></DialogFooter>

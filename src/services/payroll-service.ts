@@ -57,7 +57,6 @@ export function generatePayrollAndAnalytics(
             const hourlyRate = dailyRate / 8; // Standard 8 hours for rate calculation
             rate = hourlyRate;
 
-            // Use the hours directly from the attendance record, do not recalculate.
             regularPay = regularHours * hourlyRate;
             otPay = overtimeHours * hourlyRate * 1.5; // Assuming 1.5x OT rate
             deduction = absentDays * dailyRate;
