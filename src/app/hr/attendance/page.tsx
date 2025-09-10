@@ -85,12 +85,25 @@ export default function AttendancePage() {
       const year = parseInt(selectedBsYear, 10);
       const month = parseInt(selectedBsMonth, 10);
       if (!isNaN(year) && !isNaN(month)) {
-        const records = await getAttendanceForMonth(year, month);
-        setAttendance(records);
+        try {
+            const records = await getAttendanceForMonth(year, month);
+            setAttendance(records);
+        } catch (error) {
+            console.error("Failed to fetch attendance data:", error);
+            toast({ title: 'Error', description: 'Could not fetch attendance records.', variant: 'destructive' });
+            setAttendance([]); // Clear data on error
+        } finally {
+            setIsDataLoading(false);
+        }
+      } else {
+          setAttendance([]); // Clear data if year/month is invalid
+          setIsDataLoading(false);
       }
-      setIsDataLoading(false);
+    } else {
+        setAttendance([]); // Clear data if no year/month selected
+        setIsDataLoading(false);
     }
-  }, [selectedBsYear, selectedBsMonth]);
+  }, [selectedBsYear, selectedBsMonth, toast]);
 
   useEffect(() => {
     setIsClient(true);
