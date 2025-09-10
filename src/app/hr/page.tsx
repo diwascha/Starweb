@@ -29,29 +29,29 @@ const hrModules = [
     {
         name: 'Payroll',
         description: 'Generate and manage payroll reports.',
-        href: '#',
+        href: '/hr/payroll',
         icon: FileText,
         permission: 'hr' as const,
         action: 'view' as const,
-        comingSoon: true
+        comingSoon: false
     },
     {
         name: 'Bonus',
         description: 'Calculate and track employee bonuses.',
-        href: '#',
+        href: '/hr/bonus',
         icon: Award,
         permission: 'hr' as const,
         action: 'view' as const,
-        comingSoon: true
+        comingSoon: false
     },
     {
         name: 'Payslip',
         description: 'Generate and distribute employee payslips.',
-        href: '#',
+        href: '/hr/payslip',
         icon: Wallet,
         permission: 'hr' as const,
         action: 'view' as const,
-        comingSoon: true
+        comingSoon: false
     },
 ];
 
