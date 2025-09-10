@@ -94,8 +94,18 @@ export const addAttendanceAndPayrollRecords = async (
         const payrollKey = `${employee.id}-${bsYear}-${bsMonth}`;
         if (createdPayrollEntries.has(payrollKey)) continue;
 
-        const netPayment = Number(row.netPayment);
-        if (isNaN(netPayment)) continue;
+        // Check if essential payroll data exists and is valid.
+        // `netPayment` is a good indicator that this row contains payroll info.
+        const netPaymentValue = row.netPayment;
+        if (netPaymentValue === null || netPaymentValue === undefined || String(netPaymentValue).trim() === '') {
+            continue; // Skip creating a payroll record for this row.
+        }
+
+        const netPayment = Number(netPaymentValue);
+        if (isNaN(netPayment)) {
+            continue; // Skip if netPayment is not a valid number.
+        }
+
 
         payrollRecords.push({
             bsYear, bsMonth,
@@ -180,6 +190,9 @@ export const onAttendanceUpdate = (callback: (records: AttendanceRecord[]) => vo
 };
 
 export const getAttendanceForMonth = async (bsYear: number, bsMonth: number): Promise<AttendanceRecord[]> => {
+    // This fetches all records and filters on the client.
+    // For very large datasets, a server-side query would be better,
+    // but that requires storing year/month fields on the records.
     const allRecords = await getAttendance();
     return allRecords.filter(r => {
         try {
