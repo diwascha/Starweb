@@ -15,14 +15,13 @@ import { useAuth } from '@/hooks/use-auth';
 import { Badge } from '@/components/ui/badge';
 import { format as formatDate, parse, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { onEmployeesUpdate, addEmployee } from '@/services/employee-service';
-import { addAttendanceRecords, updateAttendanceRecord, deleteAttendanceRecord, deleteAttendanceForMonth, batchUpdateAttendance, getAttendanceForMonth, getAttendanceYears } from '@/services/attendance-service';
+import { updateAttendanceRecord, deleteAttendanceRecord, deleteAttendanceForMonth, getAttendanceForMonth, getAttendanceYears, addAttendanceAndPayrollRecords } from '@/services/attendance-service';
 import { getAttendanceBadgeVariant, cn, formatTimeForDisplay } from '@/lib/utils';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 import type { DateRange } from 'react-day-picker';
-import { calculateAttendance, reprocessSingleRecord } from '@/lib/attendance';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
@@ -182,23 +181,38 @@ export default function AttendancePage() {
     const existingEmployeeNames = new Set(employees.map(emp => emp.name.toLowerCase()));
     const newlyAddedEmployees = new Set<string>();
     let totalSkippedRows = 0;
-    const allRawAttendanceData: RawAttendanceRow[] = [];
+    const allRawRows: RawAttendanceRow[] = [];
     
     for (const sheet of sheetsToProcess) {
         const jsonData = sheet.jsonData;
         const headerRow = jsonData[0].map((h: any) => String(h || '').trim().toLowerCase());
         
-        const headerVariations: { [key: string]: string[] } = {
-            name: ['name'],
+         const headerVariations: { [key: string]: string[] } = {
+            name: ['name', 'employee name'],
             date: ['date'],
             miti: ['miti'],
             onDuty: ['on duty', 'onduty'],
             offDuty: ['off duty', 'offduty'],
             clockIn: ['clock in', 'clockin'],
             clockOut: ['clock out', 'clockout'],
-            absent: ['absent', 'status'], // 'status' for backward compatibility
+            status: ['absent', 'status'], // 'status' for backward compatibility
             normalHours: ['normal'],
             otHours: ['ot'],
+            totalHours: ['total hour'],
+            rate: ['rate'],
+            regularPay: ['normal pay'],
+            otPay: ['ot pay'],
+            totalPay: ['total pay'],
+            absentDays: ['absent day'],
+            deduction: ['deduction'],
+            allowance: ['allowance'],
+            bonus: ['bonus'],
+            salaryTotal: ['salary total'],
+            tds: ['tds'],
+            gross: ['gross'],
+            advance: ['advance'],
+            netPayment: ['net payment'],
+            payrollRemark: ['remark'],
         };
         
         const headerMap: { [key: string]: number } = {};
@@ -240,7 +254,7 @@ export default function AttendancePage() {
                 }
             }
 
-            allRawAttendanceData.push({
+            const rawRowData: RawAttendanceRow = {
                 employeeName: employeeName,
                 dateAD: dateValue,
                 mitiBS: mitiValue,
@@ -248,48 +262,64 @@ export default function AttendancePage() {
                 offDuty: row[headerMap['offDuty']],
                 clockIn: row[headerMap['clockIn']],
                 clockOut: row[headerMap['clockOut']],
-                status: row[headerMap['absent']],
+                status: row[headerMap['status']],
                 normalHours: row[headerMap['normalHours']],
                 otHours: row[headerMap['otHours']],
                 sourceSheet: sheet.name,
-            });
+                totalHours: row[headerMap['totalHours']],
+                rate: row[headerMap['rate']],
+                regularPay: row[headerMap['regularPay']],
+                otPay: row[headerMap['otPay']],
+                totalPay: row[headerMap['totalPay']],
+                absentDays: row[headerMap['absentDays']],
+                deduction: row[headerMap['deduction']],
+                allowance: row[headerMap['allowance']],
+                bonus: row[headerMap['bonus']],
+                salaryTotal: row[headerMap['salaryTotal']],
+                tds: row[headerMap['tds']],
+                gross: row[headerMap['gross']],
+                advance: row[headerMap['advance']],
+                netPayment: row[headerMap['netPayment']],
+                payrollRemark: row[headerMap['payrollRemark']],
+            };
+            allRawRows.push(rawRowData);
         }
     }
     
-    if (allRawAttendanceData.length === 0) {
+    if (allRawRows.length === 0) {
         let description = 'No valid attendance records found to import.';
         if (totalSkippedRows > 0) description += ` ${totalSkippedRows} rows were skipped.`;
         toast({ title: 'Import Finished', description });
         setImportProgress(null);
         return;
     }
-
-    const processedRecords = calculateAttendance(allRawAttendanceData);
-    const newRecords = processedRecords
-      .filter(p => p.dateADISO && !isNaN(new Date(p.dateADISO).getTime()))
-      .map(p => ({
-        date: p.dateADISO, bsDate: p.dateBS, employeeName: p.employeeName,
-        onDuty: p.onDuty || null, offDuty: p.offDuty || null,
-        clockIn: p.clockIn || null, clockOut: p.clockOut || null,
-        status: p.normalizedStatus as AttendanceStatus, grossHours: p.grossHours,
-        overtimeHours: p.overtimeHours, regularHours: p.regularHours,
-        remarks: p.calcRemarks, importedBy: user.username, sourceSheet: p.sourceSheet,
-    }));
     
-    if (newRecords.length > 0) {
-        await addAttendanceRecords(newRecords, (progress) => {
+    const { attendanceCount, payrollCount } = await addAttendanceAndPayrollRecords(
+        allRawRows,
+        employees,
+        user.username,
+        (progress) => {
             setImportProgress(`${progress}/${totalRecordsToProcess}`);
-        });
+        }
+    );
 
-        const latestImportedRecord = newRecords.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-        const latestNepaliDate = new NepaliDate(new Date(latestImportedRecord.date));
+    if (attendanceCount > 0) {
+        const latestImportedRecord = allRawRows.sort((a,b) => {
+            const dateA = a.dateAD ? new Date(a.dateAD).getTime() : 0;
+            const dateB = b.dateAD ? new Date(b.dateAD).getTime() : 0;
+            return dateB - dateA;
+        })[0];
+
+        if (latestImportedRecord.dateAD) {
+            const latestNepaliDate = new NepaliDate(new Date(latestImportedRecord.dateAD));
+            setSelectedBsYear(String(latestNepaliDate.getYear()));
+            setSelectedBsMonth(String(latestNepaliDate.getMonth()));
+        }
         
-        setSelectedBsYear(String(latestNepaliDate.getYear()));
-        setSelectedBsMonth(String(latestNepaliDate.getMonth()));
-        setDateRange(undefined);
         await fetchAttendanceData(); // Refetch data
         
-        let description = `${newRecords.length} records processed.`;
+        let description = `${attendanceCount} attendance records processed.`;
+        if (payrollCount > 0) description += ` ${payrollCount} payroll records imported/updated.`;
         if (newlyAddedEmployees.size > 0) description += ` ${newlyAddedEmployees.size} new employees added.`;
         if (totalSkippedRows > 0) description += ` ${totalSkippedRows} rows were skipped.`;
         
@@ -453,8 +483,8 @@ export default function AttendancePage() {
                  <TableCell><Badge variant={getAttendanceBadgeVariant(record.status)}>{record.status}</Badge></TableCell>
                 <TableCell>{formatTimeForDisplay(record.onDuty)} / {formatTimeForDisplay(record.offDuty)}</TableCell>
                 <TableCell>{formatTimeForDisplay(record.clockIn)} / {formatTimeForDisplay(record.clockOut)}</TableCell>
-                <TableCell>{record.regularHours.toFixed(1)}</TableCell>
-                <TableCell>{record.overtimeHours.toFixed(1)}</TableCell>
+                <TableCell>{(record.regularHours || 0).toFixed(1)}</TableCell>
+                <TableCell>{(record.overtimeHours || 0).toFixed(1)}</TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
                       <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
