@@ -1,6 +1,7 @@
 
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -151,6 +152,22 @@ export interface RawAttendanceRow {
     sourceSheet?: string;
     normalHours?: any;
     otHours?: any;
+    // Payroll columns
+    totalHours?: any;
+    rate?: any;
+    regularPay?: any;
+    otPay?: any;
+    totalPay?: any;
+    absentDays?: any;
+    deduction?: any;
+    allowance?: any;
+    bonus?: any;
+    salaryTotal?: any;
+    tds?: any;
+    gross?: any;
+    advance?: any;
+    netPayment?: any;
+    payrollRemark?: any;
 }
 
 
@@ -173,25 +190,30 @@ export interface AttendanceRecord {
 }
 
 export interface Payroll {
+    id: string;
+    bsYear: number;
+    bsMonth: number;
     employeeId: string;
     employeeName: string;
-    totalHours: number;
-    otHours: number;
-    regularHours: number;
-    rate: number;
-    regularPay: number;
-    otPay: number;
-    totalPay: number;
-    absentDays: number;
-    deduction: number;
-    allowance: number;
-    bonus: number;
-    salaryTotal: number;
-    tds: number;
-    gross: number;
-    advance: number;
-    netPayment: number;
-    remark: string;
+    totalHours?: number;
+    otHours?: number;
+    regularHours?: number;
+    rate?: number;
+    regularPay?: number;
+    otPay?: number;
+    totalPay?: number;
+    absentDays?: number;
+    deduction?: number;
+    allowance?: number;
+    bonus?: number;
+    salaryTotal?: number;
+    tds?: number;
+    gross?: number;
+    advance?: number;
+    netPayment?: number;
+    remark?: string;
+    createdBy: string;
+    createdAt: string; // ISO string
 }
 
 export interface PunctualityInsight {

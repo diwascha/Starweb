@@ -1,9 +1,11 @@
 
 import { db } from '@/lib/firebase';
 import { collection, doc, writeBatch, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, updateDoc, deleteDoc, query, where, getDoc } from 'firebase/firestore';
-import type { AttendanceRecord } from '@/lib/types';
+import type { AttendanceRecord, RawAttendanceRow, Payroll, Employee } from '@/lib/types';
 import NepaliDate from 'nepali-date-converter';
 import { format } from 'date-fns';
+import { processAttendanceImport } from '@/lib/attendance';
+import { addPayrollRecords } from './payroll-service';
 
 
 const attendanceCollection = collection(db, 'attendance');
@@ -34,24 +36,99 @@ export const getAttendance = async (): Promise<AttendanceRecord[]> => {
     return snapshot.docs.map(fromFirestore);
 };
 
-export const addAttendanceRecords = async (records: Omit<AttendanceRecord, 'id'>[], onProgress: (progress: number) => void): Promise<void> => {
-    const CHUNK_SIZE = 400; // Use a safe chunk size of 400
+export const addAttendanceAndPayrollRecords = async (
+    rawRows: RawAttendanceRow[], 
+    employees: Employee[],
+    importedBy: string, 
+    onProgress: (progress: number) => void
+): Promise<{ attendanceCount: number, payrollCount: number }> => {
+    const CHUNK_SIZE = 400;
     let progressCount = 0;
-
-    for (let i = 0; i < records.length; i += CHUNK_SIZE) {
-        const chunk = records.slice(i, i + CHUNK_SIZE);
+    
+    const processedData = processAttendanceImport(rawRows);
+    
+    // 1. Add Attendance Records
+    const newAttendanceRecords = processedData
+      .filter(p => p.dateADISO && !isNaN(new Date(p.dateADISO).getTime()))
+      .map(p => ({
+        date: p.dateADISO, bsDate: p.dateBS, employeeName: p.employeeName,
+        onDuty: p.onDuty || null, offDuty: p.offDuty || null,
+        clockIn: p.clockIn || null, clockOut: p.clockOut || null,
+        status: p.normalizedStatus as any, grossHours: p.grossHours,
+        overtimeHours: p.overtimeHours, regularHours: p.regularHours,
+        remarks: p.calcRemarks, importedBy: importedBy, sourceSheet: p.sourceSheet,
+    }));
+    
+    for (let i = 0; i < newAttendanceRecords.length; i += CHUNK_SIZE) {
+        const chunk = newAttendanceRecords.slice(i, i + CHUNK_SIZE);
         const batch = writeBatch(db);
-
-        for (const record of chunk) {
+        chunk.forEach(record => {
             const docRef = doc(attendanceCollection);
             batch.set(docRef, record);
-        }
-        
+        });
         await batch.commit();
-        
         progressCount += chunk.length;
         onProgress(progressCount);
     }
+    
+    // 2. Add Payroll Records
+    const payrollRecords: Omit<Payroll, 'id'>[] = [];
+    const createdPayrollEntries = new Set<string>(); // To avoid duplicates: 'employeeId-year-month'
+
+    for (const row of rawRows) {
+        const employee = employees.find(e => e.name === row.employeeName);
+        if (!employee) continue;
+
+        let ad;
+        try {
+           ad = row.dateAD ? new Date(row.dateAD) : new NepaliDate(row.mitiBS!).toJsDate();
+        } catch {
+            continue;
+        }
+        if (!ad || isNaN(ad.getTime())) continue;
+
+        const nepaliDate = new NepaliDate(ad);
+        const bsYear = nepaliDate.getYear();
+        const bsMonth = nepaliDate.getMonth();
+
+        const payrollKey = `${employee.id}-${bsYear}-${bsMonth}`;
+        if (createdPayrollEntries.has(payrollKey)) continue;
+
+        const netPayment = Number(row.netPayment);
+        if (isNaN(netPayment)) continue;
+
+        payrollRecords.push({
+            bsYear, bsMonth,
+            employeeId: employee.id,
+            employeeName: employee.name,
+            totalHours: Number(row.totalHours) || 0,
+            otHours: Number(row.otHours) || 0,
+            regularHours: Number(row.normalHours) || 0,
+            rate: Number(row.rate) || 0,
+            regularPay: Number(row.regularPay) || 0,
+            otPay: Number(row.otPay) || 0,
+            totalPay: Number(row.totalPay) || 0,
+            absentDays: Number(row.absentDays) || 0,
+            deduction: Number(row.deduction) || 0,
+            allowance: Number(row.allowance) || 0,
+            bonus: Number(row.bonus) || 0,
+            salaryTotal: Number(row.salaryTotal) || 0,
+            tds: Number(row.tds) || 0,
+            gross: Number(row.gross) || 0,
+            advance: Number(row.advance) || 0,
+            netPayment: netPayment,
+            remark: row.payrollRemark || '',
+            createdBy: importedBy,
+            createdAt: new Date().toISOString(),
+        });
+        createdPayrollEntries.add(payrollKey);
+    }
+
+    if(payrollRecords.length > 0) {
+        await addPayrollRecords(payrollRecords);
+    }
+
+    return { attendanceCount: newAttendanceRecords.length, payrollCount: payrollRecords.length };
 };
 
 
@@ -59,20 +136,6 @@ export const updateAttendanceRecord = async (id: string, record: Partial<Attenda
     const recordDoc = doc(db, 'attendance', id);
     await updateDoc(recordDoc, record);
 };
-
-export const batchUpdateAttendance = async (updates: { id: string; updates: Partial<AttendanceRecord> }[]): Promise<void> => {
-    const CHUNK_SIZE = 400; // Use a safe chunk size of 400
-    for (let i = 0; i < updates.length; i += CHUNK_SIZE) {
-        const chunk = updates.slice(i, i + CHUNK_SIZE);
-        const batch = writeBatch(db);
-        chunk.forEach(({ id, updates }) => {
-            const docRef = doc(db, 'attendance', id);
-            batch.update(docRef, updates);
-        });
-        await batch.commit();
-    }
-};
-
 
 export const deleteAttendanceRecord = async (id: string): Promise<void> => {
     const recordDoc = doc(db, 'attendance', id);

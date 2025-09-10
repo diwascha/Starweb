@@ -1,7 +1,6 @@
 
 import { getEmployee } from '@/services/employee-service';
-import { getAttendance } from '@/services/attendance-service';
-import { generatePayrollAndAnalytics } from '@/services/payroll-service';
+import { getPayrollForEmployee } from '@/services/payroll-service';
 import PayslipView from './_components/payslip-view';
 
 const nepaliMonths = [
@@ -22,9 +21,9 @@ export default async function PayslipPage({ params, searchParams }: { params: { 
         );
     }
 
-    const [employee, allAttendance] = await Promise.all([
+    const [employee, payrollData] = await Promise.all([
         getEmployee(employeeId),
-        getAttendance()
+        getPayrollForEmployee(employeeId, bsYear, bsMonth)
     ]);
 
     if (!employee) {
@@ -35,19 +34,15 @@ export default async function PayslipPage({ params, searchParams }: { params: { 
         );
     }
     
-    // We generate payroll for just this one employee to be efficient
-    const { payroll } = generatePayrollAndAnalytics(bsYear, bsMonth, [employee], allAttendance);
-    
-    if (payroll.length === 0) {
+    if (!payrollData) {
         return (
             <div className="flex justify-center items-center h-full">
-                <p>No payroll data found for this employee for the selected period.</p>
+                <p>No payroll data found for this employee for the selected period. Please ensure it has been imported.</p>
             </div>
         );
     }
     
-    const employeePayroll = payroll[0];
     const bsMonthName = nepaliMonths[bsMonth];
 
-    return <PayslipView employee={employee} payroll={employeePayroll} bsYear={bsYear} bsMonthName={bsMonthName} />;
+    return <PayslipView employee={employee} payroll={payrollData} bsYear={bsYear} bsMonthName={bsMonthName} />;
 }
