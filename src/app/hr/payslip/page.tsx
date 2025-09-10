@@ -7,13 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Printer, Download, Save, Loader2, View, Search, MoreHorizontal, FileDown } from 'lucide-react';
+import { Printer, FileDown, View, Search, MoreHorizontal } from 'lucide-react';
 import NepaliDate from 'nepali-date-converter';
-import { useAuth } from '@/hooks/use-auth';
-import { onEmployeesUpdate, getEmployee } from '@/services/employee-service';
-import { onAttendanceUpdate } from '@/services/attendance-service';
+import { onEmployeesUpdate } from '@/services/employee-service';
+import { onPayrollUpdate, getPayrollYears } from '@/services/payroll-service';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { generatePayrollAndAnalytics, PayrollAndAnalyticsData } from '@/services/payroll-service';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
@@ -25,106 +23,64 @@ const nepaliMonths = [
     { value: 9, name: "Magh" }, { value: 10, name: "Falgun" }, { value: 11, name: "Chaitra" }
 ];
 
-const customEmployeeOrder = [
-    "Tika Gurung",
-    "Anju Bista",
-    "Madhu Bhandari",
-    "Amrita Lama",
-    "sunil chaudhary",
-    "KUMAR SHRESTHA",
-    "Niroj Koirala",
-    "Binod Magar",
-    "SANDEEP CHAUDARY",
-    "SANGITA PYAKUREL",
-    "Sunita Gurung"
-];
-
 export default function PayslipPage() {
     const [employees, setEmployees] = useState<Employee[]>([]);
-    const [attendance, setAttendance] = useState<any[]>([]);
-    const [isClient, setIsClient] = useState(false);
+    const [allPayroll, setAllPayroll] = useState<Payroll[]>([]);
     const [bsYears, setBsYears] = useState<number[]>([]);
     const [selectedBsYear, setSelectedBsYear] = useState<string>('');
     const [selectedBsMonth, setSelectedBsMonth] = useState<string>('');
-    const [isProcessing, setIsProcessing] = useState(false);
-    const [payrollData, setPayrollData] = useState<Payroll[] | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const router = useRouter();
     const { toast } = useToast();
 
     useEffect(() => {
-        setIsClient(true);
-        const unsubEmployees = onEmployeesUpdate((employeesData) => {
-            const validEmployees = employeesData.filter(e => {
-                const timeRegex = /^\d{2}:\d{2}(:\d{2})?$/;
-                const dateRegex = /^\w{3} \w{3} \d{2} \d{4} \d{2}:\d{2}:\d{2} GMT[+-]\d{4}/;
-                return e.status === 'Working' && !timeRegex.test(e.name) && !dateRegex.test(e.name)
-            });
-            setEmployees(validEmployees);
-        });
-        const unsubAttendance = onAttendanceUpdate((records) => {
-            const validRecords = records.filter(r => r.date && !isNaN(new Date(r.date).getTime()));
-            setAttendance(validRecords);
-            
-            if (validRecords.length > 0) {
-                const years = new Set(validRecords.map(r => new NepaliDate(new Date(r.date)).getYear()));
-                const sortedYears = Array.from(years).sort((a, b) => b - a);
-                setBsYears(sortedYears);
-                
-                if (!selectedBsYear) { // Set initial filter only once
-                    const latestRecord = validRecords.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-                    const latestNepaliDate = new NepaliDate(new Date(latestRecord.date));
-                    setSelectedBsYear(String(latestNepaliDate.getYear()));
-                    setSelectedBsMonth(String(latestNepaliDate.getMonth()));
+        const unsubEmployees = onEmployeesUpdate(setEmployees);
+        const unsubPayroll = onPayrollUpdate(setAllPayroll);
+        
+        getPayrollYears().then(years => {
+            setBsYears(years);
+            if (years.length > 0 && !selectedBsYear) {
+                const currentNepaliDate = new NepaliDate();
+                const currentYear = currentNepaliDate.getYear();
+                if (years.includes(currentYear)) {
+                    setSelectedBsYear(String(currentYear));
+                    setSelectedBsMonth(String(currentNepaliDate.getMonth()));
+                } else {
+                    setSelectedBsYear(String(years[0]));
+                    setSelectedBsMonth('0');
                 }
             }
         });
 
         return () => {
             unsubEmployees();
-            unsubAttendance();
+            unsubPayroll();
         }
-    }, [selectedBsYear]); // Depend on selectedBsYear to prevent re-running unnecessarily
+    }, [selectedBsYear]);
 
-    const handleGeneratePayslips = () => {
-        if (selectedBsYear && selectedBsMonth && employees.length > 0) {
-            setIsProcessing(true);
-            const { payroll } = generatePayrollAndAnalytics(
-                parseInt(selectedBsYear, 10),
-                parseInt(selectedBsMonth, 10),
-                employees,
-                attendance
-            );
-             payroll.sort((a, b) => {
-                const indexA = customEmployeeOrder.indexOf(a.employeeName);
-                const indexB = customEmployeeOrder.indexOf(b.employeeName);
-                
-                if (indexA !== -1 && indexB !== -1) {
-                    return indexA - indexB;
-                }
-                if (indexA !== -1) return -1;
-                if (indexB !== -1) return 1;
-                return a.employeeName.localeCompare(b.employeeName);
-            });
-            setPayrollData(payroll);
-            setIsProcessing(false);
-        }
-    };
-    
     const filteredPayroll = useMemo(() => {
-        if (!payrollData) return [];
-        if (!searchQuery) return payrollData;
-        return payrollData.filter(p => p.employeeName.toLowerCase().includes(searchQuery.toLowerCase()));
-    }, [payrollData, searchQuery]);
+        if (!selectedBsYear || !selectedBsMonth) return [];
+        const year = parseInt(selectedBsYear);
+        const month = parseInt(selectedBsMonth);
+        
+        let filtered = allPayroll.filter(p => p.bsYear === year && p.bsMonth === month);
+
+        if (searchQuery) {
+            filtered = filtered.filter(p => p.employeeName.toLowerCase().includes(searchQuery.toLowerCase()));
+        }
+
+        return filtered;
+    }, [allPayroll, selectedBsYear, selectedBsMonth, searchQuery]);
 
     const openPrintWindow = (employeeId?: string) => {
+        if (!selectedBsYear || !selectedBsMonth) return;
         const url = `/hr/payslip/${employeeId}?year=${selectedBsYear}&month=${selectedBsMonth}`;
         const printWindow = window.open(url, '_blank');
         if (printWindow) {
             printWindow.onload = () => {
                 setTimeout(() => {
                     printWindow.print();
-                }, 1000); // Increased timeout for rendering
+                }, 1000);
             };
         }
     };
@@ -132,7 +88,6 @@ export default function PayslipPage() {
     const handlePrintAll = () => {
         toast({ title: "Printing All", description: "Preparing all payslips for printing..." });
         filteredPayroll?.forEach((p, index) => {
-             // Stagger the opening of print windows
             setTimeout(() => {
                 openPrintWindow(p.employeeId);
             }, index * 2000);
@@ -146,8 +101,8 @@ export default function PayslipPage() {
     return (
         <div className="flex flex-col gap-8">
             <header>
-                <h1 className="text-3xl font-bold tracking-tight">Generate Payslips</h1>
-                <p className="text-muted-foreground">Select a period to generate and view employee payslips.</p>
+                <h1 className="text-3xl font-bold tracking-tight">View Payslips</h1>
+                <p className="text-muted-foreground">Select a period to view and print imported employee payslips.</p>
             </header>
             
              <Card>
@@ -155,7 +110,6 @@ export default function PayslipPage() {
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                         <div className="space-y-1.5">
                             <CardTitle>Select Period</CardTitle>
-                            <CardDescription>Select a Nepali month and year to generate payslips.</CardDescription>
                         </div>
                         <div className="flex flex-col sm:flex-row gap-2">
                             <Select value={selectedBsYear} onValueChange={setSelectedBsYear}>
@@ -166,24 +120,17 @@ export default function PayslipPage() {
                                 <SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Month (BS)" /></SelectTrigger>
                                 <SelectContent>{nepaliMonths.map(month => <SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>)}</SelectContent>
                             </Select>
-                             <Button onClick={handleGeneratePayslips} disabled={isProcessing || !selectedBsYear || !selectedBsMonth}>
-                                {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Generate
-                            </Button>
                         </div>
                     </div>
                 </CardHeader>
             </Card>
 
-            {payrollData && (
+            {filteredPayroll.length > 0 && (
                 <Card>
                     <CardHeader>
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                             <div className="space-y-1.5">
-                                <CardTitle>Generated Payslips</CardTitle>
-                                <CardDescription>
-                                    Payslips for {nepaliMonths[parseInt(selectedBsMonth)]?.name}, {selectedBsYear}
-                                </CardDescription>
+                                <CardTitle>Payslips for {nepaliMonths[parseInt(selectedBsMonth)]?.name}, {selectedBsYear}</CardTitle>
                             </div>
                             <div className="flex items-center gap-2 flex-wrap">
                                  <div className="relative">
@@ -209,8 +156,8 @@ export default function PayslipPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {filteredPayroll.length > 0 ? filteredPayroll.map(p => (
-                                    <TableRow key={p.employeeId}>
+                                {filteredPayroll.map(p => (
+                                    <TableRow key={p.id}>
                                         <TableCell className="font-medium">{p.employeeName}</TableCell>
                                         <TableCell>{p.netPayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell className="text-right">
@@ -234,11 +181,7 @@ export default function PayslipPage() {
                                             </DropdownMenu>
                                         </TableCell>
                                     </TableRow>
-                                )) : (
-                                    <TableRow>
-                                        <TableCell colSpan={3} className="text-center">No employees found for this period or filter.</TableCell>
-                                    </TableRow>
-                                )}
+                                ))}
                             </TableBody>
                         </Table>
                     </CardContent>

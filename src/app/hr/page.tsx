@@ -2,7 +2,7 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Users, Calendar, FileText, Award, Wallet, CheckCircle, XCircle } from 'lucide-react';
+import { Users, Calendar, FileText, Award, Wallet, CheckCircle, XCircle, BarChart2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getEmployees } from '@/services/employee-service';
 import { getAttendance } from '@/services/attendance-service';
@@ -26,14 +26,21 @@ const hrModules = [
         permission: 'hr' as const,
         action: 'view' as const
     },
+     {
+        name: 'Analytics',
+        description: 'Generate attendance analytics for any period.',
+        href: '/hr/analytics',
+        icon: BarChart2,
+        permission: 'hr' as const,
+        action: 'view' as const,
+    },
     {
         name: 'Payroll',
-        description: 'Generate and manage payroll reports.',
+        description: 'View imported payroll reports.',
         href: '/hr/payroll',
         icon: FileText,
         permission: 'hr' as const,
         action: 'view' as const,
-        comingSoon: false
     },
     {
         name: 'Bonus',
@@ -42,16 +49,14 @@ const hrModules = [
         icon: Award,
         permission: 'hr' as const,
         action: 'view' as const,
-        comingSoon: false
     },
     {
         name: 'Payslip',
-        description: 'Generate and distribute employee payslips.',
+        description: 'View and print imported employee payslips.',
         href: '/hr/payslip',
         icon: Wallet,
         permission: 'hr' as const,
         action: 'view' as const,
-        comingSoon: false
     },
 ];
 
@@ -91,17 +96,14 @@ export default async function HRPage() {
         <h2 className="text-xl font-bold tracking-tight mb-4">Quick Access</h2>
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {hrModules.map((module) => (
-            <Link href={module.href} key={module.name} className={module.comingSoon ? 'pointer-events-none' : ''}>
-                <Card className={`h-full transition-all hover:shadow-md ${module.comingSoon ? 'opacity-50' : ''}`}>
+            <Link href={module.href} key={module.name}>
+                <Card className="h-full transition-all hover:shadow-md">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-lg font-medium">{module.name}</CardTitle>
                     <module.icon className="h-6 w-6 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                     <p className="text-sm text-muted-foreground">{module.description}</p>
-                    {module.comingSoon && (
-                        <p className="text-xs font-semibold text-primary mt-2">Coming Soon</p>
-                    )}
                 </CardContent>
                 </Card>
             </Link>

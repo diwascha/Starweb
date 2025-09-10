@@ -1,7 +1,7 @@
 
 import { db } from '@/lib/firebase';
 import { collection, doc, writeBatch, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, query, where, limit, getDoc } from 'firebase/firestore';
-import type { Payroll } from '@/lib/types';
+import type { Payroll, Employee, AttendanceRecord, PunctualityInsight, BehaviorInsight, PatternInsight, WorkforceAnalytics } from '@/lib/types';
 import NepaliDate from 'nepali-date-converter';
 
 const payrollCollection = collection(db, 'payroll');
@@ -73,4 +73,93 @@ export const getPayrollYears = async (): Promise<number[]> => {
     const allRecords = await getDocs(payrollCollection).then(snap => snap.docs.map(d => d.data()));
     const years = new Set(allRecords.map(r => r.bsYear) as number[]);
     return Array.from(years).sort((a, b) => b - a);
+};
+
+
+export interface AnalyticsData {
+    punctuality: PunctualityInsight[];
+    behavior: BehaviorInsight[];
+    patterns: PatternInsight[];
+    workforce: WorkforceAnalytics[];
+}
+
+export const generateAnalyticsForMonth = (
+    bsYear: number,
+    bsMonth: number,
+    employees: Employee[],
+    allAttendance: AttendanceRecord[]
+): AnalyticsData => {
+    const workingEmployees = employees.filter(e => e.status === 'Working');
+
+    const monthlyAttendance = allAttendance.filter(r => {
+        try {
+            if (!r.date || isNaN(new Date(r.date).getTime())) return false;
+            const nepaliDate = new NepaliDate(new Date(r.date));
+            return nepaliDate.getYear() === bsYear && nepaliDate.getMonth() === bsMonth;
+        } catch {
+            return false;
+        }
+    });
+
+    const punctuality: PunctualityInsight[] = [];
+    const behavior: BehaviorInsight[] = [];
+    const workforce: WorkforceAnalytics[] = [];
+    
+    // Employee-level analytics
+    for (const employee of workingEmployees) {
+        const employeeAttendance = monthlyAttendance.filter(r => r.employeeName === employee.name);
+        
+        const scheduledDays = employeeAttendance.length;
+        if (scheduledDays === 0) continue;
+
+        const presentDays = employeeAttendance.filter(r => ['Present', 'EXTRAOK', 'Saturday', 'Public Holiday'].includes(r.status)).length;
+        const absentDays = scheduledDays - presentDays;
+        const attendanceRate = scheduledDays > 0 ? presentDays / scheduledDays : 0;
+        
+        const lateArrivals = employeeAttendance.filter(r => r.onDuty && r.clockIn && r.clockIn > r.onDuty).length;
+        const earlyDepartures = employeeAttendance.filter(r => r.offDuty && r.clockOut && r.clockOut < r.offDuty).length;
+        
+        const onTimeDays = presentDays - lateArrivals - earlyDepartures;
+        const punctualityScore = presentDays > 0 ? onTimeDays / presentDays : 0;
+        
+        const otHours = employeeAttendance.reduce((sum, r) => sum + r.overtimeHours, 0);
+
+        punctuality.push({
+            employeeId: employee.id, employeeName: employee.name, scheduledDays, presentDays, absentDays, attendanceRate,
+            lateArrivals, earlyDepartures, onTimeDays, punctualityScore
+        });
+
+        behavior.push({
+            employeeId: employee.id, employeeName: employee.name,
+            punctualityTrend: punctualityScore > 0.9 ? 'Excellent' : punctualityScore > 0.7 ? 'Good' : 'Needs Improvement',
+            absencePattern: absentDays > 4 ? 'High' : absentDays > 1 ? 'Moderate' : 'Low',
+            otImpact: otHours > 20 ? 'High OT' : otHours > 5 ? 'Moderate OT' : 'Low OT',
+            shiftEndBehavior: earlyDepartures > 2 ? 'Frequently leaves early' : 'Generally completes shifts',
+            performanceInsight: attendanceRate > 0.9 ? 'Reliable' : 'Inconsistent attendance',
+        });
+        
+        workforce.push({
+            employeeId: employee.id, employeeName: employee.name,
+            overtimeRatio: employeeAttendance.reduce((sum, r) => sum + r.regularHours, 0) > 0 ? otHours / employeeAttendance.reduce((sum, r) => sum + r.regularHours, 0) : 0,
+            onTimeStreak: 0, // Simplified for now
+            saturdaysWorked: employeeAttendance.filter(r => r.status === 'Saturday' && r.regularHours > 0).length
+        });
+    }
+    
+    // Workforce-level pattern analysis
+    const patterns: PatternInsight[] = [];
+    const totalLate = punctuality.reduce((sum, p) => sum + p.lateArrivals, 0);
+    if (totalLate > workingEmployees.length) {
+        patterns.push({ finding: 'Widespread Tardiness', description: 'A significant number of employees are arriving late.' });
+    }
+    const totalAbsent = punctuality.reduce((sum, p) => sum + p.absentDays, 0);
+    if (totalAbsent > workingEmployees.length * 2) {
+        patterns.push({ finding: 'High Absenteeism', description: 'Overall absenteeism is high for this period.' });
+    }
+    const totalOT = workforce.reduce((sum, w) => sum + (w.overtimeRatio > 0 ? 1 : 0), 0) / workforce.length;
+    if (totalOT > 0.5) {
+        patterns.push({ finding: 'High Overtime Reliance', description: 'More than half the workforce is working overtime.' });
+    }
+
+    return { punctuality, behavior, patterns, workforce };
 };
