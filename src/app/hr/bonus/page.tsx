@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -9,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { onEmployeesUpdate } from '@/services/employee-service';
-import { onAttendanceUpdate } from '@/services/attendance-service';
+import { onAttendanceUpdate, getAttendanceYears } from '@/services/attendance-service';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import NepaliDate from 'nepali-date-converter';
@@ -64,21 +65,19 @@ export default function BonusPage() {
     useEffect(() => {
         setIsLoading(true);
         const unsubEmployees = onEmployeesUpdate(setEmployees);
-        const unsubAttendance = onAttendanceUpdate((records) => {
-            setAttendance(records);
-            if (records.length > 0) {
-                const validRecords = records.filter(r => r.date && !isNaN(new Date(r.date).getTime()));
-                if (validRecords.length > 0) {
-                    const years = new Set(validRecords.map(r => new NepaliDate(new Date(r.date)).getYear()));
-                    const sortedYears = Array.from(years).sort((a, b) => b - a);
-                    setBsYears(sortedYears);
-                    
-                    if (!selectedBsYear && sortedYears.length > 0) {
-                        const latestRecord = validRecords.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-                        const latestNepaliDate = new NepaliDate(new Date(latestRecord.date));
-                        setSelectedBsYear(String(latestNepaliDate.getYear()));
-                        setSelectedBsMonth(String(latestNepaliDate.getMonth()));
-                    }
+        const unsubAttendance = onAttendanceUpdate(setAttendance);
+
+        getAttendanceYears().then(years => {
+            setBsYears(years);
+            if (years.length > 0) {
+                const currentNepaliDate = new NepaliDate();
+                const currentYear = currentNepaliDate.getYear();
+                if (years.includes(currentYear)) {
+                    setSelectedBsYear(String(currentYear));
+                    setSelectedBsMonth(String(currentNepaliDate.getMonth()));
+                } else {
+                    setSelectedBsYear(String(years[0]));
+                    setSelectedBsMonth('0');
                 }
             }
         });
@@ -88,7 +87,7 @@ export default function BonusPage() {
             unsubEmployees();
             unsubAttendance();
         }
-    }, []); // Changed dependency array to fix bug
+    }, []);
 
     const bonusData = useMemo((): BonusCalculationResult[] => {
         if (!selectedBsYear || !selectedBsMonth) {

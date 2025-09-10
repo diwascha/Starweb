@@ -89,16 +89,16 @@ export default function AttendancePage() {
         } catch (error) {
             console.error("Failed to fetch attendance data:", error);
             toast({ title: 'Error', description: 'Could not fetch attendance records.', variant: 'destructive' });
-            setAttendance([]); // Clear data on error
+            setAttendance([]);
         } finally {
             setIsDataLoading(false);
         }
       } else {
-          setAttendance([]); // Clear data if year/month is invalid
+          setAttendance([]);
           setIsDataLoading(false);
       }
     } else {
-        setAttendance([]); // Clear data if no year/month selected
+        setAttendance([]);
         setIsDataLoading(false);
     }
   }, [selectedBsYear, selectedBsMonth, toast]);
@@ -108,24 +108,24 @@ export default function AttendancePage() {
     const unsubEmployees = onEmployeesUpdate(setEmployees);
 
     getAttendanceYears().then(years => {
-        setBsYears(years);
-        if (years.length > 0 && !selectedBsYear) {
-            const currentNepaliDate = new NepaliDate();
-            const currentYear = currentNepaliDate.getYear();
-            if (years.includes(currentYear)) {
-                setSelectedBsYear(String(currentYear));
-                setSelectedBsMonth(String(currentNepaliDate.getMonth()));
-            } else {
-                setSelectedBsYear(String(years[0]));
-                setSelectedBsMonth('0');
-            }
+      setBsYears(years);
+      if (years.length > 0) {
+        const currentNepaliDate = new NepaliDate();
+        const currentYear = currentNepaliDate.getYear();
+        if (years.includes(currentYear)) {
+          setSelectedBsYear(String(currentYear));
+          setSelectedBsMonth(String(currentNepaliDate.getMonth()));
+        } else {
+          setSelectedBsYear(String(years[0]));
+          setSelectedBsMonth('0'); 
         }
+      }
     });
 
     return () => {
         unsubEmployees();
     }
-  }, []); // Changed dependency array to fix bug
+  }, []);
   
   useEffect(() => {
     fetchAttendanceData();
@@ -198,6 +198,7 @@ export default function AttendancePage() {
             status: ['absent', 'status'], // 'status' for backward compatibility
             normalHours: ['normal'],
             otHours: ['ot'],
+            // Payroll columns
             totalHours: ['total hour'],
             rate: ['rate'],
             regularPay: ['normal pay'],
@@ -312,11 +313,13 @@ export default function AttendancePage() {
 
         if (latestImportedRecord.dateAD) {
             const latestNepaliDate = new NepaliDate(new Date(latestImportedRecord.dateAD));
+            
+            // Re-fetch years and then set the selected year/month
+            const updatedYears = await getAttendanceYears();
+            setBsYears(updatedYears);
             setSelectedBsYear(String(latestNepaliDate.getYear()));
             setSelectedBsMonth(String(latestNepaliDate.getMonth()));
         }
-        
-        await fetchAttendanceData(); // Refetch data
         
         let description = `${attendanceCount} attendance records processed.`;
         if (payrollCount > 0) description += ` ${payrollCount} payroll records imported/updated.`;

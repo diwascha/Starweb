@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -39,7 +40,7 @@ export default function PayslipPage() {
         
         getPayrollYears().then(years => {
             setBsYears(years);
-            if (years.length > 0 && !selectedBsYear) {
+            if (years.length > 0) {
                 const currentNepaliDate = new NepaliDate();
                 const currentYear = currentNepaliDate.getYear();
                 if (years.includes(currentYear)) {
@@ -56,7 +57,7 @@ export default function PayslipPage() {
             unsubEmployees();
             unsubPayroll();
         }
-    }, []); // Changed dependency array to fix bug
+    }, []);
 
     const filteredPayroll = useMemo(() => {
         if (!selectedBsYear || !selectedBsMonth) return [];

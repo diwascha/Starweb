@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -57,20 +58,26 @@ export default function PayrollClientPage() {
     useEffect(() => {
         setIsClient(true);
         const unsubEmployees = onEmployeesUpdate(setEmployees);
-        const unsubPayroll = onPayrollUpdate(setAllPayroll);
-
-        getPayrollYears().then(years => {
-            setBsYears(years);
-            if (years.length > 0 && !selectedBsYear) {
-                const currentNepaliDate = new NepaliDate();
-                const currentYear = currentNepaliDate.getYear();
-                if (years.includes(currentYear)) {
-                    setSelectedBsYear(String(currentYear));
-                    setSelectedBsMonth(String(currentNepaliDate.getMonth()));
-                } else {
-                    setSelectedBsYear(String(years[0]));
-                    setSelectedBsMonth('0'); // Default to Baishakh
-                }
+        const unsubPayroll = onPayrollUpdate(payrollData => {
+            setAllPayroll(payrollData);
+            // Re-calculate available years whenever payroll data changes
+            const years = new Set(payrollData.map(r => r.bsYear));
+            const sortedYears = Array.from(years).sort((a, b) => b - a);
+            setBsYears(sortedYears);
+            
+            // If no year is selected, or if the selected year is no longer valid, pick a new default
+            if (sortedYears.length > 0 && (!selectedBsYear || !sortedYears.includes(parseInt(selectedBsYear, 10)))) {
+                const latestYear = sortedYears[0];
+                const latestRecordForYear = payrollData
+                    .filter(p => p.bsYear === latestYear)
+                    .sort((a,b) => b.bsMonth - a.bsMonth)[0];
+                
+                setSelectedBsYear(String(latestYear));
+                setSelectedBsMonth(String(latestRecordForYear?.bsMonth || 0));
+            } else if (sortedYears.length === 0) {
+                // If no data, reset selectors
+                setSelectedBsYear('');
+                setSelectedBsMonth('');
             }
         });
 
@@ -78,7 +85,7 @@ export default function PayrollClientPage() {
             unsubEmployees();
             unsubPayroll();
         }
-    }, []); // Changed dependency array to fix bug
+    }, []); 
     
     const monthlyPayroll = useMemo(() => {
         if (!selectedBsYear || !selectedBsMonth) return [];
@@ -159,7 +166,7 @@ export default function PayrollClientPage() {
                 <CardHeader>
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                         <div className="space-y-1.5">
-                            <CardTitle>Payroll for {nepaliMonths[parseInt(selectedBsMonth)]?.name}, {selectedBsYear}</CardTitle>
+                            <CardTitle>Payroll for {nepaliMonths[parseInt(selectedBsMonth)]?.name || '...'}, {selectedBsYear || '...'}</CardTitle>
                             <CardDescription>Select a Nepali month and year to view the imported payroll report.</CardDescription>
                         </div>
                         <div className="flex flex-col sm:flex-row gap-2">
