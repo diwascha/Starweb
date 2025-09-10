@@ -2,7 +2,6 @@
 import { getDay, differenceInMinutes, parse, format } from 'date-fns';
 import NepaliDate from 'nepali-date-converter';
 import type { Employee, Payroll, PunctualityInsight, BehaviorInsight, PatternInsight, WorkforceAnalytics, AttendanceRecord, AttendanceStatus, RawAttendanceRow } from '@/lib/types';
-import { calculateAttendance } from '@/lib/attendance';
 
 export interface PayrollAndAnalyticsData {
     payroll: Payroll[];
@@ -23,7 +22,7 @@ export function generatePayrollAndAnalytics(
     
     const workingEmployees = employees.filter(e => e.status === 'Working');
 
-    const monthlyAttendance = allAttendance.filter(r => {
+    const monthlyAttendance = (allAttendance || []).filter(r => {
         try {
             if (!r.date || isNaN(new Date(r.date).getTime())) return false;
             const nepaliDate = new NepaliDate(new Date(r.date));

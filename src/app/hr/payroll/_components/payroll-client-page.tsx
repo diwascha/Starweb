@@ -24,7 +24,7 @@ import { format } from 'date-fns';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { getAttendanceYears } from '@/services/attendance-service';
+import { getAttendanceYears, onAttendanceUpdate } from '@/services/attendance-service';
 
 
 const nepaliMonths = [
@@ -51,6 +51,7 @@ const customEmployeeOrder = [
 
 export default function PayrollClientPage() {
     const [employees, setEmployees] = useState<Employee[]>([]);
+    const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
     const [isClient, setIsClient] = useState(false);
     const [bsYears, setBsYears] = useState<number[]>([]);
     const [selectedBsYear, setSelectedBsYear] = useState<string>('');
@@ -68,6 +69,7 @@ export default function PayrollClientPage() {
     useEffect(() => {
         setIsClient(true);
         const unsubEmployees = onEmployeesUpdate(setEmployees);
+        const unsubAttendance = onAttendanceUpdate(setAttendance);
 
         getAttendanceYears().then(years => {
             setBsYears(years);
@@ -86,6 +88,7 @@ export default function PayrollClientPage() {
 
         return () => {
             unsubEmployees();
+            unsubAttendance();
         }
     }, [selectedBsYear]);
 
@@ -93,10 +96,11 @@ export default function PayrollClientPage() {
         if (selectedBsYear && selectedBsMonth && employees.length > 0) {
             setIsProcessing(true);
             try {
-                const data = await generatePayrollAndAnalytics(
+                const data = generatePayrollAndAnalytics(
                     parseInt(selectedBsYear, 10),
                     parseInt(selectedBsMonth, 10),
-                    employees
+                    employees,
+                    attendance
                 );
 
                 data.payroll.sort((a, b) => {
@@ -116,7 +120,7 @@ export default function PayrollClientPage() {
                 setIsProcessing(false);
             }
         }
-    }, [selectedBsYear, selectedBsMonth, employees, toast]);
+    }, [selectedBsYear, selectedBsMonth, employees, attendance, toast]);
 
     useEffect(() => {
         generateReport();
