@@ -51,10 +51,9 @@ export const addAttendanceAndPayrollRecords = async (
     const headerRow = jsonData[0];
     const dataRows = jsonData.slice(1);
     
-    const nonEmptyRows = dataRows.filter(row => {
-        const nameIndex = headerRow.map(h => String(h).toLowerCase()).indexOf('name');
-        return row.length > nameIndex && row[nameIndex] !== null && String(row[nameIndex]).trim() !== '';
-    });
+    // Filter out rows that are completely empty or have no employee name
+    const nameIndex = headerRow.map(h => String(h).toLowerCase()).indexOf('name');
+    const nonEmptyRows = dataRows.filter(row => row.length > nameIndex && row[nameIndex] != null && String(row[nameIndex]).trim() !== '');
 
 
     const { processedData, newEmployees, skippedCount } = await processAttendanceImport(headerRow, nonEmptyRows, bsYear, bsMonth, employees, importedBy);

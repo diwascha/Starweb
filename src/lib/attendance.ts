@@ -164,7 +164,7 @@ export const processAttendanceImport = async (
         }
     }
 
-    const requiredHeaders = ['employeeName', 'dateAD'];
+    const requiredHeaders = ['employeeName'];
     const missingHeaders = requiredHeaders.filter(h => headerMap[h] === undefined);
     if (missingHeaders.length > 0) {
         const userFriendlyNames = missingHeaders.map(h => {
@@ -178,7 +178,6 @@ export const processAttendanceImport = async (
     const existingEmployeeNames = new Set(existingEmployees.map(emp => emp.name.toLowerCase()));
     const newEmployees = new Set<string>();
     let skippedCount = 0;
-    let lastValidDate: Date | null = null;
 
     const processedData = await Promise.all(dataRows.map(async (rowArray): Promise<CalcAttendanceRow | null> => {
         const row: RawAttendanceRow = {};
@@ -211,29 +210,26 @@ export const processAttendanceImport = async (
         }
 
         let ad: Date | null = parseExcelDate(row.dateAD);
-        
-        if (ad) {
-            lastValidDate = ad;
-        } else if (lastValidDate) {
-            ad = lastValidDate; // Use last valid date if current is missing
-        } else {
-            skippedCount++;
-            return null; // Skip if no valid date has been found yet
-        }
-        
-        let finalADDate = ad;
-        const nepaliDate = new NepaliDate(ad);
-        if (nepaliDate.getYear() !== bsYear || nepaliDate.getMonth() !== bsMonth) {
-             try {
-                const correctedNepaliDate = new NepaliDate(bsYear, bsMonth, nepaliDate.getDate());
-                finalADDate = correctedNepaliDate.toJsDate();
-            } catch {
-                // If date correction fails, it might be an invalid day for the month, skip it.
-                skippedCount++;
-                return null;
+        const bsDateStr: string | null = row.mitiBS ? String(row.mitiBS).trim() : null;
+
+        if (!ad && bsDateStr) {
+            const dayMatch = bsDateStr.match(/\d+/);
+            if (dayMatch) {
+                const day = parseInt(dayMatch[0], 10);
+                if (day >= 1 && day <= 32) {
+                    try {
+                        ad = new NepaliDate(bsYear, bsMonth, day).toJsDate();
+                    } catch { /* Invalid day for month, will be skipped below */ }
+                }
             }
         }
+
+        if (!ad) {
+            skippedCount++;
+            return null;
+        }
         
+        const finalADDate = ad;
         const dateBS = toBSString(finalADDate);
 
         const statusInput = String(row.status || '').trim().toUpperCase();
@@ -255,8 +251,8 @@ export const processAttendanceImport = async (
              }
         }
 
-        const regularHours = Number(row.regularHours) || 0;
-        const overtimeHours = Number(row.overtimeHours) || 0;
+        const regularHours = Number(row.regularHours) || Number(row.normalHours) || 0;
+        const overtimeHours = Number(row.overtimeHours) || Number(row.otHours) || 0;
         const grossHours = regularHours + overtimeHours;
         
         return {
