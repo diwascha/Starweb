@@ -86,56 +86,56 @@ export async function processAttendanceImport(
     importedBy: string
 ): Promise<{ processedData: CalcAttendanceRow[], newEmployees: string[], skippedCount: number }> {
     
-    const normalizedHeaders = headerRow.map(h => String(h || '').trim().toLowerCase());
-    
-    const headerVariations: { [key in keyof RawAttendanceRow]?: string[] } = {
-        employeeName: ['name'],
-        day: ['day'],
-        mitiBS: ['bs date', 'miti'],
-        dateAD: ['date', 'date (ad)'],
-        onDuty: ['on duty'],
-        offDuty: ['off duty'],
-        clockIn: ['clock in'],
-        clockOut: ['clock out'],
-        status: ['status'],
-        normalHours: ['normal', 'regular hours', 'normal hours'],
-        otHours: ['ot', 'ot hours', 'overtime'],
-        totalHours: ['total hour', 'total hours'],
-        remarks: ['remarks'],
-        rate: ['rate'],
-        regularPay: ['norman', 'regular pay'],
-        otPay: ['ot pay'],
-        totalPay: ['total pay'],
-        absentDays: ['absent days', 'absent'],
-        deduction: ['deduction'],
-        allowance: ['extra', 'allowance'],
-        bonus: ['bonus'],
-        salaryTotal: ['salary total'],
-        tds: ['tds'],
-        gross: ['gross'],
-        advance: ['advance'],
-        netPayment: ['net payment'],
-        payrollRemark: ['remark'],
-    };
-    
-    const headerMap: { [key: string]: number } = {};
-    for (const key in headerVariations) {
-        const variations = headerVariations[key as keyof RawAttendanceRow]!;
-        for (const variation of variations) {
-            const index = normalizedHeaders.indexOf(variation);
-            if (index !== -1) {
-                headerMap[key] = index;
-                break;
-            }
-        }
+    if (!headerRow || !Array.isArray(headerRow)) {
+        throw new Error("Invalid header row provided. Expected an array of strings.");
     }
     
-    const requiredHeaders: (keyof RawAttendanceRow)[] = ['employeeName'];
-    const missingHeaders = requiredHeaders.filter(h => headerMap[h] === undefined);
+    const normalizedHeaders = headerRow.map(h => String(h || '').trim().toLowerCase());
     
-    if (missingHeaders.length > 0) {
-        const available = normalizedHeaders.join(', ');
-        throw new Error(`Import failed: Missing required columns: ${missingHeaders.join(', ')}. Available columns: ${available}`);
+    // Exact header mapping based on user's specification
+    const headerMapConfig: { [key in keyof RawAttendanceRow]: string } = {
+        employeeName: 'name',
+        dateAD: 'date (ad)',
+        mitiBS: 'bs date',
+        onDuty: 'on duty',
+        offDuty: 'off duty',
+        clockIn: 'clock in',
+        clockOut: 'clock out',
+        status: 'status',
+        normalHours: 'normal hours',
+        otHours: 'ot hours',
+        totalHours: 'total hours',
+        remarks: 'remarks',
+        // Payroll
+        regularPay: 'norman',
+        otPay: 'ot pay',
+        totalPay: 'total pay',
+        absentDays: 'absent days',
+        deduction: 'deduction',
+        allowance: 'extra',
+        bonus: 'bonus',
+        salaryTotal: 'salary total',
+        tds: 'tds',
+        gross: 'gross',
+        advance: 'advance',
+        netPayment: 'net payment',
+        payrollRemark: 'remark',
+        // Optional/fallback
+        day: 'day',
+        rate: 'rate',
+    };
+
+    const headerMap: { [key: string]: number } = {};
+    for (const key in headerMapConfig) {
+        const headerName = headerMapConfig[key as keyof RawAttendanceRow];
+        const index = normalizedHeaders.indexOf(headerName);
+        if (index !== -1) {
+            headerMap[key] = index;
+        }
+    }
+
+    if (headerMap['employeeName'] === undefined) {
+         throw new Error('Import failed: Missing required column "Name".');
     }
 
     const existingEmployeeNames = new Set(existingEmployees.map(emp => emp.name.toLowerCase()));
@@ -168,30 +168,16 @@ export async function processAttendanceImport(
         let ad: Date | null = null;
         let dateBS = '';
         
-        // Priority 1: AD Date from file
-        if (row.dateAD && isValid(new Date(row.dateAD))) {
-            ad = new Date(row.dateAD);
-            try { dateBS = new NepaliDate(ad).format('YYYY-MM-DD'); } catch {}
-        }
-        // Priority 2: BS Date from file
-        else if (row.mitiBS) {
+        // The user's UI selection of month/year is the source of truth.
+        // We use the day from the Excel file to construct the date.
+        const dayOfMonth = parseInt(String(row.day), 10);
+        if (!isNaN(dayOfMonth) && dayOfMonth >= 1 && dayOfMonth <= 32) {
             try {
-                const nepaliDate = new NepaliDate(String(row.mitiBS));
+                const nepaliDate = new NepaliDate(bsYear, bsMonth, dayOfMonth);
                 ad = nepaliDate.toJsDate();
                 dateBS = nepaliDate.format('YYYY-MM-DD');
-            } catch (e) {}
-        }
-        // Priority 3: Fallback to day number and selected period
-        else {
-            const day = parseInt(String(row.day), 10);
-            if (!isNaN(day) && day >= 1 && day <= 32) {
-                try {
-                    const nepaliDate = new NepaliDate(bsYear, bsMonth, day);
-                    ad = nepaliDate.toJsDate();
-                    dateBS = nepaliDate.format('YYYY-MM-DD');
-                } catch (e) {
-                    console.error(`Invalid Nepali date for day ${day}:`, e);
-                }
+            } catch (e) {
+                console.error(`Invalid Nepali date for day ${dayOfMonth}:`, e);
             }
         }
 
@@ -263,6 +249,6 @@ export async function processAttendanceImport(
     return {
         processedData: processedData.filter(item => item !== null) as CalcAttendanceRow[],
         newEmployees: Array.from(newEmployees),
-        skippedCount: skippedCount
+        skippedCount
     };
 }
