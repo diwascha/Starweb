@@ -42,16 +42,28 @@ export const addAttendanceAndPayrollRecords = async (
     importedBy: string, 
     bsYear: number,
     bsMonth: number,
+    sourceSheetName: string,
     onProgress: (progress: number) => void
-): Promise<{ attendanceCount: number, payrollCount: number, newEmployees: string[] }> => {
+): Promise<{ attendanceCount: number, payrollCount: number, newEmployees: string[], skippedCount: number }> => {
     const CHUNK_SIZE = 400;
     
     const headerRow = jsonData[0];
     const dataRows = jsonData.slice(1);
-    const { processedData, newEmployees } = await processAttendanceImport(headerRow, dataRows, bsYear, bsMonth, employees, importedBy);
     
+    const { processedData, newEmployees, skippedCount } = await processAttendanceImport(headerRow, dataRows, bsYear, bsMonth, employees, importedBy);
+    
+    // Filter out records that don't belong to the selected month and year
+    const relevantData = processedData.filter(p => {
+        try {
+            const nepaliDate = new NepaliDate(p.dateBS);
+            return nepaliDate.getYear() === bsYear && nepaliDate.getMonth() === bsMonth;
+        } catch {
+            return false;
+        }
+    });
+
     // 1. Add Attendance Records
-    const newAttendanceRecords = processedData
+    const newAttendanceRecords = relevantData
       .filter(p => p.dateADISO && !isNaN(new Date(p.dateADISO).getTime()))
       .map(p => ({
         date: p.dateADISO, 
@@ -67,7 +79,7 @@ export const addAttendanceAndPayrollRecords = async (
         regularHours: p.regularHours,
         remarks: p.calcRemarks || null, 
         importedBy: importedBy, 
-        sourceSheet: p.sourceSheet || null,
+        sourceSheet: sourceSheetName || null,
     }));
     
     let processedCount = 0;
@@ -88,7 +100,7 @@ export const addAttendanceAndPayrollRecords = async (
     const createdPayrollEntries = new Set<string>(); // To avoid duplicates: 'employeeId-year-month'
     const allEmployees = [...employees, ...newEmployees.map(name => ({ id: '', name, wageBasis: 'Monthly', wageAmount: 0, createdBy: importedBy, createdAt: new Date().toISOString(), status: 'Working' } as Employee))];
 
-    for (const row of processedData) { 
+    for (const row of relevantData) { 
         const employee = allEmployees.find(e => e.name === row.employeeName);
         if (!employee) continue;
 
@@ -136,7 +148,7 @@ export const addAttendanceAndPayrollRecords = async (
         await addPayrollRecords(payrollRecords);
     }
 
-    return { attendanceCount: newAttendanceRecords.length, payrollCount: payrollRecords.length, newEmployees: Array.from(newEmployees) };
+    return { attendanceCount: newAttendanceRecords.length, payrollCount: payrollRecords.length, newEmployees: Array.from(newEmployees), skippedCount: skippedCount + (processedData.length - relevantData.length) };
 };
 
 

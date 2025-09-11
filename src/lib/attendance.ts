@@ -1,5 +1,4 @@
 
-
 import {
   format,
   isValid,
@@ -85,7 +84,7 @@ export async function processAttendanceImport(
     bsMonth: number,
     existingEmployees: Employee[],
     importedBy: string
-): Promise<{ processedData: CalcAttendanceRow[], newEmployees: string[] }> {
+): Promise<{ processedData: CalcAttendanceRow[], newEmployees: string[], skippedCount: number }> {
     
     const normalizedHeaders = headerRow.map(h => String(h || '').trim().toLowerCase());
     
@@ -93,14 +92,14 @@ export async function processAttendanceImport(
         employeeName: ['name'],
         day: ['day'],
         mitiBS: ['bs date', 'miti'],
-        dateAD: ['date'],
+        dateAD: ['date', 'date (ad)'],
         onDuty: ['on duty'],
         offDuty: ['off duty'],
         clockIn: ['clock in'],
         clockOut: ['clock out'],
         status: ['status'],
         normalHours: ['normal', 'regular hours', 'normal hours'],
-        otHours: ['ot', 'ot hours'],
+        otHours: ['ot', 'ot hours', 'overtime'],
         totalHours: ['total hour', 'total hours'],
         remarks: ['remarks'],
         rate: ['rate'],
@@ -135,11 +134,13 @@ export async function processAttendanceImport(
     const missingHeaders = requiredHeaders.filter(h => headerMap[h] === undefined);
     
     if (missingHeaders.length > 0) {
-        throw new Error(`Import failed: Missing required columns: ${missingHeaders.join(', ')}. Please check your Excel file.`);
+        const available = normalizedHeaders.join(', ');
+        throw new Error(`Import failed: Missing required columns: ${missingHeaders.join(', ')}. Available columns: ${available}`);
     }
 
     const existingEmployeeNames = new Set(existingEmployees.map(emp => emp.name.toLowerCase()));
     const newEmployees = new Set<string>();
+    let skippedCount = 0;
 
     const processedData = await Promise.all(dataRows.map(async (rowArray): Promise<CalcAttendanceRow | null> => {
         const row: RawAttendanceRow = {};
@@ -167,20 +168,21 @@ export async function processAttendanceImport(
         let ad: Date | null = null;
         let dateBS = '';
         
-        if (row.mitiBS) {
+        // Priority 1: AD Date from file
+        if (row.dateAD && isValid(new Date(row.dateAD))) {
+            ad = new Date(row.dateAD);
+            try { dateBS = new NepaliDate(ad).format('YYYY-MM-DD'); } catch {}
+        }
+        // Priority 2: BS Date from file
+        else if (row.mitiBS) {
             try {
                 const nepaliDate = new NepaliDate(String(row.mitiBS));
                 ad = nepaliDate.toJsDate();
                 dateBS = nepaliDate.format('YYYY-MM-DD');
             } catch (e) {}
         }
-        
-        if (!ad && row.dateAD && isValid(new Date(row.dateAD))) {
-            ad = new Date(row.dateAD);
-            try { dateBS = new NepaliDate(ad).format('YYYY-MM-DD'); } catch {}
-        }
-
-        if (!ad) {
+        // Priority 3: Fallback to day number and selected period
+        else {
             const day = parseInt(String(row.day), 10);
             if (!isNaN(day) && day >= 1 && day <= 32) {
                 try {
@@ -191,6 +193,11 @@ export async function processAttendanceImport(
                     console.error(`Invalid Nepali date for day ${day}:`, e);
                 }
             }
+        }
+
+        if (!ad) {
+            skippedCount++;
+            return null; // Skip rows where we can't determine a valid date
         }
         
         const weekday = ad ? ad.getDay() : -1;
@@ -255,6 +262,7 @@ export async function processAttendanceImport(
     
     return {
         processedData: processedData.filter(item => item !== null) as CalcAttendanceRow[],
-        newEmployees: Array.from(newEmployees)
+        newEmployees: Array.from(newEmployees),
+        skippedCount: skippedCount
     };
 }

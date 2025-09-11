@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
@@ -190,52 +191,30 @@ export default function AttendancePage() {
     setIsSheetSelectDialogOpen(false);
     setImportProgress(`Starting...`);
 
-    const existingEmployeeNames = new Set(employees.map(emp => emp.name.toLowerCase()));
-    const newlyAddedEmployees = new Set<string>();
-    
-    const groupedByPeriod: Record<string, { sheetInfos: SheetInfo[], bsYear: number, bsMonth: number }> = {};
-
-    for (const selected of selectedSheets) {
-        const key = `${selected.year}-${selected.month}`;
-        if (!groupedByPeriod[key]) {
-            groupedByPeriod[key] = {
-                sheetInfos: [],
-                bsYear: parseInt(selected.year, 10),
-                bsMonth: parseInt(selected.month, 10),
-            };
-        }
-        const sheetInfo = availableSheets.find(s => s.name === selected.name);
-        if (sheetInfo) {
-             groupedByPeriod[key].sheetInfos.push(sheetInfo);
-        }
-    }
-    
     let totalProcessed = 0;
     let totalSkipped = 0;
+    const allNewEmployees = new Set<string>();
 
-    for (const periodKey in groupedByPeriod) {
-        const group = groupedByPeriod[periodKey];
-        const { sheetInfos, bsYear, bsMonth } = group;
-
-        const allJsonDataForPeriod = sheetInfos.reduce((acc, sheet) => {
-            if (acc.length === 0) return sheet.jsonData;
-            return [...acc, ...sheet.jsonData.slice(1)]; // Append data rows only
-        }, [] as any[][]);
-
-        if (allJsonDataForPeriod.length > 1) { // Has headers + at least one data row
+    for (const selected of selectedSheets) {
+        const sheetInfo = availableSheets.find(s => s.name === selected.name);
+        if (sheetInfo) {
              try {
                 const result = await addAttendanceAndPayrollRecords(
-                    allJsonDataForPeriod,
-                    employees, user.username, bsYear, bsMonth,
+                    sheetInfo.jsonData,
+                    employees, user.username, 
+                    parseInt(selected.year, 10), 
+                    parseInt(selected.month, 10),
+                    sheetInfo.name,
                     (progress) => {
-                        setImportProgress(`Processing ${progress} records...`);
+                        setImportProgress(`Processing ${sheetInfo.name}: ${progress} records...`);
                     }
                 );
                 totalProcessed += result.attendanceCount;
-                newlyAddedEmployees.add(...(result.newEmployees || [])); // Assuming service returns new employees
+                totalSkipped += result.skippedCount;
+                result.newEmployees.forEach(name => allNewEmployees.add(name));
             } catch (error: any) {
                 toast({
-                    title: 'Import Error',
+                    title: `Import Error in ${sheetInfo.name}`,
                     description: error.message || 'An unexpected error occurred during import.',
                     variant: 'destructive',
                     duration: 8000
@@ -247,12 +226,15 @@ export default function AttendancePage() {
     }
     
     let description = `${totalProcessed} records imported.`;
-    if (newlyAddedEmployees.size > 0) description += ` ${newlyAddedEmployees.size} new employees added.`;
-    if (totalSkipped > 0) description += ` ${totalSkipped} rows were skipped.`;
+    if (allNewEmployees.size > 0) description += ` ${allNewEmployees.size} new employees added.`;
+    if (totalSkipped > 0) description += ` ${totalSkipped} rows were skipped due to missing dates.`;
     
     toast({ title: 'Import Complete', description, duration: 8000 });
+    
+    // Refresh years list and current view
     const years = await getAttendanceYears();
     setBsYears(years);
+    fetchAttendanceData(); 
     
     setImportProgress(null);
   };
@@ -414,7 +396,7 @@ export default function AttendancePage() {
                 <TableCell>{formatTimeForDisplay(record.clockIn)} / {formatTimeForDisplay(record.clockOut)}</TableCell>
                 <TableCell>{(record.regularHours || 0).toFixed(1)}</TableCell>
                 <TableCell>{(record.overtimeHours || 0).toFixed(1)}</TableCell>
-                <TableCell>{record.remarks || ''}</TableCell>
+                <TableCell>{record.remarks === 'Used imported hours' ? '' : record.remarks}</TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
                       <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
@@ -473,7 +455,7 @@ export default function AttendancePage() {
                 <>
                     <Input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".xlsx, .xls" className="hidden" />
                     <Button className="w-full sm:w-auto" onClick={() => fileInputRef.current?.click()} disabled={!!importProgress}>
-                        {importProgress ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {`Importing (${importProgress})`}</> : <><Upload className="mr-2 h-4 w-4" /> Import Attendance</>}
+                        {importProgress ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {`${importProgress}`}</> : <><Upload className="mr-2 h-4 w-4" /> Import Attendance</>}
                     </Button>
                 </>
             )}
