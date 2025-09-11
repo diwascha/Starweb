@@ -67,7 +67,6 @@ export default function AttendancePage() {
   const [isDataLoading, setIsDataLoading] = useState(true);
 
   // Import Dialog State
-  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [importTargetYear, setImportTargetYear] = useState<string>('');
   const [importTargetMonth, setImportTargetMonth] = useState<string>('');
   const [isSheetSelectDialogOpen, setIsSheetSelectDialogOpen] = useState(false);
@@ -133,7 +132,7 @@ export default function AttendancePage() {
         }
     });
     return () => { isMounted = false; };
-  }, []);
+  }, [attendance]);
   
   useEffect(() => {
     if (selectedBsYear && selectedBsMonth) {
@@ -186,7 +185,6 @@ export default function AttendancePage() {
         return;
     }
     
-    setIsImportDialogOpen(false);
     setIsSheetSelectDialogOpen(false);
     const sheetsToProcess = availableSheets.filter(sheet => selectedSheets.includes(sheet.name));
     const totalRecordsToProcess = sheetsToProcess.reduce((sum, sheet) => sum + sheet.rowCount, 0);
@@ -423,11 +421,9 @@ export default function AttendancePage() {
             <h3 className="text-2xl font-bold tracking-tight">No attendance records for this period</h3>
             <p className="text-sm text-muted-foreground">Get started by importing an Excel file.</p>
              {hasPermission('hr', 'create') && (
-                <DialogTrigger asChild>
-                    <Button className="mt-4" disabled={!!importProgress}>
-                        {importProgress ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {importProgress}</> : <><Upload className="mr-2 h-4 w-4" /> Import Attendance</>}
-                    </Button>
-                </DialogTrigger>
+                <Button className="mt-4" onClick={() => fileInputRef.current?.click()} disabled={!!importProgress}>
+                    {importProgress ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {importProgress}</> : <><Upload className="mr-2 h-4 w-4" /> Import Attendance</>}
+                </Button>
             )}
           </div>
         </div>
@@ -489,7 +485,6 @@ export default function AttendancePage() {
   
   return (
     <>
-    <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
         <div className="flex flex-col gap-8">
         <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
@@ -501,12 +496,13 @@ export default function AttendancePage() {
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input type="search" placeholder="Search by employee..." className="pl-8 w-full sm:w-auto" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
             </div>
-            {hasPermission('hr', 'create') && (
-                <DialogTrigger asChild>
-                    <Button className="w-full sm:w-auto" disabled={!!importProgress}>
+             {hasPermission('hr', 'create') && (
+                <>
+                    <Input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".xlsx, .xls" className="hidden" />
+                    <Button className="w-full sm:w-auto" onClick={() => fileInputRef.current?.click()} disabled={!!importProgress}>
                         {importProgress ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {`Importing (${importProgress})`}</> : <><Upload className="mr-2 h-4 w-4" /> Import Attendance</>}
                     </Button>
-                </DialogTrigger>
+                </>
             )}
             </div>
         </header>
@@ -531,14 +527,22 @@ export default function AttendancePage() {
         )}
         {renderContent()}
         </div>
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>Import Attendance Data</DialogTitle>
-                <DialogDescription>
-                    Select the Nepali month and year this data belongs to. The system will look for a "Day" column in your Excel file to construct the correct dates.
-                </DialogDescription>
-            </DialogHeader>
+     <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+            <DialogHeader><DialogTitle>Edit Attendance for {editingRecord?.employeeName}</DialogTitle><DialogDescription>Date: {editingRecord ? formatDate(new Date(editingRecord.date), 'PPP') : ''}</DialogDescription></DialogHeader>
             <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="edit-on-duty">On Duty Time (HH:mm)</Label><Input id="edit-on-duty" value={editForm.onDuty} onChange={e => setEditForm(prev => ({...prev, onDuty: e.target.value}))} placeholder="e.g., 08:00"/></div><div className="space-y-2"><Label htmlFor="edit-off-duty">Off Duty Time (HH:mm)</Label><Input id="edit-off-duty" value={editForm.offDuty} onChange={e => setEditForm(prev => ({...prev, offDuty: e.target.value}))} placeholder="e.g., 17:00"/></div></div>
+                 <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="edit-clock-in">Clock In Time (HH:mm)</Label><Input id="edit-clock-in" value={editForm.clockIn} onChange={e => setEditForm(prev => ({...prev, clockIn: e.target.value}))} placeholder="e.g., 08:00"/></div><div className="space-y-2"><Label htmlFor="edit-clock-out">Clock Out Time (HH:mm)</Label><Input id="edit-clock-out" value={editForm.clockOut} onChange={e => setEditForm(prev => ({...prev, clockOut: e.target.value}))} placeholder="e.g., 17:00"/></div></div>
+                 <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="edit-regular-hours">Regular Hours</Label><Input id="edit-regular-hours" type="number" value={editForm.regularHours} onChange={e => setEditForm(prev => ({...prev, regularHours: Number(e.target.value) || 0}))} /></div><div className="space-y-2"><Label htmlFor="edit-overtime-hours">Overtime Hours</Label><Input id="edit-overtime-hours" type="number" value={editForm.overtimeHours} onChange={e => setEditForm(prev => ({...prev, overtimeHours: Number(e.target.value) || 0}))} /></div></div>
+                <div className="space-y-2"><Label htmlFor="edit-status">Status</Label><Select value={editForm.status} onValueChange={(value: AttendanceStatus) => setEditForm(prev => ({ ...prev, status: value }))}><SelectTrigger id="edit-status"><SelectValue /></SelectTrigger><SelectContent>{attendanceStatuses.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></div>
+            </div>
+            <DialogFooter><Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button><Button onClick={handleSaveEdit}>Save Changes</Button></DialogFooter>
+        </DialogContent>
+    </Dialog>
+     <Dialog open={isSheetSelectDialogOpen} onOpenChange={setIsSheetSelectDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+            <DialogHeader><DialogTitle>Select Sheets & Target Period</DialogTitle><DialogDescription>Choose one or more sheets to import and the Nepali month/year this data belongs to.</DialogDescription></DialogHeader>
+            <div className="py-4 space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <Label>Target Year (BS)</Label>
@@ -556,44 +560,20 @@ export default function AttendancePage() {
                     </div>
                 </div>
                 <div className="space-y-2">
-                    <Label>Excel File (.xlsx, .xls)</Label>
-                    <Input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".xlsx, .xls" />
+                    <div className="flex items-center space-x-2 border-b pb-2">
+                        <Checkbox id="select-all-sheets" onCheckedChange={(checked) => setSelectedSheets(checked ? availableSheets.map(s => s.name) : [])} checked={selectedSheets.length === availableSheets.length} />
+                        <Label htmlFor="select-all-sheets" className="font-bold">Select All Sheets</Label>
+                    </div>
+                    <ScrollArea className="h-[300px]">
+                        {availableSheets.map(sheet => (
+                            <div key={sheet.name} className="flex items-center space-x-2 p-2 rounded-md hover:bg-muted">
+                                <Checkbox id={`sheet-${sheet.name}`} onCheckedChange={(checked) => setSelectedSheets(prev => checked ? [...prev, sheet.name] : prev.filter(s => s !== sheet.name))} checked={selectedSheets.includes(sheet.name)} />
+                                <Label htmlFor={`sheet-${sheet.name}`} className="flex-1">{sheet.name}</Label>
+                                <Badge variant="secondary">{sheet.rowCount} records</Badge>
+                            </div>
+                        ))}
+                    </ScrollArea>
                 </div>
-            </div>
-            <DialogFooter>
-                <Button variant="outline" onClick={() => setIsImportDialogOpen(false)}>Cancel</Button>
-            </DialogFooter>
-        </DialogContent>
-    </Dialog>
-     <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-            <DialogHeader><DialogTitle>Edit Attendance for {editingRecord?.employeeName}</DialogTitle><DialogDescription>Date: {editingRecord ? formatDate(new Date(editingRecord.date), 'PPP') : ''}</DialogDescription></DialogHeader>
-            <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="edit-on-duty">On Duty Time (HH:mm)</Label><Input id="edit-on-duty" value={editForm.onDuty} onChange={e => setEditForm(prev => ({...prev, onDuty: e.target.value}))} placeholder="e.g., 08:00"/></div><div className="space-y-2"><Label htmlFor="edit-off-duty">Off Duty Time (HH:mm)</Label><Input id="edit-off-duty" value={editForm.offDuty} onChange={e => setEditForm(prev => ({...prev, offDuty: e.target.value}))} placeholder="e.g., 17:00"/></div></div>
-                 <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="edit-clock-in">Clock In Time (HH:mm)</Label><Input id="edit-clock-in" value={editForm.clockIn} onChange={e => setEditForm(prev => ({...prev, clockIn: e.target.value}))} placeholder="e.g., 08:00"/></div><div className="space-y-2"><Label htmlFor="edit-clock-out">Clock Out Time (HH:mm)</Label><Input id="edit-clock-out" value={editForm.clockOut} onChange={e => setEditForm(prev => ({...prev, clockOut: e.target.value}))} placeholder="e.g., 17:00"/></div></div>
-                 <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="edit-regular-hours">Regular Hours</Label><Input id="edit-regular-hours" type="number" value={editForm.regularHours} onChange={e => setEditForm(prev => ({...prev, regularHours: Number(e.target.value) || 0}))} /></div><div className="space-y-2"><Label htmlFor="edit-overtime-hours">Overtime Hours</Label><Input id="edit-overtime-hours" type="number" value={editForm.overtimeHours} onChange={e => setEditForm(prev => ({...prev, overtimeHours: Number(e.target.value) || 0}))} /></div></div>
-                <div className="space-y-2"><Label htmlFor="edit-status">Status</Label><Select value={editForm.status} onValueChange={(value: AttendanceStatus) => setEditForm(prev => ({ ...prev, status: value }))}><SelectTrigger id="edit-status"><SelectValue /></SelectTrigger><SelectContent>{attendanceStatuses.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></div>
-            </div>
-            <DialogFooter><Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button><Button onClick={handleSaveEdit}>Save Changes</Button></DialogFooter>
-        </DialogContent>
-    </Dialog>
-     <Dialog open={isSheetSelectDialogOpen} onOpenChange={setIsSheetSelectDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
-            <DialogHeader><DialogTitle>Select Sheets to Import</DialogTitle><DialogDescription>Your Excel file contains multiple sheets. Choose one or more to import.</DialogDescription></DialogHeader>
-            <div className="py-4 space-y-2">
-                <div className="flex items-center space-x-2 border-b pb-2">
-                    <Checkbox id="select-all-sheets" onCheckedChange={(checked) => setSelectedSheets(checked ? availableSheets.map(s => s.name) : [])} checked={selectedSheets.length === availableSheets.length} />
-                    <Label htmlFor="select-all-sheets" className="font-bold">Select All</Label>
-                </div>
-                <ScrollArea className="h-[300px]">
-                    {availableSheets.map(sheet => (
-                        <div key={sheet.name} className="flex items-center space-x-2 p-2 rounded-md hover:bg-muted">
-                            <Checkbox id={`sheet-${sheet.name}`} onCheckedChange={(checked) => setSelectedSheets(prev => checked ? [...prev, sheet.name] : prev.filter(s => s !== sheet.name))} checked={selectedSheets.includes(sheet.name)} />
-                            <Label htmlFor={`sheet-${sheet.name}`} className="flex-1">{sheet.name}</Label>
-                            <Badge variant="secondary">{sheet.rowCount} records</Badge>
-                        </div>
-                    ))}
-                </ScrollArea>
             </div>
             <DialogFooter><Button variant="outline" onClick={() => setIsSheetSelectDialogOpen(false)}>Cancel</Button><Button onClick={handleSheetImport} disabled={selectedSheets.length === 0}>Import Selected ({selectedSheets.length})</Button></DialogFooter>
         </DialogContent>
