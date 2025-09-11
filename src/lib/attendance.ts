@@ -97,7 +97,7 @@ export async function processAttendanceImport(
         offDuty: ['off duty'],
         clockIn: ['clock in'],
         clockOut: ['clock out'],
-        status: ['absent'],
+        status: ['absent'], // This is the primary status column
         remarks: ['remarks'], // Attendance remarks column I
         overtimeHours: ['overtime'], // Timesheet overtime column J
         regularHours: ['regular hours'], // Timesheet regular hours column K
@@ -186,6 +186,18 @@ export async function processAttendanceImport(
             const parsedDate = new Date(row.dateAD);
             if (isValid(parsedDate)) {
                 ad = parsedDate;
+                // Force the date to be within the selected BS month/year to correct for Excel errors
+                const nepaliDate = new NepaliDate(ad);
+                if (nepaliDate.getYear() !== bsYear || nepaliDate.getMonth() !== bsMonth) {
+                    try {
+                        const correctedNepaliDate = new NepaliDate(bsYear, bsMonth, nepaliDate.getDate());
+                        ad = correctedNepaliDate.toJsDate();
+                    } catch {
+                        // If day is invalid for the month (e.g. 32nd Baishakh), skip record
+                        skippedCount++;
+                        return null;
+                    }
+                }
                 dateBS = toBSString(ad);
             }
         }
@@ -195,7 +207,26 @@ export async function processAttendanceImport(
           return null;
         }
         
-        const statusInput = (row.status !== null && row.status !== undefined && String(row.status).trim() !== '') ? 'Absent' : 'Present';
+        // Status determination logic
+        const statusInput = String(row.status || '').trim().toUpperCase();
+        let normalizedStatus: AttendanceStatus;
+        if (statusInput === 'A' || statusInput === 'ABSENT') {
+            normalizedStatus = 'Absent';
+        } else if (statusInput.includes('C/I MISS')) {
+            normalizedStatus = 'C/I Miss';
+        } else if (statusInput.includes('C/O MISS')) {
+            normalizedStatus = 'C/O Miss';
+        } else if (statusInput.includes('EXTRAOK')) {
+            normalizedStatus = 'EXTRAOK';
+        } else {
+             const dayOfWeek = ad.getDay();
+             if (dayOfWeek === 6) { // Saturday
+                normalizedStatus = 'Saturday';
+             } else {
+                normalizedStatus = 'Present';
+             }
+        }
+
         const regularHours = Number(row.regularHours) || 0;
         const overtimeHours = Number(row.overtimeHours) || 0;
         const grossHours = regularHours + overtimeHours;
@@ -210,7 +241,7 @@ export async function processAttendanceImport(
           dateADISO: ad && isValid(ad) ? format(ad, 'yyyy-MM-dd') : '',
           dateBS,
           weekdayAD: ad ? ad.getDay() : -1,
-          normalizedStatus: statusInput as AttendanceStatus,
+          normalizedStatus: normalizedStatus,
           grossHours,
           regularHours,
           overtimeHours,

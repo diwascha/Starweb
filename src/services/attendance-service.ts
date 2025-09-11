@@ -51,13 +51,16 @@ export const addAttendanceAndPayrollRecords = async (
     const headerRow = jsonData[0];
     const dataRows = jsonData.slice(1);
     
+    // Filter out empty rows before processing
+    const nonEmptyRows = dataRows.filter(row => row.some(cell => cell !== null && cell !== undefined && String(cell).trim() !== ''));
+
     const requiredHeaders = ['name'];
     const normalizedHeaders = headerRow.map(h => String(h || '').trim().toLowerCase());
     if (!requiredHeaders.every(h => normalizedHeaders.includes(h))) {
         throw new Error(`Import failed: Missing one or more required columns: ${requiredHeaders.join(', ')}.`);
     }
 
-    const { processedData, newEmployees, skippedCount } = await processAttendanceImport(headerRow, dataRows, bsYear, bsMonth, employees, importedBy);
+    const { processedData, newEmployees, skippedCount } = await processAttendanceImport(headerRow, nonEmptyRows, bsYear, bsMonth, employees, importedBy);
 
     // 1. Add Attendance Records
     const newAttendanceRecords = processedData
