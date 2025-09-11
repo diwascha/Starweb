@@ -84,9 +84,6 @@ const parseExcelDate = (dateInput: any): Date | null => {
 
     // It's a number (Excel serial date)
     if (typeof dateInput === 'number') {
-        // Excel's epoch starts on 1900-01-01, but it incorrectly thinks 1900 is a leap year.
-        // The formula is to convert days since epoch to milliseconds and adjust for the timezone offset and the bug.
-        // (dateInput - 25569) adjusts for the difference in epochs between Excel and Unix.
         const date = new Date((dateInput - 25569) * 86400 * 1000);
         if (isValid(date)) return date;
     }
@@ -94,13 +91,11 @@ const parseExcelDate = (dateInput: any): Date | null => {
     // It's a string
     if (typeof dateInput === 'string') {
         const trimmedDate = dateInput.trim();
-        // Attempt to parse various common string formats
-        const formatsToTry = ['dd/MM/yy', 'MM/dd/yy', 'yyyy-MM-dd', 'dd-MM-yyyy'];
+        const formatsToTry = ['dd/MM/yy', 'MM/dd/yy', 'yyyy-MM-dd', 'dd-MM-yyyy', 'M/d/yy'];
         for (const fmt of formatsToTry) {
             const parsed = parse(trimmedDate, fmt, new Date());
             if (isValid(parsed)) return parsed;
         }
-        // Fallback for ISO strings or other formats JS can handle natively
         const nativeParsed = new Date(trimmedDate);
         if (isValid(nativeParsed)) return nativeParsed;
     }
@@ -112,14 +107,14 @@ const parseExcelDate = (dateInput: any): Date | null => {
 /* =========================
    Core calculator
    ========================= */
-export async function processAttendanceImport(
+export const processAttendanceImport = async (
     headerRow: string[], 
     dataRows: any[][], 
     bsYear: number, 
     bsMonth: number,
     existingEmployees: Employee[],
     importedBy: string
-) {
+): Promise<{ processedData: CalcAttendanceRow[], newEmployees: string[], skippedCount: number }> => {
     
     const normalizedHeaders = headerRow.map(h => String(h || '').trim().toLowerCase());
     const originalHeaders = headerRow.map(h => String(h || '').trim());
@@ -132,27 +127,27 @@ export async function processAttendanceImport(
         offDuty: ['off duty'],
         clockIn: ['clock in'],
         clockOut: ['clock out'],
-        status: ['absent'], // This is the primary status column
-        remarks: ['remarks'], // Attendance remarks column I
-        overtimeHours: ['overtime'], // Timesheet overtime column J
-        regularHours: ['regular hours'], // Timesheet regular hours column K
-        totalHours: ['total hour'], // Payroll total hour Q
-        otHours: ['ot hour'], // Payroll OT hour R
-        normalHours: ['normal hrs'], // Payroll Normal Hrs S
-        rate: ['rate'], // Payroll Rate T
-        regularPay: ['norman'], // Payroll Norman U
-        otPay: ['ot'], // Payroll OT V
-        totalPay: ['total'], // Payroll Total W
-        absentDays: ['absent days'], // Payroll Absent Days X
-        deduction: ['deduction'], // Payroll Deduction Y
-        allowance: ['extra'], // Payroll Extra Z
-        bonus: ['bonus'], // Payroll Bonus AA
-        salaryTotal: ['salary total'], // Payroll Salary Total AB
-        tds: ['tds'], // Payroll TDS AC
-        gross: ['gross'], // Payroll Gross AD
-        advance: ['advance'], // Payroll Advance AE
-        netPayment: ['net payment'], // Payroll Net Payment AF
-        payrollRemark: ['remark'], // Payroll Remark AG
+        status: ['absent'],
+        remarks: ['remarks'],
+        overtimeHours: ['overtime'],
+        regularHours: ['regular hours'],
+        totalHours: ['total hour'],
+        otHours: ['ot hour'],
+        normalHours: ['normal hrs'],
+        rate: ['rate'],
+        regularPay: ['norman'],
+        otPay: ['ot'],
+        totalPay: ['total'],
+        absentDays: ['absent days'],
+        deduction: ['deduction'],
+        allowance: ['extra'],
+        bonus: ['bonus'],
+        salaryTotal: ['salary total'],
+        tds: ['tds'],
+        gross: ['gross'],
+        advance: ['advance'],
+        netPayment: ['net payment'],
+        payrollRemark: ['remark'],
         day: ['day'],
     };
 
@@ -183,8 +178,9 @@ export async function processAttendanceImport(
     const existingEmployeeNames = new Set(existingEmployees.map(emp => emp.name.toLowerCase()));
     const newEmployees = new Set<string>();
     let skippedCount = 0;
+    let lastValidDate: Date | null = null;
 
-    const processedData = await Promise.all(dataRows.map(async (rowArray, rowIndex): Promise<CalcAttendanceRow | null> => {
+    const processedData = await Promise.all(dataRows.map(async (rowArray): Promise<CalcAttendanceRow | null> => {
         const row: RawAttendanceRow = {};
         const rawImportData: Record<string, any> = {};
         
@@ -214,32 +210,32 @@ export async function processAttendanceImport(
             }
         }
 
-        let ad: Date | null = null;
-        let dateBS = '';
+        let ad: Date | null = parseExcelDate(row.dateAD);
         
-        const dateInput = row.dateAD;
-        
-        ad = parseExcelDate(dateInput);
-
         if (ad) {
-             const nepaliDate = new NepaliDate(ad);
-            if (nepaliDate.getYear() !== bsYear || nepaliDate.getMonth() !== bsMonth) {
-                try {
-                    const correctedNepaliDate = new NepaliDate(bsYear, bsMonth, nepaliDate.getDate());
-                    ad = correctedNepaliDate.toJsDate();
-                } catch {
-                    skippedCount++;
-                    return null;
-                }
-            }
-            dateBS = toBSString(ad);
+            lastValidDate = ad;
+        } else if (lastValidDate) {
+            ad = lastValidDate; // Use last valid date if current is missing
         } else {
             skippedCount++;
-            return null; // Skip row if date is invalid after all checks
+            return null; // Skip if no valid date has been found yet
         }
-
         
-        // Status determination logic
+        let finalADDate = ad;
+        const nepaliDate = new NepaliDate(ad);
+        if (nepaliDate.getYear() !== bsYear || nepaliDate.getMonth() !== bsMonth) {
+             try {
+                const correctedNepaliDate = new NepaliDate(bsYear, bsMonth, nepaliDate.getDate());
+                finalADDate = correctedNepaliDate.toJsDate();
+            } catch {
+                // If date correction fails, it might be an invalid day for the month, skip it.
+                skippedCount++;
+                return null;
+            }
+        }
+        
+        const dateBS = toBSString(finalADDate);
+
         const statusInput = String(row.status || '').trim().toUpperCase();
         let normalizedStatus: AttendanceStatus;
         if (statusInput === 'A' || statusInput === 'ABSENT') {
@@ -251,7 +247,7 @@ export async function processAttendanceImport(
         } else if (statusInput.includes('EXTRAOK')) {
             normalizedStatus = 'EXTRAOK';
         } else {
-             const dayOfWeek = ad.getDay();
+             const dayOfWeek = finalADDate.getDay();
              if (dayOfWeek === 6) { // Saturday
                 normalizedStatus = 'Saturday';
              } else {
@@ -270,9 +266,9 @@ export async function processAttendanceImport(
           offDuty: parseTimeToString(row.offDuty),
           clockIn: parseTimeToString(row.clockIn), 
           clockOut: parseTimeToString(row.clockOut),
-          dateADISO: ad && isValid(ad) ? format(ad, 'yyyy-MM-dd') : '',
+          dateADISO: format(finalADDate, 'yyyy-MM-dd'),
           dateBS,
-          weekdayAD: ad ? ad.getDay() : -1,
+          weekdayAD: finalADDate.getDay(),
           normalizedStatus: normalizedStatus,
           grossHours,
           regularHours,
@@ -288,4 +284,4 @@ export async function processAttendanceImport(
         newEmployees: Array.from(newEmployees),
         skippedCount
     };
-}
+};

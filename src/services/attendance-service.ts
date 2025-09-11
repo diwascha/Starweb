@@ -51,20 +51,17 @@ export const addAttendanceAndPayrollRecords = async (
     const headerRow = jsonData[0];
     const dataRows = jsonData.slice(1);
     
-    // Filter out empty rows before processing
-    const nonEmptyRows = dataRows.filter(row => row.some(cell => cell !== null && cell !== undefined && String(cell).trim() !== ''));
+    const nonEmptyRows = dataRows.filter(row => {
+        const nameIndex = headerRow.map(h => String(h).toLowerCase()).indexOf('name');
+        return row.length > nameIndex && row[nameIndex] !== null && String(row[nameIndex]).trim() !== '';
+    });
 
-    const requiredHeaders = ['name'];
-    const normalizedHeaders = headerRow.map(h => String(h || '').trim().toLowerCase());
-    if (!requiredHeaders.every(h => normalizedHeaders.includes(h))) {
-        throw new Error(`Import failed: Missing one or more required columns: ${requiredHeaders.join(', ')}.`);
-    }
 
     const { processedData, newEmployees, skippedCount } = await processAttendanceImport(headerRow, nonEmptyRows, bsYear, bsMonth, employees, importedBy);
 
     // 1. Add Attendance Records
     const newAttendanceRecords = processedData
-      .filter(p => p.dateADISO) // Ensure date is valid
+      .filter(p => p.dateADISO)
       .map(p => ({
         date: p.dateADISO, 
         bsDate: p.dateBS, 
@@ -125,7 +122,7 @@ export const addAttendanceAndPayrollRecords = async (
             employeeName: employee.name,
             totalHours: Number(row.totalHours) || 0,
             otHours: Number(row.otHours) || 0,
-            regularHours: Number(row.normalHours) || 0, // Use normalHours from payroll
+            regularHours: Number(row.normalHours) || 0,
             rate: Number(row.rate) || 0,
             regularPay: Number(row.regularPay) || 0,
             otPay: Number(row.otPay) || 0,
@@ -166,10 +163,8 @@ export const deleteAttendanceRecord = async (id: string): Promise<void> => {
 };
 
 export const deleteAttendanceForMonth = async (bsYear: number, bsMonth: number): Promise<void> => {
-    // First, delete payroll data for the month
     await deletePayrollForMonth(bsYear, bsMonth);
 
-    // Then, delete attendance data
     const snapshot = await getDocs(attendanceCollection);
     const recordsToDelete = snapshot.docs.filter(doc => {
         const data = doc.data();
@@ -181,11 +176,10 @@ export const deleteAttendanceForMonth = async (bsYear: number, bsMonth: number):
     });
 
     if (recordsToDelete.length === 0) {
-        console.log("No attendance records to delete for the specified month.");
         return;
     }
 
-    const CHUNK_SIZE = 400; // Use a safe chunk size of 400
+    const CHUNK_SIZE = 400;
     for (let i = 0; i < recordsToDelete.length; i += CHUNK_SIZE) {
         const chunk = recordsToDelete.slice(i, i + CHUNK_SIZE);
         const batch = writeBatch(db);
@@ -194,8 +188,6 @@ export const deleteAttendanceForMonth = async (bsYear: number, bsMonth: number):
         });
         await batch.commit();
     }
-
-    console.log(`Deleted ${recordsToDelete.length} attendance records for ${bsYear}-${bsMonth + 1}.`);
 };
 
 
