@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
@@ -14,7 +13,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Badge } from '@/components/ui/badge';
 import { format as formatDate, getDay } from 'date-fns';
 import { onEmployeesUpdate, addEmployee } from '@/services/employee-service';
-import { updateAttendanceRecord, deleteAttendanceRecord, deleteAttendanceForMonth, getAttendanceForMonth, getAttendanceYears } from '@/services/attendance-service';
+import { updateAttendanceRecord, deleteAttendanceRecord, deleteAttendanceForMonth, getAttendanceForMonth, getAttendanceYears, addAttendanceAndPayrollRecords } from '@/services/attendance-service';
 import { getAttendanceBadgeVariant, cn, formatTimeForDisplay } from '@/lib/utils';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -434,7 +433,7 @@ export default function AttendancePage() {
                 <TableCell>{formatTimeForDisplay(record.clockIn)} / {formatTimeForDisplay(record.clockOut)}</TableCell>
                 <TableCell>{(record.regularHours || 0).toFixed(1)}</TableCell>
                 <TableCell>{(record.overtimeHours || 0).toFixed(1)}</TableCell>
-                <TableCell>{record.remarks}</TableCell>
+                <TableCell>{record.remarks === 'Used imported hours' ? '' : record.remarks}</TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
                       <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
@@ -587,3 +586,5 @@ export default function AttendancePage() {
     </>
   );
 }
+
+    
