@@ -14,7 +14,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Badge } from '@/components/ui/badge';
 import { format as formatDate, getDay } from 'date-fns';
 import { onEmployeesUpdate, addEmployee } from '@/services/employee-service';
-import { updateAttendanceRecord, deleteAttendanceRecord, deleteAttendanceForMonth, getAttendanceForMonth, getAttendanceYears, addAttendanceAndPayrollRecords } from '@/services/attendance-service';
+import { updateAttendanceRecord, deleteAttendanceRecord, deleteAttendanceForMonth, getAttendanceForMonth, getAttendanceYears } from '@/services/attendance-service';
 import { getAttendanceBadgeVariant, cn, formatTimeForDisplay } from '@/lib/utils';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -256,8 +256,7 @@ export default function AttendancePage() {
         
         if (allJsonDataForPeriod.length > 1) { // Has headers + at least one data row
             await addAttendanceAndPayrollRecords(
-                allJsonDataForPeriod[0], // headerRow
-                allJsonDataForPeriod.slice(1), // dataRows
+                allJsonDataForPeriod,
                 employees, user.username, bsYear, bsMonth,
                 (progress) => {
                     setImportProgress(`${processedCount + progress}/${totalRecordsToProcess}`);
@@ -336,10 +335,10 @@ export default function AttendancePage() {
         const month = parseInt(selectedBsMonth);
         await deleteAttendanceForMonth(year, month);
         await fetchAttendanceData(); // Refetch data
-        toast({ title: 'Cleanup Successful', description: `Attendance data for ${nepaliMonths[month].name} ${year} has been removed.` });
+        toast({ title: 'Cleanup Successful', description: `Attendance and Payroll data for ${nepaliMonths[month].name} ${year} has been removed.` });
     } catch (error) {
         console.error("Failed to clean month data:", error);
-        toast({ title: 'Cleanup Failed', description: 'Could not remove the attendance data.', variant: 'destructive' });
+        toast({ title: 'Cleanup Failed', description: 'Could not remove the monthly data.', variant: 'destructive' });
     }
   };
 
@@ -435,7 +434,7 @@ export default function AttendancePage() {
                 <TableCell>{formatTimeForDisplay(record.clockIn)} / {formatTimeForDisplay(record.clockOut)}</TableCell>
                 <TableCell>{(record.regularHours || 0).toFixed(1)}</TableCell>
                 <TableCell>{(record.overtimeHours || 0).toFixed(1)}</TableCell>
-                <TableCell>{record.remarks === 'Used imported hours' ? '' : record.remarks}</TableCell>
+                <TableCell>{record.remarks}</TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
                       <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
@@ -513,7 +512,12 @@ export default function AttendancePage() {
                             <Button variant="destructive-outline"><Trash2 className="mr-2 h-4 w-4" /> Delete Month Data</Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
-                            <AlertDialogHeader><AlertDialogTitle>Delete All Data for {nepaliMonths[parseInt(selectedBsMonth)]?.name}, {selectedBsYear}?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone. This will permanently delete all attendance records for the selected month.</AlertDialogDescription></AlertDialogHeader>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Delete All Data for {nepaliMonths[parseInt(selectedBsMonth)]?.name}, {selectedBsYear}?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This action cannot be undone. This will permanently delete all attendance AND payroll records for the selected month.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
                             <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDeleteMonthData}>Confirm Delete</AlertDialogAction></AlertDialogFooter>
                         </AlertDialogContent>
                 </AlertDialog>
@@ -533,7 +537,7 @@ export default function AttendancePage() {
             </div>
             <DialogFooter><Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button><Button onClick={handleSaveEdit}>Save Changes</Button></DialogFooter>
         </DialogContent>
-    </Dialog>
+     </Dialog>
      <Dialog open={isSheetSelectDialogOpen} onOpenChange={setIsSheetSelectDialogOpen}>
         <DialogContent className="sm:max-w-2xl">
             <DialogHeader><DialogTitle>Select Sheets to Import</DialogTitle><DialogDescription>Choose sheets and their target period. Data will be mapped to the selected Nepali month and year.</DialogDescription></DialogHeader>

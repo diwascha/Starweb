@@ -5,7 +5,7 @@ import type { AttendanceRecord, RawAttendanceRow, Payroll, Employee } from '@/li
 import NepaliDate from 'nepali-date-converter';
 import { format } from 'date-fns';
 import { processAttendanceImport } from '@/lib/attendance';
-import { addPayrollRecords } from './payroll-service';
+import { addPayrollRecords, deletePayrollForMonth } from './payroll-service';
 
 
 const attendanceCollection = collection(db, 'attendance');
@@ -37,8 +37,7 @@ export const getAttendance = async (): Promise<AttendanceRecord[]> => {
 };
 
 export const addAttendanceAndPayrollRecords = async (
-    headerRow: string[],
-    dataRows: any[][],
+    jsonData: any[][],
     employees: Employee[],
     importedBy: string, 
     bsYear: number,
@@ -47,6 +46,8 @@ export const addAttendanceAndPayrollRecords = async (
 ): Promise<{ attendanceCount: number, payrollCount: number }> => {
     const CHUNK_SIZE = 400;
     
+    const headerRow = jsonData[0];
+    const dataRows = jsonData.slice(1);
     const processedData = processAttendanceImport(headerRow, dataRows, bsYear, bsMonth);
     
     // 1. Add Attendance Records
@@ -141,6 +142,10 @@ export const deleteAttendanceRecord = async (id: string): Promise<void> => {
 };
 
 export const deleteAttendanceForMonth = async (bsYear: number, bsMonth: number): Promise<void> => {
+    // First, delete payroll data for the month
+    await deletePayrollForMonth(bsYear, bsMonth);
+
+    // Then, delete attendance data
     const snapshot = await getDocs(attendanceCollection);
     const recordsToDelete = snapshot.docs.filter(doc => {
         const data = doc.data();
@@ -152,7 +157,7 @@ export const deleteAttendanceForMonth = async (bsYear: number, bsMonth: number):
     });
 
     if (recordsToDelete.length === 0) {
-        console.log("No records to delete for the specified month.");
+        console.log("No attendance records to delete for the specified month.");
         return;
     }
 
@@ -166,7 +171,7 @@ export const deleteAttendanceForMonth = async (bsYear: number, bsMonth: number):
         await batch.commit();
     }
 
-    console.log(`Deleted ${recordsToDelete.length} records for ${bsYear}-${bsMonth + 1}.`);
+    console.log(`Deleted ${recordsToDelete.length} attendance records for ${bsYear}-${bsMonth + 1}.`);
 };
 
 

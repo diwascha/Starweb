@@ -49,6 +49,31 @@ export const addPayrollRecords = async (records: Omit<Payroll, 'id'>[]): Promise
     }
 };
 
+export const deletePayrollForMonth = async (bsYear: number, bsMonth: number): Promise<void> => {
+    const q = query(payrollCollection, where("bsYear", "==", bsYear), where("bsMonth", "==", bsMonth));
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) {
+        console.log("No payroll records to delete for the specified month.");
+        return;
+    }
+
+    const CHUNK_SIZE = 400;
+    const docsToDelete = snapshot.docs;
+
+    for (let i = 0; i < docsToDelete.length; i += CHUNK_SIZE) {
+        const chunk = docsToDelete.slice(i, i + CHUNK_SIZE);
+        const batch = writeBatch(db);
+        chunk.forEach(doc => {
+            batch.delete(doc.ref);
+        });
+        await batch.commit();
+    }
+
+    console.log(`Deleted ${docsToDelete.length} payroll records for ${bsYear}-${bsMonth + 1}.`);
+};
+
+
 export const onPayrollUpdate = (callback: (records: Payroll[]) => void): () => void => {
     return onSnapshot(payrollCollection, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
