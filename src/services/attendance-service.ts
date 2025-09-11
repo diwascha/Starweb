@@ -51,7 +51,6 @@ export const addAttendanceAndPayrollRecords = async (
     const headerRow = jsonData[0];
     const dataRows = jsonData.slice(1);
     
-    // Filter out rows that are completely empty or have no employee name
     const nameIndex = headerRow.map(h => String(h).toLowerCase()).indexOf('name');
     const nonEmptyRows = dataRows.filter(row => row.length > nameIndex && row[nameIndex] != null && String(row[nameIndex]).trim() !== '');
 
@@ -109,7 +108,6 @@ export const addAttendanceAndPayrollRecords = async (
         const employee = allEmployees.find(e => e.name === employeeName);
         if (!employee) continue;
         
-        // Find the first row with payroll data for this employee
         const payrollDataSource = employeeRows.find(r => r.netPayment !== null && r.netPayment !== undefined && String(r.netPayment).trim() !== '');
         
         if (payrollDataSource) {
