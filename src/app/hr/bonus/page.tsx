@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -16,7 +15,7 @@ import { Label } from '@/components/ui/label';
 import NepaliDate from 'nepali-date-converter';
 import { Badge } from '@/components/ui/badge';
 import { Award, CheckCircle, XCircle } from 'lucide-react';
-import { differenceInYears, endOfMonth } from 'date-fns';
+import { differenceInYears } from 'date-fns';
 
 const nepaliMonths = [
     { value: 0, name: "Baishakh" }, { value: 1, name: "Jestha" }, { value: 2, name: "Ashadh" },
@@ -67,29 +66,35 @@ export default function BonusPage() {
         const unsubEmployees = onEmployeesUpdate(setEmployees);
         const unsubAttendance = onAttendanceUpdate(setAttendance);
 
-        getAttendanceYears().then(years => {
-            setBsYears(years);
-            if (years.length > 0) {
-                 if (!selectedBsYear || !years.includes(parseInt(selectedBsYear, 10))) {
-                    const currentYear = new NepaliDate().getYear();
-                    const defaultYear = years.includes(currentYear) ? currentYear : years[0];
-                    setSelectedBsYear(String(defaultYear));
-                    
-                    const currentMonth = new NepaliDate().getMonth();
-                    setSelectedBsMonth(String(currentMonth));
-                }
-            }
-            setIsLoading(false);
-        });
-
         return () => {
             unsubEmployees();
             unsubAttendance();
         }
     }, []);
+    
+    useEffect(() => {
+        let isMounted = true;
+        getAttendanceYears().then(years => {
+            if (isMounted) {
+                setBsYears(years);
+                if (years.length > 0) {
+                    const currentNepaliDate = new NepaliDate();
+                    const currentYear = currentNepaliDate.getYear();
+                    const currentMonth = currentNepaliDate.getMonth();
+
+                    const defaultYear = years.includes(currentYear) ? currentYear : years[0];
+                    setSelectedBsYear(String(defaultYear));
+                    setSelectedBsMonth(String(currentMonth));
+                }
+                setIsLoading(false);
+            }
+        });
+        return () => { isMounted = false; };
+    }, [attendance]);
+
 
     const bonusData = useMemo((): BonusCalculationResult[] => {
-        if (!selectedBsYear || selectedBsMonth === '') {
+        if (!selectedBsYear || selectedBsMonth === '' || isLoading) {
             return [];
         }
 
@@ -158,7 +163,7 @@ export default function BonusPage() {
 
         return calculatedData;
 
-    }, [employees, attendance, selectedBsYear, selectedBsMonth, minPresentDays]);
+    }, [employees, attendance, selectedBsYear, selectedBsMonth, minPresentDays, isLoading]);
 
     const handleApplyBonuses = () => {
         toast({
@@ -250,7 +255,7 @@ export default function BonusPage() {
                                     </TableRow>
                                 )) : (
                                     <TableRow>
-                                        <TableCell colSpan={4} className="text-center">Select a period to see bonus data.</TableCell>
+                                        <TableCell colSpan={4} className="text-center">{isLoading ? "Loading..." : "No data for selected period."}</TableCell>
                                     </TableRow>
                                 )}
                             </TableBody>

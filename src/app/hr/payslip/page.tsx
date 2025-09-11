@@ -1,9 +1,8 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import type { Employee, Payroll } from '@/lib/types';
+import type { Payroll } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -33,27 +32,29 @@ export default function PayslipPage() {
     const { toast } = useToast();
 
     useEffect(() => {
-        const unsubPayroll = onPayrollUpdate(payrollData => {
-            setAllPayroll(payrollData);
-            const years = Array.from(new Set(payrollData.map(r => r.bsYear))).sort((a, b) => b - a);
-            setBsYears(years);
+        const unsubPayroll = onPayrollUpdate(setAllPayroll);
+        return () => unsubPayroll();
+    }, []);
+    
+    useEffect(() => {
+        let isMounted = true;
+        getPayrollYears().then(years => {
+            if (isMounted) {
+                setBsYears(years);
+                if (years.length > 0) {
+                    const currentNepaliDate = new NepaliDate();
+                    const currentYear = currentNepaliDate.getYear();
+                    const currentMonth = currentNepaliDate.getMonth();
 
-            if (years.length > 0) {
-                if (!selectedBsYear || !years.includes(parseInt(selectedBsYear, 10))) {
-                    const currentYear = new NepaliDate().getYear();
                     const defaultYear = years.includes(currentYear) ? currentYear : years[0];
                     setSelectedBsYear(String(defaultYear));
-                    
-                    const currentMonth = new NepaliDate().getMonth();
                     setSelectedBsMonth(String(currentMonth));
                 }
             }
         });
+        return () => { isMounted = false; };
+    }, [allPayroll]);
 
-        return () => {
-            unsubPayroll();
-        }
-    }, []);
 
     const filteredPayroll = useMemo(() => {
         if (!selectedBsYear || selectedBsMonth === '') return [];

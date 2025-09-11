@@ -1,9 +1,8 @@
 
-
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import type { Employee, Payroll } from '@/lib/types';
+import { useState, useEffect, useMemo } from 'react';
+import type { Payroll } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
@@ -51,30 +50,31 @@ export default function PayrollClientPage() {
     const { user } = useAuth();
 
 
-     useEffect(() => {
-        setIsLoading(true);
-        const unsubPayroll = onPayrollUpdate(payrollData => {
-            setAllPayroll(payrollData);
-            const years = Array.from(new Set(payrollData.map(r => r.bsYear))).sort((a, b) => b - a);
-            setBsYears(years);
+    useEffect(() => {
+        const unsubPayroll = onPayrollUpdate(setAllPayroll);
+        return () => unsubPayroll();
+    }, []);
 
-            if (years.length > 0) {
-                if (!selectedBsYear || !years.includes(parseInt(selectedBsYear, 10))) {
-                    const currentYear = new NepaliDate().getYear();
+    useEffect(() => {
+        let isMounted = true;
+        setIsLoading(true);
+        getPayrollYears().then(years => {
+            if (isMounted) {
+                setBsYears(years);
+                if (years.length > 0) {
+                    const currentNepaliDate = new NepaliDate();
+                    const currentYear = currentNepaliDate.getYear();
+                    const currentMonth = currentNepaliDate.getMonth();
+
                     const defaultYear = years.includes(currentYear) ? currentYear : years[0];
                     setSelectedBsYear(String(defaultYear));
-
-                    const currentMonth = new NepaliDate().getMonth();
                     setSelectedBsMonth(String(currentMonth));
                 }
+                setIsLoading(false);
             }
-            setIsLoading(false);
         });
-
-        return () => {
-            unsubPayroll();
-        }
-    }, []); 
+        return () => { isMounted = false; };
+    }, [allPayroll]);
     
     const monthlyPayroll = useMemo(() => {
         if (!selectedBsYear || selectedBsMonth === '' || isLoading) return [];
@@ -216,7 +216,7 @@ export default function PayrollClientPage() {
                                     {isLoading && <TableRow><TableCell colSpan={18} className="text-center"><Loader2 className="mr-2 h-4 w-4 animate-spin inline-block" /> Loading payroll...</TableCell></TableRow>}
                                     {!isLoading && monthlyPayroll.map(p => {
                                         return (
-                                        <TableRow key={p.employeeId}>
+                                        <TableRow key={p.id}>
                                             <TableCell className="font-medium sticky left-0 bg-background z-10">{p.employeeName}</TableCell>
                                             <TableCell>{p.totalHours?.toFixed(1) || '0.0'}</TableCell>
                                             <TableCell>{p.otHours?.toFixed(1) || '0.0'}</TableCell>
