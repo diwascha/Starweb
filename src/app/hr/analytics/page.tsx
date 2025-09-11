@@ -47,23 +47,23 @@ export default function AnalyticsPage() {
     }, []);
     
     useEffect(() => {
+        let isMounted = true;
         getAttendanceYears().then(years => {
-            setBsYears(years);
-            if (years.length > 0 && (!selectedBsYear || !years.includes(parseInt(selectedBsYear, 10)))) {
-                 const latestYear = years[0];
-                 setSelectedBsYear(String(latestYear));
-
-                 const latestRecordForYear = attendance
-                     .filter(p => new NepaliDate(new Date(p.date)).getYear() === latestYear)
-                     .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-                 
-                if (latestRecordForYear) {
-                    setSelectedBsMonth(String(new NepaliDate(new Date(latestRecordForYear.date)).getMonth()));
-                } else {
-                    setSelectedBsMonth('0');
+            if (isMounted) {
+                setBsYears(years);
+                if (years.length > 0) {
+                     if (!selectedBsYear || !years.includes(parseInt(selectedBsYear, 10))) {
+                        const currentYear = new NepaliDate().getYear();
+                        const defaultYear = years.includes(currentYear) ? currentYear : years[0];
+                        setSelectedBsYear(String(defaultYear));
+                        
+                        const currentMonth = new NepaliDate().getMonth();
+                        setSelectedBsMonth(String(currentMonth));
+                    }
                 }
             }
         });
+        return () => { isMounted = false; };
     }, [attendance, selectedBsYear]);
 
 

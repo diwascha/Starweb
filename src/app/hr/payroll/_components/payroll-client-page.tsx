@@ -15,7 +15,7 @@ import { onPayrollUpdate, getPayrollYears } from '@/services/payroll-service';
 import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import { ScrollArea } from '@/components/ui/scroll-area';
-
+import NepaliDate from 'nepali-date-converter';
 
 const nepaliMonths = [
     { value: 0, name: "Baishakh" }, { value: 1, name: "Jestha" }, { value: 2, name: "Ashadh" },
@@ -52,22 +52,20 @@ export default function PayrollClientPage() {
 
 
      useEffect(() => {
+        setIsLoading(true);
         const unsubPayroll = onPayrollUpdate(payrollData => {
             setAllPayroll(payrollData);
-            
             const years = Array.from(new Set(payrollData.map(r => r.bsYear))).sort((a, b) => b - a);
             setBsYears(years);
 
             if (years.length > 0) {
-                 if (!selectedBsYear || !years.includes(parseInt(selectedBsYear, 10))) {
-                    const latestYear = years[0];
-                    setSelectedBsYear(String(latestYear));
+                if (!selectedBsYear || !years.includes(parseInt(selectedBsYear, 10))) {
+                    const currentYear = new NepaliDate().getYear();
+                    const defaultYear = years.includes(currentYear) ? currentYear : years[0];
+                    setSelectedBsYear(String(defaultYear));
 
-                    const latestRecordForYear = payrollData
-                        .filter(p => p.bsYear === latestYear)
-                        .sort((a,b) => b.bsMonth - a.bsMonth)[0];
-                    
-                    setSelectedBsMonth(String(latestRecordForYear?.bsMonth || 0));
+                    const currentMonth = new NepaliDate().getMonth();
+                    setSelectedBsMonth(String(currentMonth));
                 }
             }
             setIsLoading(false);
@@ -76,7 +74,7 @@ export default function PayrollClientPage() {
         return () => {
             unsubPayroll();
         }
-    }, [selectedBsYear]); 
+    }, []); 
     
     const monthlyPayroll = useMemo(() => {
         if (!selectedBsYear || selectedBsMonth === '' || isLoading) return [];

@@ -106,27 +106,24 @@ export default function AttendancePage() {
   }, []);
 
   useEffect(() => {
+    let isMounted = true;
     getAttendanceYears().then(years => {
-      setBsYears(years);
-      if (years.length > 0 && (!selectedBsYear || !years.includes(parseInt(selectedBsYear, 10)))) {
-        // If no year is selected OR the selected year is no longer valid, set to the latest
-        const latestYear = years[0];
-        setSelectedBsYear(String(latestYear));
-        
-        // Find the latest month for that year to set as default
-        getAttendanceForMonth(latestYear, -1).then(allRecords => { // Pass -1 or similar to signify "all months" if service supports it, or handle here
-             const latestMonth = allRecords
-                .filter(r => new Date(r.date).getFullYear() === new Date().getFullYear()) // Crude way to get current year's records
-                .map(r => new Date(r.date).getMonth())
-                .sort((a,b) => b-a)[0];
-            setSelectedBsMonth(String(latestMonth ?? new Date().getMonth()));
-            fetchAttendanceData();
-        });
-      } else if (years.length === 0) {
-        setIsDataLoading(false);
+      if (isMounted) {
+          setBsYears(years);
+          if (years.length > 0) {
+              const currentYear = new NepaliDate().getYear();
+              const defaultYear = years.includes(currentYear) ? currentYear : years[0];
+              setSelectedBsYear(String(defaultYear));
+              
+              const currentMonth = new NepaliDate().getMonth();
+              setSelectedBsMonth(String(currentMonth));
+          } else {
+              setIsDataLoading(false);
+          }
       }
     });
-  }, [attendance]); // Re-run when attendance data might have changed (after import)
+    return () => { isMounted = false; };
+  }, []);
   
   useEffect(() => {
     if (selectedBsYear && selectedBsMonth) {
@@ -314,6 +311,9 @@ export default function AttendancePage() {
         if (totalSkippedRows > 0) description += ` ${totalSkippedRows} rows were skipped.`;
         
         toast({ title: 'Import Complete', description, duration: 8000 });
+        // After a successful import, refresh the year list
+        const years = await getAttendanceYears();
+        setBsYears(years);
     } else {
         toast({ title: 'Info', description: `No new valid records found. ${totalSkippedRows} rows were skipped.` });
     }
@@ -523,11 +523,11 @@ export default function AttendancePage() {
         </div>
       </header>
 
-      {(attendance.length > 0 || !isDataLoading) && (
+      {(!isDataLoading || attendance.length > 0) && bsYears.length > 0 && (
           <div className="flex flex-col sm:flex-row flex-wrap gap-2 items-center">
               <Label>Filter by:</Label>
-              <Select value={selectedBsYear} onValueChange={setSelectedBsYear} disabled={isLoading || bsYears.length === 0}><SelectTrigger className="w-full sm:w-[120px]"><SelectValue placeholder="Year (BS)" /></SelectTrigger><SelectContent>{bsYears.map(year => (<SelectItem key={year} value={String(year)}>{year}</SelectItem>))}</SelectContent></Select>
-              <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth} disabled={isLoading || bsYears.length === 0}><SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Month (BS)" /></SelectTrigger><SelectContent>{nepaliMonths.map(month => (<SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>))}</SelectContent></Select>
+              <Select value={selectedBsYear} onValueChange={setSelectedBsYear}><SelectTrigger className="w-full sm:w-[120px]"><SelectValue placeholder="Year (BS)" /></SelectTrigger><SelectContent>{bsYears.map(year => (<SelectItem key={year} value={String(year)}>{year}</SelectItem>))}</SelectContent></Select>
+              <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth}><SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Month (BS)" /></SelectTrigger><SelectContent>{nepaliMonths.map(month => (<SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>))}</SelectContent></Select>
                <Select value={filterEmployeeName} onValueChange={setFilterEmployeeName}><SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Select Employee" /></SelectTrigger><SelectContent>{uniqueEmployeeNames.map(name => (<SelectItem key={name} value={name}>{name}</SelectItem>))}</SelectContent></Select>
                <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as 'All' | AttendanceStatus)}><SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Select Status" /></SelectTrigger><SelectContent><SelectItem value="All">All Statuses</SelectItem>{attendanceStatuses.map(status => (<SelectItem key={status} value={status}>{status}</SelectItem>))}</SelectContent></Select>
                <AlertDialog>
