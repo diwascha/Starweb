@@ -110,9 +110,9 @@ export const addAttendanceAndPayrollRecords = async (
         
         // Find the first row for this employee that looks like a payroll summary row
         const payrollDataSource = employeeRows.find(r => 
-            (r.netPayment !== null && r.netPayment !== undefined && String(r.netPayment).trim() !== '') ||
-            (r.totalPay !== null && r.totalPay !== undefined && String(r.totalPay).trim() !== '') ||
-            (r.gross !== null && r.gross !== undefined && String(r.gross).trim() !== '')
+            (r.netPayment !== null && r.netPayment !== undefined && String(r.netPayment).trim() !== '' && Number(r.netPayment) > 0) ||
+            (r.totalPay !== null && r.totalPay !== undefined && String(r.totalPay).trim() !== '' && Number(r.totalPay) > 0) ||
+            (r.gross !== null && r.gross !== undefined && String(r.gross).trim() !== '' && Number(r.gross) > 0)
         );
         
         if (payrollDataSource) {
@@ -121,7 +121,7 @@ export const addAttendanceAndPayrollRecords = async (
                 bsMonth,
                 employeeId: employee.id,
                 employeeName: employee.name,
-                joiningDate: employee.joiningDate || new Date().toISOString(), // Ensure joiningDate is never undefined
+                joiningDate: employee.joiningDate,
                 totalHours: (Number(payrollDataSource.regularHours) || 0) + (Number(payrollDataSource.otHours) || 0),
                 otHours: Number(payrollDataSource.otHours) || 0,
                 regularHours: Number(payrollDataSource.regularHours) || 0,

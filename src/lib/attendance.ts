@@ -134,10 +134,10 @@ export const processAttendanceImport = async (
         offDuty: ['off duty'],
         clockIn: ['clock in'],
         clockOut: ['clock out'],
-        status: ['absent'],
+        status: ['status', 'absent'], // 'status' can be used for explicit statuses like 'Absent'
         remarks: ['remarks'],
         
-        // Payroll columns
+        // Payroll columns from the 'Timesheet' example, mapping to generic names
         totalHours: ['total hour', 'total hours'],
         otHours: ['ot hour', 'ot hours'],
         regularHours: ['normal hrs', 'regular hours', 'norman'],
@@ -205,7 +205,15 @@ export const processAttendanceImport = async (
         if (!employeeName) return null;
 
         if (!existingEmployeeNames.has(employeeName.toLowerCase()) && !newEmployees.has(employeeName)) {
-            const newEmployee: Omit<Employee, 'id'> = { name: employeeName, wageBasis: 'Monthly', wageAmount: 0, createdBy: importedBy, createdAt: new Date().toISOString(), status: 'Working' };
+            const newEmployee: Omit<Employee, 'id'> = { 
+                name: employeeName, 
+                wageBasis: 'Monthly', 
+                wageAmount: 0, 
+                createdBy: importedBy, 
+                createdAt: new Date().toISOString(), 
+                joiningDate: new Date().toISOString(),
+                status: 'Working' 
+            };
             try {
                 await addEmployee(newEmployee);
                 existingEmployeeNames.add(employeeName.toLowerCase());
