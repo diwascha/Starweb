@@ -84,10 +84,6 @@ const parseExcelDate = (dateInput: any): Date | null => {
 
     // It's a number (Excel serial date)
     if (typeof dateInput === 'number') {
-        // Excel's epoch starts on 1900-01-01, but it incorrectly thinks 1900 was a leap year.
-        // The convention is to treat dates as if they are from the 1904 epoch if they are for Mac.
-        // Javascript's epoch is 1970-01-01.
-        // The conversion is (excelDate - 25569) * 86400 * 1000 for Windows.
         const date = new Date((dateInput - 25569) * 86400 * 1000);
         if (isValid(date)) return date;
     }
@@ -96,7 +92,10 @@ const parseExcelDate = (dateInput: any): Date | null => {
     if (typeof dateInput === 'string') {
         const trimmedDate = dateInput.trim();
         // Handle formats like 'dd/MM/yy', 'MM/dd/yy', 'yyyy-MM-dd', 'dd-MM-yyyy' etc.
-        const formatsToTry = ['dd/MM/yy', 'MM/dd/yy', 'yyyy-MM-dd', 'dd-MM-yyyy', 'M/d/yy', 'd/M/yy'];
+        const formatsToTry = [
+            'yyyy/MM/dd', 'dd/MM/yyyy', 'yyyy-MM-dd', 
+            'dd/MM/yy', 'MM/dd/yy', 'dd-MM-yyyy', 'M/d/yy', 'd/M/yy'
+        ];
         for (const fmt of formatsToTry) {
             try {
                 const parsed = parse(trimmedDate, fmt, new Date());
@@ -226,7 +225,8 @@ export const processAttendanceImport = async (
                 const day = parseInt(dayMatch[0], 10);
                 if (day >= 1 && day <= 32) {
                     try {
-                        ad = new NepaliDate(bsYear, bsMonth, day).toJsDate();
+                        const candidateDate = new NepaliDate(bsYear, bsMonth, day);
+                        ad = candidateDate.toJsDate();
                     } catch { /* Invalid day for month, will be skipped below */ }
                 }
             }
