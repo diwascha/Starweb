@@ -13,7 +13,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Badge } from '@/components/ui/badge';
 import { getDay } from 'date-fns';
 import { onEmployeesUpdate, addEmployee } from '@/services/employee-service';
-import { updateAttendanceRecord, deleteAttendanceRecord, deleteAttendanceForMonth, getAttendanceForMonth, getAttendanceYears, addAttendanceAndPayrollRecords } from '@/services/attendance-service';
+import { updateAttendanceRecord, deleteAttendanceRecord, deleteAttendanceForMonth, getAttendanceForMonth, getAttendanceYears, addAttendanceRecords } from '@/services/attendance-service';
 import { getAttendanceBadgeVariant, cn, formatTimeForDisplay, toNepaliDate } from '@/lib/utils';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -201,7 +201,7 @@ export default function AttendancePage() {
         const sheetInfo = availableSheets.find(s => s.name === selected.name);
         if (sheetInfo) {
              try {
-                const result = await addAttendanceAndPayrollRecords(
+                const result = await addAttendanceRecords(
                     sheetInfo.jsonData,
                     employees, user.username, 
                     parseInt(selected.year, 10), 

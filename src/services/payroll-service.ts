@@ -38,43 +38,6 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
     };
 };
 
-export const addPayrollRecords = async (records: Omit<Payroll, 'id'>[]): Promise<void> => {
-    const CHUNK_SIZE = 400;
-    for (let i = 0; i < records.length; i += CHUNK_SIZE) {
-        const chunk = records.slice(i, i + CHUNK_SIZE);
-        const batch = writeBatch(db);
-        chunk.forEach(record => {
-            const docRef = doc(payrollCollection);
-            batch.set(docRef, record);
-        });
-        await batch.commit();
-    }
-};
-
-export const deletePayrollForMonth = async (bsYear: number, bsMonth: number): Promise<void> => {
-    const q = query(payrollCollection, where("bsYear", "==", bsYear), where("bsMonth", "==", bsMonth));
-    const snapshot = await getDocs(q);
-
-    if (snapshot.empty) {
-        console.log("No payroll records to delete for the specified month.");
-        return;
-    }
-
-    const CHUNK_SIZE = 400;
-    const docsToDelete = snapshot.docs;
-
-    for (let i = 0; i < docsToDelete.length; i += CHUNK_SIZE) {
-        const chunk = docsToDelete.slice(i, i + CHUNK_SIZE);
-        const batch = writeBatch(db);
-        chunk.forEach(doc => {
-            batch.delete(doc.ref);
-        });
-        await batch.commit();
-    }
-
-    console.log(`Deleted ${docsToDelete.length} payroll records for ${bsYear}-${bsMonth + 1}.`);
-};
-
 
 export const onPayrollUpdate = (callback: (records: Payroll[]) => void): () => void => {
     return onSnapshot(payrollCollection, (snapshot) => {
@@ -100,6 +63,107 @@ export const getPayrollYears = async (): Promise<number[]> => {
     const allRecords = await getDocs(payrollCollection).then(snap => snap.docs.map(d => d.data()));
     const years = new Set(allRecords.map(r => r.bsYear) as number[]);
     return Array.from(years).sort((a, b) => b - a);
+};
+
+export const deletePayrollForMonth = async (bsYear: number, bsMonth: number): Promise<void> => {
+    const q = query(payrollCollection, where("bsYear", "==", bsYear), where("bsMonth", "==", bsMonth));
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) {
+        return;
+    }
+
+    const CHUNK_SIZE = 400;
+    const docsToDelete = snapshot.docs;
+
+    for (let i = 0; i < docsToDelete.length; i += CHUNK_SIZE) {
+        const chunk = docsToDelete.slice(i, i + CHUNK_SIZE);
+        const batch = writeBatch(db);
+        chunk.forEach(doc => {
+            batch.delete(doc.ref);
+        });
+        await batch.commit();
+    }
+};
+
+export const calculateAndSavePayrollForMonth = async (
+    bsYear: number,
+    bsMonth: number,
+    allEmployees: Employee[],
+    allAttendance: AttendanceRecord[],
+    calculatedBy: string
+): Promise<{ employeeCount: number }> => {
+    const workingEmployees = allEmployees.filter(e => e.status === 'Working');
+    const monthlyAttendance = allAttendance.filter(r => {
+        try {
+            if (!r.date || isNaN(new Date(r.date).getTime())) return false;
+            const nepaliDate = new NepaliDate(new Date(r.date));
+            return nepaliDate.getYear() === bsYear && nepaliDate.getMonth() === bsMonth;
+        } catch {
+            return false;
+        }
+    });
+    
+    const payrollRecords: Omit<Payroll, 'id'>[] = [];
+    const now = new Date().toISOString();
+
+    for (const employee of workingEmployees) {
+        const employeeAttendance = monthlyAttendance.filter(r => r.employeeName === employee.name);
+        
+        const regularHours = employeeAttendance.reduce((sum, r) => sum + (r.regularHours || 0), 0);
+        const otHours = employeeAttendance.reduce((sum, r) => sum + (r.overtimeHours || 0), 0);
+        const absentDays = employeeAttendance.filter(r => r.status === 'Absent').length;
+
+        let rate = 0;
+        if (employee.wageBasis === 'Monthly') {
+            const daysInMonth = new NepaliDate(bsYear, bsMonth, 1).getMonthDays();
+            rate = employee.wageAmount / daysInMonth / 8; // Assuming 8-hour day
+        } else { // Hourly
+            rate = employee.wageAmount;
+        }
+
+        const regularPay = regularHours * rate;
+        const otPay = otHours * rate * 1.5; // Assuming OT at 1.5x
+        const totalPay = regularPay + otPay;
+        const deduction = absentDays * 8 * rate; // Deduction for 8 hours per absent day
+        
+        const allowance = employee.allowance || 0;
+        const bonus = 0; // Bonus calculation can be added here if needed
+        const salaryTotal = totalPay - deduction + allowance + bonus;
+        const tds = salaryTotal > 0 ? salaryTotal * 0.01 : 0;
+        const gross = salaryTotal - tds;
+        const advance = 0; // Advance deduction can be added here
+        const netPayment = gross - advance;
+        
+        payrollRecords.push({
+            bsYear, bsMonth,
+            employeeId: employee.id,
+            employeeName: employee.name,
+            joiningDate: employee.joiningDate,
+            totalHours: regularHours + otHours,
+            regularHours, otHours, rate,
+            regularPay, otPay, totalPay,
+            absentDays, deduction, allowance, bonus,
+            salaryTotal, tds, gross, advance, netPayment,
+            remark: '',
+            createdBy: calculatedBy,
+            createdAt: now
+        });
+    }
+
+    // Batch write to Firestore
+    const CHUNK_SIZE = 400;
+    for (let i = 0; i < payrollRecords.length; i += CHUNK_SIZE) {
+        const chunk = payrollRecords.slice(i, i + CHUNK_SIZE);
+        const batch = writeBatch(db);
+        chunk.forEach(record => {
+            const docRef = doc(payrollCollection);
+            batch.set(docRef, record);
+        });
+        await batch.commit();
+    }
+    
+    return { employeeCount: payrollRecords.length };
 };
 
 
