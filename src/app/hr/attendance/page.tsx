@@ -402,11 +402,18 @@ export default function AttendancePage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredAndSortedRecords.map(record => (
-              <TableRow key={record.id}>
+            {filteredAndSortedRecords.map(record => {
+              const dayOfWeek = record.date ? weekdays[getDay(new Date(record.date))] : '';
+              const isSaturday = dayOfWeek === 'Saturday';
+              const isAbsent = record.status === 'Absent';
+              return (
+              <TableRow key={record.id} className={cn(
+                isSaturday && 'bg-yellow-100',
+                isAbsent && 'bg-red-100'
+              )}>
                 <TableCell className="font-medium">{record.date ? formatDate(new Date(record.date), 'yyyy-MM-dd') : '-'}</TableCell>
                 <TableCell>{record.bsDate}</TableCell>
-                <TableCell>{record.date ? weekdays[getDay(new Date(record.date))] : '-'}</TableCell>
+                <TableCell>{dayOfWeek}</TableCell>
                 <TableCell>{record.employeeName}</TableCell>
                 <TableCell>{record.sourceSheet || 'N/A'}</TableCell>
                  <TableCell><Badge variant={getAttendanceBadgeVariant(record.status as AttendanceStatus)}>{record.status}</Badge></TableCell>
@@ -433,7 +440,7 @@ export default function AttendancePage() {
                   </DropdownMenu>
                 </TableCell>
               </TableRow>
-            ))}
+            )})}
           </TableBody>
         </Table>
       </Card>
@@ -492,7 +499,7 @@ export default function AttendancePage() {
                 <Select value={selectedBsYear} onValueChange={setSelectedBsYear}><SelectTrigger className="w-full sm:w-[120px]"><SelectValue placeholder="Year (BS)" /></SelectTrigger><SelectContent>{bsYears.map(year => (<SelectItem key={year} value={String(year)}>{year}</SelectItem>))}</SelectContent></Select>
                 <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth}><SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Month (BS)" /></SelectTrigger><SelectContent>{nepaliMonths.map(month => (<SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>))}</SelectContent></Select>
                 <Select value={filterEmployeeName} onValueChange={setFilterEmployeeName}><SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Select Employee" /></SelectTrigger><SelectContent>{uniqueEmployeeNames.map(name => (<SelectItem key={name} value={name}>{name}</SelectItem>))}</SelectContent></Select>
-                <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as 'All' | AttendanceStatus)}><SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Select Status" /></SelectTrigger><SelectContent>{allPossibleStatuses.filter(s => s).map(status => (<SelectItem key={status} value={status}>{status}</SelectItem>))}</SelectContent></Select>
+                <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as 'All' | AttendanceStatus)}><SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Select Status" /></SelectTrigger><SelectContent>{allPossibleStatuses.filter(s => !!s).map(status => (<SelectItem key={status} value={status}>{status}</SelectItem>))}</SelectContent></Select>
                 <AlertDialog>
                         <AlertDialogTrigger asChild>
                             <Button variant="destructive-outline"><Trash2 className="mr-2 h-4 w-4" /> Delete Month Data</Button>
