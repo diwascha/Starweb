@@ -8,6 +8,7 @@
 
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -161,25 +162,6 @@ export interface RawAttendanceRow {
     remarks?: any;
     dailyOvertimeHours?: any;
     dailyRegularHours?: any;
-
-    // Payroll Summary columns
-    payrollTotalHours?: any; 
-    payrollOtHours?: any; 
-    payrollRegularHours?: any;
-    rate?: any; 
-    regularPay?: any;
-    otPay?: any;
-    totalPay?: any;
-    absentDays?: any;
-    deduction?: any;
-    allowance?: any;
-    bonus?: any;
-    salaryTotal?: any;
-    tds?: any;
-    gross?: any;
-    advance?: any;
-    netPayment?: any;
-    payrollRemark?: any;
     
     // Internal properties
     sourceSheet?: string;

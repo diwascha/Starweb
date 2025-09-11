@@ -5,7 +5,6 @@ import type { AttendanceRecord, RawAttendanceRow, Payroll, Employee } from '@/li
 import NepaliDate from 'nepali-date-converter';
 import { format } from 'date-fns';
 import { processAttendanceImport } from '@/lib/attendance';
-import { addPayrollRecords, deletePayrollForMonth } from './payroll-service';
 import { addEmployee, getEmployees } from './employee-service';
 
 
@@ -38,7 +37,7 @@ export const getAttendance = async (): Promise<AttendanceRecord[]> => {
     return snapshot.docs.map(fromFirestore);
 };
 
-export const addAttendanceAndPayrollRecords = async (
+export const addAttendanceRecords = async (
     jsonData: any[][],
     existingEmployees: Employee[],
     importedBy: string, 
@@ -46,13 +45,16 @@ export const addAttendanceAndPayrollRecords = async (
     bsMonth: number,
     sourceSheetName: string,
     onProgress: (progress: number) => void
-): Promise<{ attendanceCount: number, payrollCount: number, newEmployees: string[], skippedCount: number }> => {
+): Promise<{ attendanceCount: number, newEmployees: string[], skippedCount: number }> => {
     const CHUNK_SIZE = 400;
     
     const headerRow = jsonData[0];
     const dataRows = jsonData.slice(1);
     
     const nameIndex = headerRow.map(h => String(h).toLowerCase()).indexOf('name');
+    if (nameIndex === -1) {
+        throw new Error("Could not find 'name' column in the imported sheet.");
+    }
     const nonEmptyRows = dataRows.filter(row => row.length > nameIndex && row[nameIndex] != null && String(row[nameIndex]).trim() !== '');
 
     // --- Phase 1: Pre-process to find and create new employees ---
@@ -84,11 +86,8 @@ export const addAttendanceAndPayrollRecords = async (
     }
     
     // --- Phase 2: Process all data now that employees exist ---
-    const allEmployees = await getEmployees(); 
-
     const { processedData, skippedCount } = processAttendanceImport(headerRow, nonEmptyRows, bsYear, bsMonth);
 
-    // 1. Add Attendance Records
     const newAttendanceRecords = processedData
       .filter(p => p.dateADISO)
       .map(p => ({
@@ -121,68 +120,8 @@ export const addAttendanceAndPayrollRecords = async (
         processedCount += chunk.length;
         onProgress(processedCount);
     }
-    
-    // 2. Add Payroll Records
-    const payrollRecords: Omit<Payroll, 'id'>[] = [];
-    const employeeDataMap = new Map<string, RawAttendanceRow[]>();
 
-    // Group processed data by employee name
-    for (const row of processedData) {
-        if (!employeeDataMap.has(row.employeeName)) {
-            employeeDataMap.set(row.employeeName, []);
-        }
-        employeeDataMap.get(row.employeeName)!.push(row);
-    }
-
-    for (const [employeeName, employeeRows] of employeeDataMap.entries()) {
-        const employee = allEmployees.find(e => e.name === employeeName);
-        if (!employee) continue;
-        
-        // Find a single row that contains the payroll summary for this employee
-        const payrollDataSource = employeeRows.find(r => 
-            (r.netPayment !== null && r.netPayment !== undefined && String(r.netPayment).trim() !== '' && Number(r.netPayment) > 0) ||
-            (r.totalPay !== null && r.totalPay !== undefined && String(r.totalPay).trim() !== '' && Number(r.totalPay) > 0) ||
-            (r.gross !== null && r.gross !== undefined && String(r.gross).trim() !== '' && Number(r.gross) > 0)
-        );
-        
-        if (payrollDataSource) {
-             const joiningDate = employee.joiningDate || new Date().toISOString();
-            payrollRecords.push({
-                bsYear, 
-                bsMonth,
-                employeeId: employee.id,
-                employeeName: employee.name,
-                joiningDate: joiningDate,
-                totalHours: (Number(payrollDataSource.payrollRegularHours) || 0) + (Number(payrollDataSource.payrollOtHours) || 0),
-                otHours: Number(payrollDataSource.payrollOtHours) || 0,
-                regularHours: Number(payrollDataSource.payrollRegularHours) || 0,
-                rate: Number(payrollDataSource.rate) || 0,
-                regularPay: Number(payrollDataSource.regularPay) || 0,
-                otPay: Number(payrollDataSource.otPay) || 0,
-                totalPay: Number(payrollDataSource.totalPay) || 0,
-                absentDays: Number(payrollDataSource.absentDays) || 0,
-                deduction: Number(payrollDataSource.deduction) || 0,
-                allowance: Number(payrollDataSource.allowance) || 0,
-                bonus: Number(payrollDataSource.bonus) || 0,
-                salaryTotal: Number(payrollDataSource.salaryTotal) || 0,
-                tds: Number(payrollDataSource.tds) || 0,
-                gross: Number(payrollDataSource.gross) || 0,
-                advance: Number(payrollDataSource.advance) || 0,
-                netPayment: Number(payrollDataSource.netPayment) || 0,
-                remark: payrollDataSource.payrollRemark || '',
-                createdBy: importedBy,
-                createdAt: new Date().toISOString(),
-                rawImportData: payrollDataSource.rawImportData,
-            });
-        }
-    }
-
-
-    if(payrollRecords.length > 0) {
-        await addPayrollRecords(payrollRecords);
-    }
-
-    return { attendanceCount: newAttendanceRecords.length, payrollCount: payrollRecords.length, newEmployees: Array.from(newEmployeeNames), skippedCount };
+    return { attendanceCount: newAttendanceRecords.length, newEmployees: Array.from(newEmployeeNames), skippedCount };
 };
 
 
@@ -197,17 +136,9 @@ export const deleteAttendanceRecord = async (id: string): Promise<void> => {
 };
 
 export const deleteAttendanceForMonth = async (bsYear: number, bsMonth: number): Promise<void> => {
-    // First, delete associated payroll records
-    await deletePayrollForMonth(bsYear, bsMonth);
-
-    // Then, delete attendance records for that month
     const snapshot = await getDocs(attendanceCollection);
     const recordsToDelete = snapshot.docs.filter(doc => {
         const data = doc.data();
-        if (data.bsDate) {
-            const [year, month] = data.bsDate.split('-').map(Number);
-            return year === bsYear && month - 1 === bsMonth;
-        }
         if (data.date && !isNaN(new Date(data.date).getTime())) {
             try {
                 const nepaliDate = new NepaliDate(new Date(data.date));

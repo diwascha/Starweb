@@ -2,19 +2,22 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import type { Payroll } from '@/lib/types';
+import type { Payroll, Employee } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Download, Printer, Loader2, View } from 'lucide-react';
+import { Download, Printer, Loader2, View, Calculator } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { onPayrollUpdate } from '@/services/payroll-service';
+import { onPayrollUpdate, getPayrollYears, calculateAndSavePayrollForMonth, deletePayrollForMonth } from '@/services/payroll-service';
+import { onEmployeesUpdate } from '@/services/employee-service';
+import { onAttendanceUpdate } from '@/services/attendance-service';
 import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import NepaliDate from 'nepali-date-converter';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 const nepaliMonths = [
     { value: 0, name: "Baishakh" }, { value: 1, name: "Jestha" }, { value: 2, name: "Ashadh" },
@@ -40,10 +43,13 @@ const customEmployeeOrder = [
 
 export default function PayrollClientPage() {
     const [allPayroll, setAllPayroll] = useState<Payroll[]>([]);
+    const [allAttendance, setAllAttendance] = useState<any[]>([]);
+    const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
     const [bsYears, setBsYears] = useState<number[]>([]);
     const [selectedBsYear, setSelectedBsYear] = useState<string>('');
     const [selectedBsMonth, setSelectedBsMonth] = useState<string>('');
     const [isLoading, setIsLoading] = useState(true);
+    const [isCalculating, setIsCalculating] = useState(false);
     const router = useRouter();
 
     const { toast } = useToast();
@@ -52,34 +58,81 @@ export default function PayrollClientPage() {
     useEffect(() => {
         const unsubPayroll = onPayrollUpdate((payrolls) => {
             setAllPayroll(payrolls);
-
             if (payrolls.length > 0) {
                 const years = Array.from(new Set(payrolls.map(p => p.bsYear))).sort((a, b) => b - a);
                 setBsYears(years);
-
-                // This logic will run only once on initial load or if the selected year becomes invalid
-                setSelectedBsYear(prevYear => {
-                    if (prevYear && years.includes(parseInt(prevYear))) {
-                        return prevYear;
-                    }
-                    const mostRecentEntry = payrolls.reduce((latest, current) => {
-                        const latestDate = new NepaliDate(latest.bsYear, latest.bsMonth, 1).toJsDate().getTime();
-                        const currentDate = new NepaliDate(current.bsYear, current.bsMonth, 1).toJsDate().getTime();
-                        return currentDate > latestDate ? current : latest;
-                    });
-                    
-                    setSelectedBsMonth(String(mostRecentEntry.bsMonth));
-                    return String(mostRecentEntry.bsYear);
-                });
-            } else {
-                setBsYears([]);
-                setSelectedBsYear('');
-                setSelectedBsMonth('');
             }
             setIsLoading(false);
         });
-        return () => unsubPayroll();
+
+        const unsubAttendance = onAttendanceUpdate(setAllAttendance);
+        const unsubEmployees = onEmployeesUpdate(setAllEmployees);
+        
+        return () => {
+            unsubPayroll();
+            unsubAttendance();
+            unsubEmployees();
+        };
     }, []);
+    
+    useEffect(() => {
+        if (!isLoading && bsYears.length > 0) {
+            const currentNepaliDate = new NepaliDate();
+            
+            if (!selectedBsYear || !bsYears.includes(parseInt(selectedBsYear, 10))) {
+                const mostRecentYear = Math.max(...bsYears);
+                setSelectedBsYear(String(mostRecentYear));
+            }
+            if (!selectedBsMonth) {
+                const mostRecentEntryForYear = allPayroll
+                    .filter(p => p.bsYear === parseInt(selectedBsYear || String(Math.max(...bsYears)), 10))
+                    .reduce((latest, current) => current.bsMonth > latest.bsMonth ? current : latest, { bsMonth: -1 });
+                
+                setSelectedBsMonth(String(mostRecentEntryForYear.bsMonth !== -1 ? mostRecentEntryForYear.bsMonth : currentNepaliDate.getMonth()));
+            }
+        } else if (!isLoading && bsYears.length === 0) {
+            const currentNepaliDate = new NepaliDate();
+            setSelectedBsYear(String(currentNepaliDate.getYear()));
+            setSelectedBsMonth(String(currentNepaliDate.getMonth()));
+        }
+    }, [isLoading, bsYears, allPayroll, selectedBsYear, selectedBsMonth]);
+
+
+    const handleCalculatePayroll = async () => {
+        if (!selectedBsYear || !selectedBsMonth || !user) {
+            toast({ title: 'Error', description: 'Please select a valid year and month.', variant: 'destructive' });
+            return;
+        }
+        setIsCalculating(true);
+        try {
+            const year = parseInt(selectedBsYear, 10);
+            const month = parseInt(selectedBsMonth, 10);
+            
+            // First, delete any existing payroll for that month
+            await deletePayrollForMonth(year, month);
+            
+            // Then, calculate and save the new payroll
+            const result = await calculateAndSavePayrollForMonth(
+                year,
+                month,
+                allEmployees,
+                allAttendance,
+                user.username
+            );
+            
+            toast({
+                title: 'Calculation Complete',
+                description: `Successfully generated payroll for ${result.employeeCount} employees.`
+            });
+
+        } catch (error) {
+            console.error("Payroll calculation failed:", error);
+            toast({ title: 'Error', description: 'Could not calculate payroll.', variant: 'destructive' });
+        } finally {
+            setIsCalculating(false);
+        }
+    };
+
 
     const monthlyPayroll = useMemo(() => {
         if (!selectedBsYear || selectedBsMonth === '' || isLoading) return [];
@@ -161,7 +214,7 @@ export default function PayrollClientPage() {
         <div className="flex flex-col gap-8">
             <header>
                 <h1 className="text-3xl font-bold tracking-tight">View Payroll</h1>
-                <p className="text-muted-foreground">View imported payroll data for your employees.</p>
+                <p className="text-muted-foreground">View calculated payroll data for your employees.</p>
             </header>
             
              <Card>
@@ -169,17 +222,37 @@ export default function PayrollClientPage() {
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                         <div className="space-y-1.5">
                             <CardTitle>Payroll for {nepaliMonths[parseInt(selectedBsMonth)]?.name || '...'}, {selectedBsYear || '...'}</CardTitle>
-                            <CardDescription>Select a Nepali month and year to view the imported payroll report.</CardDescription>
+                            <CardDescription>Select a Nepali month and year, then click Calculate.</CardDescription>
                         </div>
                         <div className="flex flex-col sm:flex-row gap-2">
-                            <Select value={selectedBsYear} onValueChange={setSelectedBsYear} disabled={isLoading || bsYears.length === 0}>
+                             <Select value={selectedBsYear} onValueChange={setSelectedBsYear} disabled={isLoading}>
                                 <SelectTrigger className="w-full sm:w-[120px]"><SelectValue placeholder="Year (BS)" /></SelectTrigger>
                                 <SelectContent>{bsYears.map(year => <SelectItem key={year} value={String(year)}>{year}</SelectItem>)}</SelectContent>
                             </Select>
-                            <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth} disabled={isLoading || bsYears.length === 0}>
+                            <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth} disabled={isLoading}>
                                 <SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Month (BS)" /></SelectTrigger>
                                 <SelectContent>{nepaliMonths.map(month => <SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>)}</SelectContent>
                             </Select>
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button disabled={isCalculating}>
+                                        {isCalculating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Calculator className="mr-2 h-4 w-4" />}
+                                        {isCalculating ? 'Calculating...' : 'Calculate Payroll'}
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Recalculate Payroll?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This will delete any existing payroll data for {nepaliMonths[parseInt(selectedBsMonth)]?.name}, {selectedBsYear} and regenerate it from the attendance records. This action cannot be undone.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={handleCalculatePayroll}>Confirm & Calculate</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
                         </div>
                     </div>
                 </CardHeader>
