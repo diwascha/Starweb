@@ -10,7 +10,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Upload, Search, ArrowUpDown, CalendarIcon, Edit, MoreHorizontal, Trash2, RefreshCw, Loader2 } from 'lucide-react';
-import NepaliDate from 'nepali-date-converter';
 import { useAuth } from '@/hooks/use-auth';
 import { Badge } from '@/components/ui/badge';
 import { format as formatDate, parse, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
@@ -35,7 +34,7 @@ type SortDirection = 'asc' | 'desc';
 const nepaliMonths = [
     { value: 0, name: "Baishakh" }, { value: 1, name: "Jestha" }, { value: 2, name: "Ashadh" },
     { value: 3, name: "Shrawan" }, { value: 4, name: "Bhadra" }, { value: 5, name: "Ashwin" },
-    { value: 6, name: "Kartik" }, { value: 7, name: "Mangsir" }, { value: 8, name: "Poush" },
+    { value: 6, name: "Kartik" }, { value: 7, name: "Mangsir" }, { value: 8, "name": "Poush" },
     { value: 9, name: "Magh" }, { value: 10, name: "Falgun" }, { value: 11, name: "Chaitra" }
 ];
 
@@ -57,7 +56,6 @@ export default function AttendancePage() {
   const { toast } = useToast();
   const { hasPermission, user } = useAuth();
   
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [filterEmployeeName, setFilterEmployeeName] = useState<string>('All');
   const [filterStatus, setFilterStatus] = useState<'All' | AttendanceStatus>('All');
   
@@ -77,7 +75,7 @@ export default function AttendancePage() {
 
 
   const fetchAttendanceData = useCallback(async () => {
-    if (selectedBsYear && selectedBsMonth) {
+    if (selectedBsYear && selectedBsMonth !== '') {
       setIsDataLoading(true);
       const year = parseInt(selectedBsYear, 10);
       const month = parseInt(selectedBsMonth, 10);
@@ -102,30 +100,33 @@ export default function AttendancePage() {
     }
   }, [selectedBsYear, selectedBsMonth, toast]);
 
-  useEffect(() => {
+   useEffect(() => {
     const unsubEmployees = onEmployeesUpdate(setEmployees);
+    return () => unsubEmployees();
+  }, []);
 
+  useEffect(() => {
     getAttendanceYears().then(years => {
       setBsYears(years);
-      if (years.length > 0 && selectedBsYear === '') {
-        const currentNepaliDate = new NepaliDate();
-        const currentYear = currentNepaliDate.getYear();
-        if (years.includes(currentYear)) {
-          setSelectedBsYear(String(currentYear));
-          setSelectedBsMonth(String(currentNepaliDate.getMonth()));
-        } else {
-          setSelectedBsYear(String(years[0]));
-          setSelectedBsMonth('0'); 
-        }
+      if (years.length > 0 && (!selectedBsYear || !years.includes(parseInt(selectedBsYear, 10)))) {
+        // If no year is selected OR the selected year is no longer valid, set to the latest
+        const latestYear = years[0];
+        setSelectedBsYear(String(latestYear));
+        
+        // Find the latest month for that year to set as default
+        getAttendanceForMonth(latestYear, -1).then(allRecords => { // Pass -1 or similar to signify "all months" if service supports it, or handle here
+             const latestMonth = allRecords
+                .filter(r => new Date(r.date).getFullYear() === new Date().getFullYear()) // Crude way to get current year's records
+                .map(r => new Date(r.date).getMonth())
+                .sort((a,b) => b-a)[0];
+            setSelectedBsMonth(String(latestMonth ?? new Date().getMonth()));
+            fetchAttendanceData();
+        });
       } else if (years.length === 0) {
         setIsDataLoading(false);
       }
     });
-
-    return () => {
-        unsubEmployees();
-    }
-  }, [attendance, selectedBsYear]);
+  }, [attendance]); // Re-run when attendance data might have changed (after import)
   
   useEffect(() => {
     if (selectedBsYear && selectedBsMonth) {
@@ -307,22 +308,6 @@ export default function AttendancePage() {
     );
 
     if (attendanceCount > 0) {
-        const latestImportedRecord = allRawRows.sort((a,b) => {
-            const dateA = a.dateAD ? new Date(a.dateAD).getTime() : 0;
-            const dateB = b.dateAD ? new Date(b.dateAD).getTime() : 0;
-            return dateB - dateA;
-        })[0];
-
-        if (latestImportedRecord.dateAD) {
-            const latestNepaliDate = new NepaliDate(new Date(latestImportedRecord.dateAD));
-            
-            // Re-fetch years and then set the selected year/month
-            const updatedYears = await getAttendanceYears();
-            setBsYears(updatedYears);
-            setSelectedBsYear(String(latestNepaliDate.getYear()));
-            setSelectedBsMonth(String(latestNepaliDate.getMonth()));
-        }
-        
         let description = `${attendanceCount} attendance records processed.`;
         if (payrollCount > 0) description += ` ${payrollCount} payroll records imported/updated.`;
         if (newlyAddedEmployees.size > 0) description += ` ${newlyAddedEmployees.size} new employees added.`;
@@ -541,8 +526,8 @@ export default function AttendancePage() {
       {(attendance.length > 0 || !isDataLoading) && (
           <div className="flex flex-col sm:flex-row flex-wrap gap-2 items-center">
               <Label>Filter by:</Label>
-              <Select value={selectedBsYear} onValueChange={setSelectedBsYear}><SelectTrigger className="w-full sm:w-[120px]"><SelectValue placeholder="Year (BS)" /></SelectTrigger><SelectContent>{bsYears.map(year => (<SelectItem key={year} value={String(year)}>{year}</SelectItem>))}</SelectContent></Select>
-              <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth}><SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Month (BS)" /></SelectTrigger><SelectContent>{nepaliMonths.map(month => (<SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>))}</SelectContent></Select>
+              <Select value={selectedBsYear} onValueChange={setSelectedBsYear} disabled={isLoading || bsYears.length === 0}><SelectTrigger className="w-full sm:w-[120px]"><SelectValue placeholder="Year (BS)" /></SelectTrigger><SelectContent>{bsYears.map(year => (<SelectItem key={year} value={String(year)}>{year}</SelectItem>))}</SelectContent></Select>
+              <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth} disabled={isLoading || bsYears.length === 0}><SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Month (BS)" /></SelectTrigger><SelectContent>{nepaliMonths.map(month => (<SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>))}</SelectContent></Select>
                <Select value={filterEmployeeName} onValueChange={setFilterEmployeeName}><SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Select Employee" /></SelectTrigger><SelectContent>{uniqueEmployeeNames.map(name => (<SelectItem key={name} value={name}>{name}</SelectItem>))}</SelectContent></Select>
                <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as 'All' | AttendanceStatus)}><SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Select Status" /></SelectTrigger><SelectContent><SelectItem value="All">All Statuses</SelectItem>{attendanceStatuses.map(status => (<SelectItem key={status} value={status}>{status}</SelectItem>))}</SelectContent></Select>
                <AlertDialog>

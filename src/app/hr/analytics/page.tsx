@@ -21,7 +21,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 const nepaliMonths = [
     { value: 0, name: "Baishakh" }, { value: 1, name: "Jestha" }, { value: 2, name: "Ashadh" },
     { value: 3, name: "Shrawan" }, { value: 4, name: "Bhadra" }, { value: 5, name: "Ashwin" },
-    { value: 6, name: "Kartik" }, { value: 7, name: "Mangsir" }, { value: 8, name: "Poush" },
+    { value: 6, name: "Kartik" }, { value: 7, name: "Mangsir" }, { value: 8, "name": "Poush" },
     { value: 9, name: "Magh" }, { value: 10, name: "Falgun" }, { value: 11, name: "Chaitra" }
 ];
 
@@ -40,26 +40,32 @@ export default function AnalyticsPage() {
         const unsubEmployees = onEmployeesUpdate(setEmployees);
         const unsubAttendance = onAttendanceUpdate(setAttendance);
 
-        getAttendanceYears().then(years => {
-            setBsYears(years);
-            if (years.length > 0 && selectedBsYear === '') {
-                const latestRecord = attendance.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-                if (latestRecord) {
-                    const latestNepaliDate = new NepaliDate(new Date(latestRecord.date));
-                    setSelectedBsYear(String(latestNepaliDate.getYear()));
-                    setSelectedBsMonth(String(latestNepaliDate.getMonth()));
-                } else {
-                    setSelectedBsYear(String(years[0]));
-                    setSelectedBsMonth('0');
-                }
-            }
-        });
-
         return () => {
             unsubEmployees();
             unsubAttendance();
         }
+    }, []);
+    
+    useEffect(() => {
+        getAttendanceYears().then(years => {
+            setBsYears(years);
+            if (years.length > 0 && (!selectedBsYear || !years.includes(parseInt(selectedBsYear, 10)))) {
+                 const latestYear = years[0];
+                 setSelectedBsYear(String(latestYear));
+
+                 const latestRecordForYear = attendance
+                     .filter(p => new NepaliDate(new Date(p.date)).getYear() === latestYear)
+                     .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+                 
+                if (latestRecordForYear) {
+                    setSelectedBsMonth(String(new NepaliDate(new Date(latestRecordForYear.date)).getMonth()));
+                } else {
+                    setSelectedBsMonth('0');
+                }
+            }
+        });
     }, [attendance, selectedBsYear]);
+
 
     const handleGenerateAnalytics = () => {
         if (selectedBsYear && selectedBsMonth && employees.length > 0) {
@@ -115,11 +121,11 @@ export default function AnalyticsPage() {
                             <CardTitle>Select Period for Analysis</CardTitle>
                         </div>
                         <div className="flex flex-col sm:flex-row gap-2">
-                            <Select value={selectedBsYear} onValueChange={setSelectedBsYear}>
+                            <Select value={selectedBsYear} onValueChange={setSelectedBsYear} disabled={bsYears.length === 0}>
                                 <SelectTrigger className="w-full sm:w-[120px]"><SelectValue placeholder="Year (BS)" /></SelectTrigger>
                                 <SelectContent>{bsYears.map(year => <SelectItem key={year} value={String(year)}>{year}</SelectItem>)}</SelectContent>
                             </Select>
-                            <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth}>
+                            <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth} disabled={bsYears.length === 0}>
                                 <SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Month (BS)" /></SelectTrigger>
                                 <SelectContent>{nepaliMonths.map(month => <SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>)}</SelectContent>
                             </Select>

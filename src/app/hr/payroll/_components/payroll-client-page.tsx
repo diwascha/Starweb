@@ -9,9 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { Download, Printer, Loader2, View } from 'lucide-react';
-import NepaliDate from 'nepali-date-converter';
 import { useAuth } from '@/hooks/use-auth';
-import { onEmployeesUpdate } from '@/services/employee-service';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { onPayrollUpdate, getPayrollYears } from '@/services/payroll-service';
 import { format } from 'date-fns';
@@ -22,7 +20,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 const nepaliMonths = [
     { value: 0, name: "Baishakh" }, { value: 1, name: "Jestha" }, { value: 2, name: "Ashadh" },
     { value: 3, name: "Shrawan" }, { value: 4, name: "Bhadra" }, { value: 5, name: "Ashwin" },
-    { value: 6, name: "Kartik" }, { value: 7, name: "Mangsir" }, { value: 8, name: "Poush" },
+    { value: 6, name: "Kartik" }, { value: 7, name: "Mangsir" }, { value: 8, "name": "Poush" },
     { value: 9, name: "Magh" }, { value: 10, name: "Falgun" }, { value: 11, name: "Chaitra" }
 ];
 
@@ -42,7 +40,6 @@ const customEmployeeOrder = [
 
 
 export default function PayrollClientPage() {
-    const [employees, setEmployees] = useState<Employee[]>([]);
     const [allPayroll, setAllPayroll] = useState<Payroll[]>([]);
     const [bsYears, setBsYears] = useState<number[]>([]);
     const [selectedBsYear, setSelectedBsYear] = useState<string>('');
@@ -54,35 +51,35 @@ export default function PayrollClientPage() {
     const { user } = useAuth();
 
 
-    useEffect(() => {
-        const unsubEmployees = onEmployeesUpdate(setEmployees);
-        
+     useEffect(() => {
         const unsubPayroll = onPayrollUpdate(payrollData => {
             setAllPayroll(payrollData);
+            
             const years = Array.from(new Set(payrollData.map(r => r.bsYear))).sort((a, b) => b - a);
             setBsYears(years);
-            
-            // Set default year and month only once after initial data load
-            if (years.length > 0 && selectedBsYear === '') {
-                const latestYear = years[0];
-                const latestRecordForYear = payrollData
-                    .filter(p => p.bsYear === latestYear)
-                    .sort((a,b) => b.bsMonth - a.bsMonth)[0];
-                
-                setSelectedBsYear(String(latestYear));
-                setSelectedBsMonth(String(latestRecordForYear?.bsMonth || 0));
+
+            if (years.length > 0) {
+                 if (!selectedBsYear || !years.includes(parseInt(selectedBsYear, 10))) {
+                    const latestYear = years[0];
+                    setSelectedBsYear(String(latestYear));
+
+                    const latestRecordForYear = payrollData
+                        .filter(p => p.bsYear === latestYear)
+                        .sort((a,b) => b.bsMonth - a.bsMonth)[0];
+                    
+                    setSelectedBsMonth(String(latestRecordForYear?.bsMonth || 0));
+                }
             }
             setIsLoading(false);
         });
 
         return () => {
-            unsubEmployees();
             unsubPayroll();
         }
     }, [selectedBsYear]); 
     
     const monthlyPayroll = useMemo(() => {
-        if (!selectedBsYear || !selectedBsMonth || isLoading) return [];
+        if (!selectedBsYear || selectedBsMonth === '' || isLoading) return [];
 
         const year = parseInt(selectedBsYear);
         const month = parseInt(selectedBsMonth);
@@ -162,11 +159,11 @@ export default function PayrollClientPage() {
                             <CardDescription>Select a Nepali month and year to view the imported payroll report.</CardDescription>
                         </div>
                         <div className="flex flex-col sm:flex-row gap-2">
-                            <Select value={selectedBsYear} onValueChange={setSelectedBsYear}>
+                            <Select value={selectedBsYear} onValueChange={setSelectedBsYear} disabled={isLoading || bsYears.length === 0}>
                                 <SelectTrigger className="w-full sm:w-[120px]"><SelectValue placeholder="Year (BS)" /></SelectTrigger>
                                 <SelectContent>{bsYears.map(year => <SelectItem key={year} value={String(year)}>{year}</SelectItem>)}</SelectContent>
                             </Select>
-                            <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth}>
+                            <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth} disabled={isLoading || bsYears.length === 0}>
                                 <SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Month (BS)" /></SelectTrigger>
                                 <SelectContent>{nepaliMonths.map(month => <SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>)}</SelectContent>
                             </Select>
