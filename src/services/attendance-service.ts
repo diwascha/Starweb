@@ -86,7 +86,7 @@ export const addAttendanceRecords = async (
     }
     
     // --- Phase 2: Process all data now that employees exist ---
-    const { processedData, skippedCount } = processAttendanceImport(headerRow, nonEmptyRows, bsYear, bsMonth);
+    const { processedData, skippedCount } = processAttendanceImport(jsonData, bsYear, bsMonth);
 
     const newAttendanceRecords = processedData
       .filter(p => p.dateADISO)
@@ -98,8 +98,8 @@ export const addAttendanceRecords = async (
         offDuty: p.offDuty || null,
         clockIn: p.clockIn || null, 
         clockOut: p.clockOut || null,
-        status: p.normalizedStatus as any, 
-        grossHours: p.grossHours,
+        status: p.status as any, 
+        grossHours: p.regularHours + p.overtimeHours,
         overtimeHours: p.overtimeHours, 
         regularHours: p.regularHours,
         remarks: p.remarks || null, 
@@ -136,8 +136,12 @@ export const deleteAttendanceRecord = async (id: string): Promise<void> => {
 };
 
 export const deleteAttendanceForMonth = async (bsYear: number, bsMonth: number): Promise<void> => {
-    const snapshot = await getDocs(attendanceCollection);
-    const recordsToDelete = snapshot.docs.filter(doc => {
+    const payrollCollection = collection(db, 'payroll');
+    const qPayroll = query(payrollCollection, where("bsYear", "==", bsYear), where("bsMonth", "==", bsMonth));
+    const payrollSnapshot = await getDocs(qPayroll);
+
+    const attendanceSnapshot = await getDocs(attendanceCollection);
+    const recordsToDelete = attendanceSnapshot.docs.filter(doc => {
         const data = doc.data();
         if (data.date && !isNaN(new Date(data.date).getTime())) {
             try {
@@ -150,13 +154,15 @@ export const deleteAttendanceForMonth = async (bsYear: number, bsMonth: number):
         return false;
     });
 
-    if (recordsToDelete.length === 0) {
+    const allDocsToDelete = [...payrollSnapshot.docs, ...recordsToDelete];
+
+    if (allDocsToDelete.length === 0) {
         return;
     }
 
     const CHUNK_SIZE = 400;
-    for (let i = 0; i < recordsToDelete.length; i += CHUNK_SIZE) {
-        const chunk = recordsToDelete.slice(i, i + CHUNK_SIZE);
+    for (let i = 0; i < allDocsToDelete.length; i += CHUNK_SIZE) {
+        const chunk = allDocsToDelete.slice(i, i + CHUNK_SIZE);
         const batch = writeBatch(db);
         chunk.forEach(doc => {
             batch.delete(doc.ref);

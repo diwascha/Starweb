@@ -9,6 +9,7 @@
 
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -147,21 +148,18 @@ export interface Employee {
 export type AttendanceStatus = 'Present' | 'Absent' | 'Public Holiday' | 'Saturday' | 'C/I Miss' | 'C/O Miss' | 'EXTRAOK';
 
 export interface RawAttendanceRow {
-    // Shared columns
-    employeeName?: any;
     dateAD?: any; 
-    mitiBS?: any; 
-    day?: any; 
-
-    // Daily Attendance columns
+    bsDate?: any; 
+    employeeName?: any;
+    weekday?: any;
     onDuty?: any; 
     offDuty?: any; 
     clockIn?: any; 
     clockOut?: any; 
-    status?: any; 
+    status?: any; // Directly from 'Absent' column
+    overtimeHours?: any; // Directly from 'Overtime' column
+    regularHours?: any; // Directly from 'Regular Hours' column
     remarks?: any;
-    dailyOvertimeHours?: any;
-    dailyRegularHours?: any;
     
     // Internal properties
     sourceSheet?: string;
@@ -178,7 +176,7 @@ export interface AttendanceRecord {
     offDuty: string | null;
     clockIn: string | null;
     clockOut: string | null;
-    status: AttendanceStatus;
+    status: string; // Storing the raw status from Excel
     grossHours: number;
     overtimeHours: number;
     regularHours: number;

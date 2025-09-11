@@ -62,7 +62,7 @@ export default function AttendancePage() {
   const { hasPermission, user } = useAuth();
   
   const [filterEmployeeName, setFilterEmployeeName] = useState<string>('All');
-  const [filterStatus, setFilterStatus] = useState<'All' | AttendanceStatus>('All');
+  const [filterStatus, setFilterStatus] = useState<string>('All');
   
   const [bsYears, setBsYears] = useState<number[]>([]);
   const [selectedBsYear, setSelectedBsYear] = useState<string>('');
@@ -246,7 +246,7 @@ export default function AttendancePage() {
     setEditForm({
         onDuty: record.onDuty || '', offDuty: record.offDuty || '',
         clockIn: record.clockIn || '', clockOut: record.clockOut || '',
-        status: record.status,
+        status: record.status as AttendanceStatus, // Cast here as status can be any string now
         regularHours: record.regularHours,
         overtimeHours: record.overtimeHours,
         remarks: record.remarks || ''
@@ -395,7 +395,7 @@ export default function AttendancePage() {
                 <TableCell>{record.date ? weekdays[getDay(new Date(record.date))] : '-'}</TableCell>
                 <TableCell>{record.employeeName}</TableCell>
                 <TableCell>{record.sourceSheet || 'N/A'}</TableCell>
-                 <TableCell><Badge variant={getAttendanceBadgeVariant(record.status)}>{record.status}</Badge></TableCell>
+                 <TableCell><Badge variant={getAttendanceBadgeVariant(record.status as AttendanceStatus)}>{record.status}</Badge></TableCell>
                 <TableCell>{formatTimeForDisplay(record.onDuty)} / {formatTimeForDisplay(record.offDuty)}</TableCell>
                 <TableCell>{formatTimeForDisplay(record.clockIn)} / {formatTimeForDisplay(record.clockOut)}</TableCell>
                 <TableCell>{(Number(record.regularHours) || 0).toFixed(1)}</TableCell>
@@ -443,6 +443,11 @@ export default function AttendancePage() {
       setSelectedSheets(prev => prev.map(s => s.name === sheetName ? { ...s, [type]: value } : s));
   };
   
+  const allPossibleStatuses = useMemo(() => {
+    const statuses = new Set(attendance.map(a => a.status));
+    return ['All', ...Array.from(statuses).sort()];
+  }, [attendance]);
+  
   return (
     <>
         <div className="flex flex-col gap-8">
@@ -473,7 +478,7 @@ export default function AttendancePage() {
                 <Select value={selectedBsYear} onValueChange={setSelectedBsYear}><SelectTrigger className="w-full sm:w-[120px]"><SelectValue placeholder="Year (BS)" /></SelectTrigger><SelectContent>{bsYears.map(year => (<SelectItem key={year} value={String(year)}>{year}</SelectItem>))}</SelectContent></Select>
                 <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth}><SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Month (BS)" /></SelectTrigger><SelectContent>{nepaliMonths.map(month => (<SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>))}</SelectContent></Select>
                 <Select value={filterEmployeeName} onValueChange={setFilterEmployeeName}><SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Select Employee" /></SelectTrigger><SelectContent>{uniqueEmployeeNames.map(name => (<SelectItem key={name} value={name}>{name}</SelectItem>))}</SelectContent></Select>
-                <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as 'All' | AttendanceStatus)}><SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Select Status" /></SelectTrigger><SelectContent><SelectItem value="All">All Statuses</SelectItem>{attendanceStatuses.map(status => (<SelectItem key={status} value={status}>{status}</SelectItem>))}</SelectContent></Select>
+                <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as 'All' | AttendanceStatus)}><SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Select Status" /></SelectTrigger><SelectContent>{allPossibleStatuses.map(status => (<SelectItem key={status} value={status}>{status}</SelectItem>))}</SelectContent></Select>
                 <AlertDialog>
                         <AlertDialogTrigger asChild>
                             <Button variant="destructive-outline"><Trash2 className="mr-2 h-4 w-4" /> Delete Month Data</Button>
@@ -499,7 +504,7 @@ export default function AttendancePage() {
                 <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="edit-on-duty">On Duty Time (HH:mm)</Label><Input id="edit-on-duty" value={editForm.onDuty} onChange={e => setEditForm(prev => ({...prev, onDuty: e.target.value}))} placeholder="e.g., 08:00"/></div><div className="space-y-2"><Label htmlFor="edit-off-duty">Off Duty Time (HH:mm)</Label><Input id="edit-off-duty" value={editForm.offDuty} onChange={e => setEditForm(prev => ({...prev, offDuty: e.target.value}))} placeholder="e.g., 17:00"/></div></div>
                  <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="edit-clock-in">Clock In Time (HH:mm)</Label><Input id="edit-clock-in" value={editForm.clockIn} onChange={e => setEditForm(prev => ({...prev, clockIn: e.target.value}))} placeholder="e.g., 08:00"/></div><div className="space-y-2"><Label htmlFor="edit-clock-out">Clock Out Time (HH:mm)</Label><Input id="edit-clock-out" value={editForm.clockOut} onChange={e => setEditForm(prev => ({...prev, clockOut: e.target.value}))} placeholder="e.g., 17:00"/></div></div>
                  <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="edit-regular-hours">Regular Hours</Label><Input id="edit-regular-hours" type="number" value={editForm.regularHours} onChange={e => setEditForm(prev => ({...prev, regularHours: Number(e.target.value) || 0}))} /></div><div className="space-y-2"><Label htmlFor="edit-overtime-hours">Overtime Hours</Label><Input id="edit-overtime-hours" type="number" value={editForm.overtimeHours} onChange={e => setEditForm(prev => ({...prev, overtimeHours: Number(e.target.value) || 0}))} /></div></div>
-                <div className="space-y-2"><Label htmlFor="edit-status">Status</Label><Select value={editForm.status} onValueChange={(value: AttendanceStatus) => setEditForm(prev => ({ ...prev, status: value }))}><SelectTrigger id="edit-status"><SelectValue /></SelectTrigger><SelectContent>{attendanceStatuses.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></div>
+                <div className="space-y-2"><Label htmlFor="edit-status">Status</Label><Input id="edit-status" value={editForm.status} onChange={e => setEditForm(prev => ({...prev, status: e.target.value as AttendanceStatus}))} /></div>
                  <div className="space-y-2"><Label htmlFor="edit-remarks">Remarks</Label><Input id="edit-remarks" value={editForm.remarks} onChange={e => setEditForm(prev => ({...prev, remarks: e.target.value}))} /></div>
             </div>
             <DialogFooter><Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button><Button onClick={handleSaveEdit}>Save Changes</Button></DialogFooter>
