@@ -25,9 +25,17 @@ const nepaliMonths = [
 ];
 
 const customEmployeeOrder = [
-    "Tika Gurung", "Anju Bista", "Madhu Bhandari", "Amrita Lama", "sunil chaudhary",
-    "KUMAR SHRESTHA", "Niroj Koirala", "Binod Magar", "SANDEEP CHAUDARY",
-    "SANGITA PYAKUREL", "Sunita Gurung"
+    "Tika Gurung",
+    "Anju Bista",
+    "Madhu Bhandari",
+    "Amrita Lama",
+    "sunil chaudhary",
+    "KUMAR SHRESTHA",
+    "Niroj Koirala",
+    "Binod Magar",
+    "SANDEEP CHAUDARY",
+    "SANGITA PYAKUREL",
+    "Sunita Gurung"
 ];
 
 
@@ -48,25 +56,39 @@ export default function PayrollClientPage() {
     }, []);
 
     useEffect(() => {
-        if (allPayroll.length > 0) {
+        if (allPayroll) {
             const years = Array.from(new Set(allPayroll.map(p => p.bsYear))).sort((a, b) => b - a);
             setBsYears(years);
+            setIsLoading(false);
 
-            if (!selectedBsYear || !years.includes(parseInt(selectedBsYear, 10))) {
-                const currentNepaliDate = new NepaliDate();
-                const currentYear = currentNepaliDate.getYear();
-                const defaultYear = years.includes(currentYear) ? currentYear : years[0];
-                setSelectedBsYear(String(defaultYear));
+            if (years.length > 0) {
+                const currentSelectedYear = parseInt(selectedBsYear, 10);
+                const currentSelectedMonth = parseInt(selectedBsMonth, 10);
 
-                if (!selectedBsMonth) {
-                     setSelectedBsMonth(String(currentNepaliDate.getMonth()));
+                // Check if current selection is valid
+                const selectionIsValid = years.includes(currentSelectedYear) && 
+                                         allPayroll.some(p => p.bsYear === currentSelectedYear && p.bsMonth === currentSelectedMonth);
+
+                if (!selectionIsValid) {
+                    // Find the most recent year/month with data
+                    const mostRecentEntry = allPayroll.reduce((latest, current) => {
+                        const latestDate = new NepaliDate(latest.bsYear, latest.bsMonth, 1).getTime();
+                        const currentDate = new NepaliDate(current.bsYear, current.bsMonth, 1).getTime();
+                        return currentDate > latestDate ? current : latest;
+                    }, allPayroll[0]);
+
+                    if (mostRecentEntry) {
+                        setSelectedBsYear(String(mostRecentEntry.bsYear));
+                        setSelectedBsMonth(String(mostRecentEntry.bsMonth));
+                    }
                 }
+            } else {
+                // No data, reset selections
+                setSelectedBsYear('');
+                setSelectedBsMonth('');
             }
-             setIsLoading(false);
-        } else if (allPayroll) {
-             setIsLoading(false);
         }
-    }, [allPayroll, selectedBsYear, selectedBsMonth]);
+    }, [allPayroll]);
 
     const monthlyPayroll = useMemo(() => {
         if (!selectedBsYear || selectedBsMonth === '' || isLoading) return [];
@@ -82,6 +104,15 @@ export default function PayrollClientPage() {
             if (indexA !== -1 && indexB !== -1) return indexA - indexB;
             if (indexA !== -1) return -1;
             if (indexB !== -1) return 1;
+            
+            // Fallback for employees not in the custom list
+            if (a.joiningDate && b.joiningDate) {
+                const dateA = new Date(a.joiningDate).getTime();
+                const dateB = new Date(b.joiningDate).getTime();
+                if (dateA !== dateB) {
+                    return dateA - dateB;
+                }
+            }
             return a.employeeName.localeCompare(b.employeeName);
         });
         
