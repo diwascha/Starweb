@@ -1,5 +1,4 @@
 
-
 import { db } from '@/lib/firebase';
 import { collection, doc, writeBatch, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, updateDoc, deleteDoc, query, where, getDoc } from 'firebase/firestore';
 import type { AttendanceRecord, RawAttendanceRow, Payroll, Employee } from '@/lib/types';
@@ -47,10 +46,7 @@ export const addAttendanceAndPayrollRecords = async (
 ): Promise<{ attendanceCount: number, payrollCount: number }> => {
     const CHUNK_SIZE = 400;
     
-    // Legacy format is for any period before Shrawan (month 3) of 2082
-    const isLegacyFormat = bsYear < 2082 || (bsYear === 2082 && bsMonth < 3);
-
-    const processedData = processAttendanceImport(rawRows, bsYear, bsMonth, isLegacyFormat);
+    const processedData = processAttendanceImport(rawRows, bsYear, bsMonth);
     
     // 1. Add Attendance Records
     const newAttendanceRecords = processedData
@@ -204,4 +200,3 @@ export const getAttendanceYears = async (): Promise<number[]> => {
     }).filter(year => year !== null) as number[]);
     return Array.from(years).sort((a, b) => b - a);
 };
-
