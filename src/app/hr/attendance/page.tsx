@@ -26,6 +26,7 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import NepaliDate from 'nepali-date-converter';
 
 
 type SortKey = 'date' | 'employeeName' | 'status' | 'regularHours' | 'overtimeHours';
@@ -123,7 +124,7 @@ export default function AttendancePage() {
       }
     });
     return () => { isMounted = false; };
-  }, []);
+  }, [allPayroll]);
   
   useEffect(() => {
     if (selectedBsYear && selectedBsMonth) {
