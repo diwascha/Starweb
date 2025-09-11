@@ -50,11 +50,17 @@ export default function PayrollClientPage() {
     const { user } = useAuth();
 
     useEffect(() => {
-        const unsubPayroll = onPayrollUpdate(setAllPayroll);
+        const unsubPayroll = onPayrollUpdate((payrolls) => {
+            setAllPayroll(payrolls);
+            setIsLoading(false); // Set loading to false once data is fetched
+        });
         return () => unsubPayroll();
     }, []);
 
     useEffect(() => {
+        // This effect runs when allPayroll data changes or when loading is finished
+        if (isLoading) return; // Don't run if we are still in the initial loading state
+
         if (allPayroll.length > 0) {
             const years = Array.from(new Set(allPayroll.map(p => p.bsYear))).sort((a, b) => b - a);
             setBsYears(years);
@@ -74,15 +80,14 @@ export default function PayrollClientPage() {
                     setSelectedBsMonth(String(mostRecentEntry.bsMonth));
                 }
             }
-            setIsLoading(false);
         } else {
-            // This handles the case where all data has been deleted
-            setIsLoading(false);
+            // Handle the case where there is no payroll data at all
             setBsYears([]);
             setSelectedBsYear('');
             setSelectedBsMonth('');
         }
-    }, [allPayroll, selectedBsYear]);
+    }, [allPayroll, isLoading, selectedBsYear]);
+
 
     const monthlyPayroll = useMemo(() => {
         if (!selectedBsYear || selectedBsMonth === '' || isLoading) return [];
