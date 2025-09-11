@@ -119,6 +119,7 @@ export const addAttendanceAndPayrollRecords = async (
                 bsMonth,
                 employeeId: employee.id,
                 employeeName: employee.name,
+                joiningDate: employee.joiningDate,
                 totalHours: (Number(payrollDataSource.regularHours) || 0) + (Number(payrollDataSource.otHours) || 0),
                 otHours: Number(payrollDataSource.otHours) || 0,
                 regularHours: Number(payrollDataSource.regularHours) || 0,

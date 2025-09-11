@@ -6,6 +6,7 @@
 
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -210,6 +211,7 @@ export interface Payroll {
     bsMonth: number;
     employeeId: string;
     employeeName: string;
+    joiningDate?: string;
     totalHours?: number;
     otHours?: number;
     regularHours?: number;

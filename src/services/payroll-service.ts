@@ -14,6 +14,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
         bsMonth: data.bsMonth,
         employeeId: data.employeeId,
         employeeName: data.employeeName,
+        joiningDate: data.joiningDate,
         totalHours: data.totalHours,
         otHours: data.otHours,
         regularHours: data.regularHours,
