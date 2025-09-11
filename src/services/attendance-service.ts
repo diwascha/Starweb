@@ -68,13 +68,14 @@ export const addAttendanceAndPayrollRecords = async (
 
     if (newEmployeeNames.size > 0) {
         const creationPromises = Array.from(newEmployeeNames).map(name => {
+            const now = new Date().toISOString();
             const newEmployee: Omit<Employee, 'id'> = {
                 name: name,
                 wageBasis: 'Monthly',
                 wageAmount: 0,
                 createdBy: importedBy,
-                createdAt: new Date().toISOString(),
-                joiningDate: new Date().toISOString(), // Default joining date
+                createdAt: now,
+                joiningDate: now, 
                 status: 'Working'
             };
             return addEmployee(newEmployee);
@@ -83,7 +84,7 @@ export const addAttendanceAndPayrollRecords = async (
     }
     
     // --- Phase 2: Process all data now that employees exist ---
-    const allEmployees = await getEmployees(); // Re-fetch all employees including the new ones
+    const allEmployees = await getEmployees(); 
 
     const { processedData, skippedCount } = processAttendanceImport(headerRow, nonEmptyRows, bsYear, bsMonth);
 
@@ -135,8 +136,9 @@ export const addAttendanceAndPayrollRecords = async (
 
     for (const [employeeName, employeeRows] of employeeDataMap.entries()) {
         const employee = allEmployees.find(e => e.name === employeeName);
-        if (!employee || !employee.joiningDate) continue;
+        if (!employee) continue;
         
+        // Find a single row that contains the payroll summary for this employee
         const payrollDataSource = employeeRows.find(r => 
             (r.netPayment !== null && r.netPayment !== undefined && String(r.netPayment).trim() !== '' && Number(r.netPayment) > 0) ||
             (r.totalPay !== null && r.totalPay !== undefined && String(r.totalPay).trim() !== '' && Number(r.totalPay) > 0) ||
@@ -144,15 +146,16 @@ export const addAttendanceAndPayrollRecords = async (
         );
         
         if (payrollDataSource) {
+             const joiningDate = employee.joiningDate || new Date().toISOString();
             payrollRecords.push({
                 bsYear, 
                 bsMonth,
                 employeeId: employee.id,
                 employeeName: employee.name,
-                joiningDate: employee.joiningDate,
-                totalHours: (Number(payrollDataSource.regularHours) || 0) + (Number(payrollDataSource.otHours) || 0),
-                otHours: Number(payrollDataSource.otHours) || 0,
-                regularHours: Number(payrollDataSource.regularHours) || 0,
+                joiningDate: joiningDate,
+                totalHours: (Number(payrollDataSource.payrollRegularHours) || 0) + (Number(payrollDataSource.payrollOtHours) || 0),
+                otHours: Number(payrollDataSource.payrollOtHours) || 0,
+                regularHours: Number(payrollDataSource.payrollRegularHours) || 0,
                 rate: Number(payrollDataSource.rate) || 0,
                 regularPay: Number(payrollDataSource.regularPay) || 0,
                 otPay: Number(payrollDataSource.otPay) || 0,

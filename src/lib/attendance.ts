@@ -132,18 +132,21 @@ export const processAttendanceImport = (
         offDuty: ['off duty'],
         clockIn: ['clock in'],
         clockOut: ['clock out'],
-        status: ['status', 'absent'], // 'status' can be used for explicit statuses like 'Absent'
+        status: ['status', 'absent'], 
         remarks: ['remarks'],
-        
-        // Payroll columns from the 'Timesheet' example, mapping to generic names
-        totalHours: ['total hour', 'total hours'],
-        otHours: ['ot hour', 'ot hours'],
-        regularHours: ['normal hrs', 'regular hours', 'norman'],
+        // DAILY ATTENDANCE hours
+        dailyOvertimeHours: ['ot'],
+        dailyRegularHours: ['normal hrs'],
+        // PAYROLL SUMMARY hours
+        payrollTotalHours: ['total hour', 'total hours'],
+        payrollOtHours: ['ot hour', 'ot hours'],
+        payrollRegularHours: ['regular hours', 'norman'],
+        // PAYROLL fields
         rate: ['rate'],
         regularPay: ['regular pay'],
-        otPay: ['ot', 'ot pay'],
+        otPay: ['ot pay'],
         totalPay: ['total', 'total pay'],
-        absentDays: ['absent days', 'absent'],
+        absentDays: ['absent days'],
         deduction: ['deduction', 'absent amt.'],
         allowance: ['extra', 'allowance'],
         bonus: ['bonus'],
@@ -242,9 +245,10 @@ export const processAttendanceImport = (
                 normalizedStatus = 'Present';
              }
         }
-
-        const regularHours = Number(row.regularHours) || 0;
-        const overtimeHours = Number(row.otHours) || 0;
+        
+        // Use daily hours for attendance, fallback to payroll hours if not present
+        const regularHours = Number(row.dailyRegularHours) || Number(row.payrollRegularHours) || 0;
+        const overtimeHours = Number(row.dailyOvertimeHours) || Number(row.payrollOtHours) || 0;
         const grossHours = regularHours + overtimeHours;
         
         return {
