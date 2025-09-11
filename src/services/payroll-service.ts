@@ -61,9 +61,18 @@ export const getPayrollForEmployee = async (employeeId: string, bsYear: number, 
 };
 
 export const getPayrollYears = async (): Promise<number[]> => {
-    const allRecords = await getDocs(payrollCollection).then(snap => snap.docs.map(d => d.data()));
-    const years = new Set(allRecords.map(r => r.bsYear) as number[]);
-    return Array.from(years).sort((a, b) => b - a);
+    try {
+        const q = query(collection(db, 'payroll'));
+        const snapshot = await getDocs(q);
+        if (snapshot.empty) {
+            return [];
+        }
+        const years = new Set(snapshot.docs.map(doc => doc.data().bsYear as number));
+        return Array.from(years).sort((a, b) => b - a);
+    } catch (error) {
+        console.error("Error fetching payroll years:", error);
+        return [];
+    }
 };
 
 export const deletePayrollForMonth = async (bsYear: number, bsMonth: number): Promise<void> => {
@@ -186,39 +195,6 @@ export const calculateAndSavePayrollForMonth = async (
     return { employeeCount: payrollRecords.length };
 };
 
-const getHeaderMap = (headerRow: string[]) => {
-    const normalizedHeaders = headerRow.map(h => String(h || '').trim().toLowerCase());
-    const headerMap: { [key: string]: number } = {};
-    const columnMappings: { [key: string]: string[] } = {
-        otHours: ['ot hour'],
-        regularHours: ['normal hrs'],
-        rate: ['rate'],
-        regularPay: ['norman', 'normal pay'],
-        otPay: ['ot'],
-        totalPay: ['total'],
-        absentDays: ['absent'],
-        deduction: ['deduction', 'absent amt.'],
-        allowance: ['extra'],
-        bonus: ['bonus'],
-        salaryTotal: ['salary total'],
-        tds: ['tds', 'tds (1%)'],
-        gross: ['gross'],
-        advance: ['advance'],
-        netPayment: ['net payment'],
-        remark: ['remark']
-    };
-
-    for (const key in columnMappings) {
-        for (const header of columnMappings[key]) {
-            const index = normalizedHeaders.indexOf(header);
-            if (index !== -1) {
-                headerMap[key] = index;
-                break;
-            }
-        }
-    }
-    return headerMap;
-};
 
 export const importPayrollFromSheet = async (
     jsonData: any[][],
@@ -227,27 +203,13 @@ export const importPayrollFromSheet = async (
     bsYear: number,
     bsMonth: number
 ): Promise<{ createdCount: number, updatedCount: number }> => {
-    // Column Q is index 16, Column AE is index 30. Slice will get columns 16 up to (but not including) 31.
-    const PAYROLL_START_COL = 16;
-    const PAYROLL_END_COL = 31;
-
-    const fullHeaderRow = jsonData[0];
+    
+    const headerRow = jsonData[0];
     const dataRows = jsonData.slice(1);
     
-    const nameIndex = fullHeaderRow.map(h => String(h || '').trim().toLowerCase()).indexOf('name');
+    const nameIndex = headerRow.map(h => String(h || '').trim().toLowerCase()).indexOf('name');
     if (nameIndex === -1) {
         throw new Error("Required column 'Name' not found in the sheet.");
-    }
-
-    // --- CRITICAL FIX: Slice the header row to only include payroll columns ---
-    const payrollHeaderSlice = fullHeaderRow.slice(PAYROLL_START_COL, PAYROLL_END_COL);
-    const headerMap = getHeaderMap(payrollHeaderSlice);
-    
-    const requiredHeaders = ['regularPay', 'netPayment'];
-    const missingHeaders = requiredHeaders.filter(h => headerMap[h] === undefined);
-    if (missingHeaders.length > 0) {
-        const availableHeaders = payrollHeaderSlice.map(h => `"${h}"`).join(', ');
-        throw new Error(`Required payroll columns (e.g., 'Norman', 'Net Payment') not found. Found these headers in the payroll section (Q-AE): ${availableHeaders}`);
     }
     
     const BATCH_LIMIT = 400;
@@ -265,18 +227,35 @@ export const importPayrollFromSheet = async (
         const employee = employeeMap.get(employeeName.toLowerCase());
         if (!employee) continue;
 
-        // --- CRITICAL FIX: Slice the data row to match the payroll header slice ---
-        const payrollRowSlice = fullRow.slice(PAYROLL_START_COL, PAYROLL_END_COL);
+        // Fixed column indices starting from Q (index 16)
+        const getValue = (colIndex: number) => {
+            const val = fullRow[colIndex];
+            return val === undefined || val === null ? null : val;
+        }
 
-        const rawImportData: Record<string, any> = {};
-        payrollHeaderSlice.forEach((header, index) => {
-             const value = payrollRowSlice[index];
-             // Ensure undefined becomes null for Firestore
-             rawImportData[String(header || `column_${index}`)] = value === undefined || value === null ? null : value;
-        });
+        const otHours = Number(getValue(16) || 0);        // Q: OT Hour
+        const regularHours = Number(getValue(17) || 0);   // R: Normal Hrs
+        const rate = Number(getValue(18) || 0);           // S: Rate
+        const regularPay = Number(getValue(19) || 0);     // T: Norman
+        const otPay = Number(getValue(20) || 0);          // U: OT
+        const totalPay = Number(getValue(21) || 0);       // V: Total
+        const absentDays = Number(getValue(22) || 0);     // W: Absent
+        const deduction = Number(getValue(23) || 0);      // X: Deduction
+        const allowance = Number(getValue(24) || 0);      // Y: Extra
+        const bonus = Number(getValue(25) || 0);          // Z: Bonus
+        const salaryTotal = Number(getValue(26) || 0);    // AA: Salary Total
+        const tds = Number(getValue(27) || 0);            // AB: TDS
+        const gross = Number(getValue(28) || 0);          // AC: Gross
+        const advance = Number(getValue(29) || 0);        // AD: Advance
+        const netPayment = Number(getValue(30) || 0);     // AE: Net Payment
+        const remark = String(getValue(31) || '');        // AF: Remark
         
-        const regularHours = Number(rawImportData['Normal Hrs'] || 0);
-        const otHours = Number(rawImportData['OT Hour'] || 0);
+        const rawImportData: Record<string, any> = {};
+        for(let i = 16; i <= 31; i++) {
+            const header = String(headerRow[i] || `column_${i}`);
+            rawImportData[header] = getValue(i);
+        }
+
 
         const payrollData: Omit<Payroll, 'id'> = {
             bsYear, bsMonth,
@@ -286,20 +265,20 @@ export const importPayrollFromSheet = async (
             totalHours: regularHours + otHours,
             otHours: otHours,
             regularHours: regularHours,
-            rate: Number(payrollRowSlice[headerMap.rate] ?? 0),
-            regularPay: Number(payrollRowSlice[headerMap.regularPay] ?? 0),
-            otPay: Number(payrollRowSlice[headerMap.otPay] ?? 0),
-            totalPay: Number(payrollRowSlice[headerMap.totalPay] ?? 0),
-            absentDays: Number(payrollRowSlice[headerMap.absentDays] ?? 0),
-            deduction: Number(payrollRowSlice[headerMap.deduction] ?? 0),
-            allowance: Number(payrollRowSlice[headerMap.allowance] ?? 0),
-            bonus: Number(payrollRowSlice[headerMap.bonus] ?? 0),
-            salaryTotal: Number(payrollRowSlice[headerMap.salaryTotal] ?? 0),
-            tds: Number(payrollRowSlice[headerMap.tds] ?? 0),
-            gross: Number(payrollRowSlice[headerMap.gross] ?? 0),
-            advance: Number(payrollRowSlice[headerMap.advance] ?? 0),
-            netPayment: Number(payrollRowSlice[headerMap.netPayment] ?? 0),
-            remark: String(payrollRowSlice[headerMap.remark] || ''),
+            rate: rate,
+            regularPay: regularPay,
+            otPay: otPay,
+            totalPay: totalPay,
+            absentDays: absentDays,
+            deduction: deduction,
+            allowance: allowance,
+            bonus: bonus,
+            salaryTotal: salaryTotal,
+            tds: tds,
+            gross: gross,
+            advance: advance,
+            netPayment: netPayment,
+            remark: remark,
             createdBy: importedBy,
             createdAt: new Date().toISOString(),
             rawImportData: rawImportData
