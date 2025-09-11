@@ -102,11 +102,9 @@ export const addAttendanceAndPayrollRecords = async (
         const employee = allEmployees.find(e => e.name === row.employeeName);
         if (!employee) continue;
         
-        // Use the selected BS Year and Month for payroll records
         const payrollKey = `${employee.id}-${bsYear}-${bsMonth}`;
         if (createdPayrollEntries.has(payrollKey)) continue;
 
-        // Ensure there's a net payment value to create a payroll record
         const netPaymentValue = row.netPayment;
         if (netPaymentValue === null || netPaymentValue === undefined || String(netPaymentValue).trim() === '') {
             continue; 
@@ -122,9 +120,9 @@ export const addAttendanceAndPayrollRecords = async (
             bsMonth,
             employeeId: employee.id,
             employeeName: employee.name,
-            totalHours: Number(row.grossHours) || 0, // grossHours is the sum of regular and OT
-            otHours: Number(row.overtimeHours) || 0,
-            regularHours: Number(row.regularHours) || 0,
+            totalHours: Number(row.totalHours) || 0,
+            otHours: Number(row.otHours) || 0,
+            regularHours: Number(row.normalHours) || 0, // Use normalHours from payroll
             rate: Number(row.rate) || 0,
             regularPay: Number(row.regularPay) || 0,
             otPay: Number(row.otPay) || 0,

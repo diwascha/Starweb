@@ -397,8 +397,8 @@ export default function AttendancePage() {
                  <TableCell><Badge variant={getAttendanceBadgeVariant(record.status)}>{record.status}</Badge></TableCell>
                 <TableCell>{formatTimeForDisplay(record.onDuty)} / {formatTimeForDisplay(record.offDuty)}</TableCell>
                 <TableCell>{formatTimeForDisplay(record.clockIn)} / {formatTimeForDisplay(record.clockOut)}</TableCell>
-                <TableCell>{(record.regularHours || 0).toFixed(1)}</TableCell>
-                <TableCell>{(record.overtimeHours || 0).toFixed(1)}</TableCell>
+                <TableCell>{(Number(record.regularHours) || 0).toFixed(1)}</TableCell>
+                <TableCell>{(Number(record.overtimeHours) || 0).toFixed(1)}</TableCell>
                 <TableCell>{record.remarks}</TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>

@@ -5,6 +5,7 @@
 
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -143,37 +144,43 @@ export interface Employee {
 export type AttendanceStatus = 'Present' | 'Absent' | 'Public Holiday' | 'Saturday' | 'C/I Miss' | 'C/O Miss' | 'EXTRAOK';
 
 export interface RawAttendanceRow {
+    // Timesheet columns
+    name?: any; // A
+    dateAD?: any; // B
+    mitiBS?: any; // C
+    onDuty?: any; // D
+    offDuty?: any; // E
+    clockIn?: any; // F
+    clockOut?: any; // G
+    status?: any; // H (Absent column)
+    remarks?: any; // I
+    overtimeHours?: any; // J
+    regularHours?: any; // K
+    // L-P are ignored for now
+
+    // Payroll columns
+    totalHours?: any; // Q
+    otHours?: any; // R
+    normalHours?: any; // S
+    rate?: any; // T
+    regularPay?: any; // U
+    otPay?: any; // V
+    totalPay?: any; // W
+    absentDays?: any; // X
+    deduction?: any; // Y
+    allowance?: any; // Z
+    bonus?: any; // AA
+    salaryTotal?: any; // AB
+    tds?: any; // AC
+    gross?: any; // AD
+    advance?: any; // AE
+    netPayment?: any; // AF
+    payrollRemark?: any; // AG
+    day?: any; // Not in the list but present in original code
+    
+    // Internal properties
     employeeName?: any;
-    dateAD?: any;
-    mitiBS?: any;
-    onDuty?: any;
-    offDuty?: any;
-    clockIn?: any;
-    clockOut?: any;
-    status?: any;
-    remarks?: any;
-    overtimeHours?: any;
-    regularHours?: any;
     sourceSheet?: string;
-    // Payroll columns from Excel
-    totalHours?: any;
-    otHours?: any; // Same as overtimeHours, for payroll section
-    normalHours?: any; // Same as regularHours, for payroll section
-    regularPay?: any;
-    otPay?: any;
-    totalPay?: any;
-    absentDays?: any;
-    deduction?: any;
-    allowance?: any;
-    salaryTotal?: any;
-    tds?: any;
-    gross?: any;
-    advance?: any;
-    netPayment?: any;
-    payrollRemark?: any;
-    bonus?: any;
-    day?: any;
-    rate?: any;
     [key: string]: any;
 }
 

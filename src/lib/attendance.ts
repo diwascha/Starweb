@@ -91,35 +91,36 @@ export async function processAttendanceImport(
     
     const headerMapConfig: { [key in keyof RawAttendanceRow]: string[] } = {
         dateAD: ['date'],
-        mitiBS: ['bs date'],
+        mitiBS: ['bs date', 'miti'],
         employeeName: ['name'],
         onDuty: ['on duty'],
         offDuty: ['off duty'],
         clockIn: ['clock in'],
         clockOut: ['clock out'],
         status: ['absent'],
-        overtimeHours: ['overtime'],
-        regularHours: ['regular hours'],
-        remarks: ['remarks'],
-        totalHours: ['total hour'],
-        otHours: ['ot hour'],
-        normalHours: ['normal hrs'],
-        regularPay: ['norman'],
-        otPay: ['ot'],
-        totalPay: ['total'],
-        absentDays: ['absent days'],
-        deduction: ['deduction'],
-        allowance: ['extra'],
-        salaryTotal: ['salary total'],
-        tds: ['tds'],
-        gross: ['gross'],
-        advance: ['advance'],
-        netPayment: ['net payment'],
-        payrollRemark: ['remark'],
+        remarks: ['remarks'], // Attendance remarks column I
+        overtimeHours: ['overtime'], // Timesheet overtime column J
+        regularHours: ['regular hours'], // Timesheet regular hours column K
+        totalHours: ['total hour'], // Payroll total hour Q
+        otHours: ['ot hour'], // Payroll OT hour R
+        normalHours: ['normal hrs'], // Payroll Normal Hrs S
+        rate: ['rate'], // Payroll Rate T
+        regularPay: ['norman'], // Payroll Norman U
+        otPay: ['ot'], // Payroll OT V
+        totalPay: ['total'], // Payroll Total W
+        absentDays: ['absent days'], // Payroll Absent Days X
+        deduction: ['deduction'], // Payroll Deduction Y
+        allowance: ['extra'], // Payroll Extra Z
+        bonus: ['bonus'], // Payroll Bonus AA
+        salaryTotal: ['salary total'], // Payroll Salary Total AB
+        tds: ['tds'], // Payroll TDS AC
+        gross: ['gross'], // Payroll Gross AD
+        advance: ['advance'], // Payroll Advance AE
+        netPayment: ['net payment'], // Payroll Net Payment AF
+        payrollRemark: ['remark'], // Payroll Remark AG
         day: ['day'],
-        rate: ['rate'],
-        bonus: ['bonus'],
     };
+
 
     const headerMap: { [key: string]: number } = {};
     for (const key in headerMapConfig) {
@@ -195,10 +196,9 @@ export async function processAttendanceImport(
         }
         
         const statusInput = (row.status !== null && row.status !== undefined && String(row.status).trim() !== '') ? 'Absent' : 'Present';
-        const regularHours = Number(row.regularHours || row.normalHours) || 0;
-        const overtimeHours = Number(row.overtimeHours || row.otHours) || 0;
-        
-        const totalHours = regularHours + overtimeHours;
+        const regularHours = Number(row.regularHours) || 0;
+        const overtimeHours = Number(row.overtimeHours) || 0;
+        const grossHours = regularHours + overtimeHours;
         
         return {
           ...row,
@@ -211,9 +211,9 @@ export async function processAttendanceImport(
           dateBS,
           weekdayAD: ad ? ad.getDay() : -1,
           normalizedStatus: statusInput as AttendanceStatus,
-          grossHours: totalHours,
-          regularHours: regularHours,
-          overtimeHours: overtimeHours,
+          grossHours,
+          regularHours,
+          overtimeHours,
           calcRemarks: row.remarks || '',
           sourceSheet: row.sourceSheet || null,
           rawImportData: rawImportData,
