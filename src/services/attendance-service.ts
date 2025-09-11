@@ -97,7 +97,6 @@ export const addAttendanceAndPayrollRecords = async (
             continue;
         }
 
-
         payrollRecords.push({
             bsYear, bsMonth,
             employeeId: employee.id,

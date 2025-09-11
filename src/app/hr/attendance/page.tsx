@@ -41,7 +41,7 @@ const attendanceStatuses: AttendanceStatus[] = ['Present', 'Absent', 'C/I Miss',
 interface SheetInfo {
   name: string;
   rowCount: number;
-  jsonData: any[];
+  jsonData: any[][];
 }
 
 interface SelectedSheet {
@@ -154,7 +154,7 @@ export default function AttendancePage() {
             
             const sheetsInfo: SheetInfo[] = workbook.SheetNames.map(sheetName => {
                 const worksheet = workbook.Sheets[sheetName];
-                const jsonData = XLSX.utils.sheet_to_json<any>(worksheet, { header: 1, defval: null });
+                const jsonData = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1, defval: null });
                 return {
                     name: sheetName,
                     rowCount: jsonData.length > 1 ? jsonData.length - 1 : 0, // Exclude header
@@ -197,14 +197,13 @@ export default function AttendancePage() {
     let totalSkippedRows = 0;
     
     // Group selected sheets by their target year and month
-    const groupedByPeriod: Record<string, { sheetInfos: SheetInfo[], rawRows: RawAttendanceRow[], bsYear: number, bsMonth: number }> = {};
+    const groupedByPeriod: Record<string, { sheetInfos: SheetInfo[], bsYear: number, bsMonth: number }> = {};
 
     for (const selected of selectedSheets) {
         const key = `${selected.year}-${selected.month}`;
         if (!groupedByPeriod[key]) {
             groupedByPeriod[key] = {
                 sheetInfos: [],
-                rawRows: [],
                 bsYear: parseInt(selected.year, 10),
                 bsMonth: parseInt(selected.month, 10),
             };
@@ -220,37 +219,21 @@ export default function AttendancePage() {
     for (const periodKey in groupedByPeriod) {
         const group = groupedByPeriod[periodKey];
         const { sheetInfos, bsYear, bsMonth } = group;
-        let allRawRowsForPeriod: RawAttendanceRow[] = [];
+        let allJsonDataForPeriod: any[][] = [];
 
         for (const sheet of sheetInfos) {
             const jsonData = sheet.jsonData;
-            const headerRow = jsonData[0].map((h: any) => String(h || '').trim().toLowerCase());
+            const headerRow = jsonData[0];
+            const dataRows = jsonData.slice(1);
             
-            const headerVariations: { [key: string]: string[] } = {
-                name: ['name', 'employee name'], day: ['day', 'date'], onDuty: ['on duty', 'onduty'], offDuty: ['off duty', 'offduty'],
-                clockIn: ['clock in', 'clockin'], clockOut: ['clock out', 'clockout'], status: ['absent', 'status'],
-                normalHours: ['normal'], otHours: ['ot'], totalHours: ['total hour'], rate: ['rate'], regularPay: ['normal pay'],
-                otPay: ['ot pay'], totalPay: ['total pay'], absentDays: ['absent day'], deduction: ['deduction'],
-                allowance: ['allowance'], bonus: ['bonus'], salaryTotal: ['salary total'], tds: ['tds'],
-                gross: ['gross'], advance: ['advance'], netPayment: ['net payment'], payrollRemark: ['remark'],
-            };
-            
-            const headerMap: { [key: string]: number } = {};
-            for (const key in headerVariations) {
-                const index = headerRow.findIndex((header: string) => headerVariations[key].some(v => header.includes(v)));
-                if (index !== -1) headerMap[key] = index;
-            }
-            
-            if (headerMap['name'] === undefined || headerMap['day'] === undefined) {
-                toast({ title: 'Skipping Sheet', description: `Sheet "${sheet.name}" is missing 'Name' and a 'Day' column.`, variant: 'destructive' });
-                continue;
+            if (allJsonDataForPeriod.length === 0) {
+                allJsonDataForPeriod.push(headerRow);
             }
 
-            for (const row of jsonData.slice(1)) {
-                const employeeName = row[headerMap['name']] ? String(row[headerMap['name']]).trim() : '';
-                const dayValue = row[headerMap['day']];
+            for (const row of dataRows) {
+                const employeeName = row[0] ? String(row[0]).trim() : '';
                 
-                if (!employeeName || dayValue === null || dayValue === undefined || String(dayValue).trim() === '') {
+                if (!employeeName) {
                     totalSkippedRows++;
                     continue;
                 }
@@ -267,28 +250,18 @@ export default function AttendancePage() {
                         continue;
                     }
                 }
-
-                allRawRowsForPeriod.push({
-                    employeeName, day: dayValue, onDuty: row[headerMap['onDuty']], offDuty: row[headerMap['offDuty']],
-                    clockIn: row[headerMap['clockIn']], clockOut: row[headerMap['clockOut']], status: row[headerMap['status']],
-                    normalHours: row[headerMap['normalHours']], otHours: row[headerMap['otHours']], sourceSheet: sheet.name,
-                    totalHours: row[headerMap['totalHours']], rate: row[headerMap['rate']], regularPay: row[headerMap['regularPay']],
-                    otPay: row[headerMap['otPay']], totalPay: row[headerMap['totalPay']], absentDays: row[headerMap['absentDays']],
-                    deduction: row[headerMap['deduction']], allowance: row[headerMap['allowance']], bonus: row[headerMap['bonus']],
-                    salaryTotal: row[headerMap['salaryTotal']], tds: row[headerMap['tds']], gross: row[headerMap['gross']],
-                    advance: row[headerMap['advance']], netPayment: row[headerMap['netPayment']], payrollRemark: row[headerMap['payrollRemark']],
-                });
+                allJsonDataForPeriod.push(row);
             }
         }
         
-        if (allRawRowsForPeriod.length > 0) {
+        if (allJsonDataForPeriod.length > 1) { // Has headers + at least one data row
             await addAttendanceAndPayrollRecords(
-                allRawRowsForPeriod, employees, user.username, bsYear, bsMonth,
+                allJsonDataForPeriod, employees, user.username, bsYear, bsMonth,
                 (progress) => {
                     setImportProgress(`${processedCount + progress}/${totalRecordsToProcess}`);
                 }
             );
-            processedCount += allRawRowsForPeriod.length;
+            processedCount += allJsonDataForPeriod.length - 1; // Subtract header
         }
     }
     
@@ -603,4 +576,3 @@ export default function AttendancePage() {
     </>
   );
 }
-
