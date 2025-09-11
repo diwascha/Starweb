@@ -47,27 +47,20 @@ export const addAttendanceAndPayrollRecords = async (
 ): Promise<{ attendanceCount: number, payrollCount: number, newEmployees: string[], skippedCount: number }> => {
     const CHUNK_SIZE = 400;
     
-    if (jsonData.length < 2) {
-        throw new Error("Excel sheet must contain a header row and at least one data row.");
-    }
-    
     const headerRow = jsonData[0];
     const dataRows = jsonData.slice(1);
     
-    // Header validation
     const requiredHeaders = ['name'];
     const normalizedHeaders = headerRow.map(h => String(h || '').trim().toLowerCase());
-    const missingHeaders = requiredHeaders.filter(h => !normalizedHeaders.includes(h));
-
-    if (missingHeaders.length > 0) {
-        throw new Error(`Import failed: Missing required column(s): ${missingHeaders.join(', ')}.`);
+    if (!requiredHeaders.every(h => normalizedHeaders.includes(h))) {
+        throw new Error(`Import failed: Missing one or more required columns: ${requiredHeaders.join(', ')}.`);
     }
 
     const { processedData, newEmployees, skippedCount } = await processAttendanceImport(headerRow, dataRows, bsYear, bsMonth, employees, importedBy);
 
     // 1. Add Attendance Records
     const newAttendanceRecords = processedData
-      .filter(p => p.dateADISO && !isNaN(new Date(p.dateADISO).getTime()))
+      .filter(p => p.dateADISO) // Ensure date is valid
       .map(p => ({
         date: p.dateADISO, 
         bsDate: p.dateBS, 
@@ -80,7 +73,7 @@ export const addAttendanceAndPayrollRecords = async (
         grossHours: p.grossHours,
         overtimeHours: p.overtimeHours, 
         regularHours: p.regularHours,
-        remarks: p.calcRemarks || null, 
+        remarks: p.remarks || null, 
         importedBy: importedBy, 
         sourceSheet: sourceSheetName || null,
     }));
@@ -95,18 +88,19 @@ export const addAttendanceAndPayrollRecords = async (
         });
         await batch.commit();
         processedCount += chunk.length;
-        onProgress(processedCount); // Report cumulative progress
+        onProgress(processedCount);
     }
     
     // 2. Add Payroll Records
     const payrollRecords: Omit<Payroll, 'id'>[] = [];
-    const createdPayrollEntries = new Set<string>(); // To avoid duplicates: 'employeeId-year-month'
+    const createdPayrollEntries = new Set<string>();
     const allEmployees = [...employees, ...newEmployees.map(name => ({ id: '', name, wageBasis: 'Monthly', wageAmount: 0, createdBy: importedBy, createdAt: new Date().toISOString(), status: 'Working' } as Employee))];
 
     for (const row of processedData) { 
         const employee = allEmployees.find(e => e.name === row.employeeName);
         if (!employee) continue;
-
+        
+        // Use the selected BS Year and Month for payroll records
         const payrollKey = `${employee.id}-${bsYear}-${bsMonth}`;
         if (createdPayrollEntries.has(payrollKey)) continue;
 

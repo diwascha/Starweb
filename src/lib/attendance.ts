@@ -2,8 +2,7 @@
 import {
   format,
   isValid,
-  parse,
-  startOfDay
+  parse
 } from 'date-fns';
 import NepaliDate from 'nepali-date-converter';
 import type { AttendanceStatus, RawAttendanceRow, Employee } from './types';
@@ -86,17 +85,12 @@ export async function processAttendanceImport(
     importedBy: string
 ): Promise<{ processedData: CalcAttendanceRow[], newEmployees: string[], skippedCount: number }> {
     
-    if (!headerRow || !Array.isArray(headerRow)) {
-        throw new Error("Invalid header row provided. Expected an array of strings.");
-    }
-    
     const normalizedHeaders = headerRow.map(h => String(h || '').trim().toLowerCase());
     
-    // Exact header mapping based on user's specification
     const headerMapConfig: { [key in keyof RawAttendanceRow]: string } = {
         employeeName: 'name',
-        dateAD: 'date (ad)', // Will be ignored in favor of selected BS month/year
-        mitiBS: 'bs date', // Will be ignored
+        dateAD: 'date (ad)',
+        mitiBS: 'bs date',
         onDuty: 'on duty',
         offDuty: 'off duty',
         clockIn: 'clock in',
@@ -106,8 +100,7 @@ export async function processAttendanceImport(
         otHours: 'ot hours',
         totalHours: 'total hours',
         remarks: 'remarks',
-        // Payroll
-        regularPay: 'norman', // As per user image
+        regularPay: 'norman',
         otPay: 'ot pay',
         totalPay: 'total pay',
         absentDays: 'absent days',
@@ -120,7 +113,7 @@ export async function processAttendanceImport(
         advance: 'advance',
         netPayment: 'net payment',
         payrollRemark: 'remark',
-        day: 'day', // Can be used as a fallback if present
+        day: 'day',
         rate: 'rate',
     };
 
@@ -133,8 +126,10 @@ export async function processAttendanceImport(
         }
     }
 
-    if (headerMap['employeeName'] === undefined) {
-         throw new Error('Import failed: Missing required column "Name".');
+    const requiredHeaders = ['name'];
+    const missingHeaders = requiredHeaders.filter(h => headerMap[h] === undefined);
+    if (missingHeaders.length > 0) {
+        throw new Error(`Import failed: Missing required column(s): ${missingHeaders.join(', ')}.`);
     }
 
     const existingEmployeeNames = new Set(existingEmployees.map(emp => emp.name.toLowerCase()));
@@ -151,7 +146,6 @@ export async function processAttendanceImport(
         const employeeName = String(row.employeeName || '').trim();
         if (!employeeName) return null;
 
-        // Check and add new employee if not exists
         if (!existingEmployeeNames.has(employeeName.toLowerCase()) && !newEmployees.has(employeeName)) {
             const newEmployee: Omit<Employee, 'id'> = { name: employeeName, wageBasis: 'Monthly', wageAmount: 0, createdBy: importedBy, createdAt: new Date().toISOString(), status: 'Working' };
             try {
@@ -164,63 +158,32 @@ export async function processAttendanceImport(
             }
         }
 
-        // DATE LOGIC: Prioritize UI selection, use row index as the day.
-        const dayOfMonth = (row.day && !isNaN(parseInt(String(row.day)))) ? parseInt(String(row.day), 10) : rowIndex + 1;
-        
         let ad: Date | null = null;
         let dateBS = '';
-        
-        try {
-            const nepaliDate = new NepaliDate(bsYear, bsMonth, dayOfMonth);
-            ad = nepaliDate.toJsDate();
-            dateBS = nepaliDate.format('YYYY-MM-DD');
-        } catch (e) {
-            console.warn(`Could not construct date for ${bsYear}-${bsMonth + 1}-${dayOfMonth}. Skipping row.`);
-            skippedCount++;
-            return null; // Skip if date is invalid (e.g., day 32 in a month)
-        }
-        
-        const weekday = ad ? ad.getDay() : -1;
-        const isSaturdayAD = weekday === 6;
 
-        const statusInput = String(row.status || '').trim().toUpperCase();
-        
-        const regular = Number(row.normalHours) || 0;
-        const ot = Number(row.otHours) || 0;
-        let gross = Number(row.totalHours) || 0;
-
-        if (gross === 0 && (regular > 0 || ot > 0)) {
-            gross = regular + ot;
-        }
-        
-        let finalStatus: AttendanceStatus = 'Present';
-
-        if (statusInput === 'ABSENT' || statusInput === 'TRUE' || statusInput === 'A') {
-            finalStatus = 'Absent';
-        } else if (statusInput.startsWith('PUBLIC')) {
-            finalStatus = 'Public Holiday';
-        } else if (isSaturdayAD) {
-            finalStatus = 'Saturday';
-        } else if (statusInput === 'C/I MISS') {
-            finalStatus = 'C/I Miss';
-        } else if (statusInput === 'C/O MISS') {
-            finalStatus = 'C/O Miss';
-        } else if (statusInput === 'EXTRAOK') {
-            finalStatus = 'EXTRAOK';
-        } else if (gross > 0) {
-            finalStatus = 'Present';
-        } else {
-            const clockInTimeStr = parseTimeToString(row.clockIn);
-            const clockOutTimeStr = parseTimeToString(row.clockOut);
-            if (!clockInTimeStr && !clockOutTimeStr) {
-                finalStatus = 'Absent';
-            } else if (!clockInTimeStr) {
-                finalStatus = 'C/I Miss';
-            } else if (!clockOutTimeStr) {
-                finalStatus = 'C/O Miss';
+        if (row.dateAD && (row.dateAD instanceof Date || typeof row.dateAD === 'string')) {
+            const parsedDate = new Date(row.dateAD);
+            if (isValid(parsedDate)) {
+                ad = parsedDate;
+                dateBS = toBSString(ad);
+            }
+        } else if (row.mitiBS && typeof row.mitiBS === 'string') {
+            try {
+                const nepaliDate = new NepaliDate(row.mitiBS);
+                ad = nepaliDate.toJsDate();
+                dateBS = nepaliDate.format('YYYY-MM-DD');
+            } catch {
+                 ad = null;
             }
         }
-
+        
+        if (!ad) {
+          skippedCount++;
+          return null;
+        }
+        
+        const statusInput = String(row.status || '').trim();
+        
         return {
           ...row,
           employeeName: employeeName,
@@ -230,11 +193,11 @@ export async function processAttendanceImport(
           clockOut: parseTimeToString(row.clockOut),
           dateADISO: ad && isValid(ad) ? format(ad, 'yyyy-MM-dd') : '',
           dateBS,
-          weekdayAD: ad ? weekday : -1,
-          normalizedStatus: finalStatus,
-          grossHours: +gross.toFixed(2),
-          regularHours: +regular.toFixed(2),
-          overtimeHours: +ot.toFixed(2),
+          weekdayAD: ad ? ad.getDay() : -1,
+          normalizedStatus: statusInput as AttendanceStatus,
+          grossHours: Number(row.totalHours) || 0,
+          regularHours: Number(row.normalHours) || 0,
+          overtimeHours: Number(row.otHours) || 0,
           calcRemarks: row.remarks || '',
           sourceSheet: row.sourceSheet || null,
         };
