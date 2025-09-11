@@ -2,6 +2,7 @@
 
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -141,6 +142,7 @@ export type AttendanceStatus = 'Present' | 'Absent' | 'Public Holiday' | 'Saturd
 
 export interface RawAttendanceRow {
     employeeName: string;
+    day?: any;
     dateAD?: string | Date | null;
     mitiBS?: string | null;
     onDuty?: any;

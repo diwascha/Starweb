@@ -12,15 +12,12 @@ import { useToast } from '@/hooks/use-toast';
 import { Upload, Search, ArrowUpDown, CalendarIcon, Edit, MoreHorizontal, Trash2, RefreshCw, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { Badge } from '@/components/ui/badge';
-import { format as formatDate, parse, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { format as formatDate } from 'date-fns';
 import { onEmployeesUpdate, addEmployee } from '@/services/employee-service';
 import { updateAttendanceRecord, deleteAttendanceRecord, deleteAttendanceForMonth, getAttendanceForMonth, getAttendanceYears, addAttendanceAndPayrollRecords } from '@/services/attendance-service';
 import { getAttendanceBadgeVariant, cn, formatTimeForDisplay } from '@/lib/utils';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
-import type { DateRange } from 'react-day-picker';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
@@ -69,6 +66,10 @@ export default function AttendancePage() {
   const [editForm, setEditForm] = useState({ onDuty: '', offDuty: '', clockIn: '', clockOut: '', status: '' as AttendanceStatus, regularHours: 0, overtimeHours: 0 });
   const [isDataLoading, setIsDataLoading] = useState(true);
 
+  // Import Dialog State
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [importTargetYear, setImportTargetYear] = useState<string>('');
+  const [importTargetMonth, setImportTargetMonth] = useState<string>('');
   const [isSheetSelectDialogOpen, setIsSheetSelectDialogOpen] = useState(false);
   const [availableSheets, setAvailableSheets] = useState<SheetInfo[]>([]);
   const [selectedSheets, setSelectedSheets] = useState<string[]>([]);
@@ -110,21 +111,29 @@ export default function AttendancePage() {
     let isMounted = true;
     getAttendanceYears().then(years => {
         if (isMounted) {
-            setBsYears(years);
-            if (years.length > 0 && (!selectedBsYear || !years.includes(parseInt(selectedBsYear, 10)))) {
-                const currentYear = new NepaliDate().getYear();
-                const defaultYear = years.includes(currentYear) ? currentYear : years[0];
+            const currentNepaliDate = new NepaliDate();
+            const allYears = Array.from(new Set([...years, currentNepaliDate.getYear()])).sort((a,b) => b-a);
+            setBsYears(allYears);
+            
+            if (allYears.length > 0) {
+              if (!selectedBsYear || !allYears.includes(parseInt(selectedBsYear, 10))) {
+                const currentYear = currentNepaliDate.getYear();
+                const defaultYear = allYears.includes(currentYear) ? currentYear : allYears[0];
                 setSelectedBsYear(String(defaultYear));
                 
-                const currentMonth = new NepaliDate().getMonth();
+                const currentMonth = currentNepaliDate.getMonth();
                 setSelectedBsMonth(String(currentMonth));
-            } else if (years.length === 0) {
+
+                setImportTargetYear(String(defaultYear));
+                setImportTargetMonth(String(currentMonth));
+              }
+            } else {
                 setIsDataLoading(false);
             }
         }
     });
     return () => { isMounted = false; };
-  }, [attendance]);
+  }, []);
   
   useEffect(() => {
     if (selectedBsYear && selectedBsMonth) {
@@ -172,8 +181,12 @@ export default function AttendancePage() {
   };
   
   const handleSheetImport = async () => {
-    if (selectedSheets.length === 0 || !user) return;
+    if (selectedSheets.length === 0 || !user || !importTargetYear || !importTargetMonth) {
+        toast({title: 'Error', description: 'Please select a year, month, and sheets to import.', variant: 'destructive'});
+        return;
+    }
     
+    setIsImportDialogOpen(false);
     setIsSheetSelectDialogOpen(false);
     const sheetsToProcess = availableSheets.filter(sheet => selectedSheets.includes(sheet.name));
     const totalRecordsToProcess = sheetsToProcess.reduce((sum, sheet) => sum + sheet.rowCount, 0);
@@ -188,33 +201,20 @@ export default function AttendancePage() {
         const jsonData = sheet.jsonData;
         const headerRow = jsonData[0].map((h: any) => String(h || '').trim().toLowerCase());
         
-         const headerVariations: { [key: string]: string[] } = {
+        const headerVariations: { [key: string]: string[] } = {
             name: ['name', 'employee name'],
-            date: ['date'],
-            miti: ['miti'],
+            day: ['day', 'date'], // Prioritize 'day'
             onDuty: ['on duty', 'onduty'],
             offDuty: ['off duty', 'offduty'],
             clockIn: ['clock in', 'clockin'],
             clockOut: ['clock out', 'clockout'],
-            status: ['absent', 'status'], // 'status' for backward compatibility
+            status: ['absent', 'status'],
             normalHours: ['normal'],
             otHours: ['ot'],
-            // Payroll columns
-            totalHours: ['total hour'],
-            rate: ['rate'],
-            regularPay: ['normal pay'],
-            otPay: ['ot pay'],
-            totalPay: ['total pay'],
-            absentDays: ['absent day'],
-            deduction: ['deduction'],
-            allowance: ['allowance'],
-            bonus: ['bonus'],
-            salaryTotal: ['salary total'],
-            tds: ['tds'],
-            gross: ['gross'],
-            advance: ['advance'],
-            netPayment: ['net payment'],
-            payrollRemark: ['remark'],
+            totalHours: ['total hour'], rate: ['rate'], regularPay: ['normal pay'], otPay: ['ot pay'], totalPay: ['total pay'],
+            absentDays: ['absent day'], deduction: ['deduction'], allowance: ['allowance'], bonus: ['bonus'],
+            salaryTotal: ['salary total'], tds: ['tds'], gross: ['gross'], advance: ['advance'],
+            netPayment: ['net payment'], payrollRemark: ['remark'],
         };
         
         const headerMap: { [key: string]: number } = {};
@@ -225,17 +225,16 @@ export default function AttendancePage() {
             }
         }
         
-        if (headerMap['name'] === undefined || (headerMap['date'] === undefined && headerMap['miti'] === undefined)) {
-            toast({ title: 'Skipping Sheet', description: `Sheet "${sheet.name}" is missing 'Name' and a date ('Date' or 'Miti') column.`, variant: 'destructive' });
+        if (headerMap['name'] === undefined || headerMap['day'] === undefined) {
+            toast({ title: 'Skipping Sheet', description: `Sheet "${sheet.name}" is missing 'Name' and a 'Day' column.`, variant: 'destructive' });
             continue;
         }
 
         for (const row of jsonData.slice(1)) {
             const employeeName = row[headerMap['name']] ? String(row[headerMap['name']]).trim() : '';
-            const dateValue = row[headerMap['date']];
-            const mitiValue = row[headerMap['miti']];
+            const dayValue = row[headerMap['day']];
             
-            if (!employeeName || (!dateValue && !mitiValue)) {
+            if (!employeeName || dayValue === null || dayValue === undefined || String(dayValue).trim() === '') {
                 totalSkippedRows++;
                 continue;
             }
@@ -258,30 +257,15 @@ export default function AttendancePage() {
 
             const rawRowData: RawAttendanceRow = {
                 employeeName: employeeName,
-                dateAD: dateValue,
-                mitiBS: mitiValue,
-                onDuty: row[headerMap['onDuty']],
-                offDuty: row[headerMap['offDuty']],
-                clockIn: row[headerMap['clockIn']],
-                clockOut: row[headerMap['clockOut']],
-                status: row[headerMap['status']],
-                normalHours: row[headerMap['normalHours']],
-                otHours: row[headerMap['otHours']],
-                sourceSheet: sheet.name,
-                totalHours: row[headerMap['totalHours']],
-                rate: row[headerMap['rate']],
-                regularPay: row[headerMap['regularPay']],
-                otPay: row[headerMap['otPay']],
-                totalPay: row[headerMap['totalPay']],
-                absentDays: row[headerMap['absentDays']],
-                deduction: row[headerMap['deduction']],
-                allowance: row[headerMap['allowance']],
-                bonus: row[headerMap['bonus']],
-                salaryTotal: row[headerMap['salaryTotal']],
-                tds: row[headerMap['tds']],
-                gross: row[headerMap['gross']],
-                advance: row[headerMap['advance']],
-                netPayment: row[headerMap['netPayment']],
+                day: dayValue,
+                onDuty: row[headerMap['onDuty']], offDuty: row[headerMap['offDuty']],
+                clockIn: row[headerMap['clockIn']], clockOut: row[headerMap['clockOut']],
+                status: row[headerMap['status']], normalHours: row[headerMap['normalHours']], otHours: row[headerMap['otHours']],
+                sourceSheet: sheet.name, totalHours: row[headerMap['totalHours']], rate: row[headerMap['rate']],
+                regularPay: row[headerMap['regularPay']], otPay: row[headerMap['otPay']], totalPay: row[headerMap['totalPay']],
+                absentDays: row[headerMap['absentDays']], deduction: row[headerMap['deduction']], allowance: row[headerMap['allowance']],
+                bonus: row[headerMap['bonus']], salaryTotal: row[headerMap['salaryTotal']], tds: row[headerMap['tds']],
+                gross: row[headerMap['gross']], advance: row[headerMap['advance']], netPayment: row[headerMap['netPayment']],
                 payrollRemark: row[headerMap['payrollRemark']],
             };
             allRawRows.push(rawRowData);
@@ -300,6 +284,8 @@ export default function AttendancePage() {
         allRawRows,
         employees,
         user.username,
+        parseInt(importTargetYear),
+        parseInt(importTargetMonth),
         (progress) => {
             setImportProgress(`${progress}/${totalRecordsToProcess}`);
         }
@@ -312,7 +298,6 @@ export default function AttendancePage() {
         if (totalSkippedRows > 0) description += ` ${totalSkippedRows} rows were skipped.`;
         
         toast({ title: 'Import Complete', description, duration: 8000 });
-        // After a successful import, refresh the year list
         const years = await getAttendanceYears();
         setBsYears(years);
     } else {
@@ -438,9 +423,11 @@ export default function AttendancePage() {
             <h3 className="text-2xl font-bold tracking-tight">No attendance records for this period</h3>
             <p className="text-sm text-muted-foreground">Get started by importing an Excel file.</p>
              {hasPermission('hr', 'create') && (
-                <Button className="mt-4" onClick={() => fileInputRef.current?.click()} disabled={!!importProgress}>
-                    {importProgress ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {importProgress}</> : <><Upload className="mr-2 h-4 w-4" /> Import Attendance</>}
-                </Button>
+                <DialogTrigger asChild>
+                    <Button className="mt-4" disabled={!!importProgress}>
+                        {importProgress ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {importProgress}</> : <><Upload className="mr-2 h-4 w-4" /> Import Attendance</>}
+                    </Button>
+                </DialogTrigger>
             )}
           </div>
         </div>
@@ -502,48 +489,82 @@ export default function AttendancePage() {
   
   return (
     <>
-    <div className="flex flex-col gap-8">
-      <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Attendance</h1>
-          <p className="text-muted-foreground">Manage and import employee attendance records.</p>
-        </div>
-        <div className="flex flex-col sm:flex-row items-center gap-2">
-           <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input type="search" placeholder="Search by employee..." className="pl-8 w-full sm:w-auto" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
-          </div>
-          {hasPermission('hr', 'create') && (
-            <>
-                <Input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".xlsx, .xls" />
-                <Button onClick={() => fileInputRef.current?.click()} className="w-full sm:w-auto" disabled={!!importProgress}>
-                  {importProgress ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {`Importing (${importProgress})`}</> : <><Upload className="mr-2 h-4 w-4" /> Import Attendance</>}
-                </Button>
-            </>
-           )}
-        </div>
-      </header>
+    <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+        <div className="flex flex-col gap-8">
+        <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+            <h1 className="text-3xl font-bold tracking-tight">Attendance</h1>
+            <p className="text-muted-foreground">Manage and import employee attendance records.</p>
+            </div>
+            <div className="flex flex-col sm:flex-row items-center gap-2">
+            <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input type="search" placeholder="Search by employee..." className="pl-8 w-full sm:w-auto" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+            </div>
+            {hasPermission('hr', 'create') && (
+                <DialogTrigger asChild>
+                    <Button className="w-full sm:w-auto" disabled={!!importProgress}>
+                        {importProgress ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {`Importing (${importProgress})`}</> : <><Upload className="mr-2 h-4 w-4" /> Import Attendance</>}
+                    </Button>
+                </DialogTrigger>
+            )}
+            </div>
+        </header>
 
-      {(!isDataLoading || attendance.length > 0) && bsYears.length > 0 && (
-          <div className="flex flex-col sm:flex-row flex-wrap gap-2 items-center">
-              <Label>Filter by:</Label>
-              <Select value={selectedBsYear} onValueChange={setSelectedBsYear}><SelectTrigger className="w-full sm:w-[120px]"><SelectValue placeholder="Year (BS)" /></SelectTrigger><SelectContent>{bsYears.map(year => (<SelectItem key={year} value={String(year)}>{year}</SelectItem>))}</SelectContent></Select>
-              <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth}><SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Month (BS)" /></SelectTrigger><SelectContent>{nepaliMonths.map(month => (<SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>))}</SelectContent></Select>
-               <Select value={filterEmployeeName} onValueChange={setFilterEmployeeName}><SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Select Employee" /></SelectTrigger><SelectContent>{uniqueEmployeeNames.map(name => (<SelectItem key={name} value={name}>{name}</SelectItem>))}</SelectContent></Select>
-               <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as 'All' | AttendanceStatus)}><SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Select Status" /></SelectTrigger><SelectContent><SelectItem value="All">All Statuses</SelectItem>{attendanceStatuses.map(status => (<SelectItem key={status} value={status}>{status}</SelectItem>))}</SelectContent></Select>
-               <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                        <Button variant="destructive-outline"><Trash2 className="mr-2 h-4 w-4" /> Delete Month Data</Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                        <AlertDialogHeader><AlertDialogTitle>Delete All Data for {nepaliMonths[parseInt(selectedBsMonth)]?.name}, {selectedBsYear}?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone. This will permanently delete all attendance records for the selected month.</AlertDialogDescription></AlertDialogHeader>
-                        <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDeleteMonthData}>Confirm Delete</AlertDialogAction></AlertDialogFooter>
-                    </AlertDialogContent>
-               </AlertDialog>
-          </div>
-      )}
-      {renderContent()}
-    </div>
+        {(!isDataLoading || attendance.length > 0) && bsYears.length > 0 && (
+            <div className="flex flex-col sm:flex-row flex-wrap gap-2 items-center">
+                <Label>Filter by:</Label>
+                <Select value={selectedBsYear} onValueChange={setSelectedBsYear}><SelectTrigger className="w-full sm:w-[120px]"><SelectValue placeholder="Year (BS)" /></SelectTrigger><SelectContent>{bsYears.map(year => (<SelectItem key={year} value={String(year)}>{year}</SelectItem>))}</SelectContent></Select>
+                <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth}><SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Month (BS)" /></SelectTrigger><SelectContent>{nepaliMonths.map(month => (<SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>))}</SelectContent></Select>
+                <Select value={filterEmployeeName} onValueChange={setFilterEmployeeName}><SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Select Employee" /></SelectTrigger><SelectContent>{uniqueEmployeeNames.map(name => (<SelectItem key={name} value={name}>{name}</SelectItem>))}</SelectContent></Select>
+                <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as 'All' | AttendanceStatus)}><SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Select Status" /></SelectTrigger><SelectContent><SelectItem value="All">All Statuses</SelectItem>{attendanceStatuses.map(status => (<SelectItem key={status} value={status}>{status}</SelectItem>))}</SelectContent></Select>
+                <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="destructive-outline"><Trash2 className="mr-2 h-4 w-4" /> Delete Month Data</Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader><AlertDialogTitle>Delete All Data for {nepaliMonths[parseInt(selectedBsMonth)]?.name}, {selectedBsYear}?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone. This will permanently delete all attendance records for the selected month.</AlertDialogDescription></AlertDialogHeader>
+                            <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDeleteMonthData}>Confirm Delete</AlertDialogAction></AlertDialogFooter>
+                        </AlertDialogContent>
+                </AlertDialog>
+            </div>
+        )}
+        {renderContent()}
+        </div>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Import Attendance Data</DialogTitle>
+                <DialogDescription>
+                    Select the Nepali month and year this data belongs to. The system will look for a "Day" column in your Excel file to construct the correct dates.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label>Target Year (BS)</Label>
+                         <Select value={importTargetYear} onValueChange={setImportTargetYear}>
+                            <SelectTrigger><SelectValue placeholder="Year (BS)" /></SelectTrigger>
+                            <SelectContent>{bsYears.map(year => <SelectItem key={year} value={String(year)}>{year}</SelectItem>)}</SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Target Month (BS)</Label>
+                        <Select value={importTargetMonth} onValueChange={setImportTargetMonth}>
+                            <SelectTrigger><SelectValue placeholder="Month (BS)" /></SelectTrigger>
+                            <SelectContent>{nepaliMonths.map(month => <SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>)}</SelectContent>
+                        </Select>
+                    </div>
+                </div>
+                <div className="space-y-2">
+                    <Label>Excel File (.xlsx, .xls)</Label>
+                    <Input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".xlsx, .xls" />
+                </div>
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setIsImportDialogOpen(false)}>Cancel</Button>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-md">
             <DialogHeader><DialogTitle>Edit Attendance for {editingRecord?.employeeName}</DialogTitle><DialogDescription>Date: {editingRecord ? formatDate(new Date(editingRecord.date), 'PPP') : ''}</DialogDescription></DialogHeader>

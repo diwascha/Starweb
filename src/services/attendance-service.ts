@@ -1,4 +1,5 @@
 
+
 import { db } from '@/lib/firebase';
 import { collection, doc, writeBatch, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, updateDoc, deleteDoc, query, where, getDoc } from 'firebase/firestore';
 import type { AttendanceRecord, RawAttendanceRow, Payroll, Employee } from '@/lib/types';
@@ -40,12 +41,14 @@ export const addAttendanceAndPayrollRecords = async (
     rawRows: RawAttendanceRow[], 
     employees: Employee[],
     importedBy: string, 
+    bsYear: number,
+    bsMonth: number,
     onProgress: (progress: number) => void
 ): Promise<{ attendanceCount: number, payrollCount: number }> => {
     const CHUNK_SIZE = 400;
     let progressCount = 0;
     
-    const processedData = processAttendanceImport(rawRows);
+    const processedData = processAttendanceImport(rawRows, bsYear, bsMonth);
     
     // 1. Add Attendance Records
     const newAttendanceRecords = processedData
@@ -75,35 +78,21 @@ export const addAttendanceAndPayrollRecords = async (
     const payrollRecords: Omit<Payroll, 'id'>[] = [];
     const createdPayrollEntries = new Set<string>(); // To avoid duplicates: 'employeeId-year-month'
 
-    for (const row of rawRows) {
+    for (const row of processedData) { // Use processedData which has correct dates
         const employee = employees.find(e => e.name === row.employeeName);
         if (!employee) continue;
-
-        let ad;
-        try {
-           ad = row.dateAD ? new Date(row.dateAD) : new NepaliDate(row.mitiBS!).toJsDate();
-        } catch {
-            continue;
-        }
-        if (!ad || isNaN(ad.getTime())) continue;
-
-        const nepaliDate = new NepaliDate(ad);
-        const bsYear = nepaliDate.getYear();
-        const bsMonth = nepaliDate.getMonth();
 
         const payrollKey = `${employee.id}-${bsYear}-${bsMonth}`;
         if (createdPayrollEntries.has(payrollKey)) continue;
 
-        // Check if essential payroll data exists and is valid.
-        // `netPayment` is a good indicator that this row contains payroll info.
         const netPaymentValue = row.netPayment;
         if (netPaymentValue === null || netPaymentValue === undefined || String(netPaymentValue).trim() === '') {
-            continue; // Skip creating a payroll record for this row.
+            continue; 
         }
 
         const netPayment = Number(netPaymentValue);
         if (isNaN(netPayment)) {
-            continue; // Skip if netPayment is not a valid number.
+            continue;
         }
 
 
@@ -190,9 +179,6 @@ export const onAttendanceUpdate = (callback: (records: AttendanceRecord[]) => vo
 };
 
 export const getAttendanceForMonth = async (bsYear: number, bsMonth: number): Promise<AttendanceRecord[]> => {
-    // This fetches all records and filters on the client.
-    // For very large datasets, a server-side query would be better,
-    // but that requires storing year/month fields on the records.
     const allRecords = await getAttendance();
     return allRecords.filter(r => {
         try {

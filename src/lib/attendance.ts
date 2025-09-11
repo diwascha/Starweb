@@ -1,4 +1,5 @@
 
+
 import {
   format,
   isValid,
@@ -36,27 +37,9 @@ function toBSString(dateAD: Date): string {
   }
 }
 
-function parseADDateLoose(input: string | Date): Date | null {
-  if (input instanceof Date && isValid(input)) {
-    return startOfDay(input);
-  }
-  if (typeof input !== 'string' || !input.trim()) return null;
-  // Prioritize yyyy-mm-dd format
-  const candidates = ['yyyy-MM-dd', "yyyy-MM-dd'T'HH:mm:ssXXX", 'M/d/yyyy', 'd/M/yyyy', "M/d/yy"];
-  for (const f of candidates) {
-    try {
-      const d = parse(input.trim(), f, new Date());
-      if (isValid(d)) return startOfDay(d);
-    } catch {}
-  }
-  return null;
-}
-
-
 function parseTimeToString(timeInput: any): string | null {
     if (!timeInput) return null;
     
-    // Handle JS Date objects
     if (timeInput instanceof Date && isValid(timeInput)) {
         return format(timeInput, 'HH:mm');
     }
@@ -64,7 +47,6 @@ function parseTimeToString(timeInput: any): string | null {
     const t = String(timeInput).trim();
     if (t === '-' || t === '') return null;
     
-    // Handle Excel's numeric time format (fraction of a day)
     const numericTime = parseFloat(t);
     if (!isNaN(numericTime) && numericTime < 1 && numericTime > 0) {
         const totalSeconds = Math.round(numericTime * 86400);
@@ -73,13 +55,11 @@ function parseTimeToString(timeInput: any): string | null {
         return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
     }
 
-    // Check if it's already HH:mm or HH:mm:ss
     if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(t)) {
         const parts = t.split(':');
         return `${parts[0].padStart(2, '0')}:${parts[1]}`;
     }
 
-    // Attempt to parse various string formats
     const formats = ['h:mm:ss a', 'h:mm a', 'HH:mm:ss', 'HH:mm', 'h:mm'];
     for (const f of formats) {
         try {
@@ -90,7 +70,6 @@ function parseTimeToString(timeInput: any): string | null {
         } catch {}
     }
     
-    // If all else fails, return null
     return null;
 }
 
@@ -98,25 +77,29 @@ function parseTimeToString(timeInput: any): string | null {
 /* =========================
    Core calculator
    ========================= */
-export function processAttendanceImport(rows: RawAttendanceRow[]): CalcAttendanceRow[] {
+export function processAttendanceImport(rows: RawAttendanceRow[], bsYear: number, bsMonth: number): CalcAttendanceRow[] {
 
   return rows.map((row): CalcAttendanceRow => {
-    let ad = parseADDateLoose(row.dateAD);
-    if (!ad && row.mitiBS) {
+    
+    let ad: Date | null = null;
+    let dateBS = '';
+
+    const day = parseInt(String(row.day), 10);
+    if (!isNaN(day) && day >= 1 && day <= 32) {
         try {
-            ad = new NepaliDate(row.mitiBS).toJsDate();
+            const nepaliDate = new NepaliDate(bsYear, bsMonth, day);
+            ad = nepaliDate.toJsDate();
+            dateBS = nepaliDate.format('YYYY-MM-DD');
         } catch (e) {
-            console.error("Could not parse Nepali date:", row.mitiBS);
+            console.error(`Invalid Nepali date for day ${day}:`, e);
         }
     }
     
-    const dateBS = ad ? toBSString(ad) : (row.mitiBS || '');
     const weekday = ad ? ad.getDay() : -1;
     const isSaturdayAD = weekday === 6;
 
     const statusInput = (row.status || '').trim().toUpperCase();
     
-    // Directly use imported hours
     const regular = Number(row.normalHours) || 0;
     const ot = Number(row.otHours) || 0;
     const gross = regular + ot;
@@ -138,7 +121,6 @@ export function processAttendanceImport(rows: RawAttendanceRow[]): CalcAttendanc
     } else if (gross > 0) {
         finalStatus = 'Present';
     } else {
-        // Fallback status determination if not explicitly provided
         const clockInTimeStr = parseTimeToString(row.clockIn);
         const clockOutTimeStr = parseTimeToString(row.clockOut);
         if (!clockInTimeStr && !clockOutTimeStr) {
