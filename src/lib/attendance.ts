@@ -2,11 +2,12 @@
 import {
   format,
   isValid,
-  parse
+  parse,
+  differenceInMinutes
 } from 'date-fns';
 import NepaliDate from 'nepali-date-converter';
 import type { AttendanceStatus, RawAttendanceRow, Employee } from './types';
-import { addEmployee } from '@/services/employee-service';
+import { addEmployee, getEmployees } from '@/services/employee-service';
 
 /* =========================
    Types
@@ -16,7 +17,7 @@ export type CalcAttendanceRow = RawAttendanceRow & {
   dateADISO: string;
   dateBS: string;
   weekdayAD: number;              // 0=Sun..6=Sat
-  normalizedStatus: string;
+  normalizedStatus: AttendanceStatus;
   grossHours: number;
   regularHours: number;
   overtimeHours: number;
@@ -134,28 +135,8 @@ export const processAttendanceImport = (
         clockOut: ['clock out'],
         status: ['status', 'absent'], 
         remarks: ['remarks'],
-        // DAILY ATTENDANCE hours
         dailyOvertimeHours: ['ot'],
         dailyRegularHours: ['normal hrs'],
-        // PAYROLL SUMMARY hours
-        payrollTotalHours: ['total hour', 'total hours'],
-        payrollOtHours: ['ot hour', 'ot hours'],
-        payrollRegularHours: ['regular hours', 'norman'],
-        // PAYROLL fields
-        rate: ['rate'],
-        regularPay: ['regular pay'],
-        otPay: ['ot pay'],
-        totalPay: ['total', 'total pay'],
-        absentDays: ['absent days'],
-        deduction: ['deduction', 'absent amt.'],
-        allowance: ['extra', 'allowance'],
-        bonus: ['bonus'],
-        salaryTotal: ['salary total'],
-        tds: ['tds', 'tds (1%)'],
-        gross: ['gross'],
-        advance: ['advance'],
-        netPayment: ['net payment'],
-        payrollRemark: ['remark'],
         day: ['day'],
     };
 
@@ -196,8 +177,7 @@ export const processAttendanceImport = (
         });
         
         for (const key in headerMap) {
-            const index = headerMap[key as keyof RawAttendanceRow]!;
-            row[key as keyof RawAttendanceRow] = rowArray[index];
+            row[key as keyof RawAttendanceRow] = rowArray[headerMap[key as keyof RawAttendanceRow]!];
         }
 
         const employeeName = String(row.employeeName || '').trim();
@@ -228,41 +208,63 @@ export const processAttendanceImport = (
         const dateBS = toBSString(finalADDate);
 
         const statusInput = String(row.status || '').trim().toUpperCase();
+        const clockInTime = parseTimeToString(row.clockIn);
+        const clockOutTime = parseTimeToString(row.clockOut);
+        
         let normalizedStatus: AttendanceStatus;
         if (statusInput === 'A' || statusInput === 'ABSENT') {
             normalizedStatus = 'Absent';
-        } else if (statusInput.includes('C/I MISS')) {
+        } else if (statusInput.includes('C/I MISS') || (statusInput.includes('P') && !clockInTime && clockOutTime)) {
             normalizedStatus = 'C/I Miss';
-        } else if (statusInput.includes('C/O MISS')) {
+        } else if (statusInput.includes('C/O MISS') || (statusInput.includes('P') && clockInTime && !clockOutTime)) {
             normalizedStatus = 'C/O Miss';
         } else if (statusInput.includes('EXTRAOK')) {
             normalizedStatus = 'EXTRAOK';
-        } else {
-             const dayOfWeek = finalADDate.getDay();
-             if (dayOfWeek === 6) { // Saturday
+        } else if (statusInput.includes('P') || statusInput === '' || statusInput === 'PRESENT') {
+            const dayOfWeek = finalADDate.getDay();
+            if (dayOfWeek === 6) { // Saturday
                 normalizedStatus = 'Saturday';
-             } else {
+            } else {
                 normalizedStatus = 'Present';
-             }
+            }
+        } else {
+            normalizedStatus = 'Present'; // Default fallback
         }
+
+        let regularHours = 0;
+        let overtimeHours = 0;
         
-        // Use daily hours for attendance, fallback to payroll hours if not present
-        const regularHours = Number(row.dailyRegularHours) || Number(row.payrollRegularHours) || 0;
-        const overtimeHours = Number(row.dailyOvertimeHours) || Number(row.payrollOtHours) || 0;
-        const grossHours = regularHours + overtimeHours;
-        
+        if (clockInTime && clockOutTime) {
+            const clockInDate = parse(clockInTime, 'HH:mm', finalADDate);
+            const clockOutDate = parse(clockOutTime, 'HH:mm', finalADDate);
+            if (isValid(clockInDate) && isValid(clockOutDate) && clockOutDate > clockInDate) {
+                const totalMinutes = differenceInMinutes(clockOutDate, clockInDate);
+                const totalHours = totalMinutes / 60;
+                
+                if (totalHours > 8) {
+                    regularHours = 8;
+                    overtimeHours = totalHours - 8;
+                } else {
+                    regularHours = totalHours;
+                }
+            }
+        } else if (['Present', 'Saturday', 'Public Holiday', 'EXTRAOK'].includes(normalizedStatus)) {
+             // If present but no clock times, assume a standard 8-hour day
+            regularHours = 8;
+        }
+
         return {
           ...row,
           employeeName: employeeName,
           onDuty: parseTimeToString(row.onDuty), 
           offDuty: parseTimeToString(row.offDuty),
-          clockIn: parseTimeToString(row.clockIn), 
-          clockOut: parseTimeToString(row.clockOut),
+          clockIn: clockInTime, 
+          clockOut: clockOutTime,
           dateADISO: format(finalADDate, 'yyyy-MM-dd'),
           dateBS,
           weekdayAD: finalADDate.getDay(),
           normalizedStatus: normalizedStatus,
-          grossHours,
+          grossHours: regularHours + overtimeHours,
           regularHours,
           overtimeHours,
           calcRemarks: row.remarks || '',
