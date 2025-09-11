@@ -84,7 +84,7 @@ export async function processAttendanceImport(
     bsMonth: number,
     existingEmployees: Employee[],
     importedBy: string
-): Promise<{ processedData: CalcAttendanceRow[], newEmployees: string[], skippedCount: number }> {
+) {
     
     const normalizedHeaders = headerRow.map(h => String(h || '').trim().toLowerCase());
     const originalHeaders = headerRow.map(h => String(h || '').trim());
@@ -181,19 +181,31 @@ export async function processAttendanceImport(
 
         let ad: Date | null = null;
         let dateBS = '';
+        
+        const dateInput = row.dateAD;
+        if (dateInput) {
+            let parsedDate: Date | null = null;
+            if (dateInput instanceof Date) {
+                parsedDate = dateInput;
+            } else if (typeof dateInput === 'string') {
+                const trimmedDate = dateInput.trim();
+                // Try parsing DD/MM/YY or DD-MM-YY first
+                if (/^\d{1,2}[/-]\d{1,2}[/-]\d{2,4}$/.test(trimmedDate)) {
+                    parsedDate = parse(trimmedDate.replace(/-/g, '/'), 'dd/MM/yy', new Date());
+                } else {
+                    // Fallback to default parsing for ISO strings etc.
+                    parsedDate = new Date(trimmedDate);
+                }
+            }
 
-        if (row.dateAD && (row.dateAD instanceof Date || typeof row.dateAD === 'string')) {
-            const parsedDate = new Date(row.dateAD);
-            if (isValid(parsedDate)) {
+            if (parsedDate && isValid(parsedDate)) {
                 ad = parsedDate;
-                // Force the date to be within the selected BS month/year to correct for Excel errors
-                const nepaliDate = new NepaliDate(ad);
+                 const nepaliDate = new NepaliDate(ad);
                 if (nepaliDate.getYear() !== bsYear || nepaliDate.getMonth() !== bsMonth) {
                     try {
                         const correctedNepaliDate = new NepaliDate(bsYear, bsMonth, nepaliDate.getDate());
                         ad = correctedNepaliDate.toJsDate();
                     } catch {
-                        // If day is invalid for the month (e.g. 32nd Baishakh), skip record
                         skippedCount++;
                         return null;
                     }
