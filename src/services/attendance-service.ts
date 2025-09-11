@@ -1,7 +1,6 @@
 
-
 import { db } from '@/lib/firebase';
-import { collection, doc, writeBatch, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, updateDoc, deleteDoc, query, where, getDoc } from 'firebase/firestore';
+import { collection, doc, writeBatch, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, query, where, getDoc } from 'firebase/firestore';
 import type { AttendanceRecord, RawAttendanceRow, Payroll, Employee } from '@/lib/types';
 import NepaliDate from 'nepali-date-converter';
 import { format } from 'date-fns';
@@ -120,9 +119,9 @@ export const addAttendanceAndPayrollRecords = async (
                 bsMonth,
                 employeeId: employee.id,
                 employeeName: employee.name,
-                totalHours: (Number(payrollDataSource.normalHours) || 0) + (Number(payrollDataSource.otHours) || 0),
+                totalHours: (Number(payrollDataSource.regularHours) || 0) + (Number(payrollDataSource.otHours) || 0),
                 otHours: Number(payrollDataSource.otHours) || 0,
-                regularHours: Number(payrollDataSource.normalHours) || 0,
+                regularHours: Number(payrollDataSource.regularHours) || 0,
                 rate: Number(payrollDataSource.rate) || 0,
                 regularPay: Number(payrollDataSource.regularPay) || 0,
                 otPay: Number(payrollDataSource.otPay) || 0,

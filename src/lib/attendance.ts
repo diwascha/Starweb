@@ -1,5 +1,4 @@
 
-
 import {
   format,
   isValid,
@@ -137,26 +136,25 @@ export const processAttendanceImport = async (
         clockOut: ['clock out'],
         status: ['absent'],
         remarks: ['remarks'],
-        // J, K, L columns are now mapped to payroll fields
         
-        // Payroll columns from Q onwards
-        totalHours: ['total hour', 'total hours'], // Mapped as per image: derived
-        otHours: ['ot hour', 'ot hours'], // R
-        normalHours: ['normal hrs', 'regular hours'], // S
-        rate: ['rate'], // T
-        regularPay: ['norman', 'regular pay'], // U
-        otPay: ['ot', 'ot pay'], // V
-        totalPay: ['total', 'total pay'], // W
-        absentDays: ['absent days'], // X
-        deduction: ['deduction'], // Y
-        allowance: ['extra', 'allowance'], // Z
-        bonus: ['bonus'], // AA
-        salaryTotal: ['salary total'], // AB
-        tds: ['tds'], // AC
-        gross: ['gross'], // AD
-        advance: ['advance'], // AE
-        netPayment: ['net payment'], // AF
-        payrollRemark: ['remark'], // AG
+        // Payroll columns
+        totalHours: ['total hour', 'total hours'],
+        otHours: ['ot hour', 'ot hours'],
+        regularHours: ['normal hrs', 'regular hours'],
+        rate: ['rate'],
+        regularPay: ['norman', 'regular pay'],
+        otPay: ['ot', 'ot pay'],
+        totalPay: ['total', 'total pay'],
+        absentDays: ['absent days'],
+        deduction: ['deduction'],
+        allowance: ['extra', 'allowance'],
+        bonus: ['bonus'],
+        salaryTotal: ['salary total'],
+        tds: ['tds'],
+        gross: ['gross'],
+        advance: ['advance'],
+        netPayment: ['net payment'],
+        payrollRemark: ['remark'],
         day: ['day'],
     };
 
