@@ -1,4 +1,5 @@
 
+
 import { db } from '@/lib/firebase';
 import { collection, doc, writeBatch, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, updateDoc, deleteDoc, query, where, getDoc } from 'firebase/firestore';
 import type { AttendanceRecord, RawAttendanceRow, Payroll, Employee } from '@/lib/types';
@@ -108,7 +109,10 @@ export const addAttendanceAndPayrollRecords = async (
         const employee = allEmployees.find(e => e.name === employeeName);
         if (!employee) continue;
         
-        const payrollDataSource = employeeRows.find(r => r.netPayment !== null && r.netPayment !== undefined && String(r.netPayment).trim() !== '');
+        // Find the first row for this employee that contains payroll data
+        const payrollDataSource = employeeRows.find(r => 
+            r.netPayment !== null && r.netPayment !== undefined && String(r.netPayment).trim() !== ''
+        );
         
         if (payrollDataSource) {
             payrollRecords.push({
@@ -116,7 +120,7 @@ export const addAttendanceAndPayrollRecords = async (
                 bsMonth,
                 employeeId: employee.id,
                 employeeName: employee.name,
-                totalHours: Number(payrollDataSource.totalHours) || 0,
+                totalHours: (Number(payrollDataSource.normalHours) || 0) + (Number(payrollDataSource.otHours) || 0),
                 otHours: Number(payrollDataSource.otHours) || 0,
                 regularHours: Number(payrollDataSource.normalHours) || 0,
                 rate: Number(payrollDataSource.rate) || 0,

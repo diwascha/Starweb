@@ -200,7 +200,7 @@ export default function PayrollClientPage() {
                                         <TableHead>Regular Pay</TableHead>
                                         <TableHead>OT Pay</TableHead>
                                         <TableHead>Total Pay</TableHead>
-                                        <TableHead>Absent Days</TableHead>
+                                        <TableHead>Abs. Days</TableHead>
                                         <TableHead>Absent Amt.</TableHead>
                                         <TableHead>Allowance</TableHead>
                                         <TableHead>Bonus</TableHead>
