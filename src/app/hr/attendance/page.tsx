@@ -109,22 +109,22 @@ export default function AttendancePage() {
   useEffect(() => {
     let isMounted = true;
     getAttendanceYears().then(years => {
-      if (isMounted) {
-          setBsYears(years);
-          if (years.length > 0) {
-              const currentYear = new NepaliDate().getYear();
-              const defaultYear = years.includes(currentYear) ? currentYear : years[0];
-              setSelectedBsYear(String(defaultYear));
-              
-              const currentMonth = new NepaliDate().getMonth();
-              setSelectedBsMonth(String(currentMonth));
-          } else {
-              setIsDataLoading(false);
-          }
-      }
+        if (isMounted) {
+            setBsYears(years);
+            if (years.length > 0 && (!selectedBsYear || !years.includes(parseInt(selectedBsYear, 10)))) {
+                const currentYear = new NepaliDate().getYear();
+                const defaultYear = years.includes(currentYear) ? currentYear : years[0];
+                setSelectedBsYear(String(defaultYear));
+                
+                const currentMonth = new NepaliDate().getMonth();
+                setSelectedBsMonth(String(currentMonth));
+            } else if (years.length === 0) {
+                setIsDataLoading(false);
+            }
+        }
     });
     return () => { isMounted = false; };
-  }, [allPayroll]);
+  }, [attendance]);
   
   useEffect(() => {
     if (selectedBsYear && selectedBsMonth) {
