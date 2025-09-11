@@ -140,17 +140,17 @@ export const processAttendanceImport = async (
         // Payroll columns
         totalHours: ['total hour', 'total hours'],
         otHours: ['ot hour', 'ot hours'],
-        regularHours: ['normal hrs', 'regular hours'],
+        regularHours: ['normal hrs', 'regular hours', 'norman'],
         rate: ['rate'],
-        regularPay: ['norman', 'regular pay'],
+        regularPay: ['regular pay'],
         otPay: ['ot', 'ot pay'],
         totalPay: ['total', 'total pay'],
-        absentDays: ['absent days'],
-        deduction: ['deduction'],
+        absentDays: ['absent days', 'absent'],
+        deduction: ['deduction', 'absent amt.'],
         allowance: ['extra', 'allowance'],
         bonus: ['bonus'],
         salaryTotal: ['salary total'],
-        tds: ['tds'],
+        tds: ['tds', 'tds (1%)'],
         gross: ['gross'],
         advance: ['advance'],
         netPayment: ['net payment'],
@@ -259,8 +259,8 @@ export const processAttendanceImport = async (
              }
         }
 
-        const regularHours = Number(row.regularHours) || Number(row.normalHours) || 0;
-        const overtimeHours = Number(row.overtimeHours) || Number(row.otHours) || 0;
+        const regularHours = Number(row.regularHours) || 0;
+        const overtimeHours = Number(row.otHours) || 0;
         const grossHours = regularHours + overtimeHours;
         
         return {
