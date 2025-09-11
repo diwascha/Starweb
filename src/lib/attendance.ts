@@ -89,33 +89,37 @@ export async function processAttendanceImport(
     const normalizedHeaders = headerRow.map(h => String(h || '').trim().toLowerCase());
     const originalHeaders = headerRow.map(h => String(h || '').trim());
     
+    // This mapping is now based on the user's detailed guide.
     const headerMapConfig: { [key in keyof RawAttendanceRow]: string[] } = {
-        employeeName: ['name'],
+        // Attendance Columns (A-P)
         dateAD: ['date'],
         mitiBS: ['bs date'],
+        employeeName: ['name'],
         onDuty: ['on duty'],
         offDuty: ['off duty'],
         clockIn: ['clock in'],
         clockOut: ['clock out'],
         status: ['absent'], // 'Absent' column now determines status
-        normalHours: ['regular hours', 'normal hrs'],
-        otHours: ['overtime', 'ot hour'],
-        totalHours: ['total hour'],
+        overtimeHours: ['overtime'],
+        regularHours: ['regular hours'],
         remarks: ['remarks'],
-        // Payroll columns
+        // Payroll Columns (Q-AE)
+        totalHours: ['total hour'],
+        otHours: ['ot hour'],
+        normalHours: ['normal hrs'],
         regularPay: ['norman'],
         otPay: ['ot'],
         totalPay: ['total'],
         absentDays: ['absent days'],
-        deduction: ['deduction'], // This will now be "Absent Amt"
+        deduction: ['deduction'],
         allowance: ['extra'],
-        bonus: ['bonus'],
         salaryTotal: ['salary total'],
         tds: ['tds'],
         gross: ['gross'],
         advance: ['advance'],
         netPayment: ['net payment'],
         payrollRemark: ['remark'],
+        // Other potential columns
         day: ['day'],
         rate: ['rate'],
     };
@@ -189,9 +193,11 @@ export async function processAttendanceImport(
         }
         
         const statusInput = (row.status !== null && row.status !== undefined && String(row.status).trim() !== '') ? 'Absent' : 'Present';
-        const normalHours = Number(row.normalHours) || 0;
-        const otHours = Number(row.otHours) || 0;
-        const totalHours = normalHours + otHours;
+        const regularHours = Number(row.regularHours || row.normalHours) || 0;
+        const overtimeHours = Number(row.overtimeHours || row.otHours) || 0;
+        
+        // Per guide, Total Hour for payroll is OT + Normal
+        const totalHours = regularHours + overtimeHours;
         
         return {
           ...row,
@@ -204,9 +210,9 @@ export async function processAttendanceImport(
           dateBS,
           weekdayAD: ad ? ad.getDay() : -1,
           normalizedStatus: statusInput as AttendanceStatus,
-          grossHours: totalHours,
-          regularHours: normalHours,
-          overtimeHours: otHours,
+          grossHours: totalHours, // Same as totalHours from payroll calc
+          regularHours: regularHours,
+          overtimeHours: overtimeHours,
           calcRemarks: row.remarks || '',
           sourceSheet: row.sourceSheet || null,
           rawImportData: rawImportData,

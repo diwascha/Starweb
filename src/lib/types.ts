@@ -4,6 +4,7 @@
 
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -142,36 +143,37 @@ export interface Employee {
 export type AttendanceStatus = 'Present' | 'Absent' | 'Public Holiday' | 'Saturday' | 'C/I Miss' | 'C/O Miss' | 'EXTRAOK';
 
 export interface RawAttendanceRow {
-    employeeName?: string;
-    day?: any;
-    dateAD?: string | Date | null;
-    mitiBS?: string | null;
+    employeeName?: any;
+    dateAD?: any;
+    mitiBS?: any;
     onDuty?: any;
     offDuty?: any;
     clockIn?: any;
     clockOut?: any;
     status?: any;
-    remarks?: string | null;
+    remarks?: any;
+    overtimeHours?: any;
+    regularHours?: any;
     sourceSheet?: string;
-    normalHours?: any;
-    otHours?: any;
-    // Payroll columns
+    // Payroll columns from Excel
     totalHours?: any;
-    rate?: any;
+    otHours?: any; // Same as overtimeHours, for payroll section
+    normalHours?: any; // Same as regularHours, for payroll section
     regularPay?: any;
     otPay?: any;
     totalPay?: any;
     absentDays?: any;
     deduction?: any;
     allowance?: any;
-    bonus?: any;
     salaryTotal?: any;
     tds?: any;
     gross?: any;
     advance?: any;
     netPayment?: any;
     payrollRemark?: any;
-    // Allow any other properties from the Excel sheet
+    bonus?: any;
+    day?: any;
+    rate?: any;
     [key: string]: any;
 }
 
