@@ -52,42 +52,34 @@ export default function PayrollClientPage() {
     useEffect(() => {
         const unsubPayroll = onPayrollUpdate((payrolls) => {
             setAllPayroll(payrolls);
-            setIsLoading(false); // Set loading to false once data is fetched
+
+            if (payrolls.length > 0) {
+                const years = Array.from(new Set(payrolls.map(p => p.bsYear))).sort((a, b) => b - a);
+                setBsYears(years);
+
+                // This logic will run only once on initial load or if the selected year becomes invalid
+                setSelectedBsYear(prevYear => {
+                    if (prevYear && years.includes(parseInt(prevYear))) {
+                        return prevYear;
+                    }
+                    const mostRecentEntry = payrolls.reduce((latest, current) => {
+                        const latestDate = new NepaliDate(latest.bsYear, latest.bsMonth, 1).toJsDate().getTime();
+                        const currentDate = new NepaliDate(current.bsYear, current.bsMonth, 1).toJsDate().getTime();
+                        return currentDate > latestDate ? current : latest;
+                    });
+                    
+                    setSelectedBsMonth(String(mostRecentEntry.bsMonth));
+                    return String(mostRecentEntry.bsYear);
+                });
+            } else {
+                setBsYears([]);
+                setSelectedBsYear('');
+                setSelectedBsMonth('');
+            }
+            setIsLoading(false);
         });
         return () => unsubPayroll();
     }, []);
-
-    useEffect(() => {
-        // This effect runs when allPayroll data changes or when loading is finished
-        if (isLoading) return; // Don't run if we are still in the initial loading state
-
-        if (allPayroll.length > 0) {
-            const years = Array.from(new Set(allPayroll.map(p => p.bsYear))).sort((a, b) => b - a);
-            setBsYears(years);
-
-            const selectionNeedsUpdate = !selectedBsYear || !years.includes(parseInt(selectedBsYear, 10));
-
-            if (selectionNeedsUpdate) {
-                // Find the most recent year/month with data to set as default
-                const mostRecentEntry = allPayroll.reduce((latest, current) => {
-                    const latestDate = new NepaliDate(latest.bsYear, latest.bsMonth, 1).toJsDate().getTime();
-                    const currentDate = new NepaliDate(current.bsYear, current.bsMonth, 1).toJsDate().getTime();
-                    return currentDate > latestDate ? current : latest;
-                }, allPayroll[0]);
-
-                if (mostRecentEntry) {
-                    setSelectedBsYear(String(mostRecentEntry.bsYear));
-                    setSelectedBsMonth(String(mostRecentEntry.bsMonth));
-                }
-            }
-        } else {
-            // Handle the case where there is no payroll data at all
-            setBsYears([]);
-            setSelectedBsYear('');
-            setSelectedBsMonth('');
-        }
-    }, [allPayroll, isLoading, selectedBsYear]);
-
 
     const monthlyPayroll = useMemo(() => {
         if (!selectedBsYear || selectedBsMonth === '' || isLoading) return [];
