@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { collection, doc, writeBatch, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, query, where, getDoc } from 'firebase/firestore';
+import { collection, doc, writeBatch, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, query, where, limit, getDoc } from 'firebase/firestore';
 import type { AttendanceRecord, RawAttendanceRow, Payroll, Employee } from '@/lib/types';
 import NepaliDate from 'nepali-date-converter';
 import { format } from 'date-fns';
@@ -93,7 +93,7 @@ export const addAttendanceAndPayrollRecords = async (
     
     // 2. Add Payroll Records
     const payrollRecords: Omit<Payroll, 'id'>[] = [];
-    const allEmployees = [...employees, ...newEmployees.map(name => ({ id: '', name, wageBasis: 'Monthly', wageAmount: 0, createdBy: importedBy, createdAt: new Date().toISOString(), status: 'Working' } as Employee))];
+    const allEmployees = [...employees, ...newEmployees.map(name => ({ id: '', name, wageBasis: 'Monthly', wageAmount: 0, createdBy: importedBy, createdAt: new Date().toISOString(), joiningDate: new Date().toISOString(), status: 'Working' } as Employee))];
     const employeeDataMap = new Map<string, RawAttendanceRow[]>();
 
     // Group processed data by employee name
@@ -108,7 +108,6 @@ export const addAttendanceAndPayrollRecords = async (
         const employee = allEmployees.find(e => e.name === employeeName);
         if (!employee) continue;
         
-        // Find the first row for this employee that contains payroll data
         const payrollDataSource = employeeRows.find(r => 
             r.netPayment !== null && r.netPayment !== undefined && String(r.netPayment).trim() !== ''
         );
@@ -119,7 +118,7 @@ export const addAttendanceAndPayrollRecords = async (
                 bsMonth,
                 employeeId: employee.id,
                 employeeName: employee.name,
-                joiningDate: employee.joiningDate,
+                joiningDate: employee.joiningDate || new Date().toISOString(), // Ensure joiningDate is never undefined
                 totalHours: (Number(payrollDataSource.regularHours) || 0) + (Number(payrollDataSource.otHours) || 0),
                 otHours: Number(payrollDataSource.otHours) || 0,
                 regularHours: Number(payrollDataSource.regularHours) || 0,
