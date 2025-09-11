@@ -114,14 +114,12 @@ const parseExcelDate = (dateInput: any): Date | null => {
 /* =========================
    Core calculator
    ========================= */
-export const processAttendanceImport = async (
+export const processAttendanceImport = (
     headerRow: string[], 
     dataRows: any[][], 
     bsYear: number, 
-    bsMonth: number,
-    existingEmployees: Employee[],
-    importedBy: string
-): Promise<{ processedData: CalcAttendanceRow[], newEmployees: string[], skippedCount: number }> => {
+    bsMonth: number
+): { processedData: CalcAttendanceRow[], skippedCount: number } => {
     
     const normalizedHeaders = headerRow.map(h => String(h || '').trim().toLowerCase());
     const originalHeaders = headerRow.map(h => String(h || '').trim());
@@ -182,11 +180,9 @@ export const processAttendanceImport = async (
         throw new Error(`Import failed: Missing required column(s): ${userFriendlyNames.join(', ')}.`);
     }
 
-    const existingEmployeeNames = new Set(existingEmployees.map(emp => emp.name.toLowerCase()));
-    const newEmployees = new Set<string>();
     let skippedCount = 0;
 
-    const processedData = await Promise.all(dataRows.map(async (rowArray): Promise<CalcAttendanceRow | null> => {
+    const processedData = dataRows.map((rowArray): CalcAttendanceRow | null => {
         const row: RawAttendanceRow = {};
         const rawImportData: Record<string, any> = {};
         
@@ -203,26 +199,6 @@ export const processAttendanceImport = async (
 
         const employeeName = String(row.employeeName || '').trim();
         if (!employeeName) return null;
-
-        if (!existingEmployeeNames.has(employeeName.toLowerCase()) && !newEmployees.has(employeeName)) {
-            const newEmployee: Omit<Employee, 'id'> = { 
-                name: employeeName, 
-                wageBasis: 'Monthly', 
-                wageAmount: 0, 
-                createdBy: importedBy, 
-                createdAt: new Date().toISOString(), 
-                joiningDate: new Date().toISOString(),
-                status: 'Working' 
-            };
-            try {
-                await addEmployee(newEmployee);
-                existingEmployeeNames.add(employeeName.toLowerCase());
-                newEmployees.add(employeeName);
-            } catch (e) {
-                console.error(`Failed to add new employee "${employeeName}":`, e);
-                return null;
-            }
-        }
 
         let ad: Date | null = parseExcelDate(row.dateAD);
         const bsDateStr: string | null = row.mitiBS ? String(row.mitiBS).trim() : null;
@@ -289,11 +265,10 @@ export const processAttendanceImport = async (
           sourceSheet: row.sourceSheet || null,
           rawImportData: rawImportData,
         };
-    }));
+    }).filter(item => item !== null) as CalcAttendanceRow[];
     
     return {
-        processedData: processedData.filter(item => item !== null) as CalcAttendanceRow[],
-        newEmployees: Array.from(newEmployees),
+        processedData,
         skippedCount
     };
 };

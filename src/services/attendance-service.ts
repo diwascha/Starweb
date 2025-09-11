@@ -6,6 +6,7 @@ import NepaliDate from 'nepali-date-converter';
 import { format } from 'date-fns';
 import { processAttendanceImport } from '@/lib/attendance';
 import { addPayrollRecords, deletePayrollForMonth } from './payroll-service';
+import { addEmployee, getEmployees } from './employee-service';
 
 
 const attendanceCollection = collection(db, 'attendance');
@@ -39,7 +40,7 @@ export const getAttendance = async (): Promise<AttendanceRecord[]> => {
 
 export const addAttendanceAndPayrollRecords = async (
     jsonData: any[][],
-    employees: Employee[],
+    existingEmployees: Employee[],
     importedBy: string, 
     bsYear: number,
     bsMonth: number,
@@ -54,8 +55,37 @@ export const addAttendanceAndPayrollRecords = async (
     const nameIndex = headerRow.map(h => String(h).toLowerCase()).indexOf('name');
     const nonEmptyRows = dataRows.filter(row => row.length > nameIndex && row[nameIndex] != null && String(row[nameIndex]).trim() !== '');
 
+    // --- Phase 1: Pre-process to find and create new employees ---
+    const existingEmployeeNames = new Set(existingEmployees.map(emp => emp.name.toLowerCase()));
+    const uniqueNamesInSheet = new Set(nonEmptyRows.map(row => String(row[nameIndex]).trim()));
+    const newEmployeeNames = new Set<string>();
 
-    const { processedData, newEmployees, skippedCount } = await processAttendanceImport(headerRow, nonEmptyRows, bsYear, bsMonth, employees, importedBy);
+    for (const name of uniqueNamesInSheet) {
+        if (!existingEmployeeNames.has(name.toLowerCase())) {
+            newEmployeeNames.add(name);
+        }
+    }
+
+    if (newEmployeeNames.size > 0) {
+        const creationPromises = Array.from(newEmployeeNames).map(name => {
+            const newEmployee: Omit<Employee, 'id'> = {
+                name: name,
+                wageBasis: 'Monthly',
+                wageAmount: 0,
+                createdBy: importedBy,
+                createdAt: new Date().toISOString(),
+                joiningDate: new Date().toISOString(), // Default joining date
+                status: 'Working'
+            };
+            return addEmployee(newEmployee);
+        });
+        await Promise.all(creationPromises);
+    }
+    
+    // --- Phase 2: Process all data now that employees exist ---
+    const allEmployees = await getEmployees(); // Re-fetch all employees including the new ones
+
+    const { processedData, skippedCount } = processAttendanceImport(headerRow, nonEmptyRows, bsYear, bsMonth);
 
     // 1. Add Attendance Records
     const newAttendanceRecords = processedData
@@ -93,7 +123,6 @@ export const addAttendanceAndPayrollRecords = async (
     
     // 2. Add Payroll Records
     const payrollRecords: Omit<Payroll, 'id'>[] = [];
-    const allEmployees = [...employees, ...newEmployees.map(name => ({ id: '', name, wageBasis: 'Monthly', wageAmount: 0, createdBy: importedBy, createdAt: new Date().toISOString(), joiningDate: new Date().toISOString(), status: 'Working' } as Employee))];
     const employeeDataMap = new Map<string, RawAttendanceRow[]>();
 
     // Group processed data by employee name
@@ -106,9 +135,8 @@ export const addAttendanceAndPayrollRecords = async (
 
     for (const [employeeName, employeeRows] of employeeDataMap.entries()) {
         const employee = allEmployees.find(e => e.name === employeeName);
-        if (!employee) continue;
+        if (!employee || !employee.joiningDate) continue;
         
-        // Find the first row for this employee that looks like a payroll summary row
         const payrollDataSource = employeeRows.find(r => 
             (r.netPayment !== null && r.netPayment !== undefined && String(r.netPayment).trim() !== '' && Number(r.netPayment) > 0) ||
             (r.totalPay !== null && r.totalPay !== undefined && String(r.totalPay).trim() !== '' && Number(r.totalPay) > 0) ||
@@ -151,7 +179,7 @@ export const addAttendanceAndPayrollRecords = async (
         await addPayrollRecords(payrollRecords);
     }
 
-    return { attendanceCount: newAttendanceRecords.length, payrollCount: payrollRecords.length, newEmployees: Array.from(newEmployees), skippedCount };
+    return { attendanceCount: newAttendanceRecords.length, payrollCount: payrollRecords.length, newEmployees: Array.from(newEmployeeNames), skippedCount };
 };
 
 
