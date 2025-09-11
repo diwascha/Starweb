@@ -37,7 +37,8 @@ export const getAttendance = async (): Promise<AttendanceRecord[]> => {
 };
 
 export const addAttendanceAndPayrollRecords = async (
-    jsonData: any[][],
+    headerRow: string[],
+    dataRows: any[][],
     employees: Employee[],
     importedBy: string, 
     bsYear: number,
@@ -45,9 +46,6 @@ export const addAttendanceAndPayrollRecords = async (
     onProgress: (progress: number) => void
 ): Promise<{ attendanceCount: number, payrollCount: number }> => {
     const CHUNK_SIZE = 400;
-    
-    const headerRow = jsonData[0];
-    const dataRows = jsonData.slice(1);
     
     const processedData = processAttendanceImport(headerRow, dataRows, bsYear, bsMonth);
     

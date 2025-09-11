@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -97,6 +98,7 @@ export default function PayrollClientPage() {
             regularPay: acc.regularPay + (curr.regularPay || 0),
             otPay: acc.otPay + (curr.otPay || 0),
             totalPay: acc.totalPay + (curr.totalPay || 0),
+            absentDays: acc.absentDays + (curr.absentDays || 0),
             deduction: acc.deduction + (curr.deduction || 0),
             allowance: acc.allowance + (curr.allowance || 0),
             bonus: acc.bonus + (curr.bonus || 0),
@@ -107,7 +109,7 @@ export default function PayrollClientPage() {
             netPayment: acc.netPayment + (curr.netPayment || 0),
         }), { 
             totalHours: 0, otHours: 0, regularHours: 0, regularPay: 0, otPay: 0, totalPay: 0,
-            deduction: 0, allowance: 0, bonus: 0, salaryTotal: 0, tds: 0, gross: 0, advance: 0, netPayment: 0
+            absentDays: 0, deduction: 0, allowance: 0, bonus: 0, salaryTotal: 0, tds: 0, gross: 0, advance: 0, netPayment: 0
         });
     }, [monthlyPayroll]);
 
@@ -210,8 +212,8 @@ export default function PayrollClientPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {isLoading && <TableRow><TableCell colSpan={18} className="text-center"><Loader2 className="mr-2 h-4 w-4 animate-spin inline-block" /> Loading payroll...</TableCell></TableRow>}
-                                    {!isLoading && monthlyPayroll.length === 0 && <TableRow><TableCell colSpan={18} className="text-center">No payroll data found for this period.</TableCell></TableRow>}
+                                    {isLoading && <TableRow><TableCell colSpan={19} className="text-center"><Loader2 className="mr-2 h-4 w-4 animate-spin inline-block" /> Loading payroll...</TableCell></TableRow>}
+                                    {!isLoading && monthlyPayroll.length === 0 && <TableRow><TableCell colSpan={19} className="text-center">No payroll data found for this period.</TableCell></TableRow>}
                                     {!isLoading && monthlyPayroll.map(p => {
                                         return (
                                         <TableRow key={p.id}>
@@ -252,7 +254,7 @@ export default function PayrollClientPage() {
                                         <TableCell>{totals.regularPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell>{totals.otPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell>{totals.totalPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell></TableCell>
+                                        <TableCell>{totals.absentDays}</TableCell>
                                         <TableCell>{totals.deduction.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell>{totals.allowance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell>{totals.bonus.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>

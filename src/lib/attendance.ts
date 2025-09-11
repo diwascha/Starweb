@@ -81,44 +81,46 @@ export function processAttendanceImport(headerRow: string[], dataRows: any[][], 
     
     const normalizedHeaders = headerRow.map(h => String(h || '').trim().toLowerCase());
     
-    // Exact header mapping based on user's specification
-    const headerMapConfig: { [key in keyof RawAttendanceRow]: string } = {
-        employeeName: 'name',
-        day: 'day',
-        mitiBS: 'bs date',
-        dateAD: 'date',
-        onDuty: 'on duty',
-        offDuty: 'off duty',
-        clockIn: 'clock in',
-        clockOut: 'clock out',
-        status: 'absent', // The 'Absent' column contains the status
-        normalHours: 'normal',
-        otHours: 'overtime',
-        totalHours: 'total hour',
-        remarks: 'remarks',
+    const headerVariations: { [key in keyof RawAttendanceRow]?: string[] } = {
+        employeeName: ['name'],
+        day: ['day'],
+        mitiBS: ['bs date', 'miti'],
+        dateAD: ['date'],
+        onDuty: ['on duty'],
+        offDuty: ['off duty'],
+        clockIn: ['clock in'],
+        clockOut: ['clock out'],
+        status: ['absent', 'status'], 
+        normalHours: ['normal hrs', 'normal'],
+        otHours: ['ot hour', 'overtime'],
+        totalHours: ['total hour'],
+        remarks: ['remarks'],
         // Payroll fields
-        rate: 'rate',
-        regularPay: 'normal pay',
-        otPay: 'ot pay',
-        totalPay: 'total pay',
-        absentDays: 'absent day',
-        deduction: 'deduction',
-        allowance: 'allowance',
-        bonus: 'bonus',
-        salaryTotal: 'salary total',
-        tds: 'tds',
-        gross: 'gross',
-        advance: 'advance',
-        netPayment: 'net payment',
-        payrollRemark: 'remark',
+        rate: ['rate'],
+        regularPay: ['norman', 'regular pay'],
+        otPay: ['ot', 'ot pay'],
+        totalPay: ['total', 'total pay'],
+        absentDays: ['absent days'],
+        deduction: ['deduction', 'absent amt.'],
+        allowance: ['extra', 'allowance'],
+        bonus: ['bonus'],
+        salaryTotal: ['salary total'],
+        tds: ['tds', 'tds (1%)'],
+        gross: ['gross'],
+        advance: ['advance'],
+        netPayment: ['net payment'],
+        payrollRemark: ['remark'],
     };
     
     const headerMap: { [key: string]: number } = {};
-    for (const key in headerMapConfig) {
-        const headerName = headerMapConfig[key as keyof RawAttendanceRow];
-        const index = normalizedHeaders.indexOf(headerName);
-        if (index !== -1) {
-            headerMap[key] = index;
+    for (const key in headerVariations) {
+        const variations = headerVariations[key as keyof RawAttendanceRow]!;
+        for (const variation of variations) {
+            const index = normalizedHeaders.indexOf(variation);
+            if (index !== -1) {
+                headerMap[key] = index;
+                break;
+            }
         }
     }
     
@@ -177,7 +179,11 @@ export function processAttendanceImport(headerRow: string[], dataRows: any[][], 
         
         const regular = Number(row.normalHours) || 0;
         const ot = Number(row.otHours) || 0;
-        const gross = regular + ot;
+        let gross = Number(row.totalHours) || 0;
+
+        if (gross === 0 && (regular > 0 || ot > 0)) {
+            gross = regular + ot;
+        }
         
         let finalStatus: AttendanceStatus = 'Present';
 
