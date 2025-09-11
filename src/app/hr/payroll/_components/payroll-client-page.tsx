@@ -62,19 +62,26 @@ export default function PayrollClientPage() {
             if (isMounted) {
                 setBsYears(years);
                 if (years.length > 0) {
-                    const currentNepaliDate = new NepaliDate();
-                    const currentYear = currentNepaliDate.getYear();
-                    const currentMonth = currentNepaliDate.getMonth();
+                    // Set default selection only if not already set or if the current selection is invalid
+                    if (!selectedBsYear || !years.includes(parseInt(selectedBsYear, 10))) {
+                        const currentNepaliDate = new NepaliDate();
+                        const currentYear = currentNepaliDate.getYear();
+                        const currentMonth = currentNepaliDate.getMonth();
 
-                    const defaultYear = years.includes(currentYear) ? currentYear : years[0];
-                    setSelectedBsYear(String(defaultYear));
-                    setSelectedBsMonth(String(currentMonth));
+                        const defaultYear = years.includes(currentYear) ? currentYear : years[0];
+                        setSelectedBsYear(String(defaultYear));
+
+                        // Check if there's data for the current month in the default year, otherwise pick the latest month
+                        const monthsInDefaultYear = [...new Set(allPayroll.filter(p => p.bsYear === defaultYear).map(p => p.bsMonth))];
+                        const defaultMonth = monthsInDefaultYear.includes(currentMonth) ? currentMonth : monthsInDefaultYear[monthsInDefaultYear.length - 1] ?? currentMonth;
+                        setSelectedBsMonth(String(defaultMonth));
+                    }
                 }
                 setIsLoading(false);
             }
         });
         return () => { isMounted = false; };
-    }, [allPayroll]);
+      }, [allPayroll, selectedBsYear]);
     
     const monthlyPayroll = useMemo(() => {
         if (!selectedBsYear || selectedBsMonth === '' || isLoading) return [];
@@ -214,6 +221,7 @@ export default function PayrollClientPage() {
                                 </TableHeader>
                                 <TableBody>
                                     {isLoading && <TableRow><TableCell colSpan={18} className="text-center"><Loader2 className="mr-2 h-4 w-4 animate-spin inline-block" /> Loading payroll...</TableCell></TableRow>}
+                                    {!isLoading && monthlyPayroll.length === 0 && <TableRow><TableCell colSpan={18} className="text-center">No payroll data found for this period.</TableCell></TableRow>}
                                     {!isLoading && monthlyPayroll.map(p => {
                                         return (
                                         <TableRow key={p.id}>
@@ -243,7 +251,7 @@ export default function PayrollClientPage() {
                                         </TableRow>
                                     )})}
                                 </TableBody>
-                                {totals && (
+                                {totals && monthlyPayroll.length > 0 && (
                                 <TableFooter>
                                     <TableRow className="font-bold">
                                         <TableCell className="sticky left-0 bg-background z-10">Totals</TableCell>
