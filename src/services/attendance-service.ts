@@ -28,6 +28,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Attendanc
         remarks: data.remarks || null,
         importedBy: data.importedBy,
         sourceSheet: data.sourceSheet,
+        rawImportData: data.rawImportData,
     };
 };
 
@@ -76,6 +77,7 @@ export const addAttendanceAndPayrollRecords = async (
         remarks: p.remarks || null, 
         importedBy: importedBy, 
         sourceSheet: sourceSheetName || null,
+        rawImportData: p.rawImportData,
     }));
     
     let processedCount = 0;
@@ -137,6 +139,7 @@ export const addAttendanceAndPayrollRecords = async (
             remark: row.payrollRemark || '',
             createdBy: importedBy,
             createdAt: new Date().toISOString(),
+            rawImportData: row.rawImportData,
         });
         createdPayrollEntries.add(payrollKey);
     }

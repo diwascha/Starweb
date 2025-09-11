@@ -3,6 +3,7 @@
 
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -141,7 +142,7 @@ export interface Employee {
 export type AttendanceStatus = 'Present' | 'Absent' | 'Public Holiday' | 'Saturday' | 'C/I Miss' | 'C/O Miss' | 'EXTRAOK';
 
 export interface RawAttendanceRow {
-    employeeName: string;
+    employeeName?: string;
     day?: any;
     dateAD?: string | Date | null;
     mitiBS?: string | null;
@@ -170,6 +171,8 @@ export interface RawAttendanceRow {
     advance?: any;
     netPayment?: any;
     payrollRemark?: any;
+    // Allow any other properties from the Excel sheet
+    [key: string]: any;
 }
 
 
@@ -189,6 +192,7 @@ export interface AttendanceRecord {
     remarks: string | null;
     importedBy: string;
     sourceSheet?: string;
+    rawImportData?: Record<string, any>;
 }
 
 export interface Payroll {
@@ -216,6 +220,7 @@ export interface Payroll {
     remark?: string;
     createdBy: string;
     createdAt: string; // ISO string
+    rawImportData?: Record<string, any>;
 }
 
 export interface PunctualityInsight {

@@ -9,7 +9,7 @@ import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, Search, ArrowUpDown, CalendarIcon, Edit, MoreHorizontal, Trash2, RefreshCw, Loader2 } from 'lucide-react';
+import { Upload, Search, ArrowUpDown, CalendarIcon, Edit, MoreHorizontal, Trash2, RefreshCw, Loader2, View } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { Badge } from '@/components/ui/badge';
 import { getDay } from 'date-fns';
@@ -73,6 +73,9 @@ export default function AttendancePage() {
   const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
   const [editForm, setEditForm] = useState({ onDuty: '', offDuty: '', clockIn: '', clockOut: '', status: '' as AttendanceStatus, regularHours: 0, overtimeHours: 0, remarks: '' });
   const [isDataLoading, setIsDataLoading] = useState(true);
+  const [isRawDataDialogOpen, setIsRawDataDialogOpen] = useState(false);
+  const [selectedRawData, setSelectedRawData] = useState<Record<string, any> | null>(null);
+
 
   // Import Dialog State
   const [isSheetSelectDialogOpen, setIsSheetSelectDialogOpen] = useState(false);
@@ -401,6 +404,7 @@ export default function AttendancePage() {
                   <DropdownMenu>
                       <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                          <DropdownMenuItem onSelect={() => { setSelectedRawData(record.rawImportData || {}); setIsRawDataDialogOpen(true); }}><View className="mr-2 h-4 w-4" /> View Raw Data</DropdownMenuItem>
                           <DropdownMenuItem onSelect={() => handleOpenEditDialog(record)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <AlertDialog>
@@ -498,6 +502,21 @@ export default function AttendancePage() {
                  <div className="space-y-2"><Label htmlFor="edit-remarks">Remarks</Label><Input id="edit-remarks" value={editForm.remarks} onChange={e => setEditForm(prev => ({...prev, remarks: e.target.value}))} /></div>
             </div>
             <DialogFooter><Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button><Button onClick={handleSaveEdit}>Save Changes</Button></DialogFooter>
+        </DialogContent>
+     </Dialog>
+     <Dialog open={isRawDataDialogOpen} onOpenChange={setIsRawDataDialogOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Raw Imported Data</DialogTitle>
+                <DialogDescription>
+                    This is the original, unprocessed data from the Excel sheet for this record.
+                </DialogDescription>
+            </DialogHeader>
+            <ScrollArea className="h-72 my-4">
+                <pre className="text-sm p-4 bg-muted rounded-md whitespace-pre-wrap break-all">
+                    {JSON.stringify(selectedRawData, null, 2)}
+                </pre>
+            </ScrollArea>
         </DialogContent>
      </Dialog>
      <Dialog open={isSheetSelectDialogOpen} onOpenChange={setIsSheetSelectDialogOpen}>

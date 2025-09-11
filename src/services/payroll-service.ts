@@ -33,6 +33,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
         remark: data.remark,
         createdBy: data.createdBy,
         createdAt: data.createdAt,
+        rawImportData: data.rawImportData,
     };
 };
 

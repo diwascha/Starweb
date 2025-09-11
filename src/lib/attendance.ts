@@ -21,6 +21,7 @@ export type CalcAttendanceRow = RawAttendanceRow & {
   regularHours: number;
   overtimeHours: number;
   calcRemarks: string;
+  rawImportData: Record<string, any>; // To store the original row
 };
 
 
@@ -86,6 +87,7 @@ export async function processAttendanceImport(
 ): Promise<{ processedData: CalcAttendanceRow[], newEmployees: string[], skippedCount: number }> {
     
     const normalizedHeaders = headerRow.map(h => String(h || '').trim().toLowerCase());
+    const originalHeaders = headerRow.map(h => String(h || '').trim());
     
     const headerMapConfig: { [key in keyof RawAttendanceRow]: string[] } = {
         employeeName: ['name'],
@@ -142,6 +144,14 @@ export async function processAttendanceImport(
 
     const processedData = await Promise.all(dataRows.map(async (rowArray, rowIndex): Promise<CalcAttendanceRow | null> => {
         const row: RawAttendanceRow = {};
+        const rawImportData: Record<string, any> = {};
+        
+        rowArray.forEach((cell, index) => {
+            if (originalHeaders[index]) {
+                rawImportData[originalHeaders[index]] = cell;
+            }
+        });
+        
         for (const key in headerMap) {
             const index = headerMap[key as keyof RawAttendanceRow]!;
             row[key as keyof RawAttendanceRow] = rowArray[index];
@@ -199,6 +209,7 @@ export async function processAttendanceImport(
           overtimeHours: otHours,
           calcRemarks: row.remarks || '',
           sourceSheet: row.sourceSheet || null,
+          rawImportData: rawImportData,
         };
     }));
     
