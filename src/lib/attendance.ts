@@ -1,4 +1,5 @@
 
+
 import {
   format,
   isValid,
@@ -80,46 +81,44 @@ export function processAttendanceImport(headerRow: string[], dataRows: any[][], 
     
     const normalizedHeaders = headerRow.map(h => String(h || '').trim().toLowerCase());
     
-    // Header variations mapping based on user's specification
-    const headerVariations: { [key in keyof RawAttendanceRow]?: string[] } = {
-        employeeName: ['name'],
-        day: ['day'],
-        mitiBS: ['bs date'],
-        onDuty: ['on duty'],
-        offDuty: ['off duty'],
-        clockIn: ['clock in'],
-        clockOut: ['clock out'],
-        status: ['absent', 'status'], // "Absent" column is used for status
-        normalHours: ['regular hours', 'normal'],
-        otHours: ['overtime', 'ot'],
-        totalHours: ['total hour'],
-        rate: ['rate'],
-        regularPay: ['normal pay', 'regular pay'],
-        otPay: ['ot pay'],
-        totalPay: ['total pay'],
-        absentDays: ['absent day'],
-        deduction: ['deduction'],
-        allowance: ['allowance'],
-        bonus: ['bonus'],
-        salaryTotal: ['salary total'],
-        tds: ['tds'],
-        gross: ['gross'],
-        advance: ['advance'],
-        netPayment: ['net payment'],
-        payrollRemark: ['remark'],
-        dateAD: ['date'],
-        remarks: ['remarks'],
+    // Exact header mapping based on user's specification
+    const headerMapConfig: { [key in keyof RawAttendanceRow]: string } = {
+        employeeName: 'name',
+        day: 'day',
+        mitiBS: 'bs date',
+        dateAD: 'date',
+        onDuty: 'on duty',
+        offDuty: 'off duty',
+        clockIn: 'clock in',
+        clockOut: 'clock out',
+        status: 'absent', // The 'Absent' column contains the status
+        normalHours: 'normal',
+        otHours: 'overtime',
+        totalHours: 'total hour',
+        remarks: 'remarks',
+        // Payroll fields
+        rate: 'rate',
+        regularPay: 'normal pay',
+        otPay: 'ot pay',
+        totalPay: 'total pay',
+        absentDays: 'absent day',
+        deduction: 'deduction',
+        allowance: 'allowance',
+        bonus: 'bonus',
+        salaryTotal: 'salary total',
+        tds: 'tds',
+        gross: 'gross',
+        advance: 'advance',
+        netPayment: 'net payment',
+        payrollRemark: 'remark',
     };
     
     const headerMap: { [key: string]: number } = {};
-    for (const key in headerVariations) {
-        const variations = headerVariations[key as keyof RawAttendanceRow]!;
-        for (const variation of variations) {
-            const index = normalizedHeaders.indexOf(variation);
-            if (index !== -1) {
-                headerMap[key] = index;
-                break; 
-            }
+    for (const key in headerMapConfig) {
+        const headerName = headerMapConfig[key as keyof RawAttendanceRow];
+        const index = normalizedHeaders.indexOf(headerName);
+        if (index !== -1) {
+            headerMap[key] = index;
         }
     }
     

@@ -12,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Upload, Search, ArrowUpDown, CalendarIcon, Edit, MoreHorizontal, Trash2, RefreshCw, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { Badge } from '@/components/ui/badge';
-import { format as formatDate } from 'date-fns';
+import { format as formatDate, getDay } from 'date-fns';
 import { onEmployeesUpdate, addEmployee } from '@/services/employee-service';
 import { updateAttendanceRecord, deleteAttendanceRecord, deleteAttendanceForMonth, getAttendanceForMonth, getAttendanceYears, addAttendanceAndPayrollRecords } from '@/services/attendance-service';
 import { getAttendanceBadgeVariant, cn, formatTimeForDisplay } from '@/lib/utils';
@@ -37,6 +37,7 @@ const nepaliMonths = [
 ];
 
 const attendanceStatuses: AttendanceStatus[] = ['Present', 'Absent', 'C/I Miss', 'C/O Miss', 'Saturday', 'Public Holiday', 'EXTRAOK'];
+const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 interface SheetInfo {
   name: string;
@@ -69,7 +70,7 @@ export default function AttendancePage() {
   
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
-  const [editForm, setEditForm] = useState({ onDuty: '', offDuty: '', clockIn: '', clockOut: '', status: '' as AttendanceStatus, regularHours: 0, overtimeHours: 0 });
+  const [editForm, setEditForm] = useState({ onDuty: '', offDuty: '', clockIn: '', clockOut: '', status: '' as AttendanceStatus, regularHours: 0, overtimeHours: 0, remarks: '' });
   const [isDataLoading, setIsDataLoading] = useState(true);
 
   // Import Dialog State
@@ -196,7 +197,6 @@ export default function AttendancePage() {
     const newlyAddedEmployees = new Set<string>();
     let totalSkippedRows = 0;
     
-    // Group selected sheets by their target year and month
     const groupedByPeriod: Record<string, { sheetInfos: SheetInfo[], bsYear: number, bsMonth: number }> = {};
 
     for (const selected of selectedSheets) {
@@ -283,7 +283,8 @@ export default function AttendancePage() {
         clockIn: record.clockIn || '', clockOut: record.clockOut || '',
         status: record.status,
         regularHours: record.regularHours,
-        overtimeHours: record.overtimeHours
+        overtimeHours: record.overtimeHours,
+        remarks: record.remarks || ''
     });
     setIsEditDialogOpen(true);
   };
@@ -300,7 +301,8 @@ export default function AttendancePage() {
             status: editForm.status,
             regularHours: Number(editForm.regularHours) || 0,
             overtimeHours: Number(editForm.overtimeHours) || 0,
-            grossHours: (Number(editForm.regularHours) || 0) + (Number(editForm.overtimeHours) || 0)
+            grossHours: (Number(editForm.regularHours) || 0) + (Number(editForm.overtimeHours) || 0),
+            remarks: editForm.remarks || null,
         };
         await updateAttendanceRecord(editingRecord.id, updates);
         await fetchAttendanceData(); // Refetch data
@@ -408,13 +410,14 @@ export default function AttendancePage() {
             <TableRow>
               <TableHead><Button variant="ghost" onClick={() => requestSort('date')}>Date (AD) <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
               <TableHead>Date (BS)</TableHead>
+              <TableHead>Weekday</TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('employeeName')}>Employee Name <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-              <TableHead>Source Sheet</TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('status')}>Status <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
               <TableHead>On/Off Duty</TableHead>
               <TableHead>Clock In/Out</TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('regularHours')}>Regular Hours <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('overtimeHours')}>Overtime Hours <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+              <TableHead>Remarks</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -423,13 +426,14 @@ export default function AttendancePage() {
               <TableRow key={record.id}>
                 <TableCell className="font-medium">{record.date ? formatDate(new Date(record.date), 'yyyy-MM-dd') : 'Invalid'}</TableCell>
                 <TableCell>{record.bsDate}</TableCell>
+                <TableCell>{record.date ? weekdays[getDay(new Date(record.date))] : 'N/A'}</TableCell>
                 <TableCell>{record.employeeName}</TableCell>
-                <TableCell><Badge variant="outline">{record.sourceSheet}</Badge></TableCell>
                  <TableCell><Badge variant={getAttendanceBadgeVariant(record.status)}>{record.status}</Badge></TableCell>
                 <TableCell>{formatTimeForDisplay(record.onDuty)} / {formatTimeForDisplay(record.offDuty)}</TableCell>
                 <TableCell>{formatTimeForDisplay(record.clockIn)} / {formatTimeForDisplay(record.clockOut)}</TableCell>
                 <TableCell>{(record.regularHours || 0).toFixed(1)}</TableCell>
                 <TableCell>{(record.overtimeHours || 0).toFixed(1)}</TableCell>
+                <TableCell>{record.remarks}</TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
                       <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
@@ -523,6 +527,7 @@ export default function AttendancePage() {
                  <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="edit-clock-in">Clock In Time (HH:mm)</Label><Input id="edit-clock-in" value={editForm.clockIn} onChange={e => setEditForm(prev => ({...prev, clockIn: e.target.value}))} placeholder="e.g., 08:00"/></div><div className="space-y-2"><Label htmlFor="edit-clock-out">Clock Out Time (HH:mm)</Label><Input id="edit-clock-out" value={editForm.clockOut} onChange={e => setEditForm(prev => ({...prev, clockOut: e.target.value}))} placeholder="e.g., 17:00"/></div></div>
                  <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="edit-regular-hours">Regular Hours</Label><Input id="edit-regular-hours" type="number" value={editForm.regularHours} onChange={e => setEditForm(prev => ({...prev, regularHours: Number(e.target.value) || 0}))} /></div><div className="space-y-2"><Label htmlFor="edit-overtime-hours">Overtime Hours</Label><Input id="edit-overtime-hours" type="number" value={editForm.overtimeHours} onChange={e => setEditForm(prev => ({...prev, overtimeHours: Number(e.target.value) || 0}))} /></div></div>
                 <div className="space-y-2"><Label htmlFor="edit-status">Status</Label><Select value={editForm.status} onValueChange={(value: AttendanceStatus) => setEditForm(prev => ({ ...prev, status: value }))}><SelectTrigger id="edit-status"><SelectValue /></SelectTrigger><SelectContent>{attendanceStatuses.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></div>
+                 <div className="space-y-2"><Label htmlFor="edit-remarks">Remarks</Label><Input id="edit-remarks" value={editForm.remarks} onChange={e => setEditForm(prev => ({...prev, remarks: e.target.value}))} /></div>
             </div>
             <DialogFooter><Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button><Button onClick={handleSaveEdit}>Save Changes</Button></DialogFooter>
         </DialogContent>
