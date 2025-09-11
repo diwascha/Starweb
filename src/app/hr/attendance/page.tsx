@@ -444,7 +444,7 @@ export default function AttendancePage() {
   };
   
   const allPossibleStatuses = useMemo(() => {
-    const statuses = new Set(attendance.map(a => a.status));
+    const statuses = new Set(attendance.map(a => a.status).filter(s => s && s.trim() !== ''));
     return ['All', ...Array.from(statuses).sort()];
   }, [attendance]);
   
