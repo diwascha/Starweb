@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Download, Printer, Loader2, View } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { onPayrollUpdate, getPayrollYears } from '@/services/payroll-service';
+import { onPayrollUpdate } from '@/services/payroll-service';
 import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -45,34 +45,36 @@ export default function PayrollClientPage() {
         setIsLoading(true);
         const unsubPayroll = onPayrollUpdate((payrolls) => {
             setAllPayroll(payrolls);
-
+            
             const years = Array.from(new Set(payrolls.map(p => p.bsYear))).sort((a, b) => b - a);
             setBsYears(years);
 
             if (years.length > 0) {
-                const currentNepaliDate = new NepaliDate();
-                const currentYear = currentNepaliDate.getYear();
-                const currentMonth = currentNepaliDate.getMonth();
+                // If a year is already selected and still exists, keep it. Otherwise, set a default.
+                setSelectedBsYear(prevYear => {
+                    if (prevYear && years.includes(parseInt(prevYear))) {
+                        return prevYear;
+                    }
+                    const currentNepaliDate = new NepaliDate();
+                    const currentYear = currentNepaliDate.getYear();
+                    return String(years.includes(currentYear) ? currentYear : years[0]);
+                });
 
-                const defaultYear = years.includes(currentYear) ? currentYear : years[0];
-                const monthsInDefaultYear = [...new Set(payrolls.filter(p => p.bsYear === defaultYear).map(p => p.bsMonth))].sort((a,b) => b-a);
-                
-                let defaultMonth: number;
-                if (defaultYear === currentYear && monthsInDefaultYear.includes(currentMonth)) {
-                    defaultMonth = currentMonth;
-                } else {
-                    defaultMonth = monthsInDefaultYear[0] ?? currentMonth;
-                }
-                
-                setSelectedBsYear(String(defaultYear));
-                setSelectedBsMonth(String(defaultMonth));
+                // If a month is already selected, keep it. Otherwise, set a default.
+                setSelectedBsMonth(prevMonth => {
+                    if (prevMonth) {
+                        return prevMonth;
+                    }
+                    const currentNepaliDate = new NepaliDate();
+                    return String(currentNepaliDate.getMonth());
+                });
             }
             setIsLoading(false);
         });
 
         return () => unsubPayroll();
     }, []);
-    
+
     const monthlyPayroll = useMemo(() => {
         if (!selectedBsYear || selectedBsMonth === '' || isLoading) return [];
 

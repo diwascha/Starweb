@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { Printer, FileDown, View, Search, MoreHorizontal } from 'lucide-react';
-import { onPayrollUpdate, getPayrollYears } from '@/services/payroll-service';
+import { onPayrollUpdate } from '@/services/payroll-service';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
@@ -32,29 +32,25 @@ export default function PayslipPage() {
     const { toast } = useToast();
 
     useEffect(() => {
-        const unsubPayroll = onPayrollUpdate(setAllPayroll);
-        return () => unsubPayroll();
-    }, []);
-    
-    useEffect(() => {
-        let isMounted = true;
-        getPayrollYears().then(years => {
-            if (isMounted) {
-                setBsYears(years);
-                if (years.length > 0) {
-                    const currentNepaliDate = new NepaliDate();
-                    const currentYear = currentNepaliDate.getYear();
-                    const currentMonth = currentNepaliDate.getMonth();
+        const unsubPayroll = onPayrollUpdate((payrolls) => {
+            setAllPayroll(payrolls);
+            const years = Array.from(new Set(payrolls.map(p => p.bsYear))).sort((a, b) => b - a);
+            setBsYears(years);
 
-                    const defaultYear = years.includes(currentYear) ? currentYear : years[0];
-                    setSelectedBsYear(String(defaultYear));
-                    setSelectedBsMonth(String(currentMonth));
-                }
+            if (years.length > 0) {
+                setSelectedBsYear(prevYear => {
+                    if (prevYear && years.includes(parseInt(prevYear))) return prevYear;
+                    const currentYear = new NepaliDate().getYear();
+                    return String(years.includes(currentYear) ? currentYear : years[0]);
+                });
+                setSelectedBsMonth(prevMonth => {
+                    if (prevMonth) return prevMonth;
+                    return String(new NepaliDate().getMonth());
+                });
             }
         });
-        return () => { isMounted = false; };
-    }, [allPayroll]);
-
+        return () => unsubPayroll();
+    }, []);
 
     const filteredPayroll = useMemo(() => {
         if (!selectedBsYear || selectedBsMonth === '') return [];
