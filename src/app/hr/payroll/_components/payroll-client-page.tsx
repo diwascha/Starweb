@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -56,7 +55,7 @@ export default function PayrollClientPage() {
     }, []);
 
     useEffect(() => {
-        if (allPayroll) {
+        if (allPayroll && allPayroll.length > 0) {
             const years = Array.from(new Set(allPayroll.map(p => p.bsYear))).sort((a, b) => b - a);
             setBsYears(years);
             setIsLoading(false);
@@ -65,15 +64,14 @@ export default function PayrollClientPage() {
                 const currentSelectedYear = parseInt(selectedBsYear, 10);
                 const currentSelectedMonth = parseInt(selectedBsMonth, 10);
 
-                // Check if current selection is valid
                 const selectionIsValid = years.includes(currentSelectedYear) && 
                                          allPayroll.some(p => p.bsYear === currentSelectedYear && p.bsMonth === currentSelectedMonth);
 
                 if (!selectionIsValid) {
                     // Find the most recent year/month with data
                     const mostRecentEntry = allPayroll.reduce((latest, current) => {
-                        const latestDate = new NepaliDate(latest.bsYear, latest.bsMonth, 1).getTime();
-                        const currentDate = new NepaliDate(current.bsYear, current.bsMonth, 1).getTime();
+                        const latestDate = new NepaliDate(latest.bsYear, latest.bsMonth, 1).toJsDate().getTime();
+                        const currentDate = new NepaliDate(current.bsYear, current.bsMonth, 1).toJsDate().getTime();
                         return currentDate > latestDate ? current : latest;
                     }, allPayroll[0]);
 
@@ -87,8 +85,13 @@ export default function PayrollClientPage() {
                 setSelectedBsYear('');
                 setSelectedBsMonth('');
             }
+        } else if (allPayroll) { // allPayroll is defined but empty
+            setIsLoading(false);
+            setBsYears([]);
+            setSelectedBsYear('');
+            setSelectedBsMonth('');
         }
-    }, [allPayroll]);
+    }, [allPayroll, selectedBsYear, selectedBsMonth]);
 
     const monthlyPayroll = useMemo(() => {
         if (!selectedBsYear || selectedBsMonth === '' || isLoading) return [];
