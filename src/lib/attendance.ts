@@ -75,18 +75,29 @@ const parseExcelDate = (dateInput: any): Date | null => {
     if (!dateInput) return null;
     if (dateInput instanceof Date && isValid(dateInput)) return dateInput;
     if (typeof dateInput === 'number') {
+        // Excel date (serial number) to JS Date
         const date = new Date((dateInput - 25569) * 86400 * 1000);
         if (isValid(date)) return date;
     }
     if (typeof dateInput === 'string') {
         const trimmedDate = dateInput.trim();
-        const formatsToTry = ['yyyy-MM-dd', 'dd/MM/yyyy', 'MM/dd/yyyy', 'dd/MM/yy', 'MM/dd/yy'];
+        // Add more formats here as needed
+        const formatsToTry = [
+            'yyyy-MM-dd', 
+            'yyyy/MM/dd', 
+            'dd/MM/yyyy', 
+            'MM/dd/yyyy', 
+            'dd-MM-yyyy',
+            'dd/MM/yy', 
+            'MM/dd/yy'
+        ];
         for (const fmt of formatsToTry) {
             try {
                 const parsed = parse(trimmedDate, fmt, new Date());
                 if (isValid(parsed)) return parsed;
             } catch {}
         }
+        // Fallback to native date parsing
         const nativeParsed = new Date(trimmedDate);
         if (isValid(nativeParsed)) return nativeParsed;
     }
@@ -119,8 +130,8 @@ export const processAttendanceImport = (
         clockIn: ['clock in'],
         clockOut: ['clock out'],
         status: ['absent'], 
-        overtimeHours: ['overtime'],
-        regularHours: ['regular hours'],
+        overtimeHours: ['overtime', 'ot'],
+        regularHours: ['regular hours', 'normal hrs'],
         remarks: ['remarks'],
     };
 
@@ -162,7 +173,6 @@ export const processAttendanceImport = (
             return null;
         }
         
-        // Use the BS month/year provided by the user to reconstruct the date
         const bsDay = new NepaliDate(adFromSheet).getDate();
         const correctedNepaliDate = new NepaliDate(bsYear, bsMonth, bsDay);
         const ad = correctedNepaliDate.toJsDate();
@@ -171,8 +181,8 @@ export const processAttendanceImport = (
         const dateBS = correctedNepaliDate.format('YYYY-MM-DD');
         const status = String(row.status || '').trim();
         
-        let regularHours: number = parseFloat(String(row.regularHours)) || 0;
-        let overtimeHours: number = parseFloat(String(row.overtimeHours)) || 0;
+        const regularHours: number = parseFloat(String(row.regularHours)) || 0;
+        const overtimeHours: number = parseFloat(String(row.overtimeHours)) || 0;
 
         return {
           ...row,
