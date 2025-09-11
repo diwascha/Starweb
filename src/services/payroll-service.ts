@@ -198,19 +198,19 @@ export const calculateAndSavePayrollForMonth = async (
 
 const getHeaderMap = (headerRow: any[]): { [key: string]: number } => {
     const map: { [key: string]: number } = {};
-    const payrollHeaders = {
-        otHours: ['ot hour'],
-        regularHours: ['normal hrs'],
+    const payrollHeaders: Record<string, string[]> = {
+        otHours: ['ot hour', 'ot hours'],
+        regularHours: ['normal hrs', 'regular hours'],
         rate: ['rate'],
-        regularPay: ['norman'],
-        otPay: ['ot'],
-        totalPay: ['total'],
-        absentDays: ['absent'],
-        deduction: ['deduction'],
-        allowance: ['extra'],
+        regularPay: ['norman', 'regular pay'],
+        otPay: ['ot', 'ot pay'],
+        totalPay: ['total', 'total pay'],
+        absentDays: ['absent', 'absent days'],
+        deduction: ['deduction', 'absent amt.'],
+        allowance: ['extra', 'allowance'],
         bonus: ['bonus'],
         salaryTotal: ['salary total'],
-        tds: ['tds'],
+        tds: ['tds', 'tds (1%)'],
         gross: ['gross'],
         advance: ['advance'],
         netPayment: ['net payment'],
@@ -237,12 +237,13 @@ const getHeaderMap = (headerRow: any[]): { [key: string]: number } => {
 };
 
 const safeParseFloat = (value: any): number => {
-    if (value === null || value === undefined || value === '') {
+    if (value === null || value === undefined || value === '' || typeof value === 'string' && value.trim() === '-') {
         return 0;
     }
     const num = parseFloat(String(value));
     return isNaN(num) ? 0 : num;
 };
+
 
 
 export const importPayrollFromSheet = async (
@@ -292,7 +293,7 @@ export const importPayrollFromSheet = async (
             bsYear, bsMonth,
             employeeId: employee.id,
             employeeName,
-            joiningDate: employee.joiningDate || undefined,
+            joiningDate: employee.joiningDate || null,
             totalHours: regularHours + otHours,
             otHours: otHours,
             regularHours: regularHours,
