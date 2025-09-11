@@ -240,7 +240,7 @@ const safeParseFloat = (value: any): number => {
     if (value === null || value === undefined || value === '' || typeof value === 'string' && value.trim() === '-') {
         return 0;
     }
-    const num = parseFloat(String(value));
+    const num = parseFloat(String(value).replace(/,/g, ''));
     return isNaN(num) ? 0 : num;
 };
 
