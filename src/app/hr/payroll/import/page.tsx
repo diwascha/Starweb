@@ -11,6 +11,9 @@ import { Upload, Loader2, ListChecks, CheckCircle, XCircle, AlertTriangle } from
 import { useAuth } from '@/hooks/use-auth';
 import { onEmployeesUpdate } from '@/services/employee-service';
 import { importPayrollFromSheet } from '@/services/payroll-service';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+
 
 interface SheetInfo {
   name: string;
