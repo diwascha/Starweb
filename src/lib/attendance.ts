@@ -80,49 +80,50 @@ export function processAttendanceImport(headerRow: string[], dataRows: any[][], 
     
     const normalizedHeaders = headerRow.map(h => String(h || '').trim().toLowerCase());
     
-    const headerVariations: { [key in keyof RawAttendanceRow]?: string[] } = {
-        name: ['name', 'employee name'],
-        dateAD: ['date', 'ad date'],
-        mitiBS: ['miti', 'bs date'],
-        day: ['day'],
-        onDuty: ['on duty'],
-        offDuty: ['off duty'],
-        clockIn: ['clock in'],
-        clockOut: ['clock out'],
-        status: ['status'],
-        regularHours: ['regular hours', 'normal hours', 'normal'],
-        otHours: ['overtime', 'ot'],
-        remarks: ['remarks'],
-        totalHours: ['total hour'],
-        rate: ['rate'],
-        regularPay: ['normal pay'],
-        otPay: ['ot pay'],
-        totalPay: ['total pay'],
-        absentDays: ['absent day', 'absent days'],
-        deduction: ['deduction'],
-        allowance: ['allowance'],
-        bonus: ['bonus'],
-        salaryTotal: ['salary total'],
-        tds: ['tds'],
-        gross: ['gross'],
-        advance: ['advance'],
-        netPayment: ['net payment'],
-        payrollRemark: ['remark'],
+    // Exact header mapping based on user's specification
+    const headerMapConfig: { [key in keyof RawAttendanceRow]: string } = {
+        employeeName: 'name',
+        day: 'day',
+        mitiBS: 'bs date',
+        onDuty: 'on duty',
+        offDuty: 'off duty',
+        clockIn: 'clock in',
+        clockOut: 'clock out',
+        status: 'absent', // The "Absent" column indicates status
+        normalHours: 'normal',
+        otHours: 'ot',
+        totalHours: 'total hour',
+        rate: 'rate',
+        regularPay: 'normal pay',
+        otPay: 'ot pay',
+        totalPay: 'total pay',
+        absentDays: 'absent day',
+        deduction: 'deduction',
+        allowance: 'allowance',
+        bonus: 'bonus',
+        salaryTotal: 'salary total',
+        tds: 'tds',
+        gross: 'gross',
+        advance: 'advance',
+        netPayment: 'net payment',
+        payrollRemark: 'remark',
+        dateAD: 'date', // Keep fallback for AD date column
+        remarks: 'remarks', // General remarks
+        sourceSheet: 'sourceSheet', // Internal use, not from sheet
     };
     
-    const headerMap: { [key in keyof RawAttendanceRow]?: number } = {};
-    for (const key in headerVariations) {
-        const variations = headerVariations[key as keyof RawAttendanceRow]!;
-        const index = normalizedHeaders.findIndex(header => variations.some(v => header.includes(v)));
+    const headerMap: { [key: string]: number } = {};
+    for (const key in headerMapConfig) {
+        const headerName = headerMapConfig[key as keyof RawAttendanceRow];
+        const index = normalizedHeaders.indexOf(headerName);
         if (index !== -1) {
-            headerMap[key as keyof RawAttendanceRow] = index;
+            headerMap[key] = index;
         }
     }
     
-    if (headerMap.name === undefined || (headerMap.day === undefined && headerMap.dateAD === undefined && headerMap.mitiBS === undefined)) {
-      throw new Error("Import failed: Missing required columns. Ensure the sheet has a 'Name' column and a date column ('Day', 'Date', or 'BS Date').");
+    if (headerMap.employeeName === undefined || (headerMap.day === undefined && headerMap.dateAD === undefined && headerMap.mitiBS === undefined)) {
+      throw new Error("Import failed: Missing required columns. Ensure the sheet has a 'Name' column and a date column ('Day', 'BS Date').");
     }
-
 
     return dataRows.map((rowArray): CalcAttendanceRow => {
         const row: RawAttendanceRow = {};
@@ -138,19 +139,25 @@ export function processAttendanceImport(headerRow: string[], dataRows: any[][], 
         if (row.mitiBS) {
             try {
                 const nepaliDate = new NepaliDate(String(row.mitiBS));
-                ad = nepaliDate.toJsDate();
-                dateBS = nepaliDate.format('YYYY-MM-DD');
+                if(nepaliDate.getYear() === bsYear && nepaliDate.getMonth() === bsMonth) {
+                    ad = nepaliDate.toJsDate();
+                    dateBS = nepaliDate.format('YYYY-MM-DD');
+                }
             } catch (e) {
                 // Could not parse BS date, will fall back
             }
         }
         
-        // Priority 2: Full AD Date column
+        // Priority 2: Full AD Date column (less likely but good fallback)
         if (!ad && row.dateAD && isValid(new Date(row.dateAD))) {
             ad = new Date(row.dateAD);
             try {
                 const nepaliDate = new NepaliDate(ad);
-                dateBS = nepaliDate.format('YYYY-MM-DD');
+                if(nepaliDate.getYear() === bsYear && nepaliDate.getMonth() === bsMonth) {
+                    dateBS = nepaliDate.format('YYYY-MM-DD');
+                } else {
+                    ad = null; // Mismatched month, ignore
+                }
             } catch {}
         }
 
@@ -173,7 +180,7 @@ export function processAttendanceImport(headerRow: string[], dataRows: any[][], 
 
         const statusInput = (row.status || '').trim().toUpperCase();
         
-        const regular = Number(row.regularHours) || 0;
+        const regular = Number(row.normalHours) || 0;
         const ot = Number(row.otHours) || 0;
         const gross = regular + ot;
         

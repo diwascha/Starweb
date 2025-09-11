@@ -49,7 +49,6 @@ export const addAttendanceAndPayrollRecords = async (
     const headerRow = jsonData[0];
     const dataRows = jsonData.slice(1);
     
-    // The jsonData is the raw array of arrays from the sheet. This is where it's processed.
     const processedData = processAttendanceImport(headerRow, dataRows, bsYear, bsMonth);
     
     // 1. Add Attendance Records
@@ -81,7 +80,7 @@ export const addAttendanceAndPayrollRecords = async (
     const payrollRecords: Omit<Payroll, 'id'>[] = [];
     const createdPayrollEntries = new Set<string>(); // To avoid duplicates: 'employeeId-year-month'
 
-    for (const row of processedData) { // Use processedData which has correct dates and payroll info
+    for (const row of processedData) { 
         const employee = employees.find(e => e.name === row.employeeName);
         if (!employee) continue;
 
