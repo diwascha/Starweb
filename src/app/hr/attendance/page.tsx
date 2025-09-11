@@ -378,6 +378,7 @@ export default function AttendancePage() {
               <TableHead>Date (BS)</TableHead>
               <TableHead>Weekday</TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('employeeName')}>Employee Name <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+              <TableHead>Source Sheet</TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('status')}>Status <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
               <TableHead>On/Off Duty</TableHead>
               <TableHead>Clock In/Out</TableHead>
@@ -394,6 +395,7 @@ export default function AttendancePage() {
                 <TableCell>{record.bsDate}</TableCell>
                 <TableCell>{record.date ? weekdays[getDay(new Date(record.date))] : '-'}</TableCell>
                 <TableCell>{record.employeeName}</TableCell>
+                <TableCell>{record.sourceSheet || 'N/A'}</TableCell>
                  <TableCell><Badge variant={getAttendanceBadgeVariant(record.status)}>{record.status}</Badge></TableCell>
                 <TableCell>{formatTimeForDisplay(record.onDuty)} / {formatTimeForDisplay(record.offDuty)}</TableCell>
                 <TableCell>{formatTimeForDisplay(record.clockIn)} / {formatTimeForDisplay(record.clockOut)}</TableCell>
