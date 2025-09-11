@@ -1,5 +1,4 @@
 
-
 import { db } from '@/lib/firebase';
 import { collection, doc, writeBatch, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, updateDoc, deleteDoc, query, where, getDoc } from 'firebase/firestore';
 import type { AttendanceRecord, RawAttendanceRow, Payroll, Employee } from '@/lib/types';
@@ -69,7 +68,7 @@ export const addAttendanceAndPayrollRecords = async (
         regularHours: p.regularHours,
         remarks: p.calcRemarks || null, 
         importedBy: importedBy, 
-        sourceSheet: sourceSheetName || null, // Ensure this is null, not undefined
+        sourceSheet: sourceSheetName || null,
     }));
     
     let processedCount = 0;

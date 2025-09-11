@@ -11,10 +11,10 @@ import { useToast } from '@/hooks/use-toast';
 import { Upload, Search, ArrowUpDown, CalendarIcon, Edit, MoreHorizontal, Trash2, RefreshCw, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { Badge } from '@/components/ui/badge';
-import { format as formatDate, getDay } from 'date-fns';
+import { getDay } from 'date-fns';
 import { onEmployeesUpdate, addEmployee } from '@/services/employee-service';
 import { updateAttendanceRecord, deleteAttendanceRecord, deleteAttendanceForMonth, getAttendanceForMonth, getAttendanceYears, addAttendanceAndPayrollRecords } from '@/services/attendance-service';
-import { getAttendanceBadgeVariant, cn, formatTimeForDisplay } from '@/lib/utils';
+import { getAttendanceBadgeVariant, cn, formatTimeForDisplay, toNepaliDate } from '@/lib/utils';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -23,6 +23,7 @@ import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader,
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import NepaliDate from 'nepali-date-converter';
+import { format as formatDate } from 'date-fns';
 
 
 type SortKey = 'date' | 'employeeName' | 'status' | 'regularHours' | 'overtimeHours';
@@ -218,17 +219,11 @@ export default function AttendancePage() {
     for (const periodKey in groupedByPeriod) {
         const group = groupedByPeriod[periodKey];
         const { sheetInfos, bsYear, bsMonth } = group;
-        let allJsonDataForPeriod: any[][] = [];
 
         for (const sheet of sheetInfos) {
             const jsonData = sheet.jsonData;
-            const headerRow = jsonData[0];
             const dataRows = jsonData.slice(1);
             
-            if (allJsonDataForPeriod.length === 0) {
-                allJsonDataForPeriod.push(headerRow);
-            }
-
             for (const row of dataRows) {
                 const employeeName = row[0] ? String(row[0]).trim() : '';
                 
@@ -249,19 +244,22 @@ export default function AttendancePage() {
                         continue;
                     }
                 }
-                allJsonDataForPeriod.push(row);
             }
-        }
-        
-        if (allJsonDataForPeriod.length > 1) { // Has headers + at least one data row
-            await addAttendanceAndPayrollRecords(
-                allJsonDataForPeriod,
-                employees, user.username, bsYear, bsMonth,
-                (progress) => {
-                    setImportProgress(`${processedCount + progress}/${totalRecordsToProcess}`);
-                }
-            );
-            processedCount += allJsonDataForPeriod.length - 1; // Subtract header
+            
+            if (jsonData.length > 1) { // Has headers + at least one data row
+                await addAttendanceAndPayrollRecords(
+                    jsonData,
+                    employees, 
+                    user.username, 
+                    bsYear, 
+                    bsMonth,
+                    sheet.name,
+                    (progress) => {
+                        setImportProgress(`${processedCount + progress}/${totalRecordsToProcess}`);
+                    }
+                );
+                processedCount += jsonData.length - 1; // Subtract header
+            }
         }
     }
     
@@ -433,7 +431,7 @@ export default function AttendancePage() {
                 <TableCell>{formatTimeForDisplay(record.clockIn)} / {formatTimeForDisplay(record.clockOut)}</TableCell>
                 <TableCell>{(record.regularHours || 0).toFixed(1)}</TableCell>
                 <TableCell>{(record.overtimeHours || 0).toFixed(1)}</TableCell>
-                <TableCell>{record.remarks === 'Used imported hours' ? '' : record.remarks}</TableCell>
+                <TableCell>{record.remarks}</TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
                       <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
@@ -586,5 +584,3 @@ export default function AttendancePage() {
     </>
   );
 }
-
-    
