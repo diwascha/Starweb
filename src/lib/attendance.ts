@@ -155,53 +155,24 @@ export const processAttendanceImport = (
 
         const employeeName = String(row.employeeName || '').trim();
         if (!employeeName) return null;
-
-        let ad: Date | null = parseExcelDate(row.dateAD);
-        if (!ad) {
+        
+        const adFromSheet = parseExcelDate(row.dateAD);
+        if (!adFromSheet) {
             skippedCount++;
             return null;
         }
         
-        const dateBS = row.bsDate ? String(row.bsDate) : toBSString(ad);
+        // Use the BS month/year provided by the user to reconstruct the date
+        const bsDay = new NepaliDate(adFromSheet).getDate();
+        const correctedNepaliDate = new NepaliDate(bsYear, bsMonth, bsDay);
+        const ad = correctedNepaliDate.toJsDate();
+
+
+        const dateBS = correctedNepaliDate.format('YYYY-MM-DD');
         const status = String(row.status || '').trim();
         
-        // Directly use hours from sheet if available, otherwise calculate
-        let regularHours: number;
-        let overtimeHours: number;
-
-        if (row.regularHours !== null && !isNaN(parseFloat(String(row.regularHours)))) {
-            regularHours = parseFloat(String(row.regularHours));
-        } else {
-            regularHours = 0; // Default if column is empty or invalid
-        }
-        
-        if (row.overtimeHours !== null && !isNaN(parseFloat(String(row.overtimeHours)))) {
-            overtimeHours = parseFloat(String(row.overtimeHours));
-        } else {
-            overtimeHours = 0; // Default if column is empty or invalid
-        }
-        
-        // Fallback calculation ONLY if both hour columns are missing/zero
-        if (regularHours === 0 && overtimeHours === 0) {
-            const clockInTime = parseTimeToString(row.clockIn);
-            const clockOutTime = parseTimeToString(row.clockOut);
-            if(clockInTime && clockOutTime) {
-                const clockInDate = parse(clockInTime, 'HH:mm:ss', ad);
-                const clockOutDate = parse(clockOutTime, 'HH:mm:ss', ad);
-                 if (isValid(clockInDate) && isValid(clockOutDate) && clockOutDate > clockInDate) {
-                    const totalMinutes = differenceInMinutes(clockOutDate, clockInDate);
-                    const totalHours = totalMinutes / 60;
-                    if(totalHours > 8) {
-                        regularHours = 8;
-                        overtimeHours = totalHours - 8;
-                    } else {
-                        regularHours = totalHours;
-                    }
-                 }
-            } else if (status.toLowerCase().includes('p') || status === ''){
-                 regularHours = 8; // If present and no clock times, default to 8 hours
-            }
-        }
+        let regularHours: number = parseFloat(String(row.regularHours)) || 0;
+        let overtimeHours: number = parseFloat(String(row.overtimeHours)) || 0;
 
         return {
           ...row,
