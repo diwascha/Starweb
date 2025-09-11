@@ -37,7 +37,7 @@ export const getAttendance = async (): Promise<AttendanceRecord[]> => {
 };
 
 export const addAttendanceAndPayrollRecords = async (
-    jsonData: any[][],
+    jsonData: any[][], // This should be the raw sheet data: string[][]
     employees: Employee[],
     importedBy: string, 
     bsYear: number,
@@ -46,7 +46,7 @@ export const addAttendanceAndPayrollRecords = async (
 ): Promise<{ attendanceCount: number, payrollCount: number }> => {
     const CHUNK_SIZE = 400;
     
-    // The jsonData is the raw array of arrays from the sheet
+    // The jsonData is the raw array of arrays from the sheet. This is where it's processed.
     const processedData = processAttendanceImport(jsonData, bsYear, bsMonth);
     
     // 1. Add Attendance Records
@@ -61,6 +61,7 @@ export const addAttendanceAndPayrollRecords = async (
         remarks: p.calcRemarks, importedBy: importedBy, sourceSheet: p.sourceSheet,
     }));
     
+    let processedCount = 0;
     for (let i = 0; i < newAttendanceRecords.length; i += CHUNK_SIZE) {
         const chunk = newAttendanceRecords.slice(i, i + CHUNK_SIZE);
         const batch = writeBatch(db);
@@ -69,14 +70,15 @@ export const addAttendanceAndPayrollRecords = async (
             batch.set(docRef, record);
         });
         await batch.commit();
-        onProgress(chunk.length); // Report progress for this chunk
+        processedCount += chunk.length;
+        onProgress(processedCount); // Report cumulative progress
     }
     
     // 2. Add Payroll Records
     const payrollRecords: Omit<Payroll, 'id'>[] = [];
     const createdPayrollEntries = new Set<string>(); // To avoid duplicates: 'employeeId-year-month'
 
-    for (const row of processedData) { // Use processedData which has correct dates
+    for (const row of processedData) { // Use processedData which has correct dates and payroll info
         const employee = employees.find(e => e.name === row.employeeName);
         if (!employee) continue;
 
@@ -100,7 +102,7 @@ export const addAttendanceAndPayrollRecords = async (
             employeeName: employee.name,
             totalHours: Number(row.totalHours) || 0,
             otHours: Number(row.otHours) || 0,
-            regularHours: Number(row.regularHours) || 0,
+            regularHours: Number(row.normalHours) || 0,
             rate: Number(row.rate) || 0,
             regularPay: Number(row.regularPay) || 0,
             otPay: Number(row.otPay) || 0,
