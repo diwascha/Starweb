@@ -196,6 +196,47 @@ export const calculateAndSavePayrollForMonth = async (
 };
 
 
+const getHeaderMap = (headerRow: any[]): { [key: string]: number } => {
+    const map: { [key: string]: number } = {};
+    const payrollHeaders = {
+        otHours: ['ot hour'],
+        regularHours: ['normal hrs'],
+        rate: ['rate'],
+        regularPay: ['norman'], // Mapped from 'Norman'
+        otPay: ['ot'],
+        totalPay: ['total'],
+        absentDays: ['absent'],
+        deduction: ['deduction'], // Mapped from 'Deduction'
+        allowance: ['extra'], // Mapped from 'Extra'
+        bonus: ['bonus'],
+        salaryTotal: ['salary total'],
+        tds: ['tds'],
+        gross: ['gross'],
+        advance: ['advance'],
+        netPayment: ['net payment'],
+        remark: ['remark']
+    };
+
+    headerRow.forEach((headerCell, index) => {
+        const normalizedHeader = String(headerCell || '').trim().toLowerCase();
+        for (const key in payrollHeaders) {
+            if (payrollHeaders[key as keyof typeof payrollHeaders].includes(normalizedHeader)) {
+                map[key] = index;
+            }
+        }
+    });
+    
+    const requiredHeaders = ['netPayment', 'regularPay'];
+    const missingHeaders = requiredHeaders.filter(h => !(h in map));
+
+    if (missingHeaders.length > 0) {
+        throw new Error(`Required payroll columns (e.g., 'Net Payment', 'Norman') not found. Please check the Excel file headers.`);
+    }
+
+    return map;
+};
+
+
 export const importPayrollFromSheet = async (
     jsonData: any[][],
     employees: Employee[],
@@ -212,6 +253,8 @@ export const importPayrollFromSheet = async (
         throw new Error("Required column 'Name' not found in the sheet.");
     }
     
+    const headerMap = getHeaderMap(headerRow);
+    
     const BATCH_LIMIT = 400;
     let batch = writeBatch(db);
     let writeCount = 0;
@@ -227,68 +270,44 @@ export const importPayrollFromSheet = async (
         const employee = employeeMap.get(employeeName.toLowerCase());
         if (!employee) continue;
 
-        // Fixed column indices starting from Q (index 16)
-        const getValue = (colIndex: number) => {
-            const val = fullRow[colIndex];
+        const getValue = (key: keyof typeof headerMap) => {
+            const index = headerMap[key];
+            if (index === undefined) return null;
+            const val = fullRow[index];
             return val === undefined || val === null || val === '' ? null : val;
-        }
-
-        const otHours = Number(getValue(16) || 0);        // Q: OT Hour
-        const regularHours = Number(getValue(17) || 0);   // R: Normal Hrs
-        const rate = Number(getValue(18) || 0);           // S: Rate
-        const regularPay = Number(getValue(19) || 0);     // T: Norman
-        const otPay = Number(getValue(20) || 0);          // U: OT
-        const totalPay = Number(getValue(21) || 0);       // V: Total
-        const absentDays = Number(getValue(22) || 0);     // W: Absent
-        const deduction = Number(getValue(23) || 0);      // X: Deduction
-        const allowance = Number(getValue(24) || 0);      // Y: Extra
-        const bonus = Number(getValue(25) || 0);          // Z: Bonus
-        const salaryTotal = Number(getValue(26) || 0);    // AA: Salary Total
-        const tds = Number(getValue(27) || 0);            // AB: TDS
-        const gross = Number(getValue(28) || 0);          // AC: Gross
-        const advance = Number(getValue(29) || 0);        // AD: Advance
-        const netPayment = Number(getValue(30) || 0);     // AE: Net Payment
-        const remark = String(getValue(31) || '');        // AF: Remark
+        };
         
-        const rawImportData: Record<string, any> = {};
-        const payrollHeaders = [
-            'OT Hour', 'Normal Hrs', 'Rate', 'Norman', 'OT', 'Total', 'Absent', 'Deduction', 
-            'Extra', 'Bonus', 'Salary Total', 'TDS', 'Gross', 'Advance', 'Net Payment', 'Remark'
-        ];
+        const otHours = Number(getValue('otHours') || 0);
+        const regularHours = Number(getValue('regularHours') || 0);
         
-        for(let i = 0; i < payrollHeaders.length; i++) {
-            const header = payrollHeaders[i];
-            // Read from column Q (16) onwards
-            const cellValue = getValue(16 + i); 
-            rawImportData[header] = cellValue;
-        }
-
-
         const payrollData: Omit<Payroll, 'id'> = {
             bsYear, bsMonth,
             employeeId: employee.id,
             employeeName,
             joiningDate: employee.joiningDate || undefined,
-            totalHours: regularHours + otHours,
+            totalHours: regularHours + otHours, // Calculated
             otHours: otHours,
             regularHours: regularHours,
-            rate: rate,
-            regularPay: regularPay,
-            otPay: otPay,
-            totalPay: totalPay,
-            absentDays: absentDays,
-            deduction: deduction,
-            allowance: allowance,
-            bonus: bonus,
-            salaryTotal: salaryTotal,
-            tds: tds,
-            gross: gross,
-            advance: advance,
-            netPayment: netPayment,
-            remark: remark,
+            rate: Number(getValue('rate') || 0),
+            regularPay: Number(getValue('regularPay') || 0),
+            otPay: Number(getValue('otPay') || 0),
+            totalPay: Number(getValue('totalPay') || 0),
+            absentDays: Number(getValue('absentDays') || 0),
+            deduction: Number(getValue('deduction') || 0),
+            allowance: Number(getValue('allowance') || 0),
+            bonus: Number(getValue('bonus') || 0),
+            salaryTotal: Number(getValue('salaryTotal') || 0),
+            tds: Number(getValue('tds') || 0),
+            gross: Number(getValue('gross') || 0),
+            advance: Number(getValue('advance') || 0),
+            netPayment: Number(getValue('netPayment') || 0),
+            remark: String(getValue('remark') || ''),
             createdBy: importedBy,
             createdAt: new Date().toISOString(),
-            rawImportData: rawImportData
+            rawImportData: headerRow.reduce((obj, header, index) => {
+                obj[header] = fullRow[index];
+                return obj;
+            }, {} as Record<string, any>)
         };
         
         const q = query(payrollCollection,
@@ -413,5 +432,3 @@ export const generateAnalyticsForMonth = (
 
     return { punctuality, behavior, patterns, workforce };
 };
-
-      
