@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Download, Printer, Loader2, View } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { onPayrollUpdate, getPayrollYears } from '@/services/payroll-service';
+import { onPayrollUpdate } from '@/services/payroll-service';
 import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -55,43 +55,34 @@ export default function PayrollClientPage() {
     }, []);
 
     useEffect(() => {
-        if (allPayroll && allPayroll.length > 0) {
+        if (allPayroll.length > 0) {
             const years = Array.from(new Set(allPayroll.map(p => p.bsYear))).sort((a, b) => b - a);
             setBsYears(years);
-            setIsLoading(false);
 
-            if (years.length > 0) {
-                const currentSelectedYear = parseInt(selectedBsYear, 10);
-                const currentSelectedMonth = parseInt(selectedBsMonth, 10);
+            const selectionNeedsUpdate = !selectedBsYear || !years.includes(parseInt(selectedBsYear, 10));
 
-                const selectionIsValid = years.includes(currentSelectedYear) && 
-                                         allPayroll.some(p => p.bsYear === currentSelectedYear && p.bsMonth === currentSelectedMonth);
+            if (selectionNeedsUpdate) {
+                // Find the most recent year/month with data to set as default
+                const mostRecentEntry = allPayroll.reduce((latest, current) => {
+                    const latestDate = new NepaliDate(latest.bsYear, latest.bsMonth, 1).toJsDate().getTime();
+                    const currentDate = new NepaliDate(current.bsYear, current.bsMonth, 1).toJsDate().getTime();
+                    return currentDate > latestDate ? current : latest;
+                }, allPayroll[0]);
 
-                if (!selectionIsValid) {
-                    // Find the most recent year/month with data
-                    const mostRecentEntry = allPayroll.reduce((latest, current) => {
-                        const latestDate = new NepaliDate(latest.bsYear, latest.bsMonth, 1).toJsDate().getTime();
-                        const currentDate = new NepaliDate(current.bsYear, current.bsMonth, 1).toJsDate().getTime();
-                        return currentDate > latestDate ? current : latest;
-                    }, allPayroll[0]);
-
-                    if (mostRecentEntry) {
-                        setSelectedBsYear(String(mostRecentEntry.bsYear));
-                        setSelectedBsMonth(String(mostRecentEntry.bsMonth));
-                    }
+                if (mostRecentEntry) {
+                    setSelectedBsYear(String(mostRecentEntry.bsYear));
+                    setSelectedBsMonth(String(mostRecentEntry.bsMonth));
                 }
-            } else {
-                // No data, reset selections
-                setSelectedBsYear('');
-                setSelectedBsMonth('');
             }
-        } else if (allPayroll) { // allPayroll is defined but empty
+            setIsLoading(false);
+        } else {
+            // This handles the case where all data has been deleted
             setIsLoading(false);
             setBsYears([]);
             setSelectedBsYear('');
             setSelectedBsMonth('');
         }
-    }, [allPayroll, selectedBsYear, selectedBsMonth]);
+    }, [allPayroll, selectedBsYear]);
 
     const monthlyPayroll = useMemo(() => {
         if (!selectedBsYear || selectedBsMonth === '' || isLoading) return [];
