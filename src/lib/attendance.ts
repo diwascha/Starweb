@@ -77,12 +77,35 @@ function parseTimeToString(timeInput: any): string | null {
 /* =========================
    Core calculator
    ========================= */
-export function processAttendanceImport(rows: RawAttendanceRow[], bsYear: number, bsMonth: number): CalcAttendanceRow[] {
+export function processAttendanceImport(rows: RawAttendanceRow[], bsYear: number, bsMonth: number, isLegacyFormat: boolean): CalcAttendanceRow[] {
 
   return rows.map((row): CalcAttendanceRow => {
     
     let ad: Date | null = null;
     let dateBS = '';
+    
+    const rawRowArray = Array.isArray(row) ? row : Object.values(row);
+
+    // If it's legacy format, we use fixed column indices from Q (index 16) onwards.
+    const getVal = (legacyIndex: number, modernKeys: (keyof RawAttendanceRow)[]) => {
+        if (isLegacyFormat) {
+            // Q is column 16. In a 0-indexed array, this corresponds to index 16.
+            // But excel-to-json might not include empty leading columns.
+            // Let's assume the provided `row` is an array starting from the first column with data.
+            // The user's image implies a fixed structure. The `rawRows` will be arrays of values.
+            // The first payroll column is `Q`. Let's assume the `name` is always the first payroll data point.
+            // The json converter might give us an array.
+            // A more robust way would be to find the "Name" column index first.
+            // For now, let's stick to the user's "starts at Q" rule.
+            // Assuming the array given to us `row` *is* the full row from Excel.
+            // Column Q is the 17th column, so index 16.
+            return rawRowArray[16 + legacyIndex];
+        } else {
+            // Find value by key in modern format
+            const key = modernKeys.find(k => row[k] !== undefined && row[k] !== null);
+            return key ? row[key] : undefined;
+        }
+    };
 
     const day = parseInt(String(row.day), 10);
     if (!isNaN(day) && day >= 1 && day <= 32) {
@@ -100,7 +123,7 @@ export function processAttendanceImport(rows: RawAttendanceRow[], bsYear: number
 
     const statusInput = (row.status || '').trim().toUpperCase();
     
-    const regular = Number(row.normalHours) || 0;
+    const regular = Number(row.normalHours || row.regularHours) || 0;
     const ot = Number(row.otHours) || 0;
     const gross = regular + ot;
     
@@ -132,7 +155,7 @@ export function processAttendanceImport(rows: RawAttendanceRow[], bsYear: number
         }
     }
 
-    return {
+    const processedRow: CalcAttendanceRow = {
       ...row,
       onDuty: parseTimeToString(row.onDuty), 
       offDuty: parseTimeToString(row.offDuty),
@@ -147,5 +170,28 @@ export function processAttendanceImport(rows: RawAttendanceRow[], bsYear: number
       overtimeHours: +ot.toFixed(2),
       calcRemarks: row.remarks || '',
     };
+    
+    // For legacy format, overwrite payroll fields from fixed positions
+    if (isLegacyFormat) {
+        processedRow.employeeName = rawRowArray[16]; // Q
+        processedRow.totalHours = rawRowArray[17];   // R
+        processedRow.otHours = rawRowArray[18];      // S
+        processedRow.regularHours = rawRowArray[19]; // T
+        // U is empty
+        processedRow.regularPay = rawRowArray[21];   // V
+        processedRow.otPay = rawRowArray[22];        // W
+        processedRow.totalPay = rawRowArray[23];     // X
+        processedRow.absentDays = rawRowArray[24];   // Y
+        processedRow.deduction = rawRowArray[25];    // Z
+        processedRow.allowance = rawRowArray[26];    // AA (Assuming Extra is Allowance)
+        processedRow.salaryTotal = rawRowArray[27];  // AB
+        processedRow.tds = rawRowArray[28];          // AC
+        processedRow.gross = rawRowArray[29];        // AD
+        processedRow.advance = rawRowArray[30];      // AE
+        processedRow.netPayment = rawRowArray[31];   // AF
+    }
+
+
+    return processedRow;
   });
 }

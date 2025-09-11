@@ -48,7 +48,10 @@ export const addAttendanceAndPayrollRecords = async (
     const CHUNK_SIZE = 400;
     let progressCount = 0;
     
-    const processedData = processAttendanceImport(rawRows, bsYear, bsMonth);
+    // Legacy format is for any period before Shrawan (month 3) of 2082
+    const isLegacyFormat = bsYear < 2082 || (bsYear === 2082 && bsMonth < 3);
+
+    const processedData = processAttendanceImport(rawRows, bsYear, bsMonth, isLegacyFormat);
     
     // 1. Add Attendance Records
     const newAttendanceRecords = processedData
@@ -102,7 +105,7 @@ export const addAttendanceAndPayrollRecords = async (
             employeeName: employee.name,
             totalHours: Number(row.totalHours) || 0,
             otHours: Number(row.otHours) || 0,
-            regularHours: Number(row.normalHours) || 0,
+            regularHours: Number(row.regularHours) || 0,
             rate: Number(row.rate) || 0,
             regularPay: Number(row.regularPay) || 0,
             otPay: Number(row.otPay) || 0,
