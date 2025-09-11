@@ -81,49 +81,46 @@ export function processAttendanceImport(headerRow: string[], dataRows: any[][], 
     
     const normalizedHeaders = headerRow.map(h => String(h || '').trim().toLowerCase());
     
-    const headerVariations: { [key in keyof RawAttendanceRow]?: string[] } = {
-        employeeName: ['name'],
-        day: ['day'],
-        mitiBS: ['bs date', 'miti'],
-        dateAD: ['date'],
-        onDuty: ['on duty'],
-        offDuty: ['off duty'],
-        clockIn: ['clock in'],
-        clockOut: ['clock out'],
-        status: ['absent', 'status'], 
-        normalHours: ['normal hrs', 'normal'],
-        otHours: ['ot hour', 'overtime'],
-        totalHours: ['total hour'],
-        remarks: ['remarks'],
-        // Payroll fields
-        rate: ['rate'],
-        regularPay: ['norman', 'regular pay'],
-        otPay: ['ot', 'ot pay'],
-        totalPay: ['total', 'total pay'],
-        absentDays: ['absent days'],
-        deduction: ['deduction', 'absent amt.'],
-        allowance: ['extra', 'allowance'],
-        bonus: ['bonus'],
-        salaryTotal: ['salary total'],
-        tds: ['tds', 'tds (1%)'],
-        gross: ['gross'],
-        advance: ['advance'],
-        netPayment: ['net payment'],
-        payrollRemark: ['remark'],
+    const headerMapConfig: { [key in keyof RawAttendanceRow]: string } = {
+        employeeName: 'name',
+        day: 'day',
+        mitiBS: 'bs date',
+        dateAD: 'date',
+        onDuty: 'on duty',
+        offDuty: 'off duty',
+        clockIn: 'clock in',
+        clockOut: 'clock out',
+        status: 'status', 
+        normalHours: 'normal hrs',
+        otHours: 'ot hour',
+        totalHours: 'total hour',
+        remarks: 'remarks',
+        rate: 'rate',
+        regularPay: 'norman',
+        otPay: 'ot',
+        totalPay: 'total pay',
+        absentDays: 'absent days',
+        deduction: 'deduction',
+        allowance: 'extra',
+        bonus: 'bonus',
+        salaryTotal: 'salary total',
+        tds: 'tds',
+        gross: 'gross',
+        advance: 'advance',
+        netPayment: 'net payment',
+        payrollRemark: 'remark',
+        sourceSheet: 'sourceSheet', // Added to satisfy type, not mapped from excel
     };
-    
+
     const headerMap: { [key: string]: number } = {};
-    for (const key in headerVariations) {
-        const variations = headerVariations[key as keyof RawAttendanceRow]!;
-        for (const variation of variations) {
-            const index = normalizedHeaders.indexOf(variation);
-            if (index !== -1) {
-                headerMap[key] = index;
-                break;
-            }
+    for (const key in headerMapConfig) {
+        const headerName = headerMapConfig[key as keyof RawAttendanceRow]!;
+        const index = normalizedHeaders.indexOf(headerName);
+        if (index !== -1) {
+            headerMap[key] = index;
         }
     }
-    
+
     if (headerMap.employeeName === undefined) {
       throw new Error("Import failed: Missing required 'Name' column.");
     }
@@ -138,27 +135,19 @@ export function processAttendanceImport(headerRow: string[], dataRows: any[][], 
         let ad: Date | null = null;
         let dateBS = '';
         
-        // Priority 1: Full BS Date column
         if (row.mitiBS) {
             try {
                 const nepaliDate = new NepaliDate(String(row.mitiBS));
                 ad = nepaliDate.toJsDate();
                 dateBS = nepaliDate.format('YYYY-MM-DD');
-            } catch (e) {
-                // Could not parse BS date, will fall back
-            }
+            } catch (e) {}
         }
         
-        // Priority 2: Full AD Date column
         if (!ad && row.dateAD && isValid(new Date(row.dateAD))) {
             ad = new Date(row.dateAD);
-            try {
-                const nepaliDate = new NepaliDate(ad);
-                dateBS = nepaliDate.format('YYYY-MM-DD');
-            } catch {}
+            try { dateBS = new NepaliDate(ad).format('YYYY-MM-DD'); } catch {}
         }
 
-        // Priority 3: Day column with selected Year/Month
         if (!ad) {
             const day = parseInt(String(row.day), 10);
             if (!isNaN(day) && day >= 1 && day <= 32) {
@@ -175,7 +164,7 @@ export function processAttendanceImport(headerRow: string[], dataRows: any[][], 
         const weekday = ad ? ad.getDay() : -1;
         const isSaturdayAD = weekday === 6;
 
-        const statusInput = (row.status || '').trim().toUpperCase();
+        const statusInput = String(row.status || '').trim().toUpperCase();
         
         const regular = Number(row.normalHours) || 0;
         const ot = Number(row.otHours) || 0;
@@ -228,6 +217,7 @@ export function processAttendanceImport(headerRow: string[], dataRows: any[][], 
           regularHours: +regular.toFixed(2),
           overtimeHours: +ot.toFixed(2),
           calcRemarks: row.remarks || '',
+          sourceSheet: row.sourceSheet || null, // Ensure sourceSheet is not undefined
         };
     });
 }

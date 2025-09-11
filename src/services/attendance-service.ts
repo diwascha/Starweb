@@ -1,4 +1,5 @@
 
+
 import { db } from '@/lib/firebase';
 import { collection, doc, writeBatch, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, updateDoc, deleteDoc, query, where, getDoc } from 'firebase/firestore';
 import type { AttendanceRecord, RawAttendanceRow, Payroll, Employee } from '@/lib/types';
@@ -42,6 +43,7 @@ export const addAttendanceAndPayrollRecords = async (
     importedBy: string, 
     bsYear: number,
     bsMonth: number,
+    sourceSheetName: string,
     onProgress: (progress: number) => void
 ): Promise<{ attendanceCount: number, payrollCount: number }> => {
     const CHUNK_SIZE = 400;
@@ -54,12 +56,20 @@ export const addAttendanceAndPayrollRecords = async (
     const newAttendanceRecords = processedData
       .filter(p => p.dateADISO && !isNaN(new Date(p.dateADISO).getTime()))
       .map(p => ({
-        date: p.dateADISO, bsDate: p.dateBS, employeeName: p.employeeName,
-        onDuty: p.onDuty || null, offDuty: p.offDuty || null,
-        clockIn: p.clockIn || null, clockOut: p.clockOut || null,
-        status: p.normalizedStatus as any, grossHours: p.grossHours,
-        overtimeHours: p.overtimeHours, regularHours: p.regularHours,
-        remarks: p.calcRemarks, importedBy: importedBy, sourceSheet: p.sourceSheet,
+        date: p.dateADISO, 
+        bsDate: p.dateBS, 
+        employeeName: p.employeeName,
+        onDuty: p.onDuty || null, 
+        offDuty: p.offDuty || null,
+        clockIn: p.clockIn || null, 
+        clockOut: p.clockOut || null,
+        status: p.normalizedStatus as any, 
+        grossHours: p.grossHours,
+        overtimeHours: p.overtimeHours, 
+        regularHours: p.regularHours,
+        remarks: p.calcRemarks || null, 
+        importedBy: importedBy, 
+        sourceSheet: sourceSheetName || null, // Ensure this is null, not undefined
     }));
     
     let processedCount = 0;
