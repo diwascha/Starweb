@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Download, Printer, Loader2, View } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { onPayrollUpdate } from '@/services/payroll-service';
+import { onPayrollUpdate, getPayrollYears } from '@/services/payroll-service';
 import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -42,38 +42,30 @@ export default function PayrollClientPage() {
     const { user } = useAuth();
 
     useEffect(() => {
-        setIsLoading(true);
-        const unsubPayroll = onPayrollUpdate((payrolls) => {
-            setAllPayroll(payrolls);
-            
-            const years = Array.from(new Set(payrolls.map(p => p.bsYear))).sort((a, b) => b - a);
-            setBsYears(years);
-
-            if (years.length > 0) {
-                // If a year is already selected and still exists, keep it. Otherwise, set a default.
-                setSelectedBsYear(prevYear => {
-                    if (prevYear && years.includes(parseInt(prevYear))) {
-                        return prevYear;
-                    }
-                    const currentNepaliDate = new NepaliDate();
-                    const currentYear = currentNepaliDate.getYear();
-                    return String(years.includes(currentYear) ? currentYear : years[0]);
-                });
-
-                // If a month is already selected, keep it. Otherwise, set a default.
-                setSelectedBsMonth(prevMonth => {
-                    if (prevMonth) {
-                        return prevMonth;
-                    }
-                    const currentNepaliDate = new NepaliDate();
-                    return String(currentNepaliDate.getMonth());
-                });
-            }
-            setIsLoading(false);
-        });
-
+        const unsubPayroll = onPayrollUpdate(setAllPayroll);
         return () => unsubPayroll();
     }, []);
+
+    useEffect(() => {
+        if (allPayroll.length > 0) {
+            const years = Array.from(new Set(allPayroll.map(p => p.bsYear))).sort((a, b) => b - a);
+            setBsYears(years);
+
+            if (!selectedBsYear || !years.includes(parseInt(selectedBsYear, 10))) {
+                const currentNepaliDate = new NepaliDate();
+                const currentYear = currentNepaliDate.getYear();
+                const defaultYear = years.includes(currentYear) ? currentYear : years[0];
+                setSelectedBsYear(String(defaultYear));
+
+                if (!selectedBsMonth) {
+                     setSelectedBsMonth(String(currentNepaliDate.getMonth()));
+                }
+            }
+             setIsLoading(false);
+        } else if (allPayroll) {
+             setIsLoading(false);
+        }
+    }, [allPayroll, selectedBsYear, selectedBsMonth]);
 
     const monthlyPayroll = useMemo(() => {
         if (!selectedBsYear || selectedBsMonth === '' || isLoading) return [];
@@ -190,11 +182,19 @@ export default function PayrollClientPage() {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead className="w-[150px] sticky left-0 bg-background z-10">Name</TableHead>
+                                        <TableHead rowSpan={2} className="w-[150px] sticky left-0 bg-background z-10 align-bottom">Name</TableHead>
+                                        <TableHead colSpan={3} className="text-center">Time</TableHead>
+                                        <TableHead rowSpan={2} className="print:hidden align-bottom">Rate</TableHead>
+                                        <TableHead colSpan={3} className="text-center">Pay Calculation</TableHead>
+                                        <TableHead colSpan={4} className="text-center">Adjustments</TableHead>
+                                        <TableHead colSpan={5} className="text-center">Final Salary</TableHead>
+                                        <TableHead rowSpan={2} className="align-bottom">Remark</TableHead>
+                                        <TableHead rowSpan={2} className="print:hidden align-bottom">Actions</TableHead>
+                                    </TableRow>
+                                    <TableRow>
                                         <TableHead>Total Hours</TableHead>
                                         <TableHead>OT Hours</TableHead>
                                         <TableHead>Normal Hours</TableHead>
-                                        <TableHead className="print:hidden">Rate</TableHead>
                                         <TableHead>Regular Pay</TableHead>
                                         <TableHead>OT Pay</TableHead>
                                         <TableHead>Total Pay</TableHead>
@@ -207,8 +207,6 @@ export default function PayrollClientPage() {
                                         <TableHead>Gross</TableHead>
                                         <TableHead>Advance</TableHead>
                                         <TableHead>Net Payment</TableHead>
-                                        <TableHead>Remark</TableHead>
-                                        <TableHead className="print:hidden">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -246,7 +244,7 @@ export default function PayrollClientPage() {
                                 {totals && monthlyPayroll.length > 0 && (
                                 <TableFooter>
                                     <TableRow className="font-bold">
-                                        <TableCell className="sticky left-0 bg-background z-10">Totals</TableCell>
+                                        <TableCell colSpan={1} className="sticky left-0 bg-background z-10">Totals</TableCell>
                                         <TableCell>{totals.totalHours.toFixed(1)}</TableCell>
                                         <TableCell>{totals.otHours.toFixed(1)}</TableCell>
                                         <TableCell>{totals.regularHours.toFixed(1)}</TableCell>
