@@ -168,7 +168,7 @@ export const calculateAndSavePayrollForMonth = async (
             bsYear, bsMonth,
             employeeId: employee.id,
             employeeName: employee.name,
-            joiningDate: employee.joiningDate || null,
+            joiningDate: employee.joiningDate || undefined,
             totalHours: regularHours + otHours,
             regularHours, otHours, rate,
             regularPay, otPay, totalPay,
@@ -230,7 +230,7 @@ export const importPayrollFromSheet = async (
         // Fixed column indices starting from Q (index 16)
         const getValue = (colIndex: number) => {
             const val = fullRow[colIndex];
-            return val === undefined || val === null ? null : val;
+            return val === undefined || val === null || val === '' ? null : val;
         }
 
         const otHours = Number(getValue(16) || 0);        // Q: OT Hour
@@ -251,9 +251,16 @@ export const importPayrollFromSheet = async (
         const remark = String(getValue(31) || '');        // AF: Remark
         
         const rawImportData: Record<string, any> = {};
-        for(let i = 16; i <= 31; i++) {
-            const header = String(headerRow[i] || `column_${i}`);
-            rawImportData[header] = getValue(i);
+        const payrollHeaders = [
+            'OT Hour', 'Normal Hrs', 'Rate', 'Norman', 'OT', 'Total', 'Absent', 'Deduction', 
+            'Extra', 'Bonus', 'Salary Total', 'TDS', 'Gross', 'Advance', 'Net Payment', 'Remark'
+        ];
+        
+        for(let i = 0; i < payrollHeaders.length; i++) {
+            const header = payrollHeaders[i];
+            // Read from column Q (16) onwards
+            const cellValue = getValue(16 + i); 
+            rawImportData[header] = cellValue;
         }
 
 
@@ -261,7 +268,7 @@ export const importPayrollFromSheet = async (
             bsYear, bsMonth,
             employeeId: employee.id,
             employeeName,
-            joiningDate: employee.joiningDate || null,
+            joiningDate: employee.joiningDate || undefined,
             totalHours: regularHours + otHours,
             otHours: otHours,
             regularHours: regularHours,
@@ -406,3 +413,5 @@ export const generateAnalyticsForMonth = (
 
     return { punctuality, behavior, patterns, workforce };
 };
+
+      
