@@ -44,6 +44,12 @@ interface SheetInfo {
   jsonData: any[];
 }
 
+interface SelectedSheet {
+    name: string;
+    year: string;
+    month: string;
+}
+
 
 export default function AttendancePage() {
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
@@ -67,11 +73,9 @@ export default function AttendancePage() {
   const [isDataLoading, setIsDataLoading] = useState(true);
 
   // Import Dialog State
-  const [importTargetYear, setImportTargetYear] = useState<string>('');
-  const [importTargetMonth, setImportTargetMonth] = useState<string>('');
   const [isSheetSelectDialogOpen, setIsSheetSelectDialogOpen] = useState(false);
   const [availableSheets, setAvailableSheets] = useState<SheetInfo[]>([]);
-  const [selectedSheets, setSelectedSheets] = useState<string[]>([]);
+  const [selectedSheets, setSelectedSheets] = useState<SelectedSheet[]>([]);
   const [importProgress, setImportProgress] = useState<string | null>(null);
 
 
@@ -122,9 +126,6 @@ export default function AttendancePage() {
                 
                 const currentMonth = currentNepaliDate.getMonth();
                 setSelectedBsMonth(String(currentMonth));
-
-                setImportTargetYear(String(defaultYear));
-                setImportTargetMonth(String(currentMonth));
               }
             } else {
                 setIsDataLoading(false);
@@ -180,127 +181,124 @@ export default function AttendancePage() {
   };
   
   const handleSheetImport = async () => {
-    if (selectedSheets.length === 0 || !user || !importTargetYear || !importTargetMonth) {
-        toast({title: 'Error', description: 'Please select a year, month, and sheets to import.', variant: 'destructive'});
+    if (selectedSheets.length === 0 || !user) {
+        toast({title: 'Error', description: 'Please select at least one sheet to import.', variant: 'destructive'});
         return;
     }
     
     setIsSheetSelectDialogOpen(false);
-    const sheetsToProcess = availableSheets.filter(sheet => selectedSheets.includes(sheet.name));
+
+    const sheetsToProcess = availableSheets.filter(sheet => selectedSheets.some(s => s.name === sheet.name));
     const totalRecordsToProcess = sheetsToProcess.reduce((sum, sheet) => sum + sheet.rowCount, 0);
     setImportProgress(`0/${totalRecordsToProcess}`);
 
     const existingEmployeeNames = new Set(employees.map(emp => emp.name.toLowerCase()));
     const newlyAddedEmployees = new Set<string>();
     let totalSkippedRows = 0;
-    const allRawRows: RawAttendanceRow[] = [];
     
-    for (const sheet of sheetsToProcess) {
-        const jsonData = sheet.jsonData;
-        const headerRow = jsonData[0].map((h: any) => String(h || '').trim().toLowerCase());
-        
-        const headerVariations: { [key: string]: string[] } = {
-            name: ['name', 'employee name'],
-            day: ['day', 'date'], // Prioritize 'day'
-            onDuty: ['on duty', 'onduty'],
-            offDuty: ['off duty', 'offduty'],
-            clockIn: ['clock in', 'clockin'],
-            clockOut: ['clock out', 'clockout'],
-            status: ['absent', 'status'],
-            normalHours: ['normal'],
-            otHours: ['ot'],
-            totalHours: ['total hour'], rate: ['rate'], regularPay: ['normal pay'], otPay: ['ot pay'], totalPay: ['total pay'],
-            absentDays: ['absent day'], deduction: ['deduction'], allowance: ['allowance'], bonus: ['bonus'],
-            salaryTotal: ['salary total'], tds: ['tds'], gross: ['gross'], advance: ['advance'],
-            netPayment: ['net payment'], payrollRemark: ['remark'],
-        };
-        
-        const headerMap: { [key: string]: number } = {};
-        for (const key in headerVariations) {
-            const index = headerRow.findIndex((header: string) => headerVariations[key].some(v => header.includes(v)));
-            if (index !== -1) {
-                headerMap[key] = index;
-            }
-        }
-        
-        if (headerMap['name'] === undefined || headerMap['day'] === undefined) {
-            toast({ title: 'Skipping Sheet', description: `Sheet "${sheet.name}" is missing 'Name' and a 'Day' column.`, variant: 'destructive' });
-            continue;
-        }
+    // Group selected sheets by their target year and month
+    const groupedByPeriod: Record<string, { sheetInfos: SheetInfo[], rawRows: RawAttendanceRow[], bsYear: number, bsMonth: number }> = {};
 
-        for (const row of jsonData.slice(1)) {
-            const employeeName = row[headerMap['name']] ? String(row[headerMap['name']]).trim() : '';
-            const dayValue = row[headerMap['day']];
+    for (const selected of selectedSheets) {
+        const key = `${selected.year}-${selected.month}`;
+        if (!groupedByPeriod[key]) {
+            groupedByPeriod[key] = {
+                sheetInfos: [],
+                rawRows: [],
+                bsYear: parseInt(selected.year, 10),
+                bsMonth: parseInt(selected.month, 10),
+            };
+        }
+        const sheetInfo = availableSheets.find(s => s.name === selected.name);
+        if (sheetInfo) {
+             groupedByPeriod[key].sheetInfos.push(sheetInfo);
+        }
+    }
+    
+    let processedCount = 0;
+
+    for (const periodKey in groupedByPeriod) {
+        const group = groupedByPeriod[periodKey];
+        const { sheetInfos, bsYear, bsMonth } = group;
+        let allRawRowsForPeriod: RawAttendanceRow[] = [];
+
+        for (const sheet of sheetInfos) {
+            const jsonData = sheet.jsonData;
+            const headerRow = jsonData[0].map((h: any) => String(h || '').trim().toLowerCase());
             
-            if (!employeeName || dayValue === null || dayValue === undefined || String(dayValue).trim() === '') {
-                totalSkippedRows++;
+            const headerVariations: { [key: string]: string[] } = {
+                name: ['name', 'employee name'], day: ['day', 'date'], onDuty: ['on duty', 'onduty'], offDuty: ['off duty', 'offduty'],
+                clockIn: ['clock in', 'clockin'], clockOut: ['clock out', 'clockout'], status: ['absent', 'status'],
+                normalHours: ['normal'], otHours: ['ot'], totalHours: ['total hour'], rate: ['rate'], regularPay: ['normal pay'],
+                otPay: ['ot pay'], totalPay: ['total pay'], absentDays: ['absent day'], deduction: ['deduction'],
+                allowance: ['allowance'], bonus: ['bonus'], salaryTotal: ['salary total'], tds: ['tds'],
+                gross: ['gross'], advance: ['advance'], netPayment: ['net payment'], payrollRemark: ['remark'],
+            };
+            
+            const headerMap: { [key: string]: number } = {};
+            for (const key in headerVariations) {
+                const index = headerRow.findIndex((header: string) => headerVariations[key].some(v => header.includes(v)));
+                if (index !== -1) headerMap[key] = index;
+            }
+            
+            if (headerMap['name'] === undefined || headerMap['day'] === undefined) {
+                toast({ title: 'Skipping Sheet', description: `Sheet "${sheet.name}" is missing 'Name' and a 'Day' column.`, variant: 'destructive' });
                 continue;
             }
-            
-            if (!existingEmployeeNames.has(employeeName.toLowerCase()) && !newlyAddedEmployees.has(employeeName)) {
-                 const newEmployee: Omit<Employee, 'id'> = {
-                    name: employeeName, wageBasis: 'Monthly', wageAmount: 0, 
-                    createdBy: user.username, createdAt: new Date().toISOString(), status: 'Working'
-                };
-                try {
-                    await addEmployee(newEmployee);
-                    existingEmployeeNames.add(employeeName.toLowerCase());
-                    newlyAddedEmployees.add(employeeName);
-                } catch (e) {
-                    console.error("Failed to add new employee:", e);
+
+            for (const row of jsonData.slice(1)) {
+                const employeeName = row[headerMap['name']] ? String(row[headerMap['name']]).trim() : '';
+                const dayValue = row[headerMap['day']];
+                
+                if (!employeeName || dayValue === null || dayValue === undefined || String(dayValue).trim() === '') {
                     totalSkippedRows++;
                     continue;
                 }
+                
+                if (!existingEmployeeNames.has(employeeName.toLowerCase()) && !newlyAddedEmployees.has(employeeName)) {
+                     const newEmployee: Omit<Employee, 'id'> = { name: employeeName, wageBasis: 'Monthly', wageAmount: 0, createdBy: user.username, createdAt: new Date().toISOString(), status: 'Working' };
+                    try {
+                        await addEmployee(newEmployee);
+                        existingEmployeeNames.add(employeeName.toLowerCase());
+                        newlyAddedEmployees.add(employeeName);
+                    } catch (e) {
+                        console.error("Failed to add new employee:", e);
+                        totalSkippedRows++;
+                        continue;
+                    }
+                }
+
+                allRawRowsForPeriod.push({
+                    employeeName, day: dayValue, onDuty: row[headerMap['onDuty']], offDuty: row[headerMap['offDuty']],
+                    clockIn: row[headerMap['clockIn']], clockOut: row[headerMap['clockOut']], status: row[headerMap['status']],
+                    normalHours: row[headerMap['normalHours']], otHours: row[headerMap['otHours']], sourceSheet: sheet.name,
+                    totalHours: row[headerMap['totalHours']], rate: row[headerMap['rate']], regularPay: row[headerMap['regularPay']],
+                    otPay: row[headerMap['otPay']], totalPay: row[headerMap['totalPay']], absentDays: row[headerMap['absentDays']],
+                    deduction: row[headerMap['deduction']], allowance: row[headerMap['allowance']], bonus: row[headerMap['bonus']],
+                    salaryTotal: row[headerMap['salaryTotal']], tds: row[headerMap['tds']], gross: row[headerMap['gross']],
+                    advance: row[headerMap['advance']], netPayment: row[headerMap['netPayment']], payrollRemark: row[headerMap['payrollRemark']],
+                });
             }
-
-            const rawRowData: RawAttendanceRow = {
-                employeeName: employeeName,
-                day: dayValue,
-                onDuty: row[headerMap['onDuty']], offDuty: row[headerMap['offDuty']],
-                clockIn: row[headerMap['clockIn']], clockOut: row[headerMap['clockOut']],
-                status: row[headerMap['status']], normalHours: row[headerMap['normalHours']], otHours: row[headerMap['otHours']],
-                sourceSheet: sheet.name, totalHours: row[headerMap['totalHours']], rate: row[headerMap['rate']],
-                regularPay: row[headerMap['regularPay']], otPay: row[headerMap['otPay']], totalPay: row[headerMap['totalPay']],
-                absentDays: row[headerMap['absentDays']], deduction: row[headerMap['deduction']], allowance: row[headerMap['allowance']],
-                bonus: row[headerMap['bonus']], salaryTotal: row[headerMap['salaryTotal']], tds: row[headerMap['tds']],
-                gross: row[headerMap['gross']], advance: row[headerMap['advance']], netPayment: row[headerMap['netPayment']],
-                payrollRemark: row[headerMap['payrollRemark']],
-            };
-            allRawRows.push(rawRowData);
         }
-    }
-    
-    if (allRawRows.length === 0) {
-        let description = 'No valid attendance records found to import.';
-        if (totalSkippedRows > 0) description += ` ${totalSkippedRows} rows were skipped.`;
-        toast({ title: 'Import Finished', description });
-        setImportProgress(null);
-        return;
-    }
-    
-    const { attendanceCount, payrollCount } = await addAttendanceAndPayrollRecords(
-        allRawRows,
-        employees,
-        user.username,
-        parseInt(importTargetYear),
-        parseInt(importTargetMonth),
-        (progress) => {
-            setImportProgress(`${progress}/${totalRecordsToProcess}`);
-        }
-    );
-
-    if (attendanceCount > 0) {
-        let description = `${attendanceCount} attendance records processed.`;
-        if (payrollCount > 0) description += ` ${payrollCount} payroll records imported/updated.`;
-        if (newlyAddedEmployees.size > 0) description += ` ${newlyAddedEmployees.size} new employees added.`;
-        if (totalSkippedRows > 0) description += ` ${totalSkippedRows} rows were skipped.`;
         
-        toast({ title: 'Import Complete', description, duration: 8000 });
-        const years = await getAttendanceYears();
-        setBsYears(years);
-    } else {
-        toast({ title: 'Info', description: `No new valid records found. ${totalSkippedRows} rows were skipped.` });
+        if (allRawRowsForPeriod.length > 0) {
+            await addAttendanceAndPayrollRecords(
+                allRawRowsForPeriod, employees, user.username, bsYear, bsMonth,
+                (progress) => {
+                    setImportProgress(`${processedCount + progress}/${totalRecordsToProcess}`);
+                }
+            );
+            processedCount += allRawRowsForPeriod.length;
+        }
     }
+    
+    let description = `${processedCount} records processed.`;
+    if (newlyAddedEmployees.size > 0) description += ` ${newlyAddedEmployees.size} new employees added.`;
+    if (totalSkippedRows > 0) description += ` ${totalSkippedRows} rows were skipped.`;
+    
+    toast({ title: 'Import Complete', description, duration: 8000 });
+    const years = await getAttendanceYears();
+    setBsYears(years);
     
     setImportProgress(null);
   };
@@ -483,6 +481,23 @@ export default function AttendancePage() {
     );
   };
   
+  const handleSheetSelectionChange = (sheetName: string, checked: boolean) => {
+    const currentNepaliDate = new NepaliDate();
+    if (checked) {
+        setSelectedSheets(prev => [...prev, {
+            name: sheetName,
+            year: selectedBsYear || String(currentNepaliDate.getYear()),
+            month: selectedBsMonth || String(currentNepaliDate.getMonth())
+        }]);
+    } else {
+        setSelectedSheets(prev => prev.filter(s => s.name !== sheetName));
+    }
+  };
+
+  const handleSheetPeriodChange = (sheetName: string, type: 'year' | 'month', value: string) => {
+      setSelectedSheets(prev => prev.map(s => s.name === sheetName ? { ...s, [type]: value } : s));
+  };
+  
   return (
     <>
         <div className="flex flex-col gap-8">
@@ -540,38 +555,45 @@ export default function AttendancePage() {
         </DialogContent>
     </Dialog>
      <Dialog open={isSheetSelectDialogOpen} onOpenChange={setIsSheetSelectDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
-            <DialogHeader><DialogTitle>Select Sheets & Target Period</DialogTitle><DialogDescription>Choose one or more sheets to import and the Nepali month/year this data belongs to.</DialogDescription></DialogHeader>
+        <DialogContent className="sm:max-w-2xl">
+            <DialogHeader><DialogTitle>Select Sheets to Import</DialogTitle><DialogDescription>Choose sheets and their target period. Data will be mapped to the selected Nepali month and year.</DialogDescription></DialogHeader>
             <div className="py-4 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <Label>Target Year (BS)</Label>
-                         <Select value={importTargetYear} onValueChange={setImportTargetYear}>
-                            <SelectTrigger><SelectValue placeholder="Year (BS)" /></SelectTrigger>
-                            <SelectContent>{bsYears.map(year => <SelectItem key={year} value={String(year)}>{year}</SelectItem>)}</SelectContent>
-                        </Select>
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Target Month (BS)</Label>
-                        <Select value={importTargetMonth} onValueChange={setImportTargetMonth}>
-                            <SelectTrigger><SelectValue placeholder="Month (BS)" /></SelectTrigger>
-                            <SelectContent>{nepaliMonths.map(month => <SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>)}</SelectContent>
-                        </Select>
-                    </div>
-                </div>
-                <div className="space-y-2">
+                 <div className="space-y-2">
                     <div className="flex items-center space-x-2 border-b pb-2">
-                        <Checkbox id="select-all-sheets" onCheckedChange={(checked) => setSelectedSheets(checked ? availableSheets.map(s => s.name) : [])} checked={selectedSheets.length === availableSheets.length} />
+                        <Checkbox id="select-all-sheets" onCheckedChange={(checked) => {
+                             const currentNepaliDate = new NepaliDate();
+                             const defaultYear = selectedBsYear || String(currentNepaliDate.getYear());
+                             const defaultMonth = selectedBsMonth || String(currentNepaliDate.getMonth());
+                             setSelectedSheets(checked ? availableSheets.map(s => ({ name: s.name, year: defaultYear, month: defaultMonth })) : [])
+                        }} checked={selectedSheets.length === availableSheets.length && availableSheets.length > 0} />
                         <Label htmlFor="select-all-sheets" className="font-bold">Select All Sheets</Label>
                     </div>
                     <ScrollArea className="h-[300px]">
-                        {availableSheets.map(sheet => (
-                            <div key={sheet.name} className="flex items-center space-x-2 p-2 rounded-md hover:bg-muted">
-                                <Checkbox id={`sheet-${sheet.name}`} onCheckedChange={(checked) => setSelectedSheets(prev => checked ? [...prev, sheet.name] : prev.filter(s => s !== sheet.name))} checked={selectedSheets.includes(sheet.name)} />
-                                <Label htmlFor={`sheet-${sheet.name}`} className="flex-1">{sheet.name}</Label>
-                                <Badge variant="secondary">{sheet.rowCount} records</Badge>
-                            </div>
-                        ))}
+                        {availableSheets.map(sheet => {
+                            const currentSelection = selectedSheets.find(s => s.name === sheet.name);
+                            const isSelected = !!currentSelection;
+                            return (
+                                <div key={sheet.name} className="p-2 rounded-md hover:bg-muted space-y-2">
+                                    <div className="flex items-center space-x-2">
+                                        <Checkbox id={`sheet-${sheet.name}`} onCheckedChange={(checked) => handleSheetSelectionChange(sheet.name, !!checked)} checked={isSelected} />
+                                        <Label htmlFor={`sheet-${sheet.name}`} className="flex-1">{sheet.name}</Label>
+                                        <Badge variant="secondary">{sheet.rowCount} records</Badge>
+                                    </div>
+                                    {isSelected && (
+                                        <div className="pl-6 flex items-center gap-2">
+                                            <Select value={currentSelection.year} onValueChange={(value) => handleSheetPeriodChange(sheet.name, 'year', value)}>
+                                                <SelectTrigger className="w-[120px] h-8"><SelectValue /></SelectTrigger>
+                                                <SelectContent>{bsYears.map(year => <SelectItem key={year} value={String(year)}>{year}</SelectItem>)}</SelectContent>
+                                            </Select>
+                                            <Select value={currentSelection.month} onValueChange={(value) => handleSheetPeriodChange(sheet.name, 'month', value)}>
+                                                <SelectTrigger className="w-[150px] h-8"><SelectValue /></SelectTrigger>
+                                                <SelectContent>{nepaliMonths.map(month => <SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>)}</SelectContent>
+                                            </Select>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
                     </ScrollArea>
                 </div>
             </div>
@@ -581,3 +603,4 @@ export default function AttendancePage() {
     </>
   );
 }
+

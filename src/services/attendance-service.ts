@@ -46,7 +46,6 @@ export const addAttendanceAndPayrollRecords = async (
     onProgress: (progress: number) => void
 ): Promise<{ attendanceCount: number, payrollCount: number }> => {
     const CHUNK_SIZE = 400;
-    let progressCount = 0;
     
     // Legacy format is for any period before Shrawan (month 3) of 2082
     const isLegacyFormat = bsYear < 2082 || (bsYear === 2082 && bsMonth < 3);
@@ -73,8 +72,7 @@ export const addAttendanceAndPayrollRecords = async (
             batch.set(docRef, record);
         });
         await batch.commit();
-        progressCount += chunk.length;
-        onProgress(progressCount);
+        onProgress(chunk.length); // Report progress for this chunk
     }
     
     // 2. Add Payroll Records
@@ -206,3 +204,4 @@ export const getAttendanceYears = async (): Promise<number[]> => {
     }).filter(year => year !== null) as number[]);
     return Array.from(years).sort((a, b) => b - a);
 };
+
