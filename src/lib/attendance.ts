@@ -1,5 +1,4 @@
 
-
 import {
   format,
   isValid,
@@ -77,11 +76,10 @@ function parseTimeToString(timeInput: any): string | null {
 /* =========================
    Core calculator
    ========================= */
-export function processAttendanceImport(jsonData: any[][], bsYear: number, bsMonth: number): CalcAttendanceRow[] {
+export function processAttendanceImport(headerRow: string[], dataRows: any[][], bsYear: number, bsMonth: number): CalcAttendanceRow[] {
     
-    const headerRow = jsonData[0].map(h => String(h || '').trim().toLowerCase());
-    const dataRows = jsonData.slice(1);
-
+    const normalizedHeaders = headerRow.map(h => String(h || '').trim().toLowerCase());
+    
     const headerVariations: { [key in keyof RawAttendanceRow]?: string[] } = {
         name: ['name', 'employee name'],
         dateAD: ['date', 'ad date'],
@@ -115,7 +113,7 @@ export function processAttendanceImport(jsonData: any[][], bsYear: number, bsMon
     const headerMap: { [key in keyof RawAttendanceRow]?: number } = {};
     for (const key in headerVariations) {
         const variations = headerVariations[key as keyof RawAttendanceRow]!;
-        const index = headerRow.findIndex(header => variations.some(v => header.includes(v)));
+        const index = normalizedHeaders.findIndex(header => variations.some(v => header.includes(v)));
         if (index !== -1) {
             headerMap[key as keyof RawAttendanceRow] = index;
         }
