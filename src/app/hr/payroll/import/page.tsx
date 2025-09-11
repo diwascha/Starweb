@@ -136,7 +136,7 @@ export default function ImportPayrollPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>Step 1: Upload File</CardTitle>
-                    <CardDescription>Select the Excel file containing the payroll data. Ensure it has columns: Name, BS Year, BS Month, Net Payment, and other optional payroll fields.</CardDescription>
+                    <CardDescription>Select the Excel file containing payroll data from columns Q to AE.</CardDescription>
                 </CardHeader>
                 <CardContent>
                      <Input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".xlsx, .xls" className="hidden" />
