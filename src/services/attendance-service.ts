@@ -94,54 +94,54 @@ export const addAttendanceAndPayrollRecords = async (
     
     // 2. Add Payroll Records
     const payrollRecords: Omit<Payroll, 'id'>[] = [];
-    const createdPayrollEntries = new Set<string>();
     const allEmployees = [...employees, ...newEmployees.map(name => ({ id: '', name, wageBasis: 'Monthly', wageAmount: 0, createdBy: importedBy, createdAt: new Date().toISOString(), status: 'Working' } as Employee))];
+    const employeeDataMap = new Map<string, RawAttendanceRow[]>();
 
-    for (const row of processedData) { 
-        const employee = allEmployees.find(e => e.name === row.employeeName);
+    // Group processed data by employee name
+    for (const row of processedData) {
+        if (!employeeDataMap.has(row.employeeName)) {
+            employeeDataMap.set(row.employeeName, []);
+        }
+        employeeDataMap.get(row.employeeName)!.push(row);
+    }
+
+    for (const [employeeName, employeeRows] of employeeDataMap.entries()) {
+        const employee = allEmployees.find(e => e.name === employeeName);
         if (!employee) continue;
         
-        const payrollKey = `${employee.id}-${bsYear}-${bsMonth}`;
-        if (createdPayrollEntries.has(payrollKey)) continue;
-
-        const netPaymentValue = row.netPayment;
-        if (netPaymentValue === null || netPaymentValue === undefined || String(netPaymentValue).trim() === '') {
-            continue; 
+        // Find the first row with payroll data for this employee
+        const payrollDataSource = employeeRows.find(r => r.netPayment !== null && r.netPayment !== undefined && String(r.netPayment).trim() !== '');
+        
+        if (payrollDataSource) {
+            payrollRecords.push({
+                bsYear, 
+                bsMonth,
+                employeeId: employee.id,
+                employeeName: employee.name,
+                totalHours: Number(payrollDataSource.totalHours) || 0,
+                otHours: Number(payrollDataSource.otHours) || 0,
+                regularHours: Number(payrollDataSource.normalHours) || 0,
+                rate: Number(payrollDataSource.rate) || 0,
+                regularPay: Number(payrollDataSource.regularPay) || 0,
+                otPay: Number(payrollDataSource.otPay) || 0,
+                totalPay: Number(payrollDataSource.totalPay) || 0,
+                absentDays: Number(payrollDataSource.absentDays) || 0,
+                deduction: Number(payrollDataSource.deduction) || 0,
+                allowance: Number(payrollDataSource.allowance) || 0,
+                bonus: Number(payrollDataSource.bonus) || 0,
+                salaryTotal: Number(payrollDataSource.salaryTotal) || 0,
+                tds: Number(payrollDataSource.tds) || 0,
+                gross: Number(payrollDataSource.gross) || 0,
+                advance: Number(payrollDataSource.advance) || 0,
+                netPayment: Number(payrollDataSource.netPayment) || 0,
+                remark: payrollDataSource.payrollRemark || '',
+                createdBy: importedBy,
+                createdAt: new Date().toISOString(),
+                rawImportData: payrollDataSource.rawImportData,
+            });
         }
-
-        const netPayment = Number(netPaymentValue);
-        if (isNaN(netPayment)) {
-            continue;
-        }
-
-        payrollRecords.push({
-            bsYear, 
-            bsMonth,
-            employeeId: employee.id,
-            employeeName: employee.name,
-            totalHours: Number(row.totalHours) || 0,
-            otHours: Number(row.otHours) || 0,
-            regularHours: Number(row.normalHours) || 0,
-            rate: Number(row.rate) || 0,
-            regularPay: Number(row.regularPay) || 0,
-            otPay: Number(row.otPay) || 0,
-            totalPay: Number(row.totalPay) || 0,
-            absentDays: Number(row.absentDays) || 0,
-            deduction: Number(row.deduction) || 0,
-            allowance: Number(row.allowance) || 0,
-            bonus: Number(row.bonus) || 0,
-            salaryTotal: Number(row.salaryTotal) || 0,
-            tds: Number(row.tds) || 0,
-            gross: Number(row.gross) || 0,
-            advance: Number(row.advance) || 0,
-            netPayment: netPayment,
-            remark: row.payrollRemark || '',
-            createdBy: importedBy,
-            createdAt: new Date().toISOString(),
-            rawImportData: row.rawImportData,
-        });
-        createdPayrollEntries.add(payrollKey);
     }
+
 
     if(payrollRecords.length > 0) {
         await addPayrollRecords(payrollRecords);
