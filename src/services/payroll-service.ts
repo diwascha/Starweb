@@ -87,6 +87,13 @@ export const deletePayrollForMonth = async (bsYear: number, bsMonth: number): Pr
     }
 };
 
+const nepaliMonths = [
+    { value: 0, name: "Baishakh" }, { value: 1, name: "Jestha" }, { value: 2, name: "Ashadh" },
+    { value: 3, name: "Shrawan" }, { value: 4, name: "Bhadra" }, { value: 5, name: "Ashwin" },
+    { value: 6, name: "Kartik" }, { value: 7, name: "Mangsir" }, { value: 8, "name": "Poush" },
+    { value: 9, name: "Magh" }, { value: 10, name: "Falgun" }, { value: 11, name: "Chaitra" }
+];
+
 export const calculateAndSavePayrollForMonth = async (
     bsYear: number,
     bsMonth: number,
@@ -98,8 +105,9 @@ export const calculateAndSavePayrollForMonth = async (
     const payrollLockSetting = await getSetting('payrollLocks');
     const payrollLocks = payrollLockSetting?.value || {};
     const lockKey = `${bsYear}-${bsMonth}`;
+    const monthName = nepaliMonths.find(m => m.value === bsMonth)?.name || `Month ${bsMonth + 1}`;
     if (payrollLocks[lockKey]) {
-        throw new Error(`Payroll for ${nepaliMonths[bsMonth].name} ${bsYear} is locked and cannot be recalculated.`);
+        throw new Error(`Payroll for ${monthName} ${bsYear} is locked and cannot be recalculated.`);
     }
     
     // First, delete any existing payroll for that month
@@ -151,7 +159,7 @@ export const calculateAndSavePayrollForMonth = async (
             bsYear, bsMonth,
             employeeId: employee.id,
             employeeName: employee.name,
-            joiningDate: employee.joiningDate,
+            joiningDate: employee.joiningDate || null,
             totalHours: regularHours + otHours,
             regularHours, otHours, rate,
             regularPay, otPay, totalPay,
@@ -178,67 +186,120 @@ export const calculateAndSavePayrollForMonth = async (
     return { employeeCount: payrollRecords.length };
 };
 
+const getHeaderMap = (headerRow: string[]) => {
+    const normalizedHeaders = headerRow.map(h => String(h || '').trim().toLowerCase());
+    const headerMap: { [key: string]: number } = {};
+    const columnMappings: { [key: string]: string[] } = {
+        employeeName: ['name'],
+        totalHours: ['total hour'],
+        otHours: ['ot hour'],
+        regularHours: ['normal hrs', 'normal hour'],
+        rate: ['rate'],
+        regularPay: ['normal pay', 'regular pay'],
+        otPay: ['ot pay'],
+        totalPay: ['total pay'],
+        absentDays: ['absent days'],
+        deduction: ['deduction', 'absent amt.'],
+        allowance: ['allowance', 'extra'],
+        bonus: ['bonus'],
+        salaryTotal: ['salary total'],
+        tds: ['tds (1%)', 'tds'],
+        gross: ['gross'],
+        advance: ['advance'],
+        netPayment: ['net payment'],
+        remark: ['remark']
+    };
+
+    for (const key in columnMappings) {
+        for (const header of columnMappings[key]) {
+            const index = normalizedHeaders.indexOf(header);
+            if (index !== -1) {
+                headerMap[key] = index;
+                break;
+            }
+        }
+    }
+    return headerMap;
+};
+
 export const importPayrollFromSheet = async (
-    data: any[],
-    importedBy: string
+    jsonData: any[][],
+    employees: Employee[],
+    importedBy: string,
+    bsYear: number,
+    bsMonth: number
 ): Promise<{ createdCount: number, updatedCount: number }> => {
-    const BATCH_LIMIT = 400; // Leave some buffer
+    const headerRow = jsonData[0];
+    const dataRows = jsonData.slice(1);
+    const headerMap = getHeaderMap(headerRow);
+    
+    if (!headerMap.employeeName || headerMap.netPayment === undefined) {
+        throw new Error("Required columns 'Name' and 'Net Payment' not found in the sheet.");
+    }
+    
+    const BATCH_LIMIT = 400;
     let batch = writeBatch(db);
     let writeCount = 0;
     let createdCount = 0;
     let updatedCount = 0;
 
-    for (const row of data) {
-        const bsYear = Number(row['BS Year']);
-        const bsMonth = Number(row['BS Month']);
-        const employeeId = row['employeeId'];
+    const employeeMap = new Map(employees.map(e => [e.name.toLowerCase(), e]));
 
-        if (!employeeId || isNaN(bsYear) || isNaN(bsMonth)) continue;
+    for (const row of dataRows) {
+        const employeeName = String(row[headerMap.employeeName] || '').trim();
+        if (!employeeName) continue;
+
+        const employee = employeeMap.get(employeeName.toLowerCase());
+        if (!employee) continue;
+
+        const rawImportData: Record<string, any> = {};
+        headerRow.forEach((header, index) => {
+             const value = row[index];
+             rawImportData[String(header || `column_${index}`)] = value === undefined ? null : value;
+        });
+
+        const payrollData: Omit<Payroll, 'id'> = {
+            bsYear, bsMonth,
+            employeeId: employee.id,
+            employeeName,
+            joiningDate: employee.joiningDate || null,
+            totalHours: Number(row[headerMap.otHours] || 0) + Number(row[headerMap.regularHours] || 0),
+            otHours: Number(row[headerMap.otHours] || 0),
+            regularHours: Number(row[headerMap.regularHours] || 0),
+            rate: Number(row[headerMap.rate] || 0),
+            regularPay: Number(row[headerMap.regularPay] || 0),
+            otPay: Number(row[headerMap.otPay] || 0),
+            totalPay: Number(row[headerMap.totalPay] || 0),
+            absentDays: Number(row[headerMap.absentDays] || 0),
+            deduction: Number(row[headerMap.deduction] || 0),
+            allowance: Number(row[headerMap.allowance] || 0),
+            bonus: Number(row[headerMap.bonus] || 0),
+            salaryTotal: Number(row[headerMap.salaryTotal] || 0),
+            tds: Number(row[headerMap.tds] || 0),
+            gross: Number(row[headerMap.gross] || 0),
+            advance: Number(row[headerMap.advance] || 0),
+            netPayment: Number(row[headerMap.netPayment] || 0),
+            remark: row[headerMap.remark] || '',
+            createdBy: importedBy,
+            createdAt: new Date().toISOString(),
+            rawImportData: rawImportData
+        };
+        
+        payrollData.totalHours = payrollData.otHours + payrollData.regularHours;
 
         const q = query(payrollCollection,
-            where("employeeId", "==", employeeId),
+            where("employeeId", "==", employee.id),
             where("bsYear", "==", bsYear),
             where("bsMonth", "==", bsMonth),
             limit(1)
         );
-
         const snapshot = await getDocs(q);
-        
-        const payrollData: Omit<Payroll, 'id'> = {
-            bsYear: bsYear,
-            bsMonth: bsMonth,
-            employeeId: employeeId,
-            employeeName: row['Name'],
-            joiningDate: row['Joining Date'],
-            totalHours: Number(row['Total Hours'] || 0),
-            otHours: Number(row['OT Hours'] || 0),
-            regularHours: Number(row['Normal Hours'] || 0),
-            rate: Number(row['Rate'] || 0),
-            regularPay: Number(row['Regular Pay'] || 0),
-            otPay: Number(row['OT Pay'] || 0),
-            totalPay: Number(row['Total Pay'] || 0),
-            absentDays: Number(row['Absent Days'] || 0),
-            deduction: Number(row['Absent Amt.'] || 0),
-            allowance: Number(row['Allowance'] || 0),
-            bonus: Number(row['Bonus'] || 0),
-            salaryTotal: Number(row['Salary Total'] || 0),
-            tds: Number(row['TDS (1%)'] || 0),
-            gross: Number(row['Gross'] || 0),
-            advance: Number(row['Advance'] || 0),
-            netPayment: Number(row['Net Payment'] || 0),
-            remark: row['Remark'] || '',
-            createdBy: importedBy,
-            createdAt: new Date().toISOString(),
-            rawImportData: row,
-        };
 
         if (snapshot.empty) {
-            // Create new
             const docRef = doc(payrollCollection);
             batch.set(docRef, payrollData);
             createdCount++;
         } else {
-            // Update existing
             const docRef = snapshot.docs[0].ref;
             batch.update(docRef, payrollData);
             updatedCount++;
@@ -260,20 +321,13 @@ export const importPayrollFromSheet = async (
 };
 
 
+
 export interface AnalyticsData {
     punctuality: PunctualityInsight[];
     behavior: BehaviorInsight[];
     patterns: PatternInsight[];
     workforce: WorkforceAnalytics[];
 }
-
-const nepaliMonths = [
-    { value: 0, name: "Baishakh" }, { value: 1, name: "Jestha" }, { value: 2, name: "Ashadh" },
-    { value: 3, name: "Shrawan" }, { value: 4, name: "Bhadra" }, { value: 5, name: "Ashwin" },
-    { value: 6, name: "Kartik" }, { value: 7, name: "Mangsir" }, { value: 8, "name": "Poush" },
-    { value: 9, name: "Magh" }, { value: 10, name: "Falgun" }, { value: 11, name: "Chaitra" }
-];
-
 
 export const generateAnalyticsForMonth = (
     bsYear: number,
