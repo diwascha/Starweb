@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Download, Printer, Loader2, View, Calculator } from 'lucide-react';
+import { Download, Printer, Loader2, View, Calculator, Upload } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { onPayrollUpdate, getPayrollYears, calculateAndSavePayrollForMonth, deletePayrollForMonth } from '@/services/payroll-service';
@@ -229,6 +229,7 @@ export default function PayrollClientPage() {
                                 <SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Month (BS)" /></SelectTrigger>
                                 <SelectContent>{nepaliMonths.map(month => <SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>)}</SelectContent>
                             </Select>
+                            <Button variant="outline" onClick={() => router.push('/hr/payroll/import')}><Upload className="mr-2 h-4 w-4" /> Import Payroll</Button>
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                     <Button disabled={isCalculating}>
