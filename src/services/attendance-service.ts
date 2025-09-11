@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { collection, doc, writeBatch, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, query, where, limit, getDoc } from 'firebase/firestore';
+import { collection, doc, writeBatch, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, query, where, limit, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import type { AttendanceRecord, RawAttendanceRow, Payroll, Employee } from '@/lib/types';
 import NepaliDate from 'nepali-date-converter';
 import { format } from 'date-fns';
@@ -108,8 +108,11 @@ export const addAttendanceAndPayrollRecords = async (
         const employee = allEmployees.find(e => e.name === employeeName);
         if (!employee) continue;
         
+        // Find the first row for this employee that looks like a payroll summary row
         const payrollDataSource = employeeRows.find(r => 
-            r.netPayment !== null && r.netPayment !== undefined && String(r.netPayment).trim() !== ''
+            (r.netPayment !== null && r.netPayment !== undefined && String(r.netPayment).trim() !== '') ||
+            (r.totalPay !== null && r.totalPay !== undefined && String(r.totalPay).trim() !== '') ||
+            (r.gross !== null && r.gross !== undefined && String(r.gross).trim() !== '')
         );
         
         if (payrollDataSource) {
@@ -163,14 +166,24 @@ export const deleteAttendanceRecord = async (id: string): Promise<void> => {
 };
 
 export const deleteAttendanceForMonth = async (bsYear: number, bsMonth: number): Promise<void> => {
+    // First, delete associated payroll records
     await deletePayrollForMonth(bsYear, bsMonth);
 
+    // Then, delete attendance records for that month
     const snapshot = await getDocs(attendanceCollection);
     const recordsToDelete = snapshot.docs.filter(doc => {
         const data = doc.data();
+        if (data.bsDate) {
+            const [year, month] = data.bsDate.split('-').map(Number);
+            return year === bsYear && month - 1 === bsMonth;
+        }
         if (data.date && !isNaN(new Date(data.date).getTime())) {
-            const nepaliDate = new NepaliDate(new Date(data.date));
-            return nepaliDate.getYear() === bsYear && nepaliDate.getMonth() === bsMonth;
+            try {
+                const nepaliDate = new NepaliDate(new Date(data.date));
+                return nepaliDate.getYear() === bsYear && nepaliDate.getMonth() === bsMonth;
+            } catch {
+                return false;
+            }
         }
         return false;
     });
