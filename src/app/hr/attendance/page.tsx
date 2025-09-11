@@ -256,7 +256,9 @@ export default function AttendancePage() {
         
         if (allJsonDataForPeriod.length > 1) { // Has headers + at least one data row
             await addAttendanceAndPayrollRecords(
-                allJsonDataForPeriod, employees, user.username, bsYear, bsMonth,
+                allJsonDataForPeriod[0], // headerRow
+                allJsonDataForPeriod.slice(1), // dataRows
+                employees, user.username, bsYear, bsMonth,
                 (progress) => {
                     setImportProgress(`${processedCount + progress}/${totalRecordsToProcess}`);
                 }
@@ -424,16 +426,16 @@ export default function AttendancePage() {
           <TableBody>
             {filteredAndSortedRecords.map(record => (
               <TableRow key={record.id}>
-                <TableCell className="font-medium">{record.date ? formatDate(new Date(record.date), 'yyyy-MM-dd') : 'Invalid'}</TableCell>
+                <TableCell className="font-medium">{record.date ? formatDate(new Date(record.date), 'yyyy-MM-dd') : '-'}</TableCell>
                 <TableCell>{record.bsDate}</TableCell>
-                <TableCell>{record.date ? weekdays[getDay(new Date(record.date))] : 'N/A'}</TableCell>
+                <TableCell>{record.date ? weekdays[getDay(new Date(record.date))] : '-'}</TableCell>
                 <TableCell>{record.employeeName}</TableCell>
                  <TableCell><Badge variant={getAttendanceBadgeVariant(record.status)}>{record.status}</Badge></TableCell>
                 <TableCell>{formatTimeForDisplay(record.onDuty)} / {formatTimeForDisplay(record.offDuty)}</TableCell>
                 <TableCell>{formatTimeForDisplay(record.clockIn)} / {formatTimeForDisplay(record.clockOut)}</TableCell>
                 <TableCell>{(record.regularHours || 0).toFixed(1)}</TableCell>
                 <TableCell>{(record.overtimeHours || 0).toFixed(1)}</TableCell>
-                <TableCell>{record.remarks}</TableCell>
+                <TableCell>{record.remarks === 'Used imported hours' ? '' : record.remarks}</TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
                       <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
