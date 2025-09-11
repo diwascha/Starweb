@@ -171,6 +171,27 @@ export const deleteAttendanceForMonth = async (bsYear: number, bsMonth: number):
     }
 };
 
+export const deleteAllAttendance = async (): Promise<void> => {
+    const attendanceSnapshot = await getDocs(attendanceCollection);
+    const payrollSnapshot = await getDocs(collection(db, 'payroll'));
+
+    const allDocsToDelete = [...attendanceSnapshot.docs, ...payrollSnapshot.docs];
+
+    if (allDocsToDelete.length === 0) {
+        return;
+    }
+
+    const CHUNK_SIZE = 400;
+    for (let i = 0; i < allDocsToDelete.length; i += CHUNK_SIZE) {
+        const chunk = allDocsToDelete.slice(i, i + CHUNK_SIZE);
+        const batch = writeBatch(db);
+        chunk.forEach(doc => {
+            batch.delete(doc.ref);
+        });
+        await batch.commit();
+    }
+};
+
 
 
 export const onAttendanceUpdate = (callback: (records: AttendanceRecord[]) => void): () => void => {

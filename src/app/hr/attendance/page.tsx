@@ -13,7 +13,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Badge } from '@/components/ui/badge';
 import { getDay } from 'date-fns';
 import { onEmployeesUpdate, addEmployee } from '@/services/employee-service';
-import { updateAttendanceRecord, deleteAttendanceRecord, deleteAttendanceForMonth, getAttendanceForMonth, getAttendanceYears, addAttendanceRecords } from '@/services/attendance-service';
+import { updateAttendanceRecord, deleteAttendanceRecord, deleteAttendanceForMonth, getAttendanceForMonth, getAttendanceYears, addAttendanceRecords, deleteAllAttendance } from '@/services/attendance-service';
 import { getAttendanceBadgeVariant, cn, formatTimeForDisplay, toNepaliDate } from '@/lib/utils';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -305,6 +305,20 @@ export default function AttendancePage() {
         toast({ title: 'Cleanup Failed', description: 'Could not remove the monthly data.', variant: 'destructive' });
     }
   };
+  
+  const handleClearAllData = async () => {
+    try {
+        await deleteAllAttendance();
+        await fetchAttendanceData(); // Refetch data, which will be empty
+        setBsYears([]);
+        setSelectedBsYear('');
+        setSelectedBsMonth('');
+        toast({ title: 'Cleanup Successful', description: 'All attendance and payroll data has been removed.' });
+    } catch (error) {
+        console.error("Failed to clear all data:", error);
+        toast({ title: 'Cleanup Failed', description: 'Could not remove all data.', variant: 'destructive' });
+    }
+  }
 
   const requestSort = (key: SortKey) => {
     let direction: SortDirection = 'asc';
@@ -478,7 +492,7 @@ export default function AttendancePage() {
                 <Select value={selectedBsYear} onValueChange={setSelectedBsYear}><SelectTrigger className="w-full sm:w-[120px]"><SelectValue placeholder="Year (BS)" /></SelectTrigger><SelectContent>{bsYears.map(year => (<SelectItem key={year} value={String(year)}>{year}</SelectItem>))}</SelectContent></Select>
                 <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth}><SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Month (BS)" /></SelectTrigger><SelectContent>{nepaliMonths.map(month => (<SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>))}</SelectContent></Select>
                 <Select value={filterEmployeeName} onValueChange={setFilterEmployeeName}><SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Select Employee" /></SelectTrigger><SelectContent>{uniqueEmployeeNames.map(name => (<SelectItem key={name} value={name}>{name}</SelectItem>))}</SelectContent></Select>
-                <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as 'All' | AttendanceStatus)}><SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Select Status" /></SelectTrigger><SelectContent>{allPossibleStatuses.map(status => (<SelectItem key={status} value={status}>{status}</SelectItem>))}</SelectContent></Select>
+                <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as 'All' | AttendanceStatus)}><SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Select Status" /></SelectTrigger><SelectContent>{allPossibleStatuses.filter(s => s).map(status => (<SelectItem key={status} value={status}>{status}</SelectItem>))}</SelectContent></Select>
                 <AlertDialog>
                         <AlertDialogTrigger asChild>
                             <Button variant="destructive-outline"><Trash2 className="mr-2 h-4 w-4" /> Delete Month Data</Button>
@@ -492,6 +506,23 @@ export default function AttendancePage() {
                             </AlertDialogHeader>
                             <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDeleteMonthData}>Confirm Delete</AlertDialogAction></AlertDialogFooter>
                         </AlertDialogContent>
+                </AlertDialog>
+                 <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="destructive"><Trash2 className="mr-2 h-4 w-4" /> Clear All Attendance Data</Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                This will permanently delete ALL attendance and payroll records from the database. This is irreversible and intended for starting fresh.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleClearAllData}>Yes, delete everything</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
                 </AlertDialog>
             </div>
         )}
