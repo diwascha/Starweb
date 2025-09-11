@@ -197,11 +197,11 @@ const getHeaderMap = (headerRow: string[]) => {
         otPay: ['ot'],
         totalPay: ['total'],
         absentDays: ['absent'],
-        deduction: ['deduction'],
+        deduction: ['deduction', 'absent amt.'],
         allowance: ['extra'],
         bonus: ['bonus'],
         salaryTotal: ['salary total'],
-        tds: ['tds'],
+        tds: ['tds', 'tds (1%)'],
         gross: ['gross'],
         advance: ['advance'],
         netPayment: ['net payment'],
@@ -227,7 +227,9 @@ export const importPayrollFromSheet = async (
     bsYear: number,
     bsMonth: number
 ): Promise<{ createdCount: number, updatedCount: number }> => {
-    const PAYROLL_START_COL = 16; // Column Q is index 16
+    // Column Q is index 16, Column AE is index 30. Slice will get columns 16 up to (but not including) 31.
+    const PAYROLL_START_COL = 16;
+    const PAYROLL_END_COL = 31;
 
     const fullHeaderRow = jsonData[0];
     const dataRows = jsonData.slice(1);
@@ -236,14 +238,16 @@ export const importPayrollFromSheet = async (
     if (nameIndex === -1) {
         throw new Error("Required column 'Name' not found in the sheet.");
     }
-    
-    const payrollHeaderSlice = fullHeaderRow.slice(PAYROLL_START_COL);
+
+    // --- CRITICAL FIX: Slice the header row to only include payroll columns ---
+    const payrollHeaderSlice = fullHeaderRow.slice(PAYROLL_START_COL, PAYROLL_END_COL);
     const headerMap = getHeaderMap(payrollHeaderSlice);
     
     const requiredHeaders = ['regularPay', 'netPayment'];
     const missingHeaders = requiredHeaders.filter(h => headerMap[h] === undefined);
     if (missingHeaders.length > 0) {
-        throw new Error(`Required payroll columns (${missingHeaders.join(', ')}) not found in the expected range (starting from column Q). Please check the Excel file format.`);
+        const availableHeaders = payrollHeaderSlice.map(h => `"${h}"`).join(', ');
+        throw new Error(`Required payroll columns (e.g., 'Norman', 'Net Payment') not found. Found these headers in the payroll section (Q-AE): ${availableHeaders}`);
     }
     
     const BATCH_LIMIT = 400;
@@ -261,11 +265,13 @@ export const importPayrollFromSheet = async (
         const employee = employeeMap.get(employeeName.toLowerCase());
         if (!employee) continue;
 
-        const payrollRowSlice = fullRow.slice(PAYROLL_START_COL);
+        // --- CRITICAL FIX: Slice the data row to match the payroll header slice ---
+        const payrollRowSlice = fullRow.slice(PAYROLL_START_COL, PAYROLL_END_COL);
 
         const rawImportData: Record<string, any> = {};
         payrollHeaderSlice.forEach((header, index) => {
              const value = payrollRowSlice[index];
+             // Ensure undefined becomes null for Firestore
              rawImportData[String(header || `column_${index}`)] = value === undefined || value === null ? null : value;
         });
         
