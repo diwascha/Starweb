@@ -190,11 +190,10 @@ const getHeaderMap = (headerRow: string[]) => {
     const normalizedHeaders = headerRow.map(h => String(h || '').trim().toLowerCase());
     const headerMap: { [key: string]: number } = {};
     const columnMappings: { [key: string]: string[] } = {
-        // Mapping based on the user's provided image
         otHours: ['ot hour'],
         regularHours: ['normal hrs'],
         rate: ['rate'],
-        regularPay: ['norman', 'normal pay'], // Excel has 'Norman'
+        regularPay: ['norman', 'normal pay'],
         otPay: ['ot'],
         totalPay: ['total'],
         absentDays: ['absent'],
@@ -228,21 +227,23 @@ export const importPayrollFromSheet = async (
     bsYear: number,
     bsMonth: number
 ): Promise<{ createdCount: number, updatedCount: number }> => {
-    const PAYROLL_START_COL = 16; // Column Q
-    const PAYROLL_END_COL = 31;   // Column AE+1
+    const PAYROLL_START_COL = 16; // Column Q is index 16
 
-    const headerRow = jsonData[0].slice(PAYROLL_START_COL, PAYROLL_END_COL);
+    const fullHeaderRow = jsonData[0];
     const dataRows = jsonData.slice(1);
     
-    const nameIndex = jsonData[0].map(h => String(h).toLowerCase()).indexOf('name');
+    const nameIndex = fullHeaderRow.map(h => String(h || '').trim().toLowerCase()).indexOf('name');
     if (nameIndex === -1) {
         throw new Error("Required column 'Name' not found in the sheet.");
     }
     
-    const headerMap = getHeaderMap(headerRow);
+    const payrollHeaderSlice = fullHeaderRow.slice(PAYROLL_START_COL);
+    const headerMap = getHeaderMap(payrollHeaderSlice);
     
-    if (headerMap.netPayment === undefined || headerMap.regularPay === undefined) {
-        throw new Error("Required payroll columns (e.g., 'Net Payment', 'Norman') not found between columns Q and AE.");
+    const requiredHeaders = ['regularPay', 'netPayment'];
+    const missingHeaders = requiredHeaders.filter(h => headerMap[h] === undefined);
+    if (missingHeaders.length > 0) {
+        throw new Error(`Required payroll columns (${missingHeaders.join(', ')}) not found in the expected range (starting from column Q). Please check the Excel file format.`);
     }
     
     const BATCH_LIMIT = 400;
@@ -260,16 +261,16 @@ export const importPayrollFromSheet = async (
         const employee = employeeMap.get(employeeName.toLowerCase());
         if (!employee) continue;
 
-        const payrollRowSlice = fullRow.slice(PAYROLL_START_COL, PAYROLL_END_COL);
+        const payrollRowSlice = fullRow.slice(PAYROLL_START_COL);
 
         const rawImportData: Record<string, any> = {};
-        headerRow.forEach((header, index) => {
+        payrollHeaderSlice.forEach((header, index) => {
              const value = payrollRowSlice[index];
              rawImportData[String(header || `column_${index}`)] = value === undefined || value === null ? null : value;
         });
-
-        const regularHours = Number(payrollRowSlice[headerMap.regularHours] || 0);
-        const otHours = Number(payrollRowSlice[headerMap.otHours] || 0);
+        
+        const regularHours = Number(rawImportData['Normal Hrs'] || 0);
+        const otHours = Number(rawImportData['OT Hour'] || 0);
 
         const payrollData: Omit<Payroll, 'id'> = {
             bsYear, bsMonth,
@@ -279,20 +280,20 @@ export const importPayrollFromSheet = async (
             totalHours: regularHours + otHours,
             otHours: otHours,
             regularHours: regularHours,
-            rate: Number(payrollRowSlice[headerMap.rate] || 0),
-            regularPay: Number(payrollRowSlice[headerMap.regularPay] || 0),
-            otPay: Number(payrollRowSlice[headerMap.otPay] || 0),
-            totalPay: Number(payrollRowSlice[headerMap.totalPay] || 0),
-            absentDays: Number(payrollRowSlice[headerMap.absentDays] || 0),
-            deduction: Number(payrollRowSlice[headerMap.deduction] || 0),
-            allowance: Number(payrollRowSlice[headerMap.allowance] || 0),
-            bonus: Number(payrollRowSlice[headerMap.bonus] || 0),
-            salaryTotal: Number(payrollRowSlice[headerMap.salaryTotal] || 0),
-            tds: Number(payrollRowSlice[headerMap.tds] || 0),
-            gross: Number(payrollRowSlice[headerMap.gross] || 0),
-            advance: Number(payrollRowSlice[headerMap.advance] || 0),
-            netPayment: Number(payrollRowSlice[headerMap.netPayment] || 0),
-            remark: payrollRowSlice[headerMap.remark] || '',
+            rate: Number(payrollRowSlice[headerMap.rate] ?? 0),
+            regularPay: Number(payrollRowSlice[headerMap.regularPay] ?? 0),
+            otPay: Number(payrollRowSlice[headerMap.otPay] ?? 0),
+            totalPay: Number(payrollRowSlice[headerMap.totalPay] ?? 0),
+            absentDays: Number(payrollRowSlice[headerMap.absentDays] ?? 0),
+            deduction: Number(payrollRowSlice[headerMap.deduction] ?? 0),
+            allowance: Number(payrollRowSlice[headerMap.allowance] ?? 0),
+            bonus: Number(payrollRowSlice[headerMap.bonus] ?? 0),
+            salaryTotal: Number(payrollRowSlice[headerMap.salaryTotal] ?? 0),
+            tds: Number(payrollRowSlice[headerMap.tds] ?? 0),
+            gross: Number(payrollRowSlice[headerMap.gross] ?? 0),
+            advance: Number(payrollRowSlice[headerMap.advance] ?? 0),
+            netPayment: Number(payrollRowSlice[headerMap.netPayment] ?? 0),
+            remark: String(payrollRowSlice[headerMap.remark] || ''),
             createdBy: importedBy,
             createdAt: new Date().toISOString(),
             rawImportData: rawImportData
