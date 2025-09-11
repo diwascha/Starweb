@@ -202,12 +202,12 @@ const getHeaderMap = (headerRow: any[]): { [key: string]: number } => {
         otHours: ['ot hour'],
         regularHours: ['normal hrs'],
         rate: ['rate'],
-        regularPay: ['norman'], // Mapped from 'Norman'
+        regularPay: ['norman'],
         otPay: ['ot'],
         totalPay: ['total'],
         absentDays: ['absent'],
-        deduction: ['deduction'], // Mapped from 'Deduction'
-        allowance: ['extra'], // Mapped from 'Extra'
+        deduction: ['deduction'],
+        allowance: ['extra'],
         bonus: ['bonus'],
         salaryTotal: ['salary total'],
         tds: ['tds'],
@@ -230,10 +230,18 @@ const getHeaderMap = (headerRow: any[]): { [key: string]: number } => {
     const missingHeaders = requiredHeaders.filter(h => !(h in map));
 
     if (missingHeaders.length > 0) {
-        throw new Error(`Required payroll columns (e.g., 'Net Payment', 'Norman') not found. Please check the Excel file headers.`);
+        throw new Error(`Required payroll columns not found. Missing: ${missingHeaders.join(', ')}. Please check the Excel file headers.`);
     }
 
     return map;
+};
+
+const safeParseFloat = (value: any): number => {
+    if (value === null || value === undefined || value === '') {
+        return 0;
+    }
+    const num = parseFloat(String(value));
+    return isNaN(num) ? 0 : num;
 };
 
 
@@ -277,35 +285,35 @@ export const importPayrollFromSheet = async (
             return val === undefined || val === null || val === '' ? null : val;
         };
         
-        const otHours = Number(getValue('otHours') || 0);
-        const regularHours = Number(getValue('regularHours') || 0);
+        const otHours = safeParseFloat(getValue('otHours'));
+        const regularHours = safeParseFloat(getValue('regularHours'));
         
         const payrollData: Omit<Payroll, 'id'> = {
             bsYear, bsMonth,
             employeeId: employee.id,
             employeeName,
             joiningDate: employee.joiningDate || undefined,
-            totalHours: regularHours + otHours, // Calculated
+            totalHours: regularHours + otHours,
             otHours: otHours,
             regularHours: regularHours,
-            rate: Number(getValue('rate') || 0),
-            regularPay: Number(getValue('regularPay') || 0),
-            otPay: Number(getValue('otPay') || 0),
-            totalPay: Number(getValue('totalPay') || 0),
-            absentDays: Number(getValue('absentDays') || 0),
-            deduction: Number(getValue('deduction') || 0),
-            allowance: Number(getValue('allowance') || 0),
-            bonus: Number(getValue('bonus') || 0),
-            salaryTotal: Number(getValue('salaryTotal') || 0),
-            tds: Number(getValue('tds') || 0),
-            gross: Number(getValue('gross') || 0),
-            advance: Number(getValue('advance') || 0),
-            netPayment: Number(getValue('netPayment') || 0),
+            rate: safeParseFloat(getValue('rate')),
+            regularPay: safeParseFloat(getValue('regularPay')),
+            otPay: safeParseFloat(getValue('otPay')),
+            totalPay: safeParseFloat(getValue('totalPay')),
+            absentDays: safeParseFloat(getValue('absentDays')),
+            deduction: safeParseFloat(getValue('deduction')),
+            allowance: safeParseFloat(getValue('allowance')),
+            bonus: safeParseFloat(getValue('bonus')),
+            salaryTotal: safeParseFloat(getValue('salaryTotal')),
+            tds: safeParseFloat(getValue('tds')),
+            gross: safeParseFloat(getValue('gross')),
+            advance: safeParseFloat(getValue('advance')),
+            netPayment: safeParseFloat(getValue('netPayment')),
             remark: String(getValue('remark') || ''),
             createdBy: importedBy,
             createdAt: new Date().toISOString(),
             rawImportData: headerRow.reduce((obj, header, index) => {
-                obj[header] = fullRow[index];
+                obj[String(header || `col_${index}`)] = fullRow[index];
                 return obj;
             }, {} as Record<string, any>)
         };
@@ -432,3 +440,5 @@ export const generateAnalyticsForMonth = (
 
     return { punctuality, behavior, patterns, workforce };
 };
+
+    
