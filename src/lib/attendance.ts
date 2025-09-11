@@ -7,7 +7,8 @@ import {
   startOfDay
 } from 'date-fns';
 import NepaliDate from 'nepali-date-converter';
-import type { AttendanceStatus, RawAttendanceRow } from './types';
+import type { AttendanceStatus, RawAttendanceRow, Employee } from './types';
+import { addEmployee } from '@/services/employee-service';
 
 /* =========================
    Types
@@ -77,59 +78,90 @@ function parseTimeToString(timeInput: any): string | null {
 /* =========================
    Core calculator
    ========================= */
-export function processAttendanceImport(headerRow: string[], dataRows: any[][], bsYear: number, bsMonth: number): CalcAttendanceRow[] {
+export async function processAttendanceImport(
+    headerRow: string[], 
+    dataRows: any[][], 
+    bsYear: number, 
+    bsMonth: number,
+    existingEmployees: Employee[],
+    importedBy: string
+): Promise<{ processedData: CalcAttendanceRow[], newEmployees: string[] }> {
     
     const normalizedHeaders = headerRow.map(h => String(h || '').trim().toLowerCase());
     
-    const headerMapConfig: { [key in keyof RawAttendanceRow]: string } = {
-        employeeName: 'name',
-        day: 'day',
-        mitiBS: 'bs date',
-        dateAD: 'date',
-        onDuty: 'on duty',
-        offDuty: 'off duty',
-        clockIn: 'clock in',
-        clockOut: 'clock out',
-        status: 'status', 
-        normalHours: 'normal hrs',
-        otHours: 'ot hour',
-        totalHours: 'total hour',
-        remarks: 'remarks',
-        rate: 'rate',
-        regularPay: 'norman',
-        otPay: 'ot',
-        totalPay: 'total pay',
-        absentDays: 'absent days',
-        deduction: 'deduction',
-        allowance: 'extra',
-        bonus: 'bonus',
-        salaryTotal: 'salary total',
-        tds: 'tds',
-        gross: 'gross',
-        advance: 'advance',
-        netPayment: 'net payment',
-        payrollRemark: 'remark',
-        sourceSheet: 'sourceSheet', // Added to satisfy type, not mapped from excel
+    const headerVariations: { [key in keyof RawAttendanceRow]?: string[] } = {
+        employeeName: ['name'],
+        day: ['day'],
+        mitiBS: ['bs date', 'miti'],
+        dateAD: ['date'],
+        onDuty: ['on duty'],
+        offDuty: ['off duty'],
+        clockIn: ['clock in'],
+        clockOut: ['clock out'],
+        status: ['status'],
+        normalHours: ['normal', 'regular hours', 'normal hours'],
+        otHours: ['ot', 'ot hours'],
+        totalHours: ['total hour', 'total hours'],
+        remarks: ['remarks'],
+        rate: ['rate'],
+        regularPay: ['norman', 'regular pay'],
+        otPay: ['ot pay'],
+        totalPay: ['total pay'],
+        absentDays: ['absent days', 'absent'],
+        deduction: ['deduction'],
+        allowance: ['extra', 'allowance'],
+        bonus: ['bonus'],
+        salaryTotal: ['salary total'],
+        tds: ['tds'],
+        gross: ['gross'],
+        advance: ['advance'],
+        netPayment: ['net payment'],
+        payrollRemark: ['remark'],
     };
-
+    
     const headerMap: { [key: string]: number } = {};
-    for (const key in headerMapConfig) {
-        const headerName = headerMapConfig[key as keyof RawAttendanceRow]!;
-        const index = normalizedHeaders.indexOf(headerName);
-        if (index !== -1) {
-            headerMap[key] = index;
+    for (const key in headerVariations) {
+        const variations = headerVariations[key as keyof RawAttendanceRow]!;
+        for (const variation of variations) {
+            const index = normalizedHeaders.indexOf(variation);
+            if (index !== -1) {
+                headerMap[key] = index;
+                break;
+            }
         }
     }
-
-    if (headerMap.employeeName === undefined) {
-      throw new Error("Import failed: Missing required 'Name' column.");
+    
+    const requiredHeaders: (keyof RawAttendanceRow)[] = ['employeeName'];
+    const missingHeaders = requiredHeaders.filter(h => headerMap[h] === undefined);
+    
+    if (missingHeaders.length > 0) {
+        throw new Error(`Import failed: Missing required columns: ${missingHeaders.join(', ')}. Please check your Excel file.`);
     }
 
-    return dataRows.map((rowArray): CalcAttendanceRow => {
+    const existingEmployeeNames = new Set(existingEmployees.map(emp => emp.name.toLowerCase()));
+    const newEmployees = new Set<string>();
+
+    const processedData = await Promise.all(dataRows.map(async (rowArray): Promise<CalcAttendanceRow | null> => {
         const row: RawAttendanceRow = {};
         for (const key in headerMap) {
             const index = headerMap[key as keyof RawAttendanceRow]!;
             row[key as keyof RawAttendanceRow] = rowArray[index];
+        }
+
+        const employeeName = String(row.employeeName || '').trim();
+        if (!employeeName) return null;
+
+        // Check and add new employee if not exists
+        if (!existingEmployeeNames.has(employeeName.toLowerCase()) && !newEmployees.has(employeeName)) {
+            const newEmployee: Omit<Employee, 'id'> = { name: employeeName, wageBasis: 'Monthly', wageAmount: 0, createdBy: importedBy, createdAt: new Date().toISOString(), status: 'Working' };
+            try {
+                await addEmployee(newEmployee);
+                existingEmployeeNames.add(employeeName.toLowerCase());
+                newEmployees.add(employeeName);
+            } catch (e) {
+                console.error(`Failed to add new employee "${employeeName}":`, e);
+                return null;
+            }
         }
 
         let ad: Date | null = null;
@@ -204,7 +236,7 @@ export function processAttendanceImport(headerRow: string[], dataRows: any[][], 
 
         return {
           ...row,
-          employeeName: String(row.employeeName || '').trim(),
+          employeeName: employeeName,
           onDuty: parseTimeToString(row.onDuty), 
           offDuty: parseTimeToString(row.offDuty),
           clockIn: parseTimeToString(row.clockIn), 
@@ -217,7 +249,12 @@ export function processAttendanceImport(headerRow: string[], dataRows: any[][], 
           regularHours: +regular.toFixed(2),
           overtimeHours: +ot.toFixed(2),
           calcRemarks: row.remarks || '',
-          sourceSheet: row.sourceSheet || null, // Ensure sourceSheet is not undefined
+          sourceSheet: row.sourceSheet || null,
         };
-    });
+    }));
+    
+    return {
+        processedData: processedData.filter(item => item !== null) as CalcAttendanceRow[],
+        newEmployees: Array.from(newEmployees)
+    };
 }

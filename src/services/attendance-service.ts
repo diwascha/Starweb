@@ -42,14 +42,13 @@ export const addAttendanceAndPayrollRecords = async (
     importedBy: string, 
     bsYear: number,
     bsMonth: number,
-    sourceSheetName: string,
     onProgress: (progress: number) => void
-): Promise<{ attendanceCount: number, payrollCount: number }> => {
+): Promise<{ attendanceCount: number, payrollCount: number, newEmployees: string[] }> => {
     const CHUNK_SIZE = 400;
     
     const headerRow = jsonData[0];
     const dataRows = jsonData.slice(1);
-    const processedData = processAttendanceImport(headerRow, dataRows, bsYear, bsMonth);
+    const { processedData, newEmployees } = await processAttendanceImport(headerRow, dataRows, bsYear, bsMonth, employees, importedBy);
     
     // 1. Add Attendance Records
     const newAttendanceRecords = processedData
@@ -68,7 +67,7 @@ export const addAttendanceAndPayrollRecords = async (
         regularHours: p.regularHours,
         remarks: p.calcRemarks || null, 
         importedBy: importedBy, 
-        sourceSheet: sourceSheetName || null,
+        sourceSheet: p.sourceSheet || null,
     }));
     
     let processedCount = 0;
@@ -87,9 +86,10 @@ export const addAttendanceAndPayrollRecords = async (
     // 2. Add Payroll Records
     const payrollRecords: Omit<Payroll, 'id'>[] = [];
     const createdPayrollEntries = new Set<string>(); // To avoid duplicates: 'employeeId-year-month'
+    const allEmployees = [...employees, ...newEmployees.map(name => ({ id: '', name, wageBasis: 'Monthly', wageAmount: 0, createdBy: importedBy, createdAt: new Date().toISOString(), status: 'Working' } as Employee))];
 
     for (const row of processedData) { 
-        const employee = employees.find(e => e.name === row.employeeName);
+        const employee = allEmployees.find(e => e.name === row.employeeName);
         if (!employee) continue;
 
         const payrollKey = `${employee.id}-${bsYear}-${bsMonth}`;
@@ -136,7 +136,7 @@ export const addAttendanceAndPayrollRecords = async (
         await addPayrollRecords(payrollRecords);
     }
 
-    return { attendanceCount: newAttendanceRecords.length, payrollCount: payrollRecords.length };
+    return { attendanceCount: newAttendanceRecords.length, payrollCount: payrollRecords.length, newEmployees: Array.from(newEmployees) };
 };
 
 

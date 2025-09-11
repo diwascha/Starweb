@@ -188,14 +188,10 @@ export default function AttendancePage() {
     }
     
     setIsSheetSelectDialogOpen(false);
-
-    const sheetsToProcess = availableSheets.filter(sheet => selectedSheets.some(s => s.name === sheet.name));
-    const totalRecordsToProcess = sheetsToProcess.reduce((sum, sheet) => sum + sheet.rowCount, 0);
-    setImportProgress(`0/${totalRecordsToProcess}`);
+    setImportProgress(`Starting...`);
 
     const existingEmployeeNames = new Set(employees.map(emp => emp.name.toLowerCase()));
     const newlyAddedEmployees = new Set<string>();
-    let totalSkippedRows = 0;
     
     const groupedByPeriod: Record<string, { sheetInfos: SheetInfo[], bsYear: number, bsMonth: number }> = {};
 
@@ -214,58 +210,45 @@ export default function AttendancePage() {
         }
     }
     
-    let processedCount = 0;
+    let totalProcessed = 0;
+    let totalSkipped = 0;
 
     for (const periodKey in groupedByPeriod) {
         const group = groupedByPeriod[periodKey];
         const { sheetInfos, bsYear, bsMonth } = group;
 
-        for (const sheet of sheetInfos) {
-            const jsonData = sheet.jsonData;
-            const dataRows = jsonData.slice(1);
-            
-            for (const row of dataRows) {
-                const employeeName = row[0] ? String(row[0]).trim() : '';
-                
-                if (!employeeName) {
-                    totalSkippedRows++;
-                    continue;
-                }
-                
-                if (!existingEmployeeNames.has(employeeName.toLowerCase()) && !newlyAddedEmployees.has(employeeName)) {
-                     const newEmployee: Omit<Employee, 'id'> = { name: employeeName, wageBasis: 'Monthly', wageAmount: 0, createdBy: user.username, createdAt: new Date().toISOString(), status: 'Working' };
-                    try {
-                        await addEmployee(newEmployee);
-                        existingEmployeeNames.add(employeeName.toLowerCase());
-                        newlyAddedEmployees.add(employeeName);
-                    } catch (e) {
-                        console.error("Failed to add new employee:", e);
-                        totalSkippedRows++;
-                        continue;
-                    }
-                }
-            }
-            
-            if (jsonData.length > 1) { // Has headers + at least one data row
-                await addAttendanceAndPayrollRecords(
-                    jsonData,
-                    employees, 
-                    user.username, 
-                    bsYear, 
-                    bsMonth,
-                    sheet.name,
+        const allJsonDataForPeriod = sheetInfos.reduce((acc, sheet) => {
+            if (acc.length === 0) return sheet.jsonData;
+            return [...acc, ...sheet.jsonData.slice(1)]; // Append data rows only
+        }, [] as any[][]);
+
+        if (allJsonDataForPeriod.length > 1) { // Has headers + at least one data row
+             try {
+                const result = await addAttendanceAndPayrollRecords(
+                    allJsonDataForPeriod,
+                    employees, user.username, bsYear, bsMonth,
                     (progress) => {
-                        setImportProgress(`${processedCount + progress}/${totalRecordsToProcess}`);
+                        setImportProgress(`Processing ${progress} records...`);
                     }
                 );
-                processedCount += jsonData.length - 1; // Subtract header
+                totalProcessed += result.attendanceCount;
+                newlyAddedEmployees.add(...(result.newEmployees || [])); // Assuming service returns new employees
+            } catch (error: any) {
+                toast({
+                    title: 'Import Error',
+                    description: error.message || 'An unexpected error occurred during import.',
+                    variant: 'destructive',
+                    duration: 8000
+                });
+                setImportProgress(null);
+                return;
             }
         }
     }
     
-    let description = `${processedCount} records processed.`;
+    let description = `${totalProcessed} records imported.`;
     if (newlyAddedEmployees.size > 0) description += ` ${newlyAddedEmployees.size} new employees added.`;
-    if (totalSkippedRows > 0) description += ` ${totalSkippedRows} rows were skipped.`;
+    if (totalSkipped > 0) description += ` ${totalSkipped} rows were skipped.`;
     
     toast({ title: 'Import Complete', description, duration: 8000 });
     const years = await getAttendanceYears();
@@ -431,7 +414,7 @@ export default function AttendancePage() {
                 <TableCell>{formatTimeForDisplay(record.clockIn)} / {formatTimeForDisplay(record.clockOut)}</TableCell>
                 <TableCell>{(record.regularHours || 0).toFixed(1)}</TableCell>
                 <TableCell>{(record.overtimeHours || 0).toFixed(1)}</TableCell>
-                <TableCell>{record.remarks}</TableCell>
+                <TableCell>{record.remarks || ''}</TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
                       <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
