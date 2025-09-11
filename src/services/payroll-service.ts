@@ -178,6 +178,87 @@ export const calculateAndSavePayrollForMonth = async (
     return { employeeCount: payrollRecords.length };
 };
 
+export const importPayrollFromSheet = async (
+    data: any[],
+    importedBy: string
+): Promise<{ createdCount: number, updatedCount: number }> => {
+    const BATCH_LIMIT = 400; // Leave some buffer
+    let batch = writeBatch(db);
+    let writeCount = 0;
+    let createdCount = 0;
+    let updatedCount = 0;
+
+    for (const row of data) {
+        const bsYear = Number(row['BS Year']);
+        const bsMonth = Number(row['BS Month']);
+        const employeeId = row['employeeId'];
+
+        if (!employeeId || isNaN(bsYear) || isNaN(bsMonth)) continue;
+
+        const q = query(payrollCollection,
+            where("employeeId", "==", employeeId),
+            where("bsYear", "==", bsYear),
+            where("bsMonth", "==", bsMonth),
+            limit(1)
+        );
+
+        const snapshot = await getDocs(q);
+        
+        const payrollData: Omit<Payroll, 'id'> = {
+            bsYear: bsYear,
+            bsMonth: bsMonth,
+            employeeId: employeeId,
+            employeeName: row['Name'],
+            joiningDate: row['Joining Date'],
+            totalHours: Number(row['Total Hours'] || 0),
+            otHours: Number(row['OT Hours'] || 0),
+            regularHours: Number(row['Normal Hours'] || 0),
+            rate: Number(row['Rate'] || 0),
+            regularPay: Number(row['Regular Pay'] || 0),
+            otPay: Number(row['OT Pay'] || 0),
+            totalPay: Number(row['Total Pay'] || 0),
+            absentDays: Number(row['Absent Days'] || 0),
+            deduction: Number(row['Absent Amt.'] || 0),
+            allowance: Number(row['Allowance'] || 0),
+            bonus: Number(row['Bonus'] || 0),
+            salaryTotal: Number(row['Salary Total'] || 0),
+            tds: Number(row['TDS (1%)'] || 0),
+            gross: Number(row['Gross'] || 0),
+            advance: Number(row['Advance'] || 0),
+            netPayment: Number(row['Net Payment'] || 0),
+            remark: row['Remark'] || '',
+            createdBy: importedBy,
+            createdAt: new Date().toISOString(),
+            rawImportData: row,
+        };
+
+        if (snapshot.empty) {
+            // Create new
+            const docRef = doc(payrollCollection);
+            batch.set(docRef, payrollData);
+            createdCount++;
+        } else {
+            // Update existing
+            const docRef = snapshot.docs[0].ref;
+            batch.update(docRef, payrollData);
+            updatedCount++;
+        }
+        
+        writeCount++;
+        if (writeCount >= BATCH_LIMIT) {
+            await batch.commit();
+            batch = writeBatch(db);
+            writeCount = 0;
+        }
+    }
+
+    if (writeCount > 0) {
+        await batch.commit();
+    }
+
+    return { createdCount, updatedCount };
+};
+
 
 export interface AnalyticsData {
     punctuality: PunctualityInsight[];
