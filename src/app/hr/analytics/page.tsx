@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -104,7 +103,7 @@ export default function AnalyticsPage() {
         XLSX.utils.book_append_sheet(workbook, workforceSheet, "Workforce");
         XLSX.utils.book_append_sheet(workbook, patternSheet, "Patterns");
         
-        XLSX.writeFile(workbook, `Analytics-${selectedBsYear}-${nepaliMonths[parseInt(selectedBsMonth)].name}.xlsx`);
+        XLSX.writeFile(workbook, `Analytics-${selectedBsYear}-${nepaliMonths.find(m => m.value.toString() === selectedBsMonth)?.name || selectedBsMonth}.xlsx`);
     };
 
     return (
@@ -129,7 +128,7 @@ export default function AnalyticsPage() {
                                 <SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Month (BS)" /></SelectTrigger>
                                 <SelectContent>{nepaliMonths.map(month => <SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>)}</SelectContent>
                             </Select>
-                             <Button onClick={handleGenerateAnalytics} disabled={isProcessing || !selectedBsYear || !selectedBsMonth}>
+                             <Button onClick={handleGenerateAnalytics} disabled={isProcessing || !selectedBsYear || selectedBsMonth === ''}>
                                 {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                 Generate
                             </Button>
@@ -144,7 +143,7 @@ export default function AnalyticsPage() {
                         <div>
                             <CardTitle>Analytics Report</CardTitle>
                             <CardDescription>
-                                For {nepaliMonths[parseInt(selectedBsMonth)]?.name}, {selectedBsYear}
+                                For {nepaliMonths.find(m => m.value.toString() === selectedBsMonth)?.name || ''}, {selectedBsYear}
                             </CardDescription>
                         </div>
                         <Button variant="outline" onClick={handleExport}><Download className="mr-2 h-4 w-4"/> Export</Button>
