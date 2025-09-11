@@ -2,8 +2,7 @@
 import {
   format,
   isValid,
-  parse,
-  differenceInMinutes
+  parse
 } from 'date-fns';
 import NepaliDate from 'nepali-date-converter';
 import type { AttendanceStatus, RawAttendanceRow, Employee } from './types';
@@ -74,20 +73,27 @@ function parseTimeToString(timeInput: any): string | null {
 const parseExcelDate = (dateInput: any): Date | null => {
     if (!dateInput) return null;
     if (dateInput instanceof Date && isValid(dateInput)) return dateInput;
+
+    // Prioritize Excel's numeric date format (most reliable)
     if (typeof dateInput === 'number') {
-        // Excel date (serial number) to JS Date
+        // Excel date (serial number) to JS Date. 25569 is the offset between Excel's epoch and Unix's.
         const date = new Date((dateInput - 25569) * 86400 * 1000);
         if (isValid(date)) return date;
     }
+
     if (typeof dateInput === 'string') {
         const trimmedDate = dateInput.trim();
-        // Add more formats here as needed. Order can be important for ambiguous dates.
+        // A comprehensive list of formats to try, ordered from least ambiguous to most.
+        // This helps resolve cases like DD/MM vs MM/DD.
         const formatsToTry = [
             'yyyy-MM-dd', 
             'yyyy/MM/dd',
-            'dd/MM/yyyy', 
-            'MM/dd/yyyy', 
+            'dd-MMM-yyyy',
+            'MMMM d, yyyy',
+            'MM/dd/yyyy', // American format
+            'dd/MM/yyyy', // European/common format
             'dd-MM-yyyy',
+            'M/d/yy',
             'dd/MM/yy', 
             'MM/dd/yy'
         ];
@@ -97,7 +103,7 @@ const parseExcelDate = (dateInput: any): Date | null => {
                 if (isValid(parsed)) return parsed;
             } catch {}
         }
-        // Fallback to native date parsing which is good at guessing but can be inconsistent.
+        // Fallback to native date parsing as a last resort.
         const nativeParsed = new Date(trimmedDate);
         if (isValid(nativeParsed)) return nativeParsed;
     }
