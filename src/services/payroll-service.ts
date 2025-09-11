@@ -190,7 +190,8 @@ const getHeaderMap = (headerRow: string[]) => {
     const normalizedHeaders = headerRow.map(h => String(h || '').trim().toLowerCase());
     const headerMap: { [key: string]: number } = {};
     const columnMappings: { [key: string]: string[] } = {
-        employeeName: ['name'],
+        // This is the mapping for the PAYROLL section of the excel sheet.
+        // It should match the headers from column Q to AE.
         totalHours: ['total hour'],
         otHours: ['ot hour'],
         regularHours: ['normal hrs', 'normal hour'],
@@ -229,12 +230,23 @@ export const importPayrollFromSheet = async (
     bsYear: number,
     bsMonth: number
 ): Promise<{ createdCount: number, updatedCount: number }> => {
-    const headerRow = jsonData[0];
+    // Column Q is index 16, Column AE is index 30. Slice extracts up to, but not including, the end index. So we use 31.
+    const PAYROLL_START_COL = 16; // Q
+    const PAYROLL_END_COL = 31;   // AE+1
+
+    // Extract the header row and data rows, but only for the payroll columns.
+    const headerRow = jsonData[0].slice(PAYROLL_START_COL, PAYROLL_END_COL);
     const dataRows = jsonData.slice(1);
+    
+    const nameIndex = jsonData[0].map(h => String(h).toLowerCase()).indexOf('name');
+    if (nameIndex === -1) {
+        throw new Error("Required column 'Name' not found in the sheet.");
+    }
+    
     const headerMap = getHeaderMap(headerRow);
     
-    if (!headerMap.employeeName || headerMap.netPayment === undefined) {
-        throw new Error("Required columns 'Name' and 'Net Payment' not found in the sheet.");
+    if (headerMap.netPayment === undefined) {
+        throw new Error("Required payroll columns (e.g., 'Net Payment') not found between columns Q and AE.");
     }
     
     const BATCH_LIMIT = 400;
@@ -245,16 +257,19 @@ export const importPayrollFromSheet = async (
 
     const employeeMap = new Map(employees.map(e => [e.name.toLowerCase(), e]));
 
-    for (const row of dataRows) {
-        const employeeName = String(row[headerMap.employeeName] || '').trim();
+    for (const fullRow of dataRows) {
+        const employeeName = String(fullRow[nameIndex] || '').trim();
         if (!employeeName) continue;
 
         const employee = employeeMap.get(employeeName.toLowerCase());
         if (!employee) continue;
 
+        // Work only with the payroll slice of the data for this row
+        const payrollRowSlice = fullRow.slice(PAYROLL_START_COL, PAYROLL_END_COL);
+
         const rawImportData: Record<string, any> = {};
         headerRow.forEach((header, index) => {
-             const value = row[index];
+             const value = payrollRowSlice[index];
              rawImportData[String(header || `column_${index}`)] = value === undefined ? null : value;
         });
 
@@ -263,29 +278,32 @@ export const importPayrollFromSheet = async (
             employeeId: employee.id,
             employeeName,
             joiningDate: employee.joiningDate || null,
-            totalHours: Number(row[headerMap.otHours] || 0) + Number(row[headerMap.regularHours] || 0),
-            otHours: Number(row[headerMap.otHours] || 0),
-            regularHours: Number(row[headerMap.regularHours] || 0),
-            rate: Number(row[headerMap.rate] || 0),
-            regularPay: Number(row[headerMap.regularPay] || 0),
-            otPay: Number(row[headerMap.otPay] || 0),
-            totalPay: Number(row[headerMap.totalPay] || 0),
-            absentDays: Number(row[headerMap.absentDays] || 0),
-            deduction: Number(row[headerMap.deduction] || 0),
-            allowance: Number(row[headerMap.allowance] || 0),
-            bonus: Number(row[headerMap.bonus] || 0),
-            salaryTotal: Number(row[headerMap.salaryTotal] || 0),
-            tds: Number(row[headerMap.tds] || 0),
-            gross: Number(row[headerMap.gross] || 0),
-            advance: Number(row[headerMap.advance] || 0),
-            netPayment: Number(row[headerMap.netPayment] || 0),
-            remark: row[headerMap.remark] || '',
+            totalHours: Number(payrollRowSlice[headerMap.totalHours] || 0),
+            otHours: Number(payrollRowSlice[headerMap.otHours] || 0),
+            regularHours: Number(payrollRowSlice[headerMap.regularHours] || 0),
+            rate: Number(payrollRowSlice[headerMap.rate] || 0),
+            regularPay: Number(payrollRowSlice[headerMap.regularPay] || 0),
+            otPay: Number(payrollRowSlice[headerMap.otPay] || 0),
+            totalPay: Number(payrollRowSlice[headerMap.totalPay] || 0),
+            absentDays: Number(payrollRowSlice[headerMap.absentDays] || 0),
+            deduction: Number(payrollRowSlice[headerMap.deduction] || 0),
+            allowance: Number(payrollRowSlice[headerMap.allowance] || 0),
+            bonus: Number(payrollRowSlice[headerMap.bonus] || 0),
+            salaryTotal: Number(payrollRowSlice[headerMap.salaryTotal] || 0),
+            tds: Number(payrollRowSlice[headerMap.tds] || 0),
+            gross: Number(payrollRowSlice[headerMap.gross] || 0),
+            advance: Number(payrollRowSlice[headerMap.advance] || 0),
+            netPayment: Number(payrollRowSlice[headerMap.netPayment] || 0),
+            remark: payrollRowSlice[headerMap.remark] || '',
             createdBy: importedBy,
             createdAt: new Date().toISOString(),
             rawImportData: rawImportData
         };
         
-        payrollData.totalHours = payrollData.otHours + payrollData.regularHours;
+        // Recalculate total hours just in case it's not in the sheet
+        if (!payrollData.totalHours) {
+            payrollData.totalHours = payrollData.otHours + payrollData.regularHours;
+        }
 
         const q = query(payrollCollection,
             where("employeeId", "==", employee.id),
