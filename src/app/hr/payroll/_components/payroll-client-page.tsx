@@ -24,17 +24,9 @@ const nepaliMonths = [
 ];
 
 const customEmployeeOrder = [
-    "Tika Gurung",
-    "Anju Bista",
-    "Madhu Bhandari",
-    "Amrita Lama",
-    "sunil chaudhary",
-    "KUMAR SHRESTHA",
-    "Niroj Koirala",
-    "Binod Magar",
-    "SANDEEP CHAUDARY",
-    "SANGITA PYAKUREL",
-    "Sunita Gurung"
+    "Tika Gurung", "Anju Bista", "Madhu Bhandari", "Amrita Lama", "sunil chaudhary",
+    "KUMAR SHRESTHA", "Niroj Koirala", "Binod Magar", "SANDEEP CHAUDARY",
+    "SANGITA PYAKUREL", "Sunita Gurung"
 ];
 
 
@@ -49,39 +41,37 @@ export default function PayrollClientPage() {
     const { toast } = useToast();
     const { user } = useAuth();
 
-
     useEffect(() => {
-        const unsubPayroll = onPayrollUpdate(setAllPayroll);
+        setIsLoading(true);
+        const unsubPayroll = onPayrollUpdate((payrolls) => {
+            setAllPayroll(payrolls);
+
+            const years = Array.from(new Set(payrolls.map(p => p.bsYear))).sort((a, b) => b - a);
+            setBsYears(years);
+
+            if (years.length > 0) {
+                const currentNepaliDate = new NepaliDate();
+                const currentYear = currentNepaliDate.getYear();
+                const currentMonth = currentNepaliDate.getMonth();
+
+                const defaultYear = years.includes(currentYear) ? currentYear : years[0];
+                const monthsInDefaultYear = [...new Set(payrolls.filter(p => p.bsYear === defaultYear).map(p => p.bsMonth))].sort((a,b) => b-a);
+                
+                let defaultMonth: number;
+                if (defaultYear === currentYear && monthsInDefaultYear.includes(currentMonth)) {
+                    defaultMonth = currentMonth;
+                } else {
+                    defaultMonth = monthsInDefaultYear[0] ?? currentMonth;
+                }
+                
+                setSelectedBsYear(String(defaultYear));
+                setSelectedBsMonth(String(defaultMonth));
+            }
+            setIsLoading(false);
+        });
+
         return () => unsubPayroll();
     }, []);
-
-    useEffect(() => {
-        let isMounted = true;
-        setIsLoading(true);
-        getPayrollYears().then(years => {
-            if (isMounted) {
-                setBsYears(years);
-                if (years.length > 0) {
-                    // Set default selection only if not already set or if the current selection is invalid
-                    if (!selectedBsYear || !years.includes(parseInt(selectedBsYear, 10))) {
-                        const currentNepaliDate = new NepaliDate();
-                        const currentYear = currentNepaliDate.getYear();
-                        const currentMonth = currentNepaliDate.getMonth();
-
-                        const defaultYear = years.includes(currentYear) ? currentYear : years[0];
-                        setSelectedBsYear(String(defaultYear));
-
-                        // Check if there's data for the current month in the default year, otherwise pick the latest month
-                        const monthsInDefaultYear = [...new Set(allPayroll.filter(p => p.bsYear === defaultYear).map(p => p.bsMonth))];
-                        const defaultMonth = monthsInDefaultYear.includes(currentMonth) ? currentMonth : monthsInDefaultYear[monthsInDefaultYear.length - 1] ?? currentMonth;
-                        setSelectedBsMonth(String(defaultMonth));
-                    }
-                }
-                setIsLoading(false);
-            }
-        });
-        return () => { isMounted = false; };
-      }, [allPayroll, selectedBsYear]);
     
     const monthlyPayroll = useMemo(() => {
         if (!selectedBsYear || selectedBsMonth === '' || isLoading) return [];
