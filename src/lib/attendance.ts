@@ -81,10 +81,10 @@ const parseExcelDate = (dateInput: any): Date | null => {
     }
     if (typeof dateInput === 'string') {
         const trimmedDate = dateInput.trim();
-        // Add more formats here as needed
+        // Add more formats here as needed. Order can be important for ambiguous dates.
         const formatsToTry = [
             'yyyy-MM-dd', 
-            'yyyy/MM/dd', 
+            'yyyy/MM/dd',
             'dd/MM/yyyy', 
             'MM/dd/yyyy', 
             'dd-MM-yyyy',
@@ -97,7 +97,7 @@ const parseExcelDate = (dateInput: any): Date | null => {
                 if (isValid(parsed)) return parsed;
             } catch {}
         }
-        // Fallback to native date parsing
+        // Fallback to native date parsing which is good at guessing but can be inconsistent.
         const nativeParsed = new Date(trimmedDate);
         if (isValid(nativeParsed)) return nativeParsed;
     }
