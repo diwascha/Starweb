@@ -124,8 +124,8 @@ export default function PayrollClientPage() {
             'Name': p.employeeName,
             'Total Hours': p.totalHours, 'OT Hours': p.otHours, 'Normal Hours': p.regularHours,
             'Rate': p.rate, 'Regular Pay': p.regularPay, 'OT Pay': p.otPay, 'Total Pay': p.totalPay,
-            'Absent Days': p.absentDays, 'Deduction': p.deduction, 'Allowance': p.allowance, 'Bonus': p.bonus,
-            'Salary Total': p.salaryTotal, 'TDS (%)': p.tds, 'Gross': p.gross, 'Advance': p.advance,
+            'Absent Days': p.absentDays, 'Absent Amt.': p.deduction, 'Allowance': p.allowance, 'Bonus': p.bonus,
+            'Salary Total': p.salaryTotal, 'TDS (1%)': p.tds, 'Gross': p.gross, 'Advance': p.advance,
             'Net Payment': p.netPayment, 'Remark': p.remark
         }));
         
@@ -201,7 +201,7 @@ export default function PayrollClientPage() {
                                         <TableHead>OT Pay</TableHead>
                                         <TableHead>Total Pay</TableHead>
                                         <TableHead>Absent Days</TableHead>
-                                        <TableHead>Deduction</TableHead>
+                                        <TableHead>Absent Amt.</TableHead>
                                         <TableHead>Allowance</TableHead>
                                         <TableHead>Bonus</TableHead>
                                         <TableHead>Salary Total</TableHead>

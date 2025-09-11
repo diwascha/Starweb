@@ -87,46 +87,50 @@ export async function processAttendanceImport(
     
     const normalizedHeaders = headerRow.map(h => String(h || '').trim().toLowerCase());
     
-    const headerMapConfig: { [key in keyof RawAttendanceRow]: string } = {
-        employeeName: 'name',
-        dateAD: 'date (ad)',
-        mitiBS: 'bs date',
-        onDuty: 'on duty',
-        offDuty: 'off duty',
-        clockIn: 'clock in',
-        clockOut: 'clock out',
-        status: 'status',
-        normalHours: 'normal hours',
-        otHours: 'ot hours',
-        totalHours: 'total hours',
-        remarks: 'remarks',
-        regularPay: 'norman',
-        otPay: 'ot pay',
-        totalPay: 'total pay',
-        absentDays: 'absent days',
-        deduction: 'deduction',
-        allowance: 'extra',
-        bonus: 'bonus',
-        salaryTotal: 'salary total',
-        tds: 'tds',
-        gross: 'gross',
-        advance: 'advance',
-        netPayment: 'net payment',
-        payrollRemark: 'remark',
-        day: 'day',
-        rate: 'rate',
+    const headerMapConfig: { [key in keyof RawAttendanceRow]: string[] } = {
+        employeeName: ['name'],
+        dateAD: ['date'],
+        mitiBS: ['bs date'],
+        onDuty: ['on duty'],
+        offDuty: ['off duty'],
+        clockIn: ['clock in'],
+        clockOut: ['clock out'],
+        status: ['absent'], // 'Absent' column now determines status
+        normalHours: ['regular hours', 'normal hrs'],
+        otHours: ['overtime', 'ot hour'],
+        totalHours: ['total hour'],
+        remarks: ['remarks'],
+        // Payroll columns
+        regularPay: ['norman'],
+        otPay: ['ot'],
+        totalPay: ['total'],
+        absentDays: ['absent days'],
+        deduction: ['deduction'], // This will now be "Absent Amt"
+        allowance: ['extra'],
+        bonus: ['bonus'],
+        salaryTotal: ['salary total'],
+        tds: ['tds'],
+        gross: ['gross'],
+        advance: ['advance'],
+        netPayment: ['net payment'],
+        payrollRemark: ['remark'],
+        day: ['day'],
+        rate: ['rate'],
     };
 
     const headerMap: { [key: string]: number } = {};
     for (const key in headerMapConfig) {
-        const headerName = headerMapConfig[key as keyof RawAttendanceRow];
-        const index = normalizedHeaders.indexOf(headerName);
-        if (index !== -1) {
-            headerMap[key] = index;
+        const headerNames = headerMapConfig[key as keyof RawAttendanceRow];
+        for (const headerName of headerNames) {
+            const index = normalizedHeaders.indexOf(headerName);
+            if (index !== -1) {
+                headerMap[key] = index;
+                break;
+            }
         }
     }
 
-    const requiredHeaders = ['name'];
+    const requiredHeaders = ['name', 'date'];
     const missingHeaders = requiredHeaders.filter(h => headerMap[h] === undefined);
     if (missingHeaders.length > 0) {
         throw new Error(`Import failed: Missing required column(s): ${missingHeaders.join(', ')}.`);
@@ -167,14 +171,6 @@ export async function processAttendanceImport(
                 ad = parsedDate;
                 dateBS = toBSString(ad);
             }
-        } else if (row.mitiBS && typeof row.mitiBS === 'string') {
-            try {
-                const nepaliDate = new NepaliDate(row.mitiBS);
-                ad = nepaliDate.toJsDate();
-                dateBS = nepaliDate.format('YYYY-MM-DD');
-            } catch {
-                 ad = null;
-            }
         }
         
         if (!ad) {
@@ -182,7 +178,10 @@ export async function processAttendanceImport(
           return null;
         }
         
-        const statusInput = String(row.status || '').trim();
+        const statusInput = (row.status !== null && row.status !== undefined && String(row.status).trim() !== '') ? 'Absent' : 'Present';
+        const normalHours = Number(row.normalHours) || 0;
+        const otHours = Number(row.otHours) || 0;
+        const totalHours = normalHours + otHours;
         
         return {
           ...row,
@@ -195,9 +194,9 @@ export async function processAttendanceImport(
           dateBS,
           weekdayAD: ad ? ad.getDay() : -1,
           normalizedStatus: statusInput as AttendanceStatus,
-          grossHours: Number(row.totalHours) || 0,
-          regularHours: Number(row.normalHours) || 0,
-          overtimeHours: Number(row.otHours) || 0,
+          grossHours: totalHours,
+          regularHours: normalHours,
+          overtimeHours: otHours,
           calcRemarks: row.remarks || '',
           sourceSheet: row.sourceSheet || null,
         };
