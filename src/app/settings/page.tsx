@@ -24,7 +24,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, MoreHorizontal, Search, Save, KeyRound, Download, Upload, View, ChevronDown } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, Search, Save, KeyRound, Download, Upload, View, ChevronDown, Lock, Unlock } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
@@ -36,7 +36,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { onPartiesUpdate, addParty, updateParty, deleteParty } from '@/services/party-service';
 import { onAccountsUpdate, addAccount, updateAccount, deleteAccount } from '@/services/account-service';
 import { onUomsUpdate, addUom, updateUom, deleteUom } from '@/services/uom-service';
-import { onSettingUpdate, setSetting } from '@/services/settings-service';
+import { onSettingUpdate, setSetting, getSetting } from '@/services/settings-service';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuRadioGroup, DropdownMenuRadioItem } from '@/components/ui/dropdown-menu';
 import { getUsers, setUsers, validatePassword, setAdminPassword, updateUserPassword } from '@/services/user-service';
 import { modules, actions, documentTypes, getDocumentName } from '@/lib/types';
@@ -44,6 +44,16 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { exportData } from '@/services/backup-service';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { getPayrollYears } from '@/services/payroll-service';
+import NepaliDate from 'nepali-date-converter';
+
+
+const nepaliMonths = [
+    { value: 0, name: "Baishakh" }, { value: 1, name: "Jestha" }, { value: 2, name: "Ashadh" },
+    { value: 3, name: "Shrawan" }, { value: 4, name: "Bhadra" }, { value: 5, name: "Ashwin" },
+    { value: 6, name: "Kartik" }, { value: 7, name: "Mangsir" }, { value: 8, "name": "Poush" },
+    { value: 9, name: "Magh" }, { value: 10, name: "Falgun" }, { value: 11, name: "Chaitra" }
+];
 
 
 export default function SettingsPage() {
@@ -64,6 +74,13 @@ export default function SettingsPage() {
   const [prefixes, setPrefixes] = useState<DocumentPrefixes>({});
   const [isPrefixDialogOpen, setIsPrefixDialogOpen] = useState(false);
   const [editingPrefix, setEditingPrefix] = useState<{ key: keyof DocumentPrefixes; value: string } | null>(null);
+  
+  // Payroll Lock State
+  const [payrollLocks, setPayrollLocks] = useState<Record<string, boolean>>({});
+  const [payrollLockYears, setPayrollLockYears] = useState<number[]>([]);
+  const [selectedLockYear, setSelectedLockYear] = useState<string>('');
+  const [selectedLockMonth, setSelectedLockMonth] = useState<string>('');
+
 
 
   // Party Dialog State
@@ -100,9 +117,17 @@ export default function SettingsPage() {
     const unsubParties = onPartiesUpdate(setParties);
     const unsubAccounts = onAccountsUpdate(setAccounts);
     const unsubUoms = onUomsUpdate(setUoms);
-    const unsubPrefixes = onSettingUpdate('documentPrefixes', (setting) => {
-        setPrefixes(setting?.value || {});
+    const unsubPrefixes = onSettingUpdate('documentPrefixes', (setting) => setPrefixes(setting?.value || {}));
+    const unsubPayrollLocks = onSettingUpdate('payrollLocks', (setting) => setPayrollLocks(setting?.value || {}));
+    
+    getPayrollYears().then(years => {
+        const currentYear = new NepaliDate().getYear();
+        const allYears = Array.from(new Set([...years, currentYear])).sort((a,b) => b-a);
+        setPayrollLockYears(allYears);
+        setSelectedLockYear(String(allYears[0]));
+        setSelectedLockMonth(String(new NepaliDate().getMonth()));
     });
+
 
     const handleStorageChange = () => setUsers(getUsers());
     window.addEventListener('storage', handleStorageChange);
@@ -114,6 +139,7 @@ export default function SettingsPage() {
         unsubAccounts();
         unsubUoms();
         unsubPrefixes();
+        unsubPayrollLocks();
         window.removeEventListener('storage', handleStorageChange);
     }
   }, []);
@@ -154,6 +180,28 @@ export default function SettingsPage() {
         setIsExporting(false);
     }
   };
+
+  const handleTogglePayrollLock = async () => {
+    if (!selectedLockYear || !selectedLockMonth) {
+        toast({ title: 'Error', description: 'Please select a year and month.', variant: 'destructive' });
+        return;
+    }
+    const lockKey = `${selectedLockYear}-${selectedLockMonth}`;
+    const newLocks = { ...payrollLocks, [lockKey]: !payrollLocks[lockKey] };
+    
+    try {
+        await setSetting('payrollLocks', newLocks);
+        toast({ title: 'Success', description: `Payroll for ${nepaliMonths[parseInt(selectedLockMonth)].name} ${selectedLockYear} has been ${newLocks[lockKey] ? 'locked' : 'unlocked'}.` });
+    } catch {
+        toast({ title: 'Error', description: 'Failed to update lock status.', variant: 'destructive' });
+    }
+  };
+  
+  const isCurrentPeriodLocked = useMemo(() => {
+      if (!selectedLockYear || !selectedLockMonth) return false;
+      const lockKey = `${selectedLockYear}-${selectedLockMonth}`;
+      return payrollLocks[lockKey] || false;
+  }, [payrollLocks, selectedLockYear, selectedLockMonth]);
 
 
   const openPartyDialog = (party: Party | null = null) => {
@@ -399,6 +447,7 @@ export default function SettingsPage() {
     { value: "accounts", label: "Accounts" },
     { value: "uom", label: "Units of Measurement" },
     { value: "document-numbering", label: "Document Numbering" },
+    { value: "payroll-settings", label: "Payroll Settings" },
   ];
 
   if (isLoading) {
@@ -654,6 +703,43 @@ export default function SettingsPage() {
                                 ))}
                             </TableBody>
                         </Table>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+            <TabsContent value="payroll-settings">
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Payroll Settings</CardTitle>
+                        <CardDescription>Configure payroll calculation and data integrity settings.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="p-4 border rounded-lg">
+                            <h3 className="font-medium mb-2">Lock Payroll Data</h3>
+                            <p className="text-sm text-muted-foreground mb-4">
+                                Lock a specific month to prevent accidental recalculation or editing of historical payroll data. This ensures data integrity for past periods.
+                            </p>
+                            <div className="flex flex-col sm:flex-row items-center gap-2">
+                                <Select value={selectedLockYear} onValueChange={setSelectedLockYear} disabled={payrollLockYears.length === 0}>
+                                    <SelectTrigger className="w-full sm:w-[120px]"><SelectValue placeholder="Year (BS)" /></SelectTrigger>
+                                    <SelectContent>{payrollLockYears.map(year => <SelectItem key={year} value={String(year)}>{year}</SelectItem>)}</SelectContent>
+                                </Select>
+                                <Select value={selectedLockMonth} onValueChange={setSelectedLockMonth} disabled={payrollLockYears.length === 0}>
+                                    <SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Month (BS)" /></SelectTrigger>
+                                    <SelectContent>{nepaliMonths.map(month => <SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>)}</SelectContent>
+                                </Select>
+                                <Button onClick={handleTogglePayrollLock} variant={isCurrentPeriodLocked ? 'destructive' : 'default'} className="w-full sm:w-auto">
+                                    {isCurrentPeriodLocked ? <><Unlock className="mr-2 h-4 w-4"/> Unlock Period</> : <><Lock className="mr-2 h-4 w-4"/> Lock Period</>}
+                                </Button>
+                            </div>
+                            {selectedLockYear && selectedLockMonth && (
+                                <p className="text-sm mt-2 font-semibold">
+                                    Status for {nepaliMonths.find(m => m.value.toString() === selectedLockMonth)?.name}, {selectedLockYear}: 
+                                    <span className={isCurrentPeriodLocked ? 'text-destructive' : 'text-green-600'}>
+                                        {isCurrentPeriodLocked ? ' Locked' : ' Unlocked'}
+                                    </span>
+                                </p>
+                            )}
+                        </div>
                     </CardContent>
                 </Card>
             </TabsContent>

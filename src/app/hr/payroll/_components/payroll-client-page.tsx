@@ -108,10 +108,6 @@ export default function PayrollClientPage() {
             const year = parseInt(selectedBsYear, 10);
             const month = parseInt(selectedBsMonth, 10);
             
-            // First, delete any existing payroll for that month
-            await deletePayrollForMonth(year, month);
-            
-            // Then, calculate and save the new payroll
             const result = await calculateAndSavePayrollForMonth(
                 year,
                 month,
@@ -125,9 +121,9 @@ export default function PayrollClientPage() {
                 description: `Successfully generated payroll for ${result.employeeCount} employees.`
             });
 
-        } catch (error) {
+        } catch (error: any) {
             console.error("Payroll calculation failed:", error);
-            toast({ title: 'Error', description: 'Could not calculate payroll.', variant: 'destructive' });
+            toast({ title: 'Error', description: error.message || 'Could not calculate payroll.', variant: 'destructive' });
         } finally {
             setIsCalculating(false);
         }

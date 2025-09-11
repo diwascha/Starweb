@@ -3,6 +3,7 @@ import { db } from '@/lib/firebase';
 import { collection, doc, writeBatch, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, query, where, limit, getDoc } from 'firebase/firestore';
 import type { Payroll, Employee, AttendanceRecord, PunctualityInsight, BehaviorInsight, PatternInsight, WorkforceAnalytics } from '@/lib/types';
 import NepaliDate from 'nepali-date-converter';
+import { getSetting } from './settings-service';
 
 const payrollCollection = collection(db, 'payroll');
 
@@ -93,6 +94,17 @@ export const calculateAndSavePayrollForMonth = async (
     allAttendance: AttendanceRecord[],
     calculatedBy: string
 ): Promise<{ employeeCount: number }> => {
+
+    const payrollLockSetting = await getSetting('payrollLocks');
+    const payrollLocks = payrollLockSetting?.value || {};
+    const lockKey = `${bsYear}-${bsMonth}`;
+    if (payrollLocks[lockKey]) {
+        throw new Error(`Payroll for ${nepaliMonths[bsMonth].name} ${bsYear} is locked and cannot be recalculated.`);
+    }
+    
+    // First, delete any existing payroll for that month
+    await deletePayrollForMonth(bsYear, bsMonth);
+
     const workingEmployees = allEmployees.filter(e => e.status === 'Working');
     const monthlyAttendance = allAttendance.filter(r => {
         try {
@@ -173,6 +185,14 @@ export interface AnalyticsData {
     patterns: PatternInsight[];
     workforce: WorkforceAnalytics[];
 }
+
+const nepaliMonths = [
+    { value: 0, name: "Baishakh" }, { value: 1, name: "Jestha" }, { value: 2, name: "Ashadh" },
+    { value: 3, name: "Shrawan" }, { value: 4, name: "Bhadra" }, { value: 5, name: "Ashwin" },
+    { value: 6, name: "Kartik" }, { value: 7, name: "Mangsir" }, { value: 8, "name": "Poush" },
+    { value: 9, name: "Magh" }, { value: 10, name: "Falgun" }, { value: 11, name: "Chaitra" }
+];
+
 
 export const generateAnalyticsForMonth = (
     bsYear: number,

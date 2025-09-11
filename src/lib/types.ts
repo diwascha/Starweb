@@ -1,15 +1,4 @@
 
-
-
-
-
-
-
-
-
-
-
-
 export interface ProductSpecification {
   dimension: string;
   ply: string;
