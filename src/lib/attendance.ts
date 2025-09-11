@@ -89,9 +89,7 @@ export async function processAttendanceImport(
     const normalizedHeaders = headerRow.map(h => String(h || '').trim().toLowerCase());
     const originalHeaders = headerRow.map(h => String(h || '').trim());
     
-    // This mapping is now based on the user's detailed guide.
     const headerMapConfig: { [key in keyof RawAttendanceRow]: string[] } = {
-        // Attendance Columns (A-P)
         dateAD: ['date'],
         mitiBS: ['bs date'],
         employeeName: ['name'],
@@ -99,11 +97,10 @@ export async function processAttendanceImport(
         offDuty: ['off duty'],
         clockIn: ['clock in'],
         clockOut: ['clock out'],
-        status: ['absent'], // 'Absent' column now determines status
+        status: ['absent'],
         overtimeHours: ['overtime'],
         regularHours: ['regular hours'],
         remarks: ['remarks'],
-        // Payroll Columns (Q-AE)
         totalHours: ['total hour'],
         otHours: ['ot hour'],
         normalHours: ['normal hrs'],
@@ -119,9 +116,9 @@ export async function processAttendanceImport(
         advance: ['advance'],
         netPayment: ['net payment'],
         payrollRemark: ['remark'],
-        // Other potential columns
         day: ['day'],
         rate: ['rate'],
+        bonus: ['bonus'],
     };
 
     const headerMap: { [key: string]: number } = {};
@@ -136,10 +133,15 @@ export async function processAttendanceImport(
         }
     }
 
-    const requiredHeaders = ['name', 'date'];
+    const requiredHeaders = ['employeeName', 'dateAD'];
     const missingHeaders = requiredHeaders.filter(h => headerMap[h] === undefined);
     if (missingHeaders.length > 0) {
-        throw new Error(`Import failed: Missing required column(s): ${missingHeaders.join(', ')}.`);
+        const userFriendlyNames = missingHeaders.map(h => {
+            if (h === 'employeeName') return 'name';
+            if (h === 'dateAD') return 'date';
+            return h;
+        });
+        throw new Error(`Import failed: Missing required column(s): ${userFriendlyNames.join(', ')}.`);
     }
 
     const existingEmployeeNames = new Set(existingEmployees.map(emp => emp.name.toLowerCase()));
@@ -196,7 +198,6 @@ export async function processAttendanceImport(
         const regularHours = Number(row.regularHours || row.normalHours) || 0;
         const overtimeHours = Number(row.overtimeHours || row.otHours) || 0;
         
-        // Per guide, Total Hour for payroll is OT + Normal
         const totalHours = regularHours + overtimeHours;
         
         return {
@@ -210,7 +211,7 @@ export async function processAttendanceImport(
           dateBS,
           weekdayAD: ad ? ad.getDay() : -1,
           normalizedStatus: statusInput as AttendanceStatus,
-          grossHours: totalHours, // Same as totalHours from payroll calc
+          grossHours: totalHours,
           regularHours: regularHours,
           overtimeHours: overtimeHours,
           calcRemarks: row.remarks || '',
