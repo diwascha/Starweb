@@ -84,14 +84,14 @@ export function processAttendanceImport(jsonData: any[][], bsYear: number, bsMon
 
     const headerVariations: { [key in keyof RawAttendanceRow]?: string[] } = {
         name: ['name', 'employee name'],
-        dateAD: ['date'],
-        mitiBS: ['bs date'],
+        dateAD: ['date', 'ad date'],
+        mitiBS: ['miti', 'bs date'],
         day: ['day'],
         onDuty: ['on duty'],
         offDuty: ['off duty'],
         clockIn: ['clock in'],
         clockOut: ['clock out'],
-        status: ['absent', 'status'], // 'Absent' is a common header for the status column
+        status: ['status'],
         regularHours: ['regular hours', 'normal hours', 'normal'],
         otHours: ['overtime', 'ot'],
         remarks: ['remarks'],
@@ -100,16 +100,16 @@ export function processAttendanceImport(jsonData: any[][], bsYear: number, bsMon
         regularPay: ['normal pay'],
         otPay: ['ot pay'],
         totalPay: ['total pay'],
-        absentDays: ['absent day'],
+        absentDays: ['absent day', 'absent days'],
         deduction: ['deduction'],
-        allowance: ['allowance', 'extra'], // 'Extra' often means allowance
+        allowance: ['allowance'],
         bonus: ['bonus'],
         salaryTotal: ['salary total'],
         tds: ['tds'],
         gross: ['gross'],
         advance: ['advance'],
         netPayment: ['net payment'],
-        payrollRemark: ['remark'], // Can map to the same as attendance remark
+        payrollRemark: ['remark'],
     };
     
     const headerMap: { [key in keyof RawAttendanceRow]?: number } = {};
@@ -136,14 +136,37 @@ export function processAttendanceImport(jsonData: any[][], bsYear: number, bsMon
         let ad: Date | null = null;
         let dateBS = '';
         
-        const day = parseInt(String(row.day), 10);
-        if (!isNaN(day) && day >= 1 && day <= 32) {
+        // Priority 1: Full BS Date column
+        if (row.mitiBS) {
             try {
-                const nepaliDate = new NepaliDate(bsYear, bsMonth, day);
+                const nepaliDate = new NepaliDate(String(row.mitiBS));
                 ad = nepaliDate.toJsDate();
                 dateBS = nepaliDate.format('YYYY-MM-DD');
             } catch (e) {
-                console.error(`Invalid Nepali date for day ${day}:`, e);
+                // Could not parse BS date, will fall back
+            }
+        }
+        
+        // Priority 2: Full AD Date column
+        if (!ad && row.dateAD && isValid(new Date(row.dateAD))) {
+            ad = new Date(row.dateAD);
+            try {
+                const nepaliDate = new NepaliDate(ad);
+                dateBS = nepaliDate.format('YYYY-MM-DD');
+            } catch {}
+        }
+
+        // Priority 3: Day column with selected Year/Month
+        if (!ad) {
+            const day = parseInt(String(row.day), 10);
+            if (!isNaN(day) && day >= 1 && day <= 32) {
+                try {
+                    const nepaliDate = new NepaliDate(bsYear, bsMonth, day);
+                    ad = nepaliDate.toJsDate();
+                    dateBS = nepaliDate.format('YYYY-MM-DD');
+                } catch (e) {
+                    console.error(`Invalid Nepali date for day ${day}:`, e);
+                }
             }
         }
         
