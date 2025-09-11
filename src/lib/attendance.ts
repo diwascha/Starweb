@@ -95,8 +95,8 @@ export async function processAttendanceImport(
     // Exact header mapping based on user's specification
     const headerMapConfig: { [key in keyof RawAttendanceRow]: string } = {
         employeeName: 'name',
-        dateAD: 'date (ad)',
-        mitiBS: 'bs date',
+        dateAD: 'date (ad)', // Will be ignored in favor of selected BS month/year
+        mitiBS: 'bs date', // Will be ignored
         onDuty: 'on duty',
         offDuty: 'off duty',
         clockIn: 'clock in',
@@ -107,7 +107,7 @@ export async function processAttendanceImport(
         totalHours: 'total hours',
         remarks: 'remarks',
         // Payroll
-        regularPay: 'norman',
+        regularPay: 'norman', // As per user image
         otPay: 'ot pay',
         totalPay: 'total pay',
         absentDays: 'absent days',
@@ -120,8 +120,7 @@ export async function processAttendanceImport(
         advance: 'advance',
         netPayment: 'net payment',
         payrollRemark: 'remark',
-        // Optional/fallback
-        day: 'day',
+        day: 'day', // Can be used as a fallback if present
         rate: 'rate',
     };
 
@@ -142,7 +141,7 @@ export async function processAttendanceImport(
     const newEmployees = new Set<string>();
     let skippedCount = 0;
 
-    const processedData = await Promise.all(dataRows.map(async (rowArray): Promise<CalcAttendanceRow | null> => {
+    const processedData = await Promise.all(dataRows.map(async (rowArray, rowIndex): Promise<CalcAttendanceRow | null> => {
         const row: RawAttendanceRow = {};
         for (const key in headerMap) {
             const index = headerMap[key as keyof RawAttendanceRow]!;
@@ -165,25 +164,20 @@ export async function processAttendanceImport(
             }
         }
 
+        // DATE LOGIC: Prioritize UI selection, use row index as the day.
+        const dayOfMonth = (row.day && !isNaN(parseInt(String(row.day)))) ? parseInt(String(row.day), 10) : rowIndex + 1;
+        
         let ad: Date | null = null;
         let dateBS = '';
         
-        // The user's UI selection of month/year is the source of truth.
-        // We use the day from the Excel file to construct the date.
-        const dayOfMonth = parseInt(String(row.day), 10);
-        if (!isNaN(dayOfMonth) && dayOfMonth >= 1 && dayOfMonth <= 32) {
-            try {
-                const nepaliDate = new NepaliDate(bsYear, bsMonth, dayOfMonth);
-                ad = nepaliDate.toJsDate();
-                dateBS = nepaliDate.format('YYYY-MM-DD');
-            } catch (e) {
-                console.error(`Invalid Nepali date for day ${dayOfMonth}:`, e);
-            }
-        }
-
-        if (!ad) {
+        try {
+            const nepaliDate = new NepaliDate(bsYear, bsMonth, dayOfMonth);
+            ad = nepaliDate.toJsDate();
+            dateBS = nepaliDate.format('YYYY-MM-DD');
+        } catch (e) {
+            console.warn(`Could not construct date for ${bsYear}-${bsMonth + 1}-${dayOfMonth}. Skipping row.`);
             skippedCount++;
-            return null; // Skip rows where we can't determine a valid date
+            return null; // Skip if date is invalid (e.g., day 32 in a month)
         }
         
         const weekday = ad ? ad.getDay() : -1;

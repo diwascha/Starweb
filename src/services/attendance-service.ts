@@ -47,9 +47,22 @@ export const addAttendanceAndPayrollRecords = async (
 ): Promise<{ attendanceCount: number, payrollCount: number, newEmployees: string[], skippedCount: number }> => {
     const CHUNK_SIZE = 400;
     
+    if (jsonData.length < 2) {
+        throw new Error("Excel sheet must contain a header row and at least one data row.");
+    }
+    
     const headerRow = jsonData[0];
     const dataRows = jsonData.slice(1);
     
+    // Header validation
+    const requiredHeaders = ['name'];
+    const normalizedHeaders = headerRow.map(h => String(h || '').trim().toLowerCase());
+    const missingHeaders = requiredHeaders.filter(h => !normalizedHeaders.includes(h));
+
+    if (missingHeaders.length > 0) {
+        throw new Error(`Import failed: Missing required column(s): ${missingHeaders.join(', ')}.`);
+    }
+
     const { processedData, newEmployees, skippedCount } = await processAttendanceImport(headerRow, dataRows, bsYear, bsMonth, employees, importedBy);
 
     // 1. Add Attendance Records
