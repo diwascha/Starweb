@@ -73,6 +73,41 @@ function parseTimeToString(timeInput: any): string | null {
     return null;
 }
 
+// Robust function to parse dates from Excel which can be strings, numbers, or Date objects
+const parseExcelDate = (dateInput: any): Date | null => {
+    if (!dateInput) return null;
+    
+    // It's already a valid date object
+    if (dateInput instanceof Date && isValid(dateInput)) {
+        return dateInput;
+    }
+
+    // It's a number (Excel serial date)
+    if (typeof dateInput === 'number') {
+        // Excel's epoch starts on 1900-01-01, but it incorrectly thinks 1900 is a leap year.
+        // The formula is to convert days since epoch to milliseconds and adjust for the timezone offset and the bug.
+        // (dateInput - 25569) adjusts for the difference in epochs between Excel and Unix.
+        const date = new Date((dateInput - 25569) * 86400 * 1000);
+        if (isValid(date)) return date;
+    }
+
+    // It's a string
+    if (typeof dateInput === 'string') {
+        const trimmedDate = dateInput.trim();
+        // Attempt to parse various common string formats
+        const formatsToTry = ['dd/MM/yy', 'MM/dd/yy', 'yyyy-MM-dd', 'dd-MM-yyyy'];
+        for (const fmt of formatsToTry) {
+            const parsed = parse(trimmedDate, fmt, new Date());
+            if (isValid(parsed)) return parsed;
+        }
+        // Fallback for ISO strings or other formats JS can handle natively
+        const nativeParsed = new Date(trimmedDate);
+        if (isValid(nativeParsed)) return nativeParsed;
+    }
+
+    return null; // Return null if all parsing fails
+};
+
 
 /* =========================
    Core calculator
@@ -183,41 +218,26 @@ export async function processAttendanceImport(
         let dateBS = '';
         
         const dateInput = row.dateAD;
-        if (dateInput) {
-            let parsedDate: Date | null = null;
-            if (dateInput instanceof Date) {
-                parsedDate = dateInput;
-            } else if (typeof dateInput === 'string') {
-                const trimmedDate = dateInput.trim();
-                // Try parsing DD/MM/YY or DD-MM-YY first
-                if (/^\d{1,2}[/-]\d{1,2}[/-]\d{2,4}$/.test(trimmedDate)) {
-                    parsedDate = parse(trimmedDate.replace(/-/g, '/'), 'dd/MM/yy', new Date());
-                } else {
-                    // Fallback to default parsing for ISO strings etc.
-                    parsedDate = new Date(trimmedDate);
-                }
-            }
-
-            if (parsedDate && isValid(parsedDate)) {
-                ad = parsedDate;
-                 const nepaliDate = new NepaliDate(ad);
-                if (nepaliDate.getYear() !== bsYear || nepaliDate.getMonth() !== bsMonth) {
-                    try {
-                        const correctedNepaliDate = new NepaliDate(bsYear, bsMonth, nepaliDate.getDate());
-                        ad = correctedNepaliDate.toJsDate();
-                    } catch {
-                        skippedCount++;
-                        return null;
-                    }
-                }
-                dateBS = toBSString(ad);
-            }
-        }
         
-        if (!ad) {
-          skippedCount++;
-          return null;
+        ad = parseExcelDate(dateInput);
+
+        if (ad) {
+             const nepaliDate = new NepaliDate(ad);
+            if (nepaliDate.getYear() !== bsYear || nepaliDate.getMonth() !== bsMonth) {
+                try {
+                    const correctedNepaliDate = new NepaliDate(bsYear, bsMonth, nepaliDate.getDate());
+                    ad = correctedNepaliDate.toJsDate();
+                } catch {
+                    skippedCount++;
+                    return null;
+                }
+            }
+            dateBS = toBSString(ad);
+        } else {
+            skippedCount++;
+            return null; // Skip row if date is invalid after all checks
         }
+
         
         // Status determination logic
         const statusInput = String(row.status || '').trim().toUpperCase();
