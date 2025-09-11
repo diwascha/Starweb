@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Download, Printer, Loader2, View, Calculator, Upload } from 'lucide-react';
+import { Download, Printer, Loader2, View, Calculator, Upload, Trash2 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { onPayrollUpdate, getPayrollYears, calculateAndSavePayrollForMonth, deletePayrollForMonth } from '@/services/payroll-service';
@@ -126,6 +126,22 @@ export default function PayrollClientPage() {
             toast({ title: 'Error', description: error.message || 'Could not calculate payroll.', variant: 'destructive' });
         } finally {
             setIsCalculating(false);
+        }
+    };
+    
+    const handleDeletePayrollForMonth = async () => {
+        if (!selectedBsYear || !selectedBsMonth) {
+            toast({ title: 'Error', description: 'Please select a year and month to delete.', variant: 'destructive' });
+            return;
+        }
+        try {
+            const year = parseInt(selectedBsYear);
+            const month = parseInt(selectedBsMonth);
+            await deletePayrollForMonth(year, month);
+            toast({ title: 'Deletion Successful', description: `Payroll data for ${nepaliMonths[month].name} ${year} has been removed.` });
+        } catch (error) {
+            console.error("Failed to delete payroll data:", error);
+            toast({ title: 'Deletion Failed', description: 'Could not remove the payroll data for the selected month.', variant: 'destructive' });
         }
     };
 
@@ -258,6 +274,23 @@ export default function PayrollClientPage() {
             <Card>
                 <CardContent className="pt-6">
                     <div className="mb-4 flex justify-end gap-2">
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="destructive-outline" disabled={!monthlyPayroll || monthlyPayroll.length === 0}><Trash2 className="mr-2 h-4 w-4" /> Delete Payroll Data</Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete All Payroll Data for {nepaliMonths[parseInt(selectedBsMonth)]?.name}, {selectedBsYear}?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        This action cannot be undone. This will permanently delete all payroll records for the selected month.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={handleDeletePayrollForMonth}>Confirm Delete</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
                         <Button variant="outline" onClick={handleExport} disabled={!monthlyPayroll || monthlyPayroll.length === 0}><Download className="mr-2 h-4 w-4" /> Export</Button>
                         <Button onClick={handlePrint} disabled={!monthlyPayroll || monthlyPayroll.length === 0}><Printer className="mr-2 h-4 w-4" /> Print</Button>
                     </div>
