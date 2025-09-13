@@ -209,7 +209,7 @@ export default function ReportView({ initialReport }: { initialReport: Report })
                       const specKey = key as keyof ProductSpecification;
                       const standardValue = report.product.specification?.[specKey];
                       
-                      if (!standardValue || standardValue.trim() === '') {
+                      if (!standardValue || String(standardValue).trim() === '') {
                         return null;
                       }
                       
@@ -258,8 +258,9 @@ export default function ReportView({ initialReport }: { initialReport: Report })
             </div>
           </CardContent>
         </Card>
-        
-        {report.printLog && report.printLog.length > 0 && (
+      </div>
+
+      {report.printLog && report.printLog.length > 0 && (
            <Card className="print:hidden mt-8">
              <CardHeader>
                <CardTitle>Print History</CardTitle>
@@ -284,29 +285,24 @@ export default function ReportView({ initialReport }: { initialReport: Report })
                 </Table>
              </CardContent>
            </Card>
-        )}
-      </div>
+      )}
+
       <style jsx global>{`
         @media print {
           @page {
             size: A4;
-            margin-top: 0.3in;
-            margin-left: 0.8in;
-            margin-right: 0.8in;
-            margin-bottom: 0;
+            margin: 0.3in 0.8in 0 0.8in;
           }
           body {
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
-            background-color: #fff;
+            background-color: #fff !important;
           }
-          body * {
-            visibility: hidden;
+          body > * {
+            display: none !important;
           }
-          .printable-area, .printable-area * {
-            visibility: visible;
-          }
-          .printable-area {
+          body > .printable-area {
+            display: block !important;
             position: absolute;
             left: 0;
             top: 0;
@@ -315,10 +311,10 @@ export default function ReportView({ initialReport }: { initialReport: Report })
             margin: 0;
             padding: 0;
             border: none;
-            font-size: 10px; /* Smaller base font size for print */
+            font-size: 10px;
           }
            .print\:hidden {
-              display: none;
+              display: none !important;
            }
         }
       `}</style>
