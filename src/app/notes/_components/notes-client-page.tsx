@@ -8,18 +8,30 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
-import { Plus, Trash2, CalendarIcon, Bell, StickyNote, ListTodo, Search, Edit } from 'lucide-react';
-import { onNoteItemsUpdate, addNoteItem, updateNoteItem, deleteNoteItem } from '@/services/notes-service';
+import { Plus, Trash2, CalendarIcon, Bell, StickyNote, ListTodo, Search, Edit, Sparkles, AlertTriangle } from 'lucide-react';
+import { onNoteItemsUpdate, addNoteItem, updateNoteItem, deleteNoteItem, cleanupOldItems } from '@/services/notes-service';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn, toNepaliDate } from '@/lib/utils';
-import { formatDistanceToNow, format, isPast } from 'date-fns';
+import { format, isPast, isToday, isFuture, startOfDay, formatDistanceToNow } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+
 
 const renderContentWithBullets = (content: string) => {
     if (!content) return null;
@@ -49,6 +61,7 @@ export default function NotesClientPage({ initialItems }: { initialItems: NoteIt
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<NoteItem | null>(null);
     const [editingTime, setEditingTime] = useState('');
+    const [isCleaning, setIsCleaning] = useState(false);
 
     const { user } = useAuth();
     const { toast } = useToast();
@@ -104,7 +117,11 @@ export default function NotesClientPage({ initialItems }: { initialItems: NoteIt
     const handleToggleTodo = async (item: NoteItem) => {
         if (!user) return;
         try {
-            await updateNoteItem(item.id, { isCompleted: !item.isCompleted, lastModifiedBy: user.username });
+            await updateNoteItem(item.id, {
+                isCompleted: !item.isCompleted,
+                lastModifiedBy: user.username,
+                completedAt: !item.isCompleted ? new Date().toISOString() : null,
+            });
         } catch (error) {
             toast({ title: 'Error', description: 'Failed to update item.', variant: 'destructive' });
         }
@@ -150,9 +167,24 @@ export default function NotesClientPage({ initialItems }: { initialItems: NoteIt
             toast({ title: 'Error', description: 'Failed to update item.', variant: 'destructive' });
         }
     };
+    
+    const handleCleanup = async () => {
+        setIsCleaning(true);
+        try {
+            const count = await cleanupOldItems();
+            toast({
+                title: 'Cleanup Complete',
+                description: `${count} old item(s) have been permanently deleted.`
+            });
+        } catch (error) {
+            toast({ title: 'Error', description: 'Failed to clean up old items.', variant: 'destructive' });
+        } finally {
+            setIsCleaning(false);
+        }
+    };
 
 
-    const sortedItems = useMemo(() => {
+    const categorizedItems = useMemo(() => {
         let filteredItems = [...items];
         if (searchQuery) {
             const lowercasedQuery = searchQuery.toLowerCase();
@@ -162,17 +194,32 @@ export default function NotesClientPage({ initialItems }: { initialItems: NoteIt
             );
         }
         
-        return filteredItems.sort((a, b) => {
-            if (a.isCompleted !== b.isCompleted) {
-                return a.isCompleted ? 1 : -1;
+        const today = startOfDay(new Date());
+        const categories: { today: NoteItem[]; upcoming: NoteItem[]; past: NoteItem[] } = {
+            today: [],
+            upcoming: [],
+            past: []
+        };
+        
+        filteredItems.sort((a, b) => (a.isCompleted ? 1 : -1) - (b.isCompleted ? 1 : -1) || (a.dueDate ? new Date(a.dueDate).getTime() : Infinity) - (b.dueDate ? new Date(b.dueDate).getTime() : Infinity) || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+        for (const item of filteredItems) {
+            if (item.dueDate) {
+                const dueDate = startOfDay(new Date(item.dueDate));
+                if (isToday(dueDate)) {
+                    categories.today.push(item);
+                } else if (isFuture(dueDate)) {
+                    categories.upcoming.push(item);
+                } else {
+                    categories.past.push(item);
+                }
+            } else {
+                categories.upcoming.push(item);
             }
-            if (a.dueDate && b.dueDate) {
-                return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-            }
-            if (a.dueDate) return -1;
-            if (b.dueDate) return 1;
-            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        });
+        }
+        
+        return categories;
+
     }, [items, searchQuery]);
     
     const getIconForType = (type: NoteItemType) => {
@@ -192,6 +239,64 @@ export default function NotesClientPage({ initialItems }: { initialItems: NoteIt
         }
         return datePart;
     };
+    
+    const renderItemList = (itemList: NoteItem[], categoryName: string) => (
+        <div>
+            <h3 className="text-lg font-semibold my-2 px-3">{categoryName}</h3>
+            {itemList.length > 0 ? (
+                itemList.map(item => (
+                    <div key={item.id} className="flex items-start gap-3 p-3 rounded-md hover:bg-muted/50">
+                        {item.type === 'Todo' ? (
+                            <Checkbox
+                                id={`item-${item.id}`}
+                                checked={item.isCompleted}
+                                onCheckedChange={() => handleToggleTodo(item)}
+                                className="mt-1"
+                            />
+                        ) : (
+                            <div className="mt-1 text-muted-foreground">{getIconForType(item.type)}</div>
+                        )}
+                        <div className="flex-1">
+                            <label
+                                htmlFor={`item-${item.id}`}
+                                className={cn(
+                                    "font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
+                                    item.isCompleted && "line-through text-muted-foreground"
+                                )}
+                            >
+                                {item.title}
+                            </label>
+                            {item.content && (
+                                <div className={cn("text-sm text-muted-foreground mt-1 space-y-1", item.isCompleted && "line-through")}>
+                                  {renderContentWithBullets(item.content)}
+                                </div>
+                            )}
+                            {(item.type === 'Reminder' || item.type === 'Todo') && item.dueDate && (
+                                <p className={cn("text-xs font-semibold mt-1", isPast(new Date(item.dueDate)) && !item.isCompleted ? "text-destructive" : "text-muted-foreground")}>
+                                  Due: {formatDueDate(item.dueDate)}
+                                </p>
+                            )}
+                            <p className="text-xs text-muted-foreground mt-1">
+                                Added by {item.createdBy} {formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}
+                            </p>
+                        </div>
+                        <div className="flex">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditDialog(item)}>
+                                <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteItem(item.id)}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                        </div>
+                    </div>
+                ))
+            ) : (
+                <div className="text-center text-muted-foreground py-4 text-sm">
+                    <p>No items in this category.</p>
+                </div>
+            )}
+        </div>
+    );
 
 
     return (
@@ -254,65 +359,46 @@ export default function NotesClientPage({ initialItems }: { initialItems: NoteIt
                             </Button>
                         </form>
 
-                        <div className="relative mb-4">
-                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                placeholder="Search list..."
-                                value={searchQuery}
-                                onChange={e => setSearchQuery(e.target.value)}
-                                className="pl-8"
-                            />
+                        <div className="flex flex-col sm:flex-row gap-2 mb-4">
+                            <div className="relative flex-1">
+                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    placeholder="Search list..."
+                                    value={searchQuery}
+                                    onChange={e => setSearchQuery(e.target.value)}
+                                    className="pl-8"
+                                />
+                            </div>
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="outline" disabled={isCleaning}>
+                                        <Sparkles className="mr-2 h-4 w-4" />
+                                        {isCleaning ? 'Cleaning...' : 'Clear Old Items'}
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This will permanently delete completed todos and old notes/reminders older than 14 days. This action cannot be undone.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={handleCleanup}>Confirm</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
                         </div>
 
                         <ScrollArea className="h-[calc(100vh-32rem)] pr-4">
                             <div className="space-y-3">
-                                {sortedItems.length > 0 ? (
-                                    sortedItems.map(item => (
-                                        <div key={item.id} className="flex items-start gap-3 p-3 rounded-md hover:bg-muted/50">
-                                            {item.type === 'Todo' ? (
-                                                <Checkbox
-                                                    id={`item-${item.id}`}
-                                                    checked={item.isCompleted}
-                                                    onCheckedChange={() => handleToggleTodo(item)}
-                                                    className="mt-1"
-                                                />
-                                            ) : (
-                                                <div className="mt-1 text-muted-foreground">{getIconForType(item.type)}</div>
-                                            )}
-                                            <div className="flex-1">
-                                                <label
-                                                    htmlFor={`item-${item.id}`}
-                                                    className={cn(
-                                                        "font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
-                                                        item.isCompleted && "line-through text-muted-foreground"
-                                                    )}
-                                                >
-                                                    {item.title}
-                                                </label>
-                                                {item.content && (
-                                                    <div className={cn("text-sm text-muted-foreground mt-1 space-y-1", item.isCompleted && "line-through")}>
-                                                      {renderContentWithBullets(item.content)}
-                                                    </div>
-                                                )}
-                                                {(item.type === 'Reminder' || item.type === 'Todo') && item.dueDate && (
-                                                    <p className={cn("text-xs font-semibold mt-1", isPast(new Date(item.dueDate)) && !item.isCompleted ? "text-destructive" : "text-muted-foreground")}>
-                                                      Due: {formatDueDate(item.dueDate)}
-                                                    </p>
-                                                )}
-                                                <p className="text-xs text-muted-foreground mt-1">
-                                                    Added by {item.createdBy} {formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}
-                                                </p>
-                                            </div>
-                                            <div className="flex">
-                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditDialog(item)}>
-                                                    <Edit className="h-4 w-4" />
-                                                </Button>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteItem(item.id)}>
-                                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    ))
+                                {items.length > 0 ? (
+                                    <>
+                                        {renderItemList(categorizedItems.today, 'Today')}
+                                        {renderItemList(categorizedItems.upcoming, 'Upcoming')}
+                                        {renderItemList(categorizedItems.past, 'Past')}
+                                    </>
                                 ) : (
                                     <div className="text-center text-muted-foreground py-8">
                                         <p>No items yet. Add one above to get started!</p>
@@ -332,7 +418,8 @@ export default function NotesClientPage({ initialItems }: { initialItems: NoteIt
                         scrolling="no" 
                         marginWidth="0" 
                         marginHeight="0" 
-                        style={{ border: 'none', overflow: 'hidden', width: '100%', height: '290px' }}>
+                        style={{ border: 'none', overflow: 'hidden', width: '100%', height: '290px' }}
+                        >
                     </iframe>
                 </div>
             </div>

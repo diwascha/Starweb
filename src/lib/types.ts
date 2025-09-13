@@ -1,6 +1,7 @@
 
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -497,6 +498,7 @@ export interface NoteItem {
   title: string;
   content?: string;
   isCompleted: boolean;
+  completedAt?: string | null; // ISO string
   dueDate?: string | null; // ISO string
   createdBy: string;
   createdAt: string; // ISO string
