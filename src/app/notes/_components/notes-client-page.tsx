@@ -43,10 +43,12 @@ export default function NotesClientPage({ initialItems }: { initialItems: NoteIt
     const [newItemTitle, setNewItemTitle] = useState('');
     const [newItemContent, setNewItemContent] = useState('');
     const [newItemDueDate, setNewItemDueDate] = useState<Date | null>(null);
+    const [newItemDueTime, setNewItemDueTime] = useState('');
 
     const [searchQuery, setSearchQuery] = useState('');
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<NoteItem | null>(null);
+    const [editingTime, setEditingTime] = useState('');
 
     const { user } = useAuth();
     const { toast } = useToast();
@@ -60,12 +62,28 @@ export default function NotesClientPage({ initialItems }: { initialItems: NoteIt
         setNewItemTitle('');
         setNewItemContent('');
         setNewItemDueDate(null);
+        setNewItemDueTime('');
         setNewItemType('Todo');
     };
+    
+    const combineDateTime = (date: Date | null, time: string): Date | null => {
+        if (!date) return null;
+        const newDate = new Date(date);
+        if (time) {
+            const [hours, minutes] = time.split(':').map(Number);
+            if (!isNaN(hours) && !isNaN(minutes)) {
+                newDate.setHours(hours, minutes, 0, 0);
+            }
+        }
+        return newDate;
+    };
+
 
     const handleAddItem = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newItemTitle.trim() || !user) return;
+
+        const combinedDueDate = combineDateTime(newItemDueDate, newItemDueTime);
 
         try {
             const itemData: Omit<NoteItem, 'id' | 'createdAt'> = {
@@ -73,7 +91,7 @@ export default function NotesClientPage({ initialItems }: { initialItems: NoteIt
                 title: newItemTitle.trim(),
                 content: newItemContent.trim() || undefined,
                 isCompleted: false,
-                dueDate: newItemDueDate ? newItemDueDate.toISOString() : null,
+                dueDate: combinedDueDate ? combinedDueDate.toISOString() : null,
                 createdBy: user.username,
             };
             await addNoteItem(itemData);
@@ -101,18 +119,27 @@ export default function NotesClientPage({ initialItems }: { initialItems: NoteIt
     };
     
     const handleOpenEditDialog = (item: NoteItem) => {
-        setEditingItem(item);
+        setEditingItem({
+            ...item,
+            dueDate: item.dueDate ? new Date(item.dueDate).toISOString() : null
+        });
+        setEditingTime(item.dueDate ? format(new Date(item.dueDate), 'HH:mm') : '');
         setIsEditDialogOpen(true);
     };
 
     const handleUpdateItem = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!editingItem || !user) return;
+        
+        const combinedDueDate = combineDateTime(
+            editingItem.dueDate ? new Date(editingItem.dueDate) : null,
+            editingTime
+        );
 
         try {
             const updatedData: Partial<Omit<NoteItem, 'id'>> = {
                 ...editingItem,
-                dueDate: editingItem.dueDate ? new Date(editingItem.dueDate).toISOString() : null,
+                dueDate: combinedDueDate ? combinedDueDate.toISOString() : null,
                 lastModifiedBy: user.username,
             };
             await updateNoteItem(editingItem.id, updatedData);
@@ -155,6 +182,17 @@ export default function NotesClientPage({ initialItems }: { initialItems: NoteIt
             case 'Reminder': return <Bell className="h-4 w-4" />;
         }
     };
+    
+    const formatDueDate = (dueDate: string) => {
+        const date = new Date(dueDate);
+        const datePart = toNepaliDate(dueDate) + ' BS (' + format(date, 'PPP') + ')';
+        // Check if time is set (not midnight)
+        if (date.getHours() !== 0 || date.getMinutes() !== 0) {
+            return `${datePart} at ${format(date, 'p')}`;
+        }
+        return datePart;
+    };
+
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -183,17 +221,27 @@ export default function NotesClientPage({ initialItems }: { initialItems: NoteIt
                                     required
                                 />
                                 {(newItemType === 'Reminder' || newItemType === 'Todo') && (
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button variant="outline" className={cn("w-full sm:w-auto justify-start text-left font-normal", !newItemDueDate && "text-muted-foreground")}>
-                                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                                {newItemDueDate ? format(newItemDueDate, "PPP") : <span>Set due date</span>}
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0">
-                                            <DualCalendar selected={newItemDueDate || undefined} onSelect={(d) => setNewItemDueDate(d || null)} />
-                                        </PopoverContent>
-                                    </Popover>
+                                   <div className="flex gap-2 w-full sm:w-auto">
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !newItemDueDate && "text-muted-foreground")}>
+                                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                                    {newItemDueDate ? format(newItemDueDate, "PPP") : <span>Set due date</span>}
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0">
+                                                <DualCalendar selected={newItemDueDate || undefined} onSelect={(d) => setNewItemDueDate(d || null)} />
+                                            </PopoverContent>
+                                        </Popover>
+                                        {newItemType === 'Reminder' && (
+                                            <Input 
+                                                type="time"
+                                                className="w-[120px]"
+                                                value={newItemDueTime}
+                                                onChange={(e) => setNewItemDueTime(e.target.value)}
+                                            />
+                                        )}
+                                   </div>
                                 )}
                             </div>
                             <Textarea 
@@ -248,7 +296,7 @@ export default function NotesClientPage({ initialItems }: { initialItems: NoteIt
                                                 )}
                                                 {(item.type === 'Reminder' || item.type === 'Todo') && item.dueDate && (
                                                     <p className={cn("text-xs font-semibold mt-1", isPast(new Date(item.dueDate)) && !item.isCompleted ? "text-destructive" : "text-muted-foreground")}>
-                                                      Due: {toNepaliDate(item.dueDate)} BS ({format(new Date(item.dueDate), "PPP")})
+                                                      Due: {formatDueDate(item.dueDate)}
                                                     </p>
                                                 )}
                                                 <p className="text-xs text-muted-foreground mt-1">
@@ -285,7 +333,7 @@ export default function NotesClientPage({ initialItems }: { initialItems: NoteIt
                         marginWidth="0" 
                         marginHeight="0" 
                         style={{ border: 'none', overflow: 'hidden', width: '100%', height: '290px' }} 
-                        allowtransparency="true">
+                        allowTransparency={true}>
                     </iframe>
                 </div>
             </div>
@@ -322,19 +370,29 @@ export default function NotesClientPage({ initialItems }: { initialItems: NoteIt
                                     onChange={(e) => setEditingItem(prev => prev ? {...prev, content: e.target.value} : null)}
                                 />
                                 {(editingItem.type === 'Reminder' || editingItem.type === 'Todo') && (
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button variant="outline" className={cn("justify-start text-left font-normal", !editingItem.dueDate && "text-muted-foreground")}>
-                                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                                {editingItem.dueDate ? format(new Date(editingItem.dueDate), "PPP") : <span>Set due date</span>}
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0">
-                                            <DualCalendar 
-                                                selected={editingItem.dueDate ? new Date(editingItem.dueDate) : undefined} 
-                                                onSelect={(d) => setEditingItem(prev => prev ? {...prev, dueDate: d ? d.toISOString() : null} : null)} />
-                                        </PopoverContent>
-                                    </Popover>
+                                    <div className="flex gap-2">
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !editingItem.dueDate && "text-muted-foreground")}>
+                                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                                    {editingItem.dueDate ? format(new Date(editingItem.dueDate), "PPP") : <span>Set due date</span>}
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0">
+                                                <DualCalendar 
+                                                    selected={editingItem.dueDate ? new Date(editingItem.dueDate) : undefined} 
+                                                    onSelect={(d) => setEditingItem(prev => prev ? {...prev, dueDate: d ? d.toISOString() : null} : null)} />
+                                            </PopoverContent>
+                                        </Popover>
+                                        {editingItem.type === 'Reminder' && (
+                                            <Input
+                                                type="time"
+                                                className="w-[120px]"
+                                                value={editingTime}
+                                                onChange={(e) => setEditingTime(e.target.value)}
+                                            />
+                                        )}
+                                    </div>
                                 )}
                             </div>
                         </form>
