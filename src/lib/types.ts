@@ -1,5 +1,6 @@
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -488,10 +489,15 @@ export const getDocumentName = (type: DocumentType): string => {
     }
 }
 
-export interface Todo {
+export type NoteItemType = 'Todo' | 'Note' | 'Reminder';
+
+export interface NoteItem {
   id: string;
-  content: string;
+  type: NoteItemType;
+  title: string;
+  content?: string;
   isCompleted: boolean;
+  dueDate?: string | null; // ISO string
   createdBy: string;
   createdAt: string; // ISO string
   lastModifiedBy?: string;

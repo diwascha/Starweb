@@ -2,125 +2,204 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { Todo } from '@/lib/types';
+import type { NoteItem, NoteItemType } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
-import { Plus, Trash2 } from 'lucide-react';
-import { onTodosUpdate, addTodo, updateTodo, deleteTodo } from '@/services/notes-service';
+import { Plus, Trash2, CalendarIcon, Bell, StickyNote, ListTodo } from 'lucide-react';
+import { onNoteItemsUpdate, addNoteItem, updateNoteItem, deleteNoteItem } from '@/services/notes-service';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { cn } from '@/lib/utils';
-import { formatDistanceToNow } from 'date-fns';
+import { cn, toNepaliDate } from '@/lib/utils';
+import { formatDistanceToNow, format, isPast } from 'date-fns';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { DualCalendar } from '@/components/ui/dual-calendar';
+import { Label } from '@/components/ui/label';
 
-export default function NotesClientPage({ initialTodos }: { initialTodos: Todo[] }) {
-    const [todos, setTodos] = useState<Todo[]>(initialTodos);
-    const [newTodo, setNewTodo] = useState('');
+export default function NotesClientPage({ initialItems }: { initialItems: NoteItem[] }) {
+    const [items, setItems] = useState<NoteItem[]>(initialItems);
+    const [newItemType, setNewItemType] = useState<NoteItemType>('Todo');
+    const [newItemTitle, setNewItemTitle] = useState('');
+    const [newItemContent, setNewItemContent] = useState('');
+    const [newItemDueDate, setNewItemDueDate] = useState<Date | null>(null);
+
     const { user } = useAuth();
     const { toast } = useToast();
 
     useEffect(() => {
-        const unsubscribe = onTodosUpdate(setTodos);
+        const unsubscribe = onNoteItemsUpdate(setItems);
         return () => unsubscribe();
     }, []);
 
-    const handleAddTodo = async (e: React.FormEvent) => {
+    const resetForm = () => {
+        setNewItemTitle('');
+        setNewItemContent('');
+        setNewItemDueDate(null);
+        setNewItemType('Todo');
+    };
+
+    const handleAddItem = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newTodo.trim() || !user) return;
+        if (!newItemTitle.trim() || !user) return;
 
         try {
-            const todoData: Omit<Todo, 'id' | 'createdAt'> = {
-                content: newTodo.trim(),
+            const itemData: Omit<NoteItem, 'id' | 'createdAt'> = {
+                type: newItemType,
+                title: newItemTitle.trim(),
+                content: newItemContent.trim() || undefined,
                 isCompleted: false,
+                dueDate: newItemDueDate ? newItemDueDate.toISOString() : null,
                 createdBy: user.username,
             };
-            await addTodo(todoData);
-            setNewTodo('');
+            await addNoteItem(itemData);
+            resetForm();
         } catch (error) {
-            toast({ title: 'Error', description: 'Failed to add to-do item.', variant: 'destructive' });
+            toast({ title: 'Error', description: 'Failed to add item.', variant: 'destructive' });
         }
     };
 
-    const handleToggleTodo = async (todo: Todo) => {
+    const handleToggleTodo = async (item: NoteItem) => {
+        if (!user) return;
         try {
-            await updateTodo(todo.id, { isCompleted: !todo.isCompleted, lastModifiedBy: user?.username });
+            await updateNoteItem(item.id, { isCompleted: !item.isCompleted, lastModifiedBy: user.username });
         } catch (error) {
-            toast({ title: 'Error', description: 'Failed to update to-do item.', variant: 'destructive' });
+            toast({ title: 'Error', description: 'Failed to update item.', variant: 'destructive' });
         }
     };
 
-    const handleDeleteTodo = async (id: string) => {
+    const handleDeleteItem = async (id: string) => {
         try {
-            await deleteTodo(id);
+            await deleteNoteItem(id);
         } catch (error) {
-            toast({ title: 'Error', description: 'Failed to delete to-do item.', variant: 'destructive' });
+            toast({ title: 'Error', description: 'Failed to delete item.', variant: 'destructive' });
         }
     };
 
-    const sortedTodos = [...todos].sort((a, b) => {
+    const sortedItems = [...items].sort((a, b) => {
         if (a.isCompleted !== b.isCompleted) {
             return a.isCompleted ? 1 : -1;
         }
+        if (a.dueDate && b.dueDate) {
+            return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+        }
+        if (a.dueDate) return -1;
+        if (b.dueDate) return 1;
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
+    
+    const getIconForType = (type: NoteItemType) => {
+        switch (type) {
+            case 'Todo': return <ListTodo className="h-4 w-4" />;
+            case 'Note': return <StickyNote className="h-4 w-4" />;
+            case 'Reminder': return <Bell className="h-4 w-4" />;
+        }
+    };
 
     return (
         <div className="flex flex-col gap-8">
             <header>
                 <h1 className="text-3xl font-bold tracking-tight">Notes & Todos</h1>
-                <p className="text-muted-foreground">Keep track of your tasks and reminders.</p>
+                <p className="text-muted-foreground">Keep track of your tasks, notes, and reminders.</p>
             </header>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2">
                     <Card>
                         <CardHeader>
-                            <CardTitle>To-Do List</CardTitle>
+                            <CardTitle>My List</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <form onSubmit={handleAddTodo} className="flex gap-2 mb-4">
-                                <Input
-                                    placeholder="Add a new task..."
-                                    value={newTodo}
-                                    onChange={(e) => setNewTodo(e.target.value)}
-                                />
-                                <Button type="submit">
-                                    <Plus className="mr-2 h-4 w-4" /> Add
+                            <form onSubmit={handleAddItem} className="flex flex-col gap-4 mb-4 p-4 border rounded-lg">
+                                <div className="flex flex-col sm:flex-row gap-2">
+                                    <Select value={newItemType} onValueChange={(v: NoteItemType) => setNewItemType(v)}>
+                                        <SelectTrigger className="w-full sm:w-[120px]">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="Todo">Todo</SelectItem>
+                                            <SelectItem value="Note">Note</SelectItem>
+                                            <SelectItem value="Reminder">Reminder</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <Input
+                                        placeholder="Title..."
+                                        value={newItemTitle}
+                                        onChange={(e) => setNewItemTitle(e.target.value)}
+                                        required
+                                    />
+                                    {newItemType === 'Reminder' && (
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button variant="outline" className={cn("w-full sm:w-auto justify-start text-left font-normal", !newItemDueDate && "text-muted-foreground")}>
+                                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                                    {newItemDueDate ? format(newItemDueDate, "PPP") : <span>Set due date</span>}
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0">
+                                                <DualCalendar selected={newItemDueDate || undefined} onSelect={(d) => setNewItemDueDate(d || null)} />
+                                            </PopoverContent>
+                                        </Popover>
+                                    )}
+                                </div>
+                                {(newItemType === 'Note' || newItemType === 'Reminder') && (
+                                    <Textarea 
+                                        placeholder="Add a description or content..."
+                                        value={newItemContent}
+                                        onChange={(e) => setNewItemContent(e.target.value)}
+                                    />
+                                )}
+                                <Button type="submit" className="w-full sm:w-auto self-end">
+                                    <Plus className="mr-2 h-4 w-4" /> Add Item
                                 </Button>
                             </form>
-                            <ScrollArea className="h-[calc(100vh-20rem)] pr-4">
+                            <ScrollArea className="h-[calc(100vh-28rem)] pr-4">
                                 <div className="space-y-3">
-                                    {sortedTodos.length > 0 ? (
-                                        sortedTodos.map(todo => (
-                                            <div key={todo.id} className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50">
-                                                <Checkbox
-                                                    id={`todo-${todo.id}`}
-                                                    checked={todo.isCompleted}
-                                                    onCheckedChange={() => handleToggleTodo(todo)}
-                                                />
+                                    {sortedItems.length > 0 ? (
+                                        sortedItems.map(item => (
+                                            <div key={item.id} className="flex items-start gap-3 p-3 rounded-md hover:bg-muted/50">
+                                                {item.type === 'Todo' ? (
+                                                    <Checkbox
+                                                        id={`item-${item.id}`}
+                                                        checked={item.isCompleted}
+                                                        onCheckedChange={() => handleToggleTodo(item)}
+                                                        className="mt-1"
+                                                    />
+                                                ) : (
+                                                    <div className="mt-1 text-muted-foreground">{getIconForType(item.type)}</div>
+                                                )}
                                                 <div className="flex-1">
                                                     <label
-                                                        htmlFor={`todo-${todo.id}`}
+                                                        htmlFor={`item-${item.id}`}
                                                         className={cn(
-                                                            "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
-                                                            todo.isCompleted && "line-through text-muted-foreground"
+                                                            "font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
+                                                            item.isCompleted && "line-through text-muted-foreground"
                                                         )}
                                                     >
-                                                        {todo.content}
+                                                        {item.title}
                                                     </label>
+                                                    {item.content && (
+                                                        <p className={cn("text-sm text-muted-foreground mt-1", item.isCompleted && "line-through")}>{item.content}</p>
+                                                    )}
+                                                    {item.type === 'Reminder' && item.dueDate && (
+                                                        <p className={cn("text-xs font-semibold mt-1", isPast(new Date(item.dueDate)) && !item.isCompleted ? "text-destructive" : "text-muted-foreground")}>
+                                                          Due: {toNepaliDate(item.dueDate)} BS ({format(new Date(item.dueDate), "PPP")})
+                                                        </p>
+                                                    )}
                                                     <p className="text-xs text-muted-foreground mt-1">
-                                                        Added by {todo.createdBy} {formatDistanceToNow(new Date(todo.createdAt), { addSuffix: true })}
+                                                        Added by {item.createdBy} {formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}
                                                     </p>
                                                 </div>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteTodo(todo.id)}>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteItem(item.id)}>
                                                     <Trash2 className="h-4 w-4 text-destructive" />
                                                 </Button>
                                             </div>
                                         ))
                                     ) : (
                                         <div className="text-center text-muted-foreground py-8">
-                                            <p>No tasks yet. Add one above to get started!</p>
+                                            <p>No items yet. Add one above to get started!</p>
                                         </div>
                                     )}
                                 </div>
@@ -142,3 +221,4 @@ export default function NotesClientPage({ initialTodos }: { initialTodos: Todo[]
             </div>
         </div>
     );
+}

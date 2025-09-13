@@ -1,9 +1,9 @@
 
-import { getTodos } from '@/services/notes-service';
+import { getNoteItems } from '@/services/notes-service';
 import NotesClientPage from './_components/notes-client-page';
 
 export default async function NotesPage() {
-    const initialTodos = await getTodos();
+    const initialItems = await getNoteItems();
 
-    return <NotesClientPage initialTodos={initialTodos} />;
+    return <NotesClientPage initialItems={initialItems} />;
 }
