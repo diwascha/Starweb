@@ -9,6 +9,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { ChevronLeft, ChevronRight } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 const nepaliMonths = [
   "Baishakh", "Jestha", "Ashadh", "Shrawan", "Bhadra", "Ashwin",
@@ -30,6 +31,8 @@ export function DualCalendar({ selected, onSelect }: DualCalendarProps) {
   const nepaliDate = useMemo(() => new NepaliDate(displayDateAD), [displayDateAD]);
   const [displayYearBS, setDisplayYearBS] = useState(nepaliDate.getYear());
   const [displayMonthBS, setDisplayMonthBS] = useState(nepaliDate.getMonth());
+
+  const todayBS = useMemo(() => new NepaliDate(), []);
 
   const handleADSelect = (date?: Date) => {
     if (date) {
@@ -142,26 +145,32 @@ export function DualCalendar({ selected, onSelect }: DualCalendarProps) {
                 <tbody>
                     {calendarGrid.map((week, i) => (
                         <tr key={i} className="flex w-full mt-2">
-                            {week.map((day, j) => (
+                            {week.map((day, j) => {
+                                const isSelected = selectedBSDate &&
+                                    selectedBSDate.getYear() === displayYearBS &&
+                                    selectedBSDate.getMonth() === displayMonthBS &&
+                                    selectedBSDate.getDate() === day;
+                                
+                                const isToday = todayBS.getYear() === displayYearBS &&
+                                    todayBS.getMonth() === displayMonthBS &&
+                                    todayBS.getDate() === day;
+
+                                return (
                                 <td key={j} className="h-9 w-9 text-center text-sm p-0 relative">
                                     {day && (
                                         <Button
-                                            variant={
-                                                selectedBSDate &&
-                                                selectedBSDate.getYear() === displayYearBS &&
-                                                selectedBSDate.getMonth() === displayMonthBS &&
-                                                selectedBSDate.getDate() === day
-                                                    ? 'default'
-                                                    : 'ghost'
-                                            }
-                                            className="h-9 w-9 p-0 font-normal"
+                                            variant={isSelected ? 'default' : 'ghost'}
+                                            className={cn(
+                                                "h-9 w-9 p-0 font-normal",
+                                                isToday && !isSelected && "bg-accent text-accent-foreground"
+                                            )}
                                             onClick={() => handleBSSelect(day)}
                                         >
                                             {day}
                                         </Button>
                                     )}
                                 </td>
-                            ))}
+                            )})}
                         </tr>
                     ))}
                 </tbody>
