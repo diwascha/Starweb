@@ -144,13 +144,11 @@ export default function NotesClientPage({ initialItems }: { initialItems: NoteIt
                                         </Popover>
                                     )}
                                 </div>
-                                {(newItemType === 'Note' || newItemType === 'Reminder') && (
-                                    <Textarea 
-                                        placeholder="Add a description or content..."
-                                        value={newItemContent}
-                                        onChange={(e) => setNewItemContent(e.target.value)}
-                                    />
-                                )}
+                                <Textarea 
+                                    placeholder="Add a description or content..."
+                                    value={newItemContent}
+                                    onChange={(e) => setNewItemContent(e.target.value)}
+                                />
                                 <Button type="submit" className="w-full sm:w-auto self-end">
                                     <Plus className="mr-2 h-4 w-4" /> Add Item
                                 </Button>
