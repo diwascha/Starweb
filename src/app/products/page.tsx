@@ -151,8 +151,7 @@ export default function ProductsPage() {
         toast({ title: 'Error', description: 'You must be logged in to perform this action.', variant: 'destructive' });
         return;
     }
-    const isSpecFilled = Object.values(newSpec).every(val => (val || '').trim() !== '');
-    if (newProductName.trim() !== '' && newMaterialCode.trim() !== '' && newCompanyName.trim() !== '' && newAddress.trim() !== '' && isSpecFilled) {
+    if (newProductName.trim() !== '' && newMaterialCode.trim() !== '' && newCompanyName.trim() !== '' && newAddress.trim() !== '') {
       try {
         if (editingProduct) {
           const updatedProductData: Partial<Omit<Product, 'id'>> = {
@@ -186,7 +185,7 @@ export default function ProductsPage() {
         toast({ title: 'Error', description: 'Failed to save product.', variant: 'destructive' });
       }
     } else {
-      toast({ title: 'Error', description: 'Please fill all the fields.', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Please fill all the main product fields.', variant: 'destructive' });
     }
   };
   
@@ -522,7 +521,7 @@ export default function ProductsPage() {
                         </div>
                         
                         <div>
-                            <h3 className="text-lg font-semibold mb-4">Standard Specifications</h3>
+                            <h3 className="text-lg font-semibold mb-4">Standard Specifications (Optional)</h3>
                             <div className="grid grid-cols-2 gap-4">
                             {Object.keys(initialSpecValues).map(key => (
                               <div key={key} className="space-y-2">
