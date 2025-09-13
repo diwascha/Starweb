@@ -333,7 +333,7 @@ export default function NotesClientPage({ initialItems }: { initialItems: NoteIt
                         marginWidth="0" 
                         marginHeight="0" 
                         style={{ border: 'none', overflow: 'hidden', width: '100%', height: '290px' }} 
-                        allowTransparency={true}>
+                        allowTransparency="true">
                     </iframe>
                 </div>
             </div>
