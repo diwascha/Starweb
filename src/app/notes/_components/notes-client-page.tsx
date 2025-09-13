@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import type { NoteItem, NoteItemType } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { Plus, Trash2, CalendarIcon, Bell, StickyNote, ListTodo } from 'lucide-react';
@@ -19,6 +19,22 @@ import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { Label } from '@/components/ui/label';
+
+const renderContentWithBullets = (content: string) => {
+    if (!content) return null;
+    return content.split('\n').map((line, index) => {
+        const trimmedLine = line.trim();
+        if (trimmedLine.startsWith('* ') || trimmedLine.startsWith('- ')) {
+            return (
+                <div key={index} className="flex items-start pl-4">
+                    <span className="mr-2 mt-1">•</span>
+                    <span className="flex-1">{trimmedLine.substring(2)}</span>
+                </div>
+            );
+        }
+        return <p key={index}>{line}</p>;
+    });
+};
 
 export default function NotesClientPage({ initialItems }: { initialItems: NoteItem[] }) {
     const [items, setItems] = useState<NoteItem[]>(initialItems);
@@ -100,112 +116,111 @@ export default function NotesClientPage({ initialItems }: { initialItems: NoteIt
     };
 
     return (
-        <div className="flex flex-col gap-8">
-            <header>
-                <h1 className="text-3xl font-bold tracking-tight">Notes & Todos</h1>
-                <p className="text-muted-foreground">Keep track of your tasks, notes, and reminders.</p>
-            </header>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>My List</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <form onSubmit={handleAddItem} className="flex flex-col gap-4 mb-4 p-4 border rounded-lg">
-                                <div className="flex flex-col sm:flex-row gap-2">
-                                    <Select value={newItemType} onValueChange={(v: NoteItemType) => setNewItemType(v)}>
-                                        <SelectTrigger className="w-full sm:w-[120px]">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="Todo">Todo</SelectItem>
-                                            <SelectItem value="Note">Note</SelectItem>
-                                            <SelectItem value="Reminder">Reminder</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    <Input
-                                        placeholder="Title..."
-                                        value={newItemTitle}
-                                        onChange={(e) => setNewItemTitle(e.target.value)}
-                                        required
-                                    />
-                                    {newItemType === 'Reminder' && (
-                                        <Popover>
-                                            <PopoverTrigger asChild>
-                                                <Button variant="outline" className={cn("w-full sm:w-auto justify-start text-left font-normal", !newItemDueDate && "text-muted-foreground")}>
-                                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                                    {newItemDueDate ? format(newItemDueDate, "PPP") : <span>Set due date</span>}
-                                                </Button>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-auto p-0">
-                                                <DualCalendar selected={newItemDueDate || undefined} onSelect={(d) => setNewItemDueDate(d || null)} />
-                                            </PopoverContent>
-                                        </Popover>
-                                    )}
-                                </div>
-                                <Textarea 
-                                    placeholder="Add a description or content..."
-                                    value={newItemContent}
-                                    onChange={(e) => setNewItemContent(e.target.value)}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>My List</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <form onSubmit={handleAddItem} className="flex flex-col gap-4 mb-4 p-4 border rounded-lg">
+                            <div className="flex flex-col sm:flex-row gap-2">
+                                <Select value={newItemType} onValueChange={(v: NoteItemType) => setNewItemType(v)}>
+                                    <SelectTrigger className="w-full sm:w-[120px]">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Todo">Todo</SelectItem>
+                                        <SelectItem value="Note">Note</SelectItem>
+                                        <SelectItem value="Reminder">Reminder</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <Input
+                                    placeholder="Title..."
+                                    value={newItemTitle}
+                                    onChange={(e) => setNewItemTitle(e.target.value)}
+                                    required
                                 />
-                                <Button type="submit" className="w-full sm:w-auto self-end">
-                                    <Plus className="mr-2 h-4 w-4" /> Add Item
-                                </Button>
-                            </form>
-                            <ScrollArea className="h-[calc(100vh-28rem)] pr-4">
-                                <div className="space-y-3">
-                                    {sortedItems.length > 0 ? (
-                                        sortedItems.map(item => (
-                                            <div key={item.id} className="flex items-start gap-3 p-3 rounded-md hover:bg-muted/50">
-                                                {item.type === 'Todo' ? (
-                                                    <Checkbox
-                                                        id={`item-${item.id}`}
-                                                        checked={item.isCompleted}
-                                                        onCheckedChange={() => handleToggleTodo(item)}
-                                                        className="mt-1"
-                                                    />
-                                                ) : (
-                                                    <div className="mt-1 text-muted-foreground">{getIconForType(item.type)}</div>
+                                {(newItemType === 'Reminder' || newItemType === 'Todo') && (
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button variant="outline" className={cn("w-full sm:w-auto justify-start text-left font-normal", !newItemDueDate && "text-muted-foreground")}>
+                                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                                {newItemDueDate ? format(newItemDueDate, "PPP") : <span>Set due date</span>}
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0">
+                                            <DualCalendar selected={newItemDueDate || undefined} onSelect={(d) => setNewItemDueDate(d || null)} />
+                                        </PopoverContent>
+                                    </Popover>
+                                )}
+                            </div>
+                            <Textarea 
+                                placeholder="Add a description or content... Use * or - for bullets."
+                                value={newItemContent}
+                                onChange={(e) => setNewItemContent(e.target.value)}
+                            />
+                            <Button type="submit" className="w-full sm:w-auto self-end">
+                                <Plus className="mr-2 h-4 w-4" /> Add Item
+                            </Button>
+                        </form>
+                        <ScrollArea className="h-[calc(100vh-32rem)] pr-4">
+                            <div className="space-y-3">
+                                {sortedItems.length > 0 ? (
+                                    sortedItems.map(item => (
+                                        <div key={item.id} className="flex items-start gap-3 p-3 rounded-md hover:bg-muted/50">
+                                            {item.type === 'Todo' ? (
+                                                <Checkbox
+                                                    id={`item-${item.id}`}
+                                                    checked={item.isCompleted}
+                                                    onCheckedChange={() => handleToggleTodo(item)}
+                                                    className="mt-1"
+                                                />
+                                            ) : (
+                                                <div className="mt-1 text-muted-foreground">{getIconForType(item.type)}</div>
+                                            )}
+                                            <div className="flex-1">
+                                                <label
+                                                    htmlFor={`item-${item.id}`}
+                                                    className={cn(
+                                                        "font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
+                                                        item.isCompleted && "line-through text-muted-foreground"
+                                                    )}
+                                                >
+                                                    {item.title}
+                                                </label>
+                                                {item.content && (
+                                                    <div className={cn("text-sm text-muted-foreground mt-1 space-y-1", item.isCompleted && "line-through")}>
+                                                      {renderContentWithBullets(item.content)}
+                                                    </div>
                                                 )}
-                                                <div className="flex-1">
-                                                    <label
-                                                        htmlFor={`item-${item.id}`}
-                                                        className={cn(
-                                                            "font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
-                                                            item.isCompleted && "line-through text-muted-foreground"
-                                                        )}
-                                                    >
-                                                        {item.title}
-                                                    </label>
-                                                    {item.content && (
-                                                        <p className={cn("text-sm text-muted-foreground mt-1", item.isCompleted && "line-through")}>{item.content}</p>
-                                                    )}
-                                                    {item.type === 'Reminder' && item.dueDate && (
-                                                        <p className={cn("text-xs font-semibold mt-1", isPast(new Date(item.dueDate)) && !item.isCompleted ? "text-destructive" : "text-muted-foreground")}>
-                                                          Due: {toNepaliDate(item.dueDate)} BS ({format(new Date(item.dueDate), "PPP")})
-                                                        </p>
-                                                    )}
-                                                    <p className="text-xs text-muted-foreground mt-1">
-                                                        Added by {item.createdBy} {formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}
+                                                {(item.type === 'Reminder' || item.type === 'Todo') && item.dueDate && (
+                                                    <p className={cn("text-xs font-semibold mt-1", isPast(new Date(item.dueDate)) && !item.isCompleted ? "text-destructive" : "text-muted-foreground")}>
+                                                      Due: {toNepaliDate(item.dueDate)} BS ({format(new Date(item.dueDate), "PPP")})
                                                     </p>
-                                                </div>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteItem(item.id)}>
-                                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                                </Button>
+                                                )}
+                                                <p className="text-xs text-muted-foreground mt-1">
+                                                    Added by {item.createdBy} {formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}
+                                                </p>
                                             </div>
-                                        ))
-                                    ) : (
-                                        <div className="text-center text-muted-foreground py-8">
-                                            <p>No items yet. Add one above to get started!</p>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteItem(item.id)}>
+                                                <Trash2 className="h-4 w-4 text-destructive" />
+                                            </Button>
                                         </div>
-                                    )}
-                                </div>
-                            </ScrollArea>
-                        </CardContent>
-                    </Card>
-                </div>
-                <div className="lg:col-span-1">
+                                    ))
+                                ) : (
+                                    <div className="text-center text-muted-foreground py-8">
+                                        <p>No items yet. Add one above to get started!</p>
+                                    </div>
+                                )}
+                            </div>
+                        </ScrollArea>
+                    </CardContent>
+                </Card>
+            </div>
+            <div className="lg:col-span-1">
+                 <div className="space-y-2">
+                    <h2 className="text-lg font-semibold">Nepali Calendar</h2>
                     <iframe 
                         src="https://www.hamropatro.com/widgets/calender-small.php" 
                         frameBorder="0" 
