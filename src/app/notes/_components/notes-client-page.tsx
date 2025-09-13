@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
-import { Plus, Trash2, CalendarIcon, Bell, StickyNote, ListTodo } from 'lucide-react';
+import { Plus, Trash2, CalendarIcon, Bell, StickyNote, ListTodo, Search, Edit } from 'lucide-react';
 import { onNoteItemsUpdate, addNoteItem, updateNoteItem, deleteNoteItem } from '@/services/notes-service';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -19,6 +19,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 
 const renderContentWithBullets = (content: string) => {
     if (!content) return null;
@@ -42,6 +43,10 @@ export default function NotesClientPage({ initialItems }: { initialItems: NoteIt
     const [newItemTitle, setNewItemTitle] = useState('');
     const [newItemContent, setNewItemContent] = useState('');
     const [newItemDueDate, setNewItemDueDate] = useState<Date | null>(null);
+
+    const [searchQuery, setSearchQuery] = useState('');
+    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+    const [editingItem, setEditingItem] = useState<NoteItem | null>(null);
 
     const { user } = useAuth();
     const { toast } = useToast();
@@ -94,18 +99,54 @@ export default function NotesClientPage({ initialItems }: { initialItems: NoteIt
             toast({ title: 'Error', description: 'Failed to delete item.', variant: 'destructive' });
         }
     };
+    
+    const handleOpenEditDialog = (item: NoteItem) => {
+        setEditingItem(item);
+        setIsEditDialogOpen(true);
+    };
 
-    const sortedItems = [...items].sort((a, b) => {
-        if (a.isCompleted !== b.isCompleted) {
-            return a.isCompleted ? 1 : -1;
+    const handleUpdateItem = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingItem || !user) return;
+
+        try {
+            const updatedData: Partial<Omit<NoteItem, 'id'>> = {
+                ...editingItem,
+                dueDate: editingItem.dueDate ? new Date(editingItem.dueDate).toISOString() : null,
+                lastModifiedBy: user.username,
+            };
+            await updateNoteItem(editingItem.id, updatedData);
+            toast({ title: 'Success', description: 'Item updated.' });
+            setIsEditDialogOpen(false);
+            setEditingItem(null);
+        } catch (error) {
+            toast({ title: 'Error', description: 'Failed to update item.', variant: 'destructive' });
         }
-        if (a.dueDate && b.dueDate) {
-            return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+    };
+
+
+    const sortedItems = useMemo(() => {
+        let filteredItems = [...items];
+        if (searchQuery) {
+            const lowercasedQuery = searchQuery.toLowerCase();
+            filteredItems = filteredItems.filter(item => 
+                item.title.toLowerCase().includes(lowercasedQuery) ||
+                (item.content || '').toLowerCase().includes(lowercasedQuery)
+            );
         }
-        if (a.dueDate) return -1;
-        if (b.dueDate) return 1;
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    });
+        
+        return filteredItems.sort((a, b) => {
+            if (a.isCompleted !== b.isCompleted) {
+                return a.isCompleted ? 1 : -1;
+            }
+            if (a.dueDate && b.dueDate) {
+                return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+            }
+            if (a.dueDate) return -1;
+            if (b.dueDate) return 1;
+            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
+    }, [items, searchQuery]);
     
     const getIconForType = (type: NoteItemType) => {
         switch (type) {
@@ -164,6 +205,17 @@ export default function NotesClientPage({ initialItems }: { initialItems: NoteIt
                                 <Plus className="mr-2 h-4 w-4" /> Add Item
                             </Button>
                         </form>
+
+                        <div className="relative mb-4">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Search list..."
+                                value={searchQuery}
+                                onChange={e => setSearchQuery(e.target.value)}
+                                className="pl-8"
+                            />
+                        </div>
+
                         <ScrollArea className="h-[calc(100vh-32rem)] pr-4">
                             <div className="space-y-3">
                                 {sortedItems.length > 0 ? (
@@ -203,9 +255,14 @@ export default function NotesClientPage({ initialItems }: { initialItems: NoteIt
                                                     Added by {item.createdBy} {formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}
                                                 </p>
                                             </div>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteItem(item.id)}>
-                                                <Trash2 className="h-4 w-4 text-destructive" />
-                                            </Button>
+                                            <div className="flex">
+                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditDialog(item)}>
+                                                    <Edit className="h-4 w-4" />
+                                                </Button>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteItem(item.id)}>
+                                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                                </Button>
+                                            </div>
                                         </div>
                                     ))
                                 ) : (
@@ -232,6 +289,63 @@ export default function NotesClientPage({ initialItems }: { initialItems: NoteIt
                     </iframe>
                 </div>
             </div>
+
+            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Edit Item</DialogTitle>
+                        <DialogDescription>
+                            Make changes to your item below. Click save when you're done.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {editingItem && (
+                        <form id="edit-item-form" onSubmit={handleUpdateItem}>
+                             <div className="flex flex-col gap-4 py-4">
+                                <Select 
+                                    value={editingItem.type} 
+                                    onValueChange={(v: NoteItemType) => setEditingItem(prev => prev ? {...prev, type: v} : null)}
+                                >
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Todo">Todo</SelectItem>
+                                        <SelectItem value="Note">Note</SelectItem>
+                                        <SelectItem value="Reminder">Reminder</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <Input
+                                    value={editingItem.title}
+                                    onChange={(e) => setEditingItem(prev => prev ? {...prev, title: e.target.value} : null)}
+                                />
+                                <Textarea
+                                    placeholder="Add a description or content..."
+                                    value={editingItem.content || ''}
+                                    onChange={(e) => setEditingItem(prev => prev ? {...prev, content: e.target.value} : null)}
+                                />
+                                {(editingItem.type === 'Reminder' || editingItem.type === 'Todo') && (
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button variant="outline" className={cn("justify-start text-left font-normal", !editingItem.dueDate && "text-muted-foreground")}>
+                                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                                {editingItem.dueDate ? format(new Date(editingItem.dueDate), "PPP") : <span>Set due date</span>}
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0">
+                                            <DualCalendar 
+                                                selected={editingItem.dueDate ? new Date(editingItem.dueDate) : undefined} 
+                                                onSelect={(d) => setEditingItem(prev => prev ? {...prev, dueDate: d ? d.toISOString() : null} : null)} />
+                                        </PopoverContent>
+                                    </Popover>
+                                )}
+                            </div>
+                        </form>
+                    )}
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
+                        <Button type="submit" form="edit-item-form">Save Changes</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
         </div>
     );
 }
