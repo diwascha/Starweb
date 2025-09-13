@@ -332,8 +332,7 @@ export default function NotesClientPage({ initialItems }: { initialItems: NoteIt
                         scrolling="no" 
                         marginWidth="0" 
                         marginHeight="0" 
-                        style={{ border: 'none', overflow: 'hidden', width: '100%', height: '290px' }} 
-                        allowTransparency="true">
+                        style={{ border: 'none', overflow: 'hidden', width: '100%', height: '290px' }}>
                     </iframe>
                 </div>
             </div>
