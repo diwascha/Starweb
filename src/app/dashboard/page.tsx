@@ -9,8 +9,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 export default function DashboardPage() {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-      <div className="lg:col-span-2 flex flex-col gap-8">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="flex flex-col gap-8">
          <div className="flex flex-col gap-4">
             <div>
                 <h1 className="text-xl font-bold tracking-tight">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
@@ -31,7 +31,7 @@ export default function DashboardPage() {
             </div>
         </div>
       </div>
-      <div className="lg:col-span-1">
+      <div>
         <Card className="overflow-hidden">
             <CardHeader className="p-4">
                 <CardTitle>Nepali Calendar</CardTitle>
