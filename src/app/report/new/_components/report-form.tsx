@@ -289,10 +289,14 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
         const nextSerialNumber = await generateNextSerialNumber(allReports);
         const now = new Date().toISOString();
 
+        // Ensure all fields are defined, defaulting to null if necessary.
         const productForDb: Product = {
           ...selectedProduct,
+          createdAt: selectedProduct.createdAt || now, // Ensure createdAt is not undefined
           lastModifiedBy: selectedProduct.lastModifiedBy || null,
+          lastModifiedAt: selectedProduct.lastModifiedAt || null,
         };
+
 
         const newReportData: Omit<Report, 'id'> = {
             serialNumber: nextSerialNumber,
