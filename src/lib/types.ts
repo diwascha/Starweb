@@ -1,4 +1,5 @@
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -485,4 +486,14 @@ export const getDocumentName = (type: DocumentType): string => {
         default:
             return 'Document';
     }
+}
+
+export interface Todo {
+  id: string;
+  content: string;
+  isCompleted: boolean;
+  createdBy: string;
+  createdAt: string; // ISO string
+  lastModifiedBy?: string;
+  lastModifiedAt?: string; // ISO string
 }

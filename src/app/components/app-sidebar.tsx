@@ -12,7 +12,7 @@ import {
   SidebarSeparator,
   SidebarContent,
 } from '@/components/ui/sidebar';
-import { FileText, LayoutDashboard, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users, Calendar, Award, Wallet, Building2, PlusCircle, Truck, ShieldCheck, CreditCard, ArrowRightLeft, TrendingUp, BarChart2 } from 'lucide-react';
+import { FileText, LayoutDashboard, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users, Calendar, Award, Wallet, Building2, PlusCircle, Truck, ShieldCheck, CreditCard, ArrowRightLeft, TrendingUp, BarChart2, Notebook } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
@@ -315,10 +315,10 @@ export function AppSidebar() {
         <SidebarMenu>
             <SidebarSeparator />
             <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={getIsActive('/trial')}>
-                    <Link href="#">
-                        <TrendingUp />
-                        <span>Trial Tab</span>
+                <SidebarMenuButton asChild isActive={getIsActive('/notes')}>
+                    <Link href="/notes">
+                        <Notebook />
+                        <span>Notes & Todos</span>
                     </Link>
                 </SidebarMenuButton>
             </SidebarMenuItem>
