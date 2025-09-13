@@ -72,59 +72,81 @@ export default function NotesClientPage({ initialTodos }: { initialTodos: Todo[]
                 <h1 className="text-3xl font-bold tracking-tight">Notes & Todos</h1>
                 <p className="text-muted-foreground">Keep track of your tasks and reminders.</p>
             </header>
-            <Card>
-                <CardHeader>
-                    <CardTitle>To-Do List</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <form onSubmit={handleAddTodo} className="flex gap-2 mb-4">
-                        <Input
-                            placeholder="Add a new task..."
-                            value={newTodo}
-                            onChange={(e) => setNewTodo(e.target.value)}
-                        />
-                        <Button type="submit">
-                            <Plus className="mr-2 h-4 w-4" /> Add
-                        </Button>
-                    </form>
-                    <ScrollArea className="h-[calc(100vh-20rem)] pr-4">
-                        <div className="space-y-3">
-                            {sortedTodos.length > 0 ? (
-                                sortedTodos.map(todo => (
-                                    <div key={todo.id} className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50">
-                                        <Checkbox
-                                            id={`todo-${todo.id}`}
-                                            checked={todo.isCompleted}
-                                            onCheckedChange={() => handleToggleTodo(todo)}
-                                        />
-                                        <div className="flex-1">
-                                            <label
-                                                htmlFor={`todo-${todo.id}`}
-                                                className={cn(
-                                                    "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
-                                                    todo.isCompleted && "line-through text-muted-foreground"
-                                                )}
-                                            >
-                                                {todo.content}
-                                            </label>
-                                             <p className="text-xs text-muted-foreground mt-1">
-                                                Added by {todo.createdBy} {formatDistanceToNow(new Date(todo.createdAt), { addSuffix: true })}
-                                            </p>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-2">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>To-Do List</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <form onSubmit={handleAddTodo} className="flex gap-2 mb-4">
+                                <Input
+                                    placeholder="Add a new task..."
+                                    value={newTodo}
+                                    onChange={(e) => setNewTodo(e.target.value)}
+                                />
+                                <Button type="submit">
+                                    <Plus className="mr-2 h-4 w-4" /> Add
+                                </Button>
+                            </form>
+                            <ScrollArea className="h-[calc(100vh-20rem)] pr-4">
+                                <div className="space-y-3">
+                                    {sortedTodos.length > 0 ? (
+                                        sortedTodos.map(todo => (
+                                            <div key={todo.id} className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50">
+                                                <Checkbox
+                                                    id={`todo-${todo.id}`}
+                                                    checked={todo.isCompleted}
+                                                    onCheckedChange={() => handleToggleTodo(todo)}
+                                                />
+                                                <div className="flex-1">
+                                                    <label
+                                                        htmlFor={`todo-${todo.id}`}
+                                                        className={cn(
+                                                            "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
+                                                            todo.isCompleted && "line-through text-muted-foreground"
+                                                        )}
+                                                    >
+                                                        {todo.content}
+                                                    </label>
+                                                    <p className="text-xs text-muted-foreground mt-1">
+                                                        Added by {todo.createdBy} {formatDistanceToNow(new Date(todo.createdAt), { addSuffix: true })}
+                                                    </p>
+                                                </div>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteTodo(todo.id)}>
+                                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                                </Button>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="text-center text-muted-foreground py-8">
+                                            <p>No tasks yet. Add one above to get started!</p>
                                         </div>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteTodo(todo.id)}>
-                                            <Trash2 className="h-4 w-4 text-destructive" />
-                                        </Button>
-                                    </div>
-                                ))
-                            ) : (
-                                <div className="text-center text-muted-foreground py-8">
-                                    <p>No tasks yet. Add one above to get started!</p>
+                                    )}
                                 </div>
-                            )}
-                        </div>
-                    </ScrollArea>
-                </CardContent>
-            </Card>
+                            </ScrollArea>
+                        </CardContent>
+                    </Card>
+                </div>
+                <div className="lg:col-span-1">
+                    <Card className="overflow-hidden">
+                        <CardHeader>
+                            <CardTitle>Nepali Calendar</CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            <iframe 
+                                src="https://www.hamropatro.com/widgets/calender-small.php" 
+                                frameBorder="0" 
+                                scrolling="no" 
+                                marginWidth="0" 
+                                marginHeight="0" 
+                                style={{ border: 'none', overflow: 'hidden', width: '100%', height: '290px' }} 
+                                allowtransparency="true">
+                            </iframe>
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
         </div>
     );
 }
