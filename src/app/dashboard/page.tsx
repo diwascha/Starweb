@@ -68,7 +68,7 @@ export default function DashboardPage() {
       </div>
       <div className="lg:col-span-1">
         <Card className="overflow-hidden">
-            <CardHeader>
+            <CardHeader className="p-4">
                 <CardTitle>Nepali Calendar</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
