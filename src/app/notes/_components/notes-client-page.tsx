@@ -142,4 +142,3 @@ export default function NotesClientPage({ initialTodos }: { initialTodos: Todo[]
             </div>
         </div>
     );
-}
