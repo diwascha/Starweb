@@ -129,8 +129,8 @@ export default function NotesClientPage({ initialTodos }: { initialTodos: Todo[]
                     </Card>
                 </div>
                 <div className="lg:col-span-1">
-                     <Card className="overflow-hidden">
-                        <CardHeader className="p-4">
+                     <Card>
+                        <CardHeader>
                             <CardTitle>Nepali Calendar</CardTitle>
                         </CardHeader>
                         <CardContent className="p-0">
