@@ -129,22 +129,17 @@ export default function NotesClientPage({ initialTodos }: { initialTodos: Todo[]
                     </Card>
                 </div>
                 <div className="lg:col-span-1">
-                     <Card>
-                        <CardHeader>
-                            <CardTitle>Nepali Calendar</CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-0">
-                            <iframe 
-                                src="https://www.hamropatro.com/widgets/calender-small.php" 
-                                frameBorder="0" 
-                                scrolling="no" 
-                                marginWidth="0" 
-                                marginHeight="0" 
-                                style={{ border: 'none', overflow: 'hidden', width: '100%', height: '290px' }} 
-                                allowtransparency="true">
-                            </iframe>
-                        </CardContent>
-                    </Card>
+                     <div className="overflow-hidden rounded-lg border">
+                        <iframe 
+                            src="https://www.hamropatro.com/widgets/calender-small.php" 
+                            frameBorder="0" 
+                            scrolling="no" 
+                            marginWidth="0" 
+                            marginHeight="0" 
+                            style={{ border: 'none', overflow: 'hidden', width: '100%', height: '290px' }} 
+                            allowtransparency="true">
+                        </iframe>
+                    </div>
                 </div>
             </div>
         </div>
