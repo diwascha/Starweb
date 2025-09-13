@@ -360,18 +360,18 @@ export default function NotesClientPage({ initialItems }: { initialItems: NoteIt
                         </form>
 
                         <div className="flex flex-col sm:flex-row gap-2 mb-4">
-                            <div className="relative flex-1">
+                            <div className="relative w-full">
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
                                     placeholder="Search list..."
                                     value={searchQuery}
                                     onChange={e => setSearchQuery(e.target.value)}
-                                    className="pl-8"
+                                    className="pl-8 w-full"
                                 />
                             </div>
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
-                                    <Button variant="outline" disabled={isCleaning}>
+                                    <Button variant="outline" disabled={isCleaning} className="w-full sm:w-auto">
                                         <Sparkles className="mr-2 h-4 w-4" />
                                         {isCleaning ? 'Cleaning...' : 'Clear Old Items'}
                                     </Button>
