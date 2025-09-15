@@ -46,8 +46,9 @@ import Image from 'next/image';
 type DriverSortKey = 'name' | 'nickname' | 'licenseNumber' | 'contactNumber' | 'dateOfBirth' | 'authorship';
 type SortDirection = 'asc' | 'desc';
 
-export default function DriversClientPage({ initialDrivers }: { initialDrivers: Driver[] }) {
+export default function DriversClientPage({ initialDrivers = [] }: { initialDrivers?: Driver[] }) {
     const [drivers, setDrivers] = useState<Driver[]>(initialDrivers);
+    const [isLoading, setIsLoading] = useState(initialDrivers.length === 0);
     
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
@@ -68,11 +69,16 @@ export default function DriversClientPage({ initialDrivers }: { initialDrivers: 
 
     const { toast } = useToast();
     const { hasPermission, user } = useAuth();
-
+    
+    // For desktop builds, initialDrivers will be empty, so we fetch client-side.
+    // For web builds, data is pre-fetched, but we still set up the listener for real-time updates.
     useEffect(() => {
         const unsubscribe = onDriversUpdate(setDrivers);
+        if (initialDrivers.length === 0) {
+            setIsLoading(false); // Listener will provide the data.
+        }
         return () => unsubscribe();
-    }, []);
+    }, [initialDrivers.length]);
 
     const resetForm = () => {
         setEditingDriver(null);
@@ -210,8 +216,18 @@ export default function DriversClientPage({ initialDrivers }: { initialDrivers: 
         });
         return filtered;
     }, [drivers, searchQuery, sortConfig]);
-
+    
     const renderContent = () => {
+        if (isLoading) {
+            return (
+                <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
+                  <div className="flex flex-col items-center gap-1 text-center">
+                    <h3 className="text-2xl font-bold tracking-tight">Loading Drivers...</h3>
+                  </div>
+                </div>
+            );
+        }
+        
         if (drivers.length === 0) {
             return (
                 <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
