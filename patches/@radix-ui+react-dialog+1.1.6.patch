@@ -1,0 +1,139 @@
+diff --git a/node_modules/@radix-ui/react-dialog/dist/index.mjs b/node_modules/@radix-ui/react-dialog/dist/index.mjs
+index 5817812..b4f2355 100644
+--- a/node_modules/@radix-ui/react-dialog/dist/index.mjs
++++ b/node_modules/@radix-ui/react-dialog/dist/index.mjs
+@@ -2,7 +2,7 @@
+ import { createContext, useReducer, useContext, useMemo, useCallback, useLayoutEffect, useEffect, forwardRef, Component, Children, cloneElement } from "react";
+ 
+ // ../../react-context/dist/index.mjs
+-import { createContext as createContext2, createContextScope } from "@radix-ui/react-context";
++import { createContextScope } from "@radix-ui/react-context";
+ 
+ // ../../react-slot/dist/index.mjs
+ import { Slot } from "@radix-ui/react-slot";
+@@ -10,7 +10,7 @@
+ // ../../react-compose-refs/dist/index.mjs
+ import { useComposedRefs } from "@radix-ui/react-compose-refs";
+ 
+-// ../../react-primitive/dist/index.mjs
+-import { Primitive, createSlot } from "@radix-ui/react-primitive";
++// ../../react-primitive/dist/index.mjs
++import { Primitive } from "@radix-ui/react-primitive";
+ 
+ // ../../react-portal/dist/index.mjs
+ import { Portal as Portal2 } from "@radix-ui/react-portal";
+@@ -25,7 +25,7 @@ import { DismissableLayer } from "@radix-ui/react-dismissable-layer";
+ 
+ // ../../react-focus-scope/dist/index.mjs
+ import { FocusScope } from "@radix-ui/react-focus-scope";
+-const [DialogContext, useDialogContext] = createContext2("Dialog", {
++const [DialogContext, useDialogContext] = createContextScope("Dialog", {
+   triggerRef: {
+     current: null
+   },
+@@ -40,7 +40,7 @@ const [DialogContext, useDialogContext] = createContext2("Dialog", {
+   onOpenToggle: () => {
+   }
+ });
+-const [DialogInternalContext, useDialogInternalContext] = createContext2(
++const [DialogInternalContext, useDialogInternalContext] = createContextScope(
+   "DialogInternal",
+   {
+     contentId: void 0
+@@ -226,7 +226,7 @@ DialogTitle.displayName = TITLE_NAME;
+  * DialogDescription
+  */ const DESCRIPTION_NAME = "DialogDescription";
+ const DialogDescription = /* @__PURE__ */ forwardRef(
+   (props, forwardedRef) => {
+-    const { __scopeDialog, ...descriptionProps } = props;
++    const { __scopeDialog, ...descriptionProps } = props;
+     const internalContext = useDialogInternalContext(DESCRIPTION_NAME, __scopeDialog);
+     return /* @__PURE__ */ React.createElement(
+       Primitive.p,
+@@ -242,7 +242,7 @@ DialogDescription.displayName = DESCRIPTION_NAME;
+  * DialogClose
+  */ const CLOSE_NAME = "DialogClose";
+ const DialogClose = /* @__PURE__ */ forwardRef(
+-  (props, forwardedRef) => {
++  (props, forwardedRef) => {
+     const { __scopeDialog, ...closeProps } = props;
+     const context = useDialogContext(CLOSE_NAME, __scopeDialog);
+     return /* @__PURE__ */ React.createElement(
+@@ -255,7 +255,7 @@ DialogClose.displayName = CLOSE_NAME;
+ const Root = Dialog;
+ const Trigger = DialogTrigger;
+ const Portal = DialogPortal;
+-const Overlay = DialogOverlay;
++const Overlay = DialogOverlay;
+ const Content = DialogContent;
+ const Title = DialogTitle;
+ const Description = DialogDescription;
+diff --git a/node_modules/@radix-ui/react-dialog/dist/index.mjs b/node_modules/@radix-ui/react-dialog/dist/index.mjs
+index 5817812..b4f2355 100644
+--- a/node_modules/@radix-ui/react-dialog/dist/index.mjs
++++ b/node_modules/@radix-ui/react-dialog/dist/index.mjs
+@@ -2,7 +2,7 @@
+ import { createContext, useReducer, useContext, useMemo, useCallback, useLayoutEffect, useEffect, forwardRef, Component, Children, cloneElement } from "react";
+ 
+ // ../../react-context/dist/index.mjs
+-import { createContext as createContext2, createContextScope } from "@radix-ui/react-context";
++import { createContextScope } from "@radix-ui/react-context";
+ 
+ // ../../react-slot/dist/index.mjs
+ import { Slot } from "@radix-ui/react-slot";
+@@ -10,7 +10,7 @@
+ // ../../react-compose-refs/dist/index.mjs
+ import { useComposedRefs } from "@radix-ui/react-compose-refs";
+ 
+-// ../../react-primitive/dist/index.mjs
+-import { Primitive, createSlot } from "@radix-ui/react-primitive";
++// ../../react-primitive/dist/index.mjs
++import { Primitive } from "@radix-ui/react-primitive";
+ 
+ // ../../react-portal/dist/index.mjs
+ import { Portal as Portal2 } from "@radix-ui/react-portal";
+@@ -25,7 +25,7 @@ import { DismissableLayer } from "@radix-ui/react-dismissable-layer";
+ 
+ // ../../react-focus-scope/dist/index.mjs
+ import { FocusScope } from "@radix-ui/react-focus-scope";
+-const [DialogContext, useDialogContext] = createContext2("Dialog", {
++const [DialogContext, useDialogContext] = createContextScope("Dialog", {
+   triggerRef: {
+     current: null
+   },
+@@ -40,7 +40,7 @@ const [DialogContext, useDialogContext] = createContext2("Dialog", {
+   onOpenToggle: () => {
+   }
+ });
+-const [DialogInternalContext, useDialogInternalContext] = createContext2(
++const [DialogInternalContext, useDialogInternalContext] = createContextScope(
+   "DialogInternal",
+   {
+     contentId: void 0
+@@ -226,7 +226,7 @@ DialogTitle.displayName = TITLE_NAME;
+  * DialogDescription
+  */ const DESCRIPTION_NAME = "DialogDescription";
+ const DialogDescription = /* @__PURE__ */ forwardRef(
+-  (props, forwardedRef) => {
++  (props, forwardedRef) => {
+     const { __scopeDialog, ...descriptionProps } = props;
+     const internalContext = useDialogInternalContext(DESCRIPTION_NAME, __scopeDialog);
+     return /* @__PURE__ */ React.createElement(
+@@ -242,7 +242,7 @@ DialogDescription.displayName = DESCRIPTION_NAME;
+  * DialogClose
+  */ const CLOSE_NAME = "DialogClose";
+ const DialogClose = /* @__PURE__ */ forwardRef(
+-  (props, forwardedRef) => {
++  (props, forwardedRef) => {
+     const { __scopeDialog, ...closeProps } = props;
+     const context = useDialogContext(CLOSE_NAME, __scopeDialog);
+     return /* @__PURE__ */ React.createElement(
+@@ -255,7 +255,7 @@ DialogClose.displayName = CLOSE_NAME;
+ const Root = Dialog;
+ const Trigger = DialogTrigger;
+ const Portal = DialogPortal;
+-const Overlay = DialogOverlay;
++const Overlay = DialogOverlay;
+ const Content = DialogContent;
+ const Title = DialogTitle;
+ const Description = DialogDescription;
