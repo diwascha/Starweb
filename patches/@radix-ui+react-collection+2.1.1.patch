@@ -1,0 +1,31 @@
+diff --git a/node_modules/@radix-ui/react-collection/dist/index.mjs b/node_modules/@radix-ui/react-collection/dist/index.mjs
+index 923a103..4c63a75 100644
+--- a/node_modules/@radix-ui/react-collection/dist/index.mjs
++++ b/node_modules/@radix-ui/react-collection/dist/index.mjs
+@@ -5,7 +5,7 @@
+ import { useLayoutEffect as useLayoutEffect2 } from "@radix-ui/react-use-layout-effect";
+ 
+ // ../react-slot/dist/index.mjs
+-import { Slot, createSlot } from "@radix-ui/react-slot";
++import { Slot } from "@radix-ui/react-slot";
+ import {
+   useCallbackRef as useCallbackRef2
+ } from "@radix-ui/react-use-callback-ref";
+@@ -48,7 +48,7 @@
+   ...itemData
+ }, ref) {
+   const { collection, itemMap } = useCollection(scope);
+-  const composedRefs = useComposedRefs(ref, (node) => {
++  const composedRefs = useComposedRefs2(ref, (node) => {
+     itemMap.set(node, { ref: node, ...itemData });
+     return () => itemMap.delete(node);
+   });
+@@ -62,7 +62,7 @@
+   ...itemData
+ }, ref) {
+   const { collection, itemMap } = useCollection(scope);
+-  const composedRefs = useComposedRefs(ref, (node) => {
++  const composedRefs = useComposedRefs2(ref, (node) => {
+     itemMap.set(node, { ref: node, ...itemData });
+     return () => itemMap.delete(node);
+   });
