@@ -19,7 +19,7 @@ import { cn, generateNextPONumber, toNepaliDate } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { summarizePurchaseOrderChanges } from '@/ai/flows/summarize-po-changes-flow';
@@ -148,6 +148,14 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     }
     return rawMaterials.filter(m => m.type === itemFilterType);
   }, [rawMaterials, itemFilterType]);
+
+  const watchedItems = form.watch("items");
+  const totalQuantity = useMemo(() => {
+      return watchedItems.reduce((total, item) => {
+          const quantity = parseFloat(item.quantity);
+          return isNaN(quantity) ? total : total + quantity;
+      }, 0);
+  }, [watchedItems]);
 
 
   const handleCompanySelect = (companyName: string) => {
@@ -668,6 +676,13 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                 </TableRow>
                             )})}
                         </TableBody>
+                         <TableFooter>
+                            <TableRow>
+                                <TableCell colSpan={showPaperColumns ? 4 : (itemFilterType === 'All' ? 2 : 1)}>Total</TableCell>
+                                <TableCell className="font-bold">{totalQuantity.toLocaleString()}</TableCell>
+                                <TableCell></TableCell>
+                            </TableRow>
+                        </TableFooter>
                     </Table>
                 </div>
                 {form.formState.errors.items?.root?.message && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.items.root.message}</p>}
@@ -762,7 +777,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                  {quickAddForm.type && (
                     <div className="space-y-2">
                         <Label htmlFor="material-units">Units of Measurement</Label>
-                        <Popover open={isQuickAddUnitPopoverOpen} onOpenChange={setIsQuickAddUnitPopoverOpen}>
+                         <Popover open={isQuickAddUnitPopoverOpen} onOpenChange={setIsQuickAddUnitPopoverOpen}>
                             <PopoverTrigger asChild>
                                 <div className="flex min-h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm flex-wrap gap-1">
                                 {quickAddForm.units.map(unit => (
