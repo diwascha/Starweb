@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import type { Party, Account, PartyType, AccountType, UnitOfMeasurement, AppSetting, User, Permissions, Module, Action, DocumentPrefixes } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -41,7 +41,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { getUsers, setUsers, validatePassword, setAdminPassword, updateUserPassword } from '@/services/user-service';
 import { modules, actions, documentTypes, getDocumentName } from '@/lib/types';
 import { Checkbox } from '@/components/ui/checkbox';
-import { exportData } from '@/services/backup-service';
+import { exportData, importData } from '@/services/backup-service';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { getPayrollYears } from '@/services/payroll-service';
@@ -69,6 +69,9 @@ export default function SettingsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState("users-security");
   const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const importFileRef = useRef<HTMLInputElement>(null);
+
 
   // Prefixes State
   const [prefixes, setPrefixes] = useState<DocumentPrefixes>({});
@@ -180,6 +183,38 @@ export default function SettingsPage() {
         setIsExporting(false);
     }
   };
+
+  const handleImportFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        try {
+            const content = e.target?.result as string;
+            const data = JSON.parse(content);
+            
+            setIsImporting(true);
+            await importData(data);
+            
+            toast({
+                title: 'Import Successful',
+                description: 'Data has been restored from backup. The application will now reload.',
+            });
+
+            // Reload the application to reflect the new state
+            setTimeout(() => window.location.reload(), 2000);
+
+        } catch (error) {
+            console.error("Import failed:", error);
+            toast({ title: 'Import Failed', description: 'Could not restore data from the selected file. Ensure it is a valid backup.', variant: 'destructive' });
+            setIsImporting(false);
+        }
+    };
+    reader.readAsText(file);
+    if(importFileRef.current) importFileRef.current.value = ''; // Reset file input
+};
+
 
   const handleTogglePayrollLock = async () => {
     if (!selectedLockYear || !selectedLockMonth) {
@@ -547,7 +582,7 @@ export default function SettingsPage() {
                         </Card>
                         <Card>
                             <CardHeader>
-                                <CardTitle>Backup &amp; Restore</CardTitle>
+                                <CardTitle>Backup & Restore</CardTitle>
                                 <CardDescription>Export your application data or restore it from a backup file.</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
@@ -561,15 +596,38 @@ export default function SettingsPage() {
                                 </div>
                                 <div className="pt-4 border-t">
                                     <h3 className="font-medium">Restore Data</h3>
-                                    <p className="text-sm text-muted-foreground">
-                                        Restoring data will overwrite all existing information in your database. This is a sensitive operation and should be done with caution using the official Google Cloud tools.
+                                    <p className="text-sm text-muted-foreground mb-2">
+                                        Select a JSON backup file to restore your application's data.
                                     </p>
-                                    <div className="mt-2 text-xs p-3 bg-muted rounded-md space-y-1">
-                                        <p className="font-semibold">Instructions:</p>
-                                        <p>1. Install the Google Cloud CLI on your local machine.</p>
-                                        <p>2. Authenticate by running <code className="bg-background p-1 rounded">gcloud auth login</code>.</p>
-                                        <p>3. Use the <code className="bg-background p-1 rounded">gcloud firestore import</code> command with your backup file.</p>
-                                    </div>
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <Button variant="destructive-outline" disabled={isImporting}>
+                                                {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                                                {isImporting ? 'Importing...' : 'Import from Backup'}
+                                            </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    This action cannot be undone. Restoring from a backup will <span className="font-bold text-destructive">completely overwrite all current data</span> in the application. Proceed with caution.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => importFileRef.current?.click()}>
+                                                    Choose File & Continue
+                                                </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                    <Input
+                                        type="file"
+                                        ref={importFileRef}
+                                        className="hidden"
+                                        accept="application/json"
+                                        onChange={handleImportFileSelect}
+                                    />
                                 </div>
                             </CardContent>
                         </Card>
