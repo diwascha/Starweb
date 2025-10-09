@@ -250,7 +250,21 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
               <h2 className="text-base font-semibold">Order Details</h2>
                {Object.entries(groupedItems).map(([type, items]) => {
                   const isPaper = paperTypes.includes(type);
-                  const totals = items.reduce((acc, item) => {
+
+                  const sortedItems = isPaper
+                    ? [...items].sort((a, b) => {
+                        const gsmA = parseFloat(a.gsm) || 0;
+                        const gsmB = parseFloat(b.gsm) || 0;
+                        if (gsmA !== gsmB) {
+                            return gsmA - gsmB;
+                        }
+                        const sizeA = parseFloat(a.size) || 0;
+                        const sizeB = parseFloat(b.size) || 0;
+                        return sizeA - sizeB;
+                      })
+                    : items;
+
+                  const totals = sortedItems.reduce((acc, item) => {
                       const quantity = parseFloat(item.quantity) || 0;
                       if (quantity > 0) {
                           acc[item.unit] = (acc[item.unit] || 0) + quantity;
@@ -279,7 +293,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {items.map((item, index) => (
+                            {sortedItems.map((item, index) => (
                             <TableRow key={`${item.rawMaterialId}-${index}`} className="border-b-gray-300">
                                 <TableCell className="px-2 py-1 text-xs">{index + 1}</TableCell>
                                 <TableCell className="px-2 py-1 text-xs">{item.rawMaterialName}</TableCell>
