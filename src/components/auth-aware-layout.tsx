@@ -6,10 +6,34 @@ import { SidebarProvider, SidebarInset, SidebarTrigger } from "./ui/sidebar";
 import { AppSidebar } from "./app-sidebar";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
+import { exportData } from "@/services/backup-service";
+import { format } from "date-fns";
 
 export default function AuthAwareLayout({ children }: { children: React.ReactNode }) {
     const { user, loading } = useAuth();
     const pathname = usePathname();
+
+    useEffect(() => {
+        const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
+        if (isDesktop && user) {
+            const lastBackupDate = localStorage.getItem('lastAutoBackupDate');
+            const today = format(new Date(), 'yyyy-MM-dd');
+
+            if (lastBackupDate !== today) {
+                console.log('Performing automatic daily backup...');
+                exportData().then(data => {
+                    const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(data, null, 2))}`;
+                    const link = document.createElement("a");
+                    link.href = jsonString;
+                    link.download = `starweb-autobackup-${today}.json`;
+                    link.click();
+                    localStorage.setItem('lastAutoBackupDate', today);
+                }).catch(error => {
+                    console.error("Automatic backup failed:", error);
+                });
+            }
+        }
+    }, [user]);
 
     if (loading) {
          return (
