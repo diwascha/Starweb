@@ -19,6 +19,7 @@ const collectionsToBackup = [
     'destinations',
     'trips',
     'settings',
+    'notes',
 ];
 
 export const exportData = async (): Promise<Record<string, any[]>> => {
