@@ -6,7 +6,7 @@ import type { PurchaseOrder, PurchaseOrderStatus } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Printer, Loader2, Save } from 'lucide-react';
+import { Printer, Loader2, Save, Image as ImageIcon } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import NepaliDate from 'nepali-date-converter';
 import { useRouter } from 'next/navigation';
@@ -21,6 +21,7 @@ const paperTypes = ['Kraft Paper', 'Virgin Paper'];
 export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { initialPurchaseOrder: PurchaseOrder | null, poId?: string }) {
   const [purchaseOrder, setPurchaseOrder] = useState<PurchaseOrder | null>(initialPurchaseOrder);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [isGeneratingJpg, setIsGeneratingJpg] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -97,6 +98,34 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
         setIsGeneratingPdf(false);
     }
   };
+
+  const handleSaveAsJpg = async () => {
+    if (!purchaseOrder) return;
+    
+    setIsGeneratingJpg(true);
+    const printableArea = document.querySelector('.printable-area') as HTMLElement;
+    if (!printableArea) {
+        setIsGeneratingJpg(false);
+        return;
+    }
+
+    try {
+        const html2canvas = (await import('html2canvas')).default;
+        const canvas = await html2canvas(printableArea, {
+            scale: 2,
+            useCORS: true,
+            logging: false,
+        });
+        const link = document.createElement('a');
+        link.download = `PO-${purchaseOrder.poNumber}.jpg`;
+        link.href = canvas.toDataURL('image/jpeg', 0.9); // 0.9 is the quality
+        link.click();
+    } catch (error) {
+        console.error("Error generating JPG", error);
+    } finally {
+        setIsGeneratingJpg(false);
+    }
+  };
   
   const handlePrint = () => {
     setTimeout(() => {
@@ -167,6 +196,10 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
         </div>
         <div className="flex gap-2">
             <Button variant="outline" onClick={() => router.push(`/purchase-orders/edit/${purchaseOrder.id}`)}>Edit</Button>
+            <Button variant="outline" onClick={handleSaveAsJpg} disabled={isGeneratingJpg}>
+                {isGeneratingJpg ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImageIcon className="mr-2 h-4 w-4" />}
+                {isGeneratingJpg ? 'Saving...' : 'Save as JPG'}
+            </Button>
             <Button variant="outline" onClick={handleSaveAsPdf} disabled={isGeneratingPdf}>
                 {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 {isGeneratingPdf ? 'Saving...' : 'Save as PDF'}
