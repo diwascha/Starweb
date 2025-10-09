@@ -6,49 +6,10 @@ import { SidebarProvider, SidebarInset, SidebarTrigger } from "./ui/sidebar";
 import { AppSidebar } from "./app-sidebar";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
-import { exportData } from "@/services/backup-service";
-
-const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
-
-const handleAutomaticBackup = async () => {
-    if (!isDesktop) return;
-
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-    const lastBackupDate = localStorage.getItem('lastAutomaticBackupDate');
-
-    if (lastBackupDate === today) {
-        console.log("Automatic backup for today already performed.");
-        return;
-    }
-
-    console.log("Performing automatic daily backup...");
-    try {
-        const data = await exportData();
-        const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(data, null, 2))}`;
-        const link = document.createElement("a");
-        link.href = jsonString;
-        link.download = `starweb-autobackup-${today}.json`;
-        
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        localStorage.setItem('lastAutomaticBackupDate', today);
-        console.log("Automatic backup successful.");
-    } catch (error) {
-        console.error("Automatic backup failed:", error);
-    }
-};
 
 export default function AuthAwareLayout({ children }: { children: React.ReactNode }) {
     const { user, loading } = useAuth();
     const pathname = usePathname();
-
-    useEffect(() => {
-        if (user && !loading) {
-            handleAutomaticBackup();
-        }
-    }, [user, loading]);
 
     if (loading) {
          return (
