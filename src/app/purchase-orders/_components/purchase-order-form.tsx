@@ -150,11 +150,15 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   }, [rawMaterials, itemFilterType]);
 
   const watchedItems = form.watch("items");
-  const totalQuantity = useMemo(() => {
-      return watchedItems.reduce((total, item) => {
-          const quantity = parseFloat(item.quantity);
-          return isNaN(quantity) ? total : total + quantity;
-      }, 0);
+  const quantityTotalsByUnit = useMemo(() => {
+    return watchedItems.reduce((acc, item) => {
+      const quantity = parseFloat(item.quantity);
+      const unit = item.unit;
+      if (!isNaN(quantity) && unit) {
+        acc[unit] = (acc[unit] || 0) + quantity;
+      }
+      return acc;
+    }, {} as Record<string, number>);
   }, [watchedItems]);
 
 
@@ -677,11 +681,15 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                             )})}
                         </TableBody>
                         <TableFooter>
-                          <TableRow>
-                              <TableCell colSpan={showPaperColumns ? 5 : 2} className="text-right font-bold">Total Quantity</TableCell>
-                              <TableCell className="font-bold">{totalQuantity.toLocaleString()}</TableCell>
-                              <TableCell></TableCell>
-                          </TableRow>
+                            <TableRow>
+                                <TableCell colSpan={showPaperColumns ? 5 : 2} className="text-right font-bold">Total</TableCell>
+                                <TableCell className="font-bold">
+                                    {Object.entries(quantityTotalsByUnit).map(([unit, total]) => (
+                                        <span key={unit} className="mr-4">{total.toLocaleString()} {unit}</span>
+                                    ))}
+                                </TableCell>
+                                <TableCell></TableCell>
+                            </TableRow>
                         </TableFooter>
                     </Table>
                 </div>
@@ -843,3 +851,5 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     </div>
   );
 }
+
+    
