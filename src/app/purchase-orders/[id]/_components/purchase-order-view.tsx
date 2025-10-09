@@ -4,7 +4,7 @@
 import { useEffect, useState, Fragment } from 'react';
 import type { PurchaseOrder, PurchaseOrderStatus } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Printer, Loader2, Save, Image as ImageIcon } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
@@ -145,7 +145,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
   const nepaliPoDateString = nepaliPoDate.format('YYYY/MM/DD');
   
   const showAmendedDate = purchaseOrder.amendments && purchaseOrder.amendments.length > 0;
-  const amendedDate = showAmendedDate ? new Date(purchaseOrder.updatedAt) : null;
+  const amendedDate = showAmendedDate && purchaseOrder.updatedAt ? new Date(purchaseOrder.updatedAt) : null;
   const nepaliAmendedDateString = amendedDate ? new NepaliDate(amendedDate).format('YYYY/MM/DD') : '';
 
   
@@ -250,6 +250,14 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
               <h2 className="text-base font-semibold">Order Details</h2>
                {Object.entries(groupedItems).map(([type, items]) => {
                   const isPaper = paperTypes.includes(type);
+                  const totals = items.reduce((acc, item) => {
+                      const quantity = parseFloat(item.quantity) || 0;
+                      if (quantity > 0) {
+                          acc[item.unit] = (acc[item.unit] || 0) + quantity;
+                      }
+                      return acc;
+                  }, {} as Record<string, number>);
+
                   return (
                     <div key={type} className="border rounded-lg border-gray-300">
                         <Table>
@@ -286,6 +294,16 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
                             </TableRow>
                             ))}
                         </TableBody>
+                         <TableFooter>
+                            <TableRow className="border-t-2 border-gray-400 font-bold">
+                                <TableCell colSpan={isPaper ? 5 : 3} className="text-right px-2 py-1 text-xs">Total</TableCell>
+                                <TableCell className="text-right px-2 py-1 text-xs">
+                                     {Object.entries(totals).map(([unit, total]) => (
+                                        <span key={unit} className="mr-4">{total.toLocaleString()} {unit}</span>
+                                    ))}
+                                </TableCell>
+                            </TableRow>
+                        </TableFooter>
                         </Table>
                     </div>
                   );
@@ -369,7 +387,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
             border: none;
             font-size: 10px; /* Smaller base font size for print */
           }
-           .print\:hidden {
+           .print\\:hidden {
               display: none;
            }
         }
