@@ -15,6 +15,9 @@ import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { getUsers, getAdminCredentials } from '@/services/user-service';
 import { Progress } from '@/components/ui/progress';
+import { exportData } from '@/services/backup-service';
+import { format } from 'date-fns';
+
 
 const loginSchema = z.object({
   username: z.string().min(1, { message: 'Username is required' }),
@@ -78,38 +81,69 @@ export default function LoginPage() {
     }
   }, [user, authLoading, progress, router]);
 
+  const handleDailyBackup = async () => {
+    const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
+    if (!isDesktop) return;
+
+    const lastBackupDate = localStorage.getItem('lastAutoBackupDate');
+    const today = format(new Date(), 'yyyy-MM-dd');
+
+    if (lastBackupDate !== today) {
+        console.log('Performing automatic daily backup...');
+        try {
+            const data = await exportData();
+            const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(data, null, 2))}`;
+            const link = document.createElement("a");
+            link.href = jsonString;
+            link.download = `starweb-autobackup-${today}.json`;
+            link.click();
+            localStorage.setItem('lastAutoBackupDate', today);
+            toast({
+                title: "Automatic Backup",
+                description: `Backup file "starweb-autobackup-${today}.json" saved to your Downloads.`,
+                duration: 8000
+            });
+        } catch (error) {
+            console.error("Automatic backup failed:", error);
+            toast({
+                title: "Auto-Backup Failed",
+                description: "Could not create automatic backup.",
+                variant: "destructive",
+            });
+        }
+    }
+  };
+
 
   const onSubmit = async (data: LoginFormValues) => {
     setIsSubmitting(true);
     try {
+      let loggedInUser: User | undefined;
       // Check for Administrator
       if (data.username === 'Administrator') {
         const adminCreds = getAdminCredentials();
         const defaultAdminPassword = 'Admin@123'; // Hardcoded fallback
         
         if (data.password === adminCreds.password || data.password === defaultAdminPassword) {
-            await login({ id: 'admin', username: 'Administrator', permissions: {}, passwordLastUpdated: adminCreds.passwordLastUpdated });
-            toast({
-              title: 'Success',
-              description: 'Logged in successfully as Administrator.',
-            });
-            setShowProgress(true);
-            setIsSubmitting(false);
-            return;
+            loggedInUser = { id: 'admin', username: 'Administrator', permissions: {} };
         }
+      } else {
+        const allUsers = getUsers();
+        loggedInUser = allUsers.find(
+          (user) => user.username === data.username && user.password === data.password
+        );
       }
-      
-      const allUsers = getUsers();
-      const foundUser = allUsers.find(
-        (user) => user.username === data.username && user.password === data.password
-      );
 
-      if (foundUser) {
-        await login(foundUser);
+      if (loggedInUser) {
+        await login(loggedInUser);
         toast({
           title: 'Success',
           description: 'Logged in successfully.',
         });
+
+        // Trigger backup after successful login
+        await handleDailyBackup();
+
         setShowProgress(true);
         setIsSubmitting(false);
         return;
