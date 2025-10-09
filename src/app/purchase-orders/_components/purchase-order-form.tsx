@@ -676,12 +676,12 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                 </TableRow>
                             )})}
                         </TableBody>
-                         <TableFooter>
-                            <TableRow>
-                                <TableCell colSpan={showPaperColumns ? 4 : (itemFilterType === 'All' ? 2 : 1)}>Total</TableCell>
-                                <TableCell className="font-bold">{totalQuantity.toLocaleString()}</TableCell>
-                                <TableCell></TableCell>
-                            </TableRow>
+                        <TableFooter>
+                          <TableRow>
+                              <TableCell colSpan={showPaperColumns ? 5 : 2} className="text-right font-bold">Total Quantity</TableCell>
+                              <TableCell className="font-bold">{totalQuantity.toLocaleString()}</TableCell>
+                              <TableCell></TableCell>
+                          </TableRow>
                         </TableFooter>
                     </Table>
                 </div>
