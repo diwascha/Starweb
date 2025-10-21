@@ -10,7 +10,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "tauri": "tauri",
+    "tauri:dev": "NEXT_PUBLIC_IS_DESKTOP=true tauri dev",
+    "tauri:build": "NEXT_PUBLIC_IS_DESKTOP=true tauri build"
   },
   "dependencies": {
     "@genkit-ai/googleai": "^1.14.1",
@@ -37,6 +40,7 @@
     "@radix-ui/react-tabs": "^1.1.0",
     "@radix-ui/react-toast": "^1.2.1",
     "@radix-ui/react-tooltip": "^1.1.2",
+    "@tauri-apps/api": "^1.5.6",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "cmdk": "^1.0.0",
@@ -58,10 +62,12 @@
     "recharts": "^2.12.7",
     "tailwind-merge": "^2.4.0",
     "tailwindcss-animate": "^1.0.7",
+    "tauri": "link:@tauri-apps/api",
     "xlsx": "^0.18.5",
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^1.5.14",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",

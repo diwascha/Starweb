@@ -34,6 +34,7 @@ const nextConfig: NextConfig = {
     // Set NEXT_PUBLIC_IS_DESKTOP=true when building for Tauri/Electron.
     NEXT_PUBLIC_IS_DESKTOP: process.env.NEXT_PUBLIC_IS_DESKTOP || 'false',
   },
+  output: isDesktop ? 'export' : undefined,
 };
 
 export default nextConfig;
