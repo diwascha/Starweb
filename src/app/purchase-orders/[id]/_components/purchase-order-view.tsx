@@ -242,8 +242,8 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
 
         <Card className="shadow-none border-gray-300">
           <CardHeader className="p-2">
-            <CardTitle className="text-base">To: {purchaseOrder.companyName}</CardTitle>
-            <p className="text-sm">{purchaseOrder.companyAddress}</p>
+            <CardTitle className="text-base">To: {purchaseOrder.partyName}</CardTitle>
+            <p className="text-sm">{purchaseOrder.partyAddress}</p>
           </CardHeader>
           <CardContent className="space-y-4 p-2">
             <section className="space-y-2">

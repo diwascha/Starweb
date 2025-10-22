@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, Check, ChevronsUpDown, User } from 'lucide-react';
-import type { Product, ProductSpecification, Report } from '@/lib/types';
+import type { Product, ProductSpecification, Report, Party } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import {
@@ -47,6 +47,7 @@ import { addProduct, updateProduct, deleteProduct, onProductsUpdate } from '@/se
 import { getReportsByProductId, deleteReport } from '@/services/report-service';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { format } from 'date-fns';
+import { onPartiesUpdate } from '@/services/party-service';
 
 
 const initialSpecValues: ProductSpecification = {
@@ -62,17 +63,17 @@ const initialSpecValues: ProductSpecification = {
   load: '',
 };
 
-type ProductSortKey = 'name' | 'materialCode' | 'companyName' | 'authorship';
+type ProductSortKey = 'name' | 'materialCode' | 'partyName' | 'authorship';
 type SortDirection = 'asc' | 'desc';
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [parties, setParties] = useState<Party[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
   const [newProductName, setNewProductName] = useState('');
   const [newMaterialCode, setNewMaterialCode] = useState('');
-  const [newCompanyName, setNewCompanyName] = useState('');
-  const [newAddress, setNewAddress] = useState('');
+  const [newPartyId, setNewPartyId] = useState('');
   const [newSpec, setNewSpec] = useState<ProductSpecification>(initialSpecValues);
   
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
@@ -84,46 +85,34 @@ export default function ProductsPage() {
     direction: 'asc',
   });
   
-  const [isCompanyPopoverOpen, setIsCompanyPopoverOpen] = useState(false);
+  const [isPartyPopoverOpen, setIsPartyPopoverOpen] = useState(false);
 
   const { toast } = useToast();
   const { hasPermission, user } = useAuth();
+  
+  const partiesById = useMemo(() => new Map(parties.map(p => [p.id, p])), [parties]);
+  const customers = useMemo(() => parties.filter(p => p.type === 'Customer' || p.type === 'Both'), [parties]);
 
   useEffect(() => {
     setIsLoading(true);
-    const unsubscribe = onProductsUpdate((productsData) => {
-        setProducts(productsData);
-        setIsLoading(false);
-    });
-    return () => unsubscribe();
+    const unsubProducts = onProductsUpdate(setProducts);
+    const unsubParties = onPartiesUpdate(setParties);
+    setIsLoading(false);
+    return () => {
+        unsubProducts();
+        unsubParties();
+    };
   }, []);
 
-  const companies = useMemo(() => {
-    const companyMap = new Map<string, string>();
-    products.forEach(product => {
-        if (product.companyName && !companyMap.has(product.companyName.toLowerCase())) {
-            companyMap.set(product.companyName.toLowerCase(), product.companyName);
-        }
-    });
-    return Array.from(companyMap.values()).sort();
-  }, [products]);
-
-  const handleCompanySelect = (companyName: string) => {
-    setNewCompanyName(companyName);
-    const existingProduct = products.find(p => p.companyName.toLowerCase() === companyName.toLowerCase());
-    if (existingProduct) {
-        setNewAddress(existingProduct.address);
-    } else {
-        setNewAddress('');
-    }
-    setIsCompanyPopoverOpen(false);
+  const handlePartySelect = (partyId: string) => {
+    setNewPartyId(partyId);
+    setIsPartyPopoverOpen(false);
   };
   
   const resetForm = () => {
     setNewProductName('');
     setNewMaterialCode('');
-    setNewCompanyName('');
-    setNewAddress('');
+    setNewPartyId('');
     setNewSpec(initialSpecValues);
     setEditingProduct(null);
   };
@@ -137,8 +126,7 @@ export default function ProductsPage() {
     setEditingProduct(product);
     setNewProductName(product.name);
     setNewMaterialCode(product.materialCode);
-    setNewCompanyName(product.companyName);
-    setNewAddress(product.address);
+    setNewPartyId(product.partyId || '');
 
     const specsWithDefaults = { ...initialSpecValues, ...product.specification };
     setNewSpec(specsWithDefaults);
@@ -151,15 +139,26 @@ export default function ProductsPage() {
         toast({ title: 'Error', description: 'You must be logged in to perform this action.', variant: 'destructive' });
         return;
     }
-    if (newProductName.trim() !== '' && newMaterialCode.trim() !== '' && newCompanyName.trim() !== '' && newAddress.trim() !== '') {
+    if (newProductName.trim() !== '' && newMaterialCode.trim() !== '' && newPartyId) {
       try {
-        if (editingProduct) {
-          const updatedProductData: Partial<Omit<Product, 'id'>> = {
+        const party = partiesById.get(newPartyId);
+        if (!party) {
+            toast({ title: 'Error', description: 'Selected party not found.', variant: 'destructive' });
+            return;
+        }
+
+        const productData = {
             name: newProductName.trim(),
             materialCode: newMaterialCode.trim(),
-            companyName: newCompanyName.trim(),
-            address: newAddress.trim(),
+            partyId: newPartyId,
+            partyName: party.name,
+            partyAddress: party.address || '',
             specification: newSpec,
+        };
+
+        if (editingProduct) {
+          const updatedProductData: Partial<Omit<Product, 'id'>> = {
+            ...productData,
             lastModifiedBy: user.username,
             lastModifiedAt: new Date().toISOString(),
           };
@@ -168,11 +167,7 @@ export default function ProductsPage() {
         } else {
            const now = new Date().toISOString();
           const newProduct: Omit<Product, 'id'> = {
-            name: newProductName.trim(),
-            materialCode: newMaterialCode.trim(),
-            companyName: newCompanyName.trim(),
-            address: newAddress.trim(),
-            specification: newSpec,
+            ...productData,
             createdBy: user.username,
             createdAt: now,
           };
@@ -191,12 +186,10 @@ export default function ProductsPage() {
   
   const handleDeleteProduct = async (id: string) => {
     try {
-      // First, find and delete all associated reports
       const reportsToDelete = await getReportsByProductId(id);
       for (const report of reportsToDelete) {
         await deleteReport(report.id);
       }
-      // Then, delete the product itself
       await deleteProduct(id);
       toast({ title: 'Product Deleted', description: 'The product and its associated reports have been deleted.' });
     } catch (error) {
@@ -233,7 +226,7 @@ export default function ProductsPage() {
         filteredProducts = filteredProducts.filter(product =>
             (product.name || '').toLowerCase().includes(lowercasedQuery) ||
             (product.materialCode || '').toLowerCase().includes(lowercasedQuery) ||
-            (product.companyName || '').toLowerCase().includes(lowercasedQuery)
+            (product.partyName || '').toLowerCase().includes(lowercasedQuery)
         );
     }
 
@@ -308,7 +301,7 @@ export default function ProductsPage() {
                     </Button>
                 </TableHead>
                 <TableHead>
-                    <Button variant="ghost" onClick={() => requestProductSort('companyName')}>
+                    <Button variant="ghost" onClick={() => requestProductSort('partyName')}>
                     Delivered To
                     <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
@@ -327,7 +320,7 @@ export default function ProductsPage() {
                 <TableRow key={product.id}>
                     <TableCell className="font-medium">{product.name}</TableCell>
                     <TableCell>{product.materialCode}</TableCell>
-                    <TableCell>{product.companyName}</TableCell>
+                    <TableCell>{product.partyName}</TableCell>
                     <TableCell>
                         <TooltipProvider>
                             <Tooltip>
@@ -454,70 +447,46 @@ export default function ProductsPage() {
                               />
                             </div>
                         </div>
-                         <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="company-name">Delivered To</Label>
-                                <Popover open={isCompanyPopoverOpen} onOpenChange={setIsCompanyPopoverOpen}>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant="outline"
-                                            role="combobox"
-                                            aria-expanded={isCompanyPopoverOpen}
-                                            className="w-full justify-between"
-                                        >
-                                            {newCompanyName || "Select or type a company..."}
-                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="p-0">
-                                        <Command>
-                                            <CommandInput 
-                                                placeholder="Search or add company..."
-                                                value={newCompanyName}
-                                                onValueChange={setNewCompanyName}
-                                            />
-                                            <CommandList>
-                                                <CommandEmpty>
-                                                    <button 
-                                                        type="button"
-                                                        className="w-full text-left p-2 text-sm"
-                                                        onClick={() => handleCompanySelect(newCompanyName)}
+                         <div className="space-y-2">
+                            <Label htmlFor="company-name">Delivered To</Label>
+                            <Popover open={isPartyPopoverOpen} onOpenChange={setIsPartyPopoverOpen}>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        role="combobox"
+                                        aria-expanded={isPartyPopoverOpen}
+                                        className="w-full justify-between"
+                                    >
+                                        {newPartyId ? customers.find(c => c.id === newPartyId)?.name : "Select a customer..."}
+                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
+                                    <Command>
+                                        <CommandInput placeholder="Search customers..." />
+                                        <CommandList>
+                                            <CommandEmpty>No customers found.</CommandEmpty>
+                                            <CommandGroup>
+                                                {customers.map((party) => (
+                                                    <CommandItem
+                                                        key={party.id}
+                                                        value={party.name}
+                                                        onSelect={() => handlePartySelect(party.id)}
                                                     >
-                                                        Add "{newCompanyName}"
-                                                    </button>
-                                                </CommandEmpty>
-                                                <CommandGroup>
-                                                    {companies.map((company) => (
-                                                        <CommandItem
-                                                            key={company}
-                                                            value={company}
-                                                            onSelect={(currentValue) => {
-                                                                handleCompanySelect(currentValue === newCompanyName.toLowerCase() ? '' : company)
-                                                            }}
-                                                        >
-                                                            <Check
-                                                                className={cn(
-                                                                "mr-2 h-4 w-4",
-                                                                newCompanyName.toLowerCase() === company.toLowerCase() ? "opacity-100" : "opacity-0"
-                                                                )}
-                                                            />
-                                                            {company}
-                                                        </CommandItem>
-                                                    ))}
-                                                </CommandGroup>
-                                            </CommandList>
-                                        </Command>
-                                    </PopoverContent>
-                                </Popover>
-                            </div>
-                            <div className="space-y-2">
-                               <Label htmlFor="address">Address</Label>
-                               <Textarea
-                                id="address"
-                                value={newAddress}
-                                onChange={e => setNewAddress(e.target.value)}
-                                />
-                            </div>
+                                                        <Check
+                                                            className={cn(
+                                                            "mr-2 h-4 w-4",
+                                                            newPartyId === party.id ? "opacity-100" : "opacity-0"
+                                                            )}
+                                                        />
+                                                        {party.name}
+                                                    </CommandItem>
+                                                ))}
+                                            </CommandGroup>
+                                        </CommandList>
+                                    </Command>
+                                </PopoverContent>
+                            </Popover>
                         </div>
                         
                         <div>
