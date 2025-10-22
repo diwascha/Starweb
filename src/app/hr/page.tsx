@@ -78,8 +78,22 @@ function DashboardSkeleton() {
 }
 
 export default async function HRPage() {
-   const initialEmployees = await getEmployees();
-   const initialAttendance = await getAttendance();
+    const employeesRaw = await getEmployees();
+    const attendanceRaw = await getAttendance();
+
+    // Convert any Date/Timestamp objects to ISO strings to prevent serialization errors.
+    const initialEmployees = employeesRaw.map(e => ({
+        ...e,
+        dateOfBirth: e.dateOfBirth ? new Date(e.dateOfBirth).toISOString() : undefined,
+        joiningDate: e.joiningDate ? new Date(e.joiningDate).toISOString() : undefined,
+        createdAt: e.createdAt ? new Date(e.createdAt).toISOString() : undefined,
+        lastModifiedAt: e.lastModifiedAt ? new Date(e.lastModifiedAt).toISOString() : undefined,
+    }));
+    
+    const initialAttendance = attendanceRaw.map(a => ({
+        ...a,
+        date: a.date ? new Date(a.date).toISOString() : undefined,
+    }));
   
   return (
     <div className="flex flex-col gap-8">
