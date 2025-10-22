@@ -89,7 +89,47 @@ export function AppSidebar() {
                 </SidebarMenuButton>
             </SidebarMenuItem>
             )}
+        </SidebarMenu>
 
+        <SidebarMenu>
+            <SidebarSeparator />
+             <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={getIsActive('/finance')}>
+                <Link href="/finance/tds-calculator">
+                    <Landmark />
+                    <span>Finance Tools</span>
+                </Link>
+                </SidebarMenuButton>
+            </SidebarMenuItem>
+            <div className="ml-4">
+                <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={getIsActive('/finance/tds-calculator')}>
+                    <Link href="/finance/tds-calculator">
+                        <Calculator />
+                        <span>TDS Calculator</span>
+                    </Link>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+                 <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={getIsActive('/finance/estimate-invoice')}>
+                    <Link href="/finance/estimate-invoice">
+                        <FileText />
+                        <span>Estimate Invoice</span>
+                    </Link>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={getIsActive('/finance/cheque-generator')}>
+                    <Link href="/finance/cheque-generator">
+                        <Receipt />
+                        <span>Cheque Generator</span>
+                    </Link>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+            </div>
+        </SidebarMenu>
+
+        <SidebarMenu>
             {(hasPermission('reports', 'view') || hasPermission('products', 'view')) && (
                  <>
                     <SidebarSeparator />
@@ -332,43 +372,6 @@ export function AppSidebar() {
                     </div>
                 </>
             )}
-        </SidebarMenu>
-         <SidebarMenu>
-            <SidebarSeparator />
-             <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={getIsActive('/finance')}>
-                <Link href="/finance/tds-calculator">
-                    <Landmark />
-                    <span>Finance Tools</span>
-                </Link>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
-            <div className="ml-4">
-                <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={getIsActive('/finance/tds-calculator')}>
-                    <Link href="/finance/tds-calculator">
-                        <Calculator />
-                        <span>TDS Calculator</span>
-                    </Link>
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
-                 <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={getIsActive('/finance/estimate-invoice')}>
-                    <Link href="/finance/estimate-invoice">
-                        <FileText />
-                        <span>Estimate Invoice</span>
-                    </Link>
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={getIsActive('/finance/cheque-generator')}>
-                    <Link href="/finance/cheque-generator">
-                        <Receipt />
-                        <span>Cheque Generator</span>
-                    </Link>
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
-            </div>
         </SidebarMenu>
         <SidebarMenu>
             <SidebarSeparator />
