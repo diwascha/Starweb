@@ -111,47 +111,43 @@ export function AppSidebar() {
         </SidebarMenu>
         
         {hasPermission('finance', 'view') && (
-        <Accordion type="single" collapsible defaultValue={pathname.startsWith('/finance') ? "finance" : undefined}>
-            <AccordionItem value="finance" className="border-none">
-                 <SidebarMenu>
-                    <SidebarSeparator />
-                     <AccordionTrigger className="w-full justify-between p-2 hover:bg-sidebar-accent rounded-md [&[data-state=open]>svg]:rotate-180">
-                         <Link href="/finance" className="flex items-center gap-2 text-sm font-medium">
+            <SidebarMenu>
+                <SidebarSeparator />
+                <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={getIsActive('/finance')}>
+                    <Link href="/finance">
+                        <Calculator />
+                        <span>Finance</span>
+                    </Link>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+                <div className="ml-4">
+                    <SidebarMenuItem>
+                        <SidebarMenuButton asChild isActive={getIsActive('/finance/tds-calculator')}>
+                        <Link href="/finance/tds-calculator">
                             <Calculator />
-                            <span>Finance</span>
-                         </Link>
-                    </AccordionTrigger>
-                 </SidebarMenu>
-                <AccordionContent>
-                    <div className="ml-4">
-                        <SidebarMenuItem>
-                            <SidebarMenuButton asChild isActive={getIsActive('/finance/tds-calculator')}>
-                            <Link href="/finance/tds-calculator">
-                                <Calculator />
-                                <span>TDS Calculator</span>
-                            </Link>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
-                        <SidebarMenuItem>
-                            <SidebarMenuButton asChild isActive={getIsActive('/finance/estimate-invoice')}>
-                            <Link href="/finance/estimate-invoice">
-                                <FileText />
-                                <span>Estimate Invoice</span>
-                            </Link>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
-                        <SidebarMenuItem>
-                            <SidebarMenuButton asChild isActive={getIsActive('/finance/cheque-generator')}>
-                            <Link href="/finance/cheque-generator">
-                                <Receipt />
-                                <span>Cheque Generator</span>
-                            </Link>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
-                    </div>
-                </AccordionContent>
-            </AccordionItem>
-        </Accordion>
+                            <span>TDS Calculator</span>
+                        </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton asChild isActive={getIsActive('/finance/estimate-invoice')}>
+                        <Link href="/finance/estimate-invoice">
+                            <FileText />
+                            <span>Estimate Invoice</span>
+                        </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton asChild isActive={getIsActive('/finance/cheque-generator')}>
+                        <Link href="/finance/cheque-generator">
+                            <Receipt />
+                            <span>Cheque Generator</span>
+                        </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                </div>
+            </SidebarMenu>
         )}
 
         <SidebarMenu>
@@ -455,3 +451,5 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
+
+    
