@@ -14,6 +14,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from '@/components/ui/sidebar';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { FileText, LayoutDashboard, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users, Calendar, Award, Wallet, Building2, PlusCircle, Truck, ShieldCheck, CreditCard, ArrowRightLeft, TrendingUp, BarChart2, Notebook, Download, Calculator, PanelLeft, PanelRight, Receipt } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -110,43 +111,47 @@ export function AppSidebar() {
         </SidebarMenu>
         
         {hasPermission('finance', 'view') && (
-            <SidebarMenu>
-                <SidebarSeparator />
-                 <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={getIsActive('/finance/tds-calculator')}>
-                    <Link href="/finance/tds-calculator">
-                        <Calculator />
-                        <span>Finance</span>
-                    </Link>
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
-                <div className="ml-4">
-                    <SidebarMenuItem>
-                        <SidebarMenuButton asChild isActive={getIsActive('/finance/tds-calculator')}>
-                        <Link href="/finance/tds-calculator">
+        <Accordion type="single" collapsible defaultValue={pathname.startsWith('/finance') ? "finance" : undefined}>
+            <AccordionItem value="finance" className="border-none">
+                 <SidebarMenu>
+                    <SidebarSeparator />
+                     <AccordionTrigger className="w-full justify-between p-2 hover:bg-sidebar-accent rounded-md [&[data-state=open]>svg]:rotate-180">
+                         <div className="flex items-center gap-2 text-sm font-medium">
                             <Calculator />
-                            <span>TDS Calculator</span>
-                        </Link>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton asChild isActive={getIsActive('/finance/estimate-invoice')}>
-                        <Link href="/finance/estimate-invoice">
-                            <FileText />
-                            <span>Estimate Invoice</span>
-                        </Link>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton asChild isActive={getIsActive('/finance/cheque-generator')}>
-                        <Link href="/finance/cheque-generator">
-                            <Receipt />
-                            <span>Cheque Generator</span>
-                        </Link>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                </div>
-            </SidebarMenu>
+                            <span>Finance</span>
+                         </div>
+                    </AccordionTrigger>
+                 </SidebarMenu>
+                <AccordionContent>
+                    <div className="ml-4">
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={getIsActive('/finance/tds-calculator')}>
+                            <Link href="/finance/tds-calculator">
+                                <Calculator />
+                                <span>TDS Calculator</span>
+                            </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={getIsActive('/finance/estimate-invoice')}>
+                            <Link href="/finance/estimate-invoice">
+                                <FileText />
+                                <span>Estimate Invoice</span>
+                            </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={getIsActive('/finance/cheque-generator')}>
+                            <Link href="/finance/cheque-generator">
+                                <Receipt />
+                                <span>Cheque Generator</span>
+                            </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                    </div>
+                </AccordionContent>
+            </AccordionItem>
+        </Accordion>
         )}
 
         <SidebarMenu>
