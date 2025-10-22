@@ -147,6 +147,12 @@ export default function TdsCalculatorPage() {
       setIsExporting(false);
   };
 
+  const handleSave = () => {
+    // This is where the logic to save the TDS calculation data will go.
+    // For now, it will just show a toast notification.
+    console.log("Saving TDS calculation...");
+  }
+
 
   return (
     <>
@@ -160,6 +166,10 @@ export default function TdsCalculatorPage() {
               </p>
             </div>
              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" onClick={handleSave}>
+                    <Save className="mr-2 h-4 w-4"/>
+                    Save
+                </Button>
                 <Button variant="outline" onClick={() => handleExport('pdf')} disabled={isExporting}>
                     {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
                     Save as PDF
