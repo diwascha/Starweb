@@ -116,10 +116,10 @@ export function AppSidebar() {
                  <SidebarMenu>
                     <SidebarSeparator />
                      <AccordionTrigger className="w-full justify-between p-2 hover:bg-sidebar-accent rounded-md [&[data-state=open]>svg]:rotate-180">
-                         <div className="flex items-center gap-2 text-sm font-medium">
+                         <Link href="/finance" className="flex items-center gap-2 text-sm font-medium">
                             <Calculator />
                             <span>Finance</span>
-                         </div>
+                         </Link>
                     </AccordionTrigger>
                  </SidebarMenu>
                 <AccordionContent>
@@ -242,10 +242,10 @@ export function AppSidebar() {
                 <SidebarMenu>
                     <SidebarSeparator />
                     <AccordionTrigger className="w-full justify-between p-2 hover:bg-sidebar-accent rounded-md [&[data-state=open]>svg]:rotate-180">
-                        <div className="flex items-center gap-2 text-sm font-medium">
+                        <Link href="/hr" className="flex items-center gap-2 text-sm font-medium">
                             <Building2 />
                             <span>HRMS</span>
-                        </div>
+                        </Link>
                     </AccordionTrigger>
                 </SidebarMenu>
                 <AccordionContent>
@@ -309,10 +309,10 @@ export function AppSidebar() {
                 <SidebarMenu>
                     <SidebarSeparator />
                     <AccordionTrigger className="w-full justify-between p-2 hover:bg-sidebar-accent rounded-md [&[data-state=open]>svg]:rotate-180">
-                        <div className="flex items-center gap-2 text-sm font-medium">
+                        <Link href="/fleet" className="flex items-center gap-2 text-sm font-medium">
                             <Truck />
                             <span>Fleet Management</span>
-                        </div>
+                        </Link>
                     </AccordionTrigger>
                 </SidebarMenu>
                 <AccordionContent>
