@@ -96,8 +96,8 @@ export function AppSidebar() {
              <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={getIsActive('/finance')}>
                 <Link href="/finance/tds-calculator">
-                    <Landmark />
-                    <span>Finance Tools</span>
+                    <Calculator />
+                    <span>Calculator</span>
                 </Link>
                 </SidebarMenuButton>
             </SidebarMenuItem>
