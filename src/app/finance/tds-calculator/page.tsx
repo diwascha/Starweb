@@ -497,7 +497,7 @@ export default function TdsCalculatorPage() {
                        <TableCell>{calc.netPayable.toLocaleString()}</TableCell>
                        <TableCell className="text-right">
                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleLoadCalculation(calc)}>
-                            <RotateCcw className="h-4 w-4" />
+                            <Edit className="h-4 w-4" />
                          </Button>
                          <AlertDialog>
                            <AlertDialogTrigger asChild>
