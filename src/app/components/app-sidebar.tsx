@@ -12,7 +12,7 @@ import {
   SidebarSeparator,
   SidebarContent,
 } from '@/components/ui/sidebar';
-import { FileText, LayoutDashboard, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users, Calendar, Award, Wallet, Building2, PlusCircle, Truck, ShieldCheck, CreditCard, ArrowRightLeft, TrendingUp, BarChart2, Notebook, Download, Landmark, Calculator, Receipt } from 'lucide-react';
+import { FileText, LayoutDashboard, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users, Calendar, Award, Wallet, Building2, PlusCircle, Truck, ShieldCheck, CreditCard, ArrowRightLeft, TrendingUp, BarChart2, Notebook, Download, Calculator, Receipt } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
@@ -90,44 +90,46 @@ export function AppSidebar() {
             </SidebarMenuItem>
             )}
         </SidebarMenu>
-
-        <SidebarMenu>
-             <SidebarSeparator />
-             <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={getIsActive('/finance')}>
-                <Link href="/finance/tds-calculator">
-                    <Calculator />
-                    <span>Calculator</span>
-                </Link>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
-            <div className="ml-4">
+        
+        {hasPermission('finance', 'view') && (
+            <SidebarMenu>
+                <SidebarSeparator />
                 <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={getIsActive('/finance/tds-calculator')}>
+                    <SidebarMenuButton asChild isActive={getIsActive('/finance')}>
                     <Link href="/finance/tds-calculator">
                         <Calculator />
-                        <span>TDS Calculator</span>
+                        <span>Calculator</span>
                     </Link>
                     </SidebarMenuButton>
                 </SidebarMenuItem>
-                 <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={getIsActive('/finance/estimate-invoice')}>
-                    <Link href="/finance/estimate-invoice">
-                        <FileText />
-                        <span>Estimate Invoice</span>
-                    </Link>
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={getIsActive('/finance/cheque-generator')}>
-                    <Link href="/finance/cheque-generator">
-                        <Receipt />
-                        <span>Cheque Generator</span>
-                    </Link>
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
-            </div>
-        </SidebarMenu>
+                <div className="ml-4">
+                    <SidebarMenuItem>
+                        <SidebarMenuButton asChild isActive={getIsActive('/finance/tds-calculator')}>
+                        <Link href="/finance/tds-calculator">
+                            <Calculator />
+                            <span>TDS Calculator</span>
+                        </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton asChild isActive={getIsActive('/finance/estimate-invoice')}>
+                        <Link href="/finance/estimate-invoice">
+                            <FileText />
+                            <span>Estimate Invoice</span>
+                        </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton asChild isActive={getIsActive('/finance/cheque-generator')}>
+                        <Link href="/finance/cheque-generator">
+                            <Receipt />
+                            <span>Cheque Generator</span>
+                        </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                </div>
+            </SidebarMenu>
+        )}
 
         <SidebarMenu>
             {(hasPermission('reports', 'view') || hasPermission('products', 'view')) && (

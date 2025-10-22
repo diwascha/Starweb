@@ -2,6 +2,7 @@
 
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -428,7 +429,7 @@ export interface Trip {
 
 
 // RBAC Types
-export const modules = ['dashboard', 'reports', 'products', 'purchaseOrders', 'rawMaterials', 'settings', 'hr', 'fleet'] as const;
+export const modules = ['dashboard', 'reports', 'products', 'purchaseOrders', 'rawMaterials', 'settings', 'hr', 'fleet', 'finance'] as const;
 export type Module = typeof modules[number];
 
 export const actions = ['view', 'create', 'edit', 'delete'] as const;
