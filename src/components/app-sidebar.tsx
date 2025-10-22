@@ -11,8 +11,10 @@ import {
   SidebarFooter,
   SidebarSeparator,
   SidebarContent,
+  SidebarTrigger,
+  useSidebar,
 } from '@/components/ui/sidebar';
-import { FileText, LayoutDashboard, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users, Calendar, Award, Wallet, Building2, PlusCircle, Truck, ShieldCheck, CreditCard, ArrowRightLeft, TrendingUp, BarChart2, Notebook, Download } from 'lucide-react';
+import { FileText, LayoutDashboard, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users, Calendar, Award, Wallet, Building2, PlusCircle, Truck, ShieldCheck, CreditCard, ArrowRightLeft, TrendingUp, BarChart2, Notebook, Download, Calculator, PanelLeft, PanelRight, Receipt } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
@@ -20,6 +22,22 @@ import { Button } from './ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { exportData } from '@/services/backup-service';
 import { Loader2 } from 'lucide-react';
+
+function SidebarCollapseButton() {
+    const { state, toggleSidebar } = useSidebar();
+
+    return (
+        <Button
+            variant="ghost"
+            size="icon"
+            className="w-full justify-center"
+            onClick={toggleSidebar}
+        >
+            {state === 'expanded' ? <PanelLeft /> : <PanelRight />}
+            <span className="sr-only">Toggle sidebar</span>
+        </Button>
+    )
+}
 
 export function AppSidebar() {
   const pathname = usePathname();
@@ -71,7 +89,7 @@ export function AppSidebar() {
   }
 
   return (
-    <Sidebar>
+    <Sidebar collapsible="icon">
       <SidebarHeader>
         <div className="flex items-center gap-2">
             <h1 className="text-xl font-semibold">STARWEB</h1>
@@ -89,7 +107,49 @@ export function AppSidebar() {
                 </SidebarMenuButton>
             </SidebarMenuItem>
             )}
+        </SidebarMenu>
+        
+        {hasPermission('finance', 'view') && (
+            <SidebarMenu>
+                <SidebarSeparator />
+                 <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={getIsActive('/finance/tds-calculator')}>
+                    <Link href="/finance/tds-calculator">
+                        <Calculator />
+                        <span>Finance</span>
+                    </Link>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+                <div className="ml-4">
+                    <SidebarMenuItem>
+                        <SidebarMenuButton asChild isActive={getIsActive('/finance/tds-calculator')}>
+                        <Link href="/finance/tds-calculator">
+                            <Calculator />
+                            <span>TDS Calculator</span>
+                        </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton asChild isActive={getIsActive('/finance/estimate-invoice')}>
+                        <Link href="/finance/estimate-invoice">
+                            <FileText />
+                            <span>Estimate Invoice</span>
+                        </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton asChild isActive={getIsActive('/finance/cheque-generator')}>
+                        <Link href="/finance/cheque-generator">
+                            <Receipt />
+                            <span>Cheque Generator</span>
+                        </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                </div>
+            </SidebarMenu>
+        )}
 
+        <SidebarMenu>
             {(hasPermission('reports', 'view') || hasPermission('products', 'view')) && (
                  <>
                     <SidebarSeparator />
@@ -374,6 +434,10 @@ export function AppSidebar() {
                 <LogOut className="w-4 h-4" />
                 <span>Sign Out</span>
             </Button>
+        </SidebarMenuItem>
+        <SidebarSeparator />
+         <SidebarMenuItem>
+            <SidebarCollapseButton />
         </SidebarMenuItem>
       </SidebarFooter>
     </Sidebar>
