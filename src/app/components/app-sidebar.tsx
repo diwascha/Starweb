@@ -112,7 +112,7 @@ export function AppSidebar() {
             <SidebarMenu>
                 <SidebarSeparator />
                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={getIsActive('/finance', true)}>
+                    <SidebarMenuButton asChild isActive={getIsActive('/finance', true) && pathname === '/finance'}>
                     <Link href="/finance">
                         <Calculator />
                         <span>Finance</span>
@@ -141,14 +141,6 @@ export function AppSidebar() {
                         <Link href="/finance/cheque-generator">
                             <Receipt />
                             <span>Cheque Generator</span>
-                        </Link>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton asChild isActive={getIsActive('/finance', true)}>
-                        <Link href="/finance">
-                            <FileSpreadsheet />
-                            <span>Finance DB</span>
                         </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
