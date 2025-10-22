@@ -77,12 +77,10 @@ export function AppSidebar() {
     }
   };
 
-  const getIsActive = (path: string) => {
+  const getIsActive = (path: string, exact: boolean = false) => {
     if (!isClient) return false;
-    if (path === '/dashboard') return pathname === path;
-    if (path === '/finance') return pathname === path;
-    if (path.endsWith('/new')) return pathname === path;
-    return pathname.startsWith(path) && (pathname[path.length] === '/' || pathname.length === path.length);
+    if (exact) return pathname === path;
+    return pathname.startsWith(path);
   };
   
   if (!user) {
@@ -100,7 +98,7 @@ export function AppSidebar() {
         <SidebarMenu>
             {hasPermission('dashboard', 'view') && (
             <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={getIsActive('/dashboard')}>
+                <SidebarMenuButton asChild isActive={getIsActive('/dashboard', true)}>
                 <Link href="/dashboard">
                     <LayoutDashboard />
                     <span>Dashboard</span>
@@ -114,7 +112,7 @@ export function AppSidebar() {
             <SidebarMenu>
                 <SidebarSeparator />
                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={getIsActive('/finance')}>
+                    <SidebarMenuButton asChild isActive={getIsActive('/finance', true)}>
                     <Link href="/finance">
                         <Calculator />
                         <span>Finance</span>
@@ -147,7 +145,7 @@ export function AppSidebar() {
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                     <SidebarMenuItem>
-                        <SidebarMenuButton asChild isActive={getIsActive('/finance')}>
+                        <SidebarMenuButton asChild isActive={getIsActive('/finance', true)}>
                         <Link href="/finance">
                             <FileSpreadsheet />
                             <span>Finance DB</span>
@@ -452,3 +450,5 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
+
+    
