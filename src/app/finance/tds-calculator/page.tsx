@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, PlusCircle, Edit, Trash2, Printer, Save, Image as ImageIcon, Loader2 } from 'lucide-react';
-import { toNepaliDate, toWords } from '@/lib/utils';
+import { toNepaliDate, toWords, generateNextVoucherNumber } from '@/lib/utils';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { format } from 'date-fns';
 import {
@@ -36,13 +36,11 @@ import {
 } from '@/components/ui/alert-dialog';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-
-
-interface TdsRate {
-  value: string;
-  label: string;
-  description: string;
-}
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/use-auth';
+import { onTdsCalculationsUpdate, addTdsCalculation, deleteTdsCalculation, getTdsPrefix } from '@/services/tds-service';
+import type { TdsCalculation, TdsRate } from '@/lib/types';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const initialTdsRates: TdsRate[] = [
   { value: '1.5', label: 'Goods & Contracts', description: 'Supply of goods and contracts/sub-contracts (1.5%)' },
@@ -56,6 +54,8 @@ export default function TdsCalculatorPage() {
   const [amount, setAmount] = useState<number | ''>('');
   const [selectedRateValue, setSelectedRateValue] = useState<string>('1.5');
   const [date, setDate] = useState<Date>(new Date());
+  const [partyName, setPartyName] = useState('');
+  const [voucherNo, setVoucherNo] = useState('');
   
   const [tdsRates, setTdsRates] = useState<TdsRate[]>(initialTdsRates);
   const [isRateDialogOpen, setIsRateDialogOpen] = useState(false);
@@ -64,6 +64,24 @@ export default function TdsCalculatorPage() {
 
   const [isExporting, setIsExporting] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
+  
+  const [savedCalculations, setSavedCalculations] = useState<TdsCalculation[]>([]);
+  const { toast } = useToast();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    const unsub = onTdsCalculationsUpdate(setSavedCalculations);
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    const setNextVoucher = async () => {
+      const prefix = await getTdsPrefix();
+      const nextNumber = await generateNextVoucherNumber(savedCalculations, prefix);
+      setVoucherNo(nextNumber);
+    };
+    setNextVoucher();
+  }, [savedCalculations]);
 
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -147,11 +165,47 @@ export default function TdsCalculatorPage() {
       setIsExporting(false);
   };
 
-  const handleSave = () => {
-    // This is where the logic to save the TDS calculation data will go.
-    // For now, it will just show a toast notification.
-    console.log("Saving TDS calculation...");
-  }
+  const handleSave = async () => {
+    if (!user) {
+        toast({ title: "Authentication Error", description: "You must be logged in to save.", variant: "destructive" });
+        return;
+    }
+    if (!amount || amount <= 0) {
+        toast({ title: "Invalid Amount", description: "Please enter a valid taxable amount.", variant: "destructive" });
+        return;
+    }
+
+    const calculation: Omit<TdsCalculation, 'id' | 'createdAt'> = {
+        voucherNo: voucherNo,
+        date: date.toISOString(),
+        partyName: partyName,
+        taxableAmount: amount,
+        tdsRate: parseFloat(selectedRateValue),
+        tdsAmount: tds,
+        vatAmount: vat,
+        netPayable: netAmount,
+        createdBy: user.username,
+    };
+    
+    try {
+        await addTdsCalculation(calculation);
+        toast({ title: "Saved!", description: "TDS calculation has been saved." });
+        // Optionally reset fields after saving
+        setAmount('');
+        setPartyName('');
+    } catch (error) {
+        toast({ title: "Error", description: "Failed to save calculation.", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteCalculation = async (id: string) => {
+    try {
+        await deleteTdsCalculation(id);
+        toast({ title: "Deleted", description: "TDS record has been deleted." });
+    } catch (error) {
+        toast({ title: "Error", description: "Failed to delete record.", variant: "destructive" });
+    }
+  };
 
 
   return (
@@ -198,7 +252,7 @@ export default function TdsCalculatorPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="voucher-no">Voucher No.</Label>
-                                <Input id="voucher-no" placeholder="Auto-generated" readOnly className="bg-muted/50" />
+                                <Input id="voucher-no" value={voucherNo} readOnly className="bg-muted/50" />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="date">Date</Label>
@@ -217,7 +271,7 @@ export default function TdsCalculatorPage() {
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="party-name">Party Name (Optional)</Label>
-                            <Input id="party-name" placeholder="Enter party name" />
+                            <Input id="party-name" placeholder="Enter party name" value={partyName} onChange={(e) => setPartyName(e.target.value)} />
                         </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -347,6 +401,69 @@ export default function TdsCalculatorPage() {
         </div>
       </div>
       
+       <div className="lg:col-span-3 print:hidden">
+         <Card>
+           <CardHeader>
+             <CardTitle>Calculation History</CardTitle>
+             <CardDescription>A log of all saved TDS calculations.</CardDescription>
+           </CardHeader>
+           <CardContent>
+             <Table>
+               <TableHeader>
+                 <TableRow>
+                   <TableHead>Date</TableHead>
+                   <TableHead>Voucher #</TableHead>
+                   <TableHead>Party Name</TableHead>
+                   <TableHead>Taxable Amount</TableHead>
+                   <TableHead>TDS Amount</TableHead>
+                   <TableHead>Net Payable</TableHead>
+                   <TableHead className="text-right">Actions</TableHead>
+                 </TableRow>
+               </TableHeader>
+               <TableBody>
+                 {savedCalculations.length > 0 ? (
+                    savedCalculations.map(calc => (
+                     <TableRow key={calc.id}>
+                       <TableCell>{format(new Date(calc.date), 'PPP')}</TableCell>
+                       <TableCell>{calc.voucherNo}</TableCell>
+                       <TableCell>{calc.partyName}</TableCell>
+                       <TableCell>{calc.taxableAmount.toLocaleString()}</TableCell>
+                       <TableCell>{calc.tdsAmount.toLocaleString()}</TableCell>
+                       <TableCell>{calc.netPayable.toLocaleString()}</TableCell>
+                       <TableCell className="text-right">
+                         <AlertDialog>
+                           <AlertDialogTrigger asChild>
+                             <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
+                               <Trash2 className="h-4 w-4" />
+                             </Button>
+                           </AlertDialogTrigger>
+                           <AlertDialogContent>
+                             <AlertDialogHeader>
+                               <AlertDialogTitle>Delete this record?</AlertDialogTitle>
+                               <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
+                             </AlertDialogHeader>
+                             <AlertDialogFooter>
+                               <AlertDialogCancel>Cancel</AlertDialogCancel>
+                               <AlertDialogAction onClick={() => handleDeleteCalculation(calc.id)}>Delete</AlertDialogAction>
+                             </AlertDialogFooter>
+                           </AlertDialogContent>
+                         </AlertDialog>
+                       </TableCell>
+                     </TableRow>
+                   ))
+                 ) : (
+                   <TableRow>
+                     <TableCell colSpan={7} className="text-center">
+                       No saved calculations yet.
+                     </TableCell>
+                   </TableRow>
+                 )}
+               </TableBody>
+             </Table>
+           </CardContent>
+         </Card>
+       </div>
+       
        <Dialog open={isRateDialogOpen} onOpenChange={setIsRateDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -395,3 +512,4 @@ export default function TdsCalculatorPage() {
     </>
   );
 }
+

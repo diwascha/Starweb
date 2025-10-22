@@ -3,6 +3,7 @@
 
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -463,7 +464,7 @@ export interface AppSetting {
     value: any;
 }
 
-export const documentTypes = ['report', 'purchaseOrder', 'sales', 'purchase', 'paymentReceipt'] as const;
+export const documentTypes = ['report', 'purchaseOrder', 'sales', 'purchase', 'paymentReceipt', 'tdsVoucher'] as const;
 export type DocumentType = typeof documentTypes[number];
 
 export interface DocumentPrefixes {
@@ -472,6 +473,7 @@ export interface DocumentPrefixes {
     sales?: string;
     purchase?: string;
     paymentReceipt?: string;
+    tdsVoucher?: string;
 }
 
 export const getDocumentName = (type: DocumentType): string => {
@@ -486,6 +488,8 @@ export const getDocumentName = (type: DocumentType): string => {
             return 'Purchase Voucher';
         case 'paymentReceipt':
             return 'Payment/Receipt Voucher';
+        case 'tdsVoucher':
+            return 'TDS Voucher';
         default:
             return 'Document';
     }
@@ -505,4 +509,25 @@ export interface NoteItem {
   createdAt: string; // ISO string
   lastModifiedBy?: string;
   lastModifiedAt?: string; // ISO string
+}
+
+// Finance Types
+export interface TdsRate {
+  value: string;
+  label: string;
+  description: string;
+}
+
+export interface TdsCalculation {
+  id: string;
+  voucherNo: string;
+  date: string; // ISO string
+  partyName?: string;
+  taxableAmount: number;
+  tdsRate: number;
+  tdsAmount: number;
+  vatAmount: number;
+  netPayable: number;
+  createdBy: string;
+  createdAt: string; // ISO string
 }

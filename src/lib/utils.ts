@@ -2,7 +2,7 @@
 
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import type { Report, PurchaseOrder, PurchaseOrderStatus, AttendanceStatus, User, Transaction, DocumentPrefixes, Trip } from './types';
+import type { Report, PurchaseOrder, PurchaseOrderStatus, AttendanceStatus, User, Transaction, DocumentPrefixes, Trip, TdsCalculation } from './types';
 import NepaliDate from 'nepali-date-converter';
 import { getSetting } from "@/services/settings-service";
 import { format, parse } from 'date-fns';
@@ -94,17 +94,19 @@ export const generateNextSalesNumber = async (items: Pick<Trip, 'tripNumber'>[])
     return `${salesPrefix}${nextNumber.toString().padStart(3, '0')}`;
 };
 
-export const generateNextVoucherNumber = async (items: Pick<Transaction, 'items'>[]): Promise<string> => {
-    const prefixSetting = await getSetting('documentPrefixes');
-    const prefixes = prefixSetting?.value as DocumentPrefixes || {};
-    const voucherPrefix = prefixes.paymentReceipt || 'VOU-';
-    
+export const generateNextVoucherNumber = async (items: TdsCalculation[] | Transaction[], prefix: string): Promise<string> => {
     let maxNumber = 0;
 
     items.forEach(item => {
-        const voucherNo = item.items?.[0]?.particular.replace(/ .*/,'');
-        if(voucherNo && voucherNo.startsWith(voucherPrefix)) {
-            const numPart = parseInt(voucherNo.substring(voucherPrefix.length), 10);
+        let voucherNo: string | undefined;
+        if ('voucherNo' in item) { // TdsCalculation
+            voucherNo = item.voucherNo;
+        } else if ('items' in item) { // Transaction
+            voucherNo = item.items?.[0]?.particular.replace(/ .*/, '');
+        }
+        
+        if (voucherNo && voucherNo.startsWith(prefix)) {
+            const numPart = parseInt(voucherNo.substring(prefix.length), 10);
             if(!isNaN(numPart) && numPart > maxNumber) {
                 maxNumber = numPart;
             }
@@ -112,7 +114,7 @@ export const generateNextVoucherNumber = async (items: Pick<Transaction, 'items'
     });
     
     const nextNumber = maxNumber + 1;
-    return `${voucherPrefix}${nextNumber.toString().padStart(3, '0')}`;
+    return `${prefix}${nextNumber.toString().padStart(3, '0')}`;
 };
 
 
@@ -206,5 +208,6 @@ export const toWords = (num: number): string => {
 };
 
     
+
 
 
