@@ -77,10 +77,11 @@ export function AppSidebar() {
     }
   };
 
-  const getIsActive = (path: string, exact: boolean = false) => {
+  const getIsActive = (path: string) => {
     if (!isClient) return false;
-    if (exact) return pathname === path;
-    return pathname.startsWith(path);
+    if (path === '/dashboard') return pathname === path;
+    if (path.endsWith('/new')) return pathname === path;
+    return pathname.startsWith(path) && (pathname[path.length] === '/' || pathname.length === path.length);
   };
   
   if (!user) {
@@ -98,7 +99,7 @@ export function AppSidebar() {
         <SidebarMenu>
             {hasPermission('dashboard', 'view') && (
             <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={getIsActive('/dashboard', true)}>
+                <SidebarMenuButton asChild isActive={getIsActive('/dashboard')}>
                 <Link href="/dashboard">
                     <LayoutDashboard />
                     <span>Dashboard</span>
@@ -112,8 +113,8 @@ export function AppSidebar() {
             <SidebarMenu>
                 <SidebarSeparator />
                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={getIsActive('/finance', true)}>
-                    <Link href="/finance">
+                    <SidebarMenuButton asChild isActive={getIsActive('/finance/tds-calculator')}>
+                    <Link href="/finance/tds-calculator">
                         <Calculator />
                         <span>Finance</span>
                     </Link>
@@ -153,7 +154,7 @@ export function AppSidebar() {
                  <>
                     <SidebarSeparator />
                      <SidebarMenuItem>
-                        <SidebarMenuButton asChild isActive={getIsActive('/reports', true)}>
+                        <SidebarMenuButton asChild isActive={getIsActive('/reports')}>
                         <Link href="/reports">
                             <FileText />
                             <span>Test Report Mgmt</span>
@@ -199,7 +200,7 @@ export function AppSidebar() {
                 <>
                     <SidebarSeparator />
                      <SidebarMenuItem>
-                        <SidebarMenuButton asChild isActive={getIsActive('/purchase-orders', true)}>
+                        <SidebarMenuButton asChild isActive={getIsActive('/purchase-orders')}>
                         <Link href="/purchase-orders">
                             <ShoppingCart />
                             <span>Purchase Order Mgmt</span>
@@ -234,7 +235,7 @@ export function AppSidebar() {
         <SidebarMenu>
              <SidebarSeparator />
              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={getIsActive('/hr', true)}>
+                <SidebarMenuButton asChild isActive={getIsActive('/hr')}>
                 <Link href="/hr">
                     <Building2 />
                     <span>HRMS</span>
@@ -297,7 +298,7 @@ export function AppSidebar() {
                  <>
                     <SidebarSeparator />
                      <SidebarMenuItem>
-                        <SidebarMenuButton asChild isActive={getIsActive('/fleet', true)}>
+                        <SidebarMenuButton asChild isActive={getIsActive('/fleet')}>
                         <Link href="/fleet">
                             <Truck />
                             <span>Fleet Management</span>
@@ -339,14 +340,6 @@ export function AppSidebar() {
                         </SidebarMenuItem>
                          <div className="ml-4">
                             <SidebarMenuItem>
-                                <SidebarMenuButton asChild isActive={getIsActive('/fleet/parties')}>
-                                <Link href="/fleet/parties">
-                                    <Users />
-                                    <span>Party Ledger</span>
-                                </Link>
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
-                            <SidebarMenuItem>
                                 <SidebarMenuButton asChild isActive={getIsActive('/fleet/trip-sheets')}>
                                 <Link href="/fleet/trip-sheets">
                                     <FileText />
@@ -363,7 +356,7 @@ export function AppSidebar() {
                                         <span>Sales Entry</span>
                                     </Link>
                                     </SidebarMenuButton>
-                            </SidebarMenuItem>
+                                </SidebarMenuItem>
                             </div>
                             )}
 
@@ -442,5 +435,3 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
-
-    

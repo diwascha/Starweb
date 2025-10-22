@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -226,7 +225,7 @@ export default function SettingsPage() {
     
     try {
         await setSetting('payrollLocks', newLocks);
-        toast({ title: 'Success', description: `Payroll for ${nepaliMonths[parseInt(selectedLockMonth)].name} ${selectedLockYear} has been ${newLocks[lockKey] ? 'locked' : 'unlocked'}.` });
+        toast({ title: 'Success', description: `Payroll for ${nepaliMonths.find(m => m.value.toString() === selectedLockMonth)?.name} ${selectedLockYear} has been ${newLocks[lockKey] ? 'locked' : 'unlocked'}.` });
     } catch {
         toast({ title: 'Error', description: 'Failed to update lock status.', variant: 'destructive' });
     }
