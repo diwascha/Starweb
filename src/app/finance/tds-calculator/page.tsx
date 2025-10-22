@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, PlusCircle, Edit, Trash2, Printer, Save, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Edit, Trash2, Printer, Save, Image as ImageIcon, Loader2, ArrowUpDown, Search, RotateCcw } from 'lucide-react';
 import { toNepaliDate, toWords, generateNextVoucherNumber } from '@/lib/utils';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { format } from 'date-fns';
@@ -50,6 +50,9 @@ const initialTdsRates: TdsRate[] = [
   { value: '5', label: 'Dividends', description: 'Payment of dividend (5%)' },
 ];
 
+type SortKey = 'date' | 'voucherNo' | 'partyName' | 'taxableAmount' | 'netPayable';
+type SortDirection = 'asc' | 'desc';
+
 export default function TdsCalculatorPage() {
   const [amount, setAmount] = useState<number | ''>('');
   const [selectedRateValue, setSelectedRateValue] = useState<string>('1.5');
@@ -69,6 +72,9 @@ export default function TdsCalculatorPage() {
   const { toast } = useToast();
   const { user } = useAuth();
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
+
   useEffect(() => {
     const unsub = onTdsCalculationsUpdate(setSavedCalculations);
     return () => unsub();
@@ -76,12 +82,14 @@ export default function TdsCalculatorPage() {
 
   useEffect(() => {
     const setNextVoucher = async () => {
-      const prefix = await getTdsPrefix();
-      const nextNumber = await generateNextVoucherNumber(savedCalculations, prefix);
-      setVoucherNo(nextNumber);
+      if (!partyName && amount === '') {
+        const prefix = await getTdsPrefix();
+        const nextNumber = await generateNextVoucherNumber(savedCalculations, prefix);
+        setVoucherNo(nextNumber);
+      }
     };
     setNextVoucher();
-  }, [savedCalculations]);
+  }, [savedCalculations, partyName, amount]);
 
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -121,7 +129,6 @@ export default function TdsCalculatorPage() {
   
   const handleSaveRate = () => {
       if (!rateForm.value || !rateForm.label) {
-          // Basic validation
           return;
       }
       if (editingRate) {
@@ -155,14 +162,24 @@ export default function TdsCalculatorPage() {
           const pdfWidth = pdf.internal.pageSize.getWidth();
           const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
           pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-          pdf.save(`TDS-Calculation-${new Date().toISOString().split('T')[0]}.pdf`);
+          pdf.save(`TDS-Calculation-${voucherNo}.pdf`);
       } else {
           const link = document.createElement('a');
-          link.download = `TDS-Calculation-${new Date().toISOString().split('T')[0]}.jpg`;
+          link.download = `TDS-Calculation-${voucherNo}.jpg`;
           link.href = canvas.toDataURL('image/jpeg');
           link.click();
       }
       setIsExporting(false);
+  };
+  
+  const resetForm = async () => {
+    setAmount('');
+    setPartyName('');
+    setDate(new Date());
+    setSelectedRateValue('1.5');
+    const prefix = await getTdsPrefix();
+    const nextNumber = await generateNextVoucherNumber(savedCalculations, prefix);
+    setVoucherNo(nextNumber);
   };
 
   const handleSave = async () => {
@@ -190,9 +207,7 @@ export default function TdsCalculatorPage() {
     try {
         await addTdsCalculation(calculation);
         toast({ title: "Saved!", description: "TDS calculation has been saved." });
-        // Optionally reset fields after saving
-        setAmount('');
-        setPartyName('');
+        resetForm();
     } catch (error) {
         toast({ title: "Error", description: "Failed to save calculation.", variant: "destructive" });
     }
@@ -206,6 +221,45 @@ export default function TdsCalculatorPage() {
         toast({ title: "Error", description: "Failed to delete record.", variant: "destructive" });
     }
   };
+  
+  const handleLoadCalculation = (calc: TdsCalculation) => {
+    setVoucherNo(calc.voucherNo);
+    setDate(new Date(calc.date));
+    setPartyName(calc.partyName || '');
+    setAmount(calc.taxableAmount);
+    setSelectedRateValue(String(calc.tdsRate));
+    toast({ title: "Loaded", description: `Calculation for voucher ${calc.voucherNo} has been loaded.` });
+  };
+  
+  const requestSort = (key: SortKey) => {
+    let direction: SortDirection = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const sortedAndFilteredCalculations = useMemo(() => {
+    let filtered = [...savedCalculations];
+    if (searchQuery) {
+        const lowercasedQuery = searchQuery.toLowerCase();
+        filtered = filtered.filter(calc => 
+            (calc.voucherNo || '').toLowerCase().includes(lowercasedQuery) ||
+            (calc.partyName || '').toLowerCase().includes(lowercasedQuery)
+        );
+    }
+    
+    filtered.sort((a, b) => {
+        const aVal = a[sortConfig.key];
+        const bVal = b[sortConfig.key];
+
+        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+    });
+
+    return filtered;
+  }, [savedCalculations, searchQuery, sortConfig]);
 
 
   return (
@@ -404,33 +458,47 @@ export default function TdsCalculatorPage() {
        <div className="lg:col-span-3 print:hidden">
          <Card>
            <CardHeader>
-             <CardTitle>Calculation History</CardTitle>
-             <CardDescription>A log of all saved TDS calculations.</CardDescription>
+             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <CardTitle>Calculation History</CardTitle>
+                    <CardDescription>A log of all saved TDS calculations.</CardDescription>
+                </div>
+                <div className="relative w-full sm:w-auto">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Search by voucher or party..."
+                        className="pl-8 w-full sm:w-[250px]"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                </div>
+             </div>
            </CardHeader>
            <CardContent>
              <Table>
                <TableHeader>
                  <TableRow>
-                   <TableHead>Date</TableHead>
-                   <TableHead>Voucher #</TableHead>
-                   <TableHead>Party Name</TableHead>
-                   <TableHead>Taxable Amount</TableHead>
-                   <TableHead>TDS Amount</TableHead>
-                   <TableHead>Net Payable</TableHead>
+                   <TableHead><Button variant="ghost" onClick={() => requestSort('date')}>Date <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
+                   <TableHead><Button variant="ghost" onClick={() => requestSort('voucherNo')}>Voucher # <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
+                   <TableHead><Button variant="ghost" onClick={() => requestSort('partyName')}>Party Name <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
+                   <TableHead><Button variant="ghost" onClick={() => requestSort('taxableAmount')}>Taxable Amount <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
+                   <TableHead><Button variant="ghost" onClick={() => requestSort('netPayable')}>Net Payable <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
                    <TableHead className="text-right">Actions</TableHead>
                  </TableRow>
                </TableHeader>
                <TableBody>
-                 {savedCalculations.length > 0 ? (
-                    savedCalculations.map(calc => (
+                 {sortedAndFilteredCalculations.length > 0 ? (
+                    sortedAndFilteredCalculations.map(calc => (
                      <TableRow key={calc.id}>
                        <TableCell>{format(new Date(calc.date), 'PPP')}</TableCell>
                        <TableCell>{calc.voucherNo}</TableCell>
                        <TableCell>{calc.partyName}</TableCell>
                        <TableCell>{calc.taxableAmount.toLocaleString()}</TableCell>
-                       <TableCell>{calc.tdsAmount.toLocaleString()}</TableCell>
                        <TableCell>{calc.netPayable.toLocaleString()}</TableCell>
                        <TableCell className="text-right">
+                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleLoadCalculation(calc)}>
+                            <RotateCcw className="h-4 w-4" />
+                         </Button>
                          <AlertDialog>
                            <AlertDialogTrigger asChild>
                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
@@ -512,4 +580,3 @@ export default function TdsCalculatorPage() {
     </>
   );
 }
-
