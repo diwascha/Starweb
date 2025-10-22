@@ -113,7 +113,7 @@ export function AppSidebar() {
         {hasPermission('finance', 'view') && (
             <SidebarMenu>
                 <SidebarSeparator />
-                <SidebarMenuItem>
+                 <SidebarMenuItem>
                     <SidebarMenuButton asChild isActive={getIsActive('/finance')}>
                     <Link href="/finance">
                         <Calculator />
@@ -451,5 +451,3 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
-
-    
