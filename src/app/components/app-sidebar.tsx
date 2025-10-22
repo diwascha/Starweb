@@ -92,7 +92,7 @@ export function AppSidebar() {
         </SidebarMenu>
 
         <SidebarMenu>
-            <SidebarSeparator />
+             <SidebarSeparator />
              <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={getIsActive('/finance')}>
                 <Link href="/finance/tds-calculator">
@@ -419,3 +419,5 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
+
+    
