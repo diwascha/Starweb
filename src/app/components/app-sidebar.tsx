@@ -12,23 +12,44 @@ import {
   SidebarSeparator,
   SidebarContent,
 } from '@/components/ui/sidebar';
-import { FileText, LayoutDashboard, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users, Calendar, Award, Wallet, Building2, PlusCircle, Truck, ShieldCheck, CreditCard, ArrowRightLeft, TrendingUp, BarChart2, Notebook } from 'lucide-react';
+import { FileText, LayoutDashboard, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users, Calendar, Award, Wallet, Building2, PlusCircle, Truck, ShieldCheck, CreditCard, ArrowRightLeft, TrendingUp, BarChart2, Notebook, Download, Landmark, Calculator, Receipt } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from './ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { exportData } from '@/services/backup-service';
+import { Loader2 } from 'lucide-react';
 
 export function AppSidebar() {
   const pathname = usePathname();
   const [isClient, setIsClient] = useState(false);
   const { user, logout, hasPermission } = useAuth();
   const { toast } = useToast();
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
   }, []);
   
+  const handleExportData = async () => {
+    setIsExporting(true);
+    try {
+        const data = await exportData();
+        const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(data, null, 2))}`;
+        const link = document.createElement("a");
+        link.href = jsonString;
+        link.download = `starweb-backup-${new Date().toISOString()}.json`;
+        link.click();
+        toast({ title: 'Export Successful', description: 'Your data has been downloaded.' });
+    } catch (error) {
+        console.error("Export failed:", error);
+        toast({ title: 'Export Failed', description: 'Could not export data.', variant: 'destructive' });
+    } finally {
+        setIsExporting(false);
+    }
+  };
+
   const handleSignOut = async () => {
     try {
         await logout();
@@ -312,6 +333,43 @@ export function AppSidebar() {
                 </>
             )}
         </SidebarMenu>
+         <SidebarMenu>
+            <SidebarSeparator />
+             <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={getIsActive('/finance')}>
+                <Link href="/finance/tds-calculator">
+                    <Landmark />
+                    <span>Finance Tools</span>
+                </Link>
+                </SidebarMenuButton>
+            </SidebarMenuItem>
+            <div className="ml-4">
+                <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={getIsActive('/finance/tds-calculator')}>
+                    <Link href="/finance/tds-calculator">
+                        <Calculator />
+                        <span>TDS Calculator</span>
+                    </Link>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+                 <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={getIsActive('/finance/estimate-invoice')}>
+                    <Link href="/finance/estimate-invoice">
+                        <FileText />
+                        <span>Estimate Invoice</span>
+                    </Link>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={getIsActive('/finance/cheque-generator')}>
+                    <Link href="/finance/cheque-generator">
+                        <Receipt />
+                        <span>Cheque Generator</span>
+                    </Link>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+            </div>
+        </SidebarMenu>
         <SidebarMenu>
             <SidebarSeparator />
             <SidebarMenuItem>
@@ -327,6 +385,12 @@ export function AppSidebar() {
        <SidebarFooter>
         <SidebarMenu>
             <SidebarSeparator />
+            <SidebarMenuItem>
+                <Button variant="outline" className="w-full justify-start gap-2" onClick={handleExportData} disabled={isExporting}>
+                    {isExporting ? <Loader2 className="animate-spin" /> : <Download />}
+                    <span>{isExporting ? 'Backing up...' : 'Backup Data'}</span>
+                </Button>
+            </SidebarMenuItem>
             {hasPermission('settings', 'view') && (
             <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={getIsActive('/settings')}>
@@ -352,3 +416,5 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
+
+    
