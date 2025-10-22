@@ -337,7 +337,7 @@ export function AppSidebar() {
                             <SidebarMenuButton asChild isActive={getIsActive('/fleet/policies')}>
                             <Link href="/fleet/policies">
                                 <ShieldCheck />
-                                <span>Policies &amp; Memberships</span>
+                                <span>Policies & Memberships</span>
                             </Link>
                             </SidebarMenuButton>
                         </SidebarMenuItem>
@@ -411,7 +411,7 @@ export function AppSidebar() {
                 <SidebarMenuButton asChild isActive={getIsActive('/notes')}>
                     <Link href="/notes">
                         <Notebook />
-                        <span>Notes &amp; Todos</span>
+                        <span>Notes & Todos</span>
                     </Link>
                 </SidebarMenuButton>
             </SidebarMenuItem>
