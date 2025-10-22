@@ -112,7 +112,7 @@ export function AppSidebar() {
             <SidebarMenu>
                 <SidebarSeparator />
                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={getIsActive('/finance', true) && pathname === '/finance'}>
+                    <SidebarMenuButton asChild isActive={getIsActive('/finance', true)}>
                     <Link href="/finance">
                         <Calculator />
                         <span>Finance</span>
