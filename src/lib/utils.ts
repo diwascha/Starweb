@@ -179,5 +179,32 @@ export const formatTimeForDisplay = (timeString: string | null | undefined): str
     return timeString;
 };
 
+// Function to convert number to words (simple implementation)
+export const toWords = (num: number): string => {
+    const a = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
+    const b = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
     
+    const inWords = (n: number): string => {
+        if (n < 20) return a[n];
+        let digit = n % 10;
+        return `${b[Math.floor(n/10)]} ${a[digit]}`.trim();
+    }
+    
+    let n = Math.floor(num);
+    let str = '';
+    str += n > 9999999 ? `${inWords(Math.floor(n/10000000))} crore ` : '';
+    n %= 10000000;
+    str += n > 99999 ? `${inWords(Math.floor(n/100000))} lakh ` : '';
+    n %= 100000;
+    str += n > 999 ? `${inWords(Math.floor(n/1000))} thousand ` : '';
+    n %= 1000;
+    str += n > 99 ? `${inWords(Math.floor(n/100))} hundred ` : '';
+    n %= 100;
+    str += inWords(n);
+    
+    return str.split(' ').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ') + ' Only.';
+};
+
+    
+
 

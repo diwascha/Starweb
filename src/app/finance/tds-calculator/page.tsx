@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -10,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, PlusCircle, Edit, Trash2, Printer, Save, Image as ImageIcon, Loader2 } from 'lucide-react';
-import { toNepaliDate } from '@/lib/utils';
+import { toNepaliDate, toWords } from '@/lib/utils';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { format } from 'date-fns';
 import {
@@ -284,6 +285,9 @@ export default function TdsCalculatorPage() {
                             minimumFractionDigits: 2,
                             })}
                         </span>
+                        </div>
+                        <div className="text-sm text-muted-foreground pt-2">
+                           <span className="font-semibold">In Words:</span> {toWords(netAmount)}
                         </div>
                     </div>
                 </CardContent>

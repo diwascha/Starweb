@@ -5,7 +5,7 @@ import type { Employee, Payroll } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Printer, Save, Loader2, ArrowLeft } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
-import { toNepaliDate } from '@/lib/utils';
+import { toNepaliDate, toWords } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Table, TableBody, TableCell, TableRow, TableHeader, TableHead } from '@/components/ui/table';
 import { useState } from 'react';
@@ -19,33 +19,6 @@ interface PayslipViewProps {
   bsYear: number;
   bsMonthName: string;
 }
-
-// Function to convert number to words (simple implementation)
-const toWords = (num: number): string => {
-    const a = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
-    const b = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
-    
-    const inWords = (n: number): string => {
-        if (n < 20) return a[n];
-        let digit = n % 10;
-        return `${b[Math.floor(n/10)]} ${a[digit]}`.trim();
-    }
-    
-    let n = Math.floor(num);
-    let str = '';
-    str += n > 9999999 ? `${inWords(Math.floor(n/10000000))} crore ` : '';
-    n %= 10000000;
-    str += n > 99999 ? `${inWords(Math.floor(n/100000))} lakh ` : '';
-    n %= 100000;
-    str += n > 999 ? `${inWords(Math.floor(n/1000))} thousand ` : '';
-    n %= 1000;
-    str += n > 99 ? `${inWords(Math.floor(n/100))} hundred ` : '';
-    n %= 100;
-    str += inWords(n);
-    
-    return str.split(' ').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ') + ' Only.';
-};
-
 
 export default function PayslipView({ employee, payroll, bsYear, bsMonthName }: PayslipViewProps) {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
@@ -229,7 +202,7 @@ export default function PayslipView({ employee, payroll, bsYear, bsMonthName }: 
           body * { visibility: hidden; }
           .printable-area, .printable-area * { visibility: visible; }
           .printable-area { position: absolute; left: 0; top: 0; width: 100%; height: auto; margin: 0; padding: 0; border: none; font-size: 10px; }
-          .print\:hidden { display: none; }
+          .print\\:hidden { display: none; }
         }
       `}</style>
     </>
