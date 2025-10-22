@@ -81,18 +81,33 @@ export default async function HRPage() {
     const employeesRaw = await getEmployees();
     const attendanceRaw = await getAttendance();
 
-    // Convert any Date/Timestamp objects to ISO strings to prevent serialization errors.
+    // Helper to safely convert Firestore Timestamps or other date formats to ISO strings
+    const toSafeISOString = (date: any) => {
+      if (!date) return undefined;
+      // Firestore Timestamp
+      if (date && typeof date.toDate === 'function') {
+        return date.toDate().toISOString();
+      }
+      // Already a Date object or a valid date string
+      const d = new Date(date);
+      if (!isNaN(d.getTime())) {
+        return d.toISOString();
+      }
+      return undefined;
+    };
+
+    // Sanitize data before passing it to the client component
     const initialEmployees = employeesRaw.map(e => ({
         ...e,
-        dateOfBirth: e.dateOfBirth ? new Date(e.dateOfBirth).toISOString() : undefined,
-        joiningDate: e.joiningDate ? new Date(e.joiningDate).toISOString() : undefined,
-        createdAt: e.createdAt ? new Date(e.createdAt).toISOString() : undefined,
-        lastModifiedAt: e.lastModifiedAt ? new Date(e.lastModifiedAt).toISOString() : undefined,
+        dateOfBirth: toSafeISOString(e.dateOfBirth),
+        joiningDate: toSafeISOString(e.joiningDate),
+        createdAt: toSafeISOString(e.createdAt),
+        lastModifiedAt: toSafeISOString(e.lastModifiedAt),
     }));
     
     const initialAttendance = attendanceRaw.map(a => ({
         ...a,
-        date: a.date ? new Date(a.date).toISOString() : undefined,
+        date: toSafeISOString(a.date),
     }));
   
   return (
