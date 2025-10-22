@@ -3,7 +3,10 @@
 
 import { Suspense } from 'react';
 import { InvoiceCalculator } from './_components/invoice-calculator';
+import { SavedInvoicesClient } from './_components/saved-invoices-client';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
 
 function CalculatorSkeleton() {
     return (
@@ -37,13 +40,22 @@ export default function EstimateInvoicePage() {
     <div className="flex flex-col gap-8">
       <header>
         <h1 className="text-3xl font-bold tracking-tight">Estimate Invoice Generator</h1>
-        <p className="text-muted-foreground">Create and print estimate invoices for customers.</p>
+        <p className="text-muted-foreground">Create, save, and manage your customer estimates.</p>
       </header>
-       <Suspense fallback={<CalculatorSkeleton />}>
-            <InvoiceCalculator />
-        </Suspense>
+       <Tabs defaultValue="calculator">
+            <TabsList className="mb-4">
+                <TabsTrigger value="calculator">Invoice Calculator</TabsTrigger>
+                <TabsTrigger value="history">Saved Invoices</TabsTrigger>
+            </TabsList>
+            <TabsContent value="calculator">
+                 <Suspense fallback={<CalculatorSkeleton />}>
+                    <InvoiceCalculator />
+                </Suspense>
+            </TabsContent>
+            <TabsContent value="history">
+                <SavedInvoicesClient />
+            </TabsContent>
+        </Tabs>
     </div>
   );
 }
-
-    

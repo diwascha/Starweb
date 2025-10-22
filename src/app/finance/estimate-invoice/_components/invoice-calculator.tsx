@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, ChevronsUpDown, Check, Plus, Trash2, Save, FileSpreadsheet } from 'lucide-react';
+import { CalendarIcon, ChevronsUpDown, Check, Plus, Trash2, Save } from 'lucide-react';
 import { cn, toWords } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
@@ -270,9 +270,6 @@ export function InvoiceCalculator() {
             </div>
 
             <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => router.push('/finance/estimate-invoice/list')}>
-                    <FileSpreadsheet className="mr-2 h-4 w-4" /> View Saved Invoices
-                </Button>
                 <Button onClick={handleSave}>
                     <Save className="mr-2 h-4 w-4" /> Save Invoice
                 </Button>
@@ -280,5 +277,3 @@ export function InvoiceCalculator() {
         </div>
     );
 }
-
-    

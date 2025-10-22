@@ -139,5 +139,3 @@ export function SavedInvoicesClient() {
         </div>
     );
 }
-
-    
