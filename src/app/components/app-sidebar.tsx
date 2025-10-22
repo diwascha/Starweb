@@ -90,7 +90,7 @@ export function AppSidebar() {
   }
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="icon" defaultOpen={false}>
       <SidebarHeader>
         <div className="flex items-center gap-2">
             <h1 className="text-xl font-semibold">STARWEB</h1>
