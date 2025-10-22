@@ -4,6 +4,7 @@
 
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -530,4 +531,27 @@ export interface TdsCalculation {
   netPayable: number;
   createdBy: string;
   createdAt: string; // ISO string
+}
+
+export interface EstimateInvoiceItem {
+    id: string;
+    productName: string;
+    quantity: number;
+    rate: number;
+    gross: number;
+}
+
+export interface EstimatedInvoice {
+    id: string;
+    invoiceNumber: string;
+    date: string; // ISO
+    partyName: string;
+    panNumber?: string;
+    items: EstimateInvoiceItem[];
+    grossTotal: number;
+    vatTotal: number;
+    netTotal: number;
+    amountInWords: string;
+    createdBy: string;
+    createdAt: string; // ISO
 }

@@ -1,7 +1,7 @@
 
 import { Suspense } from 'react';
 import Link from 'next/link';
-import { ShoppingCart, Wrench } from 'lucide-react';
+import { ShoppingCart, Wrench, FileText } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getPurchaseOrders } from '@/services/purchase-order-service';
@@ -26,6 +26,14 @@ const poModules = [
         permission: 'rawMaterials' as const,
         action: 'view' as const,
     },
+    {
+        name: 'Estimate Invoice',
+        description: 'Create an estimate invoice for a customer.',
+        href: '/purchase-orders/estimate-invoice',
+        icon: FileText,
+        permission: 'purchaseOrders' as const, // Assuming this falls under PO permissions
+        action: 'create' as const,
+    }
 ];
 
 function DashboardSkeleton() {
@@ -63,7 +71,7 @@ export default async function PurchaseOrderDashboardPage() {
 
       <div>
         <h2 className="text-xl font-bold tracking-tight mb-4">Quick Access</h2>
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {poModules.map((module) => (
             <Link href={module.href} key={module.name}>
                 <Card className="h-full transition-all hover:shadow-md">
