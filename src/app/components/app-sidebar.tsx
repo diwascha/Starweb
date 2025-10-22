@@ -117,7 +117,7 @@ export function AppSidebar() {
                     <SidebarMenuButton asChild isActive={getIsActive('/finance')}>
                     <Link href="/finance">
                         <Calculator />
-                        <span>Finance</span>
+                        <span>bulshit</span>
                     </Link>
                     </SidebarMenuButton>
                 </SidebarMenuItem>
