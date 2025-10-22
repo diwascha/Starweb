@@ -179,7 +179,7 @@ export default function TdsCalculatorPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {tdsRates.map(rate => (
-                        <SelectItem key={rate.value} value={rate.value}>{rate.label}</SelectItem>
+                        <SelectItem key={rate.value} value={rate.value}>{rate.label} ({rate.value}%)</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
