@@ -14,8 +14,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from '@/components/ui/sidebar';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { FileText, LayoutDashboard, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users, Calendar, Award, Wallet, Building2, PlusCircle, Truck, ShieldCheck, CreditCard, ArrowRightLeft, TrendingUp, BarChart2, Notebook, Download, Calculator, PanelLeft, PanelRight, Receipt } from 'lucide-react';
+import { FileSpreadsheet, FileText, LayoutDashboard, Package, ShoppingCart, Wrench, LogOut, Settings, Users, Calendar, Award, Wallet, Building2, PlusCircle, Truck, ShieldCheck, CreditCard, ArrowRightLeft, TrendingUp, BarChart2, Notebook, Download, Calculator, PanelLeft, PanelRight, Receipt } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
@@ -81,6 +80,7 @@ export function AppSidebar() {
   const getIsActive = (path: string) => {
     if (!isClient) return false;
     if (path === '/dashboard') return pathname === path;
+    if (path === '/finance') return pathname === path;
     if (path.endsWith('/new')) return pathname === path;
     return pathname.startsWith(path) && (pathname[path.length] === '/' || pathname.length === path.length);
   };
@@ -117,7 +117,7 @@ export function AppSidebar() {
                     <SidebarMenuButton asChild isActive={getIsActive('/finance')}>
                     <Link href="/finance">
                         <Calculator />
-                        <span>bulshit</span>
+                        <span>Finance</span>
                     </Link>
                     </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -143,6 +143,14 @@ export function AppSidebar() {
                         <Link href="/finance/cheque-generator">
                             <Receipt />
                             <span>Cheque Generator</span>
+                        </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton asChild isActive={getIsActive('/finance')}>
+                        <Link href="/finance">
+                            <FileSpreadsheet />
+                            <span>Finance DB</span>
                         </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
