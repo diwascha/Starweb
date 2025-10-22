@@ -1,7 +1,7 @@
 
 import { Suspense } from 'react';
 import Link from 'next/link';
-import { PlusCircle, ShoppingCart } from 'lucide-react';
+import { PlusCircle, ShoppingCart, Calculator, FileText, Receipt } from 'lucide-react';
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,7 @@ export default function DashboardPage() {
                 <h2 className="text-lg font-semibold">शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.</h2>
                 <p className="text-sm text-muted-foreground mt-1">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
                 <Button asChild>
                     <Link href="/report/new">
                     <PlusCircle className="mr-2 h-4 w-4" /> New QT Reports
@@ -26,6 +26,21 @@ export default function DashboardPage() {
                 <Button asChild variant="outline">
                     <Link href="/purchase-orders/new">
                     <ShoppingCart className="mr-2 h-4 w-4" /> New Purchase Order
+                    </Link>
+                </Button>
+                <Button asChild variant="outline">
+                    <Link href="/finance/tds-calculator">
+                    <Calculator className="mr-2 h-4 w-4" /> TDS Calculator
+                    </Link>
+                </Button>
+                <Button asChild variant="outline">
+                    <Link href="/finance/estimate-invoice">
+                    <FileText className="mr-2 h-4 w-4" /> Estimate Invoice
+                    </Link>
+                </Button>
+                 <Button asChild variant="outline">
+                    <Link href="/finance/cheque-generator">
+                    <Receipt className="mr-2 h-4 w-4" /> Cheque Generator
                     </Link>
                 </Button>
             </div>
