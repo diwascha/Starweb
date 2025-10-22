@@ -133,27 +133,29 @@ export default function TdsCalculatorPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                    <Label htmlFor="voucher-no">Voucher No.</Label>
-                    <Input id="voucher-no" placeholder="Auto-generated" readOnly className="bg-muted/50" />
+            <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="voucher-no">Voucher No.</Label>
+                        <Input id="voucher-no" placeholder="Auto-generated" readOnly className="bg-muted/50" />
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="date">Date</Label>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button variant={"outline"} className="w-full justify-start text-left font-normal">
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {date ? `${toNepaliDate(date.toISOString())} BS (${format(date, "PPP")})` : <span>Pick a date</span>}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0">
+                                <DualCalendar selected={date} onSelect={(d) => d && setDate(d)} />
+                            </PopoverContent>
+                        </Popover>
+                     </div>
                 </div>
                  <div className="space-y-2">
-                    <Label htmlFor="date">Date</Label>
-                    <Popover>
-                        <PopoverTrigger asChild>
-                            <Button variant={"outline"} className="w-full justify-start text-left font-normal">
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {date ? `${toNepaliDate(date.toISOString())} BS (${format(date, "PPP")})` : <span>Pick a date</span>}
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
-                            <DualCalendar selected={date} onSelect={(d) => d && setDate(d)} />
-                        </PopoverContent>
-                    </Popover>
-                 </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="party-name">Party Name</Label>
+                    <Label htmlFor="party-name">Party Name (Optional)</Label>
                     <Input id="party-name" placeholder="Enter party name" />
                 </div>
             </div>
