@@ -435,5 +435,3 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
-
-    
