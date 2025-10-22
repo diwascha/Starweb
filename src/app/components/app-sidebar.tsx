@@ -94,11 +94,11 @@ export function AppSidebar() {
         {hasPermission('finance', 'view') && (
             <SidebarMenu>
                 <SidebarSeparator />
-                <SidebarMenuItem>
+                 <SidebarMenuItem>
                     <SidebarMenuButton asChild isActive={getIsActive('/finance')}>
                     <Link href="/finance/tds-calculator">
                         <Calculator />
-                        <span>Calculator</span>
+                        <span>Finance</span>
                     </Link>
                     </SidebarMenuButton>
                 </SidebarMenuItem>
