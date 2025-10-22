@@ -153,7 +153,7 @@ export function AppSidebar() {
                  <>
                     <SidebarSeparator />
                      <SidebarMenuItem>
-                        <SidebarMenuButton asChild isActive={getIsActive('/reports')}>
+                        <SidebarMenuButton asChild isActive={getIsActive('/reports', true)}>
                         <Link href="/reports">
                             <FileText />
                             <span>Test Report Mgmt</span>
@@ -199,7 +199,7 @@ export function AppSidebar() {
                 <>
                     <SidebarSeparator />
                      <SidebarMenuItem>
-                        <SidebarMenuButton asChild isActive={getIsActive('/purchase-orders')}>
+                        <SidebarMenuButton asChild isActive={getIsActive('/purchase-orders', true)}>
                         <Link href="/purchase-orders">
                             <ShoppingCart />
                             <span>Purchase Order Mgmt</span>
@@ -234,7 +234,7 @@ export function AppSidebar() {
         <SidebarMenu>
              <SidebarSeparator />
              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={getIsActive('/hr')}>
+                <SidebarMenuButton asChild isActive={getIsActive('/hr', true)}>
                 <Link href="/hr">
                     <Building2 />
                     <span>HRMS</span>
@@ -297,7 +297,7 @@ export function AppSidebar() {
                  <>
                     <SidebarSeparator />
                      <SidebarMenuItem>
-                        <SidebarMenuButton asChild isActive={getIsActive('/fleet')}>
+                        <SidebarMenuButton asChild isActive={getIsActive('/fleet', true)}>
                         <Link href="/fleet">
                             <Truck />
                             <span>Fleet Management</span>
@@ -363,7 +363,7 @@ export function AppSidebar() {
                                         <span>Sales Entry</span>
                                     </Link>
                                     </SidebarMenuButton>
-                                </SidebarMenuItem>
+                            </SidebarMenuItem>
                             </div>
                             )}
 
@@ -442,3 +442,5 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
+
+    
