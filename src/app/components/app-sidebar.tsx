@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -107,6 +108,46 @@ export function AppSidebar() {
             </SidebarMenuItem>
             )}
         </SidebarMenu>
+        
+        {hasPermission('finance', 'view') && (
+            <SidebarMenu>
+                <SidebarSeparator />
+                 <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={getIsActive('/finance')}>
+                    <Link href="/finance">
+                        <Calculator />
+                        <span>Finance</span>
+                    </Link>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+                <div className="ml-4">
+                    <SidebarMenuItem>
+                        <SidebarMenuButton asChild isActive={getIsActive('/finance/tds-calculator')}>
+                        <Link href="/finance/tds-calculator">
+                            <Calculator />
+                            <span>TDS Calculator</span>
+                        </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton asChild isActive={getIsActive('/finance/estimate-invoice')}>
+                        <Link href="/finance/estimate-invoice">
+                            <FileText />
+                            <span>Estimate Invoice</span>
+                        </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton asChild isActive={getIsActive('/finance/cheque-generator')}>
+                        <Link href="/finance/cheque-generator">
+                            <Receipt />
+                            <span>Cheque Generator</span>
+                        </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                </div>
+            </SidebarMenu>
+        )}
 
         <SidebarMenu>
             {(hasPermission('reports', 'view') || hasPermission('products', 'view')) && (
@@ -298,14 +339,6 @@ export function AppSidebar() {
                             </SidebarMenuButton>
                         </SidebarMenuItem>
                          <div className="ml-4">
-                            <SidebarMenuItem>
-                                <SidebarMenuButton asChild isActive={getIsActive('/fleet/parties')}>
-                                <Link href="/fleet/parties">
-                                    <Users />
-                                    <span>Party Ledger</span>
-                                </Link>
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
                             <SidebarMenuItem>
                                 <SidebarMenuButton asChild isActive={getIsActive('/fleet/trip-sheets')}>
                                 <Link href="/fleet/trip-sheets">
