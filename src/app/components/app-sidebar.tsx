@@ -90,7 +90,7 @@ export function AppSidebar() {
   }
 
   return (
-    <Sidebar collapsible="icon" defaultOpen={false}>
+    <Sidebar collapsible="icon">
       <SidebarHeader>
         <div className="flex items-center gap-2">
             <h1 className="text-xl font-semibold">STARWEB</h1>
@@ -233,85 +233,79 @@ export function AppSidebar() {
                 </>
             )}
         </SidebarMenu>
-        <Accordion type="single" collapsible defaultValue={pathname.startsWith('/hr') ? "hr" : undefined}>
-            <AccordionItem value="hr" className="border-none">
-                <SidebarMenu>
+        <SidebarMenu>
+             <SidebarSeparator />
+             <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={getIsActive('/hr')}>
+                <Link href="/hr">
+                    <Building2 />
+                    <span>HRMS</span>
+                </Link>
+                </SidebarMenuButton>
+            </SidebarMenuItem>
+            <div className="ml-4">
+                <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={getIsActive('/hr/employees')}>
+                    <Link href="/hr/employees">
+                        <Users />
+                        <span>Employees</span>
+                    </Link>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={getIsActive('/hr/attendance')}>
+                    <Link href="/hr/attendance">
+                        <Calendar />
+                        <span>Attendance</span>
+                    </Link>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+                 <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={getIsActive('/hr/analytics')}>
+                    <Link href="/hr/analytics">
+                        <BarChart2 />
+                        <span>Analytics</span>
+                    </Link>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+                 <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={getIsActive('/hr/payroll')}>
+                    <Link href="/hr/payroll">
+                        <FileText />
+                        <span>Payroll</span>
+                    </Link>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={getIsActive('/hr/bonus')}>
+                    <Link href="/hr/bonus">
+                        <Award />
+                        <span>Bonus</span>
+                    </Link>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={getIsActive('/hr/payslip')}>
+                    <Link href="/hr/payslip">
+                        <Wallet />
+                        <span>Payslip</span>
+                    </Link>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+            </div>
+        </SidebarMenu>
+        <SidebarMenu>
+            {hasPermission('fleet', 'view') && (
+                 <>
                     <SidebarSeparator />
-                    <AccordionTrigger className="w-full justify-between p-2 hover:bg-sidebar-accent rounded-md [&[data-state=open]>svg]:rotate-180">
-                        <Link href="/hr" className="flex items-center gap-2 text-sm font-medium">
-                            <Building2 />
-                            <span>HRMS</span>
-                        </Link>
-                    </AccordionTrigger>
-                </SidebarMenu>
-                <AccordionContent>
-                    <div className="ml-4">
-                        <SidebarMenuItem>
-                            <SidebarMenuButton asChild isActive={getIsActive('/hr/employees')}>
-                            <Link href="/hr/employees">
-                                <Users />
-                                <span>Employees</span>
-                            </Link>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
-                        <SidebarMenuItem>
-                            <SidebarMenuButton asChild isActive={getIsActive('/hr/attendance')}>
-                            <Link href="/hr/attendance">
-                                <Calendar />
-                                <span>Attendance</span>
-                            </Link>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
-                        <SidebarMenuItem>
-                            <SidebarMenuButton asChild isActive={getIsActive('/hr/analytics')}>
-                            <Link href="/hr/analytics">
-                                <BarChart2 />
-                                <span>Analytics</span>
-                            </Link>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
-                        <SidebarMenuItem>
-                            <SidebarMenuButton asChild isActive={getIsActive('/hr/payroll')}>
-                            <Link href="/hr/payroll">
-                                <FileText />
-                                <span>Payroll</span>
-                            </Link>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
-                        <SidebarMenuItem>
-                            <SidebarMenuButton asChild isActive={getIsActive('/hr/bonus')}>
-                            <Link href="/hr/bonus">
-                                <Award />
-                                <span>Bonus</span>
-                            </Link>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
-                        <SidebarMenuItem>
-                            <SidebarMenuButton asChild isActive={getIsActive('/hr/payslip')}>
-                            <Link href="/hr/payslip">
-                                <Wallet />
-                                <span>Payslip</span>
-                            </Link>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
-                    </div>
-                </AccordionContent>
-            </AccordionItem>
-        </Accordion>
-        
-        {hasPermission('fleet', 'view') && (
-        <Accordion type="single" collapsible defaultValue={pathname.startsWith('/fleet') ? "fleet" : undefined}>
-            <AccordionItem value="fleet" className="border-none">
-                <SidebarMenu>
-                    <SidebarSeparator />
-                    <AccordionTrigger className="w-full justify-between p-2 hover:bg-sidebar-accent rounded-md [&[data-state=open]>svg]:rotate-180">
-                        <Link href="/fleet" className="flex items-center gap-2 text-sm font-medium">
+                     <SidebarMenuItem>
+                        <SidebarMenuButton asChild isActive={getIsActive('/fleet')}>
+                        <Link href="/fleet">
                             <Truck />
                             <span>Fleet Management</span>
                         </Link>
-                    </AccordionTrigger>
-                </SidebarMenu>
-                <AccordionContent>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
                     <div className="ml-4">
                         <SidebarMenuItem>
                             <SidebarMenuButton asChild isActive={getIsActive('/fleet/vehicles')}>
@@ -397,10 +391,9 @@ export function AppSidebar() {
                             )}
                          </div>
                     </div>
-                </AccordionContent>
-            </AccordionItem>
-        </Accordion>
-        )}
+                </>
+            )}
+        </SidebarMenu>
         <SidebarMenu>
             <SidebarSeparator />
             <SidebarMenuItem>
@@ -451,7 +444,3 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
-
-    
-
-    
