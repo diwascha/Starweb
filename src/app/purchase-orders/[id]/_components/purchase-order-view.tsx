@@ -48,12 +48,9 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
       return;
     }
     
-    // Temporarily modify the DOM for export
-    const amendmentSection = printableArea.querySelector('#amendment-history-section');
-    let originalDisplay = '';
-    if (amendmentSection && !includeAmendments) {
-        originalDisplay = (amendmentSection as HTMLElement).style.display;
-        (amendmentSection as HTMLElement).style.display = 'none';
+    // Temporarily add a class to control visibility during export
+    if (!includeAmendments) {
+        printableArea.classList.add('exclude-amendments');
     }
 
     try {
@@ -103,8 +100,9 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
     } catch (error) {
         console.error(`Error generating ${format.toUpperCase()}`, error);
     } finally {
-        if (amendmentSection && !includeAmendments) {
-            (amendmentSection as HTMLElement).style.display = originalDisplay;
+        // Clean up the class
+        if (!includeAmendments) {
+            printableArea.classList.remove('exclude-amendments');
         }
         if (format === 'pdf') setIsGeneratingPdf(false);
         else setIsGeneratingJpg(false);
@@ -382,7 +380,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
             print-color-adjust: exact;
             background-color: #fff;
           }
-          body * {
+          body > * {
             visibility: hidden;
           }
           .printable-area, .printable-area * {
@@ -393,46 +391,31 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
             left: 0;
             top: 0;
             width: 100%;
-            height: auto;
+            height: auto; 
             margin: 0;
             padding: 0;
             border: none;
             font-size: 10px; /* Smaller base font size for print */
           }
            .print\\:hidden {
-              display: none;
-           }
-           #amendment-history-section.print-exclude {
               display: none !important;
            }
-        }
-      `}</style>
-      <style jsx>{`
-        #amendment-history-section.print-exclude {
-            display: none !important;
+           .exclude-amendments #amendment-history-section {
+               display: none !important;
+           }
         }
       `}</style>
       <style jsx global>
         {`
           @media print {
-            .amendment-history-print-exclude {
-              display: none !important;
-            }
+            ${!includeAmendments ? `
+              #amendment-history-section {
+                display: none !important;
+              }
+            ` : ''}
           }
         `}
       </style>
-      {!includeAmendments && (
-        <style jsx global>
-            {`
-            @media print {
-                #amendment-history-section {
-                display: none !important;
-                }
-            }
-            `}
-        </style>
-        )}
     </>
   );
 }
-
