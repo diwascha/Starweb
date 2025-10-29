@@ -77,11 +77,10 @@ export function AppSidebar() {
     }
   };
 
-  const getIsActive = (path: string) => {
+  const getIsActive = (path: string, exact: boolean = false) => {
     if (!isClient) return false;
-    if (path === '/dashboard') return pathname === path;
-    if (path.endsWith('/new')) return pathname === path;
-    return pathname.startsWith(path) && (pathname[path.length] === '/' || pathname.length === path.length);
+    if (exact) return pathname === path;
+    return pathname.startsWith(path);
   };
   
   if (!user) {
@@ -99,7 +98,7 @@ export function AppSidebar() {
         <SidebarMenu>
             {hasPermission('dashboard', 'view') && (
             <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={getIsActive('/dashboard')}>
+                <SidebarMenuButton asChild isActive={getIsActive('/dashboard', true)}>
                 <Link href="/dashboard">
                     <LayoutDashboard />
                     <span>Dashboard</span>
