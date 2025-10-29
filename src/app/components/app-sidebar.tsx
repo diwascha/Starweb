@@ -114,7 +114,7 @@ export function AppSidebar() {
                 <SidebarSeparator />
                  <SidebarMenuItem>
                     <SidebarMenuButton asChild isActive={getIsActive('/finance')}>
-                    <Link href="/finance">
+                    <Link href="/finance/estimate-invoice">
                         <Calculator />
                         <span>Finance</span>
                     </Link>
@@ -340,6 +340,14 @@ export function AppSidebar() {
                         </SidebarMenuItem>
                          <div className="ml-4">
                             <SidebarMenuItem>
+                                <SidebarMenuButton asChild isActive={getIsActive('/fleet/parties')}>
+                                <Link href="/fleet/parties">
+                                    <Users />
+                                    <span>Party Ledger</span>
+                                </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                            <SidebarMenuItem>
                                 <SidebarMenuButton asChild isActive={getIsActive('/fleet/trip-sheets')}>
                                 <Link href="/fleet/trip-sheets">
                                     <FileText />
@@ -435,3 +443,5 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
+
+    
