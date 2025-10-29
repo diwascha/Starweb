@@ -96,7 +96,8 @@ export function InvoiceCalculator() {
         try {
             if (editingParty) {
                 await updateParty(editingParty.id, { ...partyForm, lastModifiedBy: user.username });
-                setParty(p => p && p.id === editingParty.id ? { ...p, ...partyForm } : p);
+                const updatedParty = { ...editingParty, ...partyForm };
+                setParty(updatedParty);
                 toast({ title: 'Success', description: 'Party updated.' });
             } else {
                 const newPartyId = await addParty({ ...partyForm, createdBy: user.username });
@@ -384,3 +385,4 @@ export function InvoiceCalculator() {
         </div>
     );
 }
+    
