@@ -149,9 +149,9 @@ export function AppSidebar() {
             </SidebarMenu>
         )}
 
-        <SidebarMenu>
+        
             {(hasPermission('reports', 'view') || hasPermission('products', 'view')) && (
-                 <>
+                <SidebarMenu>
                     <SidebarSeparator />
                      <SidebarMenuItem>
                         <SidebarMenuButton asChild isActive={getIsActive('/reports')}>
@@ -193,11 +193,11 @@ export function AppSidebar() {
                             </SidebarMenuItem>
                         )}
                     </div>
-                </>
+                </SidebarMenu>
             )}
             
             {(hasPermission('purchaseOrders', 'view') || hasPermission('rawMaterials', 'view')) && (
-                <>
+                <SidebarMenu>
                     <SidebarSeparator />
                      <SidebarMenuItem>
                         <SidebarMenuButton asChild isActive={getIsActive('/purchase-orders')}>
@@ -229,41 +229,40 @@ export function AppSidebar() {
                             </SidebarMenuItem>
                         )}
                     </div>
-                </>
+                </SidebarMenu>
             )}
-        </SidebarMenu>
-        
-        {hasPermission('crm', 'view') && (
-        <SidebarMenu>
-            <SidebarSeparator />
-            <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={getIsActive('/crm')}>
-                <Link href="/crm">
-                    <Briefcase />
-                    <span>CRM</span>
-                </Link>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
-            <div className="ml-4">
-                <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={getIsActive('/crm/cost-report')}>
-                    <Link href="/crm/cost-report">
-                        <Calculator />
-                        <span>Cost Report</span>
-                    </Link>
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={getIsActive('/crm/pack-spec')}>
-                    <Link href="/crm/pack-spec">
-                        <FileText />
-                        <span>PackSpec</span>
-                    </Link>
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
-            </div>
-        </SidebarMenu>
-        )}
+
+            {hasPermission('crm', 'view') && (
+                <SidebarMenu>
+                    <SidebarSeparator />
+                    <SidebarMenuItem>
+                        <SidebarMenuButton asChild isActive={getIsActive('/crm')}>
+                        <Link href="/crm">
+                            <Briefcase />
+                            <span>CRM</span>
+                        </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <div className="ml-4">
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={getIsActive('/crm/cost-report')}>
+                            <Link href="/crm/cost-report">
+                                <Calculator />
+                                <span>Cost Report</span>
+                            </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={getIsActive('/crm/pack-spec')}>
+                            <Link href="/crm/pack-spec">
+                                <FileText />
+                                <span>PackSpec</span>
+                            </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                    </div>
+                </SidebarMenu>
+            )}
         
         <SidebarMenu>
              <SidebarSeparator />

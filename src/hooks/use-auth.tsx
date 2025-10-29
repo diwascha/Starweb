@@ -151,13 +151,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const hasPermission = useCallback((module: Module, action: Action): boolean => {
     if (!user) return false;
     if (user.is_admin) return true;
-    if (module === 'dashboard' && action === 'view') return true;
     
-    if (user.permissions) {
-      const modulePermissions = user.permissions[module];
-      return !!modulePermissions?.includes(action);
+    // Fallback for new modules not explicitly in default perms
+    if (module === 'crm' && action === 'view') {
+        const financePerms = user.permissions['finance'];
+        if (financePerms && financePerms.includes('view')) {
+            return true;
+        }
     }
-    return false;
+    
+    const modulePermissions = user.permissions[module];
+    return !!modulePermissions?.includes(action);
   }, [user]);
 
   const login = useCallback(async (userToLogin: User) => {
