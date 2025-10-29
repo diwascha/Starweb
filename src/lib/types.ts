@@ -1,12 +1,9 @@
 
-
-
-
-
-
-
-
-
+export interface RateHistoryEntry {
+  rate: number;
+  date: string; // ISO string when the rate was set
+  setBy: string; // Username of who set the rate
+}
 
 export interface ProductSpecification {
   dimension: string;
@@ -29,6 +26,7 @@ export interface Product {
   partyName: string;
   partyAddress: string;
   rate?: number;
+  rateHistory?: RateHistoryEntry[];
   specification: ProductSpecification;
   createdBy: string;
   createdAt: string; // ISO string

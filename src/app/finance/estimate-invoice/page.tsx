@@ -1,3 +1,4 @@
+
 'use client';
 import { Suspense, useState, useMemo, useEffect } from 'react';
 import { InvoiceCalculator } from './_components/invoice-calculator';
@@ -5,19 +6,22 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Search, ArrowUpDown, MoreHorizontal, View, Edit, Trash2 } from 'lucide-react';
+import { Search, ArrowUpDown, MoreHorizontal, View, Edit, Trash2, History } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { onEstimatedInvoicesUpdate, deleteEstimatedInvoice } from '@/services/estimate-invoice-service';
-import type { EstimatedInvoice, Product } from '@/lib/types';
+import type { EstimatedInvoice, Product, RateHistoryEntry } from '@/lib/types';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Dialog, DialogContent, DialogFooter, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogTitle, DialogHeader, DialogDescription } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useRouter } from 'next/navigation';
 import { onProductsUpdate, updateProduct } from '@/services/product-service';
 import { Label } from '@/components/ui/label';
+import { useAuth } from '@/hooks/use-auth';
+import { toNepaliDate } from '@/lib/utils';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 function FormSkeleton() {
     return (
@@ -170,9 +174,12 @@ function SavedRatesList() {
     const [products, setProducts] = useState<Product[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [isRateDialogOpen, setIsRateDialogOpen] = useState(false);
+    const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+    const [selectedHistory, setSelectedHistory] = useState<RateHistoryEntry[]>([]);
     const [newRate, setNewRate] = useState<string>('');
     const { toast } = useToast();
+    const { user } = useAuth();
 
     useEffect(() => {
         const unsub = onProductsUpdate(setProducts);
@@ -186,14 +193,14 @@ function SavedRatesList() {
     };
 
     const handleSaveRate = async () => {
-        if (!editingProduct) return;
+        if (!editingProduct || !user) return;
         const rateValue = parseFloat(newRate);
         if (isNaN(rateValue) || rateValue < 0) {
             toast({ title: 'Error', description: 'Please enter a valid rate.', variant: 'destructive' });
             return;
         }
         try {
-            await updateProduct(editingProduct.id, { rate: rateValue });
+            await updateProduct(editingProduct.id, { rate: rateValue, lastModifiedBy: user.username });
             toast({ title: 'Success', description: `Rate for ${editingProduct.name} updated.` });
             setIsRateDialogOpen(false);
         } catch (error) {
@@ -201,6 +208,12 @@ function SavedRatesList() {
         }
     };
     
+    const handleOpenHistoryDialog = (product: Product) => {
+        setSelectedHistory(product.rateHistory || []);
+        setEditingProduct(product);
+        setIsHistoryDialogOpen(true);
+    };
+
     const filteredProducts = useMemo(() => {
         return products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.partyName.toLowerCase().includes(searchQuery.toLowerCase()));
     }, [products, searchQuery]);
@@ -231,7 +244,7 @@ function SavedRatesList() {
                        <TableRow>
                            <TableHead>Product Name</TableHead>
                            <TableHead>Delivered To</TableHead>
-                           <TableHead>Rate (NPR)</TableHead>
+                           <TableHead>Current Rate (NPR)</TableHead>
                            <TableHead className="text-right">Actions</TableHead>
                        </TableRow>
                    </TableHeader>
@@ -242,7 +255,10 @@ function SavedRatesList() {
                                    <TableCell>{p.name}</TableCell>
                                    <TableCell>{p.partyName}</TableCell>
                                    <TableCell>{p.rate ? p.rate.toLocaleString() : 'Not Set'}</TableCell>
-                                   <TableCell className="text-right">
+                                   <TableCell className="text-right space-x-2">
+                                       <Button variant="ghost" size="sm" onClick={() => handleOpenHistoryDialog(p)}>
+                                           <History className="mr-2 h-4 w-4" /> History
+                                       </Button>
                                        <Button variant="outline" size="sm" onClick={() => handleOpenRateDialog(p)}>
                                            <Edit className="mr-2 h-4 w-4" /> Edit Rate
                                        </Button>
@@ -260,7 +276,9 @@ function SavedRatesList() {
         </Card>
         <Dialog open={isRateDialogOpen} onOpenChange={setIsRateDialogOpen}>
             <DialogContent>
-                <DialogTitle>Edit Rate for {editingProduct?.name}</DialogTitle>
+                <DialogHeader>
+                    <DialogTitle>Edit Rate for {editingProduct?.name}</DialogTitle>
+                </DialogHeader>
                 <div className="py-4">
                     <Label htmlFor="rate-input">New Rate</Label>
                     <Input
@@ -275,6 +293,40 @@ function SavedRatesList() {
                     <Button variant="outline" onClick={() => setIsRateDialogOpen(false)}>Cancel</Button>
                     <Button onClick={handleSaveRate}>Save Rate</Button>
                 </DialogFooter>
+            </DialogContent>
+        </Dialog>
+        <Dialog open={isHistoryDialogOpen} onOpenChange={setIsHistoryDialogOpen}>
+            <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>Rate History for {editingProduct?.name}</DialogTitle>
+                    <DialogDescription>A log of all past rates for this product.</DialogDescription>
+                </DialogHeader>
+                <ScrollArea className="h-72 my-4">
+                    {selectedHistory.length > 0 ? (
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Date Set (BS)</TableHead>
+                                    <TableHead>Rate</TableHead>
+                                    <TableHead>Set By</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {[...selectedHistory].reverse().map((entry, index) => (
+                                    <TableRow key={index}>
+                                        <TableCell>{toNepaliDate(entry.date)}</TableCell>
+                                        <TableCell>{entry.rate.toLocaleString()}</TableCell>
+                                        <TableCell>{entry.setBy}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    ) : (
+                        <div className="flex h-full items-center justify-center text-muted-foreground">
+                            No rate history available for this product.
+                        </div>
+                    )}
+                </ScrollArea>
             </DialogContent>
         </Dialog>
         </>
