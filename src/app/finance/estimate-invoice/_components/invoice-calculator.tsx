@@ -202,50 +202,6 @@ export function InvoiceCalculator() {
                         </PopoverContent>
                     </Popover>
                  </div>
-                 <div className="space-y-2">
-                    <Label htmlFor="party-name">Party Name:</Label>
-                    <Popover open={isPartyPopoverOpen} onOpenChange={setIsPartyPopoverOpen}>
-                        <PopoverTrigger asChild>
-                           <Button variant="outline" role="combobox" className="w-full justify-between">
-                                {party?.name || "Select a party..."}
-                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
-                            <Command>
-                                <CommandInput
-                                  placeholder="Search party..."
-                                  value={partySearch}
-                                  onValueChange={setPartySearch}
-                                />
-                                <CommandList>
-                                <CommandEmpty>
-                                     <Button
-                                        variant="ghost"
-                                        className="w-full justify-start"
-                                        onClick={() => handleOpenPartyDialog(null, partySearch)}
-                                    >
-                                        <PlusCircle className="mr-2 h-4 w-4" /> Add "{partySearch}"
-                                    </Button>
-                                </CommandEmpty>
-                                <CommandGroup>
-                                    {customers.map((c) => (
-                                    <CommandItem key={c.id} value={c.name} onSelect={() => handlePartySelect(c.id)} className="flex justify-between items-center">
-                                         <div className="flex items-center">
-                                            <Check className={cn("mr-2 h-4 w-4", party?.id === c.id ? "opacity-100" : "opacity-0")}/>
-                                            {c.name}
-                                        </div>
-                                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleOpenPartyDialog(c); }}>
-                                            <Edit className="h-4 w-4"/>
-                                        </Button>
-                                    </CommandItem>
-                                    ))}
-                                </CommandGroup>
-                                </CommandList>
-                            </Command>
-                        </PopoverContent>
-                    </Popover>
-                </div>
             </div>
 
             <div className="border rounded-lg p-4">
