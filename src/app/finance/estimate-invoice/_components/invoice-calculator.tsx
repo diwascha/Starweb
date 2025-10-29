@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { Party, PartyType, Product, EstimateInvoiceItem, EstimatedInvoice } from '@/lib/types';
@@ -202,6 +203,45 @@ export function InvoiceCalculator() {
                         </PopoverContent>
                     </Popover>
                  </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="party-name">Party Name:</Label>
+                    <Popover open={isPartyPopoverOpen} onOpenChange={setIsPartyPopoverOpen}>
+                        <PopoverTrigger asChild>
+                           <Button variant="outline" role="combobox" className="w-full justify-between">
+                                {party ? party.name : "Select a party..."}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
+                            <Command>
+                                <CommandInput
+                                  placeholder="Search party..."
+                                  value={partySearch}
+                                  onValueChange={setPartySearch}
+                                />
+                                <CommandList>
+                                <CommandEmpty>
+                                     <Button
+                                        variant="ghost"
+                                        className="w-full justify-start"
+                                        onClick={() => handleOpenPartyDialog(null, partySearch)}
+                                    >
+                                        <PlusCircle className="mr-2 h-4 w-4" /> Add "{partySearch}"
+                                    </Button>
+                                </CommandEmpty>
+                                <CommandGroup>
+                                    {customers.map((c) => (
+                                    <CommandItem key={c.id} value={c.name} onSelect={() => handlePartySelect(c.id)}>
+                                        <Check className={cn("mr-2 h-4 w-4", party?.id === c.id ? "opacity-100" : "opacity-0")}/>
+                                        {c.name}
+                                    </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                                </CommandList>
+                            </Command>
+                        </PopoverContent>
+                    </Popover>
+                </div>
             </div>
 
             <div className="border rounded-lg p-4">
@@ -341,4 +381,6 @@ export function InvoiceCalculator() {
         </div>
     );
 }
+    
+
     
