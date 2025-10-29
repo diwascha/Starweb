@@ -1,4 +1,3 @@
-
 'use client';
 import { Suspense, useState, useMemo, useEffect } from 'react';
 import { InvoiceCalculator } from './_components/invoice-calculator';
@@ -10,12 +9,15 @@ import { Search, ArrowUpDown, MoreHorizontal, View, Edit, Trash2 } from 'lucide-
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { onEstimatedInvoicesUpdate, deleteEstimatedInvoice } from '@/services/estimate-invoice-service';
-import type { EstimatedInvoice } from '@/lib/types';
+import type { EstimatedInvoice, Product } from '@/lib/types';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogFooter, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useRouter } from 'next/navigation';
+import { onProductsUpdate, updateProduct } from '@/services/product-service';
+import { Label } from '@/components/ui/label';
 
 function FormSkeleton() {
     return (
@@ -164,6 +166,121 @@ function SavedInvoicesList() {
     );
 }
 
+function SavedRatesList() {
+    const [products, setProducts] = useState<Product[]>([]);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [isRateDialogOpen, setIsRateDialogOpen] = useState(false);
+    const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+    const [newRate, setNewRate] = useState<string>('');
+    const { toast } = useToast();
+
+    useEffect(() => {
+        const unsub = onProductsUpdate(setProducts);
+        return () => unsub();
+    }, []);
+
+    const handleOpenRateDialog = (product: Product) => {
+        setEditingProduct(product);
+        setNewRate(String(product.rate || ''));
+        setIsRateDialogOpen(true);
+    };
+
+    const handleSaveRate = async () => {
+        if (!editingProduct) return;
+        const rateValue = parseFloat(newRate);
+        if (isNaN(rateValue) || rateValue < 0) {
+            toast({ title: 'Error', description: 'Please enter a valid rate.', variant: 'destructive' });
+            return;
+        }
+        try {
+            await updateProduct(editingProduct.id, { rate: rateValue });
+            toast({ title: 'Success', description: `Rate for ${editingProduct.name} updated.` });
+            setIsRateDialogOpen(false);
+        } catch (error) {
+            toast({ title: 'Error', description: 'Failed to update rate.', variant: 'destructive' });
+        }
+    };
+    
+    const filteredProducts = useMemo(() => {
+        return products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.partyName.toLowerCase().includes(searchQuery.toLowerCase()));
+    }, [products, searchQuery]);
+
+    return (
+        <>
+        <Card>
+           <CardHeader>
+             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <CardTitle>Product Rates</CardTitle>
+                    <CardDescription>Manage the rates for each product.</CardDescription>
+                </div>
+                <div className="relative w-full sm:w-auto">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Search products..."
+                        className="pl-8 w-full sm:w-[250px]"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                </div>
+             </div>
+           </CardHeader>
+           <CardContent>
+               <Table>
+                   <TableHeader>
+                       <TableRow>
+                           <TableHead>Product Name</TableHead>
+                           <TableHead>Delivered To</TableHead>
+                           <TableHead>Rate (NPR)</TableHead>
+                           <TableHead className="text-right">Actions</TableHead>
+                       </TableRow>
+                   </TableHeader>
+                   <TableBody>
+                       {filteredProducts.length > 0 ? (
+                           filteredProducts.map(p => (
+                               <TableRow key={p.id}>
+                                   <TableCell>{p.name}</TableCell>
+                                   <TableCell>{p.partyName}</TableCell>
+                                   <TableCell>{p.rate ? p.rate.toLocaleString() : 'Not Set'}</TableCell>
+                                   <TableCell className="text-right">
+                                       <Button variant="outline" size="sm" onClick={() => handleOpenRateDialog(p)}>
+                                           <Edit className="mr-2 h-4 w-4" /> Edit Rate
+                                       </Button>
+                                   </TableCell>
+                               </TableRow>
+                           ))
+                       ) : (
+                            <TableRow>
+                                <TableCell colSpan={4} className="text-center">No products found.</TableCell>
+                            </TableRow>
+                       )}
+                   </TableBody>
+               </Table>
+           </CardContent>
+        </Card>
+        <Dialog open={isRateDialogOpen} onOpenChange={setIsRateDialogOpen}>
+            <DialogContent>
+                <DialogTitle>Edit Rate for {editingProduct?.name}</DialogTitle>
+                <div className="py-4">
+                    <Label htmlFor="rate-input">New Rate</Label>
+                    <Input
+                        id="rate-input"
+                        type="number"
+                        value={newRate}
+                        onChange={(e) => setNewRate(e.target.value)}
+                        placeholder="e.g. 150.50"
+                    />
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsRateDialogOpen(false)}>Cancel</Button>
+                    <Button onClick={handleSaveRate}>Save Rate</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+        </>
+    );
+}
+
 export default function EstimateInvoicePage() {
   return (
     <div className="flex flex-col gap-8">
@@ -175,6 +292,7 @@ export default function EstimateInvoicePage() {
             <TabsList className="mb-4">
                 <TabsTrigger value="calculator">Invoice Calculator</TabsTrigger>
                 <TabsTrigger value="history">Saved Invoices</TabsTrigger>
+                <TabsTrigger value="rates">Saved Rates</TabsTrigger>
             </TabsList>
             <TabsContent value="calculator">
                 <Suspense fallback={<FormSkeleton />}>
@@ -183,6 +301,9 @@ export default function EstimateInvoicePage() {
             </TabsContent>
             <TabsContent value="history">
                 <SavedInvoicesList />
+            </TabsContent>
+            <TabsContent value="rates">
+                <SavedRatesList />
             </TabsContent>
         </Tabs>
     </div>
