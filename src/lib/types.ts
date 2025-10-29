@@ -5,6 +5,7 @@
 
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -22,8 +23,9 @@ export interface Product {
   id: string;
   name: string;
   materialCode: string;
-  companyName: string;
-  address: string;
+  partyId?: string;
+  partyName: string;
+  partyAddress: string;
   specification: ProductSpecification;
   createdBy: string;
   createdAt: string; // ISO string
@@ -298,7 +300,7 @@ export interface PolicyOrMembership {
 export const transactionTypes = ['Purchase', 'Sales', 'Payment', 'Receipt'] as const;
 export type TransactionType = typeof transactionTypes[number];
 
-export type PartyType = 'Supplier' | 'Customer' | 'Both';
+export type PartyType = 'Supplier' | 'Customer' | 'Vendor' | 'Both';
 
 export interface Party {
     id: string;

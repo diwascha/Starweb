@@ -31,6 +31,7 @@ const testResultSchema = z.object({
 });
 
 const reportFormSchema = z.object({
+  serialNumber: z.string().min(1, 'Serial Number is required.'),
   productId: z.string().min(1, { message: 'Product is required.' }),
   taxInvoiceNumber: z.string().optional(),
   challanNumber: z.string().optional(),
@@ -101,6 +102,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
   const defaultValues = useMemo(() => {
     if (reportToEdit) {
       return {
+        serialNumber: reportToEdit.serialNumber,
         productId: reportToEdit.product.id,
         taxInvoiceNumber: reportToEdit.taxInvoiceNumber,
         challanNumber: reportToEdit.challanNumber,
@@ -109,6 +111,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
       };
     }
     return {
+      serialNumber: '',
       productId: '',
       taxInvoiceNumber: '',
       challanNumber: '',
@@ -130,21 +133,26 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
     resolver: zodResolver(reportFormSchema),
     defaultValues,
   });
-
+  
   useEffect(() => {
     setIsClient(true);
     const unsubProducts = onProductsUpdate(setProducts);
-    
+
     if (reportToEdit) {
         setSelectedProduct(reportToEdit.product);
         form.reset(defaultValues);
+    } else {
+        const setInitialSerial = async () => {
+            const allReports = await getReportsForSerial();
+            const nextSerial = await generateNextSerialNumber(allReports);
+            form.setValue('serialNumber', nextSerial);
+        };
+        setInitialSerial();
     }
 
-    return () => {
-        unsubProducts();
-    }
-  }, [reportToEdit, form, defaultValues]);
-  
+    return () => unsubProducts();
+}, [reportToEdit, form, defaultValues]);
+
   const calculateAndSetValues = (boxType: BoxType) => {
     if (!selectedProduct) {
       toast({
@@ -285,8 +293,6 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
           toast({ title: 'Success', description: 'Report updated successfully.' });
           router.push(`/report/${reportToEdit.id}`);
       } else {
-        const allReports = await getReportsForSerial();
-        const nextSerialNumber = await generateNextSerialNumber(allReports);
         const now = new Date().toISOString();
 
         // Ensure all fields are defined, defaulting to null if necessary.
@@ -299,7 +305,7 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
 
 
         const newReportData: Omit<Report, 'id'> = {
-            serialNumber: nextSerialNumber,
+            serialNumber: values.serialNumber,
             taxInvoiceNumber: taxInvoiceNumber || 'N/A',
             challanNumber: challanNumber || 'N/A',
             quantity: quantity || 'N/A',
@@ -349,34 +355,49 @@ export function ReportForm({ reportToEdit }: ReportFormProps) {
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-            <FormField
-              control={form.control}
-              name="productId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Product</FormLabel>
-                  <Select onValueChange={handleProductChange} value={field.value} disabled={!!reportToEdit}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a product to test" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {isClient && products.length > 0 ? (
-                        products.map(product => (
-                          <SelectItem key={product.id} value={product.id}>
-                            {product.name} ({product.materialCode})
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <div className="p-4 text-center text-sm text-muted-foreground">No products found. Add one from the dashboard.</div>
-                      )}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+               <FormField
+                  control={form.control}
+                  name="serialNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Test Serial Number</FormLabel>
+                      <FormControl>
+                        <Input {...field} readOnly />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="productId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Product</FormLabel>
+                      <Select onValueChange={handleProductChange} value={field.value} disabled={!!reportToEdit}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a product to test" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {isClient && products.length > 0 ? (
+                            products.map(product => (
+                              <SelectItem key={product.id} value={product.id}>
+                                {product.name} ({product.materialCode})
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <div className="p-4 text-center text-sm text-muted-foreground">No products found. Add one from the dashboard.</div>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+            </div>
 
             {selectedProduct && (
               <>
