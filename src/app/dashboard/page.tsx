@@ -33,11 +33,6 @@ export default function DashboardPage() {
                     <Calculator className="mr-2 h-4 w-4" /> TDS Calculator
                     </Link>
                 </Button>
-                <Button asChild variant="outline">
-                    <Link href="/finance/estimate-invoice">
-                    <FileText className="mr-2 h-4 w-4" /> Estimate Invoice
-                    </Link>
-                </Button>
                  <Button asChild variant="outline">
                     <Link href="/finance/cheque-generator">
                     <Receipt className="mr-2 h-4 w-4" /> Cheque Generator
@@ -66,3 +61,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    

@@ -18,19 +18,6 @@ export default function FinanceDashboardPage() {
        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           <Card>
             <CardHeader>
-              <CardTitle>Estimate Invoices</CardTitle>
-              <CardDescription>Create and manage customer estimates.</CardDescription>
-            </CardHeader>
-             <CardContent>
-                <Button asChild>
-                    <Link href="/finance/estimate-invoice">
-                        <FileText className="mr-2 h-4 w-4" /> Go to Estimate Invoices
-                    </Link>
-                </Button>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
               <CardTitle>TDS Calculator</CardTitle>
               <CardDescription>Calculate TDS and view historical records.</CardDescription>
             </CardHeader>
@@ -59,3 +46,5 @@ export default function FinanceDashboardPage() {
     </div>
   );
 }
+
+    
