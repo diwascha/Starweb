@@ -14,6 +14,8 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { differenceInDays } from 'date-fns';
 import { getPurchaseOrder } from '@/services/purchase-order-service';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 
 
 const paperTypes = ['Kraft Paper', 'Virgin Paper'];
@@ -22,6 +24,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
   const [purchaseOrder, setPurchaseOrder] = useState<PurchaseOrder | null>(initialPurchaseOrder);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isGeneratingJpg, setIsGeneratingJpg] = useState(false);
+  const [includeAmendments, setIncludeAmendments] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
@@ -32,98 +35,79 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
     }
   }, [initialPurchaseOrder, poId]);
   
-  const handleSaveAsPdf = async () => {
+  const handleExport = async (format: 'pdf' | 'jpg') => {
     if (!purchaseOrder) return;
     
-    setIsGeneratingPdf(true);
+    if (format === 'pdf') setIsGeneratingPdf(true);
+    else setIsGeneratingJpg(true);
+
     const printableArea = document.querySelector('.printable-area') as HTMLElement;
     if (!printableArea) {
-        setIsGeneratingPdf(false);
-        return;
+      if (format === 'pdf') setIsGeneratingPdf(false);
+      else setIsGeneratingJpg(false);
+      return;
     }
     
+    // Temporarily modify the DOM for export
+    const amendmentSection = printableArea.querySelector('#amendment-history-section');
+    let originalDisplay = '';
+    if (amendmentSection && !includeAmendments) {
+        originalDisplay = (amendmentSection as HTMLElement).style.display;
+        (amendmentSection as HTMLElement).style.display = 'none';
+    }
+
     try {
-        const jsPDF = (await import('jspdf')).default;
         const html2canvas = (await import('html2canvas')).default;
         
-        const canvas = await html2canvas(printableArea, {
-            scale: 2, // Higher scale for better quality
-            useCORS: true,
-            logging: false,
-        });
-
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF({
-            orientation: 'portrait',
-            unit: 'px',
-            format: 'a4',
-        });
-
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
-        const canvasWidth = canvas.width;
-        const canvasHeight = canvas.height;
-        const ratio = canvasWidth / canvasHeight;
-        const height = pdfWidth / ratio;
-
-        // If the content is taller than one page, split it
-        let position = 0;
-        let remainingHeight = canvasHeight;
-
-        while (remainingHeight > 0) {
-            const pageCanvas = document.createElement('canvas');
-            const pageCanvasHeight = Math.min(remainingHeight, canvasWidth * (pdfHeight/pdfWidth));
-            pageCanvas.width = canvasWidth;
-            pageCanvas.height = pageCanvasHeight;
-
-            const ctx = pageCanvas.getContext('2d');
-            ctx?.drawImage(canvas, 0, position, canvasWidth, pageCanvasHeight, 0, 0, canvasWidth, pageCanvasHeight);
-
-            const pageImgData = pageCanvas.toDataURL('image/png');
-            const pageHeight = pdfWidth * (pageCanvasHeight / canvasWidth);
-            
-            if (position > 0) {
-                pdf.addPage();
-            }
-            pdf.addImage(pageImgData, 'PNG', 0, 0, pdfWidth, pageHeight);
-            
-            position += pageCanvasHeight;
-            remainingHeight -= pageCanvasHeight;
-        }
-
-        pdf.save(`PO-${purchaseOrder.poNumber}.pdf`);
-    } catch (error) {
-        console.error("Error generating PDF", error);
-    } finally {
-        setIsGeneratingPdf(false);
-    }
-  };
-
-  const handleSaveAsJpg = async () => {
-    if (!purchaseOrder) return;
-    
-    setIsGeneratingJpg(true);
-    const printableArea = document.querySelector('.printable-area') as HTMLElement;
-    if (!printableArea) {
-        setIsGeneratingJpg(false);
-        return;
-    }
-
-    try {
-        const html2canvas = (await import('html2canvas')).default;
         const canvas = await html2canvas(printableArea, {
             scale: 2,
             useCORS: true,
             logging: false,
         });
-        const link = document.createElement('a');
-        link.download = `PO-${purchaseOrder.poNumber}.jpg`;
-        link.href = canvas.toDataURL('image/jpeg', 0.9); // 0.9 is the quality
-        link.click();
+
+        if (format === 'pdf') {
+            const jsPDF = (await import('jspdf')).default;
+            const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: 'a4' });
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+            const canvasWidth = canvas.width;
+            const canvasHeight = canvas.height;
+            const ratio = canvasWidth / canvasHeight;
+            let position = 0;
+            let remainingHeight = canvasHeight;
+
+            while (remainingHeight > 0) {
+                const pageCanvasHeight = Math.min(remainingHeight, canvasWidth * (pdfHeight/pdfWidth));
+                const pageCanvas = document.createElement('canvas');
+                pageCanvas.width = canvasWidth;
+                pageCanvas.height = pageCanvasHeight;
+
+                const ctx = pageCanvas.getContext('2d');
+                ctx?.drawImage(canvas, 0, position, canvasWidth, pageCanvasHeight, 0, 0, canvasWidth, pageCanvasHeight);
+                const pageImgData = pageCanvas.toDataURL('image/png');
+                const pageHeight = pdfWidth * (pageCanvasHeight / canvasWidth);
+                
+                if (position > 0) pdf.addPage();
+                pdf.addImage(pageImgData, 'PNG', 0, 0, pdfWidth, pageHeight);
+                
+                position += pageCanvasHeight;
+                remainingHeight -= pageCanvasHeight;
+            }
+            pdf.save(`PO-${purchaseOrder.poNumber}.pdf`);
+        } else { // JPG
+            const link = document.createElement('a');
+            link.download = `PO-${purchaseOrder.poNumber}.jpg`;
+            link.href = canvas.toDataURL('image/jpeg', 0.9);
+            link.click();
+        }
     } catch (error) {
-        console.error("Error generating JPG", error);
+        console.error(`Error generating ${format.toUpperCase()}`, error);
     } finally {
-        setIsGeneratingJpg(false);
+        if (amendmentSection && !includeAmendments) {
+            (amendmentSection as HTMLElement).style.display = originalDisplay;
+        }
+        if (format === 'pdf') setIsGeneratingPdf(false);
+        else setIsGeneratingJpg(false);
     }
   };
   
@@ -194,20 +178,32 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
                 )}
             </div>
         </div>
-        <div className="flex gap-2">
-            <Button variant="outline" onClick={() => router.push(`/purchase-orders/edit/${purchaseOrder.id}`)}>Edit</Button>
-            <Button variant="outline" onClick={handleSaveAsJpg} disabled={isGeneratingJpg}>
-                {isGeneratingJpg ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImageIcon className="mr-2 h-4 w-4" />}
-                {isGeneratingJpg ? 'Saving...' : 'Save as JPG'}
-            </Button>
-            <Button variant="outline" onClick={handleSaveAsPdf} disabled={isGeneratingPdf}>
-                {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                {isGeneratingPdf ? 'Saving...' : 'Save as PDF'}
-            </Button>
-            <Button onClick={handlePrint}>
-                <Printer className="mr-2 h-4 w-4" />
-                Print
-            </Button>
+        <div className="space-y-2">
+            <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => router.push(`/purchase-orders/edit/${purchaseOrder.id}`)}>Edit</Button>
+                <Button variant="outline" onClick={() => handleExport('jpg')} disabled={isGeneratingJpg}>
+                    {isGeneratingJpg ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImageIcon className="mr-2 h-4 w-4" />}
+                    {isGeneratingJpg ? 'Saving...' : 'Save as JPG'}
+                </Button>
+                <Button variant="outline" onClick={() => handleExport('pdf')} disabled={isGeneratingPdf}>
+                    {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                    {isGeneratingPdf ? 'Saving...' : 'Save as PDF'}
+                </Button>
+                <Button onClick={handlePrint}>
+                    <Printer className="mr-2 h-4 w-4" />
+                    Print
+                </Button>
+            </div>
+            {showAmendedDate && (
+                <div className="flex items-center justify-end space-x-2">
+                    <Label htmlFor="include-amendments" className="text-sm">Include Amendment History</Label>
+                    <Switch
+                        id="include-amendments"
+                        checked={includeAmendments}
+                        onCheckedChange={setIncludeAmendments}
+                    />
+                </div>
+            )}
         </div>
       </div>
 
@@ -323,8 +319,9 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
                   );
                 })}
             </section>
+            <section id="amendment-history-section">
              {showAmendedDate && purchaseOrder.amendments && purchaseOrder.amendments.length > 0 && (
-                <section>
+                <div className="amendment-content">
                   <h3 className="text-base font-semibold">Amendment History</h3>
                   <div className="text-xs border-t border-gray-300 mt-1 pt-1 space-y-1">
                     {purchaseOrder.amendments.map((amendment, index) => (
@@ -336,8 +333,9 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
                       </div>
                     ))}
                   </div>
-                </section>
+                </div>
             )}
+            </section>
             <div className="mt-12 text-center pt-8 text-xs text-gray-500">
               <p>This is a digitally issued document and is valid without a signature.</p>
               <p className="font-semibold mt-1">SHIVAM PACKAGING INDUSTRIES PVT LTD.</p>
@@ -404,8 +402,37 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
            .print\\:hidden {
               display: none;
            }
+           #amendment-history-section.print-exclude {
+              display: none !important;
+           }
         }
       `}</style>
+      <style jsx>{`
+        #amendment-history-section.print-exclude {
+            display: none !important;
+        }
+      `}</style>
+      <style jsx global>
+        {`
+          @media print {
+            .amendment-history-print-exclude {
+              display: none !important;
+            }
+          }
+        `}
+      </style>
+      {!includeAmendments && (
+        <style jsx global>
+            {`
+            @media print {
+                #amendment-history-section {
+                display: none !important;
+                }
+            }
+            `}
+        </style>
+        )}
     </>
   );
 }
+
