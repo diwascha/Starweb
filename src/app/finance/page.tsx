@@ -72,11 +72,14 @@ export default function FinanceDashboardPage() {
               <CardTitle>Estimate Invoices</CardTitle>
               <CardDescription>Manage and track your estimates.</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="flex flex-col items-center gap-1 text-center text-sm text-muted-foreground p-8">
-                <p>Coming Soon</p>
-                <p>Saved estimate invoices will appear here.</p>
-              </div>
+             <CardContent>
+                <div className="flex flex-col items-center gap-2 text-center text-sm text-muted-foreground p-8">
+                    <p className="font-semibold">Moved to Estimate Invoice Page</p>
+                    <p>The history of saved estimate invoices is now available in a tab on the Estimate Invoice page for easier access.</p>
+                    <Button asChild variant="secondary" className="mt-4">
+                        <Link href="/finance/estimate-invoice">Go to Estimate Invoice</Link>
+                    </Button>
+                </div>
             </CardContent>
           </Card>
            <Card>
