@@ -79,6 +79,7 @@ export function InvoiceCalculator() {
         const party = customers.find(c => c.name === selectedPartyName);
         setPartyName(party?.name || selectedPartyName);
         setPanNumber(party?.panNumber || '');
+        setPartySearch('');
     };
 
     const addNewRow = () => {
@@ -363,4 +364,5 @@ export function InvoiceCalculator() {
             </Dialog>
         </div>
     );
-}
+
+    
