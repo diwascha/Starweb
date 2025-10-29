@@ -1,11 +1,9 @@
 
 'use client';
 
-import { Suspense } from 'react';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Calculator, FileText, Receipt } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 
 export default function FinanceDashboardPage() {
