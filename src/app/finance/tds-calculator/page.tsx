@@ -44,6 +44,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { onPartiesUpdate, addParty } from '@/services/party-service';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
+import { Textarea } from '@/components/ui/textarea';
 
 
 const initialTdsRates: TdsRate[] = [
@@ -202,7 +203,7 @@ function CalculatorTab() {
   const [editingRate, setEditingRate] = useState<TdsRate | null>(null);
 
   const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
-  const [partyForm, setPartyForm] = useState<{name: string, type: PartyType}>({name: '', type: 'Vendor'});
+  const [partyForm, setPartyForm] = useState<{ name: string, type: PartyType, address?: string; panNumber?: string; }>({ name: '', type: 'Vendor', address: '', panNumber: '' });
   const [partySearch, setPartySearch] = useState('');
 
 
@@ -362,13 +363,11 @@ function CalculatorTab() {
         setPartyName(partyForm.name);
         toast({title: 'Success', description: 'New party added.'});
         setIsPartyDialogOpen(false);
-        setPartyForm({name: '', type: 'Vendor'});
+        setPartyForm({name: '', type: 'Vendor', address: '', panNumber: ''});
     } catch {
          toast({title: 'Error', description: 'Failed to add party.', variant: 'destructive'});
     }
   };
-
-    
     return (
         <div className="flex flex-col gap-8">
             <header className="print:hidden flex flex-col md:flex-row md:justify-between md:items-start gap-4">
@@ -449,7 +448,7 @@ function CalculatorTab() {
                                                         variant="ghost"
                                                         className="w-full justify-start"
                                                         onClick={() => {
-                                                            setPartyForm({ name: partySearch, type: 'Vendor' });
+                                                            setPartyForm(prev => ({ ...prev, name: partySearch }));
                                                             setIsPartyDialogOpen(true);
                                                         }}
                                                     >
@@ -633,7 +632,7 @@ function CalculatorTab() {
                             <Label htmlFor="party-name-dialog">Party Name</Label>
                             <Input id="party-name-dialog" value={partyForm.name} onChange={e => setPartyForm(p => ({...p, name: e.target.value}))} />
                         </div>
-                        <div className="space-y-2">
+                         <div className="space-y-2">
                             <Label htmlFor="party-type-dialog">Party Type</Label>
                             <Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm(p => ({...p, type: v}))}>
                                 <SelectTrigger id="party-type-dialog"><SelectValue/></SelectTrigger>
@@ -643,6 +642,14 @@ function CalculatorTab() {
                                     <SelectItem value="Both">Both</SelectItem>
                                 </SelectContent>
                             </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="party-pan-dialog">PAN Number</Label>
+                            <Input id="party-pan-dialog" value={partyForm.panNumber || ''} onChange={e => setPartyForm(p => ({...p, panNumber: e.target.value}))} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="party-address-dialog">Address</Label>
+                            <Textarea id="party-address-dialog" value={partyForm.address || ''} onChange={e => setPartyForm(p => ({...p, address: e.target.value}))} />
                         </div>
                     </div>
                     <DialogFooter>
