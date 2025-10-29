@@ -47,11 +47,6 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
       else setIsGeneratingJpg(false);
       return;
     }
-    
-    // Temporarily add a class to control visibility during export
-    if (!includeAmendments) {
-        printableArea.classList.add('exclude-amendments');
-    }
 
     try {
         const html2canvas = (await import('html2canvas')).default;
@@ -60,6 +55,14 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
             scale: 2,
             useCORS: true,
             logging: false,
+            onclone: (document) => {
+                if (!includeAmendments) {
+                    const amendmentSection = document.getElementById('amendment-history-section');
+                    if (amendmentSection) {
+                        amendmentSection.style.display = 'none';
+                    }
+                }
+            }
         });
 
         if (format === 'pdf') {
@@ -99,39 +102,25 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
     } catch (error) {
         console.error(`Error generating ${format.toUpperCase()}`, error);
     } finally {
-        // Clean up the class
-        if (!includeAmendments) {
-            printableArea.classList.remove('exclude-amendments');
-        }
         if (format === 'pdf') setIsGeneratingPdf(false);
         else setIsGeneratingJpg(false);
     }
   };
   
   const handlePrint = () => {
-    const printableArea = document.querySelector('.printable-area') as HTMLElement;
-    if (!printableArea) return;
-    
-    if (!includeAmendments) {
-        printableArea.classList.add('exclude-amendments');
-    }
-
-    setTimeout(() => {
-        window.print();
-        // The class is removed in the afterprint event listener
-    }, 100);
-  };
-  
-  useEffect(() => {
-    const afterPrint = () => {
-        const printableArea = document.querySelector('.printable-area') as HTMLElement;
-        if (printableArea) {
-            printableArea.classList.remove('exclude-amendments');
+    const style = document.createElement('style');
+    style.id = 'print-style';
+    style.innerHTML = `
+      @media print {
+        #amendment-history-section {
+          display: ${includeAmendments ? 'block' : 'none'} !important;
         }
-    };
-    window.addEventListener('afterprint', afterPrint);
-    return () => window.removeEventListener('afterprint', afterPrint);
-  }, []);
+      }
+    `;
+    document.head.appendChild(style);
+    window.print();
+    document.getElementById('print-style')?.remove();
+  };
 
   if (!purchaseOrder) {
     return (
@@ -417,9 +406,6 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
           }
            .print\:hidden {
               display: none !important;
-           }
-           .printable-area.exclude-amendments #amendment-history-section {
-               display: none !important;
            }
         }
       `}</style>
