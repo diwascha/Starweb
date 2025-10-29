@@ -13,10 +13,13 @@ function FormSkeleton() {
                 <Skeleton className="h-10" />
             </div>
              <div className="border rounded-lg p-4 space-y-4">
-                <Skeleton className="h-8 w-1/4" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-            </div>
+                <div className="flex justify-between">
+                    <Skeleton className="h-8 w-1/4" />
+                    <Skeleton className="h-8 w-1/4" />
+                </div>
+                 <Skeleton className="h-10 w-full" />
+                 <Skeleton className="h-10 w-full" />
+             </div>
              <div className="flex justify-end">
                 <Skeleton className="h-10 w-32" />
              </div>
@@ -28,8 +31,8 @@ export default function EstimateInvoicePage() {
   return (
     <div className="flex flex-col gap-8">
       <header>
-        <h1 className="text-3xl font-bold tracking-tight">Estimate Invoice</h1>
-        <p className="text-muted-foreground">Create and manage pro-forma invoices.</p>
+        <h1 className="text-3xl font-bold tracking-tight">Estimate / Pro-Forma Invoice</h1>
+        <p className="text-muted-foreground">Create and manage estimate or pro-forma invoices for clients.</p>
       </header>
        <Suspense fallback={<FormSkeleton />}>
           <InvoiceCalculator />
@@ -37,5 +40,3 @@ export default function EstimateInvoicePage() {
     </div>
   );
 }
-
-    

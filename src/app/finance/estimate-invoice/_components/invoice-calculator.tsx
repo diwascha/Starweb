@@ -1,7 +1,7 @@
 
 'use client';
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import type { Party, PartyType, Product, ProductSpecification, EstimateInvoice, EstimateInvoiceItem } from '@/lib/types';
+import type { Party, PartyType, Product, EstimateInvoiceItem } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,6 +20,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { addEstimatedInvoice } from '@/services/estimate-invoice-service';
 import { useRouter } from 'next/navigation';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Separator } from '@/components/ui/separator';
 
 export function InvoiceCalculator() {
     const [date, setDate] = useState<Date>(new Date());
@@ -35,9 +37,10 @@ export function InvoiceCalculator() {
     const router = useRouter();
 
     const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
-    const [partyForm, setPartyForm] = useState<{ name: string, type: PartyType, address?: string; panNumber?: string; }>({ name: '', type: 'Customer', address: '', panNumber: '' });
+    const [partyForm, setPartyForm] = useState<{ name: string, type: PartyType, address?: string; panNumber?: string; }>({ name: 'Customer', type: 'Customer', address: '', panNumber: '' });
     const [editingParty, setEditingParty] = useState<Party | null>(null);
     const [partySearch, setPartySearch] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         const unsubParties = onPartiesUpdate(setParties);
@@ -88,6 +91,75 @@ export function InvoiceCalculator() {
         }
     };
     
+    const handleAddItem = () => {
+        setItems([...items, { id: Date.now().toString(), productName: '', quantity: 1, rate: 0, gross: 0 }]);
+    };
+    
+    const handleItemChange = (index: number, field: keyof EstimateInvoiceItem, value: any) => {
+        const newItems = [...items];
+        const item = { ...newItems[index] };
+        (item as any)[field] = value;
+
+        if (field === 'productName') {
+            const product = products.find(p => p.name === value);
+            // You could auto-fill rate here if products had a price
+        }
+        
+        item.gross = (item.quantity || 0) * (item.rate || 0);
+        newItems[index] = item;
+        setItems(newItems);
+    };
+
+    const handleRemoveItem = (index: number) => {
+        setItems(items.filter((_, i) => i !== index));
+    };
+
+    const { grossTotal, vatTotal, netTotal, amountInWords } = useMemo(() => {
+        const gross = items.reduce((sum, item) => sum + item.gross, 0);
+        const vat = gross * 0.13;
+        const net = gross + vat;
+        return {
+            grossTotal: gross,
+            vatTotal: vat,
+            netTotal: net,
+            amountInWords: toWords(net)
+        };
+    }, [items]);
+    
+    const handleSaveInvoice = async () => {
+        if (!party || items.length === 0 || !items.every(i => i.productName && i.quantity > 0 && i.rate > 0)) {
+            toast({ title: 'Validation Error', description: 'Please select a party and ensure all items have a product, quantity, and rate.', variant: 'destructive' });
+            return;
+        }
+        
+        setIsSaving(true);
+        try {
+            await addEstimatedInvoice({
+                invoiceNumber,
+                date: date.toISOString(),
+                partyName: party.name,
+                panNumber: party.panNumber,
+                items,
+                grossTotal,
+                vatTotal,
+                netTotal,
+                amountInWords,
+                createdBy: user!.username,
+                createdAt: new Date().toISOString(),
+            });
+            toast({ title: 'Success', description: 'Estimate invoice saved.' });
+            // Optionally reset form here
+        } catch (error) {
+            toast({ title: 'Error', description: 'Failed to save invoice.', variant: 'destructive' });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+    
+    const handlePrint = () => {
+        toast({ title: 'Print function not yet implemented', description: 'This would open a print dialog.' });
+    }
+
     // ... rest of the component
     return (
         <div className="space-y-6">
@@ -98,7 +170,7 @@ export function InvoiceCalculator() {
                         <PopoverTrigger asChild>
                             <Button variant="outline" className="w-full justify-start text-left font-normal">
                                 <CalendarIcon className="mr-2 h-4 w-4" />
-                                {date ? format(date, 'PPP') : <span>Pick a date</span>}
+                                {date ? `${toNepaliDate(date.toISOString())} BS (${format(date, "PPP")})` : <span>Pick a date</span>}
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0">
@@ -145,7 +217,107 @@ export function InvoiceCalculator() {
                         </PopoverContent>
                     </Popover>
                 </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="invoiceNumber">Invoice Number (Optional)</Label>
+                    <Input id="invoiceNumber" value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} />
+                </div>
             </div>
+
+            <div className="border rounded-lg p-4">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead className="w-[50px]"></TableHead>
+                            <TableHead>Product</TableHead>
+                            <TableHead className="w-[120px]">Quantity</TableHead>
+                            <TableHead className="w-[150px]">Rate</TableHead>
+                            <TableHead className="w-[150px] text-right">Amount</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {items.map((item, index) => (
+                            <TableRow key={item.id}>
+                                <TableCell>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleRemoveItem(index)}>
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </TableCell>
+                                <TableCell>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                           <Button variant="outline" role="combobox" className="w-full justify-between">
+                                                {item.productName || "Select a product..."}
+                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
+                                            <Command>
+                                                <CommandInput placeholder="Search product..." />
+                                                <CommandList>
+                                                    <CommandEmpty>No products found.</CommandEmpty>
+                                                    <CommandGroup>
+                                                        {products.map(p => (
+                                                            <CommandItem key={p.id} value={p.name} onSelect={() => handleItemChange(index, 'productName', p.name)}>
+                                                                <Check className={cn("mr-2 h-4 w-4", item.productName === p.name ? "opacity-100" : "opacity-0")} />
+                                                                {p.name}
+                                                            </CommandItem>
+                                                        ))}
+                                                    </CommandGroup>
+                                                </CommandList>
+                                            </Command>
+                                        </PopoverContent>
+                                    </Popover>
+                                </TableCell>
+                                <TableCell>
+                                    <Input type="number" value={item.quantity} onChange={(e) => handleItemChange(index, 'quantity', parseFloat(e.target.value) || 0)} />
+                                </TableCell>
+                                <TableCell>
+                                    <Input type="number" value={item.rate} onChange={(e) => handleItemChange(index, 'rate', parseFloat(e.target.value) || 0)} />
+                                </TableCell>
+                                <TableCell className="text-right font-medium">
+                                    {item.gross.toLocaleString(undefined, {minimumFractionDigits: 2})}
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+                <Button variant="outline" size="sm" className="mt-4" onClick={handleAddItem}>
+                    <Plus className="mr-2 h-4 w-4" /> Add Item
+                </Button>
+            </div>
+            
+             <div className="flex flex-col md:flex-row gap-6">
+                <div className="flex-1 space-y-2">
+                    <Label>Amount in Words</Label>
+                     <div className="p-3 border rounded-md bg-muted min-h-[40px]">
+                        <p className="font-semibold">{amountInWords}</p>
+                    </div>
+                </div>
+                <div className="w-full md:w-80 space-y-2">
+                     <div className="flex justify-between items-center text-sm">
+                        <span className="text-muted-foreground">Gross Total</span>
+                        <span className="font-medium">{grossTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                        <span className="text-muted-foreground">VAT (13%)</span>
+                        <span className="font-medium">{vatTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                    </div>
+                     <Separator />
+                     <div className="flex justify-between items-center text-lg font-bold">
+                        <span>Net Total</span>
+                        <span>{netTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                    </div>
+                </div>
+             </div>
+
+            <div className="flex justify-end gap-2">
+                 <Button variant="outline" onClick={handlePrint}><Printer className="mr-2 h-4 w-4" /> Print</Button>
+                 <Button onClick={handleSaveInvoice} disabled={isSaving}>
+                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                     Save Invoice
+                 </Button>
+            </div>
+
              <Dialog open={isPartyDialogOpen} onOpenChange={setIsPartyDialogOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
@@ -188,5 +360,3 @@ export function InvoiceCalculator() {
         </div>
     );
 }
-
-    
