@@ -113,8 +113,8 @@ export function AppSidebar() {
             <SidebarMenu>
                 <SidebarSeparator />
                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={getIsActive('/finance/tds-calculator')}>
-                    <Link href="/finance/tds-calculator">
+                    <SidebarMenuButton asChild isActive={getIsActive('/finance')}>
+                    <Link href="/finance">
                         <Calculator />
                         <span>Finance</span>
                     </Link>
@@ -126,14 +126,6 @@ export function AppSidebar() {
                         <Link href="/finance/tds-calculator">
                             <Calculator />
                             <span>TDS Calculator</span>
-                        </Link>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton asChild isActive={getIsActive('/finance/estimate-invoice')}>
-                        <Link href="/finance/estimate-invoice">
-                            <FileText />
-                            <span>Estimate Invoice</span>
                         </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
