@@ -114,7 +114,7 @@ export function AppSidebar() {
                 <SidebarSeparator />
                  <SidebarMenuItem>
                     <SidebarMenuButton asChild isActive={getIsActive('/finance')}>
-                    <Link href="/finance">
+                    <Link href="/finance/estimate-invoice">
                         <Calculator />
                         <span>Finance</span>
                     </Link>
@@ -436,4 +436,5 @@ export function AppSidebar() {
   );
 }
 
+    
     
