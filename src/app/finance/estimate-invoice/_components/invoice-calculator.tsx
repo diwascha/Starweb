@@ -37,7 +37,7 @@ export function InvoiceCalculator() {
     const router = useRouter();
 
     const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
-    const [partyForm, setPartyForm] = useState<{ name: string, type: PartyType, address?: string; panNumber?: string; }>({ name: 'Customer', type: 'Customer', address: '', panNumber: '' });
+    const [partyForm, setPartyForm] = useState<{ name: string, type: PartyType, address?: string; panNumber?: string; }>({ name: '', type: 'Customer', address: '', panNumber: '' });
     const [editingParty, setEditingParty] = useState<Party | null>(null);
     const [partySearch, setPartySearch] = useState('');
     const [isSaving, setIsSaving] = useState(false);
@@ -96,10 +96,13 @@ export function InvoiceCalculator() {
         try {
             if (editingParty) {
                 await updateParty(editingParty.id, { ...partyForm, lastModifiedBy: user.username });
+                setParty(p => p && p.id === editingParty.id ? { ...p, ...partyForm } : p);
                 toast({ title: 'Success', description: 'Party updated.' });
             } else {
                 const newPartyId = await addParty({ ...partyForm, createdBy: user.username });
-                handlePartySelect(newPartyId);
+                const newParty = { id: newPartyId, ...partyForm, createdBy: user.username, createdAt: new Date().toISOString() };
+                setParties(p => [...p, newParty]);
+                setParty(newParty);
                 toast({ title: 'Success', description: 'New party added.' });
             }
             setIsPartyDialogOpen(false);
