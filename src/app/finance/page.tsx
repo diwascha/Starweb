@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -16,6 +15,19 @@ export default function FinanceDashboardPage() {
         </div>
       </header>
        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <Card>
+            <CardHeader>
+                <CardTitle>Estimate Invoice</CardTitle>
+                <CardDescription>Create and manage pro-forma invoices.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Button asChild>
+                    <Link href="/finance/estimate-invoice">
+                        <FileText className="mr-2 h-4 w-4" /> Go to Estimate Invoice
+                    </Link>
+                </Button>
+            </CardContent>
+          </Card>
           <Card>
             <CardHeader>
               <CardTitle>TDS Calculator</CardTitle>
