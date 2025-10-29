@@ -6,6 +6,7 @@
 
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -467,7 +468,7 @@ export interface AppSetting {
     value: any;
 }
 
-export const documentTypes = ['report', 'purchaseOrder', 'sales', 'purchase', 'paymentReceipt', 'tdsVoucher'] as const;
+export const documentTypes = ['report', 'purchaseOrder', 'sales', 'purchase', 'paymentReceipt', 'tdsVoucher', 'estimateInvoice'] as const;
 export type DocumentType = typeof documentTypes[number];
 
 export interface DocumentPrefixes {
@@ -477,6 +478,7 @@ export interface DocumentPrefixes {
     purchase?: string;
     paymentReceipt?: string;
     tdsVoucher?: string;
+    estimateInvoice?: string;
 }
 
 export const getDocumentName = (type: DocumentType): string => {
@@ -493,6 +495,8 @@ export const getDocumentName = (type: DocumentType): string => {
             return 'Payment/Receipt Voucher';
         case 'tdsVoucher':
             return 'TDS Voucher';
+        case 'estimateInvoice':
+            return 'Estimate Invoice';
         default:
             return 'Document';
     }

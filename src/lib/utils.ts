@@ -2,7 +2,7 @@
 
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import type { Report, PurchaseOrder, PurchaseOrderStatus, AttendanceStatus, User, Transaction, DocumentPrefixes, Trip, TdsCalculation } from './types';
+import type { Report, PurchaseOrder, PurchaseOrderStatus, AttendanceStatus, User, Transaction, DocumentPrefixes, Trip, TdsCalculation, EstimatedInvoice } from './types';
 import NepaliDate from 'nepali-date-converter';
 import { getSetting } from "@/services/settings-service";
 import { format, parse } from 'date-fns';
@@ -72,6 +72,28 @@ export const generateNextPurchaseNumber = async (items: Pick<Transaction, 'purch
     const nextNumber = maxNumber + 1;
     return `${purchasePrefix}${nextNumber.toString().padStart(3, '0')}`;
 };
+
+export const generateNextEstimateInvoiceNumber = async (items: Pick<EstimatedInvoice, 'invoiceNumber'>[]): Promise<string> => {
+    const prefixSetting = await getSetting('documentPrefixes');
+    const prefixes = prefixSetting?.value as DocumentPrefixes || {};
+    const estimatePrefix = prefixes.estimateInvoice || 'EST-';
+    
+    let maxNumber = 0;
+
+    items.forEach(item => {
+        const numToCheck = item.invoiceNumber;
+        if(numToCheck && numToCheck.startsWith(estimatePrefix)) {
+            const numPart = parseInt(numToCheck.substring(estimatePrefix.length), 10);
+            if(!isNaN(numPart) && numPart > maxNumber) {
+                maxNumber = numPart;
+            }
+        }
+    });
+    
+    const nextNumber = maxNumber + 1;
+    return `${estimatePrefix}${nextNumber.toString().padStart(3, '0')}`;
+};
+
 
 export const generateNextSalesNumber = async (items: Pick<Trip, 'tripNumber'>[]): Promise<string> => {
     const prefixSetting = await getSetting('documentPrefixes');

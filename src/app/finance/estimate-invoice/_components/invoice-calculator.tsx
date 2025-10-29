@@ -1,13 +1,13 @@
 
 'use client';
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import type { Party, PartyType, Product, EstimateInvoiceItem } from '@/lib/types';
+import type { Party, PartyType, Product, EstimateInvoiceItem, EstimatedInvoice } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, ChevronsUpDown, Check, PlusCircle, Trash2, Printer, Save, FileText, Loader2, Plus, Edit } from 'lucide-react';
-import { cn, toWords, toNepaliDate } from '@/lib/utils';
+import { cn, toWords, toNepaliDate, generateNextEstimateInvoiceNumber } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { onPartiesUpdate, addParty, updateParty } from '@/services/party-service';
@@ -18,7 +18,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { addEstimatedInvoice } from '@/services/estimate-invoice-service';
+import { addEstimatedInvoice, onEstimatedInvoicesUpdate } from '@/services/estimate-invoice-service';
 import { useRouter } from 'next/navigation';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
@@ -29,6 +29,7 @@ export function InvoiceCalculator() {
     const [invoiceNumber, setInvoiceNumber] = useState('');
     const [items, setItems] = useState<EstimateInvoiceItem[]>([]);
     
+    const [allInvoices, setAllInvoices] = useState<EstimatedInvoice[]>([]);
     const [parties, setParties] = useState<Party[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
 
@@ -44,13 +45,25 @@ export function InvoiceCalculator() {
     const [isPartyPopoverOpen, setIsPartyPopoverOpen] = useState(false);
 
     useEffect(() => {
+        const unsubInvoices = onEstimatedInvoicesUpdate(setAllInvoices);
         const unsubParties = onPartiesUpdate(setParties);
         const unsubProducts = onProductsUpdate(setProducts);
         return () => {
+            unsubInvoices();
             unsubParties();
             unsubProducts();
         }
     }, []);
+    
+    useEffect(() => {
+        const setNextNumber = async () => {
+            const nextNumber = await generateNextEstimateInvoiceNumber(allInvoices);
+            setInvoiceNumber(nextNumber);
+        };
+        if (allInvoices.length > 0) {
+            setNextNumber();
+        }
+    }, [allInvoices]);
     
     const customers = useMemo(() => parties.filter(p => p.type === 'Customer' || p.type === 'Both'), [parties]);
     
@@ -226,8 +239,8 @@ export function InvoiceCalculator() {
                     </Popover>
                 </div>
                  <div className="space-y-2">
-                    <Label htmlFor="invoiceNumber">Invoice Number (Optional)</Label>
-                    <Input id="invoiceNumber" value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} />
+                    <Label htmlFor="invoiceNumber">Invoice Number</Label>
+                    <Input id="invoiceNumber" value={invoiceNumber} readOnly className="bg-muted/50" />
                 </div>
             </div>
 
