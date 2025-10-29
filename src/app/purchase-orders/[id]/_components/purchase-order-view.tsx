@@ -69,7 +69,6 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
             const pdfHeight = pdf.internal.pageSize.getHeight();
             const canvasWidth = canvas.width;
             const canvasHeight = canvas.height;
-            const ratio = canvasWidth / canvasHeight;
             let position = 0;
             let remainingHeight = canvasHeight;
 
@@ -205,7 +204,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
         </div>
       </div>
 
-      <div className="printable-area space-y-4 p-4 border rounded-lg bg-white text-black">
+      <div className={cn("printable-area space-y-4 p-4 border rounded-lg bg-white text-black", !includeAmendments && 'print-exclude-amendments')}>
         <header className="text-center space-y-1 mb-4 relative">
             <div className="pt-8">
               <h1 className="text-xl font-bold">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
@@ -400,22 +399,11 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
            .print\\:hidden {
               display: none !important;
            }
-           .exclude-amendments #amendment-history-section {
+           .print-exclude-amendments #amendment-history-section {
                display: none !important;
            }
         }
       `}</style>
-      <style jsx global>
-        {`
-          @media print {
-            ${!includeAmendments ? `
-              #amendment-history-section {
-                display: none !important;
-              }
-            ` : ''}
-          }
-        `}
-      </style>
     </>
   );
 }
