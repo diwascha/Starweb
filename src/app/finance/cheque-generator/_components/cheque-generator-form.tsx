@@ -38,6 +38,8 @@ export function ChequeGeneratorForm() {
     const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
     const [partyForm, setPartyForm] = useState<{ name: string, type: PartyType, address?: string; panNumber?: string; }>({ name: '', type: 'Vendor', address: '', panNumber: '' });
     const [partySearch, setPartySearch] = useState('');
+    const [isPartyPopoverOpen, setIsPartyPopoverOpen] = useState(false);
+
 
     const { toast } = useToast();
     const { user } = useAuth();
@@ -53,7 +55,7 @@ export function ChequeGeneratorForm() {
         const party = vendors.find(c => c.name === selectedPartyName);
         setPartyName(party?.name || selectedPartyName);
         setPayeeName(party?.name || selectedPartyName); // Default payee name to party name
-        setPartySearch('');
+        setIsPartyPopoverOpen(false);
     };
     
     const amountInWords = useMemo(() => {
@@ -113,7 +115,7 @@ export function ChequeGeneratorForm() {
                  </div>
                  <div className="space-y-2">
                     <Label htmlFor="party-name">Party Name:</Label>
-                    <Popover>
+                    <Popover open={isPartyPopoverOpen} onOpenChange={setIsPartyPopoverOpen}>
                         <PopoverTrigger asChild>
                            <Button variant="outline" role="combobox" className="w-full justify-between">
                                 {partyName || "Select a party..."}
@@ -133,7 +135,8 @@ export function ChequeGeneratorForm() {
                                         variant="ghost"
                                         className="w-full justify-start"
                                         onClick={() => {
-                                            setPartyForm(prev => ({ ...prev, name: partySearch }));
+                                            setPartyForm(prev => ({ ...prev, name: partySearch, type: 'Vendor' }));
+                                            setIsPartyPopoverOpen(false);
                                             setIsPartyDialogOpen(true);
                                         }}
                                     >

@@ -205,6 +205,7 @@ function CalculatorTab() {
   const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
   const [partyForm, setPartyForm] = useState<{ name: string, type: PartyType, address?: string; panNumber?: string; }>({ name: '', type: 'Vendor', address: '', panNumber: '' });
   const [partySearch, setPartySearch] = useState('');
+  const [isPartyPopoverOpen, setIsPartyPopoverOpen] = useState(false);
 
 
   const [isExporting, setIsExporting] = useState(false);
@@ -428,7 +429,7 @@ function CalculatorTab() {
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="party-name">Party Name</Label>
-                                    <Popover>
+                                    <Popover open={isPartyPopoverOpen} onOpenChange={setIsPartyPopoverOpen}>
                                         <PopoverTrigger asChild>
                                            <Button variant="outline" role="combobox" className="w-full justify-between">
                                                 {partyName || "Select a party..."}
@@ -448,7 +449,8 @@ function CalculatorTab() {
                                                         variant="ghost"
                                                         className="w-full justify-start"
                                                         onClick={() => {
-                                                            setPartyForm(prev => ({ ...prev, name: partySearch }));
+                                                            setPartyForm(prev => ({ ...prev, name: partySearch, type: 'Vendor' }));
+                                                            setIsPartyPopoverOpen(false);
                                                             setIsPartyDialogOpen(true);
                                                         }}
                                                     >
@@ -457,7 +459,10 @@ function CalculatorTab() {
                                                 </CommandEmpty>
                                                 <CommandGroup>
                                                     {parties.map((p) => (
-                                                    <CommandItem key={p.id} value={p.name} onSelect={() => setPartyName(p.name)}>
+                                                    <CommandItem key={p.id} value={p.name} onSelect={() => {
+                                                        setPartyName(p.name);
+                                                        setIsPartyPopoverOpen(false);
+                                                    }}>
                                                         <Check className={cn("mr-2 h-4 w-4", partyName === p.name ? "opacity-100" : "opacity-0")}/>
                                                         {p.name}
                                                     </CommandItem>
