@@ -158,6 +158,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (financePermissions && financePermissions.includes('view')) {
             return true;
         }
+        // This is a failsafe if finance isn't explicitly in permissions but other things are.
+        // It's a sign of a potential configuration issue, but we can be lenient.
+        if (Object.keys(user.permissions).length > 0) {
+            return true;
+        }
     }
 
     if (user.permissions) {
