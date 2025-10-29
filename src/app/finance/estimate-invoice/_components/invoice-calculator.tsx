@@ -78,7 +78,7 @@ export function InvoiceCalculator() {
     const handleOpenPartyDialog = (partyToEdit: Party | null = null, searchName: string = '') => {
         if (partyToEdit) {
             setEditingParty(partyToEdit);
-            setPartyForm({ name: partyToEdit.name, type: partyToEdit.type, address: partyToEdit.address, panNumber: partyToEdit.panNumber });
+            setPartyForm({ name: partyToEdit.name, type: partyToEdit.type, address: partyToEdit.address || '', panNumber: partyToEdit.panNumber || '' });
         } else {
             setEditingParty(null);
             setPartyForm({ name: searchName, type: 'Customer', address: '', panNumber: '' });
@@ -100,7 +100,7 @@ export function InvoiceCalculator() {
                 toast({ title: 'Success', description: 'Party updated.' });
             } else {
                 const newPartyId = await addParty({ ...partyForm, createdBy: user.username });
-                const newParty = { id: newPartyId, ...partyForm, createdBy: user.username, createdAt: new Date().toISOString() };
+                const newParty = { id: newPartyId, ...partyForm, createdBy: user.username, createdAt: new Date().toISOString() } as Party;
                 setParties(p => [...p, newParty]);
                 setParty(newParty);
                 toast({ title: 'Success', description: 'New party added.' });
