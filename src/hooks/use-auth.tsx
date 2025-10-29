@@ -152,19 +152,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (user.is_admin) return true;
     if (module === 'dashboard' && action === 'view') return true;
     
-    // Default permissions for finance and crm
-    if ((module === 'finance' || module === 'crm') && action === 'view') {
-        const financePermissions = user.permissions['finance'];
-        if (financePermissions && financePermissions.includes('view')) {
-            return true;
-        }
-        // This is a failsafe if finance isn't explicitly in permissions but other things are.
-        // It's a sign of a potential configuration issue, but we can be lenient.
-        if (Object.keys(user.permissions).length > 0) {
-            return true;
-        }
-    }
-
     if (user.permissions) {
       const modulePermissions = user.permissions[module];
       return !!modulePermissions?.includes(action);
@@ -175,7 +162,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = useCallback(async (userToLogin: User) => {
     setLoading(true);
     let sessionToStore: UserSession;
-    const isAdmin = userToLogin.id === 'admin';
+    const isAdmin = userToLogin.username === 'Administrator';
 
     if (isAdmin) {
         const adminCreds = getAdminCredentials();
