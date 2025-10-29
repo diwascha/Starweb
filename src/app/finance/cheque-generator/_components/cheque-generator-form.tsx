@@ -53,6 +53,7 @@ export function ChequeGeneratorForm() {
         const party = vendors.find(c => c.name === selectedPartyName);
         setPartyName(party?.name || selectedPartyName);
         setPayeeName(party?.name || selectedPartyName); // Default payee name to party name
+        setPartySearch('');
     };
     
     const amountInWords = useMemo(() => {
