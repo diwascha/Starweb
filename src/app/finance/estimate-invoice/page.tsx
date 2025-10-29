@@ -1,4 +1,3 @@
-
 'use client';
 import { Suspense, useState, useMemo, useEffect } from 'react';
 import { InvoiceCalculator } from './_components/invoice-calculator';
@@ -10,7 +9,7 @@ import { Search, ArrowUpDown, MoreHorizontal, View, Edit, Trash2, History } from
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { onEstimatedInvoicesUpdate, deleteEstimatedInvoice } from '@/services/estimate-invoice-service';
-import type { EstimatedInvoice, Product, RateHistoryEntry } from '@/lib/types';
+import type { EstimatedInvoice, Product, RateHistoryEntry, Party } from '@/lib/types';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -22,6 +21,8 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/use-auth';
 import { toNepaliDate } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { InvoiceView } from './_components/invoice-view';
+import { onPartiesUpdate } from '@/services/party-service';
 
 function FormSkeleton() {
     return (
@@ -56,10 +57,20 @@ function SavedInvoicesList() {
     const { toast } = useToast();
     const router = useRouter();
 
+    const [isViewOpen, setIsViewOpen] = useState(false);
+    const [selectedInvoice, setSelectedInvoice] = useState<EstimatedInvoice | null>(null);
+    const [parties, setParties] = useState<Party[]>([]);
+
     useEffect(() => {
-        const unsub = onEstimatedInvoicesUpdate(setInvoices);
-        return () => unsub();
+        const unsubInvoices = onEstimatedInvoicesUpdate(setInvoices);
+        const unsubParties = onPartiesUpdate(setParties);
+        return () => {
+            unsubInvoices();
+            unsubParties();
+        }
     }, []);
+    
+    const partiesById = useMemo(() => new Map(parties.map(p => [p.name, p])), [parties]);
 
     const requestSort = (key: SortKey) => {
         let direction: SortDirection = 'asc';
@@ -96,8 +107,14 @@ function SavedInvoicesList() {
             toast({ title: "Error", description: "Failed to delete invoice.", variant: "destructive" });
         }
     };
+    
+    const handleViewInvoice = (invoice: EstimatedInvoice) => {
+        setSelectedInvoice(invoice);
+        setIsViewOpen(true);
+    };
 
     return (
+        <>
         <Card>
            <CardHeader>
              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -141,7 +158,7 @@ function SavedInvoicesList() {
                              <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button>
                            </DropdownMenuTrigger>
                            <DropdownMenuContent align="end">
-                                <DropdownMenuItem disabled><View className="mr-2 h-4 w-4"/> View</DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => handleViewInvoice(inv)}><View className="mr-2 h-4 w-4"/> View</DropdownMenuItem>
                                 <DropdownMenuItem disabled><Edit className="mr-2 h-4 w-4"/> Edit</DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <AlertDialog>
@@ -167,6 +184,29 @@ function SavedInvoicesList() {
              </Table>
            </CardContent>
          </Card>
+
+         <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
+            <DialogContent className="max-w-4xl">
+                 <DialogHeader>
+                    <DialogTitle>Invoice Preview</DialogTitle>
+                </DialogHeader>
+                <div className="max-h-[80vh] overflow-auto p-4">
+                    {selectedInvoice && (
+                        <InvoiceView 
+                            invoiceNumber={selectedInvoice.invoiceNumber}
+                            date={selectedInvoice.date}
+                            party={partiesById.get(selectedInvoice.partyName) || null}
+                            items={selectedInvoice.items}
+                            grossTotal={selectedInvoice.grossTotal}
+                            vatTotal={selectedInvoice.vatTotal}
+                            netTotal={selectedInvoice.netTotal}
+                            amountInWords={selectedInvoice.amountInWords}
+                        />
+                    )}
+                </div>
+            </DialogContent>
+        </Dialog>
+        </>
     );
 }
 
