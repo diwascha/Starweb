@@ -166,7 +166,7 @@ export function InvoiceCalculator() {
             return;
         }
         try {
-            const newPartyId = await addParty({...partyForm, createdBy: user.username});
+            await addParty({...partyForm, createdBy: user.username});
             handlePartySelect(partyForm.name);
             toast({title: 'Success', description: 'New party added.'});
             setIsPartyDialogOpen(false);
