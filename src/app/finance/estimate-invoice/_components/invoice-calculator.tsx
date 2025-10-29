@@ -57,13 +57,15 @@ export function InvoiceCalculator() {
     
     useEffect(() => {
         const setNextNumber = async () => {
-            const nextNumber = await generateNextEstimateInvoiceNumber(allInvoices);
-            setInvoiceNumber(nextNumber);
+            if (!invoiceNumber) { // Only generate if not already set
+                const nextNumber = await generateNextEstimateInvoiceNumber(allInvoices);
+                setInvoiceNumber(nextNumber);
+            }
         };
-        if (allInvoices.length > 0) {
+        if (allInvoices.length >= 0) { // Should run even if there are no invoices yet
             setNextNumber();
         }
-    }, [allInvoices]);
+    }, [allInvoices, invoiceNumber]);
     
     const customers = useMemo(() => parties.filter(p => p.type === 'Customer' || p.type === 'Both'), [parties]);
     
@@ -176,7 +178,6 @@ export function InvoiceCalculator() {
         toast({ title: 'Print function not yet implemented', description: 'This would open a print dialog.' });
     }
 
-    // ... rest of the component
     return (
         <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
@@ -239,7 +240,7 @@ export function InvoiceCalculator() {
                     </Popover>
                 </div>
                  <div className="space-y-2">
-                    <Label htmlFor="invoiceNumber">Invoice Number</Label>
+                    <Label htmlFor="invoiceNumber">Auto Document Numbering</Label>
                     <Input id="invoiceNumber" value={invoiceNumber} readOnly className="bg-muted/50" />
                 </div>
             </div>
