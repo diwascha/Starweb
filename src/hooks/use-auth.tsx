@@ -33,7 +33,7 @@ const AuthContext = createContext<AuthContextType>({
 
 const USER_SESSION_KEY = 'user_session';
 
-const pageOrder: Module[] = ['dashboard', 'reports', 'products', 'purchaseOrders', 'rawMaterials', 'settings', 'hr', 'fleet', 'crm'];
+const pageOrder: Module[] = ['dashboard', 'reports', 'products', 'purchaseOrders', 'rawMaterials', 'settings', 'hr', 'fleet', 'crm', 'finance'];
 
 const kebabToCamel = (s: string): Module | string => {
     const segments = s.split('/');
@@ -50,6 +50,7 @@ const kebabToCamel = (s: string): Module | string => {
       'fleet': 'fleet',
       'dashboard': 'dashboard',
       'crm': 'crm',
+      'finance': 'finance',
     };
     if (specialCases[mainSegment]) {
         return specialCases[mainSegment];
@@ -183,7 +184,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     
     localStorage.setItem(USER_SESSION_KEY, JSON.stringify(sessionToStore));
     setUser(sessionToStore);
-    // Setting loading to false will trigger the redirect effect in consumers
     setLoading(false);
   }, []);
 
