@@ -33,7 +33,7 @@ const AuthContext = createContext<AuthContextType>({
 
 const USER_SESSION_KEY = 'user_session';
 
-const pageOrder: Module[] = ['dashboard', 'reports', 'products', 'purchaseOrders', 'rawMaterials', 'settings', 'hr', 'fleet'];
+const pageOrder: Module[] = ['dashboard', 'reports', 'products', 'purchaseOrders', 'rawMaterials', 'settings', 'hr', 'fleet', 'crm'];
 
 const kebabToCamel = (s: string): Module | string => {
     const segments = s.split('/');
@@ -49,6 +49,7 @@ const kebabToCamel = (s: string): Module | string => {
       'hr': 'hr',
       'fleet': 'fleet',
       'dashboard': 'dashboard',
+      'crm': 'crm',
     };
     if (specialCases[mainSegment]) {
         return specialCases[mainSegment];
@@ -150,6 +151,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (!user) return false;
     if (user.is_admin) return true;
     if (module === 'dashboard' && action === 'view') return true;
+    
+    // Default permissions for finance and crm
+    if ((module === 'finance' || module === 'crm') && action === 'view') {
+        const financePermissions = user.permissions['finance'];
+        if (financePermissions && financePermissions.includes('view')) {
+            return true;
+        }
+    }
+
     if (user.permissions) {
       const modulePermissions = user.permissions[module];
       return !!modulePermissions?.includes(action);
