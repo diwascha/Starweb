@@ -150,7 +150,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   
   const hasPermission = useCallback((module: Module, action: Action): boolean => {
     if (!user) return false;
-    if (user.is_admin) return true;
+    if (user.is_admin) return true; // Explicitly check for admin first
     
     // Fallback for new modules not explicitly in default perms
     if (module === 'crm' && action === 'view') {
