@@ -77,9 +77,11 @@ export function AppSidebar() {
     }
   };
 
-  const getIsActive = (path: string, exact: boolean = false) => {
+  const getIsActive = (path: string) => {
     if (!isClient) return false;
-    if (exact) return pathname === path;
+    // Special case for dashboard to avoid matching everything
+    if (path === '/dashboard') return pathname === path;
+    // For other paths, check if the pathname starts with the given path
     return pathname.startsWith(path);
   };
   
@@ -98,7 +100,7 @@ export function AppSidebar() {
         <SidebarMenu>
             {hasPermission('dashboard', 'view') && (
             <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={getIsActive('/dashboard', true)}>
+                <SidebarMenuButton asChild isActive={getIsActive('/dashboard')}>
                 <Link href="/dashboard">
                     <LayoutDashboard />
                     <span>Dashboard</span>
@@ -442,3 +444,5 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
+
+    
