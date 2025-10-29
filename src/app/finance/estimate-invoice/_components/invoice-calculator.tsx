@@ -22,6 +22,10 @@ import { addEstimatedInvoice, onEstimatedInvoicesUpdate } from '@/services/estim
 import { useRouter } from 'next/navigation';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
+import { InvoiceView } from './invoice-view';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+
 
 export function InvoiceCalculator() {
     const [date, setDate] = useState<Date>(new Date());
@@ -43,6 +47,11 @@ export function InvoiceCalculator() {
     const [partySearch, setPartySearch] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const [isPartyPopoverOpen, setIsPartyPopoverOpen] = useState(false);
+    
+    const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+    const printRef = React.useRef<HTMLDivElement>(null);
+    const [isExporting, setIsExporting] = useState(false);
+
 
     useEffect(() => {
         const unsubInvoices = onEstimatedInvoicesUpdate(setAllInvoices);
@@ -67,10 +76,10 @@ export function InvoiceCalculator() {
         }
     }, [allInvoices, invoiceNumber]);
     
-    const customers = useMemo(() => parties.filter(p => p.type === 'Customer' || p.type === 'Both'), [parties]);
+    const allParties = useMemo(() => parties.sort((a, b) => a.name.localeCompare(b.name)), [parties]);
     
     const handlePartySelect = (selectedPartyId: string) => {
-        const selected = customers.find(c => c.id === selectedPartyId);
+        const selected = allParties.find(c => c.id === selectedPartyId);
         setParty(selected || null);
         setPartySearch('');
         setIsPartyPopoverOpen(false);
@@ -124,7 +133,9 @@ export function InvoiceCalculator() {
 
         if (field === 'productName') {
             const product = products.find(p => p.name === value);
-            // You could auto-fill rate here if products had a price
+            if (product?.rate) {
+                item.rate = product.rate;
+            }
         }
         
         item.gross = (item.quantity || 0) * (item.rate || 0);
@@ -136,17 +147,24 @@ export function InvoiceCalculator() {
         setItems(items.filter((_, i) => i !== index));
     };
 
-    const { grossTotal, vatTotal, netTotal, amountInWords } = useMemo(() => {
-        const gross = items.reduce((sum, item) => sum + item.gross, 0);
-        const vat = gross * 0.13;
-        const net = gross + vat;
+    const invoiceData = useMemo(() => {
+        const grossTotal = items.reduce((sum, item) => sum + item.gross, 0);
+        const vatTotal = grossTotal * 0.13;
+        const netTotal = grossTotal + vatTotal;
+        const amountInWords = toWords(netTotal);
+        
         return {
-            grossTotal: gross,
-            vatTotal: vat,
-            netTotal: net,
-            amountInWords: toWords(net)
-        };
-    }, [items]);
+            invoiceNumber,
+            date: date.toISOString(),
+            party: party,
+            items,
+            grossTotal,
+            vatTotal,
+            netTotal,
+            amountInWords,
+            createdBy: user?.username,
+        }
+    }, [items, party, date, invoiceNumber, user]);
     
     const handleSaveInvoice = async () => {
         if (!party || items.length === 0 || !items.every(i => i.productName && i.quantity > 0 && i.rate > 0)) {
@@ -157,20 +175,19 @@ export function InvoiceCalculator() {
         setIsSaving(true);
         try {
             await addEstimatedInvoice({
-                invoiceNumber,
-                date: date.toISOString(),
-                partyName: party.name,
-                panNumber: party.panNumber,
-                items,
-                grossTotal,
-                vatTotal,
-                netTotal,
-                amountInWords,
+                invoiceNumber: invoiceData.invoiceNumber,
+                date: invoiceData.date,
+                partyName: invoiceData.party?.name || 'N/A',
+                panNumber: invoiceData.party?.panNumber,
+                items: invoiceData.items,
+                grossTotal: invoiceData.grossTotal,
+                vatTotal: invoiceData.vatTotal,
+                netTotal: invoiceData.netTotal,
+                amountInWords: invoiceData.amountInWords,
                 createdBy: user!.username,
                 createdAt: new Date().toISOString(),
             });
             toast({ title: 'Success', description: 'Estimate invoice saved.' });
-            // Optionally reset form here
         } catch (error) {
             toast({ title: 'Error', description: 'Failed to save invoice.', variant: 'destructive' });
         } finally {
@@ -179,8 +196,50 @@ export function InvoiceCalculator() {
     };
     
     const handlePrint = () => {
-        toast({ title: 'Print function not yet implemented', description: 'This would open a print dialog.' });
-    }
+        const printableArea = printRef.current;
+        if (!printableArea) return;
+        
+        const printWindow = window.open('', '', 'height=800,width=800');
+        printWindow?.document.write('<html><head><title>Print Invoice</title>');
+        printWindow?.document.write('<style>body { font-family: sans-serif; } table { width: 100%; border-collapse: collapse; } th, td { border: 1px solid #ddd; padding: 8px; } .text-right { text-align: right; } .font-bold { font-weight: bold; } </style>');
+        printWindow?.document.write('</head><body>');
+        printWindow?.document.write(printableArea.innerHTML);
+        printWindow?.document.write('</body></html>');
+        printWindow?.document.close();
+        printWindow?.focus();
+        setTimeout(() => {
+            printWindow?.print();
+            printWindow?.close();
+        }, 250);
+    };
+
+    const handleExport = async (format: 'pdf' | 'jpg') => {
+        if (!printRef.current) return;
+        setIsExporting(true);
+
+        try {
+            const canvas = await html2canvas(printRef.current, { scale: 2 });
+            if (format === 'pdf') {
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const imgData = canvas.toDataURL('image/png');
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                pdf.save(`Estimate-${invoiceData.invoiceNumber}.pdf`);
+            } else {
+                const link = document.createElement('a');
+                link.download = `Estimate-${invoiceData.invoiceNumber}.jpg`;
+                link.href = canvas.toDataURL('image/jpeg');
+                link.click();
+            }
+        } catch (error) {
+            console.error(`Failed to export as ${format}`, error);
+            toast({ title: 'Export Failed', description: `Could not export invoice as ${format}.`, variant: 'destructive' });
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
 
     return (
         <div className="space-y-6">
@@ -230,7 +289,7 @@ export function InvoiceCalculator() {
                                     </Button>
                                 </CommandEmpty>
                                 <CommandGroup>
-                                    {customers.map((c) => (
+                                    {allParties.map((c) => (
                                     <CommandItem key={c.id} value={c.name} onSelect={() => handlePartySelect(c.id)}>
                                         <Check className={cn("mr-2 h-4 w-4", party?.id === c.id ? "opacity-100" : "opacity-0")}/>
                                         {c.name}
@@ -311,35 +370,35 @@ export function InvoiceCalculator() {
                 <div className="flex-1 space-y-2">
                     <Label>Amount in Words</Label>
                      <div className="p-3 border rounded-md bg-muted min-h-[40px]">
-                        <p className="font-semibold">{amountInWords}</p>
+                        <p className="font-semibold">{invoiceData.amountInWords}</p>
                     </div>
                 </div>
                 <div className="w-full md:w-80 space-y-2">
                      <div className="flex justify-between items-center text-sm">
                         <span className="text-muted-foreground">Gross Total</span>
-                        <span className="font-medium">{grossTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                        <span className="font-medium">{invoiceData.grossTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
                     </div>
                     <div className="flex justify-between items-center text-sm">
                         <span className="text-muted-foreground">VAT (13%)</span>
-                        <span className="font-medium">{vatTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                        <span className="font-medium">{invoiceData.vatTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
                     </div>
                      <Separator />
                      <div className="flex justify-between items-center text-lg font-bold">
                         <span>Net Total</span>
-                        <span>{netTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                        <span>{invoiceData.netTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
                     </div>
                 </div>
              </div>
 
             <div className="flex justify-end gap-2">
-                 <Button variant="outline" onClick={handlePrint}><Printer className="mr-2 h-4 w-4" /> Print</Button>
+                 <Button variant="outline" onClick={() => setIsPreviewOpen(true)} disabled={!party || items.length === 0}><Printer className="mr-2 h-4 w-4" /> Preview & Print</Button>
                  <Button onClick={handleSaveInvoice} disabled={isSaving}>
                     {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                      Save Invoice
                  </Button>
             </div>
 
-             <Dialog open={isPartyDialogOpen} onOpenChange={setIsPartyDialogOpen}>
+            <Dialog open={isPartyDialogOpen} onOpenChange={setIsPartyDialogOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle>{editingParty ? 'Edit Party' : 'Add New Party'}</DialogTitle>
@@ -375,6 +434,31 @@ export function InvoiceCalculator() {
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsPartyDialogOpen(false)}>Cancel</Button>
                         <Button onClick={handleSubmitParty}>{editingParty ? 'Save Changes' : 'Add Party'}</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+                <DialogContent className="max-w-4xl">
+                     <DialogHeader>
+                        <DialogTitle>Invoice Preview</DialogTitle>
+                        <DialogDescription>Review the invoice before printing or exporting.</DialogDescription>
+                    </DialogHeader>
+                    <div className="max-h-[70vh] overflow-auto p-4">
+                         <div ref={printRef}>
+                            <InvoiceView {...invoiceData} />
+                         </div>
+                    </div>
+                    <DialogFooter className="sm:justify-end gap-2">
+                        <Button variant="outline" onClick={() => handleExport('jpg')} disabled={isExporting}>
+                            {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ImageIcon className="mr-2 h-4 w-4"/>}
+                             Export as JPG
+                        </Button>
+                        <Button variant="outline" onClick={() => handleExport('pdf')} disabled={isExporting}>
+                            {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
+                            Export as PDF
+                        </Button>
+                        <Button onClick={handlePrint}><Printer className="mr-2 h-4 w-4" /> Print</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
