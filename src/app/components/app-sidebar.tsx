@@ -79,7 +79,7 @@ export function AppSidebar() {
 
   const getIsActive = (path: string) => {
     if (!isClient) return false;
-    // Special case for dashboard to avoid matching everything
+    // Exact match for dashboard
     if (path === '/dashboard') return pathname === path;
     // For other paths, check if the pathname starts with the given path
     return pathname.startsWith(path);
@@ -113,7 +113,7 @@ export function AppSidebar() {
         {hasPermission('finance', 'view') && (
             <SidebarMenu>
                 <SidebarSeparator />
-                 <SidebarMenuItem>
+                <SidebarMenuItem>
                     <SidebarMenuButton asChild isActive={getIsActive('/finance')}>
                     <Link href="/finance">
                         <Calculator />
