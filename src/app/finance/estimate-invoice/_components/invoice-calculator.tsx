@@ -217,16 +217,7 @@ export function InvoiceCalculator() {
                                 />
                                 <CommandList>
                                 <CommandEmpty>
-                                     <Button
-                                        variant="ghost"
-                                        className="w-full justify-start"
-                                        onClick={() => {
-                                            setPartyForm(prev => ({ ...prev, name: partySearch }));
-                                            setIsPartyDialogOpen(true);
-                                        }}
-                                    >
-                                        <PlusCircle className="mr-2 h-4 w-4" /> Add "{partySearch}"
-                                    </Button>
+                                    No party found.
                                 </CommandEmpty>
                                 <CommandGroup>
                                     {customers.map((c) => (
