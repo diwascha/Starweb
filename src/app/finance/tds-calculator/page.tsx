@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, PlusCircle, Edit, Trash2, Printer, Save, Image as ImageIcon, Loader2, Search, ArrowUpDown, ChevronsUpDown, Check } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Edit, Trash2, Printer, Save, Image as ImageIcon, Loader2, Search, ArrowUpDown, ChevronsUpDown, Check, Plus } from 'lucide-react';
 import { toNepaliDate, toWords, generateNextVoucherNumber } from '@/lib/utils';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { format } from 'date-fns';
@@ -19,6 +19,8 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -36,10 +38,10 @@ import html2canvas from 'html2canvas';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { onTdsCalculationsUpdate, addTdsCalculation, getTdsPrefix, deleteTdsCalculation } from '@/services/tds-service';
-import type { TdsCalculation, TdsRate, Party } from '@/lib/types';
+import type { TdsCalculation, TdsRate, Party, PartyType } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { onPartiesUpdate } from '@/services/party-service';
+import { onPartiesUpdate, addParty } from '@/services/party-service';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 
@@ -193,9 +195,16 @@ function CalculatorTab() {
   
   const [parties, setParties] = useState<Party[]>([]);
   const [tdsRates, setTdsRates] = useState<TdsRate[]>(initialTdsRates);
+  
+  // Dialog States
   const [isRateDialogOpen, setIsRateDialogOpen] = useState(false);
-  const [editingRate, setEditingRate] = useState<TdsRate | null>(null);
   const [rateForm, setRateForm] = useState({ value: '', label: '', description: '' });
+  const [editingRate, setEditingRate] = useState<TdsRate | null>(null);
+
+  const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
+  const [partyForm, setPartyForm] = useState<{name: string, type: PartyType}>({name: '', type: 'Vendor'});
+  const [partySearch, setPartySearch] = useState('');
+
 
   const [isExporting, setIsExporting] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
@@ -341,6 +350,24 @@ function CalculatorTab() {
         toast({ title: "Error", description: "Failed to save calculation.", variant: "destructive" });
     }
   };
+
+  const handleSubmitParty = async () => {
+    if(!user) return;
+    if(!partyForm.name || !partyForm.type) {
+        toast({title: 'Error', description: 'Party name and type are required.', variant: 'destructive'});
+        return;
+    }
+    try {
+        const newPartyId = await addParty({...partyForm, createdBy: user.username});
+        setPartyName(partyForm.name);
+        toast({title: 'Success', description: 'New party added.'});
+        setIsPartyDialogOpen(false);
+        setPartyForm({name: '', type: 'Vendor'});
+    } catch {
+         toast({title: 'Error', description: 'Failed to add party.', variant: 'destructive'});
+    }
+  };
+
     
     return (
         <div className="flex flex-col gap-8">
@@ -411,9 +438,24 @@ function CalculatorTab() {
                                         </PopoverTrigger>
                                         <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
                                             <Command>
-                                                <CommandInput placeholder="Search party..." />
+                                                <CommandInput 
+                                                    placeholder="Search party..." 
+                                                    value={partySearch}
+                                                    onValueChange={setPartySearch}
+                                                />
                                                 <CommandList>
-                                                <CommandEmpty>No party found.</CommandEmpty>
+                                                <CommandEmpty>
+                                                    <Button
+                                                        variant="ghost"
+                                                        className="w-full justify-start"
+                                                        onClick={() => {
+                                                            setPartyForm({ name: partySearch, type: 'Vendor' });
+                                                            setIsPartyDialogOpen(true);
+                                                        }}
+                                                    >
+                                                        <Plus className="mr-2 h-4 w-4" /> Add "{partySearch}"
+                                                    </Button>
+                                                </CommandEmpty>
                                                 <CommandGroup>
                                                     {parties.map((p) => (
                                                     <CommandItem key={p.id} value={p.name} onSelect={() => setPartyName(p.name)}>
@@ -580,6 +622,36 @@ function CalculatorTab() {
                 </div>
                 </DialogContent>
             </Dialog>
+
+            <Dialog open={isPartyDialogOpen} onOpenChange={setIsPartyDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Add New Party</DialogTitle>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="party-name-dialog">Party Name</Label>
+                            <Input id="party-name-dialog" value={partyForm.name} onChange={e => setPartyForm(p => ({...p, name: e.target.value}))} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="party-type-dialog">Party Type</Label>
+                            <Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm(p => ({...p, type: v}))}>
+                                <SelectTrigger id="party-type-dialog"><SelectValue/></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Vendor">Vendor</SelectItem>
+                                    <SelectItem value="Customer">Customer</SelectItem>
+                                    <SelectItem value="Both">Both</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsPartyDialogOpen(false)}>Cancel</Button>
+                        <Button onClick={handleSubmitParty}>Add Party</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
             <style jsx global>{`
                 @media print {
                     body * {
@@ -619,4 +691,3 @@ export default function TdsCalculatorPage() {
         </Tabs>
     );
 }
-
