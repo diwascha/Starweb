@@ -109,10 +109,29 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
   };
   
   const handlePrint = () => {
+    const printableArea = document.querySelector('.printable-area') as HTMLElement;
+    if (!printableArea) return;
+    
+    if (!includeAmendments) {
+        printableArea.classList.add('exclude-amendments');
+    }
+
     setTimeout(() => {
         window.print();
+        // The class is removed in the afterprint event listener
     }, 100);
   };
+  
+  useEffect(() => {
+    const afterPrint = () => {
+        const printableArea = document.querySelector('.printable-area') as HTMLElement;
+        if (printableArea) {
+            printableArea.classList.remove('exclude-amendments');
+        }
+    };
+    window.addEventListener('afterprint', afterPrint);
+    return () => window.removeEventListener('afterprint', afterPrint);
+  }, []);
 
   if (!purchaseOrder) {
     return (
@@ -204,7 +223,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
         </div>
       </div>
 
-      <div className={cn("printable-area space-y-4 p-4 border rounded-lg bg-white text-black", !includeAmendments && 'print-exclude-amendments')}>
+      <div className={cn("printable-area space-y-4 p-4 border rounded-lg bg-white text-black")}>
         <header className="text-center space-y-1 mb-4 relative">
             <div className="pt-8">
               <h1 className="text-xl font-bold">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
@@ -287,7 +306,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
                         </TableHeader>
                         <TableBody>
                             {sortedItems.map((item, index) => (
-                            <TableRow key={`${item.rawMaterialId}-${index}`} className="border-b-gray-300">
+                            <TableRow key={`${''}${item.rawMaterialId}-${index}`} className="border-b-gray-300">
                                 <TableCell className="px-2 py-1 text-xs">{index + 1}</TableCell>
                                 <TableCell className="px-2 py-1 text-xs">{item.rawMaterialName}</TableCell>
                                 {isPaper && (
@@ -396,10 +415,10 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
             border: none;
             font-size: 10px; /* Smaller base font size for print */
           }
-           .print\\:hidden {
+           .print\:hidden {
               display: none !important;
            }
-           .print-exclude-amendments #amendment-history-section {
+           .printable-area.exclude-amendments #amendment-history-section {
                display: none !important;
            }
         }
