@@ -79,10 +79,9 @@ export function AppSidebar() {
 
   const getIsActive = (path: string) => {
     if (!isClient) return false;
-    // Exact match for dashboard
     if (path === '/dashboard') return pathname === path;
-    // For other paths, check if the pathname starts with the given path
-    return pathname.startsWith(path);
+    if (path.endsWith('/new')) return pathname === path;
+    return pathname.startsWith(path) && (pathname[path.length] === '/' || pathname.length === path.length);
   };
   
   if (!user) {
@@ -113,11 +112,11 @@ export function AppSidebar() {
         {hasPermission('finance', 'view') && (
             <SidebarMenu>
                 <SidebarSeparator />
-                <SidebarMenuItem>
+                 <SidebarMenuItem>
                     <SidebarMenuButton asChild isActive={getIsActive('/finance')}>
-                    <Link href="/finance">
+                    <Link href="/finance/estimate-invoice">
                         <Calculator />
-                        <span>Finance</span>
+                        <span>Finance Tool</span>
                     </Link>
                     </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -444,5 +443,3 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
-
-    
