@@ -14,7 +14,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from '@/components/ui/sidebar';
-import { FileText, LayoutDashboard, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users, Calendar, Award, Wallet, Building2, PlusCircle, Truck, ShieldCheck, CreditCard, ArrowRightLeft, TrendingUp, BarChart2, Notebook, Download, Calculator, PanelLeft, PanelRight, Receipt } from 'lucide-react';
+import { FileText, LayoutDashboard, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users, Calendar, Award, Wallet, Building2, PlusCircle, Truck, ShieldCheck, CreditCard, ArrowRightLeft, TrendingUp, BarChart2, Notebook, Download, Calculator, PanelLeft, PanelRight, Receipt, Briefcase } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
@@ -231,6 +231,35 @@ export function AppSidebar() {
                     </div>
                 </>
             )}
+        </SidebarMenu>
+        <SidebarMenu>
+            <SidebarSeparator />
+             <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={getIsActive('/crm')}>
+                <Link href="/crm">
+                    <Briefcase />
+                    <span>CRM</span>
+                </Link>
+                </SidebarMenuButton>
+            </SidebarMenuItem>
+            <div className="ml-4">
+                <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={getIsActive('/crm/cost-report')}>
+                    <Link href="/crm/cost-report">
+                        <Calculator />
+                        <span>Cost Report</span>
+                    </Link>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={getIsActive('/crm/pack-spec')}>
+                    <Link href="/crm/pack-spec">
+                        <FileText />
+                        <span>PackSpec</span>
+                    </Link>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+            </div>
         </SidebarMenu>
         <SidebarMenu>
              <SidebarSeparator />
