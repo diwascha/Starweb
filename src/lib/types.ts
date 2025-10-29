@@ -7,6 +7,7 @@
 
 
 
+
 export interface ProductSpecification {
   dimension: string;
   ply: string;
@@ -27,6 +28,7 @@ export interface Product {
   partyId?: string;
   partyName: string;
   partyAddress: string;
+  rate?: number;
   specification: ProductSpecification;
   createdBy: string;
   createdAt: string; // ISO string
@@ -358,7 +360,7 @@ export interface Transaction {
     amount: number; // This will be the grand total
     remarks: string | null;
     tripId?: string; // Link to the trip
-    type: TransactionType; // Purchase, Sales, etc.
+    type: TransactionType;
     voucherId?: string; // To group payment/receipt transactions
     createdBy: string;
     createdAt: string; // ISO string

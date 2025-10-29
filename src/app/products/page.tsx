@@ -63,7 +63,7 @@ const initialSpecValues: ProductSpecification = {
   load: '',
 };
 
-type ProductSortKey = 'name' | 'materialCode' | 'partyName' | 'authorship';
+type ProductSortKey = 'name' | 'materialCode' | 'partyName' | 'rate' | 'authorship';
 type SortDirection = 'asc' | 'desc';
 
 export default function ProductsPage() {
@@ -74,6 +74,7 @@ export default function ProductsPage() {
   const [newProductName, setNewProductName] = useState('');
   const [newMaterialCode, setNewMaterialCode] = useState('');
   const [newPartyId, setNewPartyId] = useState('');
+  const [newRate, setNewRate] = useState<number | ''>('');
   const [newSpec, setNewSpec] = useState<ProductSpecification>(initialSpecValues);
   
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
@@ -113,6 +114,7 @@ export default function ProductsPage() {
     setNewProductName('');
     setNewMaterialCode('');
     setNewPartyId('');
+    setNewRate('');
     setNewSpec(initialSpecValues);
     setEditingProduct(null);
   };
@@ -127,6 +129,7 @@ export default function ProductsPage() {
     setNewProductName(product.name);
     setNewMaterialCode(product.materialCode);
     setNewPartyId(product.partyId || '');
+    setNewRate(product.rate || '');
 
     const specsWithDefaults = { ...initialSpecValues, ...product.specification };
     setNewSpec(specsWithDefaults);
@@ -153,6 +156,7 @@ export default function ProductsPage() {
             partyId: newPartyId,
             partyName: party.name,
             partyAddress: party.address || '',
+            rate: newRate === '' ? undefined : Number(newRate),
             specification: newSpec,
         };
 
@@ -306,6 +310,12 @@ export default function ProductsPage() {
                     <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
                 </TableHead>
+                 <TableHead>
+                    <Button variant="ghost" onClick={() => requestProductSort('rate')}>
+                    Rate
+                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
+                </TableHead>
                 <TableHead>
                     <Button variant="ghost" onClick={() => requestProductSort('authorship')}>
                         Authorship
@@ -321,6 +331,7 @@ export default function ProductsPage() {
                     <TableCell className="font-medium">{product.name}</TableCell>
                     <TableCell>{product.materialCode}</TableCell>
                     <TableCell>{product.partyName}</TableCell>
+                     <TableCell>{product.rate ? product.rate.toLocaleString() : 'N/A'}</TableCell>
                     <TableCell>
                         <TooltipProvider>
                             <Tooltip>
@@ -487,6 +498,16 @@ export default function ProductsPage() {
                                     </Command>
                                 </PopoverContent>
                             </Popover>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="product-rate">Rate</Label>
+                            <Input
+                                id="product-rate"
+                                type="number"
+                                value={newRate}
+                                onChange={e => setNewRate(e.target.value === '' ? '' : Number(e.target.value))}
+                                placeholder="e.g. 150.50"
+                            />
                         </div>
                         
                         <div>
