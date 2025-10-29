@@ -35,13 +35,13 @@ export default function FinanceDashboardPage() {
         </div>
         <div className="flex flex-wrap gap-2">
             <Button asChild>
-                <Link href="/finance/tds-calculator">
-                    <Calculator className="mr-2 h-4 w-4" /> New TDS Calculation
+                <Link href="/finance/estimate-invoice">
+                    <FileText className="mr-2 h-4 w-4" /> New Estimate
                 </Link>
             </Button>
             <Button asChild variant="outline">
-                <Link href="/finance/estimate-invoice">
-                    <FileText className="mr-2 h-4 w-4" /> New Estimate
+                <Link href="/finance/tds-calculator">
+                    <Calculator className="mr-2 h-4 w-4" /> New TDS Calculation
                 </Link>
             </Button>
             <Button asChild variant="outline">
