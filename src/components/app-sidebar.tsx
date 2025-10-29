@@ -122,6 +122,14 @@ export function AppSidebar() {
                 </SidebarMenuItem>
                 <div className="ml-4">
                     <SidebarMenuItem>
+                        <SidebarMenuButton asChild isActive={getIsActive('/finance/estimate-invoice')}>
+                        <Link href="/finance/estimate-invoice">
+                            <FileText />
+                            <span>Estimate Invoice</span>
+                        </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
                         <SidebarMenuButton asChild isActive={getIsActive('/finance/tds-calculator')}>
                         <Link href="/finance/tds-calculator">
                             <Calculator />
@@ -435,3 +443,5 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
+
+    

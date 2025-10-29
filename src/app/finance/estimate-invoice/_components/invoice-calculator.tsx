@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { Party, PartyType, Product, ProductSpecification, EstimateInvoice, EstimateInvoiceItem } from '@/lib/types';
@@ -90,7 +91,102 @@ export function InvoiceCalculator() {
     // ... rest of the component
     return (
         <div className="space-y-6">
-            {/* Party Selection and Date */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
+                <div className="space-y-2">
+                    <Label htmlFor="date">Date:</Label>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button variant="outline" className="w-full justify-start text-left font-normal">
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {date ? format(date, 'PPP') : <span>Pick a date</span>}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                            <DualCalendar selected={date} onSelect={(d) => d && setDate(d)} />
+                        </PopoverContent>
+                    </Popover>
+                 </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="party-name">Party Name:</Label>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                           <Button variant="outline" role="combobox" className="w-full justify-between">
+                                {party?.name || "Select a party..."}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
+                            <Command>
+                                <CommandInput
+                                  placeholder="Search party..."
+                                  value={partySearch}
+                                  onValueChange={setPartySearch}
+                                />
+                                <CommandList>
+                                <CommandEmpty>
+                                     <Button
+                                        variant="ghost"
+                                        className="w-full justify-start"
+                                        onClick={() => handleOpenPartyDialog(null, partySearch)}
+                                    >
+                                        <PlusCircle className="mr-2 h-4 w-4" /> Add "{partySearch}"
+                                    </Button>
+                                </CommandEmpty>
+                                <CommandGroup>
+                                    {customers.map((c) => (
+                                    <CommandItem key={c.id} value={c.name} onSelect={() => handlePartySelect(c.id)}>
+                                        <Check className={cn("mr-2 h-4 w-4", party?.id === c.id ? "opacity-100" : "opacity-0")}/>
+                                        {c.name}
+                                    </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                                </CommandList>
+                            </Command>
+                        </PopoverContent>
+                    </Popover>
+                </div>
+            </div>
+             <Dialog open={isPartyDialogOpen} onOpenChange={setIsPartyDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>{editingParty ? 'Edit Party' : 'Add New Party'}</DialogTitle>
+                         <DialogDescription>
+                            {editingParty ? 'Update the details for this party.' : 'Create a new customer/vendor record.'}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="party-name-dialog">Party Name</Label>
+                            <Input id="party-name-dialog" value={partyForm.name} onChange={e => setPartyForm(p => ({...p, name: e.target.value}))} />
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="party-type-dialog">Party Type</Label>
+                            <Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm(p => ({...p, type: v}))}>
+                                <SelectTrigger id="party-type-dialog"><SelectValue/></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Vendor">Vendor</SelectItem>
+                                    <SelectItem value="Customer">Customer</SelectItem>
+                                    <SelectItem value="Both">Both</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="party-pan-dialog">PAN Number</Label>
+                            <Input id="party-pan-dialog" value={partyForm.panNumber || ''} onChange={e => setPartyForm(p => ({...p, panNumber: e.target.value}))} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="party-address-dialog">Address</Label>
+                            <Textarea id="party-address-dialog" value={partyForm.address || ''} onChange={e => setPartyForm(p => ({...p, address: e.target.value}))} />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsPartyDialogOpen(false)}>Cancel</Button>
+                        <Button onClick={handleSubmitParty}>{editingParty ? 'Save Changes' : 'Add Party'}</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
+
+    
