@@ -1,29 +1,12 @@
 
 'use client';
 
-import { Suspense, useState, useEffect, useMemo } from 'react';
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Calculator, FileText, Receipt, PlusCircle, Search, ArrowUpDown, Trash2 } from 'lucide-react';
+import { Calculator, FileText, Receipt } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { onTdsCalculationsUpdate, deleteTdsCalculation } from '@/services/tds-service';
-import type { TdsCalculation } from '@/lib/types';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { format } from 'date-fns';
-import { useToast } from '@/hooks/use-toast';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import { Input } from '@/components/ui/input';
 
 export default function FinanceDashboardPage() {
   return (
@@ -33,65 +16,45 @@ export default function FinanceDashboardPage() {
             <h1 className="text-3xl font-bold tracking-tight">Finance Dashboard</h1>
             <p className="text-muted-foreground">An overview of your financial tools and records.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-            <Button asChild>
-                <Link href="/finance/estimate-invoice">
-                    <FileText className="mr-2 h-4 w-4" /> New Estimate
-                </Link>
-            </Button>
-            <Button asChild variant="outline">
-                <Link href="/finance/tds-calculator">
-                    <Calculator className="mr-2 h-4 w-4" /> New TDS Calculation
-                </Link>
-            </Button>
-            <Button asChild variant="outline">
-                <Link href="/finance/cheque-generator">
-                    <Receipt className="mr-2 h-4 w-4" /> New Cheque
-                </Link>
-            </Button>
-        </div>
       </header>
        <div className="grid gap-6">
           <Card>
             <CardHeader>
-              <CardTitle>TDS Calculation History</CardTitle>
-              <CardDescription>A log of all saved TDS calculations. You can now find this inside the TDS Calculator page.</CardDescription>
+              <CardTitle>TDS Calculator</CardTitle>
+              <CardDescription>Calculate TDS and view historical records.</CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="flex flex-col items-center gap-2 text-center text-sm text-muted-foreground p-8">
-                    <p className="font-semibold">Moved to TDS Calculator Page</p>
-                    <p>The history of saved TDS calculations is now available in a tab on the TDS Calculator page for easier access.</p>
-                    <Button asChild variant="secondary" className="mt-4">
-                        <Link href="/finance/tds-calculator">Go to TDS Calculator</Link>
-                    </Button>
-                </div>
+                <Button asChild>
+                    <Link href="/finance/tds-calculator">
+                        <Calculator className="mr-2 h-4 w-4" /> Go to TDS Calculator
+                    </Link>
+                </Button>
             </CardContent>
          </Card>
            <Card>
             <CardHeader>
               <CardTitle>Estimate Invoices</CardTitle>
-              <CardDescription>Manage and track your estimates.</CardDescription>
+              <CardDescription>Create and manage customer estimates.</CardDescription>
             </CardHeader>
              <CardContent>
-                <div className="flex flex-col items-center gap-2 text-center text-sm text-muted-foreground p-8">
-                    <p className="font-semibold">Moved to Estimate Invoice Page</p>
-                    <p>The history of saved estimate invoices is now available in a tab on the Estimate Invoice page for easier access.</p>
-                    <Button asChild variant="secondary" className="mt-4">
-                        <Link href="/finance/estimate-invoice">Go to Estimate Invoice</Link>
-                    </Button>
-                </div>
+                <Button asChild>
+                    <Link href="/finance/estimate-invoice">
+                        <FileText className="mr-2 h-4 w-4" /> Go to Estimate Invoices
+                    </Link>
+                </Button>
             </CardContent>
           </Card>
            <Card>
             <CardHeader>
-              <CardTitle>Cheques</CardTitle>
-              <CardDescription>A log of all generated cheques.</CardDescription>
+              <CardTitle>Cheque Generator</CardTitle>
+              <CardDescription>Generate and print cheques for your parties.</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-col items-center gap-1 text-center text-sm text-muted-foreground p-8">
-                <p>Coming Soon</p>
-                 <p>Saved cheques will appear here.</p>
-              </div>
+              <Button asChild>
+                    <Link href="/finance/cheque-generator">
+                        <Receipt className="mr-2 h-4 w-4" /> Go to Cheque Generator
+                    </Link>
+              </Button>
             </CardContent>
           </Card>
        </div>
