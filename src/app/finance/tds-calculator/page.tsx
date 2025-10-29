@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, PlusCircle, Edit, Trash2, Printer, Save, Image as ImageIcon, Loader2, Search, ArrowUpDown } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Edit, Trash2, Printer, Save, Image as ImageIcon, Loader2, Search, ArrowUpDown, ChevronsUpDown, Check } from 'lucide-react';
 import { toNepaliDate, toWords, generateNextVoucherNumber } from '@/lib/utils';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { format } from 'date-fns';
@@ -36,9 +36,13 @@ import html2canvas from 'html2canvas';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { onTdsCalculationsUpdate, addTdsCalculation, getTdsPrefix, deleteTdsCalculation } from '@/services/tds-service';
-import type { TdsCalculation, TdsRate } from '@/lib/types';
+import type { TdsCalculation, TdsRate, Party } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { onPartiesUpdate } from '@/services/party-service';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { cn } from '@/lib/utils';
+
 
 const initialTdsRates: TdsRate[] = [
   { value: '1.5', label: 'Goods & Contracts', description: 'Supply of goods and contracts/sub-contracts (1.5%)' },
@@ -187,6 +191,7 @@ function CalculatorTab() {
   const [partyName, setPartyName] = useState('');
   const [voucherNo, setVoucherNo] = useState('');
   
+  const [parties, setParties] = useState<Party[]>([]);
   const [tdsRates, setTdsRates] = useState<TdsRate[]>(initialTdsRates);
   const [isRateDialogOpen, setIsRateDialogOpen] = useState(false);
   const [editingRate, setEditingRate] = useState<TdsRate | null>(null);
@@ -207,7 +212,13 @@ function CalculatorTab() {
                 setVoucherNo(nextNumber);
              }
         });
-        return () => unsub();
+        
+        const unsubParties = onPartiesUpdate(setParties);
+
+        return () => {
+            unsub();
+            unsubParties();
+        };
     };
     setNextVoucher();
   }, [partyName, amount]);
@@ -390,8 +401,31 @@ function CalculatorTab() {
                                     </div>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="party-name">Party Name (Optional)</Label>
-                                    <Input id="party-name" placeholder="Enter party name" value={partyName} onChange={(e) => setPartyName(e.target.value)} />
+                                    <Label htmlFor="party-name">Party Name</Label>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                           <Button variant="outline" role="combobox" className="w-full justify-between">
+                                                {partyName || "Select a party..."}
+                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
+                                            <Command>
+                                                <CommandInput placeholder="Search party..." />
+                                                <CommandList>
+                                                <CommandEmpty>No party found.</CommandEmpty>
+                                                <CommandGroup>
+                                                    {parties.map((p) => (
+                                                    <CommandItem key={p.id} value={p.name} onSelect={() => setPartyName(p.name)}>
+                                                        <Check className={cn("mr-2 h-4 w-4", partyName === p.name ? "opacity-100" : "opacity-0")}/>
+                                                        {p.name}
+                                                    </CommandItem>
+                                                    ))}
+                                                </CommandGroup>
+                                                </CommandList>
+                                            </Command>
+                                        </PopoverContent>
+                                    </Popover>
                                 </div>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -585,3 +619,4 @@ export default function TdsCalculatorPage() {
         </Tabs>
     );
 }
+
