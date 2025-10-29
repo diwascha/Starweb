@@ -41,6 +41,7 @@ export function InvoiceCalculator() {
     const [editingParty, setEditingParty] = useState<Party | null>(null);
     const [partySearch, setPartySearch] = useState('');
     const [isSaving, setIsSaving] = useState(false);
+    const [isPartyPopoverOpen, setIsPartyPopoverOpen] = useState(false);
 
     useEffect(() => {
         const unsubParties = onPartiesUpdate(setParties);
@@ -57,6 +58,7 @@ export function InvoiceCalculator() {
         const selected = customers.find(c => c.id === selectedPartyId);
         setParty(selected || null);
         setPartySearch('');
+        setIsPartyPopoverOpen(false);
     };
 
     const handleOpenPartyDialog = (partyToEdit: Party | null = null, searchName: string = '') => {
@@ -67,6 +69,7 @@ export function InvoiceCalculator() {
             setEditingParty(null);
             setPartyForm({ name: searchName, type: 'Customer', address: '', panNumber: '' });
         }
+        setIsPartyPopoverOpen(false);
         setIsPartyDialogOpen(true);
     };
 
@@ -180,7 +183,7 @@ export function InvoiceCalculator() {
                  </div>
                  <div className="space-y-2">
                     <Label htmlFor="party-name">Party Name:</Label>
-                    <Popover>
+                    <Popover open={isPartyPopoverOpen} onOpenChange={setIsPartyPopoverOpen}>
                         <PopoverTrigger asChild>
                            <Button variant="outline" role="combobox" className="w-full justify-between">
                                 {party?.name || "Select a party..."}
@@ -206,9 +209,14 @@ export function InvoiceCalculator() {
                                 </CommandEmpty>
                                 <CommandGroup>
                                     {customers.map((c) => (
-                                    <CommandItem key={c.id} value={c.name} onSelect={() => handlePartySelect(c.id)}>
-                                        <Check className={cn("mr-2 h-4 w-4", party?.id === c.id ? "opacity-100" : "opacity-0")}/>
-                                        {c.name}
+                                    <CommandItem key={c.id} value={c.name} onSelect={() => handlePartySelect(c.id)} className="flex justify-between items-center">
+                                         <div className="flex items-center">
+                                            <Check className={cn("mr-2 h-4 w-4", party?.id === c.id ? "opacity-100" : "opacity-0")}/>
+                                            {c.name}
+                                        </div>
+                                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleOpenPartyDialog(c); }}>
+                                            <Edit className="h-4 w-4"/>
+                                        </Button>
                                     </CommandItem>
                                     ))}
                                 </CommandGroup>
