@@ -1,4 +1,3 @@
-
 'use client';
 import { Suspense, useState, useMemo, useEffect, useRef } from 'react';
 import { InvoiceCalculator } from './_components/invoice-calculator';
@@ -11,7 +10,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { onEstimatedInvoicesUpdate, deleteEstimatedInvoice } from '@/services/estimate-invoice-service';
 import type { EstimatedInvoice, Product, RateHistoryEntry, Party } from '@/lib/types';
-import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogFooter, DialogTitle, DialogHeader, DialogDescription } from '@/components/ui/dialog';
@@ -27,6 +25,9 @@ import { onPartiesUpdate } from '@/services/party-service';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import html2canvas from 'html2canvas';
+import { format } from 'date-fns';
+import { AnnapurnaSIL } from '@/lib/fonts/AnnapurnaSIL-Regular-base64';
+
 
 function FormSkeleton() {
     return (
@@ -163,15 +164,23 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                     if (!currentInvoiceIsSelected) setSelectedInvoice(null); // Reset if we changed it
                     return;
                 }
+                
+                // Add font to VFS
+                doc.addFileToVFS("AnnapurnaSIL.ttf", AnnapurnaSIL);
+                doc.addFont("AnnapurnaSIL.ttf", "AnnapurnaSIL", "normal");
+
                 const { items, grossTotal, vatTotal, netTotal, amountInWords, date, invoiceNumber } = invoice;
 
                 // Header
-                doc.setFontSize(18);
                 doc.setFont('helvetica', 'bold');
+                doc.setFontSize(18);
                 doc.text('SHIVAM PACKAGING INDUSTRIES PVT LTD.', doc.internal.pageSize.getWidth() / 2, 20, { align: 'center' });
+                
+                doc.setFont("AnnapurnaSIL");
                 doc.setFontSize(14);
-                doc.setFont('helvetica', 'normal');
                 doc.text('शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.', doc.internal.pageSize.getWidth() / 2, 28, { align: 'center' });
+                
+                doc.setFont('helvetica', 'normal');
                 doc.setFontSize(10);
                 doc.text('HETAUDA 08, BAGMATI PROVIENCE, NEPAL', doc.internal.pageSize.getWidth() / 2, 34, { align: 'center' });
                 doc.setFontSize(14);
@@ -179,8 +188,8 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                 doc.text('ESTIMATE INVOICE', doc.internal.pageSize.getWidth() / 2, 42, { align: 'center' });
                 
                 // Info
-                doc.setFontSize(10);
                 doc.setFont('helvetica', 'normal');
+                doc.setFontSize(10);
                 doc.text(`Invoice No: ${invoiceNumber}`, 14, 55);
                 doc.text(`Party Name: ${party.name}`, 14, 60);
                 doc.text(`Address: ${party.address || ''}`, 14, 65);
@@ -202,15 +211,17 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                         item.gross.toLocaleString(undefined, {minimumFractionDigits: 2})
                     ]),
                     theme: 'grid',
-                    headStyles: { fillColor: [230, 230, 230], textColor: 20, fontStyle: 'bold' },
-                    styles: { fontSize: 9 },
+                    headStyles: { fillColor: [230, 230, 230], textColor: 20, fontStyle: 'bold', font: 'helvetica' },
+                    styles: { fontSize: 9, font: 'AnnapurnaSIL' },
                     columnStyles: {
-                        2: { halign: 'right' },
-                        3: { halign: 'right' },
-                        4: { halign: 'right' },
+                        0: {font: 'helvetica'},
+                        2: { halign: 'right', font: 'helvetica' },
+                        3: { halign: 'right', font: 'helvetica' },
+                        4: { halign: 'right', font: 'helvetica' },
                     },
                     didDrawPage: (data: any) => {
                         let finalY = data.cursor.y;
+                        doc.setFont('helvetica', 'normal');
                         doc.setFontSize(10);
                         doc.text('Gross Total', 140, finalY + 8, { align: 'right' });
                         doc.text(grossTotal.toLocaleString(undefined, {minimumFractionDigits: 2}), 200, finalY + 8, { align: 'right' });
@@ -219,6 +230,8 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                         doc.setFont('helvetica', 'bold');
                         doc.text('Net Total', 140, finalY + 22, { align: 'right' });
                         doc.text(netTotal.toLocaleString(undefined, {minimumFractionDigits: 2}), 200, finalY + 22, { align: 'right' });
+                        
+                        doc.setFont('AnnapurnaSIL');
                         doc.setFont('helvetica', 'normal');
                         doc.text(`In Words: ${amountInWords}`, 14, finalY + 30);
                         doc.setFontSize(8);
