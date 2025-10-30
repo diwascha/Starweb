@@ -142,17 +142,25 @@ function SavedInvoicesList() {
         }, 100);
     };
 
-    const handleExport = async (format: 'pdf' | 'jpg', invoice: EstimatedInvoice) => {
-        setSelectedInvoice(invoice);
+    const handleExport = async (formatType: 'pdf' | 'jpg', invoice: EstimatedInvoice) => {
+        if (!invoice) return;
         setIsExporting(true);
+        
+        // Use a temporary state to render the invoice for capture if it's not already the selected one.
+        const currentInvoiceIsSelected = selectedInvoice?.id === invoice.id;
+        if (!currentInvoiceIsSelected) {
+          setSelectedInvoice(invoice);
+        }
 
+        // Wait for the DOM to update with the correct invoice data
         setTimeout(async () => {
-            if (format === 'pdf') {
-                const doc = new jsPDF();
+            if (formatType === 'pdf') {
+                 const doc = new jsPDF();
                 const party = partiesById.get(invoice.partyName);
                 if (!party) {
                     toast({ title: 'Error', description: 'Could not find party details for this invoice.', variant: 'destructive'});
                     setIsExporting(false);
+                    if (!currentInvoiceIsSelected) setSelectedInvoice(null); // Reset if we changed it
                     return;
                 }
                 const { items, grossTotal, vatTotal, netTotal, amountInWords, date, invoiceNumber } = invoice;
@@ -226,7 +234,7 @@ function SavedInvoicesList() {
             } else { // JPG export
                  if (!printRef.current) {
                     setIsExporting(false);
-                    setSelectedInvoice(null);
+                    if (!currentInvoiceIsSelected) setSelectedInvoice(null);
                     return;
                 }
                 try {
@@ -236,12 +244,14 @@ function SavedInvoicesList() {
                     link.href = canvas.toDataURL('image/jpeg', 0.9);
                     link.click();
                 } catch (error) {
-                    console.error(`Failed to export as ${format}`, error);
-                    toast({ title: 'Export Failed', description: `Could not export invoice as ${format}.`, variant: 'destructive' });
+                    console.error(`Failed to export as ${formatType}`, error);
+                    toast({ title: 'Export Failed', description: `Could not export invoice as ${formatType}.`, variant: 'destructive' });
                 }
             }
             setIsExporting(false);
-            setSelectedInvoice(null);
+             if (!currentInvoiceIsSelected) {
+                setSelectedInvoice(null);
+            }
         }, 100);
     };
 

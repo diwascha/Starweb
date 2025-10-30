@@ -32,6 +32,7 @@ export function InvoiceView({
   
   const nepaliDate = toNepaliDate(date);
   const adDate = format(new Date(date), 'yyyy-MM-dd');
+  const totalQuantity = items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
 
   return (
     <div className="bg-white text-black p-8 font-sans text-sm">
@@ -69,15 +70,17 @@ export function InvoiceView({
                     <TableRow key={item.id} className="border-b border-gray-400">
                         <TableCell className="px-2 py-1">{index + 1}</TableCell>
                         <TableCell className="px-2 py-1">{item.productName}</TableCell>
-                        <TableCell className="px-2 py-1">1</TableCell>
-                        <TableCell className="px-2 py-1 text-right">{item.gross.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                        <TableCell className="px-2 py-1">{item.quantity}</TableCell>
+                        <TableCell className="px-2 py-1 text-right">{item.rate.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
                         <TableCell className="px-2 py-1 text-right">{item.gross.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
                     </TableRow>
                 ))}
             </TableBody>
             <TableFooter>
                 <TableRow>
-                    <TableCell colSpan={4} className="text-right font-bold">Gross Total</TableCell>
+                    <TableCell colSpan={2} className="text-right font-bold">Total Quantity</TableCell>
+                    <TableCell className="font-bold">{totalQuantity.toLocaleString()}</TableCell>
+                    <TableCell className="text-right font-bold">Gross Total</TableCell>
                     <TableCell className="text-right font-bold">{grossTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
                 </TableRow>
                  <TableRow>
