@@ -1,11 +1,11 @@
 'use client';
-import { Suspense, useState, useMemo, useEffect } from 'react';
+import { Suspense, useState, useMemo, useEffect, useRef } from 'react';
 import { InvoiceCalculator } from './_components/invoice-calculator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Search, ArrowUpDown, MoreHorizontal, View, Edit, Trash2, History } from 'lucide-react';
+import { Search, ArrowUpDown, MoreHorizontal, View, Edit, Trash2, History, Printer, Save, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { onEstimatedInvoicesUpdate, deleteEstimatedInvoice } from '@/services/estimate-invoice-service';
@@ -23,6 +23,8 @@ import { toNepaliDate } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { InvoiceView } from './_components/invoice-view';
 import { onPartiesUpdate } from '@/services/party-service';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 function FormSkeleton() {
     return (
@@ -60,6 +62,9 @@ function SavedInvoicesList() {
     const [isViewOpen, setIsViewOpen] = useState(false);
     const [selectedInvoice, setSelectedInvoice] = useState<EstimatedInvoice | null>(null);
     const [parties, setParties] = useState<Party[]>([]);
+    
+    const [isExporting, setIsExporting] = useState(false);
+    const printRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         const unsubInvoices = onEstimatedInvoicesUpdate(setInvoices);
@@ -112,6 +117,64 @@ function SavedInvoicesList() {
         setSelectedInvoice(invoice);
         setIsViewOpen(true);
     };
+    
+    const handlePrint = (invoice: EstimatedInvoice) => {
+        setSelectedInvoice(invoice);
+        setTimeout(() => {
+            const printableArea = printRef.current;
+            if (!printableArea) return;
+            
+            const printWindow = window.open('', '', 'height=800,width=800');
+            printWindow?.document.write('<html><head><title>Print Invoice</title>');
+            printWindow?.document.write('<style>body { font-family: sans-serif; } table { width: 100%; border-collapse: collapse; } th, td { border: 1px solid #ddd; padding: 8px; } .text-right { text-align: right; } .font-bold { font-weight: bold; } </style>');
+            printWindow?.document.write('</head><body>');
+            printWindow?.document.write(printableArea.innerHTML);
+            printWindow?.document.write('</body></html>');
+            printWindow?.document.close();
+            printWindow?.focus();
+            setTimeout(() => {
+                printWindow?.print();
+                printWindow?.close();
+                setSelectedInvoice(null);
+            }, 250);
+        }, 100);
+    };
+
+    const handleExport = async (format: 'pdf' | 'jpg', invoice: EstimatedInvoice) => {
+        setSelectedInvoice(invoice);
+        setIsExporting(true);
+
+        setTimeout(async () => {
+             if (!printRef.current) {
+                setIsExporting(false);
+                setSelectedInvoice(null);
+                return;
+            }
+            try {
+                const canvas = await html2canvas(printRef.current, { scale: 2 });
+                if (format === 'pdf') {
+                    const pdf = new jsPDF('p', 'mm', 'a4');
+                    const imgData = canvas.toDataURL('image/png');
+                    const pdfWidth = pdf.internal.pageSize.getWidth();
+                    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+                    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                    pdf.save(`Estimate-${invoice.invoiceNumber}.pdf`);
+                } else {
+                    const link = document.createElement('a');
+                    link.download = `Estimate-${invoice.invoiceNumber}.jpg`;
+                    link.href = canvas.toDataURL('image/jpeg');
+                    link.click();
+                }
+            } catch (error) {
+                console.error(`Failed to export as ${format}`, error);
+                toast({ title: 'Export Failed', description: `Could not export invoice as ${format}.`, variant: 'destructive' });
+            } finally {
+                setIsExporting(false);
+                setSelectedInvoice(null);
+            }
+        }, 100);
+    };
+
 
     return (
         <>
@@ -159,6 +222,9 @@ function SavedInvoicesList() {
                            </DropdownMenuTrigger>
                            <DropdownMenuContent align="end">
                                 <DropdownMenuItem onSelect={() => handleViewInvoice(inv)}><View className="mr-2 h-4 w-4"/> View</DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => handlePrint(inv)}><Printer className="mr-2 h-4 w-4"/> Print</DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => handleExport('pdf', inv)} disabled={isExporting}><Save className="mr-2 h-4 w-4"/> Export as PDF</DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => handleExport('jpg', inv)} disabled={isExporting}><ImageIcon className="mr-2 h-4 w-4"/> Export as JPG</DropdownMenuItem>
                                 <DropdownMenuItem disabled><Edit className="mr-2 h-4 w-4"/> Edit</DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <AlertDialog>
@@ -206,6 +272,24 @@ function SavedInvoicesList() {
                 </div>
             </DialogContent>
         </Dialog>
+        
+        {/* Hidden div for printing/exporting */}
+        <div className="absolute -left-[9999px] top-0">
+            <div ref={printRef}>
+              {selectedInvoice && (
+                  <InvoiceView
+                    invoiceNumber={selectedInvoice.invoiceNumber}
+                    date={selectedInvoice.date}
+                    party={partiesById.get(selectedInvoice.partyName) || null}
+                    items={selectedInvoice.items}
+                    grossTotal={selectedInvoice.grossTotal}
+                    vatTotal={selectedInvoice.vatTotal}
+                    netTotal={selectedInvoice.netTotal}
+                    amountInWords={selectedInvoice.amountInWords}
+                  />
+              )}
+            </div>
+        </div>
         </>
     );
 }
