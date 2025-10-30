@@ -25,6 +25,8 @@ import { InvoiceView } from './invoice-view';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import html2canvas from 'html2canvas';
+import { AnnapurnaSIL } from '@/lib/fonts/AnnapurnaSIL-Regular-base64';
+
 
 interface InvoiceCalculatorProps {
   invoiceToEdit?: EstimatedInvoice;
@@ -266,14 +268,18 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
 
         const doc = new jsPDF();
         
+        // Add font to VFS
+        doc.addFileToVFS("AnnapurnaSIL.ttf", AnnapurnaSIL);
+        doc.addFont("AnnapurnaSIL.ttf", "AnnapurnaSIL", "normal");
+        
         const { party, items, grossTotal, vatTotal, netTotal, amountInWords, date, invoiceNumber } = invoiceData;
         
         doc.setFont('Helvetica', 'bold');
         doc.setFontSize(18);
         doc.text('SHIVAM PACKAGING INDUSTRIES PVT LTD.', doc.internal.pageSize.getWidth() / 2, 20, { align: 'center' });
         
-        doc.setFont('Helvetica', 'normal');
-        doc.text("शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.", doc.internal.pageSize.getWidth() / 2, 28, { align: 'center', lang: 'ne' });
+        doc.setFont("AnnapurnaSIL", 'normal');
+        doc.text("शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.", doc.internal.pageSize.getWidth() / 2, 28, { align: 'center' });
 
 
         doc.setFont('Helvetica', 'normal');

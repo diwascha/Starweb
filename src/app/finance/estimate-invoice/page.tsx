@@ -26,6 +26,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import html2canvas from 'html2canvas';
 import { format } from 'date-fns';
+import { AnnapurnaSIL } from '@/lib/fonts/AnnapurnaSIL-Regular-base64';
 
 
 function FormSkeleton() {
@@ -156,7 +157,7 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
         setTimeout(async () => {
             if (formatType === 'pdf') {
                 const doc = new jsPDF();
-                const party = partiesById.get(invoice.partyName);
+                 const party = partiesById.get(invoice.partyName);
                 if (!party) {
                     toast({ title: 'Error', description: 'Could not find party details for this invoice.', variant: 'destructive'});
                     setIsExporting(false);
@@ -164,14 +165,18 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                     return;
                 }
                 
+                // Add font to VFS
+                doc.addFileToVFS("AnnapurnaSIL.ttf", AnnapurnaSIL);
+                doc.addFont("AnnapurnaSIL.ttf", "AnnapurnaSIL", "normal");
+                
                 const { items, grossTotal, vatTotal, netTotal, amountInWords, date, invoiceNumber } = invoice;
 
                 doc.setFont('Helvetica', 'bold');
                 doc.setFontSize(18);
                 doc.text('SHIVAM PACKAGING INDUSTRIES PVT LTD.', doc.internal.pageSize.getWidth() / 2, 20, { align: 'center' });
                 
-                doc.setFont('Helvetica', 'normal');
-                doc.text("शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.", doc.internal.pageSize.getWidth() / 2, 28, { align: 'center', lang: 'ne' });
+                doc.setFont("AnnapurnaSIL", 'normal');
+                doc.text("शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.", doc.internal.pageSize.getWidth() / 2, 28, { align: 'center' });
 
                 doc.setFont('Helvetica', 'normal');
                 doc.setFontSize(10);
