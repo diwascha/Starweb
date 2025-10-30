@@ -159,14 +159,14 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
             
             // Add font to VFS
             doc.addFileToVFS("AnnapurnaSIL.ttf", AnnapurnaSIL);
-            doc.addFont("AnnapurnaSIL.ttf", "AnnapurnaSIL", "normal");
+            doc.addFont("AnnapurnaSIL.ttf", "AnnapurnaSIL", "normal", "Unicode");
             
             // Header
             doc.setFont('Helvetica', 'bold');
             doc.setFontSize(16);
             doc.text('SHIVAM PACKAGING INDUSTRIES PVT LTD.', doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
 
-            doc.setFont('AnnapurnaSIL', 'normal');
+            doc.setFont('AnnapurnaSIL');
             doc.setFontSize(14);
             doc.text('शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.', doc.internal.pageSize.getWidth() / 2, 22, { align: 'center' });
 
