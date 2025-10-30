@@ -11,7 +11,7 @@ import { cn, toWords, toNepaliDate, generateNextEstimateInvoiceNumber } from '@/
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { onPartiesUpdate, addParty, updateParty } from '@/services/party-service';
-import { onProductsUpdate } from '@/services/product-service';
+import { onProductsUpdate, updateProduct } from '@/services/product-service';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { useAuth } from '@/hooks/use-auth';
@@ -136,6 +136,12 @@ export function InvoiceCalculator() {
             const product = products.find(p => p.name === value);
             if (product?.rate) {
                 item.rate = product.rate;
+            }
+        } else if (field === 'rate' && user) {
+            // When rate is manually changed, update the product's rate
+            const product = products.find(p => p.name === item.productName);
+            if (product && product.rate !== value) {
+                updateProduct(product.id, { rate: value, lastModifiedBy: user.username });
             }
         }
         
@@ -546,6 +552,7 @@ export function InvoiceCalculator() {
     
 
     
+
 
 
 
