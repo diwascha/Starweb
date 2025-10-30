@@ -25,7 +25,6 @@ import { InvoiceView } from './invoice-view';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import html2canvas from 'html2canvas';
-import { AnnapurnaSIL } from '@/lib/fonts/AnnapurnaSIL-Regular-base64';
 
 
 interface InvoiceCalculatorProps {
@@ -262,87 +261,70 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
         }, 250);
     };
 
-    const handleExportPdf = () => {
-        if (!invoiceData.party) return;
+    const handleExportPdf = async () => {
+        const invoiceElement = printRef.current;
+        if (!invoiceElement || !invoiceData.party) return;
+
         setIsExporting(true);
-
-        const doc = new jsPDF();
-        
-        // Add font to VFS
-        doc.addFileToVFS("AnnapurnaSIL.ttf", AnnapurnaSIL);
-        doc.addFont("AnnapurnaSIL.ttf", "AnnapurnaSIL", "normal");
-        
         const { party, items, grossTotal, vatTotal, netTotal, amountInWords, date, invoiceNumber } = invoiceData;
-        
-        doc.setFont('Helvetica', 'bold');
-        doc.setFontSize(18);
-        doc.text('SHIVAM PACKAGING INDUSTRIES PVT LTD.', doc.internal.pageSize.getWidth() / 2, 20, { align: 'center' });
-        
-        doc.setFont("AnnapurnaSIL"); // Switch to Nepali font
-        doc.text("शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.", doc.internal.pageSize.getWidth() / 2, 28, { align: 'center' });
-
-
-        doc.setFont('Helvetica', 'normal');
-        doc.setFontSize(10);
-        doc.text('HETAUDA 08, BAGMATI PROVIENCE, NEPAL', doc.internal.pageSize.getWidth() / 2, 34, { align: 'center' });
-        doc.setFontSize(14);
-        doc.setFont('Helvetica', 'bold');
-        doc.text('ESTIMATE INVOICE', doc.internal.pageSize.getWidth() / 2, 42, { align: 'center' });
-        
-        // Info
-        doc.setFont('Helvetica', 'normal');
-        doc.setFontSize(10);
-        doc.text(`Invoice No: ${invoiceNumber}`, 14, 55);
-        doc.text(`Party Name: ${party.name}`, 14, 60);
-        doc.text(`Address: ${party.address || ''}`, 14, 65);
-        doc.text(`PAN/VAT No: ${party.panNumber || ''}`, 14, 70);
-
         const nepaliDate = toNepaliDate(date);
         const adDate = format(new Date(date), 'yyyy-MM-dd');
-        doc.text(`Date: ${nepaliDate} BS (${adDate})`, doc.internal.pageSize.getWidth() - 14, 55, { align: 'right' });
 
-        // Table
-        (doc as any).autoTable({
-            startY: 75,
-            head: [['S.N.', 'Particulars', 'Quantity', 'Rate', 'Amount']],
-            body: items.map((item, index) => [
-                index + 1,
-                item.productName,
-                item.quantity,
-                item.rate.toLocaleString(undefined, {minimumFractionDigits: 2}),
-                item.gross.toLocaleString(undefined, {minimumFractionDigits: 2})
-            ]),
-            theme: 'grid',
-            headStyles: { fillColor: [230, 230, 230], textColor: 20, fontStyle: 'bold', font: 'Helvetica' },
-            didDrawPage: (data: any) => {
-                doc.setFont('Helvetica'); // Reset to helvetica for footer
-                let finalY = data.cursor.y;
-                doc.setFontSize(10);
-                
-                doc.text('Gross Total', 140, finalY + 8, { align: 'right' });
-                doc.text(grossTotal.toLocaleString(undefined, {minimumFractionDigits: 2}), 200, finalY + 8, { align: 'right' });
-                
-                doc.text('VAT (13%)', 140, finalY + 15, { align: 'right' });
-                doc.text(vatTotal.toLocaleString(undefined, {minimumFractionDigits: 2}), 200, finalY + 15, { align: 'right' });
-                
-                doc.setFont('Helvetica', 'bold');
-                doc.text('Net Total', 140, finalY + 22, { align: 'right' });
-                doc.text(netTotal.toLocaleString(undefined, {minimumFractionDigits: 2}), 200, finalY + 22, { align: 'right' });
+        try {
+            const headerCanvas = await html2canvas(invoiceElement.querySelector('#invoice-header') as HTMLElement, { scale: 3, useCORS: true, backgroundColor: '#ffffff' });
+            const headerImgData = headerCanvas.toDataURL('image/png');
 
-                // In Words & Disclaimer
-                doc.setFont('Helvetica', 'normal');
-                doc.text(`In Words: ${amountInWords}`, 14, finalY + 30);
+            const doc = new jsPDF();
+            const headerImgHeight = (headerCanvas.height * doc.internal.pageSize.getWidth()) / headerCanvas.width;
+            doc.addImage(headerImgData, 'PNG', 0, 0, doc.internal.pageSize.getWidth(), headerImgHeight);
 
-                doc.setFontSize(8);
-                doc.setFont('Helvetica', 'bold');
-                doc.text('Disclaimer:', doc.internal.pageSize.getWidth() / 2, finalY + 40, { align: 'center' });
-                doc.setFont('Helvetica', 'normal');
-                doc.text('This is an estimate for discussion purposes and not a substitute for a formal VAT invoice.', doc.internal.pageSize.getWidth() / 2, finalY + 44, { align: 'center' });
-            }
-        });
-        
-        doc.save(`Estimate-${invoiceData.invoiceNumber}.pdf`);
-        setIsExporting(false);
+            const tableStartY = headerImgHeight + 5;
+
+            (doc as any).autoTable({
+                startY: tableStartY,
+                head: [['S.N.', 'Particulars', 'Quantity', 'Rate', 'Amount']],
+                body: items.map((item, index) => [
+                    index + 1,
+                    item.productName,
+                    item.quantity,
+                    item.rate.toLocaleString(undefined, {minimumFractionDigits: 2}),
+                    item.gross.toLocaleString(undefined, {minimumFractionDigits: 2})
+                ]),
+                theme: 'grid',
+                headStyles: { fillColor: [230, 230, 230], textColor: 20, fontStyle: 'bold' },
+                didDrawPage: (data: any) => {
+                    let finalY = data.cursor.y;
+                    doc.setFontSize(10);
+                    
+                    doc.text('Gross Total', 140, finalY + 8, { align: 'right' });
+                    doc.text(grossTotal.toLocaleString(undefined, {minimumFractionDigits: 2}), 200, finalY + 8, { align: 'right' });
+                    
+                    doc.text('VAT (13%)', 140, finalY + 15, { align: 'right' });
+                    doc.text(vatTotal.toLocaleString(undefined, {minimumFractionDigits: 2}), 200, finalY + 15, { align: 'right' });
+                    
+                    doc.setFont('Helvetica', 'bold');
+                    doc.text('Net Total', 140, finalY + 22, { align: 'right' });
+                    doc.text(netTotal.toLocaleString(undefined, {minimumFractionDigits: 2}), 200, finalY + 22, { align: 'right' });
+
+                    doc.setFont('Helvetica', 'normal');
+                    doc.text(`In Words: ${amountInWords}`, 14, finalY + 30);
+
+                    doc.setFontSize(8);
+                    doc.setFont('Helvetica', 'bold');
+                    doc.text('Disclaimer:', doc.internal.pageSize.getWidth() / 2, finalY + 40, { align: 'center' });
+                    doc.setFont('Helvetica', 'normal');
+                    doc.text('This is an estimate for discussion purposes and not a substitute for a formal VAT invoice.', doc.internal.pageSize.getWidth() / 2, finalY + 44, { align: 'center' });
+                }
+            });
+            
+            doc.save(`Estimate-${invoiceData.invoiceNumber}.pdf`);
+
+        } catch (error) {
+            console.error('PDF export failed:', error);
+            toast({ title: 'Error', description: 'Failed to export PDF.', variant: 'destructive' });
+        } finally {
+            setIsExporting(false);
+        }
     };
 
     const handleExportJpg = async () => {

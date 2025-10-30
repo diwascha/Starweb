@@ -36,22 +36,24 @@ export function InvoiceView({
 
   return (
     <div className="bg-white text-black p-8 font-sans text-sm">
-        <header className="text-center space-y-1 mb-6">
-            <h1 className="text-2xl font-bold">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
-            <h2 className="text-xl font-semibold">शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.</h2>
-            <p className="text-base">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
-            <h2 className="text-xl font-bold underline mt-2">ESTIMATE INVOICE</h2>
-        </header>
+        <div id="invoice-header">
+            <header className="text-center space-y-1 mb-6">
+                <h1 className="text-2xl font-bold">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
+                <h2 className="text-xl font-['AnnapurnaSIL']">शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.</h2>
+                <p className="text-base">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
+                <h2 className="text-xl font-bold underline mt-2">ESTIMATE INVOICE</h2>
+            </header>
 
-        <div className="grid grid-cols-2 text-xs mb-4">
-            <div>
-                <p><span className="font-semibold">Invoice No:</span> {invoiceNumber}</p>
-                <p><span className="font-semibold">Party Name:</span> {party?.name}</p>
-                <p><span className="font-semibold">Address:</span> {party?.address}</p>
-                <p><span className="font-semibold">PAN/VAT No:</span> {party?.panNumber}</p>
-            </div>
-            <div className="text-right">
-                <p><span className="font-semibold">Date:</span> {nepaliDate} BS ({adDate})</p>
+            <div className="grid grid-cols-2 text-xs mb-4">
+                <div>
+                    <p><span className="font-semibold">Invoice No:</span> {invoiceNumber}</p>
+                    <p><span className="font-semibold">Party Name:</span> {party?.name}</p>
+                    <p><span className="font-semibold">Address:</span> {party?.address}</p>
+                    <p><span className="font-semibold">PAN/VAT No:</span> {party?.panNumber}</p>
+                </div>
+                <div className="text-right">
+                    <p><span className="font-semibold">Date:</span> {nepaliDate} BS ({adDate})</p>
+                </div>
             </div>
         </div>
         
