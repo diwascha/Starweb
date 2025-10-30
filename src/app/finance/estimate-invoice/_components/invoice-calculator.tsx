@@ -280,7 +280,7 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
         doc.setFontSize(18);
         doc.text('SHIVAM PACKAGING INDUSTRIES PVT LTD.', doc.internal.pageSize.getWidth() / 2, 20, { align: 'center' });
         
-        doc.setFont("AnnapurnaSIL");
+        doc.setFont("AnnapurnaSIL", "normal");
         doc.setFontSize(14);
         doc.text('शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.', doc.internal.pageSize.getWidth() / 2, 28, { align: 'center' });
         
@@ -316,17 +316,9 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
             ]),
             theme: 'grid',
             headStyles: { fillColor: [230, 230, 230], textColor: 20, fontStyle: 'bold', font: 'helvetica' },
-            styles: { fontSize: 9, font: 'AnnapurnaSIL' },
-            columnStyles: {
-                0: {font: 'helvetica'},
-                2: { halign: 'right', font: 'helvetica' },
-                3: { halign: 'right', font: 'helvetica' },
-                4: { halign: 'right', font: 'helvetica' },
-            },
             didDrawPage: (data: any) => {
-                // Totals
+                doc.setFont('helvetica'); // Reset to helvetica for footer
                 let finalY = data.cursor.y;
-                doc.setFont('helvetica', 'normal');
                 doc.setFontSize(10);
                 
                 doc.text('Gross Total', 140, finalY + 8, { align: 'right' });
@@ -612,5 +604,7 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
         </div>
     );
 }
+
+    
 
     
