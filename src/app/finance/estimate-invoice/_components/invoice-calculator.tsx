@@ -24,6 +24,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Separator } from '@/components/ui/separator';
 import { InvoiceView } from './invoice-view';
 import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 import html2canvas from 'html2canvas';
 
 
@@ -213,28 +214,105 @@ export function InvoiceCalculator() {
         }, 250);
     };
 
-    const handleExport = async (format: 'pdf' | 'jpg') => {
+    const handleExportPdf = () => {
+        if (!invoiceData.party) return;
+        setIsExporting(true);
+
+        const doc = new jsPDF();
+        const { party, items, grossTotal, vatTotal, netTotal, amountInWords, date, invoiceNumber } = invoiceData;
+
+        // Header
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        doc.text('SHIVAM PACKAGING INDUSTRIES PVT LTD.', doc.internal.pageSize.getWidth() / 2, 20, { align: 'center' });
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'normal');
+        doc.text('शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.', doc.internal.pageSize.getWidth() / 2, 28, { align: 'center' });
+        doc.setFontSize(10);
+        doc.text('HETAUDA 08, BAGMATI PROVIENCE, NEPAL', doc.internal.pageSize.getWidth() / 2, 34, { align: 'center' });
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text('ESTIMATE INVOICE', doc.internal.pageSize.getWidth() / 2, 42, { align: 'center' });
+        
+        // Info
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Invoice No: ${invoiceNumber}`, 14, 55);
+        doc.text(`Party Name: ${party.name}`, 14, 60);
+        doc.text(`Address: ${party.address || ''}`, 14, 65);
+        doc.text(`PAN/VAT No: ${party.panNumber || ''}`, 14, 70);
+
+        const nepaliDate = toNepaliDate(date);
+        const adDate = format(new Date(date), 'yyyy-MM-dd');
+        doc.text(`Date: ${nepaliDate} BS (${adDate})`, doc.internal.pageSize.getWidth() - 14, 55, { align: 'right' });
+
+        // Table
+        (doc as any).autoTable({
+            startY: 75,
+            head: [['S.N.', 'Particulars', 'Quantity', 'Rate', 'Amount']],
+            body: items.map((item, index) => [
+                index + 1,
+                item.productName,
+                item.quantity,
+                item.rate.toLocaleString(undefined, {minimumFractionDigits: 2}),
+                item.gross.toLocaleString(undefined, {minimumFractionDigits: 2})
+            ]),
+            theme: 'grid',
+            headStyles: { fillColor: [230, 230, 230], textColor: 20, fontStyle: 'bold' },
+            styles: { fontSize: 9 },
+            columnStyles: {
+                2: { halign: 'right' },
+                3: { halign: 'right' },
+                4: { halign: 'right' },
+            },
+            didDrawPage: (data: any) => {
+                // Totals
+                let finalY = data.cursor.y;
+                doc.setFontSize(10);
+                
+                doc.text('Gross Total', 140, finalY + 8, { align: 'right' });
+                doc.text(grossTotal.toLocaleString(undefined, {minimumFractionDigits: 2}), 200, finalY + 8, { align: 'right' });
+                
+                doc.text('VAT (13%)', 140, finalY + 15, { align: 'right' });
+                doc.text(vatTotal.toLocaleString(undefined, {minimumFractionDigits: 2}), 200, finalY + 15, { align: 'right' });
+                
+                doc.setFont('helvetica', 'bold');
+                doc.text('Net Total', 140, finalY + 22, { align: 'right' });
+                doc.text(netTotal.toLocaleString(undefined, {minimumFractionDigits: 2}), 200, finalY + 22, { align: 'right' });
+
+                // In Words & Disclaimer
+                doc.setFont('helvetica', 'normal');
+                doc.text(`In Words: ${amountInWords}`, 14, finalY + 30);
+
+                doc.setFontSize(8);
+                doc.setFont('helvetica', 'bold');
+                doc.text('Disclaimer:', doc.internal.pageSize.getWidth() / 2, finalY + 40, { align: 'center' });
+                doc.setFont('helvetica', 'normal');
+                doc.text('This is an estimate for discussion purposes and not a substitute for a formal VAT invoice.', doc.internal.pageSize.getWidth() / 2, finalY + 44, { align: 'center' });
+            }
+        });
+        
+        doc.save(`Estimate-${invoiceData.invoiceNumber}.pdf`);
+        setIsExporting(false);
+    };
+
+    const handleExportJpg = async () => {
         if (!printRef.current) return;
         setIsExporting(true);
 
         try {
-            const canvas = await html2canvas(printRef.current, { scale: 3, useCORS: true });
-            if (format === 'pdf') {
-                const pdf = new jsPDF('p', 'mm', 'a4');
-                const imgData = canvas.toDataURL('image/png');
-                const pdfWidth = pdf.internal.pageSize.getWidth();
-                const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-                pdf.save(`Estimate-${invoiceData.invoiceNumber}.pdf`);
-            } else {
-                const link = document.createElement('a');
-                link.download = `Estimate-${invoiceData.invoiceNumber}.jpg`;
-                link.href = canvas.toDataURL('image/jpeg', 0.9);
-                link.click();
-            }
+            const canvas = await html2canvas(printRef.current, { 
+                scale: 3, 
+                useCORS: true,
+                backgroundColor: '#ffffff'
+            });
+            const link = document.createElement('a');
+            link.download = `Estimate-${invoiceData.invoiceNumber}.jpg`;
+            link.href = canvas.toDataURL('image/jpeg', 0.9);
+            link.click();
         } catch (error) {
-            console.error(`Failed to export as ${format}`, error);
-            toast({ title: 'Export Failed', description: `Could not export invoice as ${format}.`, variant: 'destructive' });
+            console.error(`Failed to export as JPG`, error);
+            toast({ title: 'Export Failed', description: `Could not export invoice as JPG.`, variant: 'destructive' });
         } finally {
             setIsExporting(false);
         }
@@ -445,16 +523,16 @@ export function InvoiceCalculator() {
                         <DialogDescription>Review the invoice before printing or exporting.</DialogDescription>
                     </DialogHeader>
                     <div className="max-h-[70vh] overflow-auto p-4 bg-gray-100">
-                         <div ref={printRef} className="w-[210mm] mx-auto">
+                         <div ref={printRef} className="w-[210mm] mx-auto bg-white">
                             <InvoiceView {...invoiceData} />
                          </div>
                     </div>
                     <DialogFooter className="sm:justify-end gap-2">
-                        <Button variant="outline" onClick={() => handleExport('jpg')} disabled={isExporting}>
+                        <Button variant="outline" onClick={() => handleExportJpg()} disabled={isExporting}>
                             {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ImageIcon className="mr-2 h-4 w-4"/>}
                              Export as JPG
                         </Button>
-                        <Button variant="outline" onClick={() => handleExport('pdf')} disabled={isExporting}>
+                        <Button variant="outline" onClick={() => handleExportPdf()} disabled={isExporting}>
                             {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
                             Export as PDF
                         </Button>
@@ -468,3 +546,4 @@ export function InvoiceCalculator() {
     
 
     
+
