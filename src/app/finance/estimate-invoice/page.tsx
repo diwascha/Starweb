@@ -169,7 +169,6 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                 // Add font to VFS
                 doc.addFileToVFS("AnnapurnaSIL.ttf", AnnapurnaSIL);
                 doc.addFont("AnnapurnaSIL.ttf", "AnnapurnaSIL", "normal");
-                doc.setFont("AnnapurnaSIL");
 
                 const { items, grossTotal, vatTotal, netTotal, amountInWords, date, invoiceNumber } = invoice;
 
@@ -233,7 +232,6 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                         doc.text('Net Total', 140, finalY + 22, { align: 'right' });
                         doc.text(netTotal.toLocaleString(undefined, {minimumFractionDigits: 2}), 200, finalY + 22, { align: 'right' });
                         
-                        doc.setFont('AnnapurnaSIL');
                         doc.setFont('helvetica', 'normal');
                         doc.text(`In Words: ${amountInWords}`, 14, finalY + 30);
                         doc.setFontSize(8);

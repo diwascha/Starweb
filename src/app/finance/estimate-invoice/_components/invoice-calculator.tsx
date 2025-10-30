@@ -272,13 +272,12 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
         // Add font to VFS
         doc.addFileToVFS("AnnapurnaSIL.ttf", AnnapurnaSIL);
         doc.addFont("AnnapurnaSIL.ttf", "AnnapurnaSIL", "normal");
-        doc.setFont("AnnapurnaSIL");
-
+        
         const { party, items, grossTotal, vatTotal, netTotal, amountInWords, date, invoiceNumber } = invoiceData;
 
         // Header
-        doc.setFontSize(18);
         doc.setFont('helvetica', 'bold');
+        doc.setFontSize(18);
         doc.text('SHIVAM PACKAGING INDUSTRIES PVT LTD.', doc.internal.pageSize.getWidth() / 2, 20, { align: 'center' });
         
         doc.setFont("AnnapurnaSIL");
@@ -293,9 +292,8 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
         doc.text('ESTIMATE INVOICE', doc.internal.pageSize.getWidth() / 2, 42, { align: 'center' });
         
         // Info
-        doc.setFont("AnnapurnaSIL");
-        doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
         doc.text(`Invoice No: ${invoiceNumber}`, 14, 55);
         doc.text(`Party Name: ${party.name}`, 14, 60);
         doc.text(`Address: ${party.address || ''}`, 14, 65);
@@ -342,7 +340,6 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
                 doc.text(netTotal.toLocaleString(undefined, {minimumFractionDigits: 2}), 200, finalY + 22, { align: 'right' });
 
                 // In Words & Disclaimer
-                doc.setFont('AnnapurnaSIL');
                 doc.setFont('helvetica', 'normal');
                 doc.text(`In Words: ${amountInWords}`, 14, finalY + 30);
 
