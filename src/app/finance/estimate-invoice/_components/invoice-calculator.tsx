@@ -278,7 +278,7 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
         doc.setFontSize(18);
         doc.text('SHIVAM PACKAGING INDUSTRIES PVT LTD.', doc.internal.pageSize.getWidth() / 2, 20, { align: 'center' });
         
-        doc.setFont("AnnapurnaSIL", 'normal');
+        doc.setFont("AnnapurnaSIL"); // Switch to Nepali font
         doc.text("शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.", doc.internal.pageSize.getWidth() / 2, 28, { align: 'center' });
 
 
