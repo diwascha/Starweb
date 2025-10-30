@@ -1,3 +1,4 @@
+
 'use client';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import type { Party, PartyType, Product, EstimateInvoiceItem, EstimatedInvoice } from '@/lib/types';
@@ -614,3 +615,5 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
         </div>
     );
 }
+
+    

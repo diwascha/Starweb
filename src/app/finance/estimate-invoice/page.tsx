@@ -1,3 +1,4 @@
+
 'use client';
 import { Suspense, useState, useMemo, useEffect, useRef } from 'react';
 import { InvoiceCalculator } from './_components/invoice-calculator';
@@ -168,6 +169,7 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                 // Add font to VFS
                 doc.addFileToVFS("AnnapurnaSIL.ttf", AnnapurnaSIL);
                 doc.addFont("AnnapurnaSIL.ttf", "AnnapurnaSIL", "normal");
+                doc.setFont("AnnapurnaSIL");
 
                 const { items, grossTotal, vatTotal, netTotal, amountInWords, date, invoiceNumber } = invoice;
 
@@ -178,7 +180,7 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                 
                 doc.setFont("AnnapurnaSIL");
                 doc.setFontSize(14);
-                doc.text('शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.', doc.internal.pageSize.getWidth() / 2, 28, { align: 'center' });
+                doc.text(' शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.', doc.internal.pageSize.getWidth() / 2, 28, { align: 'center' });
                 
                 doc.setFont('helvetica', 'normal');
                 doc.setFontSize(10);
@@ -595,3 +597,5 @@ export default function EstimateInvoicePage() {
     </div>
   );
 }
+
+    
