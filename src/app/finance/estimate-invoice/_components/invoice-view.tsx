@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Party, EstimateInvoiceItem } from '@/lib/types';
@@ -55,7 +56,7 @@ export function InvoiceView({
         
         <Table>
             <TableHeader>
-                <TableRow className="border-y border-gray-400 bg-gray-100">
+                <TableRow className="border-y border-black">
                     <TableHead className="text-black font-semibold h-8 px-2">S.N.</TableHead>
                     <TableHead className="text-black font-semibold h-8 px-2">Particulars</TableHead>
                     <TableHead className="text-black font-semibold h-8 px-2">Quantity</TableHead>
@@ -65,7 +66,7 @@ export function InvoiceView({
             </TableHeader>
             <TableBody>
                 {items.map((item, index) => (
-                    <TableRow key={item.id} className="border-b-gray-300">
+                    <TableRow key={item.id} className="border-b border-gray-400">
                         <TableCell className="px-2 py-1">{index + 1}</TableCell>
                         <TableCell className="px-2 py-1">{item.productName}</TableCell>
                         <TableCell className="px-2 py-1">1</TableCell>
