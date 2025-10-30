@@ -26,6 +26,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import html2canvas from 'html2canvas';
 import { format } from 'date-fns';
+import { AnnapurnaSIL } from '@/lib/fonts/AnnapurnaSIL-Regular-base64';
 
 
 function FormSkeleton() {
@@ -142,101 +143,129 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
         }, 100);
     };
 
-    const handleExport = async (formatType: 'pdf' | 'jpg', invoice: EstimatedInvoice) => {
+    const handleExportPdf = async (invoice: EstimatedInvoice) => {
         if (!invoice) return;
         setIsExporting(true);
-        
-        // Use a temporary state to render the invoice for capture if it's not already the selected one.
-        const currentInvoiceIsSelected = selectedInvoice?.id === invoice.id;
-        if (!currentInvoiceIsSelected) {
-          setSelectedInvoice(invoice);
+
+        const party = partiesById.get(invoice.partyName);
+        if (!party) {
+            toast({ title: 'Error', description: 'Could not find party details for this invoice.', variant: 'destructive'});
+            setIsExporting(false);
+            return;
         }
+
+        try {
+            const doc = new jsPDF();
+            
+            // Add font to VFS
+            doc.addFileToVFS("AnnapurnaSIL.ttf", AnnapurnaSIL);
+            doc.addFont("AnnapurnaSIL.ttf", "AnnapurnaSIL", "normal");
+            
+            // Header
+            doc.setFont('Helvetica', 'bold');
+            doc.setFontSize(16);
+            doc.text('SHIVAM PACKAGING INDUSTRIES PVT LTD.', doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
+
+            doc.setFont('AnnapurnaSIL', 'normal');
+            doc.setFontSize(14);
+            doc.text('शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.', doc.internal.pageSize.getWidth() / 2, 22, { align: 'center' });
+
+            doc.setFont('Helvetica', 'normal');
+            doc.setFontSize(10);
+            doc.text('HETAUDA 08, BAGMATI PROVIENCE, NEPAL', doc.internal.pageSize.getWidth() / 2, 28, { align: 'center' });
+
+            doc.setFont('Helvetica', 'bold');
+            doc.setFontSize(14);
+            doc.text('ESTIMATE INVOICE', doc.internal.pageSize.getWidth() / 2, 36, { align: 'center' });
+
+            // Info
+            doc.setFontSize(10);
+            doc.setFont('Helvetica', 'normal');
+            doc.text(`Invoice No: ${invoice.invoiceNumber}`, 14, 48);
+            doc.text(`Party Name: ${invoice.partyName}`, 14, 53);
+            if (party.address) doc.text(`Address: ${party.address}`, 14, 58);
+            if (party.panNumber) doc.text(`PAN/VAT No: ${party.panNumber}`, 14, 63);
+
+            const nepaliDate = toNepaliDate(invoice.date);
+            const adDate = format(new Date(invoice.date), 'yyyy-MM-dd');
+            doc.text(`Date: ${nepaliDate} BS (${adDate})`, doc.internal.pageSize.getWidth() - 14, 48, { align: 'right' });
+
+            (doc as any).autoTable({
+                startY: 70,
+                head: [['S.N.', 'Particulars', 'Quantity', 'Rate', 'Amount']],
+                body: invoice.items.map((item, index) => [
+                    index + 1,
+                    item.productName,
+                    item.quantity,
+                    item.rate.toLocaleString(undefined, {minimumFractionDigits: 2}),
+                    item.gross.toLocaleString(undefined, {minimumFractionDigits: 2})
+                ]),
+                theme: 'grid',
+                headStyles: { fillColor: [230, 230, 230], textColor: 20, fontStyle: 'bold' },
+                didDrawPage: (data: any) => {
+                    let finalY = data.cursor.y;
+                    doc.setFont('Helvetica', 'normal');
+                    doc.setFontSize(10);
+                    
+                    doc.text('Gross Total', 140, finalY + 8, { align: 'right' });
+                    doc.text(invoice.grossTotal.toLocaleString(undefined, {minimumFractionDigits: 2}), 200, finalY + 8, { align: 'right' });
+                    doc.text('VAT (13%)', 140, finalY + 15, { align: 'right' });
+                    doc.text(invoice.vatTotal.toLocaleString(undefined, {minimumFractionDigits: 2}), 200, finalY + 15, { align: 'right' });
+                    
+                    doc.setFont('Helvetica', 'bold');
+                    doc.text('Net Total', 140, finalY + 22, { align: 'right' });
+                    doc.text(invoice.netTotal.toLocaleString(undefined, {minimumFractionDigits: 2}), 200, finalY + 22, { align: 'right' });
+                    
+                    doc.setFont('Helvetica', 'normal');
+                    doc.text(`In Words: ${invoice.amountInWords}`, 14, finalY + 30);
+                    
+                    doc.setFontSize(8);
+                    doc.setFont('Helvetica', 'bold');
+                    doc.text('Disclaimer:', doc.internal.pageSize.getWidth() / 2, finalY + 40, { align: 'center' });
+                    doc.setFont('Helvetica', 'normal');
+                    doc.text('This is an estimate for discussion purposes and not a substitute for a formal VAT invoice.', doc.internal.pageSize.getWidth() / 2, finalY + 44, { align: 'center' });
+                }
+            });
+            
+            doc.save(`Estimate-${invoice.invoiceNumber}.pdf`);
+
+        } catch (error) {
+            console.error('PDF export failed:', error);
+            toast({ title: 'Error', description: 'Failed to export PDF.', variant: 'destructive' });
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+
+    const handleExportJpg = async (invoice: EstimatedInvoice) => {
+        if (!invoice) return;
+        setIsExporting(true);
+
+        setSelectedInvoice(invoice);
 
         // Wait for the DOM to update with the correct invoice data
         setTimeout(async () => {
-            if (formatType === 'pdf') {
-                const invoiceElement = printRef.current;
-                if (!invoiceElement || !partiesById.has(invoice.partyName)) {
-                    toast({ title: 'Error', description: 'Could not find party details for this invoice.', variant: 'destructive'});
-                    setIsExporting(false);
-                    if (!currentInvoiceIsSelected) setSelectedInvoice(null); // Reset if we changed it
-                    return;
-                }
-
-                try {
-                    const headerCanvas = await html2canvas(invoiceElement.querySelector('#invoice-header') as HTMLElement, { scale: 3, useCORS: true, backgroundColor: '#ffffff' });
-                    const headerImgData = headerCanvas.toDataURL('image/png');
-
-                    const doc = new jsPDF();
-                    const headerImgHeight = (headerCanvas.height * doc.internal.pageSize.getWidth()) / headerCanvas.width;
-                    doc.addImage(headerImgData, 'PNG', 0, 0, doc.internal.pageSize.getWidth(), headerImgHeight);
-
-                    const tableStartY = headerImgHeight + 5;
-
-                    (doc as any).autoTable({
-                        startY: tableStartY,
-                        head: [['S.N.', 'Particulars', 'Quantity', 'Rate', 'Amount']],
-                        body: invoice.items.map((item, index) => [
-                            index + 1,
-                            item.productName,
-                            item.quantity,
-                            item.rate.toLocaleString(undefined, {minimumFractionDigits: 2}),
-                            item.gross.toLocaleString(undefined, {minimumFractionDigits: 2})
-                        ]),
-                        theme: 'grid',
-                        headStyles: { fillColor: [230, 230, 230], textColor: 20, fontStyle: 'bold' },
-                        didDrawPage: (data: any) => {
-                            let finalY = data.cursor.y;
-                            doc.setFontSize(10);
-                            doc.text('Gross Total', 140, finalY + 8, { align: 'right' });
-                            doc.text(invoice.grossTotal.toLocaleString(undefined, {minimumFractionDigits: 2}), 200, finalY + 8, { align: 'right' });
-                            doc.text('VAT (13%)', 140, finalY + 15, { align: 'right' });
-                            doc.text(invoice.vatTotal.toLocaleString(undefined, {minimumFractionDigits: 2}), 200, finalY + 15, { align: 'right' });
-                            doc.setFont('Helvetica', 'bold');
-                            doc.text('Net Total', 140, finalY + 22, { align: 'right' });
-                            doc.text(invoice.netTotal.toLocaleString(undefined, {minimumFractionDigits: 2}), 200, finalY + 22, { align: 'right' });
-                            
-                            doc.setFont('Helvetica', 'normal');
-                            doc.text(`In Words: ${invoice.amountInWords}`, 14, finalY + 30);
-                            doc.setFontSize(8);
-                            doc.setFont('Helvetica', 'bold');
-                            doc.text('Disclaimer:', doc.internal.pageSize.getWidth() / 2, finalY + 40, { align: 'center' });
-                            doc.setFont('Helvetica', 'normal');
-                            doc.text('This is an estimate for discussion purposes and not a substitute for a formal VAT invoice.', doc.internal.pageSize.getWidth() / 2, finalY + 44, { align: 'center' });
-                        }
-                    });
-                    
-                    doc.save(`Estimate-${invoice.invoiceNumber}.pdf`);
-
-                } catch (error) {
-                    console.error('PDF export failed:', error);
-                    toast({ title: 'Error', description: 'Failed to export PDF.', variant: 'destructive' });
-                }
-
-            } else { // JPG export
-                 if (!printRef.current) {
-                    setIsExporting(false);
-                    if (!currentInvoiceIsSelected) setSelectedInvoice(null);
-                    return;
-                }
-                try {
-                    const canvas = await html2canvas(printRef.current, { scale: 3, useCORS: true, backgroundColor: '#ffffff' });
-                    const link = document.createElement('a');
-                    link.download = `Estimate-${invoice.invoiceNumber}.jpg`;
-                    link.href = canvas.toDataURL('image/jpeg', 0.9);
-                    link.click();
-                } catch (error) {
-                    console.error(`Failed to export as ${formatType}`, error);
-                    toast({ title: 'Export Failed', description: `Could not export invoice as ${formatType}.`, variant: 'destructive' });
-                }
+            if (!printRef.current) {
+                setIsExporting(false);
+                setSelectedInvoice(null);
+                return;
             }
-            setIsExporting(false);
-             if (!currentInvoiceIsSelected) {
+            try {
+                const canvas = await html2canvas(printRef.current, { scale: 3, useCORS: true, backgroundColor: '#ffffff' });
+                const link = document.createElement('a');
+                link.download = `Estimate-${invoice.invoiceNumber}.jpg`;
+                link.href = canvas.toDataURL('image/jpeg', 0.9);
+                link.click();
+            } catch (error) {
+                console.error(`Failed to export as JPG`, error);
+                toast({ title: 'Export Failed', description: `Could not export invoice as JPG.`, variant: 'destructive' });
+            } finally {
+                setIsExporting(false);
                 setSelectedInvoice(null);
             }
         }, 100);
     };
-
 
     return (
         <>
@@ -285,8 +314,8 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                            <DropdownMenuContent align="end">
                                 <DropdownMenuItem onSelect={() => handleViewInvoice(inv)}><View className="mr-2 h-4 w-4"/> View</DropdownMenuItem>
                                 <DropdownMenuItem onSelect={() => handlePrint(inv)}><Printer className="mr-2 h-4 w-4"/> Print</DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => handleExport('pdf', inv)} disabled={isExporting}><Save className="mr-2 h-4 w-4"/> Export as PDF</DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => handleExport('jpg', inv)} disabled={isExporting}><ImageIcon className="mr-2 h-4 w-4"/> Export as JPG</DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => handleExportPdf(inv)} disabled={isExporting}><Save className="mr-2 h-4 w-4"/> Export as PDF</DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => handleExportJpg(inv)} disabled={isExporting}><ImageIcon className="mr-2 h-4 w-4"/> Export as JPG</DropdownMenuItem>
                                 <DropdownMenuItem onSelect={() => onEdit(inv)}><Edit className="mr-2 h-4 w-4"/> Edit</DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <AlertDialog>

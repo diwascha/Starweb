@@ -25,6 +25,7 @@ import { InvoiceView } from './invoice-view';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import html2canvas from 'html2canvas';
+import { AnnapurnaSIL } from '@/lib/fonts/AnnapurnaSIL-Regular-base64';
 
 
 interface InvoiceCalculatorProps {
@@ -262,26 +263,50 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
     };
 
     const handleExportPdf = async () => {
-        const invoiceElement = printRef.current;
-        if (!invoiceElement || !invoiceData.party) return;
-
+        if (!invoiceData.party) return;
         setIsExporting(true);
-        const { party, items, grossTotal, vatTotal, netTotal, amountInWords, date, invoiceNumber } = invoiceData;
-        const nepaliDate = toNepaliDate(date);
-        const adDate = format(new Date(date), 'yyyy-MM-dd');
-
         try {
-            const headerCanvas = await html2canvas(invoiceElement.querySelector('#invoice-header') as HTMLElement, { scale: 3, useCORS: true, backgroundColor: '#ffffff' });
-            const headerImgData = headerCanvas.toDataURL('image/png');
-
+            const { party, items, grossTotal, vatTotal, netTotal, amountInWords, date, invoiceNumber } = invoiceData;
+            
             const doc = new jsPDF();
-            const headerImgHeight = (headerCanvas.height * doc.internal.pageSize.getWidth()) / headerCanvas.width;
-            doc.addImage(headerImgData, 'PNG', 0, 0, doc.internal.pageSize.getWidth(), headerImgHeight);
 
-            const tableStartY = headerImgHeight + 5;
+            // Add font to VFS
+            doc.addFileToVFS("AnnapurnaSIL.ttf", AnnapurnaSIL);
+            doc.addFont("AnnapurnaSIL.ttf", "AnnapurnaSIL", "normal");
+            
+            // Header
+            doc.setFont('Helvetica', 'bold');
+            doc.setFontSize(16);
+            doc.text('SHIVAM PACKAGING INDUSTRIES PVT LTD.', doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
 
+            doc.setFont('AnnapurnaSIL', 'normal');
+            doc.setFontSize(14);
+            doc.text('शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.', doc.internal.pageSize.getWidth() / 2, 22, { align: 'center' });
+
+            doc.setFont('Helvetica', 'normal');
+            doc.setFontSize(10);
+            doc.text('HETAUDA 08, BAGMATI PROVIENCE, NEPAL', doc.internal.pageSize.getWidth() / 2, 28, { align: 'center' });
+
+            doc.setFont('Helvetica', 'bold');
+            doc.setFontSize(14);
+            doc.text('ESTIMATE INVOICE', doc.internal.pageSize.getWidth() / 2, 36, { align: 'center' });
+
+            // Info
+            doc.setFontSize(10);
+            doc.setFont('Helvetica', 'normal');
+            doc.text(`Invoice No: ${invoiceNumber}`, 14, 48);
+            doc.text(`Party Name: ${party.name}`, 14, 53);
+            if (party.address) doc.text(`Address: ${party.address}`, 14, 58);
+            if (party.panNumber) doc.text(`PAN/VAT No: ${party.panNumber}`, 14, 63);
+
+            const nepaliDate = toNepaliDate(date);
+            const adDate = format(new Date(date), 'yyyy-MM-dd');
+            doc.text(`Date: ${nepaliDate} BS (${adDate})`, doc.internal.pageSize.getWidth() - 14, 48, { align: 'right' });
+
+
+            // Table
             (doc as any).autoTable({
-                startY: tableStartY,
+                startY: 70,
                 head: [['S.N.', 'Particulars', 'Quantity', 'Rate', 'Amount']],
                 body: items.map((item, index) => [
                     index + 1,
@@ -294,6 +319,8 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
                 headStyles: { fillColor: [230, 230, 230], textColor: 20, fontStyle: 'bold' },
                 didDrawPage: (data: any) => {
                     let finalY = data.cursor.y;
+                     // Reset font for this section to avoid issues
+                    doc.setFont('Helvetica', 'normal');
                     doc.setFontSize(10);
                     
                     doc.text('Gross Total', 140, finalY + 8, { align: 'right' });
