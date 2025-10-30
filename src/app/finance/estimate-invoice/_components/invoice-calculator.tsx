@@ -67,15 +67,13 @@ export function InvoiceCalculator() {
     
     useEffect(() => {
         const setNextNumber = async () => {
-            if (!invoiceNumber) { // Only generate if not already set
-                const nextNumber = await generateNextEstimateInvoiceNumber(allInvoices);
-                setInvoiceNumber(nextNumber);
+            if (allInvoices.length > 0) {
+                 const nextNumber = await generateNextEstimateInvoiceNumber(allInvoices);
+                 setInvoiceNumber(nextNumber);
             }
         };
-        if (allInvoices.length >= 0) { // Should run even if there are no invoices yet
-            setNextNumber();
-        }
-    }, [allInvoices, invoiceNumber]);
+        setNextNumber();
+    }, [allInvoices]);
     
     const allParties = useMemo(() => parties.sort((a, b) => a.name.localeCompare(b.name)), [parties]);
     
@@ -181,8 +179,11 @@ export function InvoiceCalculator() {
         
         setIsSaving(true);
         try {
+            // Regenerate the invoice number right before saving to ensure it's the latest
+            const finalInvoiceNumber = await generateNextEstimateInvoiceNumber(allInvoices);
+
             await addEstimatedInvoice({
-                invoiceNumber: invoiceData.invoiceNumber,
+                invoiceNumber: finalInvoiceNumber,
                 date: invoiceData.date,
                 partyName: invoiceData.party?.name || 'N/A',
                 panNumber: invoiceData.party?.panNumber,
@@ -552,6 +553,7 @@ export function InvoiceCalculator() {
     
 
     
+
 
 
 
