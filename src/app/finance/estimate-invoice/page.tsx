@@ -54,7 +54,7 @@ function FormSkeleton() {
 type SortKey = 'invoiceNumber' | 'date' | 'partyName' | 'netTotal';
 type SortDirection = 'asc' | 'desc';
 
-function SavedInvoicesList() {
+function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => void }) {
     const [invoices, setInvoices] = useState<EstimatedInvoice[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
@@ -305,7 +305,7 @@ function SavedInvoicesList() {
                                 <DropdownMenuItem onSelect={() => handlePrint(inv)}><Printer className="mr-2 h-4 w-4"/> Print</DropdownMenuItem>
                                 <DropdownMenuItem onSelect={() => handleExport('pdf', inv)} disabled={isExporting}><Save className="mr-2 h-4 w-4"/> Export as PDF</DropdownMenuItem>
                                 <DropdownMenuItem onSelect={() => handleExport('jpg', inv)} disabled={isExporting}><ImageIcon className="mr-2 h-4 w-4"/> Export as JPG</DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => router.push(`/finance/estimate-invoice/edit/${inv.id}`)}><Edit className="mr-2 h-4 w-4"/> Edit</DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => onEdit(inv)}><Edit className="mr-2 h-4 w-4"/> Edit</DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <AlertDialog>
                                   <AlertDialogTrigger asChild>
@@ -538,13 +538,26 @@ function SavedRatesList() {
 }
 
 export default function EstimateInvoicePage() {
+  const [activeTab, setActiveTab] = useState('calculator');
+  const [invoiceToEdit, setInvoiceToEdit] = useState<EstimatedInvoice | null>(null);
+
+  const handleEditInvoice = (invoice: EstimatedInvoice) => {
+    setInvoiceToEdit(invoice);
+    setActiveTab('calculator');
+  };
+
+  const handleFinishEditing = () => {
+    setInvoiceToEdit(null);
+    setActiveTab('history');
+  };
+
   return (
     <div className="flex flex-col gap-8">
       <header>
         <h1 className="text-3xl font-bold tracking-tight">Estimate / Pro-Forma Invoice</h1>
         <p className="text-muted-foreground">Create and manage estimate or pro-forma invoices for clients.</p>
       </header>
-       <Tabs defaultValue="calculator">
+       <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-4">
                 <TabsTrigger value="calculator">Invoice Calculator</TabsTrigger>
                 <TabsTrigger value="history">Saved Invoices</TabsTrigger>
@@ -552,11 +565,15 @@ export default function EstimateInvoicePage() {
             </TabsList>
             <TabsContent value="calculator">
                 <Suspense fallback={<FormSkeleton />}>
-                    <InvoiceCalculator />
+                    <InvoiceCalculator 
+                        key={invoiceToEdit?.id || 'new'}
+                        invoiceToEdit={invoiceToEdit || undefined} 
+                        onSaveSuccess={handleFinishEditing} 
+                    />
                 </Suspense>
             </TabsContent>
             <TabsContent value="history">
-                <SavedInvoicesList />
+                <SavedInvoicesList onEdit={handleEditInvoice} />
             </TabsContent>
             <TabsContent value="rates">
                 <SavedRatesList />

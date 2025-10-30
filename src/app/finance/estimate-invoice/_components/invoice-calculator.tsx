@@ -29,10 +29,11 @@ import html2canvas from 'html2canvas';
 
 interface InvoiceCalculatorProps {
   invoiceToEdit?: EstimatedInvoice;
+  onSaveSuccess: () => void;
 }
 
 
-export function InvoiceCalculator({ invoiceToEdit }: InvoiceCalculatorProps) {
+export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalculatorProps) {
     const [date, setDate] = useState<Date>(new Date());
     const [party, setParty] = useState<Party | null>(null);
     const [invoiceNumber, setInvoiceNumber] = useState('');
@@ -85,6 +86,9 @@ export function InvoiceCalculator({ invoiceToEdit }: InvoiceCalculatorProps) {
         } else {
           const nextNumber = await generateNextEstimateInvoiceNumber(allInvoices);
           setInvoiceNumber(nextNumber);
+          setItems([{ id: Date.now().toString(), productName: '', quantity: 1, rate: 0, gross: 0 }]);
+          setParty(null);
+          setDate(new Date());
         }
       };
 
@@ -212,13 +216,13 @@ export function InvoiceCalculator({ invoiceToEdit }: InvoiceCalculatorProps) {
                 netTotal: invoiceData.netTotal,
                 amountInWords: invoiceData.amountInWords,
                 createdBy: user.username,
-                createdAt: new Date().toISOString(),
+                createdAt: invoiceToEdit?.createdAt || new Date().toISOString(), // Preserve original creation date on edit
             };
 
             if (invoiceToEdit) {
                  await updateEstimatedInvoice(invoiceToEdit.id, dataToSave);
                  toast({ title: 'Success', description: 'Estimate invoice updated.' });
-                 router.push('/finance/estimate-invoice');
+                 onSaveSuccess();
             } else {
                 // Regenerate the invoice number right before saving to ensure it's the latest
                 const finalInvoiceNumber = await generateNextEstimateInvoiceNumber(allInvoices);
@@ -364,6 +368,16 @@ export function InvoiceCalculator({ invoiceToEdit }: InvoiceCalculatorProps) {
 
     return (
         <div className="space-y-6">
+             <header className="flex justify-between items-center">
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight">
+                        {invoiceToEdit ? `Editing Invoice #${invoiceToEdit.invoiceNumber}` : 'New Estimate Invoice'}
+                    </h1>
+                </div>
+                 {invoiceToEdit && (
+                    <Button variant="outline" onClick={onSaveSuccess}>Cancel Edit</Button>
+                )}
+            </header>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
                 <div className="space-y-2">
                     <Label htmlFor="invoiceNumber">Auto Document Numbering</Label>
