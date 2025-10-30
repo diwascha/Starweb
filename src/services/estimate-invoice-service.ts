@@ -1,11 +1,11 @@
 
 import { db } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs, query, orderBy } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs, query, orderBy, getDoc } from 'firebase/firestore';
 import type { EstimatedInvoice } from '@/lib/types';
 
 const invoicesCollection = collection(db, 'estimatedInvoices');
 
-const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): EstimatedInvoice => {
+const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentData): EstimatedInvoice => {
     const data = snapshot.data();
     return {
         id: snapshot.id,
@@ -29,10 +29,28 @@ export const getEstimatedInvoices = async (): Promise<EstimatedInvoice[]> => {
     return snapshot.docs.map(fromFirestore);
 };
 
+export const getEstimatedInvoice = async (id: string): Promise<EstimatedInvoice | null> => {
+    const docRef = doc(db, 'estimatedInvoices', id);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+        return fromFirestore(docSnap);
+    }
+    return null;
+};
+
 export const addEstimatedInvoice = async (invoice: Omit<EstimatedInvoice, 'id'>): Promise<string> => {
     const docRef = await addDoc(invoicesCollection, invoice);
     return docRef.id;
 };
+
+export const updateEstimatedInvoice = async (id: string, invoice: Partial<Omit<EstimatedInvoice, 'id'>>): Promise<void> => {
+    const invoiceDoc = doc(db, 'estimatedInvoices', id);
+    await updateDoc(invoiceDoc, {
+        ...invoice,
+        lastModifiedAt: new Date().toISOString(),
+    });
+};
+
 
 export const onEstimatedInvoicesUpdate = (callback: (invoices: EstimatedInvoice[]) => void): () => void => {
     const q = query(invoicesCollection, orderBy('createdAt', 'desc'));

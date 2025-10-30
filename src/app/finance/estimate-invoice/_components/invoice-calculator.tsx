@@ -10,7 +10,7 @@ import { CalendarIcon, ChevronsUpDown, Check, PlusCircle, Trash2, Printer, Save,
 import { cn, toWords, toNepaliDate, generateNextEstimateInvoiceNumber } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
-import { onPartiesUpdate, addParty, updateParty } from '@/services/party-service';
+import { onPartiesUpdate, addParty, updateParty, getPartyByName } from '@/services/party-service';
 import { onProductsUpdate, updateProduct } from '@/services/product-service';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { DualCalendar } from '@/components/ui/dual-calendar';
@@ -18,7 +18,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { addEstimatedInvoice, onEstimatedInvoicesUpdate } from '@/services/estimate-invoice-service';
+import { addEstimatedInvoice, onEstimatedInvoicesUpdate, updateEstimatedInvoice } from '@/services/estimate-invoice-service';
 import { useRouter } from 'next/navigation';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
@@ -27,8 +27,12 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import html2canvas from 'html2canvas';
 
+interface InvoiceCalculatorProps {
+  invoiceToEdit?: EstimatedInvoice;
+}
 
-export function InvoiceCalculator() {
+
+export function InvoiceCalculator({ invoiceToEdit }: InvoiceCalculatorProps) {
     const [date, setDate] = useState<Date>(new Date());
     const [party, setParty] = useState<Party | null>(null);
     const [invoiceNumber, setInvoiceNumber] = useState('');
@@ -66,14 +70,26 @@ export function InvoiceCalculator() {
     }, []);
     
     useEffect(() => {
-        const setNextNumber = async () => {
-            if (allInvoices.length > 0) {
-                 const nextNumber = await generateNextEstimateInvoiceNumber(allInvoices);
-                 setInvoiceNumber(nextNumber);
-            }
-        };
-        setNextNumber();
-    }, [allInvoices]);
+      const initializeForm = async () => {
+        if (invoiceToEdit) {
+          setDate(new Date(invoiceToEdit.date));
+          setInvoiceNumber(invoiceToEdit.invoiceNumber);
+          setItems(invoiceToEdit.items);
+          const existingParty = await getPartyByName(invoiceToEdit.partyName);
+          if (existingParty) {
+            setParty(existingParty);
+          } else {
+             // Handle case where party might not exist anymore
+             setParty({ id: '', name: invoiceToEdit.partyName, type: 'Customer' });
+          }
+        } else {
+          const nextNumber = await generateNextEstimateInvoiceNumber(allInvoices);
+          setInvoiceNumber(nextNumber);
+        }
+      };
+
+      initializeForm();
+    }, [invoiceToEdit, allInvoices]);
     
     const allParties = useMemo(() => parties.sort((a, b) => a.name.localeCompare(b.name)), [parties]);
     
@@ -185,11 +201,8 @@ export function InvoiceCalculator() {
                 }
             }
 
-            // Regenerate the invoice number right before saving to ensure it's the latest
-            const finalInvoiceNumber = await generateNextEstimateInvoiceNumber(allInvoices);
-
-            await addEstimatedInvoice({
-                invoiceNumber: finalInvoiceNumber,
+            const dataToSave = {
+                invoiceNumber,
                 date: invoiceData.date,
                 partyName: invoiceData.party?.name || 'N/A',
                 panNumber: invoiceData.party?.panNumber,
@@ -200,8 +213,25 @@ export function InvoiceCalculator() {
                 amountInWords: invoiceData.amountInWords,
                 createdBy: user.username,
                 createdAt: new Date().toISOString(),
-            });
-            toast({ title: 'Success', description: 'Estimate invoice saved.' });
+            };
+
+            if (invoiceToEdit) {
+                 await updateEstimatedInvoice(invoiceToEdit.id, dataToSave);
+                 toast({ title: 'Success', description: 'Estimate invoice updated.' });
+                 router.push('/finance/estimate-invoice');
+            } else {
+                // Regenerate the invoice number right before saving to ensure it's the latest
+                const finalInvoiceNumber = await generateNextEstimateInvoiceNumber(allInvoices);
+                await addEstimatedInvoice({ ...dataToSave, invoiceNumber: finalInvoiceNumber });
+                toast({ title: 'Success', description: 'Estimate invoice saved.' });
+                // Reset form for new entry
+                setDate(new Date());
+                setParty(null);
+                setItems([{ id: Date.now().toString(), productName: '', quantity: 1, rate: 0, gross: 0 }]);
+                const nextNumber = await generateNextEstimateInvoiceNumber(allInvoices);
+                setInvoiceNumber(nextNumber);
+            }
+
         } catch (error) {
             toast({ title: 'Error', description: 'Failed to save invoice.', variant: 'destructive' });
         } finally {
@@ -485,7 +515,7 @@ export function InvoiceCalculator() {
                  <Button variant="outline" onClick={() => setIsPreviewOpen(true)} disabled={!party || items.length === 0}><Printer className="mr-2 h-4 w-4" /> Preview & Print</Button>
                  <Button onClick={handleSaveInvoice} disabled={isSaving}>
                     {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                     Save Invoice
+                     {invoiceToEdit ? 'Save Changes' : 'Save Invoice'}
                  </Button>
             </div>
 
@@ -556,12 +586,3 @@ export function InvoiceCalculator() {
         </div>
     );
 }
-    
-
-    
-
-
-
-
-
-

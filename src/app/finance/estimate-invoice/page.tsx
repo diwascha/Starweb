@@ -305,7 +305,7 @@ function SavedInvoicesList() {
                                 <DropdownMenuItem onSelect={() => handlePrint(inv)}><Printer className="mr-2 h-4 w-4"/> Print</DropdownMenuItem>
                                 <DropdownMenuItem onSelect={() => handleExport('pdf', inv)} disabled={isExporting}><Save className="mr-2 h-4 w-4"/> Export as PDF</DropdownMenuItem>
                                 <DropdownMenuItem onSelect={() => handleExport('jpg', inv)} disabled={isExporting}><ImageIcon className="mr-2 h-4 w-4"/> Export as JPG</DropdownMenuItem>
-                                <DropdownMenuItem disabled><Edit className="mr-2 h-4 w-4"/> Edit</DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => router.push(`/finance/estimate-invoice/edit/${inv.id}`)}><Edit className="mr-2 h-4 w-4"/> Edit</DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <AlertDialog>
                                   <AlertDialogTrigger asChild>
