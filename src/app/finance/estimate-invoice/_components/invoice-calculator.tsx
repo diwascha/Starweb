@@ -135,12 +135,6 @@ export function InvoiceCalculator() {
             if (product?.rate) {
                 item.rate = product.rate;
             }
-        } else if (field === 'rate' && user) {
-            // When rate is manually changed, update the product's rate
-            const product = products.find(p => p.name === item.productName);
-            if (product && product.rate !== value) {
-                updateProduct(product.id, { rate: value, lastModifiedBy: user.username });
-            }
         }
         
         item.gross = (item.quantity || 0) * (item.rate || 0);
@@ -172,6 +166,10 @@ export function InvoiceCalculator() {
     }, [items, party, date, invoiceNumber, user]);
     
     const handleSaveInvoice = async () => {
+        if (!user) {
+            toast({ title: 'Authentication Error', description: 'You must be logged in to save.', variant: 'destructive' });
+            return;
+        }
         if (!party || items.length === 0 || !items.every(i => i.productName && i.quantity > 0 && i.rate > 0)) {
             toast({ title: 'Validation Error', description: 'Please select a party and ensure all items have a product, quantity, and rate.', variant: 'destructive' });
             return;
@@ -179,6 +177,14 @@ export function InvoiceCalculator() {
         
         setIsSaving(true);
         try {
+            // Update product rates if they have changed
+            for (const item of items) {
+                const product = products.find(p => p.name === item.productName);
+                if (product && product.rate !== item.rate) {
+                    await updateProduct(product.id, { rate: item.rate, lastModifiedBy: user.username });
+                }
+            }
+
             // Regenerate the invoice number right before saving to ensure it's the latest
             const finalInvoiceNumber = await generateNextEstimateInvoiceNumber(allInvoices);
 
@@ -192,7 +198,7 @@ export function InvoiceCalculator() {
                 vatTotal: invoiceData.vatTotal,
                 netTotal: invoiceData.netTotal,
                 amountInWords: invoiceData.amountInWords,
-                createdBy: user!.username,
+                createdBy: user.username,
                 createdAt: new Date().toISOString(),
             });
             toast({ title: 'Success', description: 'Estimate invoice saved.' });
@@ -553,6 +559,7 @@ export function InvoiceCalculator() {
     
 
     
+
 
 
 
