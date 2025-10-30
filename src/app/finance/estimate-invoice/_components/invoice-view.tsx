@@ -46,10 +46,10 @@ export function InvoiceView({
                 <p><span className="font-semibold">Invoice No:</span> {invoiceNumber}</p>
                 <p><span className="font-semibold">Party Name:</span> {party?.name}</p>
                 <p><span className="font-semibold">Address:</span> {party?.address}</p>
+                <p><span className="font-semibold">PAN/VAT No:</span> {party?.panNumber}</p>
             </div>
             <div className="text-right">
                 <p><span className="font-semibold">Date:</span> {nepaliDate} BS ({adDate})</p>
-                <p><span className="font-semibold">PAN/VAT No:</span> {party?.panNumber}</p>
             </div>
         </div>
         
