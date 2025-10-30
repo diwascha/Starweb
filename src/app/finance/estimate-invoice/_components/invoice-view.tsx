@@ -99,7 +99,6 @@ export function InvoiceView({
             <p className="font-bold">Disclaimer:</p>
             <p>This is an estimate for discussion purposes and not a substitute for a formal VAT invoice.</p>
         </div>
-
     </div>
   );
 }

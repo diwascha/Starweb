@@ -1,3 +1,4 @@
+
 'use client';
 import { Suspense, useState, useMemo, useEffect, useRef } from 'react';
 import { InvoiceCalculator } from './_components/invoice-calculator';
@@ -126,7 +127,7 @@ function SavedInvoicesList() {
             
             const printWindow = window.open('', '', 'height=800,width=800');
             printWindow?.document.write('<html><head><title>Print Invoice</title>');
-            printWindow?.document.write('<style>body { font-family: sans-serif; } table { width: 100%; border-collapse: collapse; } th, td { border: 1px solid #ddd; padding: 8px; } .text-right { text-align: right; } .font-bold { font-weight: bold; } </style>');
+            printWindow?.document.write('<style>@media print{@page{size: A4;margin: 0;}body{margin: 1.6cm;}}body{font-family:sans-serif;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ddd;padding:8px;}.text-right{text-align:right;}.font-bold{font-weight:bold;}</style>');
             printWindow?.document.write('</head><body>');
             printWindow?.document.write(printableArea.innerHTML);
             printWindow?.document.write('</body></html>');
@@ -151,7 +152,7 @@ function SavedInvoicesList() {
                 return;
             }
             try {
-                const canvas = await html2canvas(printRef.current, { scale: 2 });
+                const canvas = await html2canvas(printRef.current, { scale: 3, useCORS: true });
                 if (format === 'pdf') {
                     const pdf = new jsPDF('p', 'mm', 'a4');
                     const imgData = canvas.toDataURL('image/png');
@@ -162,7 +163,7 @@ function SavedInvoicesList() {
                 } else {
                     const link = document.createElement('a');
                     link.download = `Estimate-${invoice.invoiceNumber}.jpg`;
-                    link.href = canvas.toDataURL('image/jpeg');
+                    link.href = canvas.toDataURL('image/jpeg', 0.9);
                     link.click();
                 }
             } catch (error) {
@@ -274,7 +275,7 @@ function SavedInvoicesList() {
         </Dialog>
         
         {/* Hidden div for printing/exporting */}
-        <div className="absolute -left-[9999px] top-0">
+        <div className="absolute -left-[9999px] top-0 w-[210mm]">
             <div ref={printRef}>
               {selectedInvoice && (
                   <InvoiceView

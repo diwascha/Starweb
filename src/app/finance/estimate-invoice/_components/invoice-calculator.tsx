@@ -201,7 +201,7 @@ export function InvoiceCalculator() {
         
         const printWindow = window.open('', '', 'height=800,width=800');
         printWindow?.document.write('<html><head><title>Print Invoice</title>');
-        printWindow?.document.write('<style>body { font-family: sans-serif; } table { width: 100%; border-collapse: collapse; } th, td { border: 1px solid #ddd; padding: 8px; } .text-right { text-align: right; } .font-bold { font-weight: bold; } </style>');
+        printWindow?.document.write('<style>@media print{@page{size: A4;margin: 0;}body{margin: 1.6cm;}}body{font-family:sans-serif;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ddd;padding:8px;}.text-right{text-align:right;}.font-bold{font-weight:bold;}</style>');
         printWindow?.document.write('</head><body>');
         printWindow?.document.write(printableArea.innerHTML);
         printWindow?.document.write('</body></html>');
@@ -218,7 +218,7 @@ export function InvoiceCalculator() {
         setIsExporting(true);
 
         try {
-            const canvas = await html2canvas(printRef.current, { scale: 2 });
+            const canvas = await html2canvas(printRef.current, { scale: 3, useCORS: true });
             if (format === 'pdf') {
                 const pdf = new jsPDF('p', 'mm', 'a4');
                 const imgData = canvas.toDataURL('image/png');
@@ -229,7 +229,7 @@ export function InvoiceCalculator() {
             } else {
                 const link = document.createElement('a');
                 link.download = `Estimate-${invoiceData.invoiceNumber}.jpg`;
-                link.href = canvas.toDataURL('image/jpeg');
+                link.href = canvas.toDataURL('image/jpeg', 0.9);
                 link.click();
             }
         } catch (error) {
@@ -444,8 +444,8 @@ export function InvoiceCalculator() {
                         <DialogTitle>Invoice Preview</DialogTitle>
                         <DialogDescription>Review the invoice before printing or exporting.</DialogDescription>
                     </DialogHeader>
-                    <div className="max-h-[70vh] overflow-auto p-4">
-                         <div ref={printRef}>
+                    <div className="max-h-[70vh] overflow-auto p-4 bg-gray-100">
+                         <div ref={printRef} className="w-[210mm] mx-auto">
                             <InvoiceView {...invoiceData} />
                          </div>
                     </div>
