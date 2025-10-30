@@ -32,15 +32,15 @@ function FormSkeleton() {
 }
 
 export default function EditEstimateInvoicePage({ params }: { params: { id: string } }) {
-  const { id } = params;
   const [invoiceToEdit, setInvoiceToEdit] = useState<EstimatedInvoice | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
     const fetchInvoice = async () => {
+      if (!params.id) return;
       try {
-        const invoice = await getEstimatedInvoice(id);
+        const invoice = await getEstimatedInvoice(params.id);
         if (invoice) {
           setInvoiceToEdit(invoice);
         } else {
@@ -53,10 +53,8 @@ export default function EditEstimateInvoicePage({ params }: { params: { id: stri
       }
     };
 
-    if (id) {
-      fetchInvoice();
-    }
-  }, [id, toast]);
+    fetchInvoice();
+  }, [params.id, toast]);
   
   if (isLoading) {
     return <FormSkeleton />;
