@@ -1,4 +1,3 @@
-
 'use client';
 import { Suspense, useState, useMemo, useEffect, useRef } from 'react';
 import { InvoiceCalculator } from './_components/invoice-calculator';
@@ -27,7 +26,6 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import html2canvas from 'html2canvas';
 import { format } from 'date-fns';
-import { AnnapurnaSIL } from '@/lib/fonts/AnnapurnaSIL-Regular-base64';
 
 
 function FormSkeleton() {
@@ -157,7 +155,7 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
         // Wait for the DOM to update with the correct invoice data
         setTimeout(async () => {
             if (formatType === 'pdf') {
-                 const doc = new jsPDF();
+                const doc = new jsPDF();
                 const party = partiesById.get(invoice.partyName);
                 if (!party) {
                     toast({ title: 'Error', description: 'Could not find party details for this invoice.', variant: 'destructive'});
@@ -166,18 +164,14 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                     return;
                 }
                 
-                // Add font to VFS
-                doc.addFileToVFS("AnnapurnaSIL.ttf", AnnapurnaSIL);
-                doc.addFont("AnnapurnaSIL.ttf", "AnnapurnaSIL", "normal");
-                
                 const { items, grossTotal, vatTotal, netTotal, amountInWords, date, invoiceNumber } = invoice;
 
-                // Set font for the entire document
-                doc.setFont('AnnapurnaSIL');
+                doc.setFont('Helvetica', 'bold');
                 doc.setFontSize(18);
                 doc.text('SHIVAM PACKAGING INDUSTRIES PVT LTD.', doc.internal.pageSize.getWidth() / 2, 20, { align: 'center' });
-                doc.setFontSize(14);
-                doc.text('शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.', doc.internal.pageSize.getWidth() / 2, 28, { align: 'center' });
+                
+                doc.setFont('Helvetica', 'normal');
+                doc.text("शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.", doc.internal.pageSize.getWidth() / 2, 28, { align: 'center', lang: 'ne' });
 
                 doc.setFont('Helvetica', 'normal');
                 doc.setFontSize(10);
@@ -586,7 +580,3 @@ export default function EstimateInvoicePage() {
     </div>
   );
 }
-
-    
-
-    
