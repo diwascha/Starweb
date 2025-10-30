@@ -100,16 +100,6 @@ export function InvoiceView({
             <p>This is an estimate for discussion purposes and not a substitute for a formal VAT invoice.</p>
         </div>
 
-        <div className="mt-20 grid grid-cols-2 gap-8 pt-16 text-sm">
-            <div className="text-center">
-                <div className="border-t border-black w-48 mx-auto"></div>
-                <p className="font-semibold mt-1">Prepared By</p>
-            </div>
-            <div className="text-center">
-                <div className="border-t border-black w-48 mx-auto"></div>
-                <p className="font-semibold mt-1">For: SHIVAM PACKAGING</p>
-            </div>
-        </div>
     </div>
   );
 }
