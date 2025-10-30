@@ -25,6 +25,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { InvoiceView } from './_components/invoice-view';
 import { onPartiesUpdate } from '@/services/party-service';
 import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 import html2canvas from 'html2canvas';
 
 function FormSkeleton() {
@@ -146,33 +147,101 @@ function SavedInvoicesList() {
         setIsExporting(true);
 
         setTimeout(async () => {
-             if (!printRef.current) {
-                setIsExporting(false);
-                setSelectedInvoice(null);
-                return;
-            }
-            try {
-                const canvas = await html2canvas(printRef.current, { scale: 3, useCORS: true });
-                if (format === 'pdf') {
-                    const pdf = new jsPDF('p', 'mm', 'a4');
-                    const imgData = canvas.toDataURL('image/png');
-                    const pdfWidth = pdf.internal.pageSize.getWidth();
-                    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-                    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-                    pdf.save(`Estimate-${invoice.invoiceNumber}.pdf`);
-                } else {
+            if (format === 'pdf') {
+                const doc = new jsPDF();
+                const party = partiesById.get(invoice.partyName);
+                if (!party) {
+                    toast({ title: 'Error', description: 'Could not find party details for this invoice.', variant: 'destructive'});
+                    setIsExporting(false);
+                    return;
+                }
+                const { items, grossTotal, vatTotal, netTotal, amountInWords, date, invoiceNumber } = invoice;
+
+                // Header
+                doc.setFontSize(18);
+                doc.setFont('helvetica', 'bold');
+                doc.text('SHIVAM PACKAGING INDUSTRIES PVT LTD.', doc.internal.pageSize.getWidth() / 2, 20, { align: 'center' });
+                doc.setFontSize(14);
+                doc.setFont('helvetica', 'normal');
+                doc.text('शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.', doc.internal.pageSize.getWidth() / 2, 28, { align: 'center' });
+                doc.setFontSize(10);
+                doc.text('HETAUDA 08, BAGMATI PROVIENCE, NEPAL', doc.internal.pageSize.getWidth() / 2, 34, { align: 'center' });
+                doc.setFontSize(14);
+                doc.setFont('helvetica', 'bold');
+                doc.text('ESTIMATE INVOICE', doc.internal.pageSize.getWidth() / 2, 42, { align: 'center' });
+                
+                // Info
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'normal');
+                doc.text(`Invoice No: ${invoiceNumber}`, 14, 55);
+                doc.text(`Party Name: ${party.name}`, 14, 60);
+                doc.text(`Address: ${party.address || ''}`, 14, 65);
+                doc.text(`PAN/VAT No: ${party.panNumber || ''}`, 14, 70);
+
+                const nepaliDate = toNepaliDate(date);
+                const adDate = format(new Date(date), 'yyyy-MM-dd');
+                doc.text(`Date: ${nepaliDate} BS (${adDate})`, doc.internal.pageSize.getWidth() - 14, 55, { align: 'right' });
+
+                // Table
+                (doc as any).autoTable({
+                    startY: 75,
+                    head: [['S.N.', 'Particulars', 'Quantity', 'Rate', 'Amount']],
+                    body: items.map((item, index) => [
+                        index + 1,
+                        item.productName,
+                        item.quantity,
+                        item.rate.toLocaleString(undefined, {minimumFractionDigits: 2}),
+                        item.gross.toLocaleString(undefined, {minimumFractionDigits: 2})
+                    ]),
+                    theme: 'grid',
+                    headStyles: { fillColor: [230, 230, 230], textColor: 20, fontStyle: 'bold' },
+                    styles: { fontSize: 9 },
+                    columnStyles: {
+                        2: { halign: 'right' },
+                        3: { halign: 'right' },
+                        4: { halign: 'right' },
+                    },
+                    didDrawPage: (data: any) => {
+                        let finalY = data.cursor.y;
+                        doc.setFontSize(10);
+                        doc.text('Gross Total', 140, finalY + 8, { align: 'right' });
+                        doc.text(grossTotal.toLocaleString(undefined, {minimumFractionDigits: 2}), 200, finalY + 8, { align: 'right' });
+                        doc.text('VAT (13%)', 140, finalY + 15, { align: 'right' });
+                        doc.text(vatTotal.toLocaleString(undefined, {minimumFractionDigits: 2}), 200, finalY + 15, { align: 'right' });
+                        doc.setFont('helvetica', 'bold');
+                        doc.text('Net Total', 140, finalY + 22, { align: 'right' });
+                        doc.text(netTotal.toLocaleString(undefined, {minimumFractionDigits: 2}), 200, finalY + 22, { align: 'right' });
+                        doc.setFont('helvetica', 'normal');
+                        doc.text(`In Words: ${amountInWords}`, 14, finalY + 30);
+                        doc.setFontSize(8);
+                        doc.setFont('helvetica', 'bold');
+                        doc.text('Disclaimer:', doc.internal.pageSize.getWidth() / 2, finalY + 40, { align: 'center' });
+                        doc.setFont('helvetica', 'normal');
+                        doc.text('This is an estimate for discussion purposes and not a substitute for a formal VAT invoice.', doc.internal.pageSize.getWidth() / 2, finalY + 44, { align: 'center' });
+                    }
+                });
+                
+                doc.save(`Estimate-${invoice.invoiceNumber}.pdf`);
+
+            } else { // JPG export
+                 if (!printRef.current) {
+                    setIsExporting(false);
+                    setSelectedInvoice(null);
+                    return;
+                }
+                try {
+                    const canvas = await html2canvas(printRef.current, { scale: 3, useCORS: true, backgroundColor: '#ffffff' });
                     const link = document.createElement('a');
                     link.download = `Estimate-${invoice.invoiceNumber}.jpg`;
                     link.href = canvas.toDataURL('image/jpeg', 0.9);
                     link.click();
+                } catch (error) {
+                    console.error(`Failed to export as ${format}`, error);
+                    toast({ title: 'Export Failed', description: `Could not export invoice as ${format}.`, variant: 'destructive' });
                 }
-            } catch (error) {
-                console.error(`Failed to export as ${format}`, error);
-                toast({ title: 'Export Failed', description: `Could not export invoice as ${format}.`, variant: 'destructive' });
-            } finally {
-                setIsExporting(false);
-                setSelectedInvoice(null);
             }
+            setIsExporting(false);
+            setSelectedInvoice(null);
         }, 100);
     };
 
