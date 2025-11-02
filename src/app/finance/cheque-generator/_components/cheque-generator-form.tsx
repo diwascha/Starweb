@@ -79,49 +79,28 @@ export function ChequeGeneratorForm() {
     useEffect(() => {
         const totalAmount = Number(invoiceAmount) || 0;
         const numSplits = Math.max(1, numberOfSplits || 1);
+        const interval = Number(dateInterval) || 0;
         
-        const newSplits: ChequeSplit[] = [];
-        if (totalAmount > 0) {
+        const newSplits: ChequeSplit[] = Array.from({ length: numSplits }, (_, i) => {
+            const existingSplit = chequeSplits[i];
             const splitAmount = Math.floor(totalAmount / numSplits);
-            let remainder = totalAmount % numSplits;
+            const remainder = totalAmount % numSplits;
             
-            for (let i = 0; i < numSplits; i++) {
-                let currentAmount = splitAmount;
-                if (remainder > 0) {
-                    currentAmount += 1;
-                    remainder--;
-                }
-                newSplits.push({
-                    id: chequeSplits[i]?.id || `${Date.now()}-${i}`,
-                    chequeDate: chequeSplits[i]?.chequeDate || new Date(),
-                    chequeNumber: chequeSplits[i]?.chequeNumber || '',
-                    amount: currentAmount
-                });
+            let currentAmount: number | '' = '';
+            if (totalAmount > 0) {
+                currentAmount = splitAmount + (i < remainder ? 1 : 0);
             }
-        } else {
-             for (let i = 0; i < numSplits; i++) {
-                newSplits.push(chequeSplits[i] || {
-                    id: `${Date.now()}-${i}`,
-                    chequeDate: new Date(),
-                    chequeNumber: '',
-                    amount: ''
-                });
-            }
-        }
+
+            return {
+                id: existingSplit?.id || `${Date.now()}-${i}`,
+                chequeDate: interval > 0 ? addDays(paymentDate, i * interval) : (existingSplit?.chequeDate || paymentDate),
+                chequeNumber: existingSplit?.chequeNumber || '',
+                amount: currentAmount
+            };
+        });
 
         setChequeSplits(newSplits);
-    }, [numberOfSplits, invoiceAmount]);
-
-    useEffect(() => {
-        if (dateInterval && Number(dateInterval) > 0) {
-            setChequeSplits(prevSplits => {
-                return prevSplits.map((split, index) => ({
-                    ...split,
-                    chequeDate: addDays(paymentDate, index * Number(dateInterval))
-                }));
-            });
-        }
-    }, [dateInterval, numberOfSplits, paymentDate]);
+    }, [numberOfSplits, invoiceAmount, dateInterval, paymentDate]);
 
 
     const allParties = useMemo(() => parties.sort((a, b) => a.name.localeCompare(b.name)), [parties]);
