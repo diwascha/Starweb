@@ -122,7 +122,7 @@ export default function CostReportPage() {
       totalGsm = topGsm + (flute1Gsm * fluteFactor) + middleGsm + (flute2Gsm * fluteFactor) + bottomGsm;
     }
     
-    const paperWeightInGrams = ((sheetSizeL * sheetSizeB * totalGsm) * noOfPcs / 1000000) / 10;
+    const paperWeightInGrams = (sheetArea * totalGsm) * noOfPcs;
     const paperWeightInKg = paperWeightInGrams / 1000;
     
     const wastage = parseFloat(item.wastagePercent) / 100 || 0;
@@ -465,3 +465,5 @@ export default function CostReportPage() {
     </div>
   );
 }
+
+    
