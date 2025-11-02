@@ -49,10 +49,10 @@ export function ChequeGeneratorForm() {
         return () => unsubParties();
     }, []);
 
-    const vendors = useMemo(() => parties.filter(p => p.type === 'Vendor' || p.type === 'Both'), [parties]);
+    const sortedParties = useMemo(() => parties.sort((a, b) => a.name.localeCompare(b.name)), [parties]);
 
     const handlePartySelect = (selectedPartyName: string) => {
-        const party = vendors.find(c => c.name === selectedPartyName);
+        const party = sortedParties.find(c => c.name === selectedPartyName);
         setPartyName(party?.name || selectedPartyName);
         setPayeeName(party?.name || selectedPartyName); // Default payee name to party name
         setIsPartyPopoverOpen(false);
@@ -144,7 +144,7 @@ export function ChequeGeneratorForm() {
                                     </Button>
                                 </CommandEmpty>
                                 <CommandGroup>
-                                    {vendors.map((c) => (
+                                    {sortedParties.map((c) => (
                                     <CommandItem key={c.id} value={c.name} onSelect={() => handlePartySelect(c.name)}>
                                         <Check className={cn("mr-2 h-4 w-4", partyName === c.name ? "opacity-100" : "opacity-0")}/>
                                         {c.name}

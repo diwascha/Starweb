@@ -234,6 +234,7 @@ function CalculatorTab() {
     setNextVoucher();
   }, [partyName, amount]);
 
+  const sortedParties = useMemo(() => parties.sort((a, b) => a.name.localeCompare(b.name)), [parties]);
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setAmount(e.target.value === '' ? '' : parseFloat(e.target.value));
@@ -458,7 +459,7 @@ function CalculatorTab() {
                                                     </Button>
                                                 </CommandEmpty>
                                                 <CommandGroup>
-                                                    {parties.map((p) => (
+                                                    {sortedParties.map((p) => (
                                                     <CommandItem key={p.id} value={p.name} onSelect={() => {
                                                         setPartyName(p.name);
                                                         setIsPartyPopoverOpen(false);
