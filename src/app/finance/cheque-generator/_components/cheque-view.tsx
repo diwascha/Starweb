@@ -1,7 +1,7 @@
 
 'use client';
 
-import { toWords } from '@/lib/utils';
+import { toWords, toNepaliDate } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 
@@ -12,7 +12,8 @@ interface ChequeViewProps {
 }
 
 export function ChequeView({ chequeDate, payeeName, amount }: ChequeViewProps) {
-  const dateStr = format(chequeDate, 'PPP');
+  const nepaliDate = toNepaliDate(chequeDate.toISOString());
+  const adDate = format(chequeDate, 'yyyy-MM-dd');
   const amountInWords = toWords(amount);
   const formattedAmount = amount.toLocaleString(undefined, { minimumFractionDigits: 2 });
 
@@ -29,7 +30,7 @@ export function ChequeView({ chequeDate, payeeName, amount }: ChequeViewProps) {
                 <span className="font-semibold">Payee:</span> {payeeName}
             </div>
             <div>
-                <span className="font-semibold">Date:</span> {dateStr}
+                <span className="font-semibold">Date:</span> {nepaliDate} BS ({adDate})
             </div>
         </div>
 
