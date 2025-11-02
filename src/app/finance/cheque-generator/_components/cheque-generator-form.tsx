@@ -323,14 +323,16 @@ export function ChequeGeneratorForm() {
                     <Label htmlFor="numberOfSplits">Number of Cheque Splits</Label>
                     <Input id="numberOfSplits" type="number" min="1" value={numberOfSplits} onChange={(e) => setNumberOfSplits(Math.max(1, parseInt(e.target.value, 10) || 1))} />
                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="dateInterval">Cheque Date Interval (Days)</Label>
-                    <Input id="dateInterval" type="number" min="0" value={dateInterval} onChange={(e) => setDateInterval(e.target.value === '' ? '' : parseInt(e.target.value, 10))} placeholder="e.g. 7, 15, 30" />
-                 </div>
             </div>
 
             <div className="border rounded-lg p-4 space-y-4">
-                <Label className="text-lg font-medium">Cheque Details</Label>
+                <div className="flex justify-between items-center">
+                    <Label className="text-lg font-medium">Cheque Details</Label>
+                    <div className="space-y-2 w-full max-w-xs">
+                        <Label htmlFor="dateInterval">Cheque Date Interval (Days)</Label>
+                        <Input id="dateInterval" type="number" min="0" value={dateInterval} onChange={(e) => setDateInterval(e.target.value === '' ? '' : parseInt(e.target.value, 10))} placeholder="e.g. 7, 15, 30" />
+                    </div>
+                </div>
                  <Table>
                     <TableHeader>
                         <TableRow>
