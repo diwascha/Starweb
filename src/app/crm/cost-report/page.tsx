@@ -62,16 +62,16 @@ const initialCalculatedState: CalculatedValues = {
 };
 
 const product1: Omit<CostReportItem, 'id' | 'productId' | 'calculated'> = {
-  l: '235', b: '160', h: '38', noOfPcs: '1', boxType: 'RSC', ply: '3', fluteType: 'B', 
+  l: '309', b: '179', h: '102', noOfPcs: '1', boxType: 'RSC', ply: '5', fluteType: 'B, B', 
   paperType: 'KRAFT', paperShade: 'NS', paperBf: '20 BF',
-  topGsm: '180', flute1Gsm: '150', middleGsm: '', flute2Gsm: '', bottomGsm: '180',
+  topGsm: '180', flute1Gsm: '150', middleGsm: '180', flute2Gsm: '150', bottomGsm: '180',
   wastagePercent: '3.5', paperRate: '14.118'
 };
 
 const product2: Omit<CostReportItem, 'id' | 'productId' | 'calculated'> = {
-  l: '230', b: '150', h: '35', noOfPcs: '1', boxType: 'RSC', ply: '3', fluteType: 'B',
+  l: '309', b: '179', h: '120', noOfPcs: '1', boxType: 'RSC', ply: '5', fluteType: 'B, B',
   paperType: 'KRAFT', paperShade: 'NS', paperBf: '20 BF',
-  topGsm: '180', flute1Gsm: '150', middleGsm: '', flute2Gsm: '', bottomGsm: '180',
+  topGsm: '180', flute1Gsm: '150', middleGsm: '180', flute2Gsm: '150', bottomGsm: '180',
   wastagePercent: '3.5', paperRate: '14.962'
 };
 
@@ -100,7 +100,7 @@ export default function CostReportPage() {
     const sheetSizeL = ((2 * l) + (2 * b) + 5);
     const sheetSizeB = (b + h + 2);
 
-    const fluteFactor = item.fluteType === 'B' ? 1.33 : (item.fluteType === 'C' ? 1.45 : 1.25);
+    const fluteFactor = 1.38;
 
     const topGsm = parseInt(item.topGsm, 10) || 0;
     const flute1Gsm = parseInt(item.flute1Gsm, 10) || 0;
@@ -112,6 +112,7 @@ export default function CostReportPage() {
 
     let totalGsm = 0;
     let paperWeight = 0;
+    
     if (ply === 3) {
       totalGsm = topGsm + (flute1Gsm * fluteFactor) + bottomGsm;
       paperWeight = ((topGsm / 1000) * sheetArea) + ((flute1Gsm / 1000) * sheetArea * fluteFactor) + ((bottomGsm / 1000) * sheetArea);
