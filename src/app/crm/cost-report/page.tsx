@@ -93,12 +93,13 @@ export default function CostReportPage() {
     const l = parseFloat(item.l) || 0;
     const b = parseFloat(item.b) || 0;
     const h = parseFloat(item.h) || 0;
+    const noOfPcs = parseInt(item.noOfPcs, 10) || 0;
     const ply = parseInt(item.ply, 10) || 0;
     
-    if (l === 0 || b === 0 || h === 0 || ply === 0) return initialCalculatedState;
+    if (l === 0 || b === 0 || h === 0 || ply === 0 || noOfPcs === 0) return initialCalculatedState;
 
-    const sheetSizeL = (2 * l) + (2 * b) + 50; // Corrected formula
-    const sheetSizeB = (b + h + 20);
+    const sheetSizeL = (2 * l) + (2 * b) + 50;
+    const sheetSizeB = b + h + 20;
 
     const fluteFactor = 1.38;
 
@@ -111,23 +112,23 @@ export default function CostReportPage() {
     const sheetArea = (sheetSizeL * sheetSizeB) / 1000000; // to get in sq meters
 
     let totalGsm = 0;
-    let paperWeight = 0;
     
     if (ply === 3) {
       totalGsm = topGsm + (flute1Gsm * fluteFactor) + bottomGsm;
-      paperWeight = ((topGsm / 1000) * sheetArea) + ((flute1Gsm / 1000) * sheetArea * fluteFactor) + ((bottomGsm / 1000) * sheetArea);
     } else if (ply === 5) {
       totalGsm = topGsm + (flute1Gsm * fluteFactor) + middleGsm + (flute2Gsm * fluteFactor) + bottomGsm;
-      paperWeight = ((topGsm / 1000) * sheetArea) + ((flute1Gsm / 1000) * sheetArea * fluteFactor) + ((middleGsm / 1000) * sheetArea) + ((flute2Gsm / 1000) * sheetArea * fluteFactor) + ((bottomGsm / 1000) * sheetArea);
     }
     
+    const paperWeightInKg = (sheetArea * totalGsm * noOfPcs) / 1000;
+    const paperWeightInGrams = paperWeightInKg * 1000;
+    
     const wastage = parseFloat(item.wastagePercent) / 100 || 0;
-    const totalBoxWeight = paperWeight * (1 + wastage);
+    const totalBoxWeight = paperWeightInKg * (1 + wastage);
     
     const paperRate = parseFloat(item.paperRate) || 0;
     const paperCost = totalBoxWeight * paperRate;
     
-    return { sheetSizeL, sheetSizeB, sheetArea, totalGsm, paperWeight, totalBoxWeight, paperCost };
+    return { sheetSizeL, sheetSizeB, sheetArea, totalGsm, paperWeight: paperWeightInGrams, totalBoxWeight, paperCost };
   }, []);
   
   const [items, setItems] = useState<CostReportItem[]>(() => [
@@ -225,7 +226,7 @@ export default function CostReportPage() {
 
   return (
     <>
-      <div className="flex flex-col gap-8">
+      <div className="grid grid-cols-1 gap-8">
         <header>
           <h1 className="text-3xl font-bold tracking-tight">Cost Report Generator</h1>
           <p className="text-muted-foreground">Calculate product costs based on multiple raw materials and specifications.</p>
@@ -375,10 +376,10 @@ export default function CostReportPage() {
                                 <TableCell><Input type="number" value={item.flute2Gsm} onChange={e => handleItemChange(index, 'flute2Gsm', e.target.value)} className="w-20" disabled={item.ply !== '5'}/></TableCell>
                                 <TableCell><Input type="number" value={item.bottomGsm} onChange={e => handleItemChange(index, 'bottomGsm', e.target.value)} className="w-20" /></TableCell>
                                 <TableCell>{item.calculated.totalGsm.toFixed(2)}</TableCell>
-                                <TableCell>{item.calculated.sheetSizeL.toFixed(2)}</TableCell>
-                                <TableCell>{item.calculated.sheetSizeB.toFixed(2)}</TableCell>
-                                <TableCell>{(item.calculated.paperWeight * 1000).toFixed(2)}</TableCell>
-                                <TableCell>{((item.calculated.paperWeight * (parseFloat(item.wastagePercent) / 100 || 0)) * 1000).toFixed(2)}</TableCell>
+                                <TableCell>{(item.calculated.sheetSizeL / 10).toFixed(2)}</TableCell>
+                                <TableCell>{(item.calculated.sheetSizeB / 10).toFixed(2)}</TableCell>
+                                <TableCell>{item.calculated.paperWeight.toFixed(2)}</TableCell>
+                                <TableCell>{((item.calculated.paperWeight * (parseFloat(item.wastagePercent) / 100 || 0))).toFixed(2)}</TableCell>
                                 <TableCell>{(item.calculated.totalBoxWeight * 1000).toFixed(2)}</TableCell>
                                 <TableCell><Input type="number" value={item.paperRate} onChange={e => handleItemChange(index, 'paperRate', e.target.value)} className="w-24" /></TableCell>
                                 <TableCell className="font-bold">
@@ -443,3 +444,4 @@ export default function CostReportPage() {
     </>
   );
 }
+
