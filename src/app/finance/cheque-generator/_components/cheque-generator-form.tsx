@@ -207,7 +207,7 @@ export function ChequeGeneratorForm() {
                     <Input id="voucherNo" value={voucherNo} readOnly className="bg-muted/50" />
                  </div>
                  <div className="space-y-2">
-                    <Label htmlFor="paymentDate">Payment Date:</Label>
+                    <Label htmlFor="paymentDate">Date:</Label>
                     <Popover>
                         <PopoverTrigger asChild>
                             <Button id="paymentDate" variant="outline" className="w-full justify-start text-left font-normal">
