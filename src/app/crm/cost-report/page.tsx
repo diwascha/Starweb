@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -30,25 +29,28 @@ interface CostReportItem {
   l: string;
   b: string;
   h: string;
+  noOfPcs: string;
+  boxType: string;
   ply: string;
   fluteType: string;
+  paperType: string;
+  paperShade: string;
   paperBf: string;
   topGsm: string;
   flute1Gsm: string;
   middleGsm: string;
   flute2Gsm: string;
   bottomGsm: string;
-  paperRate: string;
-  gumRate: string;
-  stitchingRate: string;
   wastagePercent: string;
+  paperRate: string;
   calculatedCost: number;
 }
 
 const initialItemState: Omit<CostReportItem, 'id' | 'productId' | 'calculatedCost'> = {
-    l: '', b: '', h: '', ply: '3', fluteType: 'B', paperBf: '18',
+    l: '', b: '', h: '', noOfPcs: '1', boxType: 'RSC', ply: '3', fluteType: 'B', 
+    paperType: 'Domestic', paperShade: 'Golden', paperBf: '18',
     topGsm: '120', flute1Gsm: '100', middleGsm: '120', flute2Gsm: '100', bottomGsm: '120',
-    paperRate: '', gumRate: '1.5', stitchingRate: '0.5', wastagePercent: '3.5',
+    wastagePercent: '3.5', paperRate: ''
 };
 
 export default function CostReportPage() {
@@ -112,10 +114,7 @@ export default function CostReportPage() {
     const paperRate = parseFloat(item.paperRate) || 0;
     const paperCost = totalBoxWeight * paperRate;
     
-    const gumCost = (paperWeight * (ply - 1) / 2) * (parseFloat(item.gumRate) || 0);
-    const stitchingCost = parseFloat(item.stitchingRate) || 0;
-    
-    return paperCost + gumCost + stitchingCost;
+    return paperCost;
   }, []);
 
   const handleProductSelect = (index: number, productId: string) => {
@@ -132,7 +131,6 @@ export default function CostReportPage() {
             productId: product.id,
             l: l || '', b: b || '', h: h || '',
             ply: spec.ply || '3',
-            // Reset other fields or pull from product spec if available
         };
         newItems[index] = {
             ...updatedItem,
@@ -270,46 +268,62 @@ export default function CostReportPage() {
                 <CardTitle>Product Cost Breakdown</CardTitle>
             </CardHeader>
             <CardContent>
-                <div className="space-y-4">
-                    {items.map((item, index) => (
-                        <div key={item.id} className="border rounded-lg p-4 space-y-4 relative">
-                            <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7 text-destructive" onClick={() => handleRemoveItem(item.id)}>
-                                <Trash2 className="h-4 w-4" />
-                            </Button>
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                <div className="space-y-2 md:col-span-4">
-                                    <Label>Select Product (Optional)</Label>
+                <div className="overflow-x-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className="w-[50px]"></TableHead>
+                                <TableHead className="min-w-[200px]">Product</TableHead>
+                                <TableHead>L</TableHead>
+                                <TableHead>B</TableHead>
+                                <TableHead>H</TableHead>
+                                <TableHead>Ply</TableHead>
+                                <TableHead>Flute</TableHead>
+                                <TableHead>Paper BF</TableHead>
+                                <TableHead>Top GSM</TableHead>
+                                <TableHead>Flute1 GSM</TableHead>
+                                <TableHead>Mid GSM</TableHead>
+                                <TableHead>Flute2 GSM</TableHead>
+                                <TableHead>Bot GSM</TableHead>
+                                <TableHead>Wastage %</TableHead>
+                                <TableHead>Paper Rate</TableHead>
+                                <TableHead className="min-w-[120px]">Cost</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                        {items.map((item, index) => (
+                            <TableRow key={item.id}>
+                                <TableCell>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleRemoveItem(item.id)}>
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </TableCell>
+                                <TableCell>
                                     <Select onValueChange={(v) => handleProductSelect(index, v)} value={item.productId}>
-                                        <SelectTrigger><SelectValue placeholder="Select a product to prefill data..." /></SelectTrigger>
+                                        <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
                                         <SelectContent>{products.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
                                     </Select>
-                                </div>
-                                 <div className="space-y-2"><Label>L (cm)</Label><Input type="number" value={item.l} onChange={e => handleItemChange(index, 'l', e.target.value)} /></div>
-                                 <div className="space-y-2"><Label>B (cm)</Label><Input type="number" value={item.b} onChange={e => handleItemChange(index, 'b', e.target.value)} /></div>
-                                 <div className="space-y-2"><Label>H (cm)</Label><Input type="number" value={item.h} onChange={e => handleItemChange(index, 'h', e.target.value)} /></div>
-                                <div className="space-y-2"><Label>Ply</Label><Input type="number" value={item.ply} onChange={e => handleItemChange(index, 'ply', e.target.value)} /></div>
-                            </div>
-                            <div>
-                                <Label>GSM Layers (Top to Bottom)</Label>
-                                <div className="grid grid-cols-5 gap-2 mt-2">
-                                   <div className="space-y-1"><Label className="text-xs">Top</Label><Input name="topGsm" type="number" value={item.topGsm} onChange={(e) => handleItemChange(index, 'topGsm', e.target.value)} /></div>
-                                   <div className="space-y-1"><Label className="text-xs">Flute 1</Label><Input name="flute1Gsm" type="number" value={item.flute1Gsm} onChange={(e) => handleItemChange(index, 'flute1Gsm', e.target.value)} /></div>
-                                   <div className="space-y-1"><Label className="text-xs">Middle</Label><Input name="middleGsm" type="number" value={item.middleGsm} onChange={(e) => handleItemChange(index, 'middleGsm', e.target.value)} disabled={item.ply !== '5'}/></div>
-                                   <div className="space-y-1"><Label className="text-xs">Flute 2</Label><Input name="flute2Gsm" type="number" value={item.flute2Gsm} onChange={(e) => handleItemChange(index, 'flute2Gsm', e.target.value)} disabled={item.ply !== '5'}/></div>
-                                   <div className="space-y-1"><Label className="text-xs">Bottom</Label><Input name="bottomGsm" type="number" value={item.bottomGsm} onChange={(e) => handleItemChange(index, 'bottomGsm', e.target.value)} /></div>
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <div className="space-y-2"><Label>Paper Rate (per KG)</Label><Input type="number" value={item.paperRate} onChange={e => handleItemChange(index, 'paperRate', e.target.value)} /></div>
-                                <div className="space-y-2"><Label>Gum Rate</Label><Input type="number" value={item.gumRate} onChange={e => handleItemChange(index, 'gumRate', e.target.value)} /></div>
-                                <div className="space-y-2"><Label>Stitching Rate</Label><Input type="number" value={item.stitchingRate} onChange={e => handleItemChange(index, 'stitchingRate', e.target.value)} /></div>
-                                <div className="space-y-2"><Label>Wastage (%)</Label><Input type="number" value={item.wastagePercent} onChange={e => handleItemChange(index, 'wastagePercent', e.target.value)} /></div>
-                            </div>
-                             <div className="text-right font-bold text-lg">
-                                Estimated Cost: {item.calculatedCost > 0 ? item.calculatedCost.toFixed(2) : '...'}
-                            </div>
-                        </div>
-                    ))}
+                                </TableCell>
+                                <TableCell><Input type="number" value={item.l} onChange={e => handleItemChange(index, 'l', e.target.value)} className="w-16" /></TableCell>
+                                <TableCell><Input type="number" value={item.b} onChange={e => handleItemChange(index, 'b', e.target.value)} className="w-16" /></TableCell>
+                                <TableCell><Input type="number" value={item.h} onChange={e => handleItemChange(index, 'h', e.target.value)} className="w-16" /></TableCell>
+                                <TableCell><Input type="number" value={item.ply} onChange={e => handleItemChange(index, 'ply', e.target.value)} className="w-16" /></TableCell>
+                                <TableCell><Input value={item.fluteType} onChange={e => handleItemChange(index, 'fluteType', e.target.value)} className="w-16" /></TableCell>
+                                <TableCell><Input value={item.paperBf} onChange={e => handleItemChange(index, 'paperBf', e.target.value)} className="w-16" /></TableCell>
+                                <TableCell><Input type="number" value={item.topGsm} onChange={e => handleItemChange(index, 'topGsm', e.target.value)} className="w-20" /></TableCell>
+                                <TableCell><Input type="number" value={item.flute1Gsm} onChange={e => handleItemChange(index, 'flute1Gsm', e.target.value)} className="w-20" /></TableCell>
+                                <TableCell><Input type="number" value={item.middleGsm} onChange={e => handleItemChange(index, 'middleGsm', e.target.value)} className="w-20" disabled={item.ply !== '5'}/></TableCell>
+                                <TableCell><Input type="number" value={item.flute2Gsm} onChange={e => handleItemChange(index, 'flute2Gsm', e.target.value)} className="w-20" disabled={item.ply !== '5'}/></TableCell>
+                                <TableCell><Input type="number" value={item.bottomGsm} onChange={e => handleItemChange(index, 'bottomGsm', e.target.value)} className="w-20" /></TableCell>
+                                <TableCell><Input type="number" value={item.wastagePercent} onChange={e => handleItemChange(index, 'wastagePercent', e.target.value)} className="w-20" /></TableCell>
+                                <TableCell><Input type="number" value={item.paperRate} onChange={e => handleItemChange(index, 'paperRate', e.target.value)} className="w-24" /></TableCell>
+                                <TableCell className="font-bold">
+                                    {item.calculatedCost > 0 ? item.calculatedCost.toFixed(2) : '...'}
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                        </TableBody>
+                    </Table>
                 </div>
                  <Button variant="outline" size="sm" onClick={handleAddItem} className="mt-4"><Plus className="mr-2 h-4 w-4" />Add Another Product</Button>
             </CardContent>
@@ -363,6 +377,4 @@ export default function CostReportPage() {
           </DialogContent>
       </Dialog>
     </>
-  );
-}
-
+  
