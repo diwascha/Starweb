@@ -116,7 +116,6 @@ export default function CostReportPage() {
     const sheetArea = (sheetSizeL * sheetSizeB) / 1000000; // to get in sq meters
 
     let totalGsm = 0;
-    
     if (ply === 3) {
       totalGsm = topGsm + (flute1Gsm * fluteFactor) + bottomGsm;
     } else if (ply === 5) {
@@ -128,23 +127,34 @@ export default function CostReportPage() {
     const wastage = parseFloat(item.wastagePercent) / 100 || 0;
     const totalBoxWeightInGrams = paperWeightInGrams * (1 + wastage);
     const totalBoxWeightInKg = totalBoxWeightInGrams / 1000;
-    
-    let basePaperCost = 0;
-    switch (item.paperType) {
-        case 'KRAFT':
-            basePaperCost = globalKraftCost;
-            break;
-        case 'VIRGIN':
-            basePaperCost = globalVirginCost;
-            break;
-        case 'VIRGIN & KRAFT':
-            basePaperCost = (globalKraftCost + globalVirginCost) / 2;
-            break;
-        default:
-            basePaperCost = globalKraftCost;
-    }
 
-    const paperRate = basePaperCost + globalConversionCost;
+    let basePaperCost = 0;
+    if (item.paperType === 'KRAFT') {
+        basePaperCost = globalKraftCost;
+    } else if (item.paperType === 'VIRGIN') {
+        basePaperCost = globalVirginCost;
+    } else if (item.paperType === 'VIRGIN & KRAFT' && totalBoxWeightInGrams > 0) {
+        const topLayerWeightKg = ((sheetArea * topGsm) / 1000) * (1 + wastage);
+        const topLayerCost = topLayerWeightKg * globalVirginCost;
+
+        let kraftLayersWeightGsm = 0;
+        if (ply === 3) {
+            kraftLayersWeightGsm = (flute1Gsm * fluteFactor) + bottomGsm;
+        } else if (ply === 5) {
+            kraftLayersWeightGsm = (flute1Gsm * fluteFactor) + middleGsm + (flute2Gsm * fluteFactor) + bottomGsm;
+        }
+
+        const kraftLayersWeightKg = ((sheetArea * kraftLayersWeightGsm) / 1000) * (1 + wastage);
+        const kraftLayersCost = kraftLayersWeightKg * globalKraftCost;
+
+        const totalPaperCost = topLayerCost + kraftLayersCost;
+        // Calculate the equivalent single rate for display
+        basePaperCost = totalPaperCost / totalBoxWeightInKg;
+    } else {
+        basePaperCost = globalKraftCost;
+    }
+    
+    const paperRate = basePaperCost > 0 ? basePaperCost + globalConversionCost : 0;
     const paperCost = totalBoxWeightInKg * paperRate;
     
     return { sheetSizeL, sheetSizeB, sheetArea, totalGsm, paperWeight: paperWeightInGrams, totalBoxWeight: totalBoxWeightInGrams, paperRate, paperCost };
@@ -434,7 +444,7 @@ export default function CostReportPage() {
                                         <SelectContent>
                                             <SelectItem value="KRAFT">KRAFT</SelectItem>
                                             <SelectItem value="VIRGIN">VIRGIN</SelectItem>
-                                            <SelectItem value="VIRGIN & KRAFT">VIRGIN &amp; KRAFT</SelectItem>
+                                            <SelectItem value="VIRGIN &amp; KRAFT">VIRGIN &amp; KRAFT</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </TableCell>
