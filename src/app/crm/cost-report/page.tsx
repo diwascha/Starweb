@@ -232,7 +232,7 @@ export default function CostReportPage() {
               </CardHeader>
               <CardContent>
                 {!calculationResults ? (
-                  <div className="flex h-64 items-center justify-center text-muted-foreground"><p>Enter valid box dimensions to begin.</p></div>
+                  null
                 ) : (
                   <div className="space-y-2">
                      <Table>
