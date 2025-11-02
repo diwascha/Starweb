@@ -570,7 +570,7 @@ function CalculatorTab() {
                             {tdsRates.map(rate => (
                                 <div key={rate.value} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/50">
                                     <div>
-                                        <p className="font-semibold">{rate.label} <Badge variant="outline">{rate.value}%</Badge></p>
+                                        <div className="font-semibold">{rate.label} <Badge variant="outline">{rate.value}%</Badge></div>
                                         <p className="text-xs text-muted-foreground">{rate.description}</p>
                                     </div>
                                     <div className="flex">
