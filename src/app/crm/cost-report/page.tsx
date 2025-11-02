@@ -1072,7 +1072,7 @@ function ProductList() {
                     <TableHeader>
                         <TableRow>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('name')}>Product Name <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('partyName')}>Delivered To <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('partyName')}>Party Name <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('rate')}>Rate <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
                             <TableHead>Dimension</TableHead>
                             <TableHead>Ply</TableHead>
