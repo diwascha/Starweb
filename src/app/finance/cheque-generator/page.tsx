@@ -46,22 +46,19 @@ function FormSkeleton() {
     );
 }
 
-type SortKey = 'createdAt' | 'payeeName' | 'amount' | 'voucherNo' | 'nextDueDate';
+type SortKey = 'chequeDate' | 'payeeName' | 'amount' | 'chequeNumber';
 type SortDirection = 'asc' | 'desc';
 
-interface AugmentedCheque extends Cheque {
-    nextUpcomingSplit?: AugmentedSplit;
-    augmentedSplits: AugmentedSplit[];
-}
-interface AugmentedSplit extends ChequeSplit {
+interface AugmentedChequeSplit extends ChequeSplit {
     daysRemaining: number;
     isOverdue: boolean;
+    parentCheque: Cheque;
 }
 
 function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
     const [cheques, setCheques] = useState<Cheque[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
-    const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'nextDueDate', direction: 'asc' });
+    const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'chequeDate', direction: 'asc' });
     const { toast } = useToast();
     
     const [chequeToPrint, setChequeToPrint] = useState<Cheque | null>(null);
@@ -81,50 +78,54 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
         setSortConfig({ key, direction });
     };
 
-    const sortedAndFilteredCheques = useMemo(() => {
-        let augmentedCheques: AugmentedCheque[] = cheques.map(c => {
-            const today = startOfToday();
-            const augmentedSplits = c.splits
-                .map(s => {
-                    const chequeDate = new Date(s.chequeDate);
-                    return {
-                        ...s,
-                        daysRemaining: differenceInDays(chequeDate, today),
-                        isOverdue: differenceInDays(chequeDate, today) < 0
-                    };
-                })
-                .sort((a, b) => new Date(a.chequeDate).getTime() - new Date(b.chequeDate).getTime());
+    const sortedAndFilteredSplits = useMemo(() => {
+        const today = startOfToday();
+        
+        // Flatten all splits from all cheques into one array
+        let allSplits: AugmentedChequeSplit[] = cheques.flatMap(c => 
+            c.splits.map(s => {
+                const chequeDate = new Date(s.chequeDate);
+                return {
+                    ...s,
+                    chequeDate: chequeDate,
+                    daysRemaining: differenceInDays(chequeDate, today),
+                    isOverdue: differenceInDays(chequeDate, today) < 0,
+                    parentCheque: c
+                };
+            })
+        );
 
-            const nextUpcomingSplit = augmentedSplits.find(s => s.daysRemaining >= 0);
-
-            return { ...c, augmentedSplits, nextUpcomingSplit };
-        });
 
         if (searchQuery) {
             const lowercasedQuery = searchQuery.toLowerCase();
-            augmentedCheques = augmentedCheques.filter(c =>
-                c.payeeName.toLowerCase().includes(lowercasedQuery) ||
-                (c.splits.some(s => s.chequeNumber?.toLowerCase().includes(lowercasedQuery))) ||
-                (c.invoiceNumber || '').toLowerCase().includes(lowercasedQuery) ||
-                (c.voucherNo || '').toLowerCase().includes(lowercasedQuery)
+            allSplits = allSplits.filter(s =>
+                s.parentCheque.payeeName.toLowerCase().includes(lowercasedQuery) ||
+                (s.chequeNumber || '').toLowerCase().includes(lowercasedQuery) ||
+                (s.parentCheque.invoiceNumber || '').toLowerCase().includes(lowercasedQuery) ||
+                (s.parentCheque.voucherNo || '').toLowerCase().includes(lowercasedQuery)
             );
         }
-        augmentedCheques.sort((a, b) => {
+        
+        allSplits.sort((a, b) => {
             let aVal, bVal;
 
-            if (sortConfig.key === 'nextDueDate') {
-                aVal = a.nextUpcomingSplit ? new Date(a.nextUpcomingSplit.chequeDate).getTime() : Infinity;
-                bVal = b.nextUpcomingSplit ? new Date(b.nextUpcomingSplit.chequeDate).getTime() : Infinity;
+            if (sortConfig.key === 'chequeDate') {
+                aVal = new Date(a.chequeDate).getTime();
+                bVal = new Date(b.chequeDate).getTime();
+            } else if (sortConfig.key === 'payeeName') {
+                aVal = a.parentCheque.payeeName;
+                bVal = b.parentCheque.payeeName;
             } else {
-                aVal = a[sortConfig.key as keyof Cheque];
-                bVal = b[sortConfig.key as keyof Cheque];
+                 aVal = a[sortConfig.key as keyof ChequeSplit];
+                 bVal = b[sortConfig.key as keyof ChequeSplit];
             }
             
             if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
             if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
             return 0;
         });
-        return augmentedCheques;
+
+        return allSplits;
     }, [cheques, searchQuery, sortConfig]);
 
     const handleDelete = async (id: string) => {
@@ -159,9 +160,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
         }, 250);
     };
     
-    const getStatusBadge = (split?: AugmentedSplit) => {
-        if (!split) return <Badge variant="secondary">Completed</Badge>;
-        
+    const getStatusBadge = (split: AugmentedChequeSplit) => {
         const { daysRemaining, isOverdue } = split;
 
         if (isOverdue) {
@@ -198,48 +197,41 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                 <Table>
                 <TableHeader>
                     <TableRow>
-                    <TableHead><Button variant="ghost" onClick={() => requestSort('createdAt')}>Date Saved <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
-                    <TableHead><Button variant="ghost" onClick={() => requestSort('voucherNo')}>Voucher # <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
+                    <TableHead><Button variant="ghost" onClick={() => requestSort('chequeDate')}>Cheque Date <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
                     <TableHead><Button variant="ghost" onClick={() => requestSort('payeeName')}>Payee Name <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
-                    <TableHead><Button variant="ghost" onClick={() => requestSort('amount')}>Total Amount <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
-                    <TableHead><Button variant="ghost" onClick={() => requestSort('nextDueDate')}>Status <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
+                    <TableHead><Button variant="ghost" onClick={() => requestSort('chequeNumber')}>Cheque # <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
+                    <TableHead><Button variant="ghost" onClick={() => requestSort('amount')}>Amount <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {sortedAndFilteredCheques.length > 0 ? (
-                        sortedAndFilteredCheques.map(c => (
-                        <TableRow key={c.id}>
-                        <TableCell>{format(new Date(c.createdAt), 'PPP')}</TableCell>
-                        <TableCell>{c.voucherNo}</TableCell>
-                        <TableCell>{c.payeeName}</TableCell>
-                        <TableCell>{c.amount.toLocaleString()}</TableCell>
-                        <TableCell>{getStatusBadge(c.nextUpcomingSplit)}</TableCell>
+                    {sortedAndFilteredSplits.length > 0 ? (
+                        sortedAndFilteredSplits.map(split => (
+                        <TableRow key={split.id}>
+                        <TableCell>{format(new Date(split.chequeDate), 'PPP')}</TableCell>
+                        <TableCell>{split.parentCheque.payeeName}</TableCell>
+                        <TableCell>{split.chequeNumber}</TableCell>
+                        <TableCell>{Number(split.amount).toLocaleString()}</TableCell>
+                        <TableCell>{getStatusBadge(split)}</TableCell>
                         <TableCell className="text-right">
                             <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                                    <DropdownMenuLabel>Cheques ({c.splits.length})</DropdownMenuLabel>
+                                    <DropdownMenuLabel>Voucher #{split.parentCheque.voucherNo}</DropdownMenuLabel>
                                     <DropdownMenuSeparator />
-                                    {c.augmentedSplits.map((split, index) => (
-                                        <DropdownMenuItem key={index} className="flex justify-between gap-4">
-                                            <span>#{split.chequeNumber || 'N/A'} - {split.amount.toLocaleString()}</span>
-                                            {getStatusBadge(split)}
-                                        </DropdownMenuItem>
-                                    ))}
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem onSelect={() => onEdit(c)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
-                                    <DropdownMenuItem onSelect={() => handlePrint(c)}><Printer className="mr-2 h-4 w-4"/> Print</DropdownMenuItem>
+                                    <DropdownMenuItem onSelect={() => onEdit(split.parentCheque)}><Edit className="mr-2 h-4 w-4" /> Edit Voucher</DropdownMenuItem>
+                                    <DropdownMenuItem onSelect={() => handlePrint(split.parentCheque)}><Printer className="mr-2 h-4 w-4"/> Print Voucher</DropdownMenuItem>
                                     <DropdownMenuSeparator />
                                     <AlertDialog>
                                     <AlertDialogTrigger asChild>
-                                        <DropdownMenuItem onSelect={e => e.preventDefault()}><Trash2 className="mr-2 h-4 w-4 text-destructive" /> <span className="text-destructive">Delete</span></DropdownMenuItem>
+                                        <DropdownMenuItem onSelect={e => e.preventDefault()}><Trash2 className="mr-2 h-4 w-4 text-destructive" /> <span className="text-destructive">Delete Voucher</span></DropdownMenuItem>
                                     </AlertDialogTrigger>
                                     <AlertDialogContent>
-                                        <AlertDialogHeader><AlertDialogTitle>Delete this record?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
-                                        <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(c.id)}>Delete</AlertDialogAction></AlertDialogFooter>
+                                        <AlertDialogHeader><AlertDialogTitle>Delete this record?</AlertDialogTitle><AlertDialogDescription>This action will delete the entire voucher and all its associated cheques. It cannot be undone.</AlertDialogDescription></AlertDialogHeader>
+                                        <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(split.parentCheque.id)}>Delete</AlertDialogAction></AlertDialogFooter>
                                     </AlertDialogContent>
                                     </AlertDialog>
                             </DropdownMenuContent>
@@ -328,3 +320,4 @@ export default function ChequeGeneratorPage() {
     </div>
   );
 }
+
