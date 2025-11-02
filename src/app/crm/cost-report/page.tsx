@@ -727,10 +727,23 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit }: Cos
 function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) {
     const [reports, setReports] = useState<CostReport[]>([]);
     const { toast } = useToast();
+    const [products, setProducts] = useState<Product[]>([]);
+    const [parties, setParties] = useState<Party[]>([]);
+
+    const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+    const [reportToPrint, setReportToPrint] = useState<CostReport | null>(null);
+    const printRef = useRef<HTMLDivElement>(null);
+
 
     useEffect(() => {
         const unsub = onCostReportsUpdate(setReports);
-        return () => unsub();
+        const unsubProducts = onProductsUpdate(setProducts);
+        const unsubParties = onPartiesUpdate(setParties);
+        return () => {
+            unsub();
+            unsubProducts();
+            unsubParties();
+        }
     }, []);
 
     const handleDelete = async (id: string) => {
@@ -748,43 +761,75 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
             toast({ title: "Error", description: "Could not find report to print.", variant: "destructive" });
             return;
         }
-
-        const doc = new jsPDF();
-        const font = AnnapurnaSIL.replace(/^data:font\/truetype;base64,/, "");
-        doc.addFileToVFS("AnnapurnaSIL.ttf", font);
-        doc.addFont("AnnapurnaSIL.ttf", "AnnapurnaSIL", "normal");
-        
-        doc.setFont('Helvetica', 'bold');
-        doc.setFontSize(16);
-        doc.text('Cost Report', doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
-        
-        doc.setFontSize(10);
-        doc.setFont('Helvetica', 'normal');
-        doc.text(`Report No: ${report.reportNumber}`, 14, 30);
-        doc.text(`Party: ${report.partyName}`, 14, 35);
-        doc.text(`Date: ${toNepaliDate(report.reportDate)}`, doc.internal.pageSize.getWidth() - 14, 30, { align: 'right' });
-        
-        // This part needs product data which isn't stored in the cost report, so we show 'N/A'
-        (doc as any).autoTable({
-            startY: 45,
-            head: [['Sl.No', 'Item Name', 'Box Size (LxBxH)', 'Ply']],
-            body: report.items.map((item, index) => [
-                index + 1,
-                'N/A', // Product name isn't stored with the report item
-                `${item.l}x${item.b}x${item.h}`,
-                item.ply,
-            ]),
-            theme: 'grid',
-            footStyles: { fontStyle: 'bold' },
-            foot: [
-                [{ content: 'Total', colSpan: 3, styles: { halign: 'right' } }, report.totalCost.toFixed(2)],
-            ]
-        });
-        
-        doc.save(`CostReport-${report.reportNumber}.pdf`);
+        setReportToPrint(report);
+        setIsPreviewOpen(true);
     }
+    
+    const doActualPrint = () => {
+        const printableArea = printRef.current;
+        if (!printableArea) return;
+
+        const printWindow = window.open('', '', 'height=800,width=800');
+        printWindow?.document.write('<html><head><title>Cost Report</title>');
+        printWindow?.document.write('<style>@media print{@page{size: auto;margin: 20mm;}body{margin: 0;}}</style>');
+        printWindow?.document.write('</head><body>');
+        printWindow?.document.write(printableArea.innerHTML);
+        printWindow?.document.write('</body></html>');
+        printWindow?.document.close();
+        printWindow?.focus();
+        setTimeout(() => {
+            printWindow?.print();
+            printWindow?.close();
+        }, 250);
+    };
+
+    const calculateItemCost = useCallback((item: Omit<CostReportItem, 'id' | 'calculated' | 'productId'>, report: CostReport): CalculatedValues => {
+        const l = parseFloat(item.l) || 0;
+        const b = parseFloat(item.b) || 0;
+        const h = parseFloat(item.h) || 0;
+        const noOfPcs = parseInt(item.noOfPcs, 10) || 0;
+        const ply = parseInt(item.ply, 10) || 0;
+        if (l === 0 || b === 0 || h === 0 || ply === 0 || noOfPcs === 0) return initialCalculatedState;
+        const sheetSizeL = b + h + 20;
+        const sheetSizeB = (2 * l) + (2 * b) + 62;
+        const fluteFactor = 1.38;
+        const topGsm = parseInt(item.topGsm, 10) || 0;
+        const flute1Gsm = parseInt(item.flute1Gsm, 10) || 0;
+        const middleGsm = parseInt(item.middleGsm, 10) || 0;
+        const flute2Gsm = parseInt(item.flute2Gsm, 10) || 0;
+        const bottomGsm = parseInt(item.bottomGsm, 10) || 0;
+        const sheetArea = (sheetSizeL * sheetSizeB) / 1000000;
+        let totalGsmForCalc = 0;
+        if (ply === 3) totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor) + bottomGsm;
+        else if (ply === 5) totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor) + middleGsm + (flute2Gsm * fluteFactor) + bottomGsm;
+        const paperWeightInGrams = (sheetArea * totalGsmForCalc) * noOfPcs;
+        const wastage = parseFloat(item.wastagePercent) / 100 || 0;
+        const totalBoxWeightInGrams = paperWeightInGrams * (1 + wastage);
+        const totalBoxWeightInKg = totalBoxWeightInGrams / 1000;
+        let paperRate = 0;
+        if (item.paperType === 'VIRGIN' && report.virginPaperCost > 0) paperRate = report.virginPaperCost;
+        else if (item.paperType === 'VIRGIN & KRAFT' && topGsm > 0 && report.virginPaperCost > 0) {
+            const totalGsm = topGsm + (flute1Gsm * 1.38) + (ply === 5 ? middleGsm + (flute2Gsm * 1.38) : 0) + bottomGsm;
+            if (totalGsm > 0) paperRate = (topGsm * report.virginPaperCost + (totalGsm - topGsm) * report.kraftPaperCost) / totalGsm;
+            else paperRate = report.kraftPaperCost;
+        } else paperRate = report.kraftPaperCost;
+        const finalPaperRate = paperRate + report.conversionCost;
+        const paperCost = totalBoxWeightInKg * finalPaperRate;
+        return { sheetSizeL, sheetSizeB, sheetArea, totalGsm: totalGsmForCalc, paperWeight: paperWeightInGrams, totalBoxWeight: totalBoxWeightInGrams, paperRate: finalPaperRate, paperCost };
+    }, []);
+
+    const printableReportItems = useMemo(() => {
+        if (!reportToPrint) return [];
+        return reportToPrint.items.map(item => ({ ...item, calculated: calculateItemCost(item, reportToPrint) }))
+    }, [reportToPrint, calculateItemCost]);
+    
+    const printableTotalCost = useMemo(() => {
+        return printableReportItems.reduce((sum, item) => sum + item.calculated.paperCost, 0);
+    }, [printableReportItems]);
+
 
     return (
+        <>
         <Card>
             <CardHeader>
                 <CardTitle>Saved Cost Reports</CardTitle>
@@ -848,6 +893,92 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
                 </Table>
             </CardContent>
         </Card>
+        
+        <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+            <DialogContent className="max-w-6xl">
+              <DialogHeader>
+                <DialogTitle>Quotation Preview</DialogTitle>
+                <DialogDescription>Review the quotation before printing.</DialogDescription>
+              </DialogHeader>
+              {reportToPrint && (
+                  <>
+                  <div className="max-h-[70vh] overflow-auto p-4 bg-gray-100">
+                     <div ref={printRef} className="bg-white text-black p-8 font-sans text-sm space-y-6 w-[210mm] mx-auto">
+                         <header className="text-center space-y-1">
+                            <h1 className="text-2xl font-bold">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
+                            <p className="text-lg">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
+                            <h2 className="text-xl font-semibold underline mt-2">QUOTATION</h2>
+                        </header>
+                        <div className="grid grid-cols-2 text-xs">
+                            <div>
+                                <p className="font-bold">To,</p>
+                                <p>{reportToPrint.partyName}</p>
+                                <p>{parties.find(p => p.id === reportToPrint.partyId)?.address}</p>
+                            </div>
+                            <div className="text-right">
+                                <p><span className="font-semibold">Ref No:</span> {reportToPrint.reportNumber}</p>
+                                <p><span className="font-semibold">Date:</span> {toNepaliDate(reportToPrint.reportDate)} BS ({format(new Date(reportToPrint.reportDate), "PPP")})</p>
+                            </div>
+                        </div>
+                        <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className="text-black font-semibold">Sl.No</TableHead>
+                                <TableHead className="text-black font-semibold">Particulars</TableHead>
+                                <TableHead className="text-black font-semibold">Box Size (mm)</TableHead>
+                                <TableHead className="text-black font-semibold">Ply</TableHead>
+                                <TableHead className="text-black font-semibold">Paper</TableHead>
+                                <TableHead className="text-black font-semibold text-right">Box Wt (Grams)</TableHead>
+                                <TableHead className="text-black font-semibold text-right">Box Rate/Piece</TableHead>
+                                <TableHead className="text-black font-semibold text-right">Total</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {printableReportItems.map((item, index) => (
+                            <TableRow key={item.id}>
+                                <TableCell>{index + 1}</TableCell>
+                                <TableCell>
+                                    <div>{products.find(p => p.id === item.productId)?.name || 'N/A'}</div>
+                                    <div className="text-xs text-muted-foreground">{`T:${item.topGsm}, F1:${item.flute1Gsm}, ${item.ply === '5' ? `M:${item.middleGsm}, F2:${item.flute2Gsm}, `: ''}B:${item.bottomGsm}`}</div>
+                                </TableCell>
+                                <TableCell>{`${item.l}x${item.b}x${item.h}`}</TableCell>
+                                <TableCell>{item.ply}</TableCell>
+                                <TableCell>{item.paperType}</TableCell>
+                                <TableCell className="text-right">{item.calculated.totalBoxWeight.toFixed(2)}</TableCell>
+                                <TableCell className="text-right">{item.calculated.paperRate.toFixed(2)}</TableCell>
+                                <TableCell className="text-right">{item.calculated.paperCost.toFixed(2)}</TableCell>
+                            </TableRow>
+                            ))}
+                        </TableBody>
+                         <TableFooter>
+                            <TableRow className="font-bold text-base">
+                                <TableCell colSpan={7} className="text-right">Total</TableCell>
+                                <TableCell className="text-right">{printableTotalCost.toFixed(2)}</TableCell>
+                            </TableRow>
+                        </TableFooter>
+                        </Table>
+                         <footer className="pt-8 text-xs space-y-4">
+                            <div className="font-semibold">Terms & Conditions:</div>
+                            <ul className="list-disc list-inside space-y-1">
+                                <li>VAT 13% will be extra.</li>
+                                <li>Weight tolerance will be +/- 10%.</li>
+                                <li>The rates are valid for 7 days from the date of this quotation.</li>
+                            </ul>
+                            <div className="pt-12">
+                                <p className="border-t border-gray-400 w-48">Authorized Signature</p>
+                            </div>
+                        </footer>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsPreviewOpen(false)}>Cancel</Button>
+                    <Button onClick={doActualPrint}><Printer className="mr-2 h-4 w-4" /> Print</Button>
+                  </DialogFooter>
+                </>
+              )}
+            </DialogContent>
+        </Dialog>
+      </>
     );
 }
 
@@ -894,3 +1025,4 @@ export default function CostReportPage() {
         </div>
     );
 }
+
