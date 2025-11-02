@@ -98,8 +98,8 @@ export default function CostReportPage() {
     
     if (l === 0 || b === 0 || h === 0 || ply === 0 || noOfPcs === 0) return initialCalculatedState;
 
-    const sheetSizeL = (2 * l) + (2 * b) + 50;
-    const sheetSizeB = b + h + 20;
+    const sheetSizeL = b + h + 20;
+    const sheetSizeB = (2 * l) + (2 * b) + 62;
 
     const fluteFactor = 1.38;
 
@@ -119,8 +119,8 @@ export default function CostReportPage() {
       totalGsm = topGsm + (flute1Gsm * fluteFactor) + middleGsm + (flute2Gsm * fluteFactor) + bottomGsm;
     }
     
-    const paperWeightInKg = (sheetArea * totalGsm * noOfPcs) / 1000;
-    const paperWeightInGrams = paperWeightInKg * 1000;
+    const paperWeightInGrams = ((sheetSizeL * sheetSizeB * totalGsm) * noOfPcs / 1000000) / 10;
+    const paperWeightInKg = paperWeightInGrams / 1000;
     
     const wastage = parseFloat(item.wastagePercent) / 100 || 0;
     const totalBoxWeight = paperWeightInKg * (1 + wastage);
