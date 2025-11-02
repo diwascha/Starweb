@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,6 +27,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { addCheque, onChequesUpdate, updateCheque } from '@/services/cheque-service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ChequeView } from './cheque-view';
 
 interface ChequeGeneratorFormProps {
     chequeToEdit?: Cheque | null;
@@ -66,6 +67,9 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
     
     const [cheques, setCheques] = useState<Cheque[]>([]);
     const [voucherNo, setVoucherNo] = useState('');
+
+    const printRef = useRef<HTMLDivElement>(null);
+    const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
     useEffect(() => {
         const unsubParties = onPartiesUpdate(setParties);
@@ -234,15 +238,25 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
             toast({ title: 'Error', description: 'Please fill in party and cheque details.', variant: 'destructive'});
             return;
         }
-        console.log({
-            invoiceDate: invoiceDate ? format(invoiceDate, 'yyyy-MM-dd') : 'N/A',
-            invoiceNumber,
-            payee: partyName,
-            totalAmount: totalSplitAmount,
-            amountInWords: amountInWords,
-            cheques: chequeSplits
-        });
-        toast({ title: 'Printing...', description: 'Cheque print dialog would appear here.' });
+        setIsPreviewOpen(true);
+    };
+
+    const doActualPrint = () => {
+        const printableArea = printRef.current;
+        if (!printableArea) return;
+        
+        const printWindow = window.open('', '', 'height=800,width=800');
+        printWindow?.document.write('<html><head><title>Print Cheques</title>');
+        printWindow?.document.write('<style>@media print{@page{size: auto;margin: 5mm;}body{margin: 0;}.cheque-container{border:1px solid #ccc; padding: 10px; margin-bottom: 20px; page-break-inside: avoid;}}</style>');
+        printWindow?.document.write('</head><body>');
+        printWindow?.document.write(printableArea.innerHTML);
+        printWindow?.document.write('</body></html>');
+        printWindow?.document.close();
+        printWindow?.focus();
+        setTimeout(() => {
+            printWindow?.print();
+            printWindow?.close();
+        }, 250);
     };
 
     const handleSplitChange = (index: number, field: keyof ChequeSplit, value: any) => {
@@ -471,6 +485,31 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsPartyDialogOpen(false)}>Cancel</Button>
                         <Button onClick={handleSubmitParty}>Add Party</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+                <DialogContent className="max-w-4xl">
+                    <DialogHeader>
+                        <DialogTitle>Cheque Preview</DialogTitle>
+                        <DialogDescription>Review the cheques before printing.</DialogDescription>
+                    </DialogHeader>
+                     <div className="max-h-[70vh] overflow-auto p-4 bg-gray-100">
+                         <div ref={printRef}>
+                            {chequeSplits.map((split, index) => (
+                                <ChequeView 
+                                    key={split.id}
+                                    chequeDate={split.chequeDate}
+                                    payeeName={partyName}
+                                    amount={Number(split.amount)}
+                                />
+                            ))}
+                         </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsPreviewOpen(false)}>Cancel</Button>
+                        <Button onClick={doActualPrint}><Printer className="mr-2 h-4 w-4" /> Print</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
