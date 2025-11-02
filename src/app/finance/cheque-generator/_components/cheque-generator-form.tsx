@@ -43,6 +43,7 @@ export function ChequeGeneratorForm() {
         chequeNumber: '',
         amount: '',
         remarks: '',
+        interval: 0,
     }]);
 
     const [parties, setParties] = useState<Party[]>([]);
@@ -96,6 +97,7 @@ export function ChequeGeneratorForm() {
                 chequeNumber: existingSplit?.chequeNumber || '',
                 amount: currentAmount,
                 remarks: existingSplit?.remarks || '',
+                interval: existingSplit?.interval || 0,
             };
         });
 
@@ -149,7 +151,7 @@ export function ChequeGeneratorForm() {
         setPartyName('');
         setInvoiceAmount('');
         setNumberOfSplits(1);
-        setChequeSplits([{ id: Date.now().toString(), chequeDate: new Date(), chequeNumber: '', amount: '', remarks: '' }]);
+        setChequeSplits([{ id: Date.now().toString(), chequeDate: new Date(), chequeNumber: '', amount: '', remarks: '', interval: 0 }]);
     };
 
     const handleSave = async () => {
@@ -208,6 +210,12 @@ export function ChequeGeneratorForm() {
     const handleSplitChange = (index: number, field: keyof ChequeSplit, value: any) => {
         const newSplits = [...chequeSplits];
         (newSplits[index] as any)[field] = value;
+        
+        if(field === 'interval') {
+            const intervalDays = Number(value) || 0;
+            newSplits[index].chequeDate = addDays(paymentDate, intervalDays);
+        }
+
         setChequeSplits(newSplits);
     };
 
@@ -310,6 +318,7 @@ export function ChequeGeneratorForm() {
                  <Table>
                     <TableHeader>
                         <TableRow>
+                            <TableHead className="w-[120px]">Interval (Days)</TableHead>
                             <TableHead className="w-[200px]">Cheque Date</TableHead>
                             <TableHead>Cheque Number</TableHead>
                             <TableHead>Amount (NPR)</TableHead>
@@ -320,6 +329,9 @@ export function ChequeGeneratorForm() {
                     <TableBody>
                         {chequeSplits.map((split, index) => (
                             <TableRow key={split.id}>
+                                <TableCell>
+                                    <Input type="number" value={split.interval} onChange={(e) => handleSplitChange(index, 'interval', e.target.value)} />
+                                </TableCell>
                                 <TableCell>
                                     <Popover>
                                         <PopoverTrigger asChild>

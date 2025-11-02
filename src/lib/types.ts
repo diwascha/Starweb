@@ -526,6 +526,7 @@ export interface ChequeSplit {
     chequeNumber: string;
     amount: number | '';
     remarks: string;
+    interval: number;
 }
 
 export interface Cheque {
