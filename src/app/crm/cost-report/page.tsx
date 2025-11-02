@@ -138,7 +138,7 @@ export default function CostReportPage() {
 
   return (
     <>
-      <div className="flex flex-col gap-8 print:hidden">
+      <div className="flex flex-col gap-8">
         <header>
           <h1 className="text-3xl font-bold tracking-tight">Advanced Cost Report</h1>
           <p className="text-muted-foreground">Select a product or enter details to calculate box cost based on the new formula.</p>
@@ -261,55 +261,6 @@ export default function CostReportPage() {
           </div>
         </div>
       </div>
-      
-      {/* Printable Report */}
-      <div className="printable-area hidden print:block space-y-4 p-4 text-black bg-white">
-        {calculationResults && (
-            <>
-                <header className="text-center space-y-1 mb-4">
-                    <h1 className="text-xl font-bold">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
-                    <h2 className="text-lg font-semibold">Cost Report</h2>
-                </header>
-                <div className="text-sm"><p><span className="font-semibold">Date:</span> {new Date().toLocaleDateString('en-CA')}</p>
-                    {selectedProduct && <p><span className="font-semibold">Product:</span> {selectedProduct.name}</p>}
-                </div>
-                <Separator className="my-4 bg-gray-400" />
-                <div className="grid grid-cols-2 gap-x-8 text-sm">
-                  <div className="space-y-1">
-                      <p><span className="font-semibold">Box Size:</span> {inputs.l} x {inputs.b} x {inputs.h} cm</p>
-                      <p><span className="font-semibold">Ply:</span> {inputs.ply}</p>
-                      <p><span className="font-semibold">Flute:</span> {inputs.fluteType}</p>
-                  </div>
-                   <div className="space-y-1">
-                      <p><span className="font-semibold">Reel Size:</span> {calculationResults.sheetSizeL} cm</p>
-                      <p><span className="font-semibold">Cutting Size:</span> {calculationResults.sheetSizeB} cm</p>
-                      <p><span className="font-semibold">Total GSM:</span> {calculationResults.totalGsm}</p>
-                  </div>
-                </div>
-                 <Separator className="my-4 bg-gray-400" />
-                 <div className="space-y-2">
-                    <h3 className="font-semibold text-lg">Cost Breakdown (per box)</h3>
-                    <div className="flex justify-between text-sm"><span className="text-gray-600">Total Box Weight</span><span>{calculationResults.totalBoxWeight} kg</span></div>
-                    <Separator className="my-1 bg-gray-200" />
-                    <div className="flex justify-between text-sm"><span className="text-gray-600">Paper Cost</span><span>{calculationResults.paperCost}</span></div>
-                    <div className="flex justify-between text-sm"><span className="text-gray-600">Gum Cost</span><span>{calculationResults.gumCost}</span></div>
-                    <div className="flex justify-between text-sm"><span className="text-gray-600">Stitching/Pasting Cost</span><span>{calculationResults.stitchingCost}</span></div>
-                    <Separator className="my-1 bg-gray-400" />
-                    <div className="flex justify-between text-xl font-bold"><span>Total Cost Per Box (NPR)</span><span>{calculationResults.totalCost}</span></div>
-                </div>
-            </>
-        )}
-      </div>
-       <style jsx global>{`
-        @media print {
-          @page { size: A4; margin: 0.5in; }
-          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          body > * { visibility: hidden; }
-          .printable-area, .printable-area * { visibility: visible; }
-          .printable-area { position: absolute; left: 0; top: 0; width: 100%; }
-          .print\:hidden { display: none !important; }
-        }
-      `}</style>
     </>
   );
 }
