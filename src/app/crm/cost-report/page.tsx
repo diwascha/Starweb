@@ -97,8 +97,8 @@ export default function CostReportPage() {
     
     if (l === 0 || b === 0 || h === 0 || ply === 0) return initialCalculatedState;
 
-    const sheetSizeL = ((2 * l) + (2 * b) + 5);
-    const sheetSizeB = (b + h + 2);
+    const sheetSizeL = (2 * l) + (2 * b) + 50; // Corrected formula
+    const sheetSizeB = (b + h + 20);
 
     const fluteFactor = 1.38;
 
@@ -108,7 +108,7 @@ export default function CostReportPage() {
     const flute2Gsm = parseInt(item.flute2Gsm, 10) || 0;
     const bottomGsm = parseInt(item.bottomGsm, 10) || 0;
     
-    const sheetArea = (sheetSizeL * sheetSizeB) / 10000;
+    const sheetArea = (sheetSizeL * sheetSizeB) / 1000000; // to get in sq meters
 
     let totalGsm = 0;
     let paperWeight = 0;
@@ -363,7 +363,7 @@ export default function CostReportPage() {
                                         <SelectContent>
                                             <SelectItem value="KRAFT">KRAFT</SelectItem>
                                             <SelectItem value="VIRGIN">VIRGIN</SelectItem>
-                                            <SelectItem value="VIRGIN &amp; KRAFT">VIRGIN &amp; KRAFT</SelectItem>
+                                            <SelectItem value="VIRGIN & KRAFT">VIRGIN &amp; KRAFT</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </TableCell>
