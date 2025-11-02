@@ -30,6 +30,7 @@ import 'jspdf-autotable';
 import { AnnapurnaSIL } from '@/lib/fonts/AnnapurnaSIL-Regular-base64';
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Checkbox } from '@/components/ui/checkbox';
 
 
 interface CalculatedValues {
@@ -67,6 +68,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit }: Cos
   const [conversionCost, setConversionCost] = useState<number | ''>(1);
   const [isSaving, setIsSaving] = useState(false);
   const [items, setItems] = useState<CostReportItem[]>([]);
+  const [selectedForPrint, setSelectedForPrint] = useState<Set<string>>(new Set());
 
   const { toast } = useToast();
   const { user } = useAuth();
@@ -113,9 +115,9 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit }: Cos
     let paperRate = 0;
     
     if (item.paperType === 'KRAFT') {
-        paperRate = globalKraftCost + globalConversionCost;
+        paperRate = globalKraftCost;
     } else if (item.paperType === 'VIRGIN' && globalVirginCost > 0) {
-        paperRate = globalVirginCost + globalConversionCost;
+        paperRate = globalVirginCost;
     } else if (item.paperType === 'VIRGIN & KRAFT' && totalGsm > 0 && globalVirginCost > 0) {
         const topLayerWeightGsm = topGsm;
         const topLayerRatio = topLayerWeightGsm / totalGsm;
@@ -125,17 +127,18 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit }: Cos
 
         if (!isNaN(topLayerRatio) && !isNaN(kraftLayerRatio)) {
           const blendedRate = (globalVirginCost * topLayerRatio) + (globalKraftCost * kraftLayerRatio);
-          paperRate = blendedRate + globalConversionCost;
+          paperRate = blendedRate;
         } else {
-          paperRate = globalKraftCost + globalConversionCost;
+          paperRate = globalKraftCost;
         }
     } else {
-        paperRate = globalKraftCost + globalConversionCost;
+        paperRate = globalKraftCost;
     }
     
-    const paperCost = totalBoxWeightInKg * paperRate;
+    const finalPaperRate = paperRate + globalConversionCost;
+    const paperCost = totalBoxWeightInKg * finalPaperRate;
     
-    return { sheetSizeL, sheetSizeB, sheetArea, totalGsm, paperWeight: paperWeightInGrams, totalBoxWeight: totalBoxWeightInGrams, paperRate, paperCost };
+    return { sheetSizeL, sheetSizeB, sheetArea, totalGsm, paperWeight: paperWeightInGrams, totalBoxWeight: totalBoxWeightInGrams, paperRate: finalPaperRate, paperCost };
   }, []);
 
   useEffect(() => {
@@ -173,6 +176,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit }: Cos
       const vCost = reportToEdit.virginPaperCost || 0;
       const cCost = reportToEdit.conversionCost || 0;
       setItems(reportToEdit.items.map(item => ({...item, id: item.id || Date.now().toString(), calculated: calculateItemCost(item, kCost, vCost, cCost)})));
+      setSelectedForPrint(new Set(reportToEdit.items.map(i => i.id)));
     } else {
         generateNextCostReportNumber(costReports).then(setReportNumber);
         setReportDate(new Date());
@@ -181,6 +185,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit }: Cos
         const vCost = Number(virginPaperCost) || 0;
         const cCost = Number(conversionCost) || 0;
         setItems([]);
+        setSelectedForPrint(new Set());
     }
   }, [reportToEdit, costReports, calculateItemCost]);
 
@@ -232,10 +237,16 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit }: Cos
     const cCost = Number(conversionCost) || 0;
     const newItem = { id: Date.now().toString(), productId: '', l:'',b:'',h:'', noOfPcs:'1', boxType: 'RSC', ply:'3', fluteType: 'B', paperType: 'KRAFT', paperShade:'Golden', paperBf:'18', topGsm:'120',flute1Gsm:'100',middleGsm:'',flute2Gsm:'',bottomGsm:'120',wastagePercent:'3.5' };
     setItems(prev => [...prev, { ...newItem, calculated: calculateItemCost(newItem, kCost, vCost, cCost) }]);
+    setSelectedForPrint(prev => new Set(prev).add(newItem.id));
   };
   
   const handleRemoveItem = (id: string) => {
     setItems(prev => prev.filter(item => item.id !== id));
+    setSelectedForPrint(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(id);
+        return newSet;
+    });
   };
   
   const totalItemCost = useMemo(() => {
@@ -310,13 +321,19 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit }: Cos
   };
   
   const handlePrint = async () => {
+    const itemsToPrint = items.filter(item => selectedForPrint.has(item.id));
+    if (itemsToPrint.length === 0) {
+        toast({ title: "Cannot Print", description: "Please select at least one item to print.", variant: "destructive" });
+        return;
+    }
     if (!selectedPartyId) {
         toast({ title: "Cannot Print", description: "Please select a party before printing.", variant: "destructive" });
         return;
     }
     const doc = new jsPDF();
     
-    doc.addFileToVFS("AnnapurnaSIL.ttf", AnnapurnaSIL);
+    const font = AnnapurnaSIL.replace(/^data:font\/truetype;base64,/, "");
+    doc.addFileToVFS("AnnapurnaSIL.ttf", font);
     doc.addFont("AnnapurnaSIL.ttf", "AnnapurnaSIL", "normal");
     
     doc.setFont('Helvetica', 'bold');
@@ -329,10 +346,12 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit }: Cos
     doc.text(`Party: ${parties.find(p => p.id === selectedPartyId)?.name || ''}`, 14, 35);
     doc.text(`Date: ${toNepaliDate(reportDate.toISOString())}`, doc.internal.pageSize.getWidth() - 14, 30, { align: 'right' });
     
+    const totalCostOfPrintedItems = itemsToPrint.reduce((sum, item) => sum + (item.calculated?.paperCost || 0), 0);
+
     (doc as any).autoTable({
         startY: 45,
         head: [['Sl.No', 'Item Name', 'Box Size (LxBxH)', 'Ply', 'Total', 'Box Rate/Piece']],
-        body: items.map((item, index) => [
+        body: itemsToPrint.map((item, index) => [
             index + 1,
             products.find(p => p.id === item.productId)?.name || 'N/A',
             `${item.l}x${item.b}x${item.h}`,
@@ -343,7 +362,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit }: Cos
         theme: 'grid',
         footStyles: { fontStyle: 'bold' },
         foot: [
-            [{ content: 'Total', colSpan: 4, styles: { halign: 'right' } }, totalItemCost.toFixed(2), ''],
+            [{ content: 'Total', colSpan: 4, styles: { halign: 'right' } }, totalCostOfPrintedItems.toFixed(2), ''],
         ]
     });
     
@@ -453,7 +472,23 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit }: Cos
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead rowSpan={2} className="w-[50px] align-bottom">Sl.No</TableHead>
+                                <TableHead colSpan={2} className="w-[50px] align-bottom">
+                                    <div className="flex items-center">
+                                        <Checkbox
+                                            checked={selectedForPrint.size === items.length && items.length > 0}
+                                            onCheckedChange={(checked) => {
+                                                if (checked) {
+                                                    setSelectedForPrint(new Set(items.map(i => i.id)));
+                                                } else {
+                                                    setSelectedForPrint(new Set());
+                                                }
+                                            }}
+                                            aria-label="Select all rows"
+                                            className="mr-2"
+                                        />
+                                        Sl.No
+                                    </div>
+                                </TableHead>
                                 <TableHead rowSpan={2} className="min-w-[200px] align-bottom">Item Name</TableHead>
                                 <TableHead colSpan={3} className="text-center">Box Size</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom">No of Pcs</TableHead>
@@ -487,6 +522,20 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit }: Cos
                         <TableBody>
                         {items.map((item, index) => (
                             <TableRow key={item.id}>
+                                <TableCell>
+                                    <Checkbox
+                                        checked={selectedForPrint.has(item.id)}
+                                        onCheckedChange={(checked) => {
+                                            setSelectedForPrint(prev => {
+                                                const newSet = new Set(prev);
+                                                if (checked) newSet.add(item.id);
+                                                else newSet.delete(item.id);
+                                                return newSet;
+                                            });
+                                        }}
+                                        aria-label={`Select row ${index + 1}`}
+                                    />
+                                </TableCell>
                                 <TableCell>
                                     <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleRemoveItem(item.id)}>
                                         <Trash2 className="h-4 w-4" />
@@ -630,7 +679,8 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
         }
 
         const doc = new jsPDF();
-        doc.addFileToVFS("AnnapurnaSIL.ttf", AnnapurnaSIL);
+        const font = AnnapurnaSIL.replace(/^data:font\/truetype;base64,/, "");
+        doc.addFileToVFS("AnnapurnaSIL.ttf", font);
         doc.addFont("AnnapurnaSIL.ttf", "AnnapurnaSIL", "normal");
         
         doc.setFont('Helvetica', 'bold');
