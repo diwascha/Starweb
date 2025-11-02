@@ -31,6 +31,7 @@ interface CalculatedValues {
     totalGsm: number;
     paperWeight: number;
     totalBoxWeight: number;
+    paperRate: number;
     paperCost: number;
 }
 
@@ -53,26 +54,25 @@ interface CostReportItem {
   flute2Gsm: string;
   bottomGsm: string;
   wastagePercent: string;
-  paperRate: string;
   calculated: CalculatedValues;
 }
 
 const initialCalculatedState: CalculatedValues = {
-    sheetSizeL: 0, sheetSizeB: 0, sheetArea: 0, totalGsm: 0, paperWeight: 0, totalBoxWeight: 0, paperCost: 0
+    sheetSizeL: 0, sheetSizeB: 0, sheetArea: 0, totalGsm: 0, paperWeight: 0, totalBoxWeight: 0, paperRate: 0, paperCost: 0
 };
 
 const product1: Omit<CostReportItem, 'id' | 'productId' | 'calculated'> = {
   l: '309', b: '179', h: '102', noOfPcs: '1', boxType: 'RSC', ply: '3', fluteType: 'B', 
   paperType: 'KRAFT', paperShade: 'Golden', paperBf: '18 BF',
   topGsm: '180', flute1Gsm: '150', middleGsm: '', flute2Gsm: '', bottomGsm: '180',
-  wastagePercent: '3.5', paperRate: '14.118'
+  wastagePercent: '3.5'
 };
 
 const product2: Omit<CostReportItem, 'id' | 'productId' | 'calculated'> = {
   l: '309', b: '179', h: '120', noOfPcs: '1', boxType: 'RSC', ply: '5', fluteType: 'B, B',
   paperType: 'KRAFT', paperShade: 'NS', paperBf: '20 BF',
   topGsm: '180', flute1Gsm: '150', middleGsm: '180', flute2Gsm: '150', bottomGsm: '180',
-  wastagePercent: '3.5', paperRate: '14.962'
+  wastagePercent: '3.5'
 };
 
 export default function CostReportPage() {
@@ -82,9 +82,9 @@ export default function CostReportPage() {
   const [reportNumber, setReportNumber] = useState('CR-001'); // Placeholder
   const [reportDate, setReportDate] = useState<Date>(new Date());
   
-  const [kraftPaperCost, setKraftPaperCost] = useState<number | ''>('');
+  const [kraftPaperCost, setKraftPaperCost] = useState<number | ''>(13.118);
   const [virginPaperCost, setVirginPaperCost] = useState<number | ''>('');
-  const [conversionCost, setConversionCost] = useState<number | ''>('');
+  const [conversionCost, setConversionCost] = useState<number | ''>(1);
 
   const { toast } = useToast();
   const { user } = useAuth();
@@ -93,7 +93,7 @@ export default function CostReportPage() {
   const [partyForm, setPartyForm] = useState<{ name: string; type: PartyType; address?: string; panNumber?: string; }>({ name: '', type: 'Customer', address: '', panNumber: '' });
   const [editingParty, setEditingParty] = useState<Party | null>(null);
 
-  const calculateItemCost = useCallback((item: Omit<CostReportItem, 'id' | 'calculated'>): CalculatedValues => {
+  const calculateItemCost = useCallback((item: Omit<CostReportItem, 'id' | 'calculated' | 'paperRate'>, globalKraftCost: number, globalConversionCost: number): CalculatedValues => {
     const l = parseFloat(item.l) || 0;
     const b = parseFloat(item.b) || 0;
     const h = parseFloat(item.h) || 0;
@@ -129,16 +129,32 @@ export default function CostReportPage() {
     const totalBoxWeightInGrams = paperWeightInGrams * (1 + wastage);
     const totalBoxWeightInKg = totalBoxWeightInGrams / 1000;
     
-    const paperRate = parseFloat(item.paperRate) || 0;
-    const paperCost = totalBoxWeightInKg * paperRate;
+    const paperRate = (globalKraftCost + globalConversionCost) * totalBoxWeightInKg;
+    const paperCost = paperRate;
     
-    return { sheetSizeL, sheetSizeB, sheetArea, totalGsm, paperWeight: paperWeightInGrams, totalBoxWeight: totalBoxWeightInGrams, paperCost };
+    return { sheetSizeL, sheetSizeB, sheetArea, totalGsm, paperWeight: paperWeightInGrams, totalBoxWeight: totalBoxWeightInGrams, paperRate, paperCost };
   }, []);
   
-  const [items, setItems] = useState<CostReportItem[]>(() => [
-    { id: '1', productId: '', ...product1, calculated: calculateItemCost(product1) },
-    { id: '2', productId: '', ...product2, calculated: calculateItemCost(product2) }
-  ]);
+  const [items, setItems] = useState<CostReportItem[]>([]);
+
+  useEffect(() => {
+    const kCost = Number(kraftPaperCost) || 0;
+    const cCost = Number(conversionCost) || 0;
+    setItems(prevItems => {
+        if (prevItems.length === 0) {
+            // Initialize with default products if empty
+            return [
+                { id: '1', productId: '', ...product1, calculated: calculateItemCost(product1, kCost, cCost) },
+                { id: '2', productId: '', ...product2, calculated: calculateItemCost(product2, kCost, cCost) }
+            ];
+        }
+        // Recalculate for existing items when global costs change
+        return prevItems.map(item => ({
+            ...item,
+            calculated: calculateItemCost(item, kCost, cCost)
+        }));
+    });
+}, [kraftPaperCost, conversionCost, calculateItemCost]);
 
 
   useEffect(() => {
@@ -167,24 +183,27 @@ export default function CostReportPage() {
         };
         newItems[index] = {
             ...updatedItem,
-            calculated: calculateItemCost(updatedItem)
+            calculated: calculateItemCost(updatedItem, Number(kraftPaperCost) || 0, Number(conversionCost) || 0)
         };
         return newItems;
     });
   };
 
-  const handleItemChange = (index: number, field: keyof Omit<CostReportItem, 'id' | 'calculated'>, value: string) => {
+  const handleItemChange = (index: number, field: keyof Omit<CostReportItem, 'id' | 'calculated' | 'paperRate'>, value: string) => {
     setItems(prevItems => {
         const newItems = [...prevItems];
         const currentItem = { ...newItems[index], [field]: value };
-        const newCalculated = calculateItemCost(currentItem);
+        const newCalculated = calculateItemCost(currentItem, Number(kraftPaperCost) || 0, Number(conversionCost) || 0);
         newItems[index] = { ...currentItem, calculated: newCalculated };
         return newItems;
     });
   };
 
   const handleAddItem = () => {
-    setItems(prev => [...prev, { id: Date.now().toString(), productId: '', l:'',b:'',h:'', noOfPcs:'1', boxType: 'RSC', ply:'3', fluteType: 'B', paperType: 'KRAFT', paperShade:'Golden', paperBf:'18', topGsm:'120',flute1Gsm:'100',middleGsm:'',flute2Gsm:'',bottomGsm:'120',wastagePercent:'3.5',paperRate:'', calculated: initialCalculatedState }]);
+    const kCost = Number(kraftPaperCost) || 0;
+    const cCost = Number(conversionCost) || 0;
+    const newItem = { id: Date.now().toString(), productId: '', l:'',b:'',h:'', noOfPcs:'1', boxType: 'RSC', ply:'3', fluteType: 'B', paperType: 'KRAFT', paperShade:'Golden', paperBf:'18', topGsm:'120',flute1Gsm:'100',middleGsm:'',flute2Gsm:'',bottomGsm:'120',wastagePercent:'3.5' };
+    setItems(prev => [...prev, { ...newItem, calculated: calculateItemCost(newItem, kCost, cCost) }]);
   };
   
   const handleRemoveItem = (id: string) => {
@@ -196,8 +215,8 @@ export default function CostReportPage() {
   }, [items]);
 
   const totalCost = useMemo(() => {
-    return totalItemCost + (Number(kraftPaperCost) || 0) + (Number(virginPaperCost) || 0) + (Number(conversionCost) || 0);
-  }, [totalItemCost, kraftPaperCost, virginPaperCost, conversionCost]);
+    return totalItemCost + (Number(virginPaperCost) || 0);
+  }, [totalItemCost, virginPaperCost]);
 
   
   const handleOpenPartyDialog = (partyToEdit: Party | null = null, searchName: string = '') => {
@@ -413,7 +432,7 @@ export default function CostReportPage() {
                                 <TableCell>{item.calculated.paperWeight.toFixed(2)}</TableCell>
                                 <TableCell>{((item.calculated.paperWeight * (parseFloat(item.wastagePercent) / 100 || 0))).toFixed(2)}</TableCell>
                                 <TableCell>{(item.calculated.totalBoxWeight).toFixed(2)}</TableCell>
-                                <TableCell><Input type="number" value={item.paperRate} onChange={e => handleItemChange(index, 'paperRate', e.target.value)} className="w-24" /></TableCell>
+                                <TableCell>{item.calculated.paperRate.toFixed(2)}</TableCell>
                                 <TableCell className="font-bold">
                                     {item.calculated.paperCost > 0 ? item.calculated.paperCost.toFixed(2) : '...'}
                                 </TableCell>
