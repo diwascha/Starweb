@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, ChevronsUpDown, Check, PlusCircle, Printer, Save, Loader2, Trash2 } from 'lucide-react';
-import { cn, toWords, generateNextVoucherNumber } from '@/lib/utils';
+import { cn, toWords, generateNextVoucherNumber, toNepaliDate } from '@/lib/utils';
 import { format, addDays, parseISO } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { onPartiesUpdate, addParty } from '@/services/party-service';
@@ -294,7 +294,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                         <PopoverTrigger asChild>
                             <Button id="paymentDate" variant="outline" className="w-full justify-start text-left font-normal">
                                 <CalendarIcon className="mr-2 h-4 w-4" />
-                                {paymentDate ? format(paymentDate, 'PPP') : <span>Pick a date</span>}
+                                {paymentDate ? `${toNepaliDate(paymentDate.toISOString())} (${format(paymentDate, "PPP")})` : <span>Pick a date</span>}
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0">
@@ -308,7 +308,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                         <PopoverTrigger asChild>
                             <Button id="invoiceDate" variant="outline" className="w-full justify-start text-left font-normal">
                                 <CalendarIcon className="mr-2 h-4 w-4" />
-                                {invoiceDate ? format(invoiceDate, 'PPP') : <span>Pick a date</span>}
+                                {invoiceDate ? `${toNepaliDate(invoiceDate.toISOString())} (${format(invoiceDate, "PPP")})` : <span>Pick a date</span>}
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0">
@@ -398,7 +398,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                                         <PopoverTrigger asChild>
                                             <Button variant="outline" className="w-full justify-start text-left font-normal">
                                                 <CalendarIcon className="mr-2 h-4 w-4" />
-                                                {split.chequeDate ? format(split.chequeDate, 'PPP') : <span>Pick a date</span>}
+                                                {split.chequeDate ? `${toNepaliDate(split.chequeDate.toISOString())} (${format(split.chequeDate, "PPP")})` : <span>Pick a date</span>}
                                             </Button>
                                         </PopoverTrigger>
                                         <PopoverContent className="w-auto p-0">
