@@ -9,13 +9,18 @@ interface ChequeViewProps {
   voucherDate: Date;
   payeeName: string;
   amount: number;
+  chequeDate: Date;
+  chequeNumber: string;
 }
 
-export function ChequeView({ voucherDate, payeeName, amount }: ChequeViewProps) {
+export function ChequeView({ voucherDate, payeeName, amount, chequeDate, chequeNumber }: ChequeViewProps) {
   const nepaliDate = toNepaliDate(voucherDate.toISOString());
   const adDate = format(voucherDate, 'yyyy-MM-dd');
   const amountInWords = toWords(amount);
   const formattedAmount = amount.toLocaleString(undefined, { minimumFractionDigits: 2 });
+  
+  const nepaliChequeDate = toNepaliDate(chequeDate.toISOString());
+  const adChequeDate = format(chequeDate, 'yyyy-MM-dd');
 
   return (
     <div className="cheque-container bg-white text-black p-8 font-sans text-sm space-y-6" style={{ pageBreakAfter: 'always' }}>
@@ -43,7 +48,10 @@ export function ChequeView({ voucherDate, payeeName, amount }: ChequeViewProps) 
             </TableHeader>
             <TableBody>
                 <TableRow>
-                    <TableCell>Payment to {payeeName}</TableCell>
+                    <TableCell>
+                      <p>Payment to {payeeName}</p>
+                      <p className="text-xs text-muted-foreground">Cheque No: {chequeNumber || 'N/A'}, Cheque Date: {nepaliChequeDate} ({adChequeDate})</p>
+                    </TableCell>
                     <TableCell className="text-right">{formattedAmount}</TableCell>
                 </TableRow>
             </TableBody>

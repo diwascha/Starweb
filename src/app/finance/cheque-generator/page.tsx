@@ -220,6 +220,8 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                                     voucherDate={new Date(chequeToPrint.paymentDate)}
                                     payeeName={chequeToPrint.payeeName}
                                     amount={Number(split.amount)}
+                                    chequeDate={new Date(split.chequeDate)}
+                                    chequeNumber={split.chequeNumber}
                                 />
                             ))}
                          </div>
