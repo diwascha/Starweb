@@ -128,11 +128,12 @@ export default function CostReportPage() {
     const totalBoxWeightInGrams = paperWeightInGrams * (1 + wastage);
     const totalBoxWeightInKg = totalBoxWeightInGrams / 1000;
 
-    let basePaperCost = 0;
+    let paperCostWithoutConversion = 0;
+    
     if (item.paperType === 'KRAFT') {
-        basePaperCost = globalKraftCost;
+        paperCostWithoutConversion = totalBoxWeightInKg * globalKraftCost;
     } else if (item.paperType === 'VIRGIN') {
-        basePaperCost = globalVirginCost;
+        paperCostWithoutConversion = totalBoxWeightInKg * globalVirginCost;
     } else if (item.paperType === 'VIRGIN & KRAFT' && totalBoxWeightInKg > 0) {
         const topLayerWeightKg = ((sheetArea * topGsm) / 1000) * (1 + wastage);
         const topLayerCost = topLayerWeightKg * globalVirginCost;
@@ -146,15 +147,14 @@ export default function CostReportPage() {
 
         const kraftLayersWeightKg = ((sheetArea * kraftLayersWeightGsm) / 1000) * (1 + wastage);
         const kraftLayersCost = kraftLayersWeightKg * globalKraftCost;
-
-        const totalPaperCost = topLayerCost + kraftLayersCost;
-        basePaperCost = totalPaperCost / totalBoxWeightInKg;
+        
+        paperCostWithoutConversion = topLayerCost + kraftLayersCost;
     } else {
-        basePaperCost = globalKraftCost;
+        paperCostWithoutConversion = totalBoxWeightInKg * globalKraftCost;
     }
     
-    const paperRate = basePaperCost > 0 ? basePaperCost + globalConversionCost : 0;
-    const paperCost = totalBoxWeightInKg * paperRate;
+    const paperCost = paperCostWithoutConversion + (globalConversionCost * totalBoxWeightInKg);
+    const paperRate = totalBoxWeightInKg > 0 ? paperCost / totalBoxWeightInKg : 0;
     
     return { sheetSizeL, sheetSizeB, sheetArea, totalGsm, paperWeight: paperWeightInGrams, totalBoxWeight: totalBoxWeightInGrams, paperRate, paperCost };
   }, []);
