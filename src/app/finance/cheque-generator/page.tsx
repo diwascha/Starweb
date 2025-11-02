@@ -11,7 +11,7 @@ import { Search, ArrowUpDown, MoreHorizontal, Printer, Trash2, Edit, AlertTriang
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { onChequesUpdate, deleteCheque } from '@/services/cheque-service';
-import type { Cheque, ChequeSplit } from '@/lib/types';
+import type { Cheque, ChequeSplit, ChequeStatus } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -46,7 +46,7 @@ function FormSkeleton() {
     );
 }
 
-type SortKey = 'chequeDate' | 'payeeName' | 'amount' | 'chequeNumber';
+type SortKey = 'chequeDate' | 'payeeName' | 'amount' | 'chequeNumber' | 'status';
 type SortDirection = 'asc' | 'desc';
 
 interface AugmentedChequeSplit extends ChequeSplit {
@@ -81,16 +81,18 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
     const sortedAndFilteredSplits = useMemo(() => {
         const today = startOfToday();
         
-        // Flatten all splits from all cheques into one array
         let allSplits: AugmentedChequeSplit[] = cheques.flatMap(c => 
             c.splits.map(s => {
                 const chequeDate = new Date(s.chequeDate);
                 return {
                     ...s,
+                    id: `${c.id}-${s.chequeNumber}-${s.chequeDate}`,
                     chequeDate: chequeDate,
                     daysRemaining: differenceInDays(chequeDate, today),
                     isOverdue: differenceInDays(chequeDate, today) < 0,
-                    parentCheque: c
+                    parentCheque: c,
+                    amount: s.amount,
+                    status: s.status || 'Due'
                 };
             })
         );
@@ -161,15 +163,23 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
     };
     
     const getStatusBadge = (split: AugmentedChequeSplit) => {
-        const { daysRemaining, isOverdue } = split;
+        const { status, daysRemaining, isOverdue } = split;
 
-        if (isOverdue) {
-            return <Badge variant="destructive"><AlertTriangle className="mr-1 h-3 w-3" /> Overdue by {-daysRemaining} day(s)</Badge>;
+        switch (status) {
+            case 'Paid':
+                return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Paid</Badge>;
+            case 'Canceled':
+                return <Badge variant="destructive">Canceled</Badge>;
+            case 'Due':
+            default:
+                if (isOverdue) {
+                    return <Badge variant="destructive"><AlertTriangle className="mr-1 h-3 w-3" /> Overdue by {-daysRemaining} day(s)</Badge>;
+                }
+                if (daysRemaining <= 7) {
+                    return <Badge variant="default" className="bg-yellow-500 text-black hover:bg-yellow-600"><AlertTriangle className="mr-1 h-3 w-3" /> Due in {daysRemaining} day(s)</Badge>;
+                }
+                return <Badge variant="outline" className="text-blue-600 border-blue-600">Due in {daysRemaining} day(s)</Badge>;
         }
-        if (daysRemaining <= 7) {
-            return <Badge variant="default" className="bg-yellow-500 text-black hover:bg-yellow-600"><AlertTriangle className="mr-1 h-3 w-3" /> Due in {daysRemaining} day(s)</Badge>;
-        }
-        return <Badge variant="outline" className="text-green-600 border-green-600">Due in {daysRemaining} day(s)</Badge>;
     };
 
     
@@ -201,7 +211,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                     <TableHead><Button variant="ghost" onClick={() => requestSort('payeeName')}>Payee Name <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
                     <TableHead><Button variant="ghost" onClick={() => requestSort('chequeNumber')}>Cheque # <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
                     <TableHead><Button variant="ghost" onClick={() => requestSort('amount')}>Amount <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead><Button variant="ghost" onClick={() => requestSort('status')}>Status</Button></TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -320,4 +330,3 @@ export default function ChequeGeneratorPage() {
     </div>
   );
 }
-

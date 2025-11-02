@@ -11,7 +11,7 @@ import { cn, toWords, generateNextVoucherNumber } from '@/lib/utils';
 import { format, addDays, parseISO } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { onPartiesUpdate, addParty } from '@/services/party-service';
-import type { Party, PartyType, Cheque, ChequeSplit } from '@/lib/types';
+import type { Party, PartyType, Cheque, ChequeSplit, ChequeStatus } from '@/lib/types';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { useAuth } from '@/hooks/use-auth';
@@ -51,6 +51,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
         amount: '',
         remarks: '',
         interval: 0,
+        status: 'Due',
     }]);
 
     const [parties, setParties] = useState<Party[]>([]);
@@ -99,7 +100,8 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                     chequeNumber: s.chequeNumber,
                     amount: s.amount,
                     remarks: s.remarks,
-                    interval: interval >= 0 ? interval : 0
+                    interval: interval >= 0 ? interval : 0,
+                    status: s.status || 'Due'
                 }
             }));
         } else {
@@ -133,6 +135,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                 amount: currentAmount,
                 remarks: existingSplit?.remarks || '',
                 interval: existingSplit?.interval || 0,
+                status: existingSplit?.status || 'Due',
             };
         });
 
@@ -186,7 +189,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
         setPartyName('');
         setInvoiceAmount('');
         setNumberOfSplits(1);
-        setChequeSplits([{ id: Date.now().toString(), chequeDate: new Date(), chequeNumber: '', amount: '', remarks: '', interval: 0 }]);
+        setChequeSplits([{ id: Date.now().toString(), chequeDate: new Date(), chequeNumber: '', amount: '', remarks: '', interval: 0, status: 'Due' }]);
         onSaveSuccess();
     };
 
@@ -214,6 +217,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                     ...s,
                     chequeDate: s.chequeDate.toISOString(),
                     amount: Number(s.amount) || 0,
+                    status: s.status,
                 })),
                 createdBy: chequeToEdit?.createdBy || user.username,
             };
@@ -374,8 +378,8 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                             <TableHead className="w-[200px]">Cheque Date</TableHead>
                             <TableHead>Cheque Number</TableHead>
                             <TableHead>Amount (NPR)</TableHead>
+                            <TableHead>Status</TableHead>
                             <TableHead>Remarks</TableHead>
-                            <TableHead className="w-[50px]"></TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -404,10 +408,19 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                                     <Input type="number" value={split.amount} onChange={(e) => handleSplitChange(index, 'amount', e.target.value)} />
                                 </TableCell>
                                 <TableCell>
-                                    <Input value={split.remarks} onChange={(e) => handleSplitChange(index, 'remarks', e.target.value)} />
+                                    <Select value={split.status} onValueChange={(value: ChequeStatus) => handleSplitChange(index, 'status', value)}>
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="Due">Due</SelectItem>
+                                            <SelectItem value="Paid">Paid</SelectItem>
+                                            <SelectItem value="Canceled">Canceled</SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                 </TableCell>
                                 <TableCell>
-                                    {/* Remove button could be added back if needed */}
+                                    <Input value={split.remarks} onChange={(e) => handleSplitChange(index, 'remarks', e.target.value)} />
                                 </TableCell>
                             </TableRow>
                         ))}

@@ -520,6 +520,8 @@ export interface NoteItem {
 }
 
 // Finance Types
+export type ChequeStatus = 'Due' | 'Paid' | 'Canceled';
+
 export interface ChequeSplit {
     id: string;
     chequeDate: Date;
@@ -527,6 +529,7 @@ export interface ChequeSplit {
     amount: number | '';
     remarks: string;
     interval: number;
+    status: ChequeStatus;
 }
 
 export interface Cheque {
@@ -544,6 +547,7 @@ export interface Cheque {
         chequeNumber: string;
         amount: number;
         remarks: string;
+        status: ChequeStatus;
     }[];
     createdBy: string;
     createdAt: string; // ISO string
