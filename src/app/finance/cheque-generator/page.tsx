@@ -46,7 +46,7 @@ function FormSkeleton() {
     );
 }
 
-type SortKey = 'chequeDate' | 'payeeName' | 'amount' | 'chequeNumber' | 'status';
+type SortKey = 'chequeDate' | 'payeeName' | 'amount' | 'chequeNumber' | 'status' | 'dueStatus';
 type SortDirection = 'asc' | 'desc';
 
 interface AugmentedChequeSplit extends ChequeSplit {
@@ -117,6 +117,9 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
             } else if (sortConfig.key === 'payeeName') {
                 aVal = a.parentCheque.payeeName;
                 bVal = b.parentCheque.payeeName;
+            } else if (sortConfig.key === 'dueStatus') {
+                aVal = a.daysRemaining;
+                bVal = b.daysRemaining;
             } else {
                  aVal = a[sortConfig.key as keyof ChequeSplit];
                  bVal = b[sortConfig.key as keyof ChequeSplit];
@@ -162,9 +165,23 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
         }, 250);
     };
     
-    const getStatusBadge = (split: AugmentedChequeSplit) => {
+    const getDueStatusBadge = (split: AugmentedChequeSplit) => {
         const { status, daysRemaining, isOverdue } = split;
 
+        if (status !== 'Due') {
+            return null; // Don't show due status for Paid or Canceled
+        }
+
+        if (isOverdue) {
+            return <Badge variant="destructive"><AlertTriangle className="mr-1 h-3 w-3" /> Overdue by {-daysRemaining} day(s)</Badge>;
+        }
+        if (daysRemaining <= 7) {
+            return <Badge variant="default" className="bg-yellow-500 text-black hover:bg-yellow-600"><AlertTriangle className="mr-1 h-3 w-3" /> Due in {daysRemaining} day(s)</Badge>;
+        }
+        return <Badge variant="outline" className="text-blue-600 border-blue-600">Due in {daysRemaining} day(s)</Badge>;
+    };
+
+    const getStatusBadge = (status: ChequeStatus) => {
         switch (status) {
             case 'Paid':
                 return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Paid</Badge>;
@@ -172,15 +189,9 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                 return <Badge variant="destructive">Canceled</Badge>;
             case 'Due':
             default:
-                if (isOverdue) {
-                    return <Badge variant="destructive"><AlertTriangle className="mr-1 h-3 w-3" /> Overdue by {-daysRemaining} day(s)</Badge>;
-                }
-                if (daysRemaining <= 7) {
-                    return <Badge variant="default" className="bg-yellow-500 text-black hover:bg-yellow-600"><AlertTriangle className="mr-1 h-3 w-3" /> Due in {daysRemaining} day(s)</Badge>;
-                }
-                return <Badge variant="outline" className="text-blue-600 border-blue-600">Due in {daysRemaining} day(s)</Badge>;
+                return <Badge variant="outline">Due</Badge>;
         }
-    };
+    }
 
     
     return (
@@ -212,6 +223,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                     <TableHead><Button variant="ghost" onClick={() => requestSort('chequeNumber')}>Cheque # <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
                     <TableHead><Button variant="ghost" onClick={() => requestSort('amount')}>Amount <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
                     <TableHead><Button variant="ghost" onClick={() => requestSort('status')}>Status</Button></TableHead>
+                    <TableHead><Button variant="ghost" onClick={() => requestSort('dueStatus')}>Due Status</Button></TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -223,7 +235,8 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                         <TableCell>{split.parentCheque.payeeName}</TableCell>
                         <TableCell>{split.chequeNumber}</TableCell>
                         <TableCell>{Number(split.amount).toLocaleString()}</TableCell>
-                        <TableCell>{getStatusBadge(split)}</TableCell>
+                        <TableCell>{getStatusBadge(split.status)}</TableCell>
+                        <TableCell>{getDueStatusBadge(split)}</TableCell>
                         <TableCell className="text-right">
                             <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -251,7 +264,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                     ))
                     ) : (
                     <TableRow>
-                        <TableCell colSpan={6} className="text-center">No saved cheques yet.</TableCell>
+                        <TableCell colSpan={7} className="text-center">No saved cheques yet.</TableCell>
                     </TableRow>
                     )}
                 </TableBody>
