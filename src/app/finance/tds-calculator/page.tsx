@@ -132,7 +132,7 @@ function SavedTdsRecords() {
              <Table>
                <TableHeader>
                  <TableRow>
-                   <TableHead><Button variant="ghost" onClick={() => requestSort('date')}>Date <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
+                   <TableHead><Button variant="ghost" onClick={() => requestSort('date')}>Date (BS) <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
                    <TableHead><Button variant="ghost" onClick={() => requestSort('voucherNo')}>Voucher # <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
                    <TableHead><Button variant="ghost" onClick={() => requestSort('partyName')}>Party Name <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
                    <TableHead><Button variant="ghost" onClick={() => requestSort('taxableAmount')}>Taxable Amount <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
@@ -145,7 +145,7 @@ function SavedTdsRecords() {
                  {sortedAndFilteredCalculations.length > 0 ? (
                     sortedAndFilteredCalculations.map(calc => (
                      <TableRow key={calc.id}>
-                       <TableCell>{format(new Date(calc.date), 'PPP')}</TableCell>
+                       <TableCell>{toNepaliDate(calc.date)}</TableCell>
                        <TableCell>{calc.voucherNo}</TableCell>
                        <TableCell>{calc.partyName}</TableCell>
                        <TableCell>{calc.taxableAmount.toLocaleString()}</TableCell>

@@ -1,3 +1,4 @@
+
 'use client';
 import { Suspense, useState, useMemo, useEffect, useRef } from 'react';
 import { InvoiceCalculator } from './_components/invoice-calculator';
@@ -291,7 +292,7 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
              <Table>
                <TableHeader>
                  <TableRow>
-                   <TableHead><Button variant="ghost" onClick={() => requestSort('date')}>Date <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
+                   <TableHead><Button variant="ghost" onClick={() => requestSort('date')}>Date (BS) <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
                    <TableHead><Button variant="ghost" onClick={() => requestSort('invoiceNumber')}>Invoice # <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
                    <TableHead><Button variant="ghost" onClick={() => requestSort('partyName')}>Party Name <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
                    <TableHead><Button variant="ghost" onClick={() => requestSort('netTotal')}>Net Total <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
@@ -302,7 +303,7 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                  {sortedAndFilteredInvoices.length > 0 ? (
                     sortedAndFilteredInvoices.map(inv => (
                      <TableRow key={inv.id}>
-                       <TableCell>{format(new Date(inv.date), 'PPP')}</TableCell>
+                       <TableCell>{toNepaliDate(inv.date)}</TableCell>
                        <TableCell>{inv.invoiceNumber}</TableCell>
                        <TableCell>{inv.partyName}</TableCell>
                        <TableCell>{inv.netTotal.toLocaleString()}</TableCell>
