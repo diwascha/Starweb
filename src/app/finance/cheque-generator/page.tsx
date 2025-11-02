@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Suspense, useState, useEffect, useMemo, useRef } from 'react';
@@ -242,7 +241,6 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                     <TableHead><Button variant="ghost" onClick={() => requestSort('payeeName')}>Payee Name <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
                     <TableHead><Button variant="ghost" onClick={() => requestSort('chequeNumber')}>Cheque # <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
                     <TableHead><Button variant="ghost" onClick={() => requestSort('amount')}>Amount <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
-                    <TableHead><Button variant="ghost" onClick={() => requestSort('status')}>Status <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
                     <TableHead><Button variant="ghost" onClick={() => requestSort('dueStatus')}>Due Status</Button></TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -255,7 +253,6 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                         <TableCell>{split.parentCheque.payeeName}</TableCell>
                         <TableCell>{split.chequeNumber}</TableCell>
                         <TableCell>{Number(split.amount).toLocaleString()}</TableCell>
-                        <TableCell>{getStatusBadge(split.status)}</TableCell>
                         <TableCell>{getDueStatusBadge(split)}</TableCell>
                         <TableCell className="text-right">
                             <DropdownMenu>
