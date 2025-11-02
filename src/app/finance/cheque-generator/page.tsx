@@ -217,7 +217,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                             {chequeToPrint && chequeToPrint.splits.map((split, index) => (
                                 <ChequeView 
                                     key={split.chequeNumber || index}
-                                    chequeDate={new Date(split.chequeDate)}
+                                    voucherDate={new Date(chequeToPrint.paymentDate)}
                                     payeeName={chequeToPrint.payeeName}
                                     amount={Number(split.amount)}
                                 />

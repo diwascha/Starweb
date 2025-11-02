@@ -6,14 +6,14 @@ import { format } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 
 interface ChequeViewProps {
-  chequeDate: Date;
+  voucherDate: Date;
   payeeName: string;
   amount: number;
 }
 
-export function ChequeView({ chequeDate, payeeName, amount }: ChequeViewProps) {
-  const nepaliDate = toNepaliDate(chequeDate.toISOString());
-  const adDate = format(chequeDate, 'yyyy-MM-dd');
+export function ChequeView({ voucherDate, payeeName, amount }: ChequeViewProps) {
+  const nepaliDate = toNepaliDate(voucherDate.toISOString());
+  const adDate = format(voucherDate, 'yyyy-MM-dd');
   const amountInWords = toWords(amount);
   const formattedAmount = amount.toLocaleString(undefined, { minimumFractionDigits: 2 });
 
@@ -30,7 +30,7 @@ export function ChequeView({ chequeDate, payeeName, amount }: ChequeViewProps) {
                 <span className="font-semibold">Payee:</span> {payeeName}
             </div>
             <div>
-                <span className="font-semibold">Date:</span> {nepaliDate} BS ({adDate})
+                <span className="font-semibold">Voucher Date:</span> {nepaliDate} BS ({adDate})
             </div>
         </div>
 

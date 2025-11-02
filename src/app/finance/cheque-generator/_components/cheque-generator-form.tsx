@@ -500,7 +500,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                             {chequeSplits.map((split, index) => (
                                 <ChequeView 
                                     key={split.id}
-                                    chequeDate={split.chequeDate}
+                                    voucherDate={paymentDate}
                                     payeeName={partyName}
                                     amount={Number(split.amount)}
                                 />
