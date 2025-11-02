@@ -222,42 +222,7 @@ export default function CostReportPage() {
           </div>
 
           <div className="lg:col-span-2">
-            <Card className="sticky top-8">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                    <CardTitle>Cost Report</CardTitle>
-                    {selectedProduct && <CardDescription>For: {selectedProduct.name}</CardDescription>}
-                </div>
-                <Button onClick={handlePrint} variant="outline" size="icon" disabled={!calculationResults}><Printer className="h-4 w-4" /></Button>
-              </CardHeader>
-              <CardContent>
-                {!calculationResults ? (
-                  null
-                ) : (
-                  <div className="space-y-2">
-                     <Table>
-                        <TableBody>
-                            <TableRow><TableCell className="font-medium">Reel Size</TableCell><TableCell>{calculationResults.sheetSizeL} cm</TableCell></TableRow>
-                            <TableRow><TableCell className="font-medium">Cutting Size</TableCell><TableCell>{calculationResults.sheetSizeB} cm</TableCell></TableRow>
-                            <TableRow><TableCell className="font-medium">Sheet Area</TableCell><TableCell>{calculationResults.sheetArea} m²</TableCell></TableRow>
-                            <TableRow><TableCell className="font-medium">Total GSM</TableCell><TableCell>{calculationResults.totalGsm}</TableCell></TableRow>
-                            <TableRow><TableCell className="font-medium">Paper Weight</TableCell><TableCell>{calculationResults.paperWeight} kg</TableCell></TableRow>
-                            <TableRow><TableCell className="font-medium">Total Box Weight (with wastage)</TableCell><TableCell>{calculationResults.totalBoxWeight} kg</TableCell></TableRow>
-                        </TableBody>
-                    </Table>
-                    <Separator className="my-4"/>
-                    <Table>
-                        <TableBody>
-                            <TableRow><TableCell className="font-medium">Paper Cost</TableCell><TableCell>{calculationResults.paperCost}</TableCell></TableRow>
-                            <TableRow><TableCell className="font-medium">Gum Cost</TableCell><TableCell>{calculationResults.gumCost}</TableCell></TableRow>
-                            <TableRow><TableCell className="font-medium">Stitching/Pasting Cost</TableCell><TableCell>{calculationResults.stitchingCost}</TableCell></TableRow>
-                             <TableRow className="text-lg font-bold"><TableCell>Total Cost Per Box (NPR)</TableCell><TableCell>{calculationResults.totalCost}</TableCell></TableRow>
-                        </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            
           </div>
         </div>
       </div>
