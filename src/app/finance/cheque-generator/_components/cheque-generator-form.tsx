@@ -76,17 +76,41 @@ export function ChequeGeneratorForm() {
     }, [cheques]);
 
     useEffect(() => {
+        const totalAmount = Number(invoiceAmount) || 0;
+        const numSplits = Math.max(1, numberOfSplits || 1);
+        
         const newSplits: ChequeSplit[] = [];
-        for (let i = 0; i < numberOfSplits; i++) {
-            newSplits.push(chequeSplits[i] || {
-                id: `${Date.now()}-${i}`,
-                chequeDate: new Date(),
-                chequeNumber: '',
-                amount: ''
-            });
+        if (totalAmount > 0) {
+            const splitAmount = Math.floor(totalAmount / numSplits);
+            let remainder = totalAmount % numSplits;
+            
+            for (let i = 0; i < numSplits; i++) {
+                let currentAmount = splitAmount;
+                if (remainder > 0) {
+                    currentAmount += 1;
+                    remainder--;
+                }
+                newSplits.push({
+                    id: chequeSplits[i]?.id || `${Date.now()}-${i}`,
+                    chequeDate: chequeSplits[i]?.chequeDate || new Date(),
+                    chequeNumber: chequeSplits[i]?.chequeNumber || '',
+                    amount: currentAmount
+                });
+            }
+        } else {
+             for (let i = 0; i < numSplits; i++) {
+                newSplits.push(chequeSplits[i] || {
+                    id: `${Date.now()}-${i}`,
+                    chequeDate: new Date(),
+                    chequeNumber: '',
+                    amount: ''
+                });
+            }
         }
+
         setChequeSplits(newSplits);
-    }, [numberOfSplits]);
+    }, [numberOfSplits, invoiceAmount]);
+
 
     const allParties = useMemo(() => parties.sort((a, b) => a.name.localeCompare(b.name)), [parties]);
     
