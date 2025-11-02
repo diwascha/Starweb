@@ -133,7 +133,7 @@ export default function CostReportPage() {
         basePaperCost = globalKraftCost;
     } else if (item.paperType === 'VIRGIN') {
         basePaperCost = globalVirginCost;
-    } else if (item.paperType === 'VIRGIN & KRAFT' && totalBoxWeightInGrams > 0) {
+    } else if (item.paperType === 'VIRGIN & KRAFT' && totalBoxWeightInKg > 0) {
         const topLayerWeightKg = ((sheetArea * topGsm) / 1000) * (1 + wastage);
         const topLayerCost = topLayerWeightKg * globalVirginCost;
 
@@ -148,7 +148,6 @@ export default function CostReportPage() {
         const kraftLayersCost = kraftLayersWeightKg * globalKraftCost;
 
         const totalPaperCost = topLayerCost + kraftLayersCost;
-        // Calculate the equivalent single rate for display
         basePaperCost = totalPaperCost / totalBoxWeightInKg;
     } else {
         basePaperCost = globalKraftCost;
@@ -444,7 +443,7 @@ export default function CostReportPage() {
                                         <SelectContent>
                                             <SelectItem value="KRAFT">KRAFT</SelectItem>
                                             <SelectItem value="VIRGIN">VIRGIN</SelectItem>
-                                            <SelectItem value="VIRGIN &amp; KRAFT">VIRGIN &amp; KRAFT</SelectItem>
+                                            <SelectItem value="VIRGIN & KRAFT">VIRGIN & KRAFT</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </TableCell>
