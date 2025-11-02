@@ -27,10 +27,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export function ChequeGeneratorForm() {
-    const [date, setDate] = useState<Date>(new Date());
+    const [paymentDate, setPaymentDate] = useState<Date>(new Date());
+    const [invoiceDate, setInvoiceDate] = useState<Date | undefined>();
     const [partyName, setPartyName] = useState('');
     const [payeeName, setPayeeName] = useState('');
     const [amount, setAmount] = useState<number | ''>('');
+    const [chequeNumber, setChequeNumber] = useState('');
+    const [numberOfSplits, setNumberOfSplits] = useState<number>(1);
     
     const [parties, setParties] = useState<Party[]>([]);
     
@@ -49,10 +52,10 @@ export function ChequeGeneratorForm() {
         return () => unsubParties();
     }, []);
 
-    const sortedParties = useMemo(() => parties.sort((a, b) => a.name.localeCompare(b.name)), [parties]);
+    const allParties = useMemo(() => parties.sort((a, b) => a.name.localeCompare(b.name)), [parties]);
 
     const handlePartySelect = (selectedPartyName: string) => {
-        const party = sortedParties.find(c => c.name === selectedPartyName);
+        const party = allParties.find(c => c.name === selectedPartyName);
         setPartyName(party?.name || selectedPartyName);
         setPayeeName(party?.name || selectedPartyName); // Default payee name to party name
         setIsPartyPopoverOpen(false);
@@ -88,32 +91,57 @@ export function ChequeGeneratorForm() {
         // This would ideally open a print dialog for a formatted cheque.
         // For now, we'll just log it.
         console.log({
-            date: format(date, 'yyyy-MM-dd'),
+            paymentDate: format(paymentDate, 'yyyy-MM-dd'),
+            invoiceDate: invoiceDate ? format(invoiceDate, 'yyyy-MM-dd') : 'N/A',
             payee: payeeName,
             amount: amount,
-            amountInWords: amountInWords
+            amountInWords: amountInWords,
+            chequeNumber,
+            numberOfSplits
         });
         toast({ title: 'Printing...', description: 'Cheque print dialog would appear here.' });
     };
 
     return (
         <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
                 <div className="space-y-2">
-                    <Label htmlFor="date">Date:</Label>
+                    <Label htmlFor="paymentDate">Payment/Cheque Date:</Label>
                     <Popover>
                         <PopoverTrigger asChild>
-                            <Button variant="outline" className="w-full justify-start text-left font-normal">
+                            <Button id="paymentDate" variant="outline" className="w-full justify-start text-left font-normal">
                                 <CalendarIcon className="mr-2 h-4 w-4" />
-                                {date ? format(date, 'PPP') : <span>Pick a date</span>}
+                                {paymentDate ? format(paymentDate, 'PPP') : <span>Pick a date</span>}
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0">
-                            <DualCalendar selected={date} onSelect={(d) => d && setDate(d)} />
+                            <DualCalendar selected={paymentDate} onSelect={(d) => d && setPaymentDate(d)} />
+                        </PopoverContent>
+                    </Popover>
+                </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="invoiceDate">Invoice Date:</Label>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button id="invoiceDate" variant="outline" className="w-full justify-start text-left font-normal">
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {invoiceDate ? format(invoiceDate, 'PPP') : <span>Pick a date</span>}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                            <DualCalendar selected={invoiceDate} onSelect={(d) => d && setInvoiceDate(d)} />
                         </PopoverContent>
                     </Popover>
                  </div>
-                 <div className="space-y-2">
+                <div className="space-y-2">
+                    <Label htmlFor="chequeNumber">Cheque Number:</Label>
+                    <Input id="chequeNumber" value={chequeNumber} onChange={(e) => setChequeNumber(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="splits">No. of Cheque Splits:</Label>
+                    <Input id="splits" type="number" min="1" value={numberOfSplits} onChange={(e) => setNumberOfSplits(parseInt(e.target.value, 10) || 1)} />
+                </div>
+                 <div className="space-y-2 lg:col-span-2">
                     <Label htmlFor="party-name">Party Name:</Label>
                     <Popover open={isPartyPopoverOpen} onOpenChange={setIsPartyPopoverOpen}>
                         <PopoverTrigger asChild>
@@ -144,7 +172,7 @@ export function ChequeGeneratorForm() {
                                     </Button>
                                 </CommandEmpty>
                                 <CommandGroup>
-                                    {sortedParties.map((c) => (
+                                    {allParties.map((c) => (
                                     <CommandItem key={c.id} value={c.name} onSelect={() => handlePartySelect(c.name)}>
                                         <Check className={cn("mr-2 h-4 w-4", partyName === c.name ? "opacity-100" : "opacity-0")}/>
                                         {c.name}
@@ -156,7 +184,7 @@ export function ChequeGeneratorForm() {
                         </PopoverContent>
                     </Popover>
                 </div>
-                 <div className="space-y-2">
+                 <div className="space-y-2 lg:col-span-2">
                     <Label htmlFor="payee-name">Payee Name (as on cheque):</Label>
                     <Input id="payee-name" value={payeeName} onChange={(e) => setPayeeName(e.target.value)} />
                 </div>
