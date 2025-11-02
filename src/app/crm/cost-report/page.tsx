@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { Product, Party, PartyType, CostReport, CostReportItem } from '@/lib/types';
-import { onProductsUpdate } from '@/services/product-service';
+import { onProductsUpdate, addProduct as addProductService, updateProduct as updateProductService, deleteProduct as deleteProductService } from '@/services/product-service';
 import { onPartiesUpdate, addParty, updateParty } from '@/services/party-service';
 import { onCostReportsUpdate, addCostReport, deleteCostReport, generateNextCostReportNumber, getCostReport, updateCostReport } from '@/services/cost-report-service';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Printer, Loader2, Plus, Trash2, ChevronsUpDown, Check, PlusCircle, Edit, Save, MoreHorizontal } from 'lucide-react';
+import { Printer, Loader2, Plus, Trash2, ChevronsUpDown, Check, PlusCircle, Edit, Save, MoreHorizontal, Search, ArrowUpDown } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon } from 'lucide-react';
@@ -183,7 +183,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit }: Cos
         setItems([]);
         setSelectedForPrint(new Set());
     }
-  }, [reportToEdit, costReports, calculateItemCost]);
+  }, [reportToEdit, costReports, calculateItemCost, kraftPaperCost, virginPaperCost, conversionCost]);
 
 
   const handleProductSelect = (index: number, productId: string) => {
@@ -982,6 +982,79 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
     );
 }
 
+function ProductList() {
+    const [products, setProducts] = useState<Product[]>([]);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [sortConfig, setSortConfig] = useState<{ key: keyof Product; direction: 'asc' | 'desc'}>({ key: 'name', direction: 'asc' });
+
+    useEffect(() => {
+        const unsub = onProductsUpdate(setProducts);
+        return () => unsub();
+    }, []);
+
+    const requestSort = (key: keyof Product) => {
+        let direction: 'asc' | 'desc' = 'asc';
+        if (sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const sortedProducts = useMemo(() => {
+        const sortable = [...products].filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+        sortable.sort((a, b) => {
+            const aVal = a[sortConfig.key] ?? '';
+            const bVal = b[sortConfig.key] ?? '';
+            if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+        return sortable;
+    }, [products, sortConfig, searchQuery]);
+
+    return (
+        <Card>
+            <CardHeader>
+                <div className="flex justify-between items-center">
+                    <div>
+                        <CardTitle>Products for Costing</CardTitle>
+                        <CardDescription>A list of products available in the cost calculator.</CardDescription>
+                    </div>
+                     <div className="relative">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Search products..."
+                            className="pl-8 w-full sm:w-[250px]"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                    </div>
+                </div>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('name')}>Product Name <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('partyName')}>Delivered To <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('rate')}>Rate <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {sortedProducts.map(product => (
+                            <TableRow key={product.id}>
+                                <TableCell>{product.name}</TableCell>
+                                <TableCell>{product.partyName}</TableCell>
+                                <TableCell>{product.rate?.toLocaleString() || 'N/A'}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+    );
+}
+
 export default function CostReportPage() {
     const [activeTab, setActiveTab] = useState("calculator");
     const [reportToEdit, setReportToEdit] = useState<CostReport | null>(null);
@@ -1010,6 +1083,7 @@ export default function CostReportPage() {
                 <TabsList>
                     <TabsTrigger value="calculator">Calculator</TabsTrigger>
                     <TabsTrigger value="saved">Saved Reports</TabsTrigger>
+                    <TabsTrigger value="products">Products</TabsTrigger>
                 </TabsList>
                 <TabsContent value="calculator" className="pt-4">
                     <CostReportCalculator 
@@ -1021,8 +1095,10 @@ export default function CostReportPage() {
                 <TabsContent value="saved" className="pt-4">
                     <SavedReportsList onEdit={handleEditReport} />
                 </TabsContent>
+                <TabsContent value="products" className="pt-4">
+                    <ProductList />
+                </TabsContent>
             </Tabs>
         </div>
     );
 }
-
