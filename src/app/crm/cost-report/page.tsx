@@ -2,16 +2,17 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import type { Product, Party, PartyType } from '@/lib/types';
+import type { Product, Party, PartyType, CostReport, CostReportItem } from '@/lib/types';
 import { onProductsUpdate } from '@/services/product-service';
 import { onPartiesUpdate, addParty, updateParty } from '@/services/party-service';
+import { onCostReportsUpdate, addCostReport, deleteCostReport, generateNextCostReportNumber } from '@/services/cost-report-service';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Printer, Loader2, Plus, Trash2, ChevronsUpDown, Check, PlusCircle, Edit } from 'lucide-react';
+import { Printer, Loader2, Plus, Trash2, ChevronsUpDown, Check, PlusCircle, Edit, Save, FileSpreadsheet, ArrowUpDown } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon } from 'lucide-react';
@@ -23,6 +24,11 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import { AnnapurnaSIL } from '@/lib/fonts/AnnapurnaSIL-Regular-base64';
+
 
 interface CalculatedValues {
     sheetSizeL: number;
@@ -33,28 +39,6 @@ interface CalculatedValues {
     totalBoxWeight: number;
     paperRate: number;
     paperCost: number;
-}
-
-interface CostReportItem {
-  id: string;
-  productId: string;
-  l: string;
-  b: string;
-  h: string;
-  noOfPcs: string;
-  boxType: string;
-  ply: string;
-  fluteType: string;
-  paperType: string;
-  paperShade: string;
-  paperBf: string;
-  topGsm: string;
-  flute1Gsm: string;
-  middleGsm: string;
-  flute2Gsm: string;
-  bottomGsm: string;
-  wastagePercent: string;
-  calculated: CalculatedValues;
 }
 
 const initialCalculatedState: CalculatedValues = {
@@ -75,9 +59,10 @@ const product2: Omit<CostReportItem, 'id' | 'productId' | 'calculated'> = {
   wastagePercent: '3.5'
 };
 
-export default function CostReportPage() {
+function CostReportCalculator() {
   const [products, setProducts] = useState<Product[]>([]);
   const [parties, setParties] = useState<Party[]>([]);
+  const [costReports, setCostReports] = useState<CostReport[]>([]);
   const [selectedPartyId, setSelectedPartyId] = useState<string>('');
   const [reportNumber, setReportNumber] = useState('CR-001'); // Placeholder
   const [reportDate, setReportDate] = useState<Date>(new Date());
@@ -85,6 +70,7 @@ export default function CostReportPage() {
   const [kraftPaperCost, setKraftPaperCost] = useState<number | ''>(13.118);
   const [virginPaperCost, setVirginPaperCost] = useState<number | ''>('');
   const [conversionCost, setConversionCost] = useState<number | ''>(1);
+  const [isSaving, setIsSaving] = useState(false);
 
   const { toast } = useToast();
   const { user } = useAuth();
@@ -184,11 +170,18 @@ export default function CostReportPage() {
   useEffect(() => {
     const unsubProducts = onProductsUpdate(setProducts);
     const unsubParties = onPartiesUpdate(setParties);
+    const unsubCostReports = onCostReportsUpdate(setCostReports);
     return () => {
         unsubProducts();
         unsubParties();
+        unsubCostReports();
     };
   }, []);
+  
+  useEffect(() => {
+      generateNextCostReportNumber(costReports).then(setReportNumber);
+  }, [costReports]);
+
 
   const handleProductSelect = (index: number, productId: string) => {
     const product = products.find(p => p.id === productId);
@@ -279,14 +272,83 @@ export default function CostReportPage() {
     }
   };
 
+  const handleSaveReport = async () => {
+      if (!user || !selectedPartyId) {
+          toast({ title: "Error", description: "Please select a party before saving.", variant: "destructive" });
+          return;
+      }
+      setIsSaving(true);
+      try {
+          const reportData: Omit<CostReport, 'id' | 'createdAt'> = {
+              reportNumber,
+              reportDate: reportDate.toISOString(),
+              partyId: selectedPartyId,
+              partyName: parties.find(p => p.id === selectedPartyId)?.name || '',
+              kraftPaperCost: Number(kraftPaperCost) || 0,
+              virginPaperCost: Number(virginPaperCost) || 0,
+              conversionCost: Number(conversionCost) || 0,
+              items: items.map(({ calculated, ...item }) => item), // Exclude calculated values
+              totalCost: totalItemCost,
+              createdBy: user.username,
+          };
+          await addCostReport(reportData);
+          toast({ title: "Success", description: "Cost report saved successfully." });
+      } catch (error) {
+          toast({ title: "Error", description: "Failed to save the report.", variant: "destructive" });
+      } finally {
+          setIsSaving(false);
+      }
+  };
+  
+  const handlePrint = async () => {
+    if (!selectedPartyId) {
+        toast({ title: "Cannot Print", description: "Please select a party before printing.", variant: "destructive" });
+        return;
+    }
+    const doc = new jsPDF();
+    
+    // Add font
+    doc.addFileToVFS("AnnapurnaSIL.ttf", AnnapurnaSIL);
+    doc.addFont("AnnapurnaSIL.ttf", "AnnapurnaSIL", "normal");
+    
+    // Header
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.text('Cost Report', doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
+    
+    // Info
+    doc.setFontSize(10);
+    doc.setFont('Helvetica', 'normal');
+    doc.text(`Report No: ${reportNumber}`, 14, 30);
+    doc.text(`Party: ${parties.find(p => p.id === selectedPartyId)?.name || ''}`, 14, 35);
+    doc.text(`Date: ${toNepaliDate(reportDate.toISOString())}`, doc.internal.pageSize.getWidth() - 14, 30, { align: 'right' });
+    
+    // Table
+    (doc as any).autoTable({
+        startY: 45,
+        head: [['Sl.No', 'Item Name', 'Box Size (LxBxH)', 'Ply', 'Total', 'Box Rate/Piece']],
+        body: items.map((item, index) => [
+            index + 1,
+            products.find(p => p.id === item.productId)?.name || 'N/A',
+            `${item.l}x${item.b}x${item.h}`,
+            item.ply,
+            item.calculated.paperCost.toFixed(2),
+            item.calculated.paperRate.toFixed(2),
+        ]),
+        theme: 'grid',
+        footStyles: { fontStyle: 'bold' },
+        foot: [
+            [{ content: 'Total', colSpan: 4, styles: { halign: 'right' } }, totalItemCost.toFixed(2), ''],
+        ]
+    });
+    
+    doc.save(`CostReport-${reportNumber}.pdf`);
+  };
+
 
   return (
     <div className="flex flex-col gap-8">
-        <header>
-          <h1 className="text-3xl font-bold tracking-tight">Cost Report Generator</h1>
-          <p className="text-muted-foreground">Calculate product costs based on multiple raw materials and specifications.</p>
-        </header>
-
+      
         <Card>
             <CardHeader>
                 <CardTitle>Report Details</CardTitle>
@@ -469,10 +531,24 @@ export default function CostReportPage() {
                         </TableBody>
                     </Table>
                 </div>
-                 <Button variant="outline" size="sm" onClick={handleAddItem} className="mt-4"><Plus className="mr-2 h-4 w-4" />Add Another Product</Button>
+                 <div className="flex justify-between items-center mt-4">
+                    <Button variant="outline" size="sm" onClick={handleAddItem}><Plus className="mr-2 h-4 w-4" />Add Another Product</Button>
+                    <div className="text-right">
+                        <span className="text-sm font-medium text-muted-foreground">Total Cost: </span>
+                        <span className="text-xl font-bold">{totalItemCost.toFixed(2)}</span>
+                    </div>
+                </div>
             </CardContent>
             
         </Card>
+
+        <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={handlePrint}><Printer className="mr-2 h-4 w-4" /> Print</Button>
+            <Button onClick={handleSaveReport} disabled={isSaving}>
+                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                Save Report
+            </Button>
+        </div>
       
        <Dialog open={isPartyDialogOpen} onOpenChange={setIsPartyDialogOpen}>
           <DialogContent className="sm:max-w-md">
@@ -517,4 +593,15 @@ export default function CostReportPage() {
   );
 }
 
-    
+export default function CostReportPage() {
+    return (
+        <div className="flex flex-col gap-8">
+            <header>
+                <h1 className="text-3xl font-bold tracking-tight">Cost Report Generator</h1>
+                <p className="text-muted-foreground">Calculate product costs based on multiple raw materials and specifications.</p>
+            </header>
+            <CostReportCalculator />
+        </div>
+    );
+}
+

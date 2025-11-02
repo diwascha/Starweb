@@ -1,5 +1,6 @@
 
 
+
 export interface RateHistoryEntry {
   rate: number;
   date: string; // ISO string when the rate was set
@@ -605,4 +606,55 @@ export interface EstimatedInvoice {
     amountInWords: string;
     createdBy: string;
     createdAt: string; // ISO
+}
+
+// CRM Types
+
+interface CalculatedValues {
+    sheetSizeL: number;
+    sheetSizeB: number;
+    sheetArea: number;
+    totalGsm: number;
+    paperWeight: number;
+    totalBoxWeight: number;
+    paperRate: number;
+    paperCost: number;
+}
+
+export interface CostReportItem {
+  id: string;
+  productId: string;
+  l: string;
+  b: string;
+  h: string;
+  noOfPcs: string;
+  boxType: string;
+  ply: string;
+  fluteType: string;
+  paperType: string;
+  paperShade: string;
+  paperBf: string;
+  topGsm: string;
+  flute1Gsm: string;
+  middleGsm: string;
+  flute2Gsm: string;
+  bottomGsm: string;
+  wastagePercent: string;
+  calculated: CalculatedValues;
+}
+
+
+export interface CostReport {
+  id: string;
+  reportNumber: string;
+  reportDate: string; // ISO string
+  partyId: string;
+  partyName: string;
+  kraftPaperCost: number;
+  virginPaperCost: number;
+  conversionCost: number;
+  items: Omit<CostReportItem, 'calculated'>[]; // We only store the inputs, not the calculated values
+  totalCost: number;
+  createdBy: string;
+  createdAt: string;
 }
