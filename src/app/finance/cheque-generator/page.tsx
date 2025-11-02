@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Search, ArrowUpDown, MoreHorizontal, Printer, Trash2, Edit, AlertTriangle, PlusCircle } from 'lucide-react';
+import { Search, ArrowUpDown, MoreHorizontal, Printer, Trash2, Edit, AlertTriangle, PlusCircle, History } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { onChequesUpdate, deleteCheque, updateCheque } from '@/services/cheque-service';
@@ -15,7 +15,7 @@ import type { Cheque, ChequeSplit, ChequeStatus, PartialPayment } from '@/lib/ty
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { format, differenceInDays, startOfToday } from 'date-fns';
+import { format, differenceInDays, startOfToday, parseISO } from 'date-fns';
 import { ChequeView } from './_components/cheque-view';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -26,6 +26,8 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { CalendarIcon } from 'lucide-react';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { Label } from '@/components/ui/label';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 
 
 function FormSkeleton() {
@@ -77,8 +79,9 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
     const printRef = useRef<HTMLDivElement>(null);
     
     const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
-    const [paymentForm, setPaymentForm] = useState<{ date: Date, amount: number, remarks?: string }>({ date: new Date(), amount: 0 });
+    const [paymentForm, setPaymentForm] = useState<{ date: Date, amount: number, remarks?: string }>({ date: new Date(), amount: 0, remarks: '' });
     const [payingSplit, setPayingSplit] = useState<AugmentedChequeSplit | null>(null);
+    const [editingPayment, setEditingPayment] = useState<PartialPayment | null>(null);
 
 
     useEffect(() => {
@@ -203,7 +206,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
     };
     
     const getStatusBadge = (split: AugmentedChequeSplit) => {
-        const { status, daysRemaining, isOverdue, remainingAmount } = split;
+        const { status, daysRemaining, isOverdue } = split;
 
         if (status === 'Paid') {
             return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Paid</Badge>;
@@ -224,57 +227,92 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
         return <Badge variant="outline" className="text-blue-600 border-blue-600">Due in {daysRemaining} day(s)</Badge>;
     };
     
-    const handleAddPayment = async () => {
+    const openPaymentDialog = (split: AugmentedChequeSplit) => {
+        setPayingSplit(split);
+        setEditingPayment(null);
+        setPaymentForm({ date: new Date(), amount: 0, remarks: '' });
+        setIsPaymentDialogOpen(true);
+    };
+
+    const handleEditPayment = (payment: PartialPayment) => {
+        setEditingPayment(payment);
+        setPaymentForm({
+            date: new Date(payment.date),
+            amount: payment.amount,
+            remarks: payment.remarks || ''
+        });
+    };
+    
+    const handleDeletePayment = async (paymentId: string) => {
         if (!payingSplit || !user) return;
         
-        const { date, amount, remarks } = paymentForm;
-
-        if (amount <= 0 || amount > payingSplit.remainingAmount) {
-            toast({ title: "Invalid Amount", description: `Payment must be between 0 and ${payingSplit.remainingAmount}.`, variant: "destructive" });
-            return;
-        }
-
-        const newPayment: PartialPayment = {
-            id: Date.now().toString(),
-            date: date.toISOString(),
-            amount,
-            remarks: remarks || '',
-        };
-
         const updatedSplits = payingSplit.parentCheque.splits.map(s => {
             if (s.id === payingSplit.id) {
-                const existingPayments = s.partialPayments || [];
-                const updatedPayments = [...existingPayments, newPayment];
+                const updatedPayments = (s.partialPayments || []).filter(p => p.id !== paymentId);
                 const totalPaid = updatedPayments.reduce((sum, p) => sum + p.amount, 0);
-                
-                let newStatus: ChequeStatus = 'Partially Paid';
-                if (totalPaid >= Number(s.amount)) {
-                    newStatus = 'Paid';
-                }
 
-                return {
-                    ...s,
-                    partialPayments: updatedPayments,
-                    status: newStatus
-                };
+                let newStatus: ChequeStatus = 'Due';
+                if (totalPaid >= Number(s.amount)) newStatus = 'Paid';
+                else if (totalPaid > 0) newStatus = 'Partially Paid';
+
+                return { ...s, partialPayments: updatedPayments, status: newStatus };
             }
             return s;
         });
 
-        const dataToUpdate: Partial<Cheque> = {
-            splits: updatedSplits,
-            lastModifiedBy: user.username,
-        };
-        
         try {
-            await updateCheque(payingSplit.parentCheque.id, dataToUpdate);
-            toast({ title: 'Payment Added', description: 'Partial payment has been recorded.' });
-            setIsPaymentDialogOpen(false);
-            setPayingSplit(null);
+            await updateCheque(payingSplit.parentCheque.id, { splits: updatedSplits, lastModifiedBy: user.username });
+            toast({ title: 'Payment Deleted', description: 'Partial payment has been removed.' });
+        } catch (error) {
+            toast({ title: 'Error', description: 'Failed to delete payment.', variant: 'destructive' });
+        }
+    };
+
+
+    const handleSavePayment = async () => {
+        if (!payingSplit || !user) return;
+        
+        const { date, amount, remarks } = paymentForm;
+        
+        const maxAmount = editingPayment ? payingSplit.remainingAmount + editingPayment.amount : payingSplit.remainingAmount;
+        if (amount <= 0 || amount > maxAmount) {
+            toast({ title: "Invalid Amount", description: `Payment must be between 0 and ${maxAmount}.`, variant: "destructive" });
+            return;
+        }
+
+        const updatedSplits = payingSplit.parentCheque.splits.map(s => {
+            if (s.id === payingSplit.id) {
+                const existingPayments = s.partialPayments || [];
+                let updatedPayments: PartialPayment[];
+
+                if (editingPayment) {
+                     updatedPayments = existingPayments.map(p => 
+                        p.id === editingPayment.id ? { ...p, date: date.toISOString(), amount, remarks: remarks || '' } : p
+                    );
+                } else {
+                    const newPayment: PartialPayment = { id: Date.now().toString(), date: date.toISOString(), amount, remarks: remarks || '' };
+                    updatedPayments = [...existingPayments, newPayment];
+                }
+                
+                const totalPaid = updatedPayments.reduce((sum, p) => sum + p.amount, 0);
+                
+                let newStatus: ChequeStatus = 'Due';
+                if (totalPaid >= Number(s.amount)) newStatus = 'Paid';
+                else if (totalPaid > 0) newStatus = 'Partially Paid';
+
+                return { ...s, partialPayments: updatedPayments, status: newStatus };
+            }
+            return s;
+        });
+
+        try {
+            await updateCheque(payingSplit.parentCheque.id, { splits: updatedSplits, lastModifiedBy: user.username });
+            toast({ title: 'Success', description: `Payment ${editingPayment ? 'updated' : 'added'}.` });
+            setEditingPayment(null);
             setPaymentForm({ date: new Date(), amount: 0, remarks: '' });
         } catch (error) {
-            console.error("Failed to add payment:", error);
-            toast({ title: 'Error', description: 'Failed to add payment.', variant: 'destructive' });
+            console.error("Failed to save payment:", error);
+            toast({ title: 'Error', description: 'Failed to save payment.', variant: 'destructive' });
         }
     };
 
@@ -366,7 +404,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                             <DropdownMenuContent align="end">
                                     <DropdownMenuLabel>Voucher #{split.parentCheque.voucherNo}</DropdownMenuLabel>
                                     <DropdownMenuSeparator />
-                                    <DropdownMenuItem onSelect={() => {setPayingSplit(split); setIsPaymentDialogOpen(true);}}><PlusCircle className="mr-2 h-4 w-4" /> Add Payment</DropdownMenuItem>
+                                    <DropdownMenuItem onSelect={() => openPaymentDialog(split)}><History className="mr-2 h-4 w-4" /> Manage Payments</DropdownMenuItem>
                                     <DropdownMenuItem onSelect={() => onEdit(split.parentCheque)}><Edit className="mr-2 h-4 w-4" /> Edit Voucher</DropdownMenuItem>
                                     <DropdownMenuItem onSelect={() => handlePrint(split.parentCheque)}><Printer className="mr-2 h-4 w-4"/> Print Voucher</DropdownMenuItem>
                                     <DropdownMenuSeparator />
@@ -425,53 +463,86 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
             </Dialog>
 
              <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
-                <DialogContent>
+                <DialogContent className="max-w-2xl">
                     <DialogHeader>
-                        <DialogTitle>Add Partial Payment</DialogTitle>
+                        <DialogTitle>Manage Payments</DialogTitle>
                         <DialogDescription>
                             For Cheque # {payingSplit?.chequeNumber} to {payingSplit?.parentCheque.payeeName}
                         </DialogDescription>
                     </DialogHeader>
                     {payingSplit && (
-                        <div className="space-y-4 py-4">
-                             <div className="grid grid-cols-2 text-sm">
-                                <div><span className="font-medium">Total Amount:</span> {Number(payingSplit.amount).toLocaleString()}</div>
-                                <div className="font-bold"><span className="font-medium">Remaining:</span> {payingSplit.remainingAmount.toLocaleString()}</div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+                            <div>
+                                <h4 className="font-semibold mb-2">Payment History</h4>
+                                <ScrollArea className="h-64 border rounded-md">
+                                    {(payingSplit.partialPayments || []).length > 0 ? (
+                                        <Table>
+                                            <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Amount</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                                            <TableBody>
+                                                {(payingSplit.partialPayments || []).map(p => (
+                                                    <TableRow key={p.id}>
+                                                        <TableCell>{format(new Date(p.date), 'PPP')}</TableCell>
+                                                        <TableCell>{p.amount.toLocaleString()}</TableCell>
+                                                        <TableCell className="text-right">
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditPayment(p)}><Edit className="h-4 w-4" /></Button>
+                                                            <AlertDialog>
+                                                                <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
+                                                                <AlertDialogContent>
+                                                                    <AlertDialogHeader><AlertDialogTitle>Delete Payment?</AlertDialogTitle><AlertDialogDescription>This will permanently delete this partial payment record.</AlertDialogDescription></AlertDialogHeader>
+                                                                    <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeletePayment(p.id)}>Delete</AlertDialogAction></AlertDialogFooter>
+                                                                </AlertDialogContent>
+                                                            </AlertDialog>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    ) : (
+                                        <p className="text-center text-sm text-muted-foreground p-4">No payments recorded yet.</p>
+                                    )}
+                                </ScrollArea>
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="payment-date">Payment Date</Label>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button variant="outline" className="w-full justify-start text-left font-normal">
-                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {paymentForm.date ? format(paymentForm.date, 'PPP') : <span>Pick a date</span>}
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0">
-                                        <DualCalendar selected={paymentForm.date} onSelect={(d) => d && setPaymentForm(p => ({...p, date: d}))} />
-                                    </PopoverContent>
-                                </Popover>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="payment-amount">Payment Amount</Label>
-                                <Input
-                                    id="payment-amount"
-                                    type="number"
-                                    value={paymentForm.amount}
-                                    onChange={(e) => setPaymentForm(p => ({...p, amount: parseFloat(e.target.value) || 0}))}
-                                    max={payingSplit.remainingAmount}
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="payment-remarks">Remarks (Optional)</Label>
-                                <Input id="payment-remarks" value={paymentForm.remarks} onChange={(e) => setPaymentForm(p => ({...p, remarks: e.target.value}))} />
+                            <div className="space-y-4">
+                                <h4 className="font-semibold">{editingPayment ? 'Edit Payment' : 'Add New Payment'}</h4>
+                                <div className="grid grid-cols-2 text-sm">
+                                    <div><span className="font-medium">Total:</span> {Number(payingSplit.amount).toLocaleString()}</div>
+                                    <div className="font-bold"><span className="font-medium">Remaining:</span> {payingSplit.remainingAmount.toLocaleString()}</div>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="payment-date">Payment Date</Label>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button variant="outline" className="w-full justify-start text-left font-normal">
+                                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                                {paymentForm.date ? format(paymentForm.date, 'PPP') : <span>Pick a date</span>}
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0">
+                                            <DualCalendar selected={paymentForm.date} onSelect={(d) => d && setPaymentForm(p => ({...p, date: d}))} />
+                                        </PopoverContent>
+                                    </Popover>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="payment-amount">Payment Amount</Label>
+                                    <Input
+                                        id="payment-amount"
+                                        type="number"
+                                        value={paymentForm.amount}
+                                        onChange={(e) => setPaymentForm(p => ({...p, amount: parseFloat(e.target.value) || 0}))}
+                                        max={editingPayment ? payingSplit.remainingAmount + editingPayment.amount : payingSplit.remainingAmount}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="payment-remarks">Remarks (Optional)</Label>
+                                    <Input id="payment-remarks" value={paymentForm.remarks} onChange={(e) => setPaymentForm(p => ({...p, remarks: e.target.value}))} />
+                                </div>
+                                <div className="flex justify-end gap-2">
+                                     {editingPayment && <Button variant="ghost" onClick={() => {setEditingPayment(null); setPaymentForm({ date: new Date(), amount: 0, remarks: '' });}}>Cancel Edit</Button>}
+                                     <Button onClick={handleSavePayment}>{editingPayment ? 'Save Changes' : 'Add Payment'}</Button>
+                                </div>
                             </div>
                         </div>
                     )}
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsPaymentDialogOpen(false)}>Cancel</Button>
-                        <Button onClick={handleAddPayment}>Add Payment</Button>
-                    </DialogFooter>
                 </DialogContent>
             </Dialog>
         </>
