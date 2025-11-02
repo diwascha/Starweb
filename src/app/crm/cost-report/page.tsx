@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -61,14 +62,14 @@ const initialCalculatedState: CalculatedValues = {
 };
 
 const product1: Omit<CostReportItem, 'id' | 'productId' | 'calculated'> = {
-  l: '309', b: '179', h: '102', noOfPcs: '1', boxType: 'RSC', ply: '3', fluteType: 'B', 
+  l: '235', b: '160', h: '38', noOfPcs: '1', boxType: 'RSC', ply: '3', fluteType: 'B', 
   paperType: 'KRAFT', paperShade: 'NS', paperBf: '20 BF',
   topGsm: '180', flute1Gsm: '150', middleGsm: '', flute2Gsm: '', bottomGsm: '180',
   wastagePercent: '3.5', paperRate: '14.118'
 };
 
 const product2: Omit<CostReportItem, 'id' | 'productId' | 'calculated'> = {
-  l: '309', b: '179', h: '120', noOfPcs: '1', boxType: 'RSC', ply: '3', fluteType: 'B',
+  l: '230', b: '150', h: '35', noOfPcs: '1', boxType: 'RSC', ply: '3', fluteType: 'B',
   paperType: 'KRAFT', paperShade: 'NS', paperBf: '20 BF',
   topGsm: '180', flute1Gsm: '150', middleGsm: '', flute2Gsm: '', bottomGsm: '180',
   wastagePercent: '3.5', paperRate: '14.962'
@@ -177,7 +178,7 @@ export default function CostReportPage() {
   };
 
   const handleAddItem = () => {
-    setItems(prev => [...prev, { id: Date.now().toString(), productId: '', l:'',b:'',h:'', noOfPcs:'1', boxType: 'RSC', ply:'3', fluteType: 'B', paperType: 'Domestic', paperShade:'Golden', paperBf:'18', topGsm:'120',flute1Gsm:'100',middleGsm:'',flute2Gsm:'',bottomGsm:'120',wastagePercent:'3.5',paperRate:'', calculated: initialCalculatedState }]);
+    setItems(prev => [...prev, { id: Date.now().toString(), productId: '', l:'',b:'',h:'', noOfPcs:'1', boxType: 'RSC', ply:'3', fluteType: 'B', paperType: 'KRAFT', paperShade:'Golden', paperBf:'18', topGsm:'120',flute1Gsm:'100',middleGsm:'',flute2Gsm:'',bottomGsm:'120',wastagePercent:'3.5',paperRate:'', calculated: initialCalculatedState }]);
   };
   
   const handleRemoveItem = (id: string) => {
@@ -350,7 +351,21 @@ export default function CostReportPage() {
                                 <TableCell><Input value={item.boxType} onChange={e => handleItemChange(index, 'boxType', e.target.value)} className="w-20" /></TableCell>
                                 <TableCell><Input type="number" value={item.ply} onChange={e => handleItemChange(index, 'ply', e.target.value)} className="w-16" /></TableCell>
                                 <TableCell><Input value={item.fluteType} onChange={e => handleItemChange(index, 'fluteType', e.target.value)} className="w-16" /></TableCell>
-                                <TableCell><Input value={item.paperType} onChange={e => handleItemChange(index, 'paperType', e.target.value)} className="w-24" /></TableCell>
+                                <TableCell>
+                                    <Select
+                                        value={item.paperType}
+                                        onValueChange={(value) => handleItemChange(index, 'paperType', value)}
+                                    >
+                                        <SelectTrigger className="w-32">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="KRAFT">KRAFT</SelectItem>
+                                            <SelectItem value="VIRGIN">VIRGIN</SelectItem>
+                                            <SelectItem value="VIRGIN &amp; KRAFT">VIRGIN &amp; KRAFT</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </TableCell>
                                 <TableCell><Input value={item.paperShade} onChange={e => handleItemChange(index, 'paperShade', e.target.value)} className="w-24" /></TableCell>
                                 <TableCell><Input value={item.paperBf} onChange={e => handleItemChange(index, 'paperBf', e.target.value)} className="w-16" /></TableCell>
                                 <TableCell><Input type="number" value={item.topGsm} onChange={e => handleItemChange(index, 'topGsm', e.target.value)} className="w-20" /></TableCell>
