@@ -3,6 +3,7 @@
 
 import { toWords } from '@/lib/utils';
 import { format } from 'date-fns';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 
 interface ChequeViewProps {
   chequeDate: Date;
@@ -11,37 +12,56 @@ interface ChequeViewProps {
 }
 
 export function ChequeView({ chequeDate, payeeName, amount }: ChequeViewProps) {
-  const dateStr = format(chequeDate, 'ddMMyyyy');
+  const dateStr = format(chequeDate, 'PPP');
   const amountInWords = toWords(amount);
-  const formattedAmount = `**${amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}/-`;
+  const formattedAmount = amount.toLocaleString(undefined, { minimumFractionDigits: 2 });
 
   return (
-    <div className="cheque-container font-mono text-sm leading-tight" style={{ width: '8in', height: '3.66in', padding: '0.25in', position: 'relative', pageBreakAfter: 'always' }}>
-      {/* This container simulates a cheque layout. The inline styles are for precise positioning. */}
-      {/* Date */}
-      <div style={{ position: 'absolute', top: '0.55in', right: '0.5in', letterSpacing: '0.5em' }}>
-        {dateStr}
-      </div>
-      
-      {/* Payee Name */}
-      <div style={{ position: 'absolute', top: '1.2in', left: '1in' }}>
-        {payeeName}
-      </div>
-      
-      {/* Amount in Words */}
-      <div style={{ position: 'absolute', top: '1.6in', left: '1.2in', width: '4.5in', textTransform: 'capitalize' }}>
-        {amountInWords}
-      </div>
-      
-      {/* Amount in Figures */}
-      <div style={{ position: 'absolute', top: '1.65in', right: '0.6in', letterSpacing: '0.1em' }}>
-        {formattedAmount}
-      </div>
-      
-      {/* A/C Payee Only stamp */}
-      <div style={{ position: 'absolute', top: '2.5in', left: '1.5in', fontWeight: 'bold' }}>
-        A/C PAYEE ONLY
-      </div>
+    <div className="cheque-container bg-white text-black p-8 font-sans text-sm space-y-6" style={{ pageBreakAfter: 'always' }}>
+        <header className="text-center space-y-1">
+            <h1 className="text-xl font-bold">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
+            <p className="text-sm">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
+            <h2 className="text-lg font-semibold underline mt-1">PAYMENT VOUCHER</h2>
+        </header>
+
+        <div className="flex justify-between text-xs">
+            <div>
+                <span className="font-semibold">Payee:</span> {payeeName}
+            </div>
+            <div>
+                <span className="font-semibold">Date:</span> {dateStr}
+            </div>
+        </div>
+
+        <Table>
+            <TableHeader>
+                <TableRow>
+                    <TableHead className="text-black font-semibold">Description</TableHead>
+                    <TableHead className="text-black font-semibold text-right">Amount</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                <TableRow>
+                    <TableCell>Payment to {payeeName}</TableCell>
+                    <TableCell className="text-right">{formattedAmount}</TableCell>
+                </TableRow>
+            </TableBody>
+            <TableFooter>
+                <TableRow className="font-bold text-base">
+                    <TableCell className="text-right">Total</TableCell>
+                    <TableCell className="text-right">{formattedAmount}</TableCell>
+                </TableRow>
+            </TableFooter>
+        </Table>
+        
+        <div>
+             <p><span className="font-semibold">In Words:</span> {amountInWords}</p>
+        </div>
+
+        <div className="mt-16 grid grid-cols-2 gap-8 pt-16 text-xs">
+            <div className="text-center"><div className="border-t border-black w-48 mx-auto"></div><p className="font-semibold mt-1">Receiver's Signature</p></div>
+            <div className="text-center"><div className="border-t border-black w-48 mx-auto"></div><p className="font-semibold mt-1">Authorized Signature</p></div>
+        </div>
     </div>
   );
 }
