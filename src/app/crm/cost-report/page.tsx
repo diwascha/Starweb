@@ -78,7 +78,7 @@ export default function CostReportPage() {
     };
   }, []);
 
-  const calculateItemCost = useCallback((item: CostReportItem) => {
+  const calculateItemCost = useCallback((item: Omit<CostReportItem, 'id' | 'calculatedCost'>): number => {
     const l = parseFloat(item.l) || 0;
     const b = parseFloat(item.b) || 0;
     const h = parseFloat(item.h) || 0;
@@ -118,13 +118,6 @@ export default function CostReportPage() {
     return paperCost + gumCost + stitchingCost;
   }, []);
 
-  useEffect(() => {
-    setItems(prevItems => prevItems.map(item => ({
-      ...item,
-      calculatedCost: calculateItemCost(item),
-    })));
-  }, [items, calculateItemCost]);
-
   const handleProductSelect = (index: number, productId: string) => {
     const product = products.find(p => p.id === productId);
     if (!product) return;
@@ -134,12 +127,16 @@ export default function CostReportPage() {
     
     setItems(prevItems => {
         const newItems = [...prevItems];
-        newItems[index] = {
+        const updatedItem = {
             ...newItems[index],
             productId: product.id,
             l: l || '', b: b || '', h: h || '',
             ply: spec.ply || '3',
             // Reset other fields or pull from product spec if available
+        };
+        newItems[index] = {
+            ...updatedItem,
+            calculatedCost: calculateItemCost(updatedItem)
         };
         return newItems;
     });
@@ -148,7 +145,9 @@ export default function CostReportPage() {
   const handleItemChange = (index: number, field: keyof CostReportItem, value: string) => {
     setItems(prevItems => {
         const newItems = [...prevItems];
-        (newItems[index] as any)[field] = value;
+        const currentItem = { ...newItems[index], [field]: value };
+        const newCost = calculateItemCost(currentItem);
+        newItems[index] = { ...currentItem, calculatedCost: newCost };
         return newItems;
     });
   };
