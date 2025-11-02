@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, deleteDoc, query, orderBy } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, deleteDoc, query, orderBy, updateDoc } from 'firebase/firestore';
 import type { Cheque } from '@/lib/types';
 
 const chequesCollection = collection(db, 'cheques');
@@ -32,6 +32,14 @@ export const addCheque = async (cheque: Omit<Cheque, 'id' | 'createdAt'>): Promi
         createdAt: new Date().toISOString(),
     });
     return docRef.id;
+};
+
+export const updateCheque = async (id: string, cheque: Partial<Omit<Cheque, 'id'>>): Promise<void> => {
+    const chequeDoc = doc(db, 'cheques', id);
+    await updateDoc(chequeDoc, {
+        ...cheque,
+        lastModifiedAt: new Date().toISOString(),
+    });
 };
 
 export const onChequesUpdate = (callback: (cheques: Cheque[]) => void): () => void => {

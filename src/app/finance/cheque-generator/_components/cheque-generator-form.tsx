@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, ChevronsUpDown, Check, PlusCircle, Printer, Save, Loader2, Trash2 } from 'lucide-react';
 import { cn, toWords, generateNextVoucherNumber } from '@/lib/utils';
-import { format, addDays } from 'date-fns';
+import { format, addDays, parseISO } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { onPartiesUpdate, addParty } from '@/services/party-service';
 import type { Party, PartyType, Cheque, ChequeSplit } from '@/lib/types';
@@ -25,10 +25,16 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { addCheque, onChequesUpdate } from '@/services/cheque-service';
+import { addCheque, onChequesUpdate, updateCheque } from '@/services/cheque-service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
-export function ChequeGeneratorForm() {
+interface ChequeGeneratorFormProps {
+    chequeToEdit?: Cheque | null;
+    onSaveSuccess: () => void;
+}
+
+
+export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGeneratorFormProps) {
     const [paymentDate, setPaymentDate] = useState<Date>(new Date());
     const [invoiceDate, setInvoiceDate] = useState<Date | undefined>();
     const [invoiceNumber, setInvoiceNumber] = useState('');
@@ -71,13 +77,38 @@ export function ChequeGeneratorForm() {
     }, []);
     
      useEffect(() => {
-        const setNextVoucher = async () => {
-             generateNextVoucherNumber(cheques, 'PDC-').then(setVoucherNo);
-        };
-        setNextVoucher();
-    }, [cheques]);
+        if (chequeToEdit) {
+            setVoucherNo(chequeToEdit.voucherNo);
+            setPaymentDate(new Date(chequeToEdit.paymentDate));
+            setInvoiceDate(chequeToEdit.invoiceDate ? new Date(chequeToEdit.invoiceDate) : undefined);
+            setInvoiceNumber(chequeToEdit.invoiceNumber || '');
+            setPartyName(chequeToEdit.partyName);
+            setInvoiceAmount(chequeToEdit.amount);
+            setNumberOfSplits(chequeToEdit.splits.length);
+            setChequeSplits(chequeToEdit.splits.map(s => {
+                const splitDate = new Date(s.chequeDate);
+                const paymentDate = new Date(chequeToEdit.paymentDate);
+                const interval = Math.round((splitDate.getTime() - paymentDate.getTime()) / (1000 * 3600 * 24));
+                return {
+                    id: String(Math.random()),
+                    chequeDate: splitDate,
+                    chequeNumber: s.chequeNumber,
+                    amount: s.amount,
+                    remarks: s.remarks,
+                    interval: interval >= 0 ? interval : 0
+                }
+            }));
+        } else {
+            const setNextVoucher = async () => {
+                 generateNextVoucherNumber(cheques, 'PDC-').then(setVoucherNo);
+            };
+            setNextVoucher();
+        }
+    }, [chequeToEdit, cheques]);
 
     useEffect(() => {
+        if (chequeToEdit) return; // Don't auto-split when editing
+
         const totalAmount = Number(invoiceAmount) || 0;
         const numSplits = Math.max(1, numberOfSplits || 1);
         
@@ -102,7 +133,7 @@ export function ChequeGeneratorForm() {
         });
 
         setChequeSplits(newSplits);
-    }, [numberOfSplits, invoiceAmount, paymentDate]);
+    }, [numberOfSplits, invoiceAmount, paymentDate, chequeToEdit]);
 
 
     const allParties = useMemo(() => parties.sort((a, b) => a.name.localeCompare(b.name)), [parties]);
@@ -152,6 +183,7 @@ export function ChequeGeneratorForm() {
         setInvoiceAmount('');
         setNumberOfSplits(1);
         setChequeSplits([{ id: Date.now().toString(), chequeDate: new Date(), chequeNumber: '', amount: '', remarks: '', interval: 0 }]);
+        onSaveSuccess();
     };
 
     const handleSave = async () => {
@@ -165,7 +197,7 @@ export function ChequeGeneratorForm() {
         }
         setIsSaving(true);
         try {
-            const chequeData: Omit<Cheque, 'id' | 'createdAt'> = {
+             const chequeData: Omit<Cheque, 'id' | 'createdAt'> = {
                 paymentDate: paymentDate.toISOString(),
                 voucherNo: voucherNo,
                 invoiceDate: invoiceDate?.toISOString(),
@@ -179,10 +211,16 @@ export function ChequeGeneratorForm() {
                     chequeDate: s.chequeDate.toISOString(),
                     amount: Number(s.amount) || 0,
                 })),
-                createdBy: user.username,
+                createdBy: chequeToEdit?.createdBy || user.username,
             };
-            await addCheque(chequeData);
-            toast({ title: 'Success', description: 'Cheque record saved.' });
+
+            if (chequeToEdit) {
+                await updateCheque(chequeToEdit.id, {...chequeData, lastModifiedBy: user.username});
+                toast({ title: 'Success', description: 'Cheque record updated.' });
+            } else {
+                await addCheque(chequeData);
+                toast({ title: 'Success', description: 'Cheque record saved.' });
+            }
             resetForm();
         } catch (error) {
             toast({ title: 'Error', description: 'Failed to save cheque record.', variant: 'destructive' });
@@ -387,11 +425,14 @@ export function ChequeGeneratorForm() {
             <div className="flex justify-end gap-2">
                  <Button onClick={handleSave} variant="outline" disabled={isSaving}>
                     {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                    Save Cheque
+                    {chequeToEdit ? 'Save Changes' : 'Save Cheque'}
                 </Button>
                 <Button onClick={handlePrint}>
                     <Printer className="mr-2 h-4 w-4" /> Print Cheque
                 </Button>
+                 {chequeToEdit && (
+                    <Button variant="ghost" onClick={resetForm}>Cancel Edit</Button>
+                )}
             </div>
             
              <Dialog open={isPartyDialogOpen} onOpenChange={setIsPartyDialogOpen}>

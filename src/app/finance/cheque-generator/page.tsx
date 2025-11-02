@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Search, ArrowUpDown, MoreHorizontal, Printer, Trash2 } from 'lucide-react';
+import { Search, ArrowUpDown, MoreHorizontal, Printer, Trash2, Edit } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { onChequesUpdate, deleteCheque } from '@/services/cheque-service';
@@ -44,7 +44,7 @@ function FormSkeleton() {
 type SortKey = 'createdAt' | 'payeeName' | 'amount' | 'voucherNo';
 type SortDirection = 'asc' | 'desc';
 
-function SavedChequesList() {
+function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
     const [cheques, setCheques] = useState<Cheque[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'createdAt', direction: 'desc' });
@@ -148,6 +148,7 @@ function SavedChequesList() {
                                     </DropdownMenuItem>
                                 ))}
                                 <DropdownMenuSeparator />
+                                <DropdownMenuItem onSelect={() => onEdit(c)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
                                 <DropdownMenuItem><Printer className="mr-2 h-4 w-4"/> Print</DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <AlertDialog>
@@ -177,24 +178,42 @@ function SavedChequesList() {
 }
 
 export default function ChequeGeneratorPage() {
+    const [activeTab, setActiveTab] = useState('generator');
+    const [chequeToEdit, setChequeToEdit] = useState<Cheque | null>(null);
+
+    const handleEditCheque = (cheque: Cheque) => {
+        setChequeToEdit(cheque);
+        setActiveTab('generator');
+    };
+
+    const handleFinishEditing = () => {
+        setChequeToEdit(null);
+        setActiveTab('history');
+    };
+
+
   return (
     <div className="flex flex-col gap-8">
       <header>
         <h1 className="text-3xl font-bold tracking-tight">Cheque Generator</h1>
         <p className="text-muted-foreground">Generate and print cheques for your parties.</p>
       </header>
-       <Tabs defaultValue="generator">
+       <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-4">
                 <TabsTrigger value="generator">Cheque Generator</TabsTrigger>
                 <TabsTrigger value="history">Saved Cheques</TabsTrigger>
             </TabsList>
             <TabsContent value="generator">
                  <Suspense fallback={<FormSkeleton />}>
-                    <ChequeGeneratorForm />
+                    <ChequeGeneratorForm 
+                        key={chequeToEdit?.id || 'new'}
+                        chequeToEdit={chequeToEdit}
+                        onSaveSuccess={handleFinishEditing}
+                    />
                  </Suspense>
             </TabsContent>
             <TabsContent value="history">
-                <SavedChequesList />
+                <SavedChequesList onEdit={handleEditCheque} />
             </TabsContent>
         </Tabs>
     </div>
