@@ -6,12 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, ChevronsUpDown, Check, PlusCircle, Printer, Save, Loader2 } from 'lucide-react';
+import { CalendarIcon, ChevronsUpDown, Check, PlusCircle, Printer, Save, Loader2, Trash2 } from 'lucide-react';
 import { cn, toWords } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { onPartiesUpdate, addParty } from '@/services/party-service';
-import type { Party, PartyType, Cheque } from '@/lib/types';
+import type { Party, PartyType, Cheque, ChequeSplit } from '@/lib/types';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { useAuth } from '@/hooks/use-auth';
@@ -26,17 +26,21 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { addCheque } from '@/services/cheque-service';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 export function ChequeGeneratorForm() {
-    const [paymentDate, setPaymentDate] = useState<Date>(new Date());
     const [invoiceDate, setInvoiceDate] = useState<Date | undefined>();
     const [invoiceNumber, setInvoiceNumber] = useState('');
     const [partyName, setPartyName] = useState('');
     const [payeeName, setPayeeName] = useState('');
-    const [amount, setAmount] = useState<number | ''>('');
-    const [chequeNumber, setChequeNumber] = useState('');
-    const [numberOfSplits, setNumberOfSplits] = useState<number>(1);
     
+    const [chequeSplits, setChequeSplits] = useState<ChequeSplit[]>([{
+        id: Date.now().toString(),
+        chequeDate: new Date(),
+        chequeNumber: '',
+        amount: ''
+    }]);
+
     const [parties, setParties] = useState<Party[]>([]);
     const [isSaving, setIsSaving] = useState(false);
     
@@ -45,7 +49,6 @@ export function ChequeGeneratorForm() {
     const [partyForm, setPartyForm] = useState<{ name: string, type: PartyType, address?: string; panNumber?: string; }>({ name: '', type: 'Vendor', address: '', panNumber: '' });
     const [partySearch, setPartySearch] = useState('');
     const [isPartyPopoverOpen, setIsPartyPopoverOpen] = useState(false);
-
 
     const { toast } = useToast();
     const { user } = useAuth();
@@ -56,19 +59,23 @@ export function ChequeGeneratorForm() {
     }, []);
 
     const allParties = useMemo(() => parties.sort((a, b) => a.name.localeCompare(b.name)), [parties]);
+    
+    const totalAmount = useMemo(() => {
+        return chequeSplits.reduce((sum, split) => sum + (Number(split.amount) || 0), 0);
+    }, [chequeSplits]);
+
+    const amountInWords = useMemo(() => {
+        if (totalAmount <= 0) return 'Zero Only.';
+        return toWords(totalAmount);
+    }, [totalAmount]);
 
     const handlePartySelect = (selectedPartyName: string) => {
         const party = allParties.find(c => c.name === selectedPartyName);
         setPartyName(party?.name || selectedPartyName);
-        setPayeeName(party?.name || selectedPartyName); // Default payee name to party name
+        setPayeeName(party?.name || selectedPartyName);
         setIsPartyPopoverOpen(false);
     };
     
-    const amountInWords = useMemo(() => {
-        if (amount === '' || amount <= 0) return 'Zero Only.';
-        return toWords(amount);
-    }, [amount]);
-
     const handleSubmitParty = async () => {
         if(!user) return;
         if(!partyForm.name || !partyForm.type) {
@@ -87,33 +94,33 @@ export function ChequeGeneratorForm() {
     };
     
     const resetForm = () => {
-        setPaymentDate(new Date());
         setInvoiceDate(undefined);
         setInvoiceNumber('');
         setPartyName('');
         setPayeeName('');
-        setAmount('');
-        setChequeNumber('');
-        setNumberOfSplits(1);
+        setChequeSplits([{ id: Date.now().toString(), chequeDate: new Date(), chequeNumber: '', amount: '' }]);
     };
 
     const handleSave = async () => {
-        if (!user || !payeeName || !amount) {
-            toast({ title: 'Error', description: 'Payee and amount are required to save.', variant: 'destructive'});
+        if (!user || !payeeName || totalAmount <= 0) {
+            toast({ title: 'Error', description: 'Payee and a valid amount are required to save.', variant: 'destructive'});
             return;
         }
         setIsSaving(true);
         try {
             const chequeData: Omit<Cheque, 'id' | 'createdAt'> = {
-                paymentDate: paymentDate.toISOString(),
+                paymentDate: new Date().toISOString(), // Use current date for the overall record
                 invoiceDate: invoiceDate?.toISOString(),
                 invoiceNumber,
                 partyName,
                 payeeName,
-                amount,
+                amount: totalAmount,
                 amountInWords,
-                chequeNumber,
-                numberOfSplits,
+                splits: chequeSplits.map(s => ({
+                    ...s,
+                    chequeDate: s.chequeDate.toISOString(),
+                    amount: Number(s.amount) || 0,
+                })),
                 createdBy: user.username,
             };
             await addCheque(chequeData);
@@ -127,42 +134,39 @@ export function ChequeGeneratorForm() {
     };
     
     const handlePrint = () => {
-        if (!payeeName || !amount) {
-            toast({ title: 'Error', description: 'Please fill in payee and amount.', variant: 'destructive'});
+        if (!payeeName || totalAmount <= 0) {
+            toast({ title: 'Error', description: 'Please fill in payee and cheque details.', variant: 'destructive'});
             return;
         }
-        // This would ideally open a print dialog for a formatted cheque.
-        // For now, we'll just log it.
         console.log({
-            paymentDate: format(paymentDate, 'yyyy-MM-dd'),
             invoiceDate: invoiceDate ? format(invoiceDate, 'yyyy-MM-dd') : 'N/A',
             invoiceNumber,
             payee: payeeName,
-            amount: amount,
+            totalAmount: totalAmount,
             amountInWords: amountInWords,
-            chequeNumber,
-            numberOfSplits
+            cheques: chequeSplits
         });
         toast({ title: 'Printing...', description: 'Cheque print dialog would appear here.' });
     };
 
+    const handleSplitChange = (index: number, field: keyof ChequeSplit, value: any) => {
+        const newSplits = [...chequeSplits];
+        (newSplits[index] as any)[field] = value;
+        setChequeSplits(newSplits);
+    };
+    
+    const addSplit = () => {
+        setChequeSplits([...chequeSplits, { id: Date.now().toString(), chequeDate: new Date(), chequeNumber: '', amount: '' }]);
+    };
+    
+    const removeSplit = (index: number) => {
+        setChequeSplits(chequeSplits.filter((_, i) => i !== index));
+    };
+
+
     return (
         <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-                <div className="space-y-2">
-                    <Label htmlFor="paymentDate">Payment/Cheque Date:</Label>
-                    <Popover>
-                        <PopoverTrigger asChild>
-                            <Button id="paymentDate" variant="outline" className="w-full justify-start text-left font-normal">
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {paymentDate ? format(paymentDate, 'PPP') : <span>Pick a date</span>}
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
-                            <DualCalendar selected={paymentDate} onSelect={(d) => d && setPaymentDate(d)} />
-                        </PopoverContent>
-                    </Popover>
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
                  <div className="space-y-2">
                     <Label htmlFor="invoiceDate">Invoice Date:</Label>
                     <Popover>
@@ -181,15 +185,7 @@ export function ChequeGeneratorForm() {
                     <Label htmlFor="invoiceNumber">Invoice Number:</Label>
                     <Input id="invoiceNumber" value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} />
                 </div>
-                <div className="space-y-2">
-                    <Label htmlFor="chequeNumber">Cheque Number:</Label>
-                    <Input id="chequeNumber" value={chequeNumber} onChange={(e) => setChequeNumber(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="splits">No. of Cheque Splits:</Label>
-                    <Input id="splits" type="number" min="1" value={numberOfSplits} onChange={(e) => setNumberOfSplits(parseInt(e.target.value, 10) || 1)} />
-                </div>
-                 <div className="space-y-2 lg:col-span-2">
+                 <div className="space-y-2">
                     <Label htmlFor="party-name">Party Name:</Label>
                     <Popover open={isPartyPopoverOpen} onOpenChange={setIsPartyPopoverOpen}>
                         <PopoverTrigger asChild>
@@ -232,16 +228,65 @@ export function ChequeGeneratorForm() {
                         </PopoverContent>
                     </Popover>
                 </div>
-                 <div className="space-y-2 lg:col-span-2">
+                 <div className="space-y-2 lg:col-span-3">
                     <Label htmlFor="payee-name">Payee Name (as on cheque):</Label>
                     <Input id="payee-name" value={payeeName} onChange={(e) => setPayeeName(e.target.value)} />
                 </div>
             </div>
 
             <div className="border rounded-lg p-4 space-y-4">
-                 <div className="space-y-2">
-                    <Label htmlFor="amount">Amount (NPR)</Label>
-                    <Input id="amount" type="number" placeholder="e.g. 25000" value={amount} onChange={(e) => setAmount(e.target.value === '' ? '' : parseFloat(e.target.value))} />
+                <Label className="text-lg font-medium">Cheque Details</Label>
+                 <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead className="w-[200px]">Cheque Date</TableHead>
+                            <TableHead>Cheque Number</TableHead>
+                            <TableHead>Amount (NPR)</TableHead>
+                            <TableHead className="w-[50px]"></TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {chequeSplits.map((split, index) => (
+                            <TableRow key={split.id}>
+                                <TableCell>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button variant="outline" className="w-full justify-start text-left font-normal">
+                                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                                {split.chequeDate ? format(split.chequeDate, 'PPP') : <span>Pick a date</span>}
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0">
+                                            <DualCalendar selected={split.chequeDate} onSelect={(d) => d && handleSplitChange(index, 'chequeDate', d)} />
+                                        </PopoverContent>
+                                    </Popover>
+                                </TableCell>
+                                <TableCell>
+                                    <Input value={split.chequeNumber} onChange={(e) => handleSplitChange(index, 'chequeNumber', e.target.value)} />
+                                </TableCell>
+                                <TableCell>
+                                    <Input type="number" value={split.amount} onChange={(e) => handleSplitChange(index, 'amount', e.target.value)} />
+                                </TableCell>
+                                <TableCell>
+                                    {chequeSplits.length > 1 && (
+                                         <Button variant="ghost" size="icon" onClick={() => removeSplit(index)}>
+                                            <Trash2 className="h-4 w-4 text-destructive" />
+                                        </Button>
+                                    )}
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+                <Button variant="outline" size="sm" onClick={addSplit}>
+                    <PlusCircle className="mr-2 h-4 w-4" /> Add Cheque
+                </Button>
+            </div>
+            
+            <div className="border rounded-lg p-4 space-y-4">
+                 <div className="flex justify-between items-center text-lg">
+                    <Label>Total Amount (NPR)</Label>
+                    <span className="font-bold text-xl">{totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
                 </div>
                 <div className="space-y-2">
                     <Label>Amount in Words</Label>

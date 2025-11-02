@@ -520,20 +520,31 @@ export interface NoteItem {
 }
 
 // Finance Types
+export interface ChequeSplit {
+    id: string;
+    chequeDate: Date;
+    chequeNumber: string;
+    amount: number | '';
+}
+
 export interface Cheque {
     id: string;
-    paymentDate: string; // ISO string
+    paymentDate: string; // ISO string for the overall record date
     invoiceDate?: string; // ISO string
     invoiceNumber?: string;
     partyName: string;
     payeeName: string;
-    amount: number;
+    amount: number; // Total amount
     amountInWords: string;
-    chequeNumber?: string;
-    numberOfSplits: number;
+    splits: {
+        chequeDate: string; // ISO string
+        chequeNumber: string;
+        amount: number;
+    }[];
     createdBy: string;
     createdAt: string; // ISO string
 }
+
 
 export interface TdsRate {
   value: string;
@@ -577,5 +588,6 @@ export interface EstimatedInvoice {
     createdBy: string;
     createdAt: string; // ISO
 }
+
 
 

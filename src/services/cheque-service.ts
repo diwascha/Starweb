@@ -16,8 +16,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Cheque =>
         payeeName: data.payeeName,
         amount: data.amount,
         amountInWords: data.amountInWords,
-        chequeNumber: data.chequeNumber,
-        numberOfSplits: data.numberOfSplits,
+        splits: data.splits || [],
         createdBy: data.createdBy,
         createdAt: data.createdAt,
     };
@@ -32,7 +31,7 @@ export const addCheque = async (cheque: Omit<Cheque, 'id' | 'createdAt'>): Promi
 };
 
 export const onChequesUpdate = (callback: (cheques: Cheque[]) => void): () => void => {
-    const q = query(chequesCollection, orderBy('paymentDate', 'desc'));
+    const q = query(chequesCollection, orderBy('createdAt', 'desc'));
     return onSnapshot(q, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
     });

@@ -14,7 +14,7 @@ import { onChequesUpdate, deleteCheque } from '@/services/cheque-service';
 import type { Cheque } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { format } from 'date-fns';
 
 function FormSkeleton() {
@@ -69,7 +69,7 @@ function SavedChequesList() {
             const lowercasedQuery = searchQuery.toLowerCase();
             filtered = filtered.filter(c =>
                 c.payeeName.toLowerCase().includes(lowercasedQuery) ||
-                (c.chequeNumber || '').toLowerCase().includes(lowercasedQuery) ||
+                (c.splits.some(s => s.chequeNumber?.toLowerCase().includes(lowercasedQuery))) ||
                 (c.invoiceNumber || '').toLowerCase().includes(lowercasedQuery)
             );
         }
@@ -115,11 +115,10 @@ function SavedChequesList() {
              <Table>
                <TableHeader>
                  <TableRow>
-                   <TableHead><Button variant="ghost" onClick={() => requestSort('paymentDate')}>Cheque Date <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
-                   <TableHead>Cheque #</TableHead>
+                   <TableHead><Button variant="ghost" onClick={() => requestSort('paymentDate')}>Date Saved <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
                    <TableHead><Button variant="ghost" onClick={() => requestSort('payeeName')}>Payee Name <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
                    <TableHead>Invoice #</TableHead>
-                   <TableHead><Button variant="ghost" onClick={() => requestSort('amount')}>Amount <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
+                   <TableHead><Button variant="ghost" onClick={() => requestSort('amount')}>Total Amount <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
                    <TableHead className="text-right">Actions</TableHead>
                  </TableRow>
                </TableHeader>
@@ -127,8 +126,7 @@ function SavedChequesList() {
                  {sortedAndFilteredCheques.length > 0 ? (
                     sortedAndFilteredCheques.map(c => (
                      <TableRow key={c.id}>
-                       <TableCell>{format(new Date(c.paymentDate), 'PPP')}</TableCell>
-                       <TableCell>{c.chequeNumber}</TableCell>
+                       <TableCell>{format(new Date(c.createdAt), 'PPP')}</TableCell>
                        <TableCell>{c.payeeName}</TableCell>
                        <TableCell>{c.invoiceNumber}</TableCell>
                        <TableCell>{c.amount.toLocaleString()}</TableCell>
@@ -138,6 +136,15 @@ function SavedChequesList() {
                              <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button>
                            </DropdownMenuTrigger>
                            <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Cheques ({c.splits.length})</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                {c.splits.map((split, index) => (
+                                    <DropdownMenuItem key={index} className="flex justify-between">
+                                        <span>#{split.chequeNumber || 'N/A'}</span>
+                                        <span className="text-muted-foreground">{split.amount.toLocaleString()}</span>
+                                    </DropdownMenuItem>
+                                ))}
+                                <DropdownMenuSeparator />
                                 <DropdownMenuItem><Printer className="mr-2 h-4 w-4"/> Print</DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <AlertDialog>
