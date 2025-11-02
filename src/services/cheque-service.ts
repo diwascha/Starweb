@@ -17,7 +17,10 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Cheque =>
         payeeName: data.payeeName,
         amount: data.amount,
         amountInWords: data.amountInWords,
-        splits: data.splits || [],
+        splits: (data.splits || []).map((split: any) => ({
+            ...split,
+            remarks: split.remarks || '', // Ensure remarks field exists
+        })),
         createdBy: data.createdBy,
         createdAt: data.createdAt,
     };

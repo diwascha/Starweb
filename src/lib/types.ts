@@ -525,6 +525,7 @@ export interface ChequeSplit {
     chequeDate: Date;
     chequeNumber: string;
     amount: number | '';
+    remarks: string;
 }
 
 export interface Cheque {
@@ -541,6 +542,7 @@ export interface Cheque {
         chequeDate: string; // ISO string
         chequeNumber: string;
         amount: number;
+        remarks: string;
     }[];
     createdBy: string;
     createdAt: string; // ISO string
@@ -589,7 +591,3 @@ export interface EstimatedInvoice {
     createdBy: string;
     createdAt: string; // ISO
 }
-
-
-
-

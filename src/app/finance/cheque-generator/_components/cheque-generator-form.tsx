@@ -42,7 +42,8 @@ export function ChequeGeneratorForm() {
         id: Date.now().toString(),
         chequeDate: new Date(),
         chequeNumber: '',
-        amount: ''
+        amount: '',
+        remarks: '',
     }]);
 
     const [parties, setParties] = useState<Party[]>([]);
@@ -95,7 +96,8 @@ export function ChequeGeneratorForm() {
                 id: existingSplit?.id || `${Date.now()}-${i}`,
                 chequeDate: interval > 0 ? addDays(paymentDate, i * interval) : (existingSplit?.chequeDate || paymentDate),
                 chequeNumber: existingSplit?.chequeNumber || '',
-                amount: currentAmount
+                amount: currentAmount,
+                remarks: existingSplit?.remarks || '',
             };
         });
 
@@ -150,7 +152,7 @@ export function ChequeGeneratorForm() {
         setInvoiceAmount('');
         setNumberOfSplits(1);
         setDateInterval('');
-        setChequeSplits([{ id: Date.now().toString(), chequeDate: new Date(), chequeNumber: '', amount: '' }]);
+        setChequeSplits([{ id: Date.now().toString(), chequeDate: new Date(), chequeNumber: '', amount: '', remarks: '' }]);
     };
 
     const handleSave = async () => {
@@ -318,6 +320,7 @@ export function ChequeGeneratorForm() {
                             <TableHead className="w-[200px]">Cheque Date</TableHead>
                             <TableHead>Cheque Number</TableHead>
                             <TableHead>Amount (NPR)</TableHead>
+                            <TableHead>Remarks</TableHead>
                             <TableHead className="w-[50px]"></TableHead>
                         </TableRow>
                     </TableHeader>
@@ -342,6 +345,9 @@ export function ChequeGeneratorForm() {
                                 </TableCell>
                                 <TableCell>
                                     <Input type="number" value={split.amount} onChange={(e) => handleSplitChange(index, 'amount', e.target.value)} />
+                                </TableCell>
+                                <TableCell>
+                                    <Input value={split.remarks} onChange={(e) => handleSplitChange(index, 'remarks', e.target.value)} />
                                 </TableCell>
                                 <TableCell>
                                     {/* Remove button could be added back if needed */}
