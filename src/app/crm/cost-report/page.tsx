@@ -3,7 +3,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import type { Product, Party, PartyType, CostReport, CostReportItem } from '@/lib/types';
+import type { Product, Party, PartyType, CostReport, CostReportItem, ProductSpecification } from '@/lib/types';
 import { onProductsUpdate, addProduct as addProductService, updateProduct as updateProductService, deleteProduct as deleteProductService } from '@/services/product-service';
 import { onPartiesUpdate, addParty, updateParty } from '@/services/party-service';
 import { onCostReportsUpdate, addCostReport, deleteCostReport, generateNextCostReportNumber, getCostReport, updateCostReport } from '@/services/cost-report-service';
@@ -993,11 +993,55 @@ function ProductList() {
     const [products, setProducts] = useState<Product[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [sortConfig, setSortConfig] = useState<{ key: keyof Product | 'gsm' | 'bf'; direction: 'asc' | 'desc' }>({ key: 'name', direction: 'asc' });
+    const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+    const { toast } = useToast();
+    const { user } = useAuth();
+    
+    const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
+    const [productForm, setProductForm] = useState<Partial<Product>>({});
+
 
     useEffect(() => {
         const unsub = onProductsUpdate(setProducts);
         return () => unsub();
     }, []);
+    
+    const handleOpenEditDialog = (product: Product) => {
+        setEditingProduct(product);
+        setProductForm(product);
+        setIsProductDialogOpen(true);
+    };
+
+    const handleFormChange = (field: keyof Product, value: any) => {
+        setProductForm(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleSpecChange = (field: keyof ProductSpecification, value: string) => {
+        setProductForm(prev => ({
+            ...prev,
+            specification: {
+                ...prev.specification,
+                [field]: value
+            } as ProductSpecification,
+        }));
+    };
+
+    const handleSaveProduct = async () => {
+        if (!editingProduct || !user) return;
+
+        try {
+            await updateProductService(editingProduct.id, {
+                ...productForm,
+                lastModifiedBy: user.username,
+            });
+            toast({ title: 'Success', description: 'Product updated.' });
+            setIsProductDialogOpen(false);
+            setEditingProduct(null);
+        } catch (error) {
+            toast({ title: 'Error', description: 'Failed to update product.', variant: 'destructive' });
+        }
+    };
+
 
     const requestSort = (key: keyof Product | 'gsm' | 'bf') => {
         let direction: 'asc' | 'desc' = 'asc';
@@ -1042,6 +1086,7 @@ function ProductList() {
     }, [products, sortConfig, searchQuery]);
 
     const formatGsm = (spec: Product['specification']) => {
+        if (!spec) return 'N/A';
         if (spec.topGsm) {
             return `${spec.topGsm}/${spec.flute1Gsm}/${spec.middleGsm ? `${spec.middleGsm}/${spec.flute2Gsm}/` : ''}${spec.bottomGsm}`;
         }
@@ -1049,53 +1094,100 @@ function ProductList() {
     };
 
     return (
-        <Card>
-            <CardHeader>
-                <div className="flex justify-between items-center">
-                    <div>
-                        <CardTitle>Products for Costing</CardTitle>
-                        <CardDescription>A list of products available in the cost calculator.</CardDescription>
+        <>
+            <Card>
+                <CardHeader>
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <CardTitle>Products for Costing</CardTitle>
+                            <CardDescription>A list of products available in the cost calculator.</CardDescription>
+                        </div>
+                         <div className="relative">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Search products..."
+                                className="pl-8 w-full sm:w-[250px]"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                        </div>
                     </div>
-                     <div className="relative">
-                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            placeholder="Search products..."
-                            className="pl-8 w-full sm:w-[250px]"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                    </div>
-                </div>
-            </CardHeader>
-            <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('name')}>Product Name <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('partyName')}>Party Name <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('rate')}>Rate <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
-                            <TableHead>Dimension</TableHead>
-                            <TableHead>Ply</TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('gsm')}>GSM</Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('bf')}>BF</Button></TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {sortedProducts.map(product => (
-                            <TableRow key={product.id}>
-                                <TableCell>{product.name}</TableCell>
-                                <TableCell>{product.partyName}</TableCell>
-                                <TableCell>{product.rate?.toLocaleString() || 'N/A'}</TableCell>
-                                <TableCell>{product.specification?.dimension || 'N/A'}</TableCell>
-                                <TableCell>{product.specification?.ply || 'N/A'}</TableCell>
-                                <TableCell>{formatGsm(product.specification)}</TableCell>
-                                <TableCell>{product.specification?.paperBf || 'N/A'}</TableCell>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead><Button variant="ghost" onClick={() => requestSort('name')}>Product Name <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
+                                <TableHead><Button variant="ghost" onClick={() => requestSort('partyName')}>Party Name <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
+                                <TableHead><Button variant="ghost" onClick={() => requestSort('rate')}>Rate <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
+                                <TableHead>Dimension</TableHead>
+                                <TableHead>Ply</TableHead>
+                                <TableHead><Button variant="ghost" onClick={() => requestSort('gsm')}>GSM</Button></TableHead>
+                                <TableHead><Button variant="ghost" onClick={() => requestSort('bf')}>BF</Button></TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </CardContent>
-        </Card>
+                        </TableHeader>
+                        <TableBody>
+                            {sortedProducts.map(product => (
+                                <TableRow key={product.id}>
+                                    <TableCell>{product.name}</TableCell>
+                                    <TableCell>{product.partyName}</TableCell>
+                                    <TableCell>{product.rate?.toLocaleString() || 'N/A'}</TableCell>
+                                    <TableCell>{product.specification?.dimension || 'N/A'}</TableCell>
+                                    <TableCell>{product.specification?.ply || 'N/A'}</TableCell>
+                                    <TableCell>{formatGsm(product.specification)}</TableCell>
+                                    <TableCell>{product.specification?.paperBf || 'N/A'}</TableCell>
+                                    <TableCell className="text-right">
+                                        <Button variant="ghost" size="icon" onClick={() => handleOpenEditDialog(product)}>
+                                            <Edit className="h-4 w-4" />
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+
+            <Dialog open={isProductDialogOpen} onOpenChange={setIsProductDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Edit Product: {editingProduct?.name}</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-4 space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="product-name">Product Name</Label>
+                            <Input id="product-name" value={productForm.name || ''} onChange={(e) => handleFormChange('name', e.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="product-rate">Rate</Label>
+                            <Input id="product-rate" type="number" value={productForm.rate || ''} onChange={(e) => handleFormChange('rate', parseFloat(e.target.value) || 0)} />
+                        </div>
+                        <Separator />
+                        <h4 className="font-semibold">Specification</h4>
+                        <div className="grid grid-cols-2 gap-4">
+                            {Object.keys(initialCalculatedState).map(key => {
+                                const specKey = key as keyof ProductSpecification;
+                                return (
+                                    <div key={specKey} className="space-y-2">
+                                        <Label htmlFor={`spec-${specKey}`}>{specKey.charAt(0).toUpperCase() + specKey.slice(1)}</Label>
+                                        <Input
+                                            id={`spec-${specKey}`}
+                                            value={productForm.specification?.[specKey] || ''}
+                                            onChange={(e) => handleSpecChange(specKey, e.target.value)}
+                                        />
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsProductDialogOpen(false)}>Cancel</Button>
+                        <Button onClick={handleSaveProduct}>Save Changes</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
     );
 }
 
