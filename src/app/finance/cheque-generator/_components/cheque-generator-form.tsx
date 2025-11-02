@@ -166,25 +166,7 @@ export function ChequeGeneratorForm() {
 
     return (
         <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
-                 <div className="space-y-2">
-                    <Label htmlFor="invoiceDate">Invoice Date:</Label>
-                    <Popover>
-                        <PopoverTrigger asChild>
-                            <Button id="invoiceDate" variant="outline" className="w-full justify-start text-left font-normal">
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {invoiceDate ? format(invoiceDate, 'PPP') : <span>Pick a date</span>}
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
-                            <DualCalendar selected={invoiceDate} onSelect={(d) => d && setInvoiceDate(d)} />
-                        </PopoverContent>
-                    </Popover>
-                 </div>
-                 <div className="space-y-2">
-                    <Label htmlFor="invoiceNumber">Invoice Number:</Label>
-                    <Input id="invoiceNumber" value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} />
-                </div>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
                  <div className="space-y-2">
                     <Label htmlFor="party-name">Party Name:</Label>
                     <Popover open={isPartyPopoverOpen} onOpenChange={setIsPartyPopoverOpen}>
@@ -228,9 +210,27 @@ export function ChequeGeneratorForm() {
                         </PopoverContent>
                     </Popover>
                 </div>
-                 <div className="space-y-2 lg:col-span-3">
+                 <div className="space-y-2">
                     <Label htmlFor="payee-name">Payee Name (as on cheque):</Label>
                     <Input id="payee-name" value={payeeName} onChange={(e) => setPayeeName(e.target.value)} />
+                </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="invoiceDate">Invoice Date:</Label>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button id="invoiceDate" variant="outline" className="w-full justify-start text-left font-normal">
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {invoiceDate ? format(invoiceDate, 'PPP') : <span>Pick a date</span>}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                            <DualCalendar selected={invoiceDate} onSelect={(d) => d && setInvoiceDate(d)} />
+                        </PopoverContent>
+                    </Popover>
+                 </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="invoiceNumber">Invoice Number:</Label>
+                    <Input id="invoiceNumber" value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} />
                 </div>
             </div>
 
