@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Printer, Loader2, Plus, Trash2, ChevronsUpDown, Check, PlusCircle, Edit, Save, FileSpreadsheet, ArrowUpDown } from 'lucide-react';
+import { Printer, Loader2, Plus, Trash2, ChevronsUpDown, Check, PlusCircle, Edit, Save, FileSpreadsheet, ArrowUpDown, MoreHorizontal } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon } from 'lucide-react';
@@ -28,6 +28,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { AnnapurnaSIL } from '@/lib/fonts/AnnapurnaSIL-Regular-base64';
+import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 
 
 interface CalculatedValues {
@@ -64,7 +65,7 @@ function CostReportCalculator() {
   const [parties, setParties] = useState<Party[]>([]);
   const [costReports, setCostReports] = useState<CostReport[]>([]);
   const [selectedPartyId, setSelectedPartyId] = useState<string>('');
-  const [reportNumber, setReportNumber] = useState('CR-001'); // Placeholder
+  const [reportNumber, setReportNumber] = useState('CR-001');
   const [reportDate, setReportDate] = useState<Date>(new Date());
   
   const [kraftPaperCost, setKraftPaperCost] = useState<number | ''>(13.118);
@@ -79,7 +80,7 @@ function CostReportCalculator() {
   const [partyForm, setPartyForm] = useState<{ name: string; type: PartyType; address?: string; panNumber?: string; }>({ name: '', type: 'Customer', address: '', panNumber: '' });
   const [editingParty, setEditingParty] = useState<Party | null>(null);
 
-  const calculateItemCost = useCallback((item: Omit<CostReportItem, 'id' | 'calculated'>, globalKraftCost: number, globalVirginCost: number, globalConversionCost: number): CalculatedValues => {
+   const calculateItemCost = useCallback((item: Omit<CostReportItem, 'id' | 'calculated' | 'productId'>, globalKraftCost: number, globalVirginCost: number, globalConversionCost: number): CalculatedValues => {
     const l = parseFloat(item.l) || 0;
     const b = parseFloat(item.b) || 0;
     const h = parseFloat(item.h) || 0;
@@ -114,33 +115,30 @@ function CostReportCalculator() {
     const totalBoxWeightInGrams = paperWeightInGrams * (1 + wastage);
     const totalBoxWeightInKg = totalBoxWeightInGrams / 1000;
 
-    let paperCostWithoutConversion = 0;
+    let paperRate = 0;
     
     if (item.paperType === 'KRAFT') {
-        paperCostWithoutConversion = totalBoxWeightInKg * globalKraftCost;
+        paperRate = globalKraftCost + globalConversionCost;
     } else if (item.paperType === 'VIRGIN') {
-        paperCostWithoutConversion = totalBoxWeightInKg * globalVirginCost;
+        paperRate = globalVirginCost + globalConversionCost;
     } else if (item.paperType === 'VIRGIN & KRAFT' && totalBoxWeightInKg > 0) {
-        const topLayerWeightKg = ((sheetArea * topGsm) / 1000) * (1 + wastage);
-        const topLayerCost = topLayerWeightKg * globalVirginCost;
-
-        let kraftLayersWeightGsm = 0;
-        if (ply === 3) {
-            kraftLayersWeightGsm = (flute1Gsm * fluteFactor) + bottomGsm;
-        } else if (ply === 5) {
-            kraftLayersWeightGsm = (flute1Gsm * fluteFactor) + middleGsm + (flute2Gsm * fluteFactor) + bottomGsm;
-        }
-
-        const kraftLayersWeightKg = ((sheetArea * kraftLayersWeightGsm) / 1000) * (1 + wastage);
-        const kraftLayersCost = kraftLayersWeightKg * globalKraftCost;
+        const topLayerWeightGsm = topGsm;
+        const topLayerRatio = topLayerWeightGsm / totalGsm;
         
-        paperCostWithoutConversion = topLayerCost + kraftLayersCost;
+        const kraftLayersWeightGsm = totalGsm - topLayerWeightGsm;
+        const kraftLayerRatio = kraftLayersWeightGsm / totalGsm;
+
+        if (!isNaN(topLayerRatio) && !isNaN(kraftLayerRatio)) {
+          const blendedRate = (globalVirginCost * topLayerRatio) + (globalKraftCost * kraftLayerRatio);
+          paperRate = blendedRate + globalConversionCost;
+        } else {
+          paperRate = globalKraftCost + globalConversionCost; // Fallback
+        }
     } else {
-        paperCostWithoutConversion = totalBoxWeightInKg * globalKraftCost;
+        paperRate = globalKraftCost + globalConversionCost;
     }
     
-    const paperCost = paperCostWithoutConversion + (globalConversionCost * totalBoxWeightInKg);
-    const paperRate = totalBoxWeightInKg > 0 ? paperCost / totalBoxWeightInKg : 0;
+    const paperCost = totalBoxWeightInKg * paperRate;
     
     return { sheetSizeL, sheetSizeB, sheetArea, totalGsm, paperWeight: paperWeightInGrams, totalBoxWeight: totalBoxWeightInGrams, paperRate, paperCost };
   }, []);
@@ -287,7 +285,7 @@ function CostReportCalculator() {
               kraftPaperCost: Number(kraftPaperCost) || 0,
               virginPaperCost: Number(virginPaperCost) || 0,
               conversionCost: Number(conversionCost) || 0,
-              items: items.map(({ calculated, ...item }) => item), // Exclude calculated values
+              items: items.map(({ calculated, ...item }) => item),
               totalCost: totalItemCost,
               createdBy: user.username,
           };
@@ -307,23 +305,19 @@ function CostReportCalculator() {
     }
     const doc = new jsPDF();
     
-    // Add font
     doc.addFileToVFS("AnnapurnaSIL.ttf", AnnapurnaSIL);
     doc.addFont("AnnapurnaSIL.ttf", "AnnapurnaSIL", "normal");
     
-    // Header
     doc.setFont('Helvetica', 'bold');
     doc.setFontSize(16);
     doc.text('Cost Report', doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
     
-    // Info
     doc.setFontSize(10);
     doc.setFont('Helvetica', 'normal');
     doc.text(`Report No: ${reportNumber}`, 14, 30);
     doc.text(`Party: ${parties.find(p => p.id === selectedPartyId)?.name || ''}`, 14, 35);
     doc.text(`Date: ${toNepaliDate(reportDate.toISOString())}`, doc.internal.pageSize.getWidth() - 14, 30, { align: 'right' });
     
-    // Table
     (doc as any).autoTable({
         startY: 45,
         head: [['Sl.No', 'Item Name', 'Box Size (LxBxH)', 'Ply', 'Total', 'Box Rate/Piece']],
@@ -593,6 +587,80 @@ function CostReportCalculator() {
   );
 }
 
+function SavedReportsList() {
+    const [reports, setReports] = useState<CostReport[]>([]);
+    const { toast } = useToast();
+
+    useEffect(() => {
+        const unsub = onCostReportsUpdate(setReports);
+        return () => unsub();
+    }, []);
+
+    const handleDelete = async (id: string) => {
+        try {
+            await deleteCostReport(id);
+            toast({ title: "Success", description: "Cost report deleted." });
+        } catch {
+            toast({ title: "Error", description: "Failed to delete report.", variant: "destructive" });
+        }
+    };
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Saved Cost Reports</CardTitle>
+                <CardDescription>A log of all previously generated cost reports.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Report #</TableHead>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Party Name</TableHead>
+                            <TableHead>Total Cost</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {reports.length > 0 ? reports.map(report => (
+                            <TableRow key={report.id}>
+                                <TableCell>{report.reportNumber}</TableCell>
+                                <TableCell>{toNepaliDate(report.reportDate)}</TableCell>
+                                <TableCell>{report.partyName}</TableCell>
+                                <TableCell>{report.totalCost.toFixed(2)}</TableCell>
+                                <TableCell className="text-right">
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                <AlertDialogDescription>This action cannot be undone and will permanently delete this cost report.</AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => handleDelete(report.id)}>Delete</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                </TableCell>
+                            </TableRow>
+                        )) : (
+                            <TableRow>
+                                <TableCell colSpan={5} className="text-center">No saved reports found.</TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+    );
+}
+
 export default function CostReportPage() {
     return (
         <div className="flex flex-col gap-8">
@@ -600,8 +668,18 @@ export default function CostReportPage() {
                 <h1 className="text-3xl font-bold tracking-tight">Cost Report Generator</h1>
                 <p className="text-muted-foreground">Calculate product costs based on multiple raw materials and specifications.</p>
             </header>
-            <CostReportCalculator />
+            <Tabs defaultValue="calculator">
+                <TabsList>
+                    <TabsTrigger value="calculator">Calculator</TabsTrigger>
+                    <TabsTrigger value="saved">Saved Reports</TabsTrigger>
+                </TabsList>
+                <TabsContent value="calculator" className="pt-4">
+                    <CostReportCalculator />
+                </TabsContent>
+                <TabsContent value="saved" className="pt-4">
+                    <SavedReportsList />
+                </TabsContent>
+            </Tabs>
         </div>
     );
 }
-
