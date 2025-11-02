@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Suspense, useState, useEffect, useMemo, useRef } from 'react';
@@ -170,13 +171,17 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
         }, 250);
     };
     
-    const getDueStatusBadge = (split: AugmentedChequeSplit) => {
+    const getStatusBadge = (split: AugmentedChequeSplit) => {
         const { status, daysRemaining, isOverdue } = split;
 
-        if (status !== 'Due') {
-            return null; // Don't show due status for Paid or Canceled
+        if (status === 'Paid') {
+            return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Paid</Badge>;
         }
-
+        if (status === 'Canceled') {
+            return <Badge variant="destructive">Canceled</Badge>;
+        }
+        
+        // Handle 'Due' status
         if (isOverdue) {
             return <Badge variant="destructive"><AlertTriangle className="mr-1 h-3 w-3" /> Overdue by {-daysRemaining} day(s)</Badge>;
         }
@@ -186,18 +191,6 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
         return <Badge variant="outline" className="text-blue-600 border-blue-600">Due in {daysRemaining} day(s)</Badge>;
     };
 
-    const getStatusBadge = (status: ChequeStatus) => {
-        switch (status) {
-            case 'Paid':
-                return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Paid</Badge>;
-            case 'Canceled':
-                return <Badge variant="destructive">Canceled</Badge>;
-            case 'Due':
-            default:
-                return <Badge variant="outline">Due</Badge>;
-        }
-    }
-    
     const handleStatusUpdate = async (cheque: Cheque, splitId: string, newStatus: ChequeStatus) => {
         if (!user) return;
         const updatedSplits = cheque.splits.map(s => 
@@ -241,7 +234,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                     <TableHead><Button variant="ghost" onClick={() => requestSort('payeeName')}>Payee Name <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
                     <TableHead><Button variant="ghost" onClick={() => requestSort('chequeNumber')}>Cheque # <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
                     <TableHead><Button variant="ghost" onClick={() => requestSort('amount')}>Amount <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
-                    <TableHead><Button variant="ghost" onClick={() => requestSort('dueStatus')}>Due Status</Button></TableHead>
+                    <TableHead><Button variant="ghost" onClick={() => requestSort('dueStatus')}>Status</Button></TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -253,7 +246,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                         <TableCell>{split.parentCheque.payeeName}</TableCell>
                         <TableCell>{split.chequeNumber}</TableCell>
                         <TableCell>{Number(split.amount).toLocaleString()}</TableCell>
-                        <TableCell>{getDueStatusBadge(split)}</TableCell>
+                        <TableCell>{getStatusBadge(split)}</TableCell>
                         <TableCell className="text-right">
                             <DropdownMenu>
                             <DropdownMenuTrigger asChild>
