@@ -21,6 +21,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
 function FormSkeleton() {
@@ -60,6 +61,8 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
     const [cheques, setCheques] = useState<Cheque[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'chequeDate', direction: 'asc' });
+    const [filterStatus, setFilterStatus] = useState<string>('All');
+    const [filterPayee, setFilterPayee] = useState<string>('All');
     const { toast } = useToast();
     const { user } = useAuth();
     
@@ -80,6 +83,12 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
         setSortConfig({ key, direction });
     };
 
+    const uniquePayees = useMemo(() => {
+        const payees = new Set(cheques.map(c => c.payeeName));
+        return ['All', ...Array.from(payees).sort()];
+    }, [cheques]);
+
+
     const sortedAndFilteredSplits = useMemo(() => {
         const today = startOfToday();
         
@@ -88,7 +97,6 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                 const chequeDate = new Date(s.chequeDate);
                 return {
                     ...s,
-                    // Use the original ChequeSplit ID, not a synthetic one for the row key
                     id: s.id, 
                     chequeDate: chequeDate,
                     daysRemaining: differenceInDays(chequeDate, today),
@@ -109,6 +117,14 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                 (s.parentCheque.invoiceNumber || '').toLowerCase().includes(lowercasedQuery) ||
                 (s.parentCheque.voucherNo || '').toLowerCase().includes(lowercasedQuery)
             );
+        }
+
+        if (filterStatus !== 'All') {
+            allSplits = allSplits.filter(s => s.status === filterStatus);
+        }
+        
+        if (filterPayee !== 'All') {
+            allSplits = allSplits.filter(s => s.parentCheque.payeeName === filterPayee);
         }
         
         allSplits.sort((a, b) => {
@@ -137,7 +153,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
         });
 
         return allSplits;
-    }, [cheques, searchQuery, sortConfig]);
+    }, [cheques, searchQuery, sortConfig, filterStatus, filterPayee]);
 
     const handleDelete = async (id: string) => {
         try {
@@ -181,7 +197,6 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
             return <Badge variant="destructive">Canceled</Badge>;
         }
         
-        // Handle 'Due' status
         if (isOverdue) {
             return <Badge variant="destructive"><AlertTriangle className="mr-1 h-3 w-3" /> Overdue by {-daysRemaining} day(s)</Badge>;
         }
@@ -215,14 +230,34 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                         <CardTitle>Saved Cheques</CardTitle>
                         <CardDescription>A log of all saved cheque records.</CardDescription>
                     </div>
-                    <div className="relative w-full sm:w-auto">
-                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                         <Input
-                            placeholder="Search by payee, cheque #..."
-                            className="pl-8 w-full sm:w-[250px]"
+                            placeholder="Search..."
+                            className="w-full sm:w-[200px]"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
+                         <Select value={filterStatus} onValueChange={setFilterStatus}>
+                            <SelectTrigger className="w-full sm:w-[150px]">
+                                <SelectValue placeholder="Filter by Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="All">All Statuses</SelectItem>
+                                <SelectItem value="Due">Due</SelectItem>
+                                <SelectItem value="Paid">Paid</SelectItem>
+                                <SelectItem value="Canceled">Canceled</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <Select value={filterPayee} onValueChange={setFilterPayee}>
+                            <SelectTrigger className="w-full sm:w-[200px]">
+                                <SelectValue placeholder="Filter by Payee" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {uniquePayees.map(payee => (
+                                    <SelectItem key={payee} value={payee}>{payee}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
                 </div>
             </CardHeader>
