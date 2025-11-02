@@ -82,6 +82,9 @@ export default function CostReportPage() {
   const [reportNumber, setReportNumber] = useState('CR-001'); // Placeholder
   const [reportDate, setReportDate] = useState<Date>(new Date());
   
+  const [paperCost, setPaperCost] = useState<number | ''>('');
+  const [conversionCost, setConversionCost] = useState<number | ''>('');
+
   const { toast } = useToast();
   const { user } = useAuth();
   
@@ -187,9 +190,14 @@ export default function CostReportPage() {
     setItems(prev => prev.filter(item => item.id !== id));
   };
   
-  const totalCost = useMemo(() => {
+  const totalItemCost = useMemo(() => {
     return items.reduce((sum, item) => sum + (item.calculated?.paperCost || 0), 0);
   }, [items]);
+
+  const totalCost = useMemo(() => {
+    return totalItemCost + (Number(paperCost) || 0) + (Number(conversionCost) || 0);
+  }, [totalItemCost, paperCost, conversionCost]);
+
   
   const handleOpenPartyDialog = (partyToEdit: Party | null = null, searchName: string = '') => {
     if (partyToEdit) {
@@ -392,9 +400,24 @@ export default function CostReportPage() {
                  <Button variant="outline" size="sm" onClick={handleAddItem} className="mt-4"><Plus className="mr-2 h-4 w-4" />Add Another Product</Button>
             </CardContent>
              <CardContent>
-                <div className="flex justify-end pt-4 border-t">
-                    <div className="text-2xl font-bold">
-                        Total Report Cost: <span className="text-primary">{totalCost.toFixed(2)}</span>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t">
+                    <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                            <Label htmlFor="paperCost">Paper Cost</Label>
+                            <Input id="paperCost" type="number" placeholder="Enter additional paper cost" value={paperCost} onChange={e => setPaperCost(e.target.value === '' ? '' : parseFloat(e.target.value))} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="conversionCost">Conversion Cost</Label>
+                            <Input id="conversionCost" type="number" placeholder="Enter conversion cost" value={conversionCost} onChange={e => setConversionCost(e.target.value === '' ? '' : parseFloat(e.target.value))} />
+                        </div>
+                    </div>
+                     <div className="flex items-end justify-end">
+                        <div className="text-right space-y-2">
+                            <p className="text-muted-foreground">Total Item Cost: {totalItemCost.toFixed(2)}</p>
+                            <p className="text-2xl font-bold">
+                                Total Report Cost: <span className="text-primary">{totalCost.toFixed(2)}</span>
+                            </p>
+                        </div>
                     </div>
                 </div>
             </CardContent>
