@@ -205,6 +205,12 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit }: Cos
             productId: product.id,
             l: l || '', b: b || '', h: h || '',
             ply: spec.ply || '3',
+            paperBf: spec.paperBf || '',
+            topGsm: spec.topGsm || '',
+            flute1Gsm: spec.flute1Gsm || '',
+            middleGsm: spec.middleGsm || '',
+            flute2Gsm: spec.flute2Gsm || '',
+            bottomGsm: spec.bottomGsm || '',
         };
         newItems[index] = {
             ...updatedItem,
@@ -986,32 +992,61 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
 function ProductList() {
     const [products, setProducts] = useState<Product[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
-    const [sortConfig, setSortConfig] = useState<{ key: keyof Product; direction: 'asc' | 'desc'}>({ key: 'name', direction: 'asc' });
+    const [sortConfig, setSortConfig] = useState<{ key: keyof Product | 'gsm' | 'bf'; direction: 'asc' | 'desc' }>({ key: 'name', direction: 'asc' });
 
     useEffect(() => {
         const unsub = onProductsUpdate(setProducts);
         return () => unsub();
     }, []);
 
-    const requestSort = (key: keyof Product) => {
+    const requestSort = (key: keyof Product | 'gsm' | 'bf') => {
         let direction: 'asc' | 'desc' = 'asc';
         if (sortConfig.key === key && sortConfig.direction === 'asc') {
             direction = 'desc';
         }
         setSortConfig({ key, direction });
     };
+    
+    const getSortableValue = (product: Product, key: keyof Product | 'gsm' | 'bf') => {
+        if (key === 'gsm') {
+            return product.specification?.topGsm || product.specification?.gsm || '';
+        }
+        if (key === 'bf') {
+            return product.specification?.paperBf || '';
+        }
+        return product[key as keyof Product] ?? '';
+    };
 
     const sortedProducts = useMemo(() => {
-        const sortable = [...products].filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+        const sortable = [...products].filter(p => 
+            p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+            (p.specification?.dimension || '').toLowerCase().includes(searchQuery.toLowerCase())
+        );
+        
         sortable.sort((a, b) => {
-            const aVal = a[sortConfig.key] ?? '';
-            const bVal = b[sortConfig.key] ?? '';
-            if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-            if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+            const aVal = getSortableValue(a, sortConfig.key);
+            const bVal = getSortableValue(b, sortConfig.key);
+            
+            if (typeof aVal === 'number' && typeof bVal === 'number') {
+                return sortConfig.direction === 'asc' ? aVal - bVal : bVal - aVal;
+            }
+            
+            const strA = String(aVal).toLowerCase();
+            const strB = String(bVal).toLowerCase();
+
+            if (strA < strB) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (strA > strB) return sortConfig.direction === 'asc' ? 1 : -1;
             return 0;
         });
         return sortable;
     }, [products, sortConfig, searchQuery]);
+
+    const formatGsm = (spec: Product['specification']) => {
+        if (spec.topGsm) {
+            return `${spec.topGsm}/${spec.flute1Gsm}/${spec.middleGsm ? `${spec.middleGsm}/${spec.flute2Gsm}/` : ''}${spec.bottomGsm}`;
+        }
+        return spec.gsm || 'N/A';
+    };
 
     return (
         <Card>
@@ -1039,6 +1074,10 @@ function ProductList() {
                             <TableHead><Button variant="ghost" onClick={() => requestSort('name')}>Product Name <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('partyName')}>Delivered To <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('rate')}>Rate <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
+                            <TableHead>Dimension</TableHead>
+                            <TableHead>Ply</TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('gsm')}>GSM</Button></TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('bf')}>BF</Button></TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1047,6 +1086,10 @@ function ProductList() {
                                 <TableCell>{product.name}</TableCell>
                                 <TableCell>{product.partyName}</TableCell>
                                 <TableCell>{product.rate?.toLocaleString() || 'N/A'}</TableCell>
+                                <TableCell>{product.specification?.dimension || 'N/A'}</TableCell>
+                                <TableCell>{product.specification?.ply || 'N/A'}</TableCell>
+                                <TableCell>{formatGsm(product.specification)}</TableCell>
+                                <TableCell>{product.specification?.paperBf || 'N/A'}</TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
