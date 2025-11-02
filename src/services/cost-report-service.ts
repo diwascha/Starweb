@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, query, orderBy, deleteDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, query, orderBy, deleteDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
 import type { CostReport } from '@/lib/types';
 
 const costReportsCollection = collection(db, 'costReports');
@@ -30,6 +30,15 @@ export const onCostReportsUpdate = (callback: (reports: CostReport[]) => void): 
     });
 };
 
+export const getCostReport = async (id: string): Promise<CostReport | null> => {
+    const docRef = doc(db, 'costReports', id);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+        return fromFirestore(docSnap as QueryDocumentSnapshot<DocumentData>);
+    }
+    return null;
+}
+
 export const addCostReport = async (report: Omit<CostReport, 'id' | 'createdAt'>): Promise<string> => {
     const docRef = await addDoc(costReportsCollection, {
         ...report,
@@ -37,6 +46,15 @@ export const addCostReport = async (report: Omit<CostReport, 'id' | 'createdAt'>
     });
     return docRef.id;
 };
+
+export const updateCostReport = async (id: string, report: Partial<Omit<CostReport, 'id'>>): Promise<void> => {
+    const reportDoc = doc(db, 'costReports', id);
+    await updateDoc(reportDoc, {
+        ...report,
+        lastModifiedAt: new Date().toISOString(),
+    });
+};
+
 
 export const deleteCostReport = async (id: string): Promise<void> => {
     await deleteDoc(doc(db, 'costReports', id));

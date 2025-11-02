@@ -5,14 +5,14 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { Product, Party, PartyType, CostReport, CostReportItem } from '@/lib/types';
 import { onProductsUpdate } from '@/services/product-service';
 import { onPartiesUpdate, addParty, updateParty } from '@/services/party-service';
-import { onCostReportsUpdate, addCostReport, deleteCostReport, generateNextCostReportNumber } from '@/services/cost-report-service';
+import { onCostReportsUpdate, addCostReport, deleteCostReport, generateNextCostReportNumber, getCostReport, updateCostReport } from '@/services/cost-report-service';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Printer, Loader2, Plus, Trash2, ChevronsUpDown, Check, PlusCircle, Edit, Save, FileSpreadsheet, ArrowUpDown, MoreHorizontal } from 'lucide-react';
+import { Printer, Loader2, Plus, Trash2, ChevronsUpDown, Check, PlusCircle, Edit, Save, MoreHorizontal } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon } from 'lucide-react';
@@ -29,6 +29,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { AnnapurnaSIL } from '@/lib/fonts/AnnapurnaSIL-Regular-base64';
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 
 interface CalculatedValues {
@@ -46,21 +47,14 @@ const initialCalculatedState: CalculatedValues = {
     sheetSizeL: 0, sheetSizeB: 0, sheetArea: 0, totalGsm: 0, paperWeight: 0, totalBoxWeight: 0, paperRate: 0, paperCost: 0
 };
 
-const product1: Omit<CostReportItem, 'id' | 'productId' | 'calculated'> = {
-  l: '309', b: '179', h: '102', noOfPcs: '1', boxType: 'RSC', ply: '3', fluteType: 'B', 
-  paperType: 'KRAFT', paperShade: 'Golden', paperBf: '18 BF',
-  topGsm: '180', flute1Gsm: '150', middleGsm: '', flute2Gsm: '', bottomGsm: '180',
-  wastagePercent: '3.5'
-};
+interface CostReportCalculatorProps {
+  reportToEdit: CostReport | null;
+  onSaveSuccess: () => void;
+  onCancelEdit: () => void;
+}
 
-const product2: Omit<CostReportItem, 'id' | 'productId' | 'calculated'> = {
-  l: '309', b: '179', h: '120', noOfPcs: '1', boxType: 'RSC', ply: '5', fluteType: 'B, B',
-  paperType: 'KRAFT', paperShade: 'NS', paperBf: '20 BF',
-  topGsm: '180', flute1Gsm: '150', middleGsm: '180', flute2Gsm: '150', bottomGsm: '180',
-  wastagePercent: '3.5'
-};
 
-function CostReportCalculator() {
+function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit }: CostReportCalculatorProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [parties, setParties] = useState<Party[]>([]);
   const [costReports, setCostReports] = useState<CostReport[]>([]);
@@ -72,6 +66,7 @@ function CostReportCalculator() {
   const [virginPaperCost, setVirginPaperCost] = useState<number | ''>('');
   const [conversionCost, setConversionCost] = useState<number | ''>(1);
   const [isSaving, setIsSaving] = useState(false);
+  const [items, setItems] = useState<CostReportItem[]>([]);
 
   const { toast } = useToast();
   const { user } = useAuth();
@@ -80,7 +75,7 @@ function CostReportCalculator() {
   const [partyForm, setPartyForm] = useState<{ name: string; type: PartyType; address?: string; panNumber?: string; }>({ name: '', type: 'Customer', address: '', panNumber: '' });
   const [editingParty, setEditingParty] = useState<Party | null>(null);
 
-   const calculateItemCost = useCallback((item: Omit<CostReportItem, 'id' | 'calculated' | 'productId'>, globalKraftCost: number, globalVirginCost: number, globalConversionCost: number): CalculatedValues => {
+  const calculateItemCost = useCallback((item: Omit<CostReportItem, 'id' | 'calculated' | 'productId'>, globalKraftCost: number, globalVirginCost: number, globalConversionCost: number): CalculatedValues => {
     const l = parseFloat(item.l) || 0;
     const b = parseFloat(item.b) || 0;
     const h = parseFloat(item.h) || 0;
@@ -100,7 +95,7 @@ function CostReportCalculator() {
     const flute2Gsm = parseInt(item.flute2Gsm, 10) || 0;
     const bottomGsm = parseInt(item.bottomGsm, 10) || 0;
     
-    const sheetArea = (sheetSizeL * sheetSizeB) / 1000000; // to get in sq meters
+    const sheetArea = (sheetSizeL * sheetSizeB) / 1000000;
 
     let totalGsm = 0;
     if (ply === 3) {
@@ -119,9 +114,9 @@ function CostReportCalculator() {
     
     if (item.paperType === 'KRAFT') {
         paperRate = globalKraftCost + globalConversionCost;
-    } else if (item.paperType === 'VIRGIN') {
+    } else if (item.paperType === 'VIRGIN' && globalVirginCost > 0) {
         paperRate = globalVirginCost + globalConversionCost;
-    } else if (item.paperType === 'VIRGIN & KRAFT' && totalGsm > 0) {
+    } else if (item.paperType === 'VIRGIN & KRAFT' && totalGsm > 0 && globalVirginCost > 0) {
         const topLayerWeightGsm = topGsm;
         const topLayerRatio = topLayerWeightGsm / totalGsm;
         
@@ -132,7 +127,7 @@ function CostReportCalculator() {
           const blendedRate = (globalVirginCost * topLayerRatio) + (globalKraftCost * kraftLayerRatio);
           paperRate = blendedRate + globalConversionCost;
         } else {
-          paperRate = globalKraftCost + globalConversionCost; // Fallback
+          paperRate = globalKraftCost + globalConversionCost;
         }
     } else {
         paperRate = globalKraftCost + globalConversionCost;
@@ -142,27 +137,17 @@ function CostReportCalculator() {
     
     return { sheetSizeL, sheetSizeB, sheetArea, totalGsm, paperWeight: paperWeightInGrams, totalBoxWeight: totalBoxWeightInGrams, paperRate, paperCost };
   }, []);
-  
-  const [items, setItems] = useState<CostReportItem[]>([]);
 
   useEffect(() => {
     const kCost = Number(kraftPaperCost) || 0;
     const vCost = Number(virginPaperCost) || 0;
     const cCost = Number(conversionCost) || 0;
     
-    setItems(prevItems => {
-        if (prevItems.length === 0) {
-            return [
-                { id: '1', productId: '', ...product1, calculated: calculateItemCost(product1, kCost, vCost, cCost) },
-                { id: '2', productId: '', ...product2, calculated: calculateItemCost(product2, kCost, vCost, cCost) }
-            ];
-        }
-        return prevItems.map(item => ({
-            ...item,
-            calculated: calculateItemCost(item, kCost, vCost, cCost)
-        }));
-    });
-}, [kraftPaperCost, virginPaperCost, conversionCost, calculateItemCost]);
+    setItems(prevItems => prevItems.map(item => ({
+        ...item,
+        calculated: calculateItemCost(item, kCost, vCost, cCost)
+    })));
+  }, [kraftPaperCost, virginPaperCost, conversionCost, calculateItemCost]);
 
 
   useEffect(() => {
@@ -177,8 +162,27 @@ function CostReportCalculator() {
   }, []);
   
   useEffect(() => {
-      generateNextCostReportNumber(costReports).then(setReportNumber);
-  }, [costReports]);
+    if (reportToEdit) {
+      setReportNumber(reportToEdit.reportNumber);
+      setReportDate(new Date(reportToEdit.reportDate));
+      setSelectedPartyId(reportToEdit.partyId);
+      setKraftPaperCost(reportToEdit.kraftPaperCost);
+      setVirginPaperCost(reportToEdit.virginPaperCost);
+      setConversionCost(reportToEdit.conversionCost);
+      const kCost = reportToEdit.kraftPaperCost || 0;
+      const vCost = reportToEdit.virginPaperCost || 0;
+      const cCost = reportToEdit.conversionCost || 0;
+      setItems(reportToEdit.items.map(item => ({...item, id: item.id || Date.now().toString(), calculated: calculateItemCost(item, kCost, vCost, cCost)})));
+    } else {
+        generateNextCostReportNumber(costReports).then(setReportNumber);
+        setReportDate(new Date());
+        setSelectedPartyId('');
+        const kCost = Number(kraftPaperCost) || 0;
+        const vCost = Number(virginPaperCost) || 0;
+        const cCost = Number(conversionCost) || 0;
+        setItems([]);
+    }
+  }, [reportToEdit, costReports, calculateItemCost]);
 
 
   const handleProductSelect = (index: number, productId: string) => {
@@ -277,7 +281,7 @@ function CostReportCalculator() {
       }
       setIsSaving(true);
       try {
-          const reportData: Omit<CostReport, 'id' | 'createdAt'> = {
+           const reportData: Omit<CostReport, 'id' | 'createdAt'> = {
               reportNumber,
               reportDate: reportDate.toISOString(),
               partyId: selectedPartyId,
@@ -289,8 +293,15 @@ function CostReportCalculator() {
               totalCost: totalItemCost,
               createdBy: user.username,
           };
-          await addCostReport(reportData);
-          toast({ title: "Success", description: "Cost report saved successfully." });
+
+          if (reportToEdit) {
+              await updateCostReport(reportToEdit.id, {...reportData, lastModifiedBy: user.username});
+              toast({ title: "Success", description: "Cost report updated." });
+          } else {
+              await addCostReport(reportData);
+              toast({ title: "Success", description: "Cost report saved successfully." });
+          }
+          onSaveSuccess();
       } catch (error) {
           toast({ title: "Error", description: "Failed to save the report.", variant: "destructive" });
       } finally {
@@ -342,6 +353,12 @@ function CostReportCalculator() {
 
   return (
     <div className="flex flex-col gap-8">
+        {reportToEdit && (
+            <div className="flex justify-between items-center bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4" role="alert">
+                <p className="font-bold">Editing Report #{reportToEdit.reportNumber}</p>
+                <Button variant="ghost" onClick={onCancelEdit}>Cancel Edit</Button>
+            </div>
+        )}
       
         <Card>
             <CardHeader>
@@ -540,7 +557,7 @@ function CostReportCalculator() {
             <Button variant="outline" onClick={handlePrint}><Printer className="mr-2 h-4 w-4" /> Print</Button>
             <Button onClick={handleSaveReport} disabled={isSaving}>
                 {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                Save Report
+                {reportToEdit ? 'Save Changes' : 'Save Report'}
             </Button>
         </div>
       
@@ -587,7 +604,7 @@ function CostReportCalculator() {
   );
 }
 
-function SavedReportsList() {
+function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) {
     const [reports, setReports] = useState<CostReport[]>([]);
     const { toast } = useToast();
 
@@ -604,6 +621,48 @@ function SavedReportsList() {
             toast({ title: "Error", description: "Failed to delete report.", variant: "destructive" });
         }
     };
+    
+    const handlePrintFromSaved = async (reportId: string) => {
+        const report = await getCostReport(reportId);
+        if (!report) {
+            toast({ title: "Error", description: "Could not find report to print.", variant: "destructive" });
+            return;
+        }
+
+        const doc = new jsPDF();
+        doc.addFileToVFS("AnnapurnaSIL.ttf", AnnapurnaSIL);
+        doc.addFont("AnnapurnaSIL.ttf", "AnnapurnaSIL", "normal");
+        
+        doc.setFont('Helvetica', 'bold');
+        doc.setFontSize(16);
+        doc.text('Cost Report', doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
+        
+        doc.setFontSize(10);
+        doc.setFont('Helvetica', 'normal');
+        doc.text(`Report No: ${report.reportNumber}`, 14, 30);
+        doc.text(`Party: ${report.partyName}`, 14, 35);
+        doc.text(`Date: ${toNepaliDate(report.reportDate)}`, doc.internal.pageSize.getWidth() - 14, 30, { align: 'right' });
+        
+        // This part needs product data which isn't stored in the cost report, so we show 'N/A'
+        (doc as any).autoTable({
+            startY: 45,
+            head: [['Sl.No', 'Item Name', 'Box Size (LxBxH)', 'Ply', 'Total']],
+            body: report.items.map((item, index) => [
+                index + 1,
+                'N/A', // Product name isn't stored with the report item
+                `${item.l}x${item.b}x${item.h}`,
+                item.ply,
+                'N/A', // Cost per item isn't stored, just total
+            ]),
+            theme: 'grid',
+            footStyles: { fontStyle: 'bold' },
+            foot: [
+                [{ content: 'Total', colSpan: 4, styles: { halign: 'right' } }, report.totalCost.toFixed(2)],
+            ]
+        });
+        
+        doc.save(`CostReport-${report.reportNumber}.pdf`);
+    }
 
     return (
         <Card>
@@ -628,23 +687,36 @@ function SavedReportsList() {
                                 <TableCell>{toNepaliDate(report.reportDate)}</TableCell>
                                 <TableCell>{report.partyName}</TableCell>
                                 <TableCell className="text-right">
-                                    <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                <AlertDialogDescription>This action cannot be undone and will permanently delete this cost report.</AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                <AlertDialogAction onClick={() => handleDelete(report.id)}>Delete</AlertDialogAction>
-                                            </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent>
+                                            <DropdownMenuItem onSelect={() => onEdit(report)}>
+                                                <Edit className="mr-2 h-4 w-4" /> Edit
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onSelect={() => handlePrintFromSaved(report.id)}>
+                                                <Printer className="mr-2 h-4 w-4" /> Print
+                                            </DropdownMenuItem>
+                                             <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">
+                                                         <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                                    </DropdownMenuItem>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                        <AlertDialogDescription>This action cannot be undone and will permanently delete this cost report.</AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => handleDelete(report.id)}>Delete</AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
                                 </TableCell>
                             </TableRow>
                         )) : (
@@ -660,22 +732,43 @@ function SavedReportsList() {
 }
 
 export default function CostReportPage() {
+    const [activeTab, setActiveTab] = useState("calculator");
+    const [reportToEdit, setReportToEdit] = useState<CostReport | null>(null);
+    
+    const handleEditReport = (report: CostReport) => {
+        setReportToEdit(report);
+        setActiveTab("calculator");
+    };
+
+    const handleFinishEditing = () => {
+        setReportToEdit(null);
+        setActiveTab("saved");
+    };
+
+    const handleCancelEdit = () => {
+        setReportToEdit(null);
+    }
+
     return (
         <div className="flex flex-col gap-8">
             <header>
                 <h1 className="text-3xl font-bold tracking-tight">Cost Report Generator</h1>
                 <p className="text-muted-foreground">Calculate product costs based on multiple raw materials and specifications.</p>
             </header>
-            <Tabs defaultValue="calculator">
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList>
                     <TabsTrigger value="calculator">Calculator</TabsTrigger>
                     <TabsTrigger value="saved">Saved Reports</TabsTrigger>
                 </TabsList>
                 <TabsContent value="calculator" className="pt-4">
-                    <CostReportCalculator />
+                    <CostReportCalculator 
+                        reportToEdit={reportToEdit} 
+                        onSaveSuccess={handleFinishEditing} 
+                        onCancelEdit={handleCancelEdit}
+                    />
                 </TabsContent>
                 <TabsContent value="saved" className="pt-4">
-                    <SavedReportsList />
+                    <SavedReportsList onEdit={handleEditReport} />
                 </TabsContent>
             </Tabs>
         </div>
