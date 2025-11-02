@@ -121,7 +121,7 @@ function CostReportCalculator() {
         paperRate = globalKraftCost + globalConversionCost;
     } else if (item.paperType === 'VIRGIN') {
         paperRate = globalVirginCost + globalConversionCost;
-    } else if (item.paperType === 'VIRGIN & KRAFT' && totalBoxWeightInKg > 0) {
+    } else if (item.paperType === 'VIRGIN & KRAFT' && totalGsm > 0) {
         const topLayerWeightGsm = topGsm;
         const topLayerRatio = topLayerWeightGsm / totalGsm;
         
@@ -618,7 +618,6 @@ function SavedReportsList() {
                             <TableHead>Report #</TableHead>
                             <TableHead>Date</TableHead>
                             <TableHead>Party Name</TableHead>
-                            <TableHead>Total Cost</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -628,7 +627,6 @@ function SavedReportsList() {
                                 <TableCell>{report.reportNumber}</TableCell>
                                 <TableCell>{toNepaliDate(report.reportDate)}</TableCell>
                                 <TableCell>{report.partyName}</TableCell>
-                                <TableCell>{report.totalCost.toFixed(2)}</TableCell>
                                 <TableCell className="text-right">
                                     <AlertDialog>
                                         <AlertDialogTrigger asChild>
@@ -651,7 +649,7 @@ function SavedReportsList() {
                             </TableRow>
                         )) : (
                             <TableRow>
-                                <TableCell colSpan={5} className="text-center">No saved reports found.</TableCell>
+                                <TableCell colSpan={4} className="text-center">No saved reports found.</TableCell>
                             </TableRow>
                         )}
                     </TableBody>
