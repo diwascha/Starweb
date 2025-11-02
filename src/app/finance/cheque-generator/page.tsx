@@ -231,7 +231,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
             toast({ title: "Invalid Amount", description: `Payment must be between 0 and ${payingSplit.remainingAmount}.`, variant: "destructive" });
             return;
         }
-        
+
         const newPayment: PartialPayment = {
             id: Date.now().toString(),
             date: date.toISOString(),
@@ -239,20 +239,28 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
             remarks,
         };
 
-        const updatedPartialPayments = [...(payingSplit.partialPayments || []), newPayment];
-        const newPaidAmount = updatedPartialPayments.reduce((sum, p) => sum + p.amount, 0);
-        let newStatus: ChequeStatus = 'Partially Paid';
-
-        if (newPaidAmount >= Number(payingSplit.amount)) {
-            newStatus = 'Paid';
-        }
-
-        const updatedSplits = payingSplit.parentCheque.splits.map(s => 
-            s.id === payingSplit.id ? { ...s, partialPayments: updatedPartialPayments, status: newStatus } : s
-        );
-
+        const updatedSplits = payingSplit.parentCheque.splits.map(s => {
+            if (s.id === payingSplit.id) {
+                const existingPayments = s.partialPayments || [];
+                const newPaidAmount = existingPayments.reduce((sum, p) => sum + p.amount, 0) + newPayment.amount;
+                let newStatus: ChequeStatus = 'Partially Paid';
+                if (newPaidAmount >= Number(s.amount)) {
+                    newStatus = 'Paid';
+                }
+                return {
+                    ...s,
+                    partialPayments: [...existingPayments, newPayment],
+                    status: newStatus
+                };
+            }
+            return s;
+        });
+        
         try {
-            await updateCheque(payingSplit.parentCheque.id, { splits: updatedSplits, lastModifiedBy: user.username });
+            await updateCheque(payingSplit.parentCheque.id, {
+                splits: updatedSplits,
+                lastModifiedBy: user.username
+            });
             toast({ title: 'Payment Added', description: 'Partial payment has been recorded.' });
             setIsPaymentDialogOpen(false);
             setPayingSplit(null);
