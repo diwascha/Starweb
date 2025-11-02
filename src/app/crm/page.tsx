@@ -18,19 +18,6 @@ export default function CrmDashboardPage() {
        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           <Card>
             <CardHeader>
-                <CardTitle>Cost Report</CardTitle>
-                <CardDescription>Analyze and manage cost reports.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <Button asChild>
-                    <Link href="/crm/cost-report">
-                        <Calculator className="mr-2 h-4 w-4" /> Go to Cost Report
-                    </Link>
-                </Button>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
               <CardTitle>PackSpec</CardTitle>
               <CardDescription>Manage packaging specifications.</CardDescription>
             </CardHeader>
