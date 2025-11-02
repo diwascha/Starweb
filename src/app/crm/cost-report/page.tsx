@@ -471,15 +471,7 @@ export default function CostReportPage() {
                 </div>
                  <Button variant="outline" size="sm" onClick={handleAddItem} className="mt-4"><Plus className="mr-2 h-4 w-4" />Add Another Product</Button>
             </CardContent>
-            <CardContent>
-                 <div className="flex items-end justify-end pt-4 border-t">
-                    <div className="text-right space-y-2">
-                        <p className="text-2xl font-bold">
-                            Total Report Cost: <span className="text-primary">{totalItemCost.toFixed(2)}</span>
-                        </p>
-                    </div>
-                </div>
-            </CardContent>
+            
         </Card>
       
        <Dialog open={isPartyDialogOpen} onOpenChange={setIsPartyDialogOpen}>
