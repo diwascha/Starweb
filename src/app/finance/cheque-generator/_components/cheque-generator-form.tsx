@@ -29,6 +29,7 @@ import { addCheque, onChequesUpdate } from '@/services/cheque-service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 export function ChequeGeneratorForm() {
+    const [paymentDate, setPaymentDate] = useState<Date>(new Date());
     const [invoiceDate, setInvoiceDate] = useState<Date | undefined>();
     const [invoiceNumber, setInvoiceNumber] = useState('');
     const [partyName, setPartyName] = useState('');
@@ -129,6 +130,7 @@ export function ChequeGeneratorForm() {
     };
     
     const resetForm = () => {
+        setPaymentDate(new Date());
         setInvoiceDate(undefined);
         setInvoiceNumber('');
         setPartyName('');
@@ -150,7 +152,7 @@ export function ChequeGeneratorForm() {
         setIsSaving(true);
         try {
             const chequeData: Omit<Cheque, 'id' | 'createdAt'> = {
-                paymentDate: new Date().toISOString(),
+                paymentDate: paymentDate.toISOString(),
                 voucherNo: voucherNo,
                 invoiceDate: invoiceDate?.toISOString(),
                 invoiceNumber,
@@ -203,6 +205,20 @@ export function ChequeGeneratorForm() {
                  <div className="space-y-2">
                     <Label htmlFor="voucherNo">Auto Cheque Numbering</Label>
                     <Input id="voucherNo" value={voucherNo} readOnly className="bg-muted/50" />
+                 </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="paymentDate">Payment Date:</Label>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button id="paymentDate" variant="outline" className="w-full justify-start text-left font-normal">
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {paymentDate ? format(paymentDate, 'PPP') : <span>Pick a date</span>}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                            <DualCalendar selected={paymentDate} onSelect={(d) => d && setPaymentDate(d)} />
+                        </PopoverContent>
+                    </Popover>
                  </div>
                   <div className="space-y-2">
                     <Label htmlFor="invoiceDate">Invoice Date:</Label>
