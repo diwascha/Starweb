@@ -472,7 +472,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit }: Cos
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead colSpan={2} className="w-[50px] align-bottom">
+                                <TableHead rowSpan={2} className="w-[50px] align-bottom">
                                     <div className="flex items-center">
                                         <Checkbox
                                             checked={selectedForPrint.size === items.length && items.length > 0}
@@ -507,6 +507,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit }: Cos
                                 <TableHead rowSpan={2} className="align-bottom min-w-[100px]">Total Box Wt</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom min-w-[100px]">Box Rate/ Piece</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom min-w-[120px]">Total</TableHead>
+                                <TableHead rowSpan={2} className="w-[50px] align-bottom"></TableHead>
                             </TableRow>
                             <TableRow>
                                 <TableHead>L</TableHead>
@@ -523,23 +524,22 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit }: Cos
                         {items.map((item, index) => (
                             <TableRow key={item.id}>
                                 <TableCell>
-                                    <Checkbox
-                                        checked={selectedForPrint.has(item.id)}
-                                        onCheckedChange={(checked) => {
-                                            setSelectedForPrint(prev => {
-                                                const newSet = new Set(prev);
-                                                if (checked) newSet.add(item.id);
-                                                else newSet.delete(item.id);
-                                                return newSet;
-                                            });
-                                        }}
-                                        aria-label={`Select row ${index + 1}`}
-                                    />
-                                </TableCell>
-                                <TableCell>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleRemoveItem(item.id)}>
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
+                                    <div className="flex items-center">
+                                         <Checkbox
+                                            checked={selectedForPrint.has(item.id)}
+                                            onCheckedChange={(checked) => {
+                                                setSelectedForPrint(prev => {
+                                                    const newSet = new Set(prev);
+                                                    if (checked) newSet.add(item.id);
+                                                    else newSet.delete(item.id);
+                                                    return newSet;
+                                                });
+                                            }}
+                                            aria-label={`Select row ${index + 1}`}
+                                            className="mr-2"
+                                        />
+                                        {index + 1}
+                                    </div>
                                 </TableCell>
                                 <TableCell>
                                     <Select onValueChange={(v) => handleProductSelect(index, v)} value={item.productId}>
@@ -585,6 +585,11 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit }: Cos
                                 <TableCell>{item.calculated.paperRate.toFixed(2)}</TableCell>
                                 <TableCell className="font-bold">
                                     {item.calculated.paperCost > 0 ? item.calculated.paperCost.toFixed(2) : '...'}
+                                </TableCell>
+                                 <TableCell>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleRemoveItem(item.id)}>
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
                                 </TableCell>
                             </TableRow>
                         ))}
@@ -824,4 +829,5 @@ export default function CostReportPage() {
         </div>
     );
 }
+
 
