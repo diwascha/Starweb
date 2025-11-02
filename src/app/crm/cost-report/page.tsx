@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { Product, Party, PartyType, CostReport, CostReportItem } from '@/lib/types';
 import { onProductsUpdate } from '@/services/product-service';
 import { onPartiesUpdate, addParty, updateParty } from '@/services/party-service';
@@ -76,6 +76,10 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit }: Cos
   const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
   const [partyForm, setPartyForm] = useState<{ name: string; type: PartyType; address?: string; panNumber?: string; }>({ name: '', type: 'Customer', address: '', panNumber: '' });
   const [editingParty, setEditingParty] = useState<Party | null>(null);
+  
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const printRef = useRef<HTMLDivElement>(null);
+
 
   const calculateItemCost = useCallback((item: Omit<CostReportItem, 'id' | 'calculated' | 'productId'>, globalKraftCost: number, globalVirginCost: number, globalConversionCost: number): CalculatedValues => {
     const l = parseFloat(item.l) || 0;
@@ -99,14 +103,14 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit }: Cos
     
     const sheetArea = (sheetSizeL * sheetSizeB) / 1000000;
 
-    let totalGsm = 0;
+    let totalGsmForCalc = 0;
     if (ply === 3) {
-      totalGsm = topGsm + (flute1Gsm * fluteFactor) + bottomGsm;
+        totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor) + bottomGsm;
     } else if (ply === 5) {
-      totalGsm = topGsm + (flute1Gsm * fluteFactor) + middleGsm + (flute2Gsm * fluteFactor) + bottomGsm;
+        totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor) + middleGsm + (flute2Gsm * fluteFactor) + bottomGsm;
     }
-    
-    const paperWeightInGrams = (sheetArea * totalGsm) * noOfPcs;
+
+    const paperWeightInGrams = (sheetArea * totalGsmForCalc) * noOfPcs;
     
     const wastage = parseFloat(item.wastagePercent) / 100 || 0;
     const totalBoxWeightInGrams = paperWeightInGrams * (1 + wastage);
@@ -118,18 +122,14 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit }: Cos
         paperRate = globalKraftCost;
     } else if (item.paperType === 'VIRGIN' && globalVirginCost > 0) {
         paperRate = globalVirginCost;
-    } else if (item.paperType === 'VIRGIN & KRAFT' && totalGsm > 0 && globalVirginCost > 0) {
-        const topLayerWeightGsm = topGsm;
-        const topLayerRatio = topLayerWeightGsm / totalGsm;
-        
-        const kraftLayersWeightGsm = totalGsm - topLayerWeightGsm;
-        const kraftLayerRatio = kraftLayersWeightGsm / totalGsm;
-
-        if (!isNaN(topLayerRatio) && !isNaN(kraftLayerRatio)) {
-          const blendedRate = (globalVirginCost * topLayerRatio) + (globalKraftCost * kraftLayerRatio);
-          paperRate = blendedRate;
+    } else if (item.paperType === 'VIRGIN & KRAFT' && topGsm > 0 && globalVirginCost > 0) {
+        const totalLayersGsm = topGsm + flute1Gsm + (ply === 5 ? middleGsm + flute2Gsm : 0) + bottomGsm;
+        if (totalLayersGsm > 0) {
+            const topLayerRatio = topGsm / totalLayersGsm;
+            const kraftLayersRatio = (totalLayersGsm - topGsm) / totalLayersGsm;
+            paperRate = (globalVirginCost * topLayerRatio) + (globalKraftCost * kraftLayersRatio);
         } else {
-          paperRate = globalKraftCost;
+             paperRate = globalKraftCost;
         }
     } else {
         paperRate = globalKraftCost;
@@ -138,7 +138,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit }: Cos
     const finalPaperRate = paperRate + globalConversionCost;
     const paperCost = totalBoxWeightInKg * finalPaperRate;
     
-    return { sheetSizeL, sheetSizeB, sheetArea, totalGsm, paperWeight: paperWeightInGrams, totalBoxWeight: totalBoxWeightInGrams, paperRate: finalPaperRate, paperCost };
+    return { sheetSizeL, sheetSizeB, sheetArea, totalGsm: totalGsmForCalc, paperWeight: paperWeightInGrams, totalBoxWeight: totalBoxWeightInGrams, paperRate: finalPaperRate, paperCost };
   }, []);
 
   useEffect(() => {
@@ -320,7 +320,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit }: Cos
       }
   };
   
-  const handlePrint = async () => {
+  const handlePrintPreview = () => {
     const itemsToPrint = items.filter(item => selectedForPrint.has(item.id));
     if (itemsToPrint.length === 0) {
         toast({ title: "Cannot Print", description: "Please select at least one item to print.", variant: "destructive" });
@@ -330,45 +330,30 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit }: Cos
         toast({ title: "Cannot Print", description: "Please select a party before printing.", variant: "destructive" });
         return;
     }
-    const doc = new jsPDF();
-    
-    const font = AnnapurnaSIL.replace(/^data:font\/truetype;base64,/, "");
-    doc.addFileToVFS("AnnapurnaSIL.ttf", font);
-    doc.addFont("AnnapurnaSIL.ttf", "AnnapurnaSIL", "normal");
-    
-    doc.setFont('Helvetica', 'bold');
-    doc.setFontSize(16);
-    doc.text('Cost Report', doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
-    
-    doc.setFontSize(10);
-    doc.setFont('Helvetica', 'normal');
-    doc.text(`Report No: ${reportNumber}`, 14, 30);
-    doc.text(`Party: ${parties.find(p => p.id === selectedPartyId)?.name || ''}`, 14, 35);
-    doc.text(`Date: ${toNepaliDate(reportDate.toISOString())}`, doc.internal.pageSize.getWidth() - 14, 30, { align: 'right' });
-    
-    const totalCostOfPrintedItems = itemsToPrint.reduce((sum, item) => sum + (item.calculated?.paperCost || 0), 0);
+    setIsPreviewOpen(true);
+  };
+  
+  const doActualPrint = () => {
+    const printableArea = printRef.current;
+    if (!printableArea) return;
 
-    (doc as any).autoTable({
-        startY: 45,
-        head: [['Sl.No', 'Item Name', 'Box Size (LxBxH)', 'Ply', 'Total', 'Box Rate/Piece']],
-        body: itemsToPrint.map((item, index) => [
-            index + 1,
-            products.find(p => p.id === item.productId)?.name || 'N/A',
-            `${item.l}x${item.b}x${item.h}`,
-            item.ply,
-            item.calculated.paperCost.toFixed(2),
-            item.calculated.paperRate.toFixed(2),
-        ]),
-        theme: 'grid',
-        footStyles: { fontStyle: 'bold' },
-        foot: [
-            [{ content: 'Total', colSpan: 4, styles: { halign: 'right' } }, totalCostOfPrintedItems.toFixed(2), ''],
-        ]
-    });
-    
-    doc.save(`CostReport-${reportNumber}.pdf`);
+    const printWindow = window.open('', '', 'height=800,width=800');
+    printWindow?.document.write('<html><head><title>Cost Report</title>');
+    printWindow?.document.write('<style>@media print{@page{size: auto;margin: 20mm;}body{margin: 0;}}</style>');
+    printWindow?.document.write('</head><body>');
+    printWindow?.document.write(printableArea.innerHTML);
+    printWindow?.document.write('</body></html>');
+    printWindow?.document.close();
+    printWindow?.focus();
+    setTimeout(() => {
+        printWindow?.print();
+        printWindow?.close();
+    }, 250);
   };
 
+  const itemsToPrint = items.filter(item => selectedForPrint.has(item.id));
+  const totalCostOfPrintedItems = itemsToPrint.reduce((sum, item) => sum + (item.calculated?.paperCost || 0), 0);
+  const selectedParty = parties.find(p => p.id === selectedPartyId);
 
   return (
     <div className="flex flex-col gap-8">
@@ -608,7 +593,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit }: Cos
         </Card>
 
         <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={handlePrint}><Printer className="mr-2 h-4 w-4" /> Print</Button>
+            <Button variant="outline" onClick={handlePrintPreview}><Printer className="mr-2 h-4 w-4" /> Print</Button>
             <Button onClick={handleSaveReport} disabled={isSaving}>
                 {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 {reportToEdit ? 'Save Changes' : 'Save Report'}
@@ -653,6 +638,58 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit }: Cos
                   <Button onClick={handleSubmitParty}>{editingParty ? 'Save Changes' : 'Add Party'}</Button>
               </DialogFooter>
           </DialogContent>
+      </Dialog>
+      <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Cost Report Preview</DialogTitle>
+            <DialogDescription>Review the report before printing.</DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[70vh] overflow-auto p-4 bg-gray-100">
+            <div ref={printRef} className="bg-white text-black p-8 font-sans text-sm space-y-6">
+              <header className="text-center space-y-1">
+                <h1 className="text-xl font-bold">Cost Report</h1>
+                {selectedParty && <p className="text-sm">{selectedParty.name}</p>}
+                <p className="text-xs">{toNepaliDate(reportDate.toISOString())} BS ({format(reportDate, "PPP")})</p>
+              </header>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-black font-semibold">Sl.No</TableHead>
+                    <TableHead className="text-black font-semibold">Item Name</TableHead>
+                    <TableHead className="text-black font-semibold">Box Size (LxBxH)</TableHead>
+                    <TableHead className="text-black font-semibold">Ply</TableHead>
+                    <TableHead className="text-black font-semibold text-right">Total Cost</TableHead>
+                    <TableHead className="text-black font-semibold text-right">Box Rate/Piece</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {itemsToPrint.map((item, index) => (
+                    <TableRow key={item.id}>
+                      <TableCell>{index + 1}</TableCell>
+                      <TableCell>{products.find(p => p.id === item.productId)?.name || 'N/A'}</TableCell>
+                      <TableCell>{`${item.l}x${item.b}x${item.h}`}</TableCell>
+                      <TableCell>{item.ply}</TableCell>
+                      <TableCell className="text-right">{item.calculated.paperCost.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">{item.calculated.paperRate.toFixed(2)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+                <TableFooter>
+                    <TableRow className="font-bold text-base">
+                        <TableCell colSpan={4} className="text-right">Total</TableCell>
+                        <TableCell className="text-right">{totalCostOfPrintedItems.toFixed(2)}</TableCell>
+                        <TableCell></TableCell>
+                    </TableRow>
+                </TableFooter>
+              </Table>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsPreviewOpen(false)}>Cancel</Button>
+            <Button onClick={doActualPrint}><Printer className="mr-2 h-4 w-4" /> Print</Button>
+          </DialogFooter>
+        </DialogContent>
       </Dialog>
     </div>
   );
@@ -829,5 +866,3 @@ export default function CostReportPage() {
         </div>
     );
 }
-
-
