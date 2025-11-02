@@ -82,7 +82,8 @@ export default function CostReportPage() {
   const [reportNumber, setReportNumber] = useState('CR-001'); // Placeholder
   const [reportDate, setReportDate] = useState<Date>(new Date());
   
-  const [paperCost, setPaperCost] = useState<number | ''>('');
+  const [kraftPaperCost, setKraftPaperCost] = useState<number | ''>('');
+  const [virginPaperCost, setVirginPaperCost] = useState<number | ''>('');
   const [conversionCost, setConversionCost] = useState<number | ''>('');
 
   const { toast } = useToast();
@@ -123,15 +124,15 @@ export default function CostReportPage() {
     }
     
     const paperWeightInGrams = (sheetArea * totalGsm) * noOfPcs;
-    const paperWeightInKg = paperWeightInGrams / 1000;
     
     const wastage = parseFloat(item.wastagePercent) / 100 || 0;
-    const totalBoxWeight = paperWeightInKg * (1 + wastage);
+    const totalBoxWeightInGrams = paperWeightInGrams * (1 + wastage);
+    const totalBoxWeightInKg = totalBoxWeightInGrams / 1000;
     
     const paperRate = parseFloat(item.paperRate) || 0;
-    const paperCost = totalBoxWeight * paperRate;
+    const paperCost = totalBoxWeightInKg * paperRate;
     
-    return { sheetSizeL, sheetSizeB, sheetArea, totalGsm, paperWeight: paperWeightInGrams, totalBoxWeight, paperCost };
+    return { sheetSizeL, sheetSizeB, sheetArea, totalGsm, paperWeight: paperWeightInGrams, totalBoxWeight: totalBoxWeightInGrams, paperCost };
   }, []);
   
   const [items, setItems] = useState<CostReportItem[]>(() => [
@@ -195,8 +196,8 @@ export default function CostReportPage() {
   }, [items]);
 
   const totalCost = useMemo(() => {
-    return totalItemCost + (Number(paperCost) || 0) + (Number(conversionCost) || 0);
-  }, [totalItemCost, paperCost, conversionCost]);
+    return totalItemCost + (Number(kraftPaperCost) || 0) + (Number(virginPaperCost) || 0) + (Number(conversionCost) || 0);
+  }, [totalItemCost, kraftPaperCost, virginPaperCost, conversionCost]);
 
   
   const handleOpenPartyDialog = (partyToEdit: Party | null = null, searchName: string = '') => {
@@ -387,7 +388,7 @@ export default function CostReportPage() {
                                 <TableCell>{(item.calculated.sheetSizeB / 10).toFixed(2)}</TableCell>
                                 <TableCell>{item.calculated.paperWeight.toFixed(2)}</TableCell>
                                 <TableCell>{((item.calculated.paperWeight * (parseFloat(item.wastagePercent) / 100 || 0))).toFixed(2)}</TableCell>
-                                <TableCell>{(item.calculated.totalBoxWeight * 1000).toFixed(2)}</TableCell>
+                                <TableCell>{(item.calculated.totalBoxWeight).toFixed(2)}</TableCell>
                                 <TableCell><Input type="number" value={item.paperRate} onChange={e => handleItemChange(index, 'paperRate', e.target.value)} className="w-24" /></TableCell>
                                 <TableCell className="font-bold">
                                     {item.calculated.paperCost > 0 ? item.calculated.paperCost.toFixed(2) : '...'}
@@ -400,15 +401,19 @@ export default function CostReportPage() {
                  <Button variant="outline" size="sm" onClick={handleAddItem} className="mt-4"><Plus className="mr-2 h-4 w-4" />Add Another Product</Button>
             </CardContent>
              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t">
-                    <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4 border-t">
+                    <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-6">
                         <div className="space-y-2">
-                            <Label htmlFor="paperCost">Kraft Paper Cost</Label>
-                            <Input id="paperCost" type="number" placeholder="Enter additional paper cost" value={paperCost} onChange={e => setPaperCost(e.target.value === '' ? '' : parseFloat(e.target.value))} />
+                            <Label htmlFor="kraftPaperCost">Kraft Paper Cost</Label>
+                            <Input id="kraftPaperCost" type="number" placeholder="Enter cost" value={kraftPaperCost} onChange={e => setKraftPaperCost(e.target.value === '' ? '' : parseFloat(e.target.value))} />
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="virginPaperCost">Virgin Paper Cost</Label>
+                            <Input id="virginPaperCost" type="number" placeholder="Enter cost" value={virginPaperCost} onChange={e => setVirginPaperCost(e.target.value === '' ? '' : parseFloat(e.target.value))} />
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="conversionCost">Conversion Cost</Label>
-                            <Input id="conversionCost" type="number" placeholder="Enter conversion cost" value={conversionCost} onChange={e => setConversionCost(e.target.value === '' ? '' : parseFloat(e.target.value))} />
+                            <Input id="conversionCost" type="number" placeholder="Enter cost" value={conversionCost} onChange={e => setConversionCost(e.target.value === '' ? '' : parseFloat(e.target.value))} />
                         </div>
                     </div>
                      <div className="flex items-end justify-end">
