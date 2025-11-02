@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, ChevronsUpDown, Check, PlusCircle, Printer, Save, Loader2, Trash2 } from 'lucide-react';
 import { cn, toWords, generateNextVoucherNumber } from '@/lib/utils';
-import { format } from 'date-fns';
+import { format, addDays } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { onPartiesUpdate, addParty } from '@/services/party-service';
 import type { Party, PartyType, Cheque, ChequeSplit } from '@/lib/types';
@@ -36,6 +36,7 @@ export function ChequeGeneratorForm() {
     
     const [invoiceAmount, setInvoiceAmount] = useState<number | ''>('');
     const [numberOfSplits, setNumberOfSplits] = useState<number>(1);
+    const [dateInterval, setDateInterval] = useState<number | ''>('');
     
     const [chequeSplits, setChequeSplits] = useState<ChequeSplit[]>([{
         id: Date.now().toString(),
@@ -111,6 +112,17 @@ export function ChequeGeneratorForm() {
         setChequeSplits(newSplits);
     }, [numberOfSplits, invoiceAmount]);
 
+    useEffect(() => {
+        if (dateInterval && Number(dateInterval) > 0) {
+            setChequeSplits(prevSplits => {
+                return prevSplits.map((split, index) => ({
+                    ...split,
+                    chequeDate: addDays(paymentDate, index * Number(dateInterval))
+                }));
+            });
+        }
+    }, [dateInterval, numberOfSplits, paymentDate]);
+
 
     const allParties = useMemo(() => parties.sort((a, b) => a.name.localeCompare(b.name)), [parties]);
     
@@ -158,6 +170,7 @@ export function ChequeGeneratorForm() {
         setPartyName('');
         setInvoiceAmount('');
         setNumberOfSplits(1);
+        setDateInterval('');
         setChequeSplits([{ id: Date.now().toString(), chequeDate: new Date(), chequeNumber: '', amount: '' }]);
     };
 
@@ -309,6 +322,10 @@ export function ChequeGeneratorForm() {
                  <div className="space-y-2">
                     <Label htmlFor="numberOfSplits">Number of Cheque Splits</Label>
                     <Input id="numberOfSplits" type="number" min="1" value={numberOfSplits} onChange={(e) => setNumberOfSplits(Math.max(1, parseInt(e.target.value, 10) || 1))} />
+                 </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="dateInterval">Cheque Date Interval (Days)</Label>
+                    <Input id="dateInterval" type="number" min="0" value={dateInterval} onChange={(e) => setDateInterval(e.target.value === '' ? '' : parseInt(e.target.value, 10))} placeholder="e.g. 7, 15, 30" />
                  </div>
             </div>
 
