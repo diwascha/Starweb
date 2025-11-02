@@ -123,9 +123,6 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit }: Cos
     } else if (item.paperType === 'VIRGIN & KRAFT' && topGsm > 0 && globalVirginCost > 0) {
         const totalGsm = topGsm + (flute1Gsm * 1.38) + (ply === 5 ? middleGsm + (flute2Gsm * 1.38) : 0) + bottomGsm;
         if (totalGsm > 0) {
-            const topLayerCost = (sheetArea * topGsm / totalGsm) * globalVirginCost;
-            const otherLayersCost = (sheetArea * (totalGsm - topGsm) / totalGsm) * globalKraftCost;
-            // The cost here is per GSM, so we average it out. The weight calculation will handle the rest.
             paperRate = (topGsm * globalVirginCost + (totalGsm - topGsm) * globalKraftCost) / totalGsm;
         } else {
              paperRate = globalKraftCost;
@@ -639,7 +636,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit }: Cos
           </DialogContent>
       </Dialog>
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-6xl">
           <DialogHeader>
             <DialogTitle>Quotation Preview</DialogTitle>
             <DialogDescription>Review the quotation before printing.</DialogDescription>
@@ -668,32 +665,38 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit }: Cos
 
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-black font-semibold">Sl.No</TableHead>
-                    <TableHead className="text-black font-semibold">Item Name</TableHead>
-                    <TableHead className="text-black font-semibold">Box Size (LxBxH)</TableHead>
-                    <TableHead className="text-black font-semibold">Ply</TableHead>
-                    <TableHead className="text-black font-semibold text-right">Total Cost</TableHead>
-                    <TableHead className="text-black font-semibold text-right">Box Rate/Piece</TableHead>
+                    <TableRow>
+                        <TableHead className="text-black font-semibold">Sl.No</TableHead>
+                        <TableHead className="text-black font-semibold">Particulars</TableHead>
+                        <TableHead className="text-black font-semibold">Box Size (mm)</TableHead>
+                        <TableHead className="text-black font-semibold">Ply</TableHead>
+                        <TableHead className="text-black font-semibold">Paper</TableHead>
+                        <TableHead className="text-black font-semibold text-right">Box Wt (Grams)</TableHead>
+                        <TableHead className="text-black font-semibold text-right">Box Rate/Piece</TableHead>
+                        <TableHead className="text-black font-semibold text-right">Total</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {itemsToPrint.map((item, index) => (
                     <TableRow key={item.id}>
                       <TableCell>{index + 1}</TableCell>
-                      <TableCell>{products.find(p => p.id === item.productId)?.name || 'N/A'}</TableCell>
+                      <TableCell>
+                          <div>{products.find(p => p.id === item.productId)?.name || 'N/A'}</div>
+                          <div className="text-xs text-muted-foreground">{`T:${item.topGsm}, F1:${item.flute1Gsm}, ${item.ply === '5' ? `M:${item.middleGsm}, F2:${item.flute2Gsm}, `: ''}B:${item.bottomGsm}`}</div>
+                      </TableCell>
                       <TableCell>{`${item.l}x${item.b}x${item.h}`}</TableCell>
                       <TableCell>{item.ply}</TableCell>
-                      <TableCell className="text-right">{item.calculated.paperCost.toFixed(2)}</TableCell>
+                      <TableCell>{item.paperType}</TableCell>
+                      <TableCell className="text-right">{item.calculated.totalBoxWeight.toFixed(2)}</TableCell>
                       <TableCell className="text-right">{item.calculated.paperRate.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">{item.calculated.paperCost.toFixed(2)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
                 <TableFooter>
                     <TableRow className="font-bold text-base">
-                        <TableCell colSpan={4} className="text-right">Total</TableCell>
+                        <TableCell colSpan={7} className="text-right">Total</TableCell>
                         <TableCell className="text-right">{totalCostOfPrintedItems.toFixed(2)}</TableCell>
-                        <TableCell></TableCell>
                     </TableRow>
                 </TableFooter>
               </Table>
@@ -891,7 +894,3 @@ export default function CostReportPage() {
         </div>
     );
 }
-
-    
-
-    
