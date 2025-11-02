@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Suspense, useState, useEffect, useMemo } from 'react';
+import { Suspense, useState, useEffect, useMemo, useRef } from 'react';
 import { ChequeGeneratorForm } from './_components/cheque-generator-form';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -16,6 +16,9 @@ import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { format } from 'date-fns';
+import { ChequeView } from './_components/cheque-view';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+
 
 function FormSkeleton() {
     return (
@@ -49,6 +52,10 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
     const [searchQuery, setSearchQuery] = useState('');
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'createdAt', direction: 'desc' });
     const { toast } = useToast();
+    
+    const [chequeToPrint, setChequeToPrint] = useState<Cheque | null>(null);
+    const [isPrintPreviewOpen, setIsPrintPreviewOpen] = useState(false);
+    const printRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         const unsub = onChequesUpdate(setCheques);
@@ -93,87 +100,137 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
         }
     };
     
+    const handlePrint = (cheque: Cheque) => {
+        setChequeToPrint(cheque);
+        setIsPrintPreviewOpen(true);
+    };
+
+    const doActualPrint = () => {
+        const printableArea = printRef.current;
+        if (!printableArea) return;
+        
+        const printWindow = window.open('', '', 'height=800,width=800');
+        printWindow?.document.write('<html><head><title>Print Cheques</title>');
+        printWindow?.document.write('<style>@media print{@page{size: auto;margin: 5mm;}body{margin: 0;}.cheque-container{border:1px solid #ccc; padding: 10px; margin-bottom: 20px; page-break-inside: avoid;}}</style>');
+        printWindow?.document.write('</head><body>');
+        printWindow?.document.write(printableArea.innerHTML);
+        printWindow?.document.write('</body></html>');
+        printWindow?.document.close();
+        printWindow?.focus();
+        setTimeout(() => {
+            printWindow?.print();
+            printWindow?.close();
+        }, 250);
+    };
+
+    
     return (
-        <Card>
-           <CardHeader>
-             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                    <CardTitle>Saved Cheques</CardTitle>
-                    <CardDescription>A log of all saved cheque records.</CardDescription>
+        <>
+            <Card>
+            <CardHeader>
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                        <CardTitle>Saved Cheques</CardTitle>
+                        <CardDescription>A log of all saved cheque records.</CardDescription>
+                    </div>
+                    <div className="relative w-full sm:w-auto">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Search by payee, cheque #..."
+                            className="pl-8 w-full sm:w-[250px]"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                    </div>
                 </div>
-                <div className="relative w-full sm:w-auto">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                        placeholder="Search by payee, cheque #..."
-                        className="pl-8 w-full sm:w-[250px]"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                </div>
-             </div>
-           </CardHeader>
-           <CardContent>
-             <Table>
-               <TableHeader>
-                 <TableRow>
-                   <TableHead><Button variant="ghost" onClick={() => requestSort('createdAt')}>Date Saved <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
-                   <TableHead><Button variant="ghost" onClick={() => requestSort('voucherNo')}>Voucher # <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
-                   <TableHead><Button variant="ghost" onClick={() => requestSort('payeeName')}>Payee Name <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
-                   <TableHead>Invoice #</TableHead>
-                   <TableHead><Button variant="ghost" onClick={() => requestSort('amount')}>Total Amount <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
-                   <TableHead className="text-right">Actions</TableHead>
-                 </TableRow>
-               </TableHeader>
-               <TableBody>
-                 {sortedAndFilteredCheques.length > 0 ? (
-                    sortedAndFilteredCheques.map(c => (
-                     <TableRow key={c.id}>
-                       <TableCell>{format(new Date(c.createdAt), 'PPP')}</TableCell>
-                       <TableCell>{c.voucherNo}</TableCell>
-                       <TableCell>{c.payeeName}</TableCell>
-                       <TableCell>{c.invoiceNumber}</TableCell>
-                       <TableCell>{c.amount.toLocaleString()}</TableCell>
-                       <TableCell className="text-right">
-                         <DropdownMenu>
-                           <DropdownMenuTrigger asChild>
-                             <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button>
-                           </DropdownMenuTrigger>
-                           <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Cheques ({c.splits.length})</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                {c.splits.map((split, index) => (
-                                    <DropdownMenuItem key={index} className="flex justify-between">
-                                        <span>#{split.chequeNumber || 'N/A'}</span>
-                                        <span className="text-muted-foreground">{split.amount.toLocaleString()}</span>
-                                    </DropdownMenuItem>
-                                ))}
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onSelect={() => onEdit(c)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
-                                <DropdownMenuItem><Printer className="mr-2 h-4 w-4"/> Print</DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <DropdownMenuItem onSelect={e => e.preventDefault()}><Trash2 className="mr-2 h-4 w-4 text-destructive" /> <span className="text-destructive">Delete</span></DropdownMenuItem>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader><AlertDialogTitle>Delete this record?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
-                                    <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(c.id)}>Delete</AlertDialogAction></AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                           </DropdownMenuContent>
-                         </DropdownMenu>
-                       </TableCell>
-                     </TableRow>
-                   ))
-                 ) : (
-                   <TableRow>
-                     <TableCell colSpan={6} className="text-center">No saved cheques yet.</TableCell>
-                   </TableRow>
-                 )}
-               </TableBody>
-             </Table>
-           </CardContent>
-         </Card>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                <TableHeader>
+                    <TableRow>
+                    <TableHead><Button variant="ghost" onClick={() => requestSort('createdAt')}>Date Saved <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
+                    <TableHead><Button variant="ghost" onClick={() => requestSort('voucherNo')}>Voucher # <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
+                    <TableHead><Button variant="ghost" onClick={() => requestSort('payeeName')}>Payee Name <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
+                    <TableHead>Invoice #</TableHead>
+                    <TableHead><Button variant="ghost" onClick={() => requestSort('amount')}>Total Amount <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {sortedAndFilteredCheques.length > 0 ? (
+                        sortedAndFilteredCheques.map(c => (
+                        <TableRow key={c.id}>
+                        <TableCell>{format(new Date(c.createdAt), 'PPP')}</TableCell>
+                        <TableCell>{c.voucherNo}</TableCell>
+                        <TableCell>{c.payeeName}</TableCell>
+                        <TableCell>{c.invoiceNumber}</TableCell>
+                        <TableCell>{c.amount.toLocaleString()}</TableCell>
+                        <TableCell className="text-right">
+                            <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                    <DropdownMenuLabel>Cheques ({c.splits.length})</DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    {c.splits.map((split, index) => (
+                                        <DropdownMenuItem key={index} className="flex justify-between">
+                                            <span>#{split.chequeNumber || 'N/A'}</span>
+                                            <span className="text-muted-foreground">{split.amount.toLocaleString()}</span>
+                                        </DropdownMenuItem>
+                                    ))}
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem onSelect={() => onEdit(c)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
+                                    <DropdownMenuItem onSelect={() => handlePrint(c)}><Printer className="mr-2 h-4 w-4"/> Print</DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <DropdownMenuItem onSelect={e => e.preventDefault()}><Trash2 className="mr-2 h-4 w-4 text-destructive" /> <span className="text-destructive">Delete</span></DropdownMenuItem>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader><AlertDialogTitle>Delete this record?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
+                                        <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(c.id)}>Delete</AlertDialogAction></AlertDialogFooter>
+                                    </AlertDialogContent>
+                                    </AlertDialog>
+                            </DropdownMenuContent>
+                            </DropdownMenu>
+                        </TableCell>
+                        </TableRow>
+                    ))
+                    ) : (
+                    <TableRow>
+                        <TableCell colSpan={6} className="text-center">No saved cheques yet.</TableCell>
+                    </TableRow>
+                    )}
+                </TableBody>
+                </Table>
+            </CardContent>
+            </Card>
+             <Dialog open={isPrintPreviewOpen} onOpenChange={setIsPrintPreviewOpen}>
+                <DialogContent className="max-w-4xl">
+                    <DialogHeader>
+                        <DialogTitle>Cheque Preview</DialogTitle>
+                        <DialogDescription>Review the cheques before printing.</DialogDescription>
+                    </DialogHeader>
+                     <div className="max-h-[70vh] overflow-auto p-4 bg-gray-100">
+                         <div ref={printRef}>
+                            {chequeToPrint && chequeToPrint.splits.map((split, index) => (
+                                <ChequeView 
+                                    key={split.chequeNumber || index}
+                                    chequeDate={new Date(split.chequeDate)}
+                                    payeeName={chequeToPrint.payeeName}
+                                    amount={Number(split.amount)}
+                                />
+                            ))}
+                         </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsPrintPreviewOpen(false)}>Cancel</Button>
+                        <Button onClick={doActualPrint}><Printer className="mr-2 h-4 w-4" /> Print</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
     );
 }
 
