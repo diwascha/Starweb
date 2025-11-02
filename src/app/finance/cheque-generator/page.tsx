@@ -88,7 +88,8 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                 const chequeDate = new Date(s.chequeDate);
                 return {
                     ...s,
-                    id: `${c.id}-${s.chequeNumber}-${s.chequeDate}`,
+                    // Use the original ChequeSplit ID, not a synthetic one for the row key
+                    id: s.id, 
                     chequeDate: chequeDate,
                     daysRemaining: differenceInDays(chequeDate, today),
                     isOverdue: differenceInDays(chequeDate, today) < 0,
@@ -249,7 +250,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                 <TableBody>
                     {sortedAndFilteredSplits.length > 0 ? (
                         sortedAndFilteredSplits.map(split => (
-                        <TableRow key={split.id}>
+                        <TableRow key={`${split.parentCheque.id}-${split.id}`}>
                         <TableCell>{format(new Date(split.chequeDate), 'PPP')}</TableCell>
                         <TableCell>{split.parentCheque.payeeName}</TableCell>
                         <TableCell>{split.chequeNumber}</TableCell>
