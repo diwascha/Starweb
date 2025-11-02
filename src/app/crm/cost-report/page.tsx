@@ -299,6 +299,30 @@ export default function CostReportPage() {
                  </div>
             </CardContent>
         </Card>
+
+        <Card>
+            <CardHeader>
+                <CardTitle>Additional Costs</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-6">
+                        <div className="space-y-2">
+                            <Label htmlFor="kraftPaperCost">Kraft Paper Cost</Label>
+                            <Input id="kraftPaperCost" type="number" placeholder="Enter cost" value={kraftPaperCost} onChange={e => setKraftPaperCost(e.target.value === '' ? '' : parseFloat(e.target.value))} />
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="virginPaperCost">Virgin Paper Cost</Label>
+                            <Input id="virginPaperCost" type="number" placeholder="Enter cost" value={virginPaperCost} onChange={e => setVirginPaperCost(e.target.value === '' ? '' : parseFloat(e.target.value))} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="conversionCost">Conversion Cost</Label>
+                            <Input id="conversionCost" type="number" placeholder="Enter cost" value={conversionCost} onChange={e => setConversionCost(e.target.value === '' ? '' : parseFloat(e.target.value))} />
+                        </div>
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
         
         <Card>
             <CardHeader>
@@ -400,29 +424,13 @@ export default function CostReportPage() {
                 </div>
                  <Button variant="outline" size="sm" onClick={handleAddItem} className="mt-4"><Plus className="mr-2 h-4 w-4" />Add Another Product</Button>
             </CardContent>
-             <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4 border-t">
-                    <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-6">
-                        <div className="space-y-2">
-                            <Label htmlFor="kraftPaperCost">Kraft Paper Cost</Label>
-                            <Input id="kraftPaperCost" type="number" placeholder="Enter cost" value={kraftPaperCost} onChange={e => setKraftPaperCost(e.target.value === '' ? '' : parseFloat(e.target.value))} />
-                        </div>
-                         <div className="space-y-2">
-                            <Label htmlFor="virginPaperCost">Virgin Paper Cost</Label>
-                            <Input id="virginPaperCost" type="number" placeholder="Enter cost" value={virginPaperCost} onChange={e => setVirginPaperCost(e.target.value === '' ? '' : parseFloat(e.target.value))} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="conversionCost">Conversion Cost</Label>
-                            <Input id="conversionCost" type="number" placeholder="Enter cost" value={conversionCost} onChange={e => setConversionCost(e.target.value === '' ? '' : parseFloat(e.target.value))} />
-                        </div>
-                    </div>
-                     <div className="flex items-end justify-end">
-                        <div className="text-right space-y-2">
-                            <p className="text-muted-foreground">Total Item Cost: {totalItemCost.toFixed(2)}</p>
-                            <p className="text-2xl font-bold">
-                                Total Report Cost: <span className="text-primary">{totalCost.toFixed(2)}</span>
-                            </p>
-                        </div>
+            <CardContent>
+                 <div className="flex items-end justify-end pt-4 border-t">
+                    <div className="text-right space-y-2">
+                        <p className="text-muted-foreground">Total Item Cost: {totalItemCost.toFixed(2)}</p>
+                        <p className="text-2xl font-bold">
+                            Total Report Cost: <span className="text-primary">{totalCost.toFixed(2)}</span>
+                        </p>
                     </div>
                 </div>
             </CardContent>
