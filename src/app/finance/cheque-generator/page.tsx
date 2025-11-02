@@ -382,7 +382,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                     <TableHead><Button variant="ghost" onClick={() => requestSort('chequeNumber')}>Cheque # <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
                     <TableHead><Button variant="ghost" onClick={() => requestSort('amount')}>Amount <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
                     <TableHead>Remaining</TableHead>
-                    <TableHead><Button variant="ghost" onClick={() => requestSort('dueStatus')}>Status</Button></TableHead>
+                    <TableHead><Button variant="ghost" onClick={() => requestSort('dueStatus')}>Due Status</Button></TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -390,7 +390,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                     {sortedAndFilteredSplits.length > 0 ? (
                         sortedAndFilteredSplits.map(split => (
                         <TableRow key={`${split.parentCheque.id}-${split.id}`}>
-                        <TableCell>{format(new Date(split.chequeDate), 'PPP')}</TableCell>
+                        <TableCell>{toNepaliDate(split.chequeDate.toISOString())}</TableCell>
                         <TableCell>{split.parentCheque.payeeName}</TableCell>
                         <TableCell>{split.chequeNumber}</TableCell>
                         <TableCell>{Number(split.amount).toLocaleString()}</TableCell>
