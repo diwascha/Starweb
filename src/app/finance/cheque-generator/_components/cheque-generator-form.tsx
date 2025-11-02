@@ -6,12 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, ChevronsUpDown, Check, PlusCircle, Printer } from 'lucide-react';
+import { CalendarIcon, ChevronsUpDown, Check, PlusCircle, Printer, Save, Loader2 } from 'lucide-react';
 import { cn, toWords } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { onPartiesUpdate, addParty } from '@/services/party-service';
-import type { Party, PartyType } from '@/lib/types';
+import type { Party, PartyType, Cheque } from '@/lib/types';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { useAuth } from '@/hooks/use-auth';
@@ -25,10 +25,12 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { addCheque } from '@/services/cheque-service';
 
 export function ChequeGeneratorForm() {
     const [paymentDate, setPaymentDate] = useState<Date>(new Date());
     const [invoiceDate, setInvoiceDate] = useState<Date | undefined>();
+    const [invoiceNumber, setInvoiceNumber] = useState('');
     const [partyName, setPartyName] = useState('');
     const [payeeName, setPayeeName] = useState('');
     const [amount, setAmount] = useState<number | ''>('');
@@ -36,6 +38,7 @@ export function ChequeGeneratorForm() {
     const [numberOfSplits, setNumberOfSplits] = useState<number>(1);
     
     const [parties, setParties] = useState<Party[]>([]);
+    const [isSaving, setIsSaving] = useState(false);
     
     // Dialog States
     const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
@@ -83,6 +86,46 @@ export function ChequeGeneratorForm() {
         }
     };
     
+    const resetForm = () => {
+        setPaymentDate(new Date());
+        setInvoiceDate(undefined);
+        setInvoiceNumber('');
+        setPartyName('');
+        setPayeeName('');
+        setAmount('');
+        setChequeNumber('');
+        setNumberOfSplits(1);
+    };
+
+    const handleSave = async () => {
+        if (!user || !payeeName || !amount) {
+            toast({ title: 'Error', description: 'Payee and amount are required to save.', variant: 'destructive'});
+            return;
+        }
+        setIsSaving(true);
+        try {
+            const chequeData: Omit<Cheque, 'id' | 'createdAt'> = {
+                paymentDate: paymentDate.toISOString(),
+                invoiceDate: invoiceDate?.toISOString(),
+                invoiceNumber,
+                partyName,
+                payeeName,
+                amount,
+                amountInWords,
+                chequeNumber,
+                numberOfSplits,
+                createdBy: user.username,
+            };
+            await addCheque(chequeData);
+            toast({ title: 'Success', description: 'Cheque record saved.' });
+            resetForm();
+        } catch (error) {
+            toast({ title: 'Error', description: 'Failed to save cheque record.', variant: 'destructive' });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+    
     const handlePrint = () => {
         if (!payeeName || !amount) {
             toast({ title: 'Error', description: 'Please fill in payee and amount.', variant: 'destructive'});
@@ -93,6 +136,7 @@ export function ChequeGeneratorForm() {
         console.log({
             paymentDate: format(paymentDate, 'yyyy-MM-dd'),
             invoiceDate: invoiceDate ? format(invoiceDate, 'yyyy-MM-dd') : 'N/A',
+            invoiceNumber,
             payee: payeeName,
             amount: amount,
             amountInWords: amountInWords,
@@ -133,6 +177,10 @@ export function ChequeGeneratorForm() {
                         </PopoverContent>
                     </Popover>
                  </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="invoiceNumber">Invoice Number:</Label>
+                    <Input id="invoiceNumber" value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} />
+                </div>
                 <div className="space-y-2">
                     <Label htmlFor="chequeNumber">Cheque Number:</Label>
                     <Input id="chequeNumber" value={chequeNumber} onChange={(e) => setChequeNumber(e.target.value)} />
@@ -203,7 +251,11 @@ export function ChequeGeneratorForm() {
                 </div>
             </div>
             
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-2">
+                 <Button onClick={handleSave} variant="outline" disabled={isSaving}>
+                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                    Save Cheque
+                </Button>
                 <Button onClick={handlePrint}>
                     <Printer className="mr-2 h-4 w-4" /> Print Cheque
                 </Button>

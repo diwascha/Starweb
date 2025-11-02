@@ -1,4 +1,5 @@
 
+
 export interface RateHistoryEntry {
   rate: number;
   date: string; // ISO string when the rate was set
@@ -519,6 +520,21 @@ export interface NoteItem {
 }
 
 // Finance Types
+export interface Cheque {
+    id: string;
+    paymentDate: string; // ISO string
+    invoiceDate?: string; // ISO string
+    invoiceNumber?: string;
+    partyName: string;
+    payeeName: string;
+    amount: number;
+    amountInWords: string;
+    chequeNumber?: string;
+    numberOfSplits: number;
+    createdBy: string;
+    createdAt: string; // ISO string
+}
+
 export interface TdsRate {
   value: string;
   label: string;
@@ -561,4 +577,5 @@ export interface EstimatedInvoice {
     createdBy: string;
     createdAt: string; // ISO
 }
+
 

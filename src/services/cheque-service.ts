@@ -1,0 +1,44 @@
+
+import { db } from '@/lib/firebase';
+import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, deleteDoc, query, orderBy } from 'firebase/firestore';
+import type { Cheque } from '@/lib/types';
+
+const chequesCollection = collection(db, 'cheques');
+
+const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Cheque => {
+    const data = snapshot.data();
+    return {
+        id: snapshot.id,
+        paymentDate: data.paymentDate,
+        invoiceDate: data.invoiceDate,
+        invoiceNumber: data.invoiceNumber,
+        partyName: data.partyName,
+        payeeName: data.payeeName,
+        amount: data.amount,
+        amountInWords: data.amountInWords,
+        chequeNumber: data.chequeNumber,
+        numberOfSplits: data.numberOfSplits,
+        createdBy: data.createdBy,
+        createdAt: data.createdAt,
+    };
+}
+
+export const addCheque = async (cheque: Omit<Cheque, 'id' | 'createdAt'>): Promise<string> => {
+    const docRef = await addDoc(chequesCollection, {
+        ...cheque,
+        createdAt: new Date().toISOString(),
+    });
+    return docRef.id;
+};
+
+export const onChequesUpdate = (callback: (cheques: Cheque[]) => void): () => void => {
+    const q = query(chequesCollection, orderBy('paymentDate', 'desc'));
+    return onSnapshot(q, (snapshot) => {
+        callback(snapshot.docs.map(fromFirestore));
+    });
+};
+
+export const deleteCheque = async (id: string): Promise<void> => {
+    const chequeDoc = doc(db, 'cheques', id);
+    await deleteDoc(chequeDoc);
+};
