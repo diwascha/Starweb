@@ -226,7 +226,9 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
     
     const handleAddPayment = async () => {
         if (!payingSplit || !user) return;
+        
         const { date, amount, remarks } = paymentForm;
+
         if (amount <= 0 || amount > payingSplit.remainingAmount) {
             toast({ title: "Invalid Amount", description: `Payment must be between 0 and ${payingSplit.remainingAmount}.`, variant: "destructive" });
             return;
@@ -236,35 +238,42 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
             id: Date.now().toString(),
             date: date.toISOString(),
             amount,
-            remarks,
+            remarks: remarks || '',
         };
 
         const updatedSplits = payingSplit.parentCheque.splits.map(s => {
             if (s.id === payingSplit.id) {
                 const existingPayments = s.partialPayments || [];
-                const newPaidAmount = existingPayments.reduce((sum, p) => sum + p.amount, 0) + newPayment.amount;
+                const updatedPayments = [...existingPayments, newPayment];
+                const totalPaid = updatedPayments.reduce((sum, p) => sum + p.amount, 0);
+                
                 let newStatus: ChequeStatus = 'Partially Paid';
-                if (newPaidAmount >= Number(s.amount)) {
+                if (totalPaid >= Number(s.amount)) {
                     newStatus = 'Paid';
                 }
+
                 return {
                     ...s,
-                    partialPayments: [...existingPayments, newPayment],
+                    partialPayments: updatedPayments,
                     status: newStatus
                 };
             }
             return s;
         });
+
+        const dataToUpdate: Partial<Cheque> = {
+            splits: updatedSplits,
+            lastModifiedBy: user.username,
+        };
         
         try {
-            await updateCheque(payingSplit.parentCheque.id, {
-                splits: updatedSplits,
-                lastModifiedBy: user.username
-            });
+            await updateCheque(payingSplit.parentCheque.id, dataToUpdate);
             toast({ title: 'Payment Added', description: 'Partial payment has been recorded.' });
             setIsPaymentDialogOpen(false);
             setPayingSplit(null);
+            setPaymentForm({ date: new Date(), amount: 0, remarks: '' });
         } catch (error) {
+            console.error("Failed to add payment:", error);
             toast({ title: 'Error', description: 'Failed to add payment.', variant: 'destructive' });
         }
     };
