@@ -93,7 +93,7 @@ export default function CostReportPage() {
   const [partyForm, setPartyForm] = useState<{ name: string; type: PartyType; address?: string; panNumber?: string; }>({ name: '', type: 'Customer', address: '', panNumber: '' });
   const [editingParty, setEditingParty] = useState<Party | null>(null);
 
-  const calculateItemCost = useCallback((item: Omit<CostReportItem, 'id' | 'calculated' | 'paperRate'>, globalKraftCost: number, globalConversionCost: number): CalculatedValues => {
+  const calculateItemCost = useCallback((item: Omit<CostReportItem, 'id' | 'calculated'>, globalKraftCost: number, globalVirginCost: number, globalConversionCost: number): CalculatedValues => {
     const l = parseFloat(item.l) || 0;
     const b = parseFloat(item.b) || 0;
     const h = parseFloat(item.h) || 0;
@@ -129,8 +129,23 @@ export default function CostReportPage() {
     const totalBoxWeightInGrams = paperWeightInGrams * (1 + wastage);
     const totalBoxWeightInKg = totalBoxWeightInGrams / 1000;
     
-    const paperRate = (globalKraftCost + globalConversionCost) * totalBoxWeightInKg;
-    const paperCost = paperRate;
+    let basePaperCost = 0;
+    switch (item.paperType) {
+        case 'KRAFT':
+            basePaperCost = globalKraftCost;
+            break;
+        case 'VIRGIN':
+            basePaperCost = globalVirginCost;
+            break;
+        case 'VIRGIN & KRAFT':
+            basePaperCost = (globalKraftCost + globalVirginCost) / 2;
+            break;
+        default:
+            basePaperCost = globalKraftCost;
+    }
+
+    const paperRate = basePaperCost + globalConversionCost;
+    const paperCost = totalBoxWeightInKg * paperRate;
     
     return { sheetSizeL, sheetSizeB, sheetArea, totalGsm, paperWeight: paperWeightInGrams, totalBoxWeight: totalBoxWeightInGrams, paperRate, paperCost };
   }, []);
@@ -139,22 +154,22 @@ export default function CostReportPage() {
 
   useEffect(() => {
     const kCost = Number(kraftPaperCost) || 0;
+    const vCost = Number(virginPaperCost) || 0;
     const cCost = Number(conversionCost) || 0;
+    
     setItems(prevItems => {
         if (prevItems.length === 0) {
-            // Initialize with default products if empty
             return [
-                { id: '1', productId: '', ...product1, calculated: calculateItemCost(product1, kCost, cCost) },
-                { id: '2', productId: '', ...product2, calculated: calculateItemCost(product2, kCost, cCost) }
+                { id: '1', productId: '', ...product1, calculated: calculateItemCost(product1, kCost, vCost, cCost) },
+                { id: '2', productId: '', ...product2, calculated: calculateItemCost(product2, kCost, vCost, cCost) }
             ];
         }
-        // Recalculate for existing items when global costs change
         return prevItems.map(item => ({
             ...item,
-            calculated: calculateItemCost(item, kCost, cCost)
+            calculated: calculateItemCost(item, kCost, vCost, cCost)
         }));
     });
-}, [kraftPaperCost, conversionCost, calculateItemCost]);
+}, [kraftPaperCost, virginPaperCost, conversionCost, calculateItemCost]);
 
 
   useEffect(() => {
@@ -173,6 +188,10 @@ export default function CostReportPage() {
     const spec = product.specification;
     const [l,b,h] = spec.dimension?.split('x') || ['','',''];
     
+    const kCost = Number(kraftPaperCost) || 0;
+    const vCost = Number(virginPaperCost) || 0;
+    const cCost = Number(conversionCost) || 0;
+
     setItems(prevItems => {
         const newItems = [...prevItems];
         const updatedItem = {
@@ -183,17 +202,21 @@ export default function CostReportPage() {
         };
         newItems[index] = {
             ...updatedItem,
-            calculated: calculateItemCost(updatedItem, Number(kraftPaperCost) || 0, Number(conversionCost) || 0)
+            calculated: calculateItemCost(updatedItem, kCost, vCost, cCost)
         };
         return newItems;
     });
   };
 
-  const handleItemChange = (index: number, field: keyof Omit<CostReportItem, 'id' | 'calculated' | 'paperRate'>, value: string) => {
+  const handleItemChange = (index: number, field: keyof Omit<CostReportItem, 'id' | 'calculated'>, value: string) => {
+    const kCost = Number(kraftPaperCost) || 0;
+    const vCost = Number(virginPaperCost) || 0;
+    const cCost = Number(conversionCost) || 0;
+
     setItems(prevItems => {
         const newItems = [...prevItems];
         const currentItem = { ...newItems[index], [field]: value };
-        const newCalculated = calculateItemCost(currentItem, Number(kraftPaperCost) || 0, Number(conversionCost) || 0);
+        const newCalculated = calculateItemCost(currentItem, kCost, vCost, cCost);
         newItems[index] = { ...currentItem, calculated: newCalculated };
         return newItems;
     });
@@ -201,9 +224,10 @@ export default function CostReportPage() {
 
   const handleAddItem = () => {
     const kCost = Number(kraftPaperCost) || 0;
+    const vCost = Number(virginPaperCost) || 0;
     const cCost = Number(conversionCost) || 0;
     const newItem = { id: Date.now().toString(), productId: '', l:'',b:'',h:'', noOfPcs:'1', boxType: 'RSC', ply:'3', fluteType: 'B', paperType: 'KRAFT', paperShade:'Golden', paperBf:'18', topGsm:'120',flute1Gsm:'100',middleGsm:'',flute2Gsm:'',bottomGsm:'120',wastagePercent:'3.5' };
-    setItems(prev => [...prev, { ...newItem, calculated: calculateItemCost(newItem, kCost, cCost) }]);
+    setItems(prev => [...prev, { ...newItem, calculated: calculateItemCost(newItem, kCost, vCost, cCost) }]);
   };
   
   const handleRemoveItem = (id: string) => {
@@ -213,11 +237,6 @@ export default function CostReportPage() {
   const totalItemCost = useMemo(() => {
     return items.reduce((sum, item) => sum + (item.calculated?.paperCost || 0), 0);
   }, [items]);
-
-  const totalCost = useMemo(() => {
-    return totalItemCost + (Number(virginPaperCost) || 0);
-  }, [totalItemCost, virginPaperCost]);
-
   
   const handleOpenPartyDialog = (partyToEdit: Party | null = null, searchName: string = '') => {
     if (partyToEdit) {
@@ -446,9 +465,8 @@ export default function CostReportPage() {
             <CardContent>
                  <div className="flex items-end justify-end pt-4 border-t">
                     <div className="text-right space-y-2">
-                        <p className="text-muted-foreground">Total Item Cost: {totalItemCost.toFixed(2)}</p>
                         <p className="text-2xl font-bold">
-                            Total Report Cost: <span className="text-primary">{totalCost.toFixed(2)}</span>
+                            Total Report Cost: <span className="text-primary">{totalItemCost.toFixed(2)}</span>
                         </p>
                     </div>
                 </div>
@@ -497,3 +515,5 @@ export default function CostReportPage() {
     </div>
   );
 }
+
+    
