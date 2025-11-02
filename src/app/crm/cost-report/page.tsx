@@ -377,4 +377,5 @@ export default function CostReportPage() {
           </DialogContent>
       </Dialog>
     </>
-  
+  )
+}
