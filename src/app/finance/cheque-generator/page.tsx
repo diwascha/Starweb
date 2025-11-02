@@ -214,16 +214,16 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                     </DialogHeader>
                      <div className="max-h-[70vh] overflow-auto p-4 bg-gray-100">
                          <div ref={printRef}>
-                            {chequeToPrint && chequeToPrint.splits.map((split, index) => (
-                                <ChequeView 
-                                    key={split.chequeNumber || index}
+                            {chequeToPrint && (
+                                <ChequeView
                                     voucherDate={new Date(chequeToPrint.paymentDate)}
                                     payeeName={chequeToPrint.payeeName}
-                                    amount={Number(split.amount)}
-                                    chequeDate={new Date(split.chequeDate)}
-                                    chequeNumber={split.chequeNumber}
+                                    splits={chequeToPrint.splits.map(s => ({
+                                        ...s,
+                                        chequeDate: new Date(s.chequeDate)
+                                    }))}
                                 />
-                            ))}
+                            )}
                          </div>
                     </div>
                     <DialogFooter>

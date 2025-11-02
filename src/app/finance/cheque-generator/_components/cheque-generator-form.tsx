@@ -497,16 +497,11 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                     </DialogHeader>
                      <div className="max-h-[70vh] overflow-auto p-4 bg-gray-100">
                          <div ref={printRef}>
-                            {chequeSplits.map((split) => (
-                                <ChequeView 
-                                    key={split.id}
-                                    voucherDate={paymentDate}
-                                    payeeName={partyName}
-                                    amount={Number(split.amount)}
-                                    chequeDate={split.chequeDate}
-                                    chequeNumber={split.chequeNumber}
-                                />
-                            ))}
+                            <ChequeView
+                                voucherDate={paymentDate}
+                                payeeName={partyName}
+                                splits={chequeSplits}
+                            />
                          </div>
                     </div>
                     <DialogFooter>
