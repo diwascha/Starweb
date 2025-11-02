@@ -109,7 +109,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
         }
         
         allSplits.sort((a, b) => {
-            let aVal, bVal;
+            let aVal: any, bVal: any;
 
             if (sortConfig.key === 'chequeDate') {
                 aVal = new Date(a.chequeDate).getTime();
@@ -120,9 +120,12 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
             } else if (sortConfig.key === 'dueStatus') {
                 aVal = a.daysRemaining;
                 bVal = b.daysRemaining;
+            } else if (sortConfig.key === 'amount') {
+                aVal = Number(a.amount) || 0;
+                bVal = Number(b.amount) || 0;
             } else {
-                 aVal = a[sortConfig.key as keyof ChequeSplit];
-                 bVal = b[sortConfig.key as keyof ChequeSplit];
+                 aVal = a[sortConfig.key as keyof AugmentedChequeSplit];
+                 bVal = b[sortConfig.key as keyof AugmentedChequeSplit];
             }
             
             if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
@@ -343,3 +346,5 @@ export default function ChequeGeneratorPage() {
     </div>
   );
 }
+
+    
