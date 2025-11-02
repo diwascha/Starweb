@@ -36,7 +36,6 @@ export function ChequeGeneratorForm() {
     
     const [invoiceAmount, setInvoiceAmount] = useState<number | ''>('');
     const [numberOfSplits, setNumberOfSplits] = useState<number>(1);
-    const [dateInterval, setDateInterval] = useState<number | ''>('');
     
     const [chequeSplits, setChequeSplits] = useState<ChequeSplit[]>([{
         id: Date.now().toString(),
@@ -80,7 +79,6 @@ export function ChequeGeneratorForm() {
     useEffect(() => {
         const totalAmount = Number(invoiceAmount) || 0;
         const numSplits = Math.max(1, numberOfSplits || 1);
-        const interval = Number(dateInterval) || 0;
         
         const newSplits: ChequeSplit[] = Array.from({ length: numSplits }, (_, i) => {
             const existingSplit = chequeSplits[i];
@@ -94,7 +92,7 @@ export function ChequeGeneratorForm() {
 
             return {
                 id: existingSplit?.id || `${Date.now()}-${i}`,
-                chequeDate: interval > 0 ? addDays(paymentDate, i * interval) : (existingSplit?.chequeDate || paymentDate),
+                chequeDate: existingSplit?.chequeDate || paymentDate,
                 chequeNumber: existingSplit?.chequeNumber || '',
                 amount: currentAmount,
                 remarks: existingSplit?.remarks || '',
@@ -102,7 +100,7 @@ export function ChequeGeneratorForm() {
         });
 
         setChequeSplits(newSplits);
-    }, [numberOfSplits, invoiceAmount, dateInterval, paymentDate]);
+    }, [numberOfSplits, invoiceAmount, paymentDate]);
 
 
     const allParties = useMemo(() => parties.sort((a, b) => a.name.localeCompare(b.name)), [parties]);
@@ -151,7 +149,6 @@ export function ChequeGeneratorForm() {
         setPartyName('');
         setInvoiceAmount('');
         setNumberOfSplits(1);
-        setDateInterval('');
         setChequeSplits([{ id: Date.now().toString(), chequeDate: new Date(), chequeNumber: '', amount: '', remarks: '' }]);
     };
 
@@ -309,10 +306,6 @@ export function ChequeGeneratorForm() {
             <div className="border rounded-lg p-4 space-y-4">
                 <div className="flex justify-between items-center">
                     <Label className="text-lg font-medium">Cheque Details</Label>
-                    <div className="space-y-2 w-full max-w-xs">
-                        <Label htmlFor="dateInterval">Cheque Date Interval (Days)</Label>
-                        <Input id="dateInterval" type="number" min="0" value={dateInterval} onChange={(e) => setDateInterval(e.target.value === '' ? '' : parseInt(e.target.value, 10))} placeholder="e.g. 7, 15, 30" />
-                    </div>
                 </div>
                  <Table>
                     <TableHeader>
