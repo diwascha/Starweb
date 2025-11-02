@@ -81,7 +81,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit }: Cos
   const printRef = useRef<HTMLDivElement>(null);
 
 
-  const calculateItemCost = useCallback((item: Omit<CostReportItem, 'id' | 'calculated' | 'productId'>, globalKraftCost: number, globalVirginCost: number, globalConversionCost: number): CalculatedValues => {
+ const calculateItemCost = useCallback((item: Omit<CostReportItem, 'id' | 'calculated' | 'productId'>, globalKraftCost: number, globalVirginCost: number, globalConversionCost: number): CalculatedValues => {
     const l = parseFloat(item.l) || 0;
     const b = parseFloat(item.b) || 0;
     const h = parseFloat(item.h) || 0;
@@ -118,20 +118,19 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit }: Cos
 
     let paperRate = 0;
     
-    if (item.paperType === 'KRAFT') {
-        paperRate = globalKraftCost;
-    } else if (item.paperType === 'VIRGIN' && globalVirginCost > 0) {
+    if (item.paperType === 'VIRGIN' && globalVirginCost > 0) {
         paperRate = globalVirginCost;
     } else if (item.paperType === 'VIRGIN & KRAFT' && topGsm > 0 && globalVirginCost > 0) {
-        const totalLayersGsm = topGsm + flute1Gsm + (ply === 5 ? middleGsm + flute2Gsm : 0) + bottomGsm;
-        if (totalLayersGsm > 0) {
-            const topLayerRatio = topGsm / totalLayersGsm;
-            const kraftLayersRatio = (totalLayersGsm - topGsm) / totalLayersGsm;
-            paperRate = (globalVirginCost * topLayerRatio) + (globalKraftCost * kraftLayersRatio);
+        const totalGsm = topGsm + (flute1Gsm * 1.38) + (ply === 5 ? middleGsm + (flute2Gsm * 1.38) : 0) + bottomGsm;
+        if (totalGsm > 0) {
+            const topLayerCost = (sheetArea * topGsm / totalGsm) * globalVirginCost;
+            const otherLayersCost = (sheetArea * (totalGsm - topGsm) / totalGsm) * globalKraftCost;
+            // The cost here is per GSM, so we average it out. The weight calculation will handle the rest.
+            paperRate = (topGsm * globalVirginCost + (totalGsm - topGsm) * globalKraftCost) / totalGsm;
         } else {
              paperRate = globalKraftCost;
         }
-    } else {
+    } else { // Default to KRAFT
         paperRate = globalKraftCost;
     }
     
@@ -642,16 +641,31 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit }: Cos
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <DialogContent className="max-w-4xl">
           <DialogHeader>
-            <DialogTitle>Cost Report Preview</DialogTitle>
-            <DialogDescription>Review the report before printing.</DialogDescription>
+            <DialogTitle>Quotation Preview</DialogTitle>
+            <DialogDescription>Review the quotation before printing.</DialogDescription>
           </DialogHeader>
           <div className="max-h-[70vh] overflow-auto p-4 bg-gray-100">
-            <div ref={printRef} className="bg-white text-black p-8 font-sans text-sm space-y-6">
-              <header className="text-center space-y-1">
-                <h1 className="text-xl font-bold">Cost Report</h1>
-                {selectedParty && <p className="text-sm">{selectedParty.name}</p>}
-                <p className="text-xs">{toNepaliDate(reportDate.toISOString())} BS ({format(reportDate, "PPP")})</p>
-              </header>
+             <div ref={printRef} className="bg-white text-black p-8 font-sans text-sm space-y-6 w-[210mm] mx-auto">
+                 <header className="text-center space-y-1">
+                    <h1 className="text-2xl font-bold">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
+                    <p className="text-lg">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
+                    <h2 className="text-xl font-semibold underline mt-2">QUOTATION</h2>
+                </header>
+                
+                <div className="grid grid-cols-2 text-xs">
+                    {selectedParty && (
+                        <div>
+                            <p className="font-bold">To,</p>
+                            <p>{selectedParty.name}</p>
+                            {selectedParty.address && <p>{selectedParty.address}</p>}
+                        </div>
+                    )}
+                    <div className="text-right">
+                        <p><span className="font-semibold">Ref No:</span> {reportNumber}</p>
+                        <p><span className="font-semibold">Date:</span> {toNepaliDate(reportDate.toISOString())} BS ({format(reportDate, "PPP")})</p>
+                    </div>
+                </div>
+
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -683,6 +697,18 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit }: Cos
                     </TableRow>
                 </TableFooter>
               </Table>
+
+                <footer className="pt-8 text-xs space-y-4">
+                    <div className="font-semibold">Terms & Conditions:</div>
+                    <ul className="list-disc list-inside space-y-1">
+                        <li>VAT 13% will be extra.</li>
+                        <li>Weight tolerance will be +/- 10%.</li>
+                        <li>The rates are valid for 7 days from the date of this quotation.</li>
+                    </ul>
+                    <div className="pt-12">
+                        <p className="border-t border-gray-400 w-48">Authorized Signature</p>
+                    </div>
+                </footer>
             </div>
           </div>
           <DialogFooter>
@@ -738,18 +764,17 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
         // This part needs product data which isn't stored in the cost report, so we show 'N/A'
         (doc as any).autoTable({
             startY: 45,
-            head: [['Sl.No', 'Item Name', 'Box Size (LxBxH)', 'Ply', 'Total']],
+            head: [['Sl.No', 'Item Name', 'Box Size (LxBxH)', 'Ply']],
             body: report.items.map((item, index) => [
                 index + 1,
                 'N/A', // Product name isn't stored with the report item
                 `${item.l}x${item.b}x${item.h}`,
                 item.ply,
-                'N/A', // Cost per item isn't stored, just total
             ]),
             theme: 'grid',
             footStyles: { fontStyle: 'bold' },
             foot: [
-                [{ content: 'Total', colSpan: 4, styles: { halign: 'right' } }, report.totalCost.toFixed(2)],
+                [{ content: 'Total', colSpan: 3, styles: { halign: 'right' } }, report.totalCost.toFixed(2)],
             ]
         });
         
@@ -866,5 +891,7 @@ export default function CostReportPage() {
         </div>
     );
 }
+
+    
 
     
