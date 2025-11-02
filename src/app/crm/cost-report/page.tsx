@@ -225,8 +225,7 @@ export default function CostReportPage() {
 
 
   return (
-    <>
-      <div className="grid grid-cols-1 gap-8">
+    <div className="flex flex-col gap-8">
         <header>
           <h1 className="text-3xl font-bold tracking-tight">Cost Report Generator</h1>
           <p className="text-muted-foreground">Calculate product costs based on multiple raw materials and specifications.</p>
@@ -400,8 +399,7 @@ export default function CostReportPage() {
                 </div>
             </CardContent>
         </Card>
-      </div>
-
+      
        <Dialog open={isPartyDialogOpen} onOpenChange={setIsPartyDialogOpen}>
           <DialogContent className="sm:max-w-md">
               <DialogHeader>
@@ -441,6 +439,6 @@ export default function CostReportPage() {
               </DialogFooter>
           </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 }
