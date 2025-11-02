@@ -62,9 +62,9 @@ const initialCalculatedState: CalculatedValues = {
 };
 
 const product1: Omit<CostReportItem, 'id' | 'productId' | 'calculated'> = {
-  l: '309', b: '179', h: '102', noOfPcs: '1', boxType: 'RSC', ply: '5', fluteType: 'B, B', 
-  paperType: 'KRAFT', paperShade: 'NS', paperBf: '20 BF',
-  topGsm: '180', flute1Gsm: '150', middleGsm: '180', flute2Gsm: '150', bottomGsm: '180',
+  l: '309', b: '179', h: '102', noOfPcs: '1', boxType: 'RSC', ply: '3', fluteType: 'B', 
+  paperType: 'KRAFT', paperShade: 'Golden', paperBf: '18 BF',
+  topGsm: '180', flute1Gsm: '150', middleGsm: '', flute2Gsm: '', bottomGsm: '180',
   wastagePercent: '3.5', paperRate: '14.118'
 };
 
@@ -444,4 +444,3 @@ export default function CostReportPage() {
     </>
   );
 }
-
