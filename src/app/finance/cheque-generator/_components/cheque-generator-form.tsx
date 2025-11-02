@@ -33,7 +33,6 @@ export function ChequeGeneratorForm() {
     const [invoiceDate, setInvoiceDate] = useState<Date | undefined>();
     const [invoiceNumber, setInvoiceNumber] = useState('');
     const [partyName, setPartyName] = useState('');
-    const [payeeName, setPayeeName] = useState('');
     
     const [invoiceAmount, setInvoiceAmount] = useState<number | ''>('');
     const [numberOfSplits, setNumberOfSplits] = useState<number>(1);
@@ -108,7 +107,6 @@ export function ChequeGeneratorForm() {
     const handlePartySelect = (selectedPartyName: string) => {
         const party = allParties.find(c => c.name === selectedPartyName);
         setPartyName(party?.name || selectedPartyName);
-        setPayeeName(party?.name || selectedPartyName);
         setIsPartyPopoverOpen(false);
     };
     
@@ -134,15 +132,14 @@ export function ChequeGeneratorForm() {
         setInvoiceDate(undefined);
         setInvoiceNumber('');
         setPartyName('');
-        setPayeeName('');
         setInvoiceAmount('');
         setNumberOfSplits(1);
         setChequeSplits([{ id: Date.now().toString(), chequeDate: new Date(), chequeNumber: '', amount: '' }]);
     };
 
     const handleSave = async () => {
-        if (!user || !payeeName || !invoiceAmount || Number(invoiceAmount) <= 0) {
-            toast({ title: 'Error', description: 'Payee and a valid invoice amount are required.', variant: 'destructive'});
+        if (!user || !partyName || !invoiceAmount || Number(invoiceAmount) <= 0) {
+            toast({ title: 'Error', description: 'Party Name and a valid invoice amount are required.', variant: 'destructive'});
             return;
         }
         if (remainingAmount !== 0) {
@@ -157,7 +154,7 @@ export function ChequeGeneratorForm() {
                 invoiceDate: invoiceDate?.toISOString(),
                 invoiceNumber,
                 partyName,
-                payeeName,
+                payeeName: partyName,
                 amount: Number(invoiceAmount),
                 amountInWords,
                 splits: chequeSplits.map(s => ({
@@ -178,14 +175,14 @@ export function ChequeGeneratorForm() {
     };
     
     const handlePrint = () => {
-        if (!payeeName || totalSplitAmount <= 0) {
-            toast({ title: 'Error', description: 'Please fill in payee and cheque details.', variant: 'destructive'});
+        if (!partyName || totalSplitAmount <= 0) {
+            toast({ title: 'Error', description: 'Please fill in party and cheque details.', variant: 'destructive'});
             return;
         }
         console.log({
             invoiceDate: invoiceDate ? format(invoiceDate, 'yyyy-MM-dd') : 'N/A',
             invoiceNumber,
-            payee: payeeName,
+            payee: partyName,
             totalAmount: totalSplitAmount,
             amountInWords: amountInWords,
             cheques: chequeSplits
@@ -280,10 +277,6 @@ export function ChequeGeneratorForm() {
                             </Command>
                         </PopoverContent>
                     </Popover>
-                </div>
-                 <div className="space-y-2">
-                    <Label htmlFor="payee-name">Payee Name (as on cheque):</Label>
-                    <Input id="payee-name" value={payeeName} onChange={(e) => setPayeeName(e.target.value)} />
                 </div>
                  <div className="space-y-2">
                     <Label htmlFor="invoiceAmount">Invoice Amount (NPR)</Label>
