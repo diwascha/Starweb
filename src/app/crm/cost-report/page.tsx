@@ -23,6 +23,16 @@ import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 
+interface CalculatedValues {
+    sheetSizeL: number;
+    sheetSizeB: number;
+    sheetArea: number;
+    totalGsm: number;
+    paperWeight: number;
+    totalBoxWeight: number;
+    paperCost: number;
+}
+
 interface CostReportItem {
   id: string;
   productId: string;
@@ -43,14 +53,18 @@ interface CostReportItem {
   bottomGsm: string;
   wastagePercent: string;
   paperRate: string;
-  calculatedCost: number;
+  calculated: CalculatedValues;
 }
 
-const initialItemState: Omit<CostReportItem, 'id' | 'productId' | 'calculatedCost'> = {
+const initialItemState: Omit<CostReportItem, 'id' | 'productId' | 'calculated'> = {
     l: '', b: '', h: '', noOfPcs: '1', boxType: 'RSC', ply: '3', fluteType: 'B', 
     paperType: 'Domestic', paperShade: 'Golden', paperBf: '18',
     topGsm: '120', flute1Gsm: '100', middleGsm: '120', flute2Gsm: '100', bottomGsm: '120',
     wastagePercent: '3.5', paperRate: ''
+};
+
+const initialCalculatedState: CalculatedValues = {
+    sheetSizeL: 0, sheetSizeB: 0, sheetArea: 0, totalGsm: 0, paperWeight: 0, totalBoxWeight: 0, paperCost: 0
 };
 
 export default function CostReportPage() {
@@ -60,7 +74,7 @@ export default function CostReportPage() {
   const [reportNumber, setReportNumber] = useState('CR-001'); // Placeholder
   const [reportDate, setReportDate] = useState<Date>(new Date());
   const [items, setItems] = useState<CostReportItem[]>([
-    { id: Date.now().toString(), productId: '', ...initialItemState, calculatedCost: 0 }
+    { id: Date.now().toString(), productId: '', ...initialItemState, calculated: initialCalculatedState }
   ]);
   
   const { toast } = useToast();
@@ -80,13 +94,13 @@ export default function CostReportPage() {
     };
   }, []);
 
-  const calculateItemCost = useCallback((item: Omit<CostReportItem, 'id' | 'calculatedCost'>): number => {
+  const calculateItemCost = useCallback((item: Omit<CostReportItem, 'id' | 'calculated'>): CalculatedValues => {
     const l = parseFloat(item.l) || 0;
     const b = parseFloat(item.b) || 0;
     const h = parseFloat(item.h) || 0;
     const ply = parseInt(item.ply, 10) || 0;
     
-    if (l === 0 || b === 0 || h === 0 || ply === 0) return 0;
+    if (l === 0 || b === 0 || h === 0 || ply === 0) return initialCalculatedState;
 
     const sheetSizeL = ((2 * l) + (2 * b) + 5);
     const sheetSizeB = (b + h + 2);
@@ -101,10 +115,13 @@ export default function CostReportPage() {
     
     const sheetArea = (sheetSizeL * sheetSizeB) / 10000;
 
+    let totalGsm = 0;
     let paperWeight = 0;
     if (ply === 3) {
+      totalGsm = topGsm + (flute1Gsm * fluteFactor) + bottomGsm;
       paperWeight = ((topGsm / 1000) * sheetArea) + ((flute1Gsm / 1000) * sheetArea * fluteFactor) + ((bottomGsm / 1000) * sheetArea);
     } else if (ply === 5) {
+      totalGsm = topGsm + (flute1Gsm * fluteFactor) + middleGsm + (flute2Gsm * fluteFactor) + bottomGsm;
       paperWeight = ((topGsm / 1000) * sheetArea) + ((flute1Gsm / 1000) * sheetArea * fluteFactor) + ((middleGsm / 1000) * sheetArea) + ((flute2Gsm / 1000) * sheetArea * fluteFactor) + ((bottomGsm / 1000) * sheetArea);
     }
     
@@ -114,7 +131,7 @@ export default function CostReportPage() {
     const paperRate = parseFloat(item.paperRate) || 0;
     const paperCost = totalBoxWeight * paperRate;
     
-    return paperCost;
+    return { sheetSizeL, sheetSizeB, sheetArea, totalGsm, paperWeight, totalBoxWeight, paperCost };
   }, []);
 
   const handleProductSelect = (index: number, productId: string) => {
@@ -134,24 +151,24 @@ export default function CostReportPage() {
         };
         newItems[index] = {
             ...updatedItem,
-            calculatedCost: calculateItemCost(updatedItem)
+            calculated: calculateItemCost(updatedItem)
         };
         return newItems;
     });
   };
 
-  const handleItemChange = (index: number, field: keyof CostReportItem, value: string) => {
+  const handleItemChange = (index: number, field: keyof Omit<CostReportItem, 'id' | 'calculated'>, value: string) => {
     setItems(prevItems => {
         const newItems = [...prevItems];
         const currentItem = { ...newItems[index], [field]: value };
-        const newCost = calculateItemCost(currentItem);
-        newItems[index] = { ...currentItem, calculatedCost: newCost };
+        const newCalculated = calculateItemCost(currentItem);
+        newItems[index] = { ...currentItem, calculated: newCalculated };
         return newItems;
     });
   };
 
   const handleAddItem = () => {
-    setItems(prev => [...prev, { id: Date.now().toString(), productId: '', ...initialItemState, calculatedCost: 0 }]);
+    setItems(prev => [...prev, { id: Date.now().toString(), productId: '', ...initialItemState, calculated: initialCalculatedState }]);
   };
   
   const handleRemoveItem = (id: string) => {
@@ -159,7 +176,7 @@ export default function CostReportPage() {
   };
   
   const totalCost = useMemo(() => {
-    return items.reduce((sum, item) => sum + (item.calculatedCost || 0), 0);
+    return items.reduce((sum, item) => sum + (item.calculated?.paperCost || 0), 0);
   }, [items]);
   
   const handleOpenPartyDialog = (partyToEdit: Party | null = null, searchName: string = '') => {
@@ -272,22 +289,35 @@ export default function CostReportPage() {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead className="w-[50px]"></TableHead>
-                                <TableHead className="min-w-[200px]">Product</TableHead>
+                                <TableHead rowSpan={2} className="w-[50px] align-bottom">Sl.No</TableHead>
+                                <TableHead rowSpan={2} className="min-w-[200px] align-bottom">Item Name</TableHead>
+                                <TableHead colSpan={3} className="text-center">Box Size</TableHead>
+                                <TableHead rowSpan={2} className="align-bottom">No of Pcs</TableHead>
+                                <TableHead rowSpan={2} className="align-bottom">Box Type</TableHead>
+                                <TableHead rowSpan={2} className="align-bottom">No of Ply</TableHead>
+                                <TableHead rowSpan={2} className="align-bottom">Type of Flute</TableHead>
+                                <TableHead rowSpan={2} className="align-bottom">Paper Type</TableHead>
+                                <TableHead rowSpan={2} className="align-bottom">Paper Shade</TableHead>
+                                <TableHead rowSpan={2} className="align-bottom">Paper BF</TableHead>
+                                <TableHead colSpan={5} className="text-center">GSM</TableHead>
+                                <TableHead rowSpan={2} className="align-bottom min-w-[100px]">Total Gsm</TableHead>
+                                <TableHead rowSpan={2} className="align-bottom min-w-[100px]">R. Size (cm)</TableHead>
+                                <TableHead rowSpan={2} className="align-bottom min-w-[100px]">C. Size (cm)</TableHead>
+                                <TableHead rowSpan={2} className="align-bottom min-w-[100px]">Box Wt Grams</TableHead>
+                                <TableHead rowSpan={2} className="align-bottom min-w-[100px]">Waste 3.5%</TableHead>
+                                <TableHead rowSpan={2} className="align-bottom min-w-[100px]">Total Box Wt</TableHead>
+                                <TableHead rowSpan={2} className="align-bottom min-w-[100px]">Box Rate/ Piece</TableHead>
+                                <TableHead rowSpan={2} className="align-bottom min-w-[120px]">Total</TableHead>
+                            </TableRow>
+                            <TableRow>
                                 <TableHead>L</TableHead>
                                 <TableHead>B</TableHead>
                                 <TableHead>H</TableHead>
-                                <TableHead>Ply</TableHead>
-                                <TableHead>Flute</TableHead>
-                                <TableHead>Paper BF</TableHead>
-                                <TableHead>Top GSM</TableHead>
-                                <TableHead>Flute1 GSM</TableHead>
-                                <TableHead>Mid GSM</TableHead>
-                                <TableHead>Flute2 GSM</TableHead>
-                                <TableHead>Bot GSM</TableHead>
-                                <TableHead>Wastage %</TableHead>
-                                <TableHead>Paper Rate</TableHead>
-                                <TableHead className="min-w-[120px]">Cost</TableHead>
+                                <TableHead>T</TableHead>
+                                <TableHead>F1</TableHead>
+                                <TableHead>M</TableHead>
+                                <TableHead>F2</TableHead>
+                                <TableHead>B</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -307,18 +337,27 @@ export default function CostReportPage() {
                                 <TableCell><Input type="number" value={item.l} onChange={e => handleItemChange(index, 'l', e.target.value)} className="w-16" /></TableCell>
                                 <TableCell><Input type="number" value={item.b} onChange={e => handleItemChange(index, 'b', e.target.value)} className="w-16" /></TableCell>
                                 <TableCell><Input type="number" value={item.h} onChange={e => handleItemChange(index, 'h', e.target.value)} className="w-16" /></TableCell>
+                                <TableCell><Input type="number" value={item.noOfPcs} onChange={e => handleItemChange(index, 'noOfPcs', e.target.value)} className="w-16" /></TableCell>
+                                <TableCell><Input value={item.boxType} onChange={e => handleItemChange(index, 'boxType', e.target.value)} className="w-20" /></TableCell>
                                 <TableCell><Input type="number" value={item.ply} onChange={e => handleItemChange(index, 'ply', e.target.value)} className="w-16" /></TableCell>
                                 <TableCell><Input value={item.fluteType} onChange={e => handleItemChange(index, 'fluteType', e.target.value)} className="w-16" /></TableCell>
+                                <TableCell><Input value={item.paperType} onChange={e => handleItemChange(index, 'paperType', e.target.value)} className="w-24" /></TableCell>
+                                <TableCell><Input value={item.paperShade} onChange={e => handleItemChange(index, 'paperShade', e.target.value)} className="w-24" /></TableCell>
                                 <TableCell><Input value={item.paperBf} onChange={e => handleItemChange(index, 'paperBf', e.target.value)} className="w-16" /></TableCell>
                                 <TableCell><Input type="number" value={item.topGsm} onChange={e => handleItemChange(index, 'topGsm', e.target.value)} className="w-20" /></TableCell>
                                 <TableCell><Input type="number" value={item.flute1Gsm} onChange={e => handleItemChange(index, 'flute1Gsm', e.target.value)} className="w-20" /></TableCell>
                                 <TableCell><Input type="number" value={item.middleGsm} onChange={e => handleItemChange(index, 'middleGsm', e.target.value)} className="w-20" disabled={item.ply !== '5'}/></TableCell>
                                 <TableCell><Input type="number" value={item.flute2Gsm} onChange={e => handleItemChange(index, 'flute2Gsm', e.target.value)} className="w-20" disabled={item.ply !== '5'}/></TableCell>
                                 <TableCell><Input type="number" value={item.bottomGsm} onChange={e => handleItemChange(index, 'bottomGsm', e.target.value)} className="w-20" /></TableCell>
-                                <TableCell><Input type="number" value={item.wastagePercent} onChange={e => handleItemChange(index, 'wastagePercent', e.target.value)} className="w-20" /></TableCell>
+                                <TableCell>{item.calculated.totalGsm.toFixed(2)}</TableCell>
+                                <TableCell>{item.calculated.sheetSizeL.toFixed(2)}</TableCell>
+                                <TableCell>{item.calculated.sheetSizeB.toFixed(2)}</TableCell>
+                                <TableCell>{(item.calculated.paperWeight * 1000).toFixed(2)}</TableCell>
+                                <TableCell>{((item.calculated.paperWeight * (parseFloat(item.wastagePercent) / 100 || 0)) * 1000).toFixed(2)}</TableCell>
+                                <TableCell>{(item.calculated.totalBoxWeight * 1000).toFixed(2)}</TableCell>
                                 <TableCell><Input type="number" value={item.paperRate} onChange={e => handleItemChange(index, 'paperRate', e.target.value)} className="w-24" /></TableCell>
                                 <TableCell className="font-bold">
-                                    {item.calculatedCost > 0 ? item.calculatedCost.toFixed(2) : '...'}
+                                    {item.calculated.paperCost > 0 ? item.calculated.paperCost.toFixed(2) : '...'}
                                 </TableCell>
                             </TableRow>
                         ))}
@@ -377,5 +416,5 @@ export default function CostReportPage() {
           </DialogContent>
       </Dialog>
     </>
-  )
+  );
 }
