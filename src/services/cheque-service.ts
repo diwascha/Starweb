@@ -9,6 +9,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Cheque =>
     const data = snapshot.data();
     return {
         id: snapshot.id,
+        voucherNo: data.voucherNo,
         paymentDate: data.paymentDate,
         invoiceDate: data.invoiceDate,
         invoiceNumber: data.invoiceNumber,

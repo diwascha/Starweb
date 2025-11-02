@@ -41,13 +41,13 @@ function FormSkeleton() {
     );
 }
 
-type SortKey = 'paymentDate' | 'payeeName' | 'amount';
+type SortKey = 'createdAt' | 'payeeName' | 'amount' | 'voucherNo';
 type SortDirection = 'asc' | 'desc';
 
 function SavedChequesList() {
     const [cheques, setCheques] = useState<Cheque[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
-    const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'paymentDate', direction: 'desc' });
+    const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'createdAt', direction: 'desc' });
     const { toast } = useToast();
 
     useEffect(() => {
@@ -70,7 +70,8 @@ function SavedChequesList() {
             filtered = filtered.filter(c =>
                 c.payeeName.toLowerCase().includes(lowercasedQuery) ||
                 (c.splits.some(s => s.chequeNumber?.toLowerCase().includes(lowercasedQuery))) ||
-                (c.invoiceNumber || '').toLowerCase().includes(lowercasedQuery)
+                (c.invoiceNumber || '').toLowerCase().includes(lowercasedQuery) ||
+                (c.voucherNo || '').toLowerCase().includes(lowercasedQuery)
             );
         }
         filtered.sort((a, b) => {
@@ -115,7 +116,8 @@ function SavedChequesList() {
              <Table>
                <TableHeader>
                  <TableRow>
-                   <TableHead><Button variant="ghost" onClick={() => requestSort('paymentDate')}>Date Saved <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
+                   <TableHead><Button variant="ghost" onClick={() => requestSort('createdAt')}>Date Saved <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
+                   <TableHead><Button variant="ghost" onClick={() => requestSort('voucherNo')}>Voucher # <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
                    <TableHead><Button variant="ghost" onClick={() => requestSort('payeeName')}>Payee Name <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
                    <TableHead>Invoice #</TableHead>
                    <TableHead><Button variant="ghost" onClick={() => requestSort('amount')}>Total Amount <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
@@ -127,6 +129,7 @@ function SavedChequesList() {
                     sortedAndFilteredCheques.map(c => (
                      <TableRow key={c.id}>
                        <TableCell>{format(new Date(c.createdAt), 'PPP')}</TableCell>
+                       <TableCell>{c.voucherNo}</TableCell>
                        <TableCell>{c.payeeName}</TableCell>
                        <TableCell>{c.invoiceNumber}</TableCell>
                        <TableCell>{c.amount.toLocaleString()}</TableCell>

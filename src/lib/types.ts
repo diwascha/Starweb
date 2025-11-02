@@ -529,6 +529,7 @@ export interface ChequeSplit {
 
 export interface Cheque {
     id: string;
+    voucherNo: string;
     paymentDate: string; // ISO string for the overall record date
     invoiceDate?: string; // ISO string
     invoiceNumber?: string;
@@ -588,6 +589,7 @@ export interface EstimatedInvoice {
     createdBy: string;
     createdAt: string; // ISO
 }
+
 
 
 

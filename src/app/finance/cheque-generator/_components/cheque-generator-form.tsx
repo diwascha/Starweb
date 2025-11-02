@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, ChevronsUpDown, Check, PlusCircle, Printer, Save, Loader2, Trash2 } from 'lucide-react';
-import { cn, toWords } from '@/lib/utils';
+import { cn, toWords, generateNextVoucherNumber } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { onPartiesUpdate, addParty } from '@/services/party-service';
@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { addCheque } from '@/services/cheque-service';
+import { addCheque, onChequesUpdate } from '@/services/cheque-service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 export function ChequeGeneratorForm() {
@@ -33,6 +33,9 @@ export function ChequeGeneratorForm() {
     const [invoiceNumber, setInvoiceNumber] = useState('');
     const [partyName, setPartyName] = useState('');
     const [payeeName, setPayeeName] = useState('');
+    
+    const [invoiceAmount, setInvoiceAmount] = useState<number | ''>('');
+    const [numberOfSplits, setNumberOfSplits] = useState<number>(1);
     
     const [chequeSplits, setChequeSplits] = useState<ChequeSplit[]>([{
         id: Date.now().toString(),
@@ -52,22 +55,54 @@ export function ChequeGeneratorForm() {
 
     const { toast } = useToast();
     const { user } = useAuth();
+    
+    const [cheques, setCheques] = useState<Cheque[]>([]);
+    const [voucherNo, setVoucherNo] = useState('');
 
     useEffect(() => {
         const unsubParties = onPartiesUpdate(setParties);
-        return () => unsubParties();
+        const unsubCheques = onChequesUpdate(setCheques);
+        return () => {
+          unsubParties();
+          unsubCheques();
+        };
     }, []);
+    
+     useEffect(() => {
+        const setNextVoucher = async () => {
+             generateNextVoucherNumber(cheques, 'PDC-').then(setVoucherNo);
+        };
+        setNextVoucher();
+    }, [cheques]);
+
+    useEffect(() => {
+        const newSplits: ChequeSplit[] = [];
+        for (let i = 0; i < numberOfSplits; i++) {
+            newSplits.push(chequeSplits[i] || {
+                id: `${Date.now()}-${i}`,
+                chequeDate: new Date(),
+                chequeNumber: '',
+                amount: ''
+            });
+        }
+        setChequeSplits(newSplits);
+    }, [numberOfSplits]);
 
     const allParties = useMemo(() => parties.sort((a, b) => a.name.localeCompare(b.name)), [parties]);
     
-    const totalAmount = useMemo(() => {
+    const totalSplitAmount = useMemo(() => {
         return chequeSplits.reduce((sum, split) => sum + (Number(split.amount) || 0), 0);
     }, [chequeSplits]);
 
+    const remainingAmount = useMemo(() => {
+        return (Number(invoiceAmount) || 0) - totalSplitAmount;
+    }, [invoiceAmount, totalSplitAmount]);
+
     const amountInWords = useMemo(() => {
-        if (totalAmount <= 0) return 'Zero Only.';
-        return toWords(totalAmount);
-    }, [totalAmount]);
+        const total = Number(invoiceAmount) || 0;
+        if (total <= 0) return 'Zero Only.';
+        return toWords(total);
+    }, [invoiceAmount]);
 
     const handlePartySelect = (selectedPartyName: string) => {
         const party = allParties.find(c => c.name === selectedPartyName);
@@ -98,23 +133,30 @@ export function ChequeGeneratorForm() {
         setInvoiceNumber('');
         setPartyName('');
         setPayeeName('');
+        setInvoiceAmount('');
+        setNumberOfSplits(1);
         setChequeSplits([{ id: Date.now().toString(), chequeDate: new Date(), chequeNumber: '', amount: '' }]);
     };
 
     const handleSave = async () => {
-        if (!user || !payeeName || totalAmount <= 0) {
-            toast({ title: 'Error', description: 'Payee and a valid amount are required to save.', variant: 'destructive'});
+        if (!user || !payeeName || !invoiceAmount || Number(invoiceAmount) <= 0) {
+            toast({ title: 'Error', description: 'Payee and a valid invoice amount are required.', variant: 'destructive'});
+            return;
+        }
+        if (remainingAmount !== 0) {
+            toast({ title: 'Error', description: 'Total of splits must equal the Invoice Amount.', variant: 'destructive'});
             return;
         }
         setIsSaving(true);
         try {
             const chequeData: Omit<Cheque, 'id' | 'createdAt'> = {
-                paymentDate: new Date().toISOString(), // Use current date for the overall record
+                paymentDate: new Date().toISOString(),
+                voucherNo: voucherNo,
                 invoiceDate: invoiceDate?.toISOString(),
                 invoiceNumber,
                 partyName,
                 payeeName,
-                amount: totalAmount,
+                amount: Number(invoiceAmount),
                 amountInWords,
                 splits: chequeSplits.map(s => ({
                     ...s,
@@ -134,7 +176,7 @@ export function ChequeGeneratorForm() {
     };
     
     const handlePrint = () => {
-        if (!payeeName || totalAmount <= 0) {
+        if (!payeeName || totalSplitAmount <= 0) {
             toast({ title: 'Error', description: 'Please fill in payee and cheque details.', variant: 'destructive'});
             return;
         }
@@ -142,7 +184,7 @@ export function ChequeGeneratorForm() {
             invoiceDate: invoiceDate ? format(invoiceDate, 'yyyy-MM-dd') : 'N/A',
             invoiceNumber,
             payee: payeeName,
-            totalAmount: totalAmount,
+            totalAmount: totalSplitAmount,
             amountInWords: amountInWords,
             cheques: chequeSplits
         });
@@ -154,19 +196,32 @@ export function ChequeGeneratorForm() {
         (newSplits[index] as any)[field] = value;
         setChequeSplits(newSplits);
     };
-    
-    const addSplit = () => {
-        setChequeSplits([...chequeSplits, { id: Date.now().toString(), chequeDate: new Date(), chequeNumber: '', amount: '' }]);
-    };
-    
-    const removeSplit = (index: number) => {
-        setChequeSplits(chequeSplits.filter((_, i) => i !== index));
-    };
-
 
     return (
         <div className="space-y-6">
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
+                 <div className="space-y-2">
+                    <Label htmlFor="voucherNo">Auto Cheque Numbering</Label>
+                    <Input id="voucherNo" value={voucherNo} readOnly className="bg-muted/50" />
+                 </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="invoiceDate">Invoice Date:</Label>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button id="invoiceDate" variant="outline" className="w-full justify-start text-left font-normal">
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {invoiceDate ? format(invoiceDate, 'PPP') : <span>Pick a date</span>}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                            <DualCalendar selected={invoiceDate} onSelect={(d) => d && setInvoiceDate(d)} />
+                        </PopoverContent>
+                    </Popover>
+                 </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="invoiceNumber">Invoice Number:</Label>
+                    <Input id="invoiceNumber" value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} />
+                </div>
                  <div className="space-y-2">
                     <Label htmlFor="party-name">Party Name:</Label>
                     <Popover open={isPartyPopoverOpen} onOpenChange={setIsPartyPopoverOpen}>
@@ -215,23 +270,13 @@ export function ChequeGeneratorForm() {
                     <Input id="payee-name" value={payeeName} onChange={(e) => setPayeeName(e.target.value)} />
                 </div>
                  <div className="space-y-2">
-                    <Label htmlFor="invoiceDate">Invoice Date:</Label>
-                    <Popover>
-                        <PopoverTrigger asChild>
-                            <Button id="invoiceDate" variant="outline" className="w-full justify-start text-left font-normal">
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {invoiceDate ? format(invoiceDate, 'PPP') : <span>Pick a date</span>}
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
-                            <DualCalendar selected={invoiceDate} onSelect={(d) => d && setInvoiceDate(d)} />
-                        </PopoverContent>
-                    </Popover>
+                    <Label htmlFor="invoiceAmount">Invoice Amount (NPR)</Label>
+                    <Input id="invoiceAmount" type="number" value={invoiceAmount} onChange={(e) => setInvoiceAmount(e.target.value === '' ? '' : parseFloat(e.target.value))} />
                  </div>
                  <div className="space-y-2">
-                    <Label htmlFor="invoiceNumber">Invoice Number:</Label>
-                    <Input id="invoiceNumber" value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} />
-                </div>
+                    <Label htmlFor="numberOfSplits">Number of Cheque Splits</Label>
+                    <Input id="numberOfSplits" type="number" min="1" value={numberOfSplits} onChange={(e) => setNumberOfSplits(Math.max(1, parseInt(e.target.value, 10) || 1))} />
+                 </div>
             </div>
 
             <div className="border rounded-lg p-4 space-y-4">
@@ -268,28 +313,29 @@ export function ChequeGeneratorForm() {
                                     <Input type="number" value={split.amount} onChange={(e) => handleSplitChange(index, 'amount', e.target.value)} />
                                 </TableCell>
                                 <TableCell>
-                                    {chequeSplits.length > 1 && (
-                                         <Button variant="ghost" size="icon" onClick={() => removeSplit(index)}>
-                                            <Trash2 className="h-4 w-4 text-destructive" />
-                                        </Button>
-                                    )}
+                                    {/* Remove button could be added back if needed */}
                                 </TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
                 </Table>
-                <Button variant="outline" size="sm" onClick={addSplit}>
-                    <PlusCircle className="mr-2 h-4 w-4" /> Add Cheque
-                </Button>
             </div>
             
             <div className="border rounded-lg p-4 space-y-4">
-                 <div className="flex justify-between items-center text-lg">
-                    <Label>Total Amount (NPR)</Label>
-                    <span className="font-bold text-xl">{totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                 <div className="flex justify-between items-center text-sm">
+                    <Label>Total Invoice Amount (NPR)</Label>
+                    <span className="font-bold text-lg">{Number(invoiceAmount || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                    <Label>Total Split Amount (NPR)</Label>
+                    <span className="font-bold text-lg">{totalSplitAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                </div>
+                <div className={cn("flex justify-between items-center text-sm font-bold", remainingAmount === 0 ? 'text-green-600' : 'text-red-600')}>
+                    <Label>Remaining Amount</Label>
+                    <span className="text-lg">{remainingAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
                 </div>
                 <div className="space-y-2">
-                    <Label>Amount in Words</Label>
+                    <Label>Amount in Words (for Total Invoice Amount)</Label>
                     <div className="p-3 border rounded-md bg-muted min-h-[40px]">
                         <p className="font-semibold">{amountInWords}</p>
                     </div>
