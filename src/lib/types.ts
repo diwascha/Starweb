@@ -520,7 +520,14 @@ export interface NoteItem {
 }
 
 // Finance Types
-export type ChequeStatus = 'Due' | 'Paid' | 'Canceled';
+export type ChequeStatus = 'Due' | 'Paid' | 'Canceled' | 'Partially Paid';
+
+export interface PartialPayment {
+  id: string;
+  date: string; // ISO string
+  amount: number;
+  remarks?: string;
+}
 
 export interface ChequeSplit {
     id: string;
@@ -530,6 +537,7 @@ export interface ChequeSplit {
     remarks: string;
     interval: number;
     status: ChequeStatus;
+    partialPayments?: PartialPayment[];
 }
 
 export interface Cheque {
@@ -543,11 +551,13 @@ export interface Cheque {
     amount: number; // Total amount
     amountInWords: string;
     splits: {
+        id: string;
         chequeDate: string; // ISO string
         chequeNumber: string;
         amount: number;
         remarks: string;
         status: ChequeStatus;
+        partialPayments?: PartialPayment[];
     }[];
     createdBy: string;
     createdAt: string; // ISO string

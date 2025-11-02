@@ -52,6 +52,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
         remarks: '',
         interval: 0,
         status: 'Due',
+        partialPayments: [],
     }]);
 
     const [parties, setParties] = useState<Party[]>([]);
@@ -95,13 +96,14 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                 const paymentDate = new Date(chequeToEdit.paymentDate);
                 const interval = Math.round((splitDate.getTime() - paymentDate.getTime()) / (1000 * 3600 * 24));
                 return {
-                    id: String(Math.random()),
+                    id: s.id || String(Math.random()),
                     chequeDate: splitDate,
                     chequeNumber: s.chequeNumber,
                     amount: s.amount,
                     remarks: s.remarks,
                     interval: interval >= 0 ? interval : 0,
-                    status: s.status || 'Due'
+                    status: s.status || 'Due',
+                    partialPayments: s.partialPayments || [],
                 }
             }));
         } else {
@@ -136,6 +138,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                 remarks: existingSplit?.remarks || '',
                 interval: existingSplit?.interval || 0,
                 status: 'Due',
+                partialPayments: [],
             };
         });
 
@@ -189,7 +192,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
         setPartyName('');
         setInvoiceAmount('');
         setNumberOfSplits(1);
-        setChequeSplits([{ id: Date.now().toString(), chequeDate: new Date(), chequeNumber: '', amount: '', remarks: '', interval: 0, status: 'Due' }]);
+        setChequeSplits([{ id: Date.now().toString(), chequeDate: new Date(), chequeNumber: '', amount: '', remarks: '', interval: 0, status: 'Due', partialPayments: [] }]);
         onSaveSuccess();
     };
 
@@ -214,10 +217,13 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                 amount: Number(invoiceAmount),
                 amountInWords,
                 splits: chequeSplits.map(s => ({
-                    ...s,
+                    id: s.id,
                     chequeDate: s.chequeDate.toISOString(),
+                    chequeNumber: s.chequeNumber,
                     amount: Number(s.amount) || 0,
+                    remarks: s.remarks,
                     status: s.status,
+                    partialPayments: s.partialPayments || [],
                 })),
                 createdBy: chequeToEdit?.createdBy || user.username,
             };

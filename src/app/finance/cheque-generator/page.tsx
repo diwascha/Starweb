@@ -7,11 +7,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Search, ArrowUpDown, MoreHorizontal, Printer, Trash2, Edit, AlertTriangle } from 'lucide-react';
+import { Search, ArrowUpDown, MoreHorizontal, Printer, Trash2, Edit, AlertTriangle, PlusCircle } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { onChequesUpdate, deleteCheque, updateCheque } from '@/services/cheque-service';
-import type { Cheque, ChequeSplit, ChequeStatus } from '@/lib/types';
+import type { Cheque, ChequeSplit, ChequeStatus, PartialPayment } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -19,9 +19,13 @@ import { format, differenceInDays, startOfToday } from 'date-fns';
 import { ChequeView } from './_components/cheque-view';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import { cn, toNepaliDate } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { CalendarIcon } from 'lucide-react';
+import { DualCalendar } from '@/components/ui/dual-calendar';
+import { Label } from '@/components/ui/label';
 
 
 function FormSkeleton() {
@@ -55,6 +59,8 @@ interface AugmentedChequeSplit extends ChequeSplit {
     daysRemaining: number;
     isOverdue: boolean;
     parentCheque: Cheque;
+    paidAmount: number;
+    remainingAmount: number;
 }
 
 function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
@@ -69,6 +75,11 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
     const [chequeToPrint, setChequeToPrint] = useState<Cheque | null>(null);
     const [isPrintPreviewOpen, setIsPrintPreviewOpen] = useState(false);
     const printRef = useRef<HTMLDivElement>(null);
+    
+    const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+    const [paymentForm, setPaymentForm] = useState<{ date: Date, amount: number, remarks?: string }>({ date: new Date(), amount: 0 });
+    const [payingSplit, setPayingSplit] = useState<AugmentedChequeSplit | null>(null);
+
 
     useEffect(() => {
         const unsub = onChequesUpdate(setCheques);
@@ -95,6 +106,8 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
         let allSplits: AugmentedChequeSplit[] = cheques.flatMap(c => 
             c.splits.map(s => {
                 const chequeDate = new Date(s.chequeDate);
+                const paidAmount = (s.partialPayments || []).reduce((sum, p) => sum + p.amount, 0);
+                const totalAmount = Number(s.amount) || 0;
                 return {
                     ...s,
                     id: s.id, 
@@ -102,7 +115,9 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                     daysRemaining: differenceInDays(chequeDate, today),
                     isOverdue: differenceInDays(chequeDate, today) < 0,
                     parentCheque: c,
-                    amount: s.amount,
+                    amount: totalAmount,
+                    paidAmount: paidAmount,
+                    remainingAmount: totalAmount - paidAmount,
                     status: s.status || 'Due'
                 };
             })
@@ -188,13 +203,16 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
     };
     
     const getStatusBadge = (split: AugmentedChequeSplit) => {
-        const { status, daysRemaining, isOverdue } = split;
+        const { status, daysRemaining, isOverdue, remainingAmount } = split;
 
         if (status === 'Paid') {
             return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Paid</Badge>;
         }
         if (status === 'Canceled') {
             return <Badge variant="destructive">Canceled</Badge>;
+        }
+        if (status === 'Partially Paid') {
+            return <Badge variant="default" className="bg-blue-600 hover:bg-blue-700">Partially Paid</Badge>;
         }
         
         if (isOverdue) {
@@ -205,6 +223,44 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
         }
         return <Badge variant="outline" className="text-blue-600 border-blue-600">Due in {daysRemaining} day(s)</Badge>;
     };
+    
+    const handleAddPayment = async () => {
+        if (!payingSplit || !user) return;
+        const { date, amount, remarks } = paymentForm;
+        if (amount <= 0 || amount > payingSplit.remainingAmount) {
+            toast({ title: "Invalid Amount", description: `Payment must be between 0 and ${payingSplit.remainingAmount}.`, variant: "destructive" });
+            return;
+        }
+        
+        const newPayment: PartialPayment = {
+            id: Date.now().toString(),
+            date: date.toISOString(),
+            amount,
+            remarks,
+        };
+
+        const updatedPartialPayments = [...(payingSplit.partialPayments || []), newPayment];
+        const newPaidAmount = updatedPartialPayments.reduce((sum, p) => sum + p.amount, 0);
+        let newStatus: ChequeStatus = 'Partially Paid';
+
+        if (newPaidAmount >= Number(payingSplit.amount)) {
+            newStatus = 'Paid';
+        }
+
+        const updatedSplits = payingSplit.parentCheque.splits.map(s => 
+            s.id === payingSplit.id ? { ...s, partialPayments: updatedPartialPayments, status: newStatus } : s
+        );
+
+        try {
+            await updateCheque(payingSplit.parentCheque.id, { splits: updatedSplits, lastModifiedBy: user.username });
+            toast({ title: 'Payment Added', description: 'Partial payment has been recorded.' });
+            setIsPaymentDialogOpen(false);
+            setPayingSplit(null);
+        } catch (error) {
+            toast({ title: 'Error', description: 'Failed to add payment.', variant: 'destructive' });
+        }
+    };
+
 
     const handleStatusUpdate = async (cheque: Cheque, splitId: string, newStatus: ChequeStatus) => {
         if (!user) return;
@@ -246,6 +302,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                                 <SelectItem value="Due">Due</SelectItem>
                                 <SelectItem value="Paid">Paid</SelectItem>
                                 <SelectItem value="Canceled">Canceled</SelectItem>
+                                <SelectItem value="Partially Paid">Partially Paid</SelectItem>
                             </SelectContent>
                         </Select>
                         <Select value={filterPayee} onValueChange={setFilterPayee}>
@@ -269,6 +326,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                     <TableHead><Button variant="ghost" onClick={() => requestSort('payeeName')}>Payee Name <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
                     <TableHead><Button variant="ghost" onClick={() => requestSort('chequeNumber')}>Cheque # <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
                     <TableHead><Button variant="ghost" onClick={() => requestSort('amount')}>Amount <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
+                    <TableHead>Remaining</TableHead>
                     <TableHead><Button variant="ghost" onClick={() => requestSort('dueStatus')}>Status</Button></TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -281,6 +339,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                         <TableCell>{split.parentCheque.payeeName}</TableCell>
                         <TableCell>{split.chequeNumber}</TableCell>
                         <TableCell>{Number(split.amount).toLocaleString()}</TableCell>
+                        <TableCell>{split.remainingAmount.toLocaleString()}</TableCell>
                         <TableCell>{getStatusBadge(split)}</TableCell>
                         <TableCell className="text-right">
                             <DropdownMenu>
@@ -290,6 +349,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                             <DropdownMenuContent align="end">
                                     <DropdownMenuLabel>Voucher #{split.parentCheque.voucherNo}</DropdownMenuLabel>
                                     <DropdownMenuSeparator />
+                                    <DropdownMenuItem onSelect={() => {setPayingSplit(split); setIsPaymentDialogOpen(true);}}><PlusCircle className="mr-2 h-4 w-4" /> Add Payment</DropdownMenuItem>
                                     <DropdownMenuItem onSelect={() => onEdit(split.parentCheque)}><Edit className="mr-2 h-4 w-4" /> Edit Voucher</DropdownMenuItem>
                                     <DropdownMenuItem onSelect={() => handlePrint(split.parentCheque)}><Printer className="mr-2 h-4 w-4"/> Print Voucher</DropdownMenuItem>
                                     <DropdownMenuSeparator />
@@ -343,6 +403,57 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsPrintPreviewOpen(false)}>Cancel</Button>
                         <Button onClick={doActualPrint}><Printer className="mr-2 h-4 w-4" /> Print</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+             <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Add Partial Payment</DialogTitle>
+                        <DialogDescription>
+                            For Cheque # {payingSplit?.chequeNumber} to {payingSplit?.parentCheque.payeeName}
+                        </DialogDescription>
+                    </DialogHeader>
+                    {payingSplit && (
+                        <div className="space-y-4 py-4">
+                             <div className="grid grid-cols-2 text-sm">
+                                <div><span className="font-medium">Total Amount:</span> {Number(payingSplit.amount).toLocaleString()}</div>
+                                <div className="font-bold"><span className="font-medium">Remaining:</span> {payingSplit.remainingAmount.toLocaleString()}</div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="payment-date">Payment Date</Label>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" className="w-full justify-start text-left font-normal">
+                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                            {paymentForm.date ? format(paymentForm.date, 'PPP') : <span>Pick a date</span>}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0">
+                                        <DualCalendar selected={paymentForm.date} onSelect={(d) => d && setPaymentForm(p => ({...p, date: d}))} />
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="payment-amount">Payment Amount</Label>
+                                <Input
+                                    id="payment-amount"
+                                    type="number"
+                                    value={paymentForm.amount}
+                                    onChange={(e) => setPaymentForm(p => ({...p, amount: parseFloat(e.target.value) || 0}))}
+                                    max={payingSplit.remainingAmount}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="payment-remarks">Remarks (Optional)</Label>
+                                <Input id="payment-remarks" value={paymentForm.remarks} onChange={(e) => setPaymentForm(p => ({...p, remarks: e.target.value}))} />
+                            </div>
+                        </div>
+                    )}
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsPaymentDialogOpen(false)}>Cancel</Button>
+                        <Button onClick={handleAddPayment}>Add Payment</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
