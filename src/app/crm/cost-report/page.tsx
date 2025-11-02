@@ -403,7 +403,7 @@ export default function CostReportPage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t">
                     <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <div className="space-y-2">
-                            <Label htmlFor="paperCost">Paper Cost</Label>
+                            <Label htmlFor="paperCost">Kraft Paper Cost</Label>
                             <Input id="paperCost" type="number" placeholder="Enter additional paper cost" value={paperCost} onChange={e => setPaperCost(e.target.value === '' ? '' : parseFloat(e.target.value))} />
                         </div>
                         <div className="space-y-2">
@@ -465,5 +465,3 @@ export default function CostReportPage() {
     </div>
   );
 }
-
-    
