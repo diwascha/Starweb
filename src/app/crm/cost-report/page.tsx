@@ -56,15 +56,22 @@ interface CostReportItem {
   calculated: CalculatedValues;
 }
 
-const initialItemState: Omit<CostReportItem, 'id' | 'productId' | 'calculated'> = {
-    l: '', b: '', h: '', noOfPcs: '1', boxType: 'RSC', ply: '3', fluteType: 'B', 
-    paperType: 'Domestic', paperShade: 'Golden', paperBf: '18',
-    topGsm: '120', flute1Gsm: '100', middleGsm: '120', flute2Gsm: '100', bottomGsm: '120',
-    wastagePercent: '3.5', paperRate: ''
-};
-
 const initialCalculatedState: CalculatedValues = {
     sheetSizeL: 0, sheetSizeB: 0, sheetArea: 0, totalGsm: 0, paperWeight: 0, totalBoxWeight: 0, paperCost: 0
+};
+
+const product1: Omit<CostReportItem, 'id' | 'productId' | 'calculated'> = {
+  l: '309', b: '179', h: '102', noOfPcs: '1', boxType: 'RSC', ply: '3', fluteType: 'B', 
+  paperType: 'KRAFT', paperShade: 'NS', paperBf: '20 BF',
+  topGsm: '180', flute1Gsm: '150', middleGsm: '', flute2Gsm: '', bottomGsm: '180',
+  wastagePercent: '3.5', paperRate: '14.118'
+};
+
+const product2: Omit<CostReportItem, 'id' | 'productId' | 'calculated'> = {
+  l: '309', b: '179', h: '120', noOfPcs: '1', boxType: 'RSC', ply: '3', fluteType: 'B',
+  paperType: 'KRAFT', paperShade: 'NS', paperBf: '20 BF',
+  topGsm: '180', flute1Gsm: '150', middleGsm: '', flute2Gsm: '', bottomGsm: '180',
+  wastagePercent: '3.5', paperRate: '14.962'
 };
 
 export default function CostReportPage() {
@@ -73,9 +80,6 @@ export default function CostReportPage() {
   const [selectedPartyId, setSelectedPartyId] = useState<string>('');
   const [reportNumber, setReportNumber] = useState('CR-001'); // Placeholder
   const [reportDate, setReportDate] = useState<Date>(new Date());
-  const [items, setItems] = useState<CostReportItem[]>([
-    { id: Date.now().toString(), productId: '', ...initialItemState, calculated: initialCalculatedState }
-  ]);
   
   const { toast } = useToast();
   const { user } = useAuth();
@@ -83,16 +87,6 @@ export default function CostReportPage() {
   const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
   const [partyForm, setPartyForm] = useState<{ name: string; type: PartyType; address?: string; panNumber?: string; }>({ name: '', type: 'Customer', address: '', panNumber: '' });
   const [editingParty, setEditingParty] = useState<Party | null>(null);
-
-
-  useEffect(() => {
-    const unsubProducts = onProductsUpdate(setProducts);
-    const unsubParties = onPartiesUpdate(setParties);
-    return () => {
-        unsubProducts();
-        unsubParties();
-    };
-  }, []);
 
   const calculateItemCost = useCallback((item: Omit<CostReportItem, 'id' | 'calculated'>): CalculatedValues => {
     const l = parseFloat(item.l) || 0;
@@ -133,6 +127,21 @@ export default function CostReportPage() {
     
     return { sheetSizeL, sheetSizeB, sheetArea, totalGsm, paperWeight, totalBoxWeight, paperCost };
   }, []);
+  
+  const [items, setItems] = useState<CostReportItem[]>(() => [
+    { id: '1', productId: '', ...product1, calculated: calculateItemCost(product1) },
+    { id: '2', productId: '', ...product2, calculated: calculateItemCost(product2) }
+  ]);
+
+
+  useEffect(() => {
+    const unsubProducts = onProductsUpdate(setProducts);
+    const unsubParties = onPartiesUpdate(setParties);
+    return () => {
+        unsubProducts();
+        unsubParties();
+    };
+  }, []);
 
   const handleProductSelect = (index: number, productId: string) => {
     const product = products.find(p => p.id === productId);
@@ -168,7 +177,7 @@ export default function CostReportPage() {
   };
 
   const handleAddItem = () => {
-    setItems(prev => [...prev, { id: Date.now().toString(), productId: '', ...initialItemState, calculated: initialCalculatedState }]);
+    setItems(prev => [...prev, { id: Date.now().toString(), productId: '', l:'',b:'',h:'', noOfPcs:'1', boxType: 'RSC', ply:'3', fluteType: 'B', paperType: 'Domestic', paperShade:'Golden', paperBf:'18', topGsm:'120',flute1Gsm:'100',middleGsm:'',flute2Gsm:'',bottomGsm:'120',wastagePercent:'3.5',paperRate:'', calculated: initialCalculatedState }]);
   };
   
   const handleRemoveItem = (id: string) => {
