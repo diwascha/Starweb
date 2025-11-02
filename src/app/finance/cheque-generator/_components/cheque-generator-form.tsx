@@ -135,7 +135,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                 amount: currentAmount,
                 remarks: existingSplit?.remarks || '',
                 interval: existingSplit?.interval || 0,
-                status: existingSplit?.status || 'Due',
+                status: 'Due',
             };
         });
 
@@ -378,7 +378,6 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                             <TableHead className="w-[200px]">Cheque Date</TableHead>
                             <TableHead>Cheque Number</TableHead>
                             <TableHead>Amount (NPR)</TableHead>
-                            <TableHead>Status</TableHead>
                             <TableHead>Remarks</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -406,18 +405,6 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                                 </TableCell>
                                 <TableCell>
                                     <Input type="number" value={split.amount} onChange={(e) => handleSplitChange(index, 'amount', e.target.value)} />
-                                </TableCell>
-                                <TableCell>
-                                    <Select value={split.status} onValueChange={(value: ChequeStatus) => handleSplitChange(index, 'status', value)}>
-                                        <SelectTrigger>
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="Due">Due</SelectItem>
-                                            <SelectItem value="Paid">Paid</SelectItem>
-                                            <SelectItem value="Canceled">Canceled</SelectItem>
-                                        </SelectContent>
-                                    </Select>
                                 </TableCell>
                                 <TableCell>
                                     <Input value={split.remarks} onChange={(e) => handleSplitChange(index, 'remarks', e.target.value)} />

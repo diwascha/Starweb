@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Search, ArrowUpDown, MoreHorizontal, Printer, Trash2, Edit, AlertTriangle } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { onChequesUpdate, deleteCheque } from '@/services/cheque-service';
+import { onChequesUpdate, deleteCheque, updateCheque } from '@/services/cheque-service';
 import type { Cheque, ChequeSplit, ChequeStatus } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -20,6 +20,7 @@ import { ChequeView } from './_components/cheque-view';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/hooks/use-auth';
 
 
 function FormSkeleton() {
@@ -60,6 +61,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
     const [searchQuery, setSearchQuery] = useState('');
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'chequeDate', direction: 'asc' });
     const { toast } = useToast();
+    const { user } = useAuth();
     
     const [chequeToPrint, setChequeToPrint] = useState<Cheque | null>(null);
     const [isPrintPreviewOpen, setIsPrintPreviewOpen] = useState(false);
@@ -195,6 +197,20 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                 return <Badge variant="outline">Due</Badge>;
         }
     }
+    
+    const handleStatusUpdate = async (cheque: Cheque, splitId: string, newStatus: ChequeStatus) => {
+        if (!user) return;
+        const updatedSplits = cheque.splits.map(s => 
+            s.id === splitId ? { ...s, status: newStatus } : s
+        );
+        try {
+            await updateCheque(cheque.id, { splits: updatedSplits, lastModifiedBy: user.username });
+            toast({ title: 'Status Updated', description: `Cheque status set to ${newStatus}.` });
+        } catch (error) {
+            toast({ title: 'Error', description: 'Failed to update status.', variant: 'destructive' });
+        }
+    };
+
 
     
     return (
@@ -250,6 +266,10 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem onSelect={() => onEdit(split.parentCheque)}><Edit className="mr-2 h-4 w-4" /> Edit Voucher</DropdownMenuItem>
                                     <DropdownMenuItem onSelect={() => handlePrint(split.parentCheque)}><Printer className="mr-2 h-4 w-4"/> Print Voucher</DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                     <DropdownMenuItem onSelect={() => handleStatusUpdate(split.parentCheque, split.id, 'Paid')}>Mark as Paid</DropdownMenuItem>
+                                     <DropdownMenuItem onSelect={() => handleStatusUpdate(split.parentCheque, split.id, 'Canceled')}>Mark as Canceled</DropdownMenuItem>
+                                     <DropdownMenuItem onSelect={() => handleStatusUpdate(split.parentCheque, split.id, 'Due')}>Mark as Due</DropdownMenuItem>
                                     <DropdownMenuSeparator />
                                     <AlertDialog>
                                     <AlertDialogTrigger asChild>
@@ -346,5 +366,3 @@ export default function ChequeGeneratorPage() {
     </div>
   );
 }
-
-    
