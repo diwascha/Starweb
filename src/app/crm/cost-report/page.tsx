@@ -992,6 +992,7 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
 function ProductList() {
     const [products, setProducts] = useState<Product[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
+    const [filterPartyName, setFilterPartyName] = useState('All');
     const [sortConfig, setSortConfig] = useState<{ key: keyof Product | 'gsm' | 'bf'; direction: 'asc' | 'desc' }>({ key: 'name', direction: 'asc' });
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
     const { toast } = useToast();
@@ -1061,11 +1062,24 @@ function ProductList() {
         return product[key as keyof Product] ?? '';
     };
 
+    const uniquePartyNames = useMemo(() => {
+        const names = new Set(products.map(p => p.partyName).filter(Boolean));
+        return ['All', ...Array.from(names).sort()];
+    }, [products]);
+
     const sortedProducts = useMemo(() => {
-        const sortable = [...products].filter(p => 
-            p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-            (p.specification?.dimension || '').toLowerCase().includes(searchQuery.toLowerCase())
-        );
+        let sortable = [...products];
+
+        if (filterPartyName !== 'All') {
+            sortable = sortable.filter(p => p.partyName === filterPartyName);
+        }
+
+        if (searchQuery) {
+            sortable = sortable.filter(p => 
+                p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                (p.specification?.dimension || '').toLowerCase().includes(searchQuery.toLowerCase())
+            );
+        }
         
         sortable.sort((a, b) => {
             const aVal = getSortableValue(a, sortConfig.key);
@@ -1083,7 +1097,7 @@ function ProductList() {
             return 0;
         });
         return sortable;
-    }, [products, sortConfig, searchQuery]);
+    }, [products, sortConfig, searchQuery, filterPartyName]);
 
     const formatGsm = (spec: Product['specification']) => {
         if (!spec) return 'N/A';
@@ -1102,14 +1116,26 @@ function ProductList() {
                             <CardTitle>Products for Costing</CardTitle>
                             <CardDescription>A list of products available in the cost calculator.</CardDescription>
                         </div>
-                         <div className="relative">
-                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                placeholder="Search products..."
-                                className="pl-8 w-full sm:w-[250px]"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                            />
+                         <div className="flex items-center gap-2">
+                            <Select value={filterPartyName} onValueChange={setFilterPartyName}>
+                                <SelectTrigger className="w-[180px]">
+                                    <SelectValue placeholder="Filter by party..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {uniquePartyNames.map(party => (
+                                        <SelectItem key={party} value={party}>{party}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <div className="relative">
+                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    placeholder="Search products..."
+                                    className="pl-8 w-full sm:w-[250px]"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
+                            </div>
                         </div>
                     </div>
                 </CardHeader>
