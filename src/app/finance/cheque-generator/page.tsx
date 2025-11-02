@@ -7,17 +7,19 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Search, ArrowUpDown, MoreHorizontal, Printer, Trash2, Edit } from 'lucide-react';
+import { Search, ArrowUpDown, MoreHorizontal, Printer, Trash2, Edit, AlertTriangle } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { onChequesUpdate, deleteCheque } from '@/services/cheque-service';
-import type { Cheque } from '@/lib/types';
+import type { Cheque, ChequeSplit } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { format } from 'date-fns';
+import { format, differenceInDays, startOfToday } from 'date-fns';
 import { ChequeView } from './_components/cheque-view';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 
 function FormSkeleton() {
@@ -44,13 +46,22 @@ function FormSkeleton() {
     );
 }
 
-type SortKey = 'createdAt' | 'payeeName' | 'amount' | 'voucherNo';
+type SortKey = 'createdAt' | 'payeeName' | 'amount' | 'voucherNo' | 'nextDueDate';
 type SortDirection = 'asc' | 'desc';
+
+interface AugmentedCheque extends Cheque {
+    nextUpcomingSplit?: AugmentedSplit;
+    augmentedSplits: AugmentedSplit[];
+}
+interface AugmentedSplit extends ChequeSplit {
+    daysRemaining: number;
+    isOverdue: boolean;
+}
 
 function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
     const [cheques, setCheques] = useState<Cheque[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
-    const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'createdAt', direction: 'desc' });
+    const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'nextDueDate', direction: 'asc' });
     const { toast } = useToast();
     
     const [chequeToPrint, setChequeToPrint] = useState<Cheque | null>(null);
@@ -71,24 +82,49 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
     };
 
     const sortedAndFilteredCheques = useMemo(() => {
-        let filtered = [...cheques];
+        let augmentedCheques: AugmentedCheque[] = cheques.map(c => {
+            const today = startOfToday();
+            const augmentedSplits = c.splits
+                .map(s => {
+                    const chequeDate = new Date(s.chequeDate);
+                    return {
+                        ...s,
+                        daysRemaining: differenceInDays(chequeDate, today),
+                        isOverdue: differenceInDays(chequeDate, today) < 0
+                    };
+                })
+                .sort((a, b) => new Date(a.chequeDate).getTime() - new Date(b.chequeDate).getTime());
+
+            const nextUpcomingSplit = augmentedSplits.find(s => s.daysRemaining >= 0);
+
+            return { ...c, augmentedSplits, nextUpcomingSplit };
+        });
+
         if (searchQuery) {
             const lowercasedQuery = searchQuery.toLowerCase();
-            filtered = filtered.filter(c =>
+            augmentedCheques = augmentedCheques.filter(c =>
                 c.payeeName.toLowerCase().includes(lowercasedQuery) ||
                 (c.splits.some(s => s.chequeNumber?.toLowerCase().includes(lowercasedQuery))) ||
                 (c.invoiceNumber || '').toLowerCase().includes(lowercasedQuery) ||
                 (c.voucherNo || '').toLowerCase().includes(lowercasedQuery)
             );
         }
-        filtered.sort((a, b) => {
-            const aVal = a[sortConfig.key];
-            const bVal = b[sortConfig.key];
+        augmentedCheques.sort((a, b) => {
+            let aVal, bVal;
+
+            if (sortConfig.key === 'nextDueDate') {
+                aVal = a.nextUpcomingSplit ? new Date(a.nextUpcomingSplit.chequeDate).getTime() : Infinity;
+                bVal = b.nextUpcomingSplit ? new Date(b.nextUpcomingSplit.chequeDate).getTime() : Infinity;
+            } else {
+                aVal = a[sortConfig.key as keyof Cheque];
+                bVal = b[sortConfig.key as keyof Cheque];
+            }
+            
             if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
             if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
             return 0;
         });
-        return filtered;
+        return augmentedCheques;
     }, [cheques, searchQuery, sortConfig]);
 
     const handleDelete = async (id: string) => {
@@ -122,6 +158,20 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
             printWindow?.close();
         }, 250);
     };
+    
+    const getStatusBadge = (split?: AugmentedSplit) => {
+        if (!split) return <Badge variant="secondary">Completed</Badge>;
+        
+        const { daysRemaining, isOverdue } = split;
+
+        if (isOverdue) {
+            return <Badge variant="destructive"><AlertTriangle className="mr-1 h-3 w-3" /> Overdue by {-daysRemaining} day(s)</Badge>;
+        }
+        if (daysRemaining <= 7) {
+            return <Badge variant="default" className="bg-yellow-500 text-black hover:bg-yellow-600"><AlertTriangle className="mr-1 h-3 w-3" /> Due in {daysRemaining} day(s)</Badge>;
+        }
+        return <Badge variant="outline" className="text-green-600 border-green-600">Due in {daysRemaining} day(s)</Badge>;
+    };
 
     
     return (
@@ -151,8 +201,8 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                     <TableHead><Button variant="ghost" onClick={() => requestSort('createdAt')}>Date Saved <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
                     <TableHead><Button variant="ghost" onClick={() => requestSort('voucherNo')}>Voucher # <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
                     <TableHead><Button variant="ghost" onClick={() => requestSort('payeeName')}>Payee Name <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
-                    <TableHead>Invoice #</TableHead>
                     <TableHead><Button variant="ghost" onClick={() => requestSort('amount')}>Total Amount <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
+                    <TableHead><Button variant="ghost" onClick={() => requestSort('nextDueDate')}>Status <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -163,8 +213,8 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                         <TableCell>{format(new Date(c.createdAt), 'PPP')}</TableCell>
                         <TableCell>{c.voucherNo}</TableCell>
                         <TableCell>{c.payeeName}</TableCell>
-                        <TableCell>{c.invoiceNumber}</TableCell>
                         <TableCell>{c.amount.toLocaleString()}</TableCell>
+                        <TableCell>{getStatusBadge(c.nextUpcomingSplit)}</TableCell>
                         <TableCell className="text-right">
                             <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -173,10 +223,10 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                             <DropdownMenuContent align="end">
                                     <DropdownMenuLabel>Cheques ({c.splits.length})</DropdownMenuLabel>
                                     <DropdownMenuSeparator />
-                                    {c.splits.map((split, index) => (
-                                        <DropdownMenuItem key={index} className="flex justify-between">
-                                            <span>#{split.chequeNumber || 'N/A'}</span>
-                                            <span className="text-muted-foreground">{split.amount.toLocaleString()}</span>
+                                    {c.augmentedSplits.map((split, index) => (
+                                        <DropdownMenuItem key={index} className="flex justify-between gap-4">
+                                            <span>#{split.chequeNumber || 'N/A'} - {split.amount.toLocaleString()}</span>
+                                            {getStatusBadge(split)}
                                         </DropdownMenuItem>
                                     ))}
                                     <DropdownMenuSeparator />
@@ -216,7 +266,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                          <div ref={printRef}>
                             {chequeToPrint && (
                                 <ChequeView
-                                    voucherDate={new Date(chequeToPrint.paymentDate)}
+                                    voucherDate={new Date(chequeToPrint.createdAt)}
                                     payeeName={chequeToPrint.payeeName}
                                     splits={chequeToPrint.splits.map(s => ({
                                         ...s,
