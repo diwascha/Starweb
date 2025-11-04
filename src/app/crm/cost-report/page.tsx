@@ -92,15 +92,20 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
   const [isLoadProductsDialogOpen, setIsLoadProductsDialogOpen] = useState(false);
   const [productsToLoad, setProductsToLoad] = useState<Set<string>>(new Set());
   const [loadProductPartyFilter, setLoadProductPartyFilter] = useState('All');
-
-  const filteredProductsForLoad = useMemo(() => {
-    if (loadProductPartyFilter === 'All') {
-        return products;
-    }
-    return products.filter(p => p.partyName === loadProductPartyFilter);
-  }, [products, loadProductPartyFilter]);
   
-  const uniquePartiesForLoad = useMemo(() => ['All', ...Array.from(new Set(products.map(p => p.partyName).filter(Boolean)))], [products]);
+  const groupedProducts = useMemo(() => {
+    return products.reduce((acc, product) => {
+        const partyName = product.partyName || 'Uncategorized';
+        if (!acc[partyName]) {
+            acc[partyName] = [];
+        }
+        acc[partyName].push(product);
+        return acc;
+    }, {} as Record<string, Product[]>);
+  }, [products]);
+  
+  const uniquePartiesForLoad = useMemo(() => ['All', ...Object.keys(groupedProducts).sort()], [groupedProducts]);
+
 
   useEffect(() => {
     const unsubCostSettings = onSettingUpdate('costing', (setting) => {
@@ -774,7 +779,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                              const totalItemCost = (item.calculated?.paperCost || 0) + accessoriesCost;
                              return (
                                 <Collapsible asChild key={item.id}>
-                                <>
+                                  <>
                                     <TableRow>
                                         <TableCell>
                                             <div className="flex items-center">
@@ -923,7 +928,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                             </TableCell>
                                         </tr>
                                     </CollapsibleContent>
-                                    </>
+                                  </>
                                 </Collapsible>
                         )})}
                         </TableBody>
@@ -1108,7 +1113,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {filteredProductsForLoad.map(p => (
+                            {(loadProductPartyFilter === 'All' ? products : products.filter(p => p.partyName === loadProductPartyFilter)).map(p => (
                                 <TableRow key={p.id}>
                                     <TableCell>
                                         <Checkbox
@@ -2141,7 +2146,5 @@ export default function CostReportPage() {
         </div>
     );
 }
-
     
-
-      
+    
