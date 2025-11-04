@@ -1193,7 +1193,12 @@ function SavedProductsList() {
                                 <TableCell>{p.partyName || 'N/A'}</TableCell>
                                 <TableCell>{p.specification?.dimension || 'N/A'}</TableCell>
                                 <TableCell>{p.specification?.ply || 'N/A'}</TableCell>
-                                <TableCell>{`${p.specification?.topGsm || '-'}/${p.specification?.middleGsm || '-'}/${p.specification?.bottomGsm || '-'}`}</TableCell>
+                                <TableCell>
+                                  {p.specification?.ply === '5' 
+                                    ? `${p.specification?.topGsm || '-'}/${p.specification?.middleGsm || '-'}/${p.specification?.bottomGsm || '-'}`
+                                    : `${p.specification?.topGsm || '-'}/${p.specification?.flute1Gsm || '-'}/${p.specification?.bottomGsm || '-'}`
+                                  }
+                                </TableCell>
                                 <TableCell>{p.specification?.paperBf || 'N/A'}</TableCell>
                                 <TableCell className="text-right">
                                     <DropdownMenu>
@@ -1411,5 +1416,3 @@ export default function CostReportPage() {
         </div>
     );
 }
-
-    
