@@ -562,7 +562,9 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                                 <CommandInput placeholder="Search products..." />
                                                 <CommandList>
                                                     <CommandEmpty>
-                                                        <Button variant="ghost" className="w-full justify-start" onClick={onProductAdd}><PlusCircle className="mr-2 h-4 w-4" /> Add New Product</Button>
+                                                        <Button variant="ghost" className="w-full justify-start" onClick={onProductAdd}>
+                                                          <PlusCircle className="mr-2 h-4 w-4" /> Add New Product
+                                                        </Button>
                                                     </CommandEmpty>
                                                     <CommandGroup>
                                                         {products.map(p => (
@@ -1549,3 +1551,6 @@ export default function CostReportPage() {
     );
 }
 
+
+
+    
