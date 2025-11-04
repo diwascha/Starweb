@@ -1010,79 +1010,18 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
     );
 }
 
-function ProductList() {
+function ProductList({ onProductAdd, productToEdit, onProductSave, onClearEdit }: { onProductAdd: () => void, productToEdit: Product | null, onProductSave: () => void, onClearEdit: () => void }) {
     const [products, setProducts] = useState<Product[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [filterPartyName, setFilterPartyName] = useState('All');
     const [sortConfig, setSortConfig] = useState<{ key: keyof Product | 'gsm' | 'bf'; direction: 'asc' | 'desc' }>({ key: 'name', direction: 'asc' });
-    const [editingProduct, setEditingProduct] = useState<Product | null>(null);
     const { toast } = useToast();
     const { user } = useAuth();
     
-    const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
-    const [productForm, setProductForm] = useState<Partial<Product>>({});
-
-
     useEffect(() => {
         const unsub = onProductsUpdate(setProducts);
         return () => unsub();
     }, []);
-    
-    const handleOpenDialog = (product: Product | null) => {
-        if (product) {
-            setEditingProduct(product);
-            setProductForm(product);
-        } else {
-            setEditingProduct(null);
-            setProductForm({
-                specification: {
-                  dimension: '', ply: '3', topGsm: '', flute1Gsm: '', middleGsm: '', flute2Gsm: '', bottomGsm: '', paperBf: '', gsm: '', moisture: '', load: '', overlapWidth: '', printing: '', stapleWidth: '', stapling: '', weightOfBox: ''
-                }
-            });
-        }
-        setIsProductDialogOpen(true);
-    };
-
-    const handleFormChange = (field: keyof Product, value: any) => {
-        setProductForm(prev => ({ ...prev, [field]: value }));
-    };
-
-    const handleSpecChange = (field: keyof ProductSpecification, value: string) => {
-        setProductForm(prev => ({
-            ...prev,
-            specification: {
-                ...(prev.specification as ProductSpecification),
-                [field]: value
-            },
-        }));
-    };
-
-    const handleSaveProduct = async () => {
-        if (!user) return;
-
-        try {
-            if (editingProduct) {
-                 await updateProductService(editingProduct.id, {
-                    ...productForm,
-                    lastModifiedBy: user.username,
-                });
-                toast({ title: 'Success', description: 'Product updated.' });
-            } else {
-                await addProductService({
-                    ...productForm,
-                    createdBy: user.username,
-                    createdAt: new Date().toISOString()
-                } as Omit<Product, 'id'>);
-                toast({ title: 'Success', description: 'New product added.' });
-            }
-            
-            setIsProductDialogOpen(false);
-            setEditingProduct(null);
-        } catch (error) {
-            toast({ title: 'Error', description: 'Failed to save product.', variant: 'destructive' });
-        }
-    };
-
 
     const requestSort = (key: keyof Product | 'gsm' | 'bf') => {
         let direction: 'asc' | 'desc' = 'asc';
@@ -1176,7 +1115,7 @@ function ProductList() {
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
                             </div>
-                            <Button onClick={() => handleOpenDialog(null)}>
+                            <Button onClick={onProductAdd}>
                                 <PlusCircle className="mr-2 h-4 w-4" /> Add Product
                             </Button>
                         </div>
@@ -1207,7 +1146,7 @@ function ProductList() {
                                     <TableCell>{formatGsm(product.specification)}</TableCell>
                                     <TableCell>{product.specification?.paperBf || 'N/A'}</TableCell>
                                     <TableCell className="text-right">
-                                        <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(product)}>
+                                        <Button variant="ghost" size="icon" onClick={() => onProductAdd()}>
                                             <Edit className="h-4 w-4" />
                                         </Button>
                                     </TableCell>
@@ -1217,20 +1156,143 @@ function ProductList() {
                     </Table>
                 </CardContent>
             </Card>
+        </>
+    );
+}
+
+export default function CostReportPage() {
+    const [activeTab, setActiveTab] = useState("calculator");
+    const [reportToEdit, setReportToEdit] = useState<CostReport | null>(null);
+    const [products, setProducts] = useState<Product[]>([]);
+    
+    // State for the product dialog
+    const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
+    const [productToEdit, setProductToEdit] = useState<Product | null>(null);
+    const [productForm, setProductForm] = useState<Partial<Product>>({ specification: {} });
+    const { toast } = useToast();
+    const { user } = useAuth();
+    
+    useEffect(() => {
+        const unsubProducts = onProductsUpdate(setProducts);
+        return () => unsubProducts();
+    }, []);
+    
+    const handleEditReport = (report: CostReport) => {
+        setReportToEdit(report);
+        setActiveTab("calculator");
+    };
+
+    const handleFinishEditing = () => {
+        setReportToEdit(null);
+        setActiveTab("saved");
+    };
+
+    const handleCancelEdit = () => {
+        setReportToEdit(null);
+    }
+    
+    const handleOpenProductDialog = (product: Product | null = null) => {
+        if (product) {
+            setProductToEdit(product);
+            setProductForm(product);
+        } else {
+            setProductToEdit(null);
+            setProductForm({
+                specification: {
+                  dimension: '', ply: '3', topGsm: '', flute1Gsm: '', middleGsm: '', flute2Gsm: '', bottomGsm: '', paperBf: '', gsm: '', moisture: '', load: '', overlapWidth: '', printing: '', stapleWidth: '', stapling: '', weightOfBox: ''
+                }
+            });
+        }
+        setIsProductDialogOpen(true);
+    };
+
+    const handleSaveProduct = async () => {
+        if (!user) return;
+
+        try {
+            if (productToEdit) {
+                 await updateProductService(productToEdit.id, {
+                    ...productForm,
+                    lastModifiedBy: user.username,
+                });
+                toast({ title: 'Success', description: 'Product updated.' });
+            } else {
+                await addProductService({
+                    ...productForm,
+                    createdBy: user.username,
+                    createdAt: new Date().toISOString()
+                } as Omit<Product, 'id'>);
+                toast({ title: 'Success', description: 'New product added.' });
+            }
+            
+            setIsProductDialogOpen(false);
+            setProductToEdit(null);
+        } catch (error) {
+            toast({ title: 'Error', description: 'Failed to save product.', variant: 'destructive' });
+        }
+    };
+    
+    const handleProductFormChange = (field: keyof Product, value: any) => {
+        setProductForm(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleSpecChange = (field: keyof ProductSpecification, value: string) => {
+        setProductForm(prev => ({
+            ...prev,
+            specification: {
+                ...(prev.specification as ProductSpecification),
+                [field]: value
+            },
+        }));
+    };
+
+    return (
+        <div className="flex flex-col gap-8">
+            <header>
+                <h1 className="text-3xl font-bold tracking-tight">Cost Report Generator</h1>
+                <p className="text-muted-foreground">Calculate product costs based on multiple raw materials and specifications.</p>
+            </header>
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+                <TabsList>
+                    <TabsTrigger value="calculator">Calculator</TabsTrigger>
+                    <TabsTrigger value="saved">Saved Reports</TabsTrigger>
+                    <TabsTrigger value="products">Products</TabsTrigger>
+                </TabsList>
+                <TabsContent value="calculator" className="pt-4">
+                    <CostReportCalculator 
+                        reportToEdit={reportToEdit} 
+                        onSaveSuccess={handleFinishEditing} 
+                        onCancelEdit={handleCancelEdit}
+                        products={products}
+                        onProductAdd={() => handleOpenProductDialog(null)}
+                    />
+                </TabsContent>
+                <TabsContent value="saved" className="pt-4">
+                    <SavedReportsList onEdit={handleEditReport} />
+                </TabsContent>
+                <TabsContent value="products" className="pt-4">
+                    <ProductList 
+                      onProductAdd={() => handleOpenProductDialog(null)}
+                      productToEdit={productToEdit}
+                      onProductSave={handleSaveProduct}
+                      onClearEdit={() => setProductToEdit(null)}
+                    />
+                </TabsContent>
+            </Tabs>
 
             <Dialog open={isProductDialogOpen} onOpenChange={setIsProductDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>{editingProduct ? 'Edit Product' : 'Add New Product'}</DialogTitle>
+                        <DialogTitle>{productToEdit ? 'Edit Product' : 'Add New Product'}</DialogTitle>
                     </DialogHeader>
                     <div className="py-4 space-y-4">
                         <div className="space-y-2">
                             <Label htmlFor="product-name">Product Name</Label>
-                            <Input id="product-name" value={productForm.name || ''} onChange={(e) => handleFormChange('name', e.target.value)} />
+                            <Input id="product-name" value={productForm.name || ''} onChange={(e) => handleProductFormChange('name', e.target.value)} />
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="product-rate">Rate</Label>
-                            <Input id="product-rate" type="number" value={productForm.rate || ''} onChange={(e) => handleFormChange('rate', parseFloat(e.target.value) || 0)} />
+                            <Input id="product-rate" type="number" value={productForm.rate || ''} onChange={(e) => handleProductFormChange('rate', parseFloat(e.target.value) || 0)} />
                         </div>
                         <Separator />
                         <h4 className="font-semibold">Specification</h4>
@@ -1252,70 +1314,10 @@ function ProductList() {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsProductDialogOpen(false)}>Cancel</Button>
-                        <Button onClick={handleSaveProduct}>{editingProduct ? 'Save Changes' : 'Add Product'}</Button>
+                        <Button onClick={handleSaveProduct}>{productToEdit ? 'Save Changes' : 'Add Product'}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </>
-    );
-}
-
-export default function CostReportPage() {
-    const [activeTab, setActiveTab] = useState("calculator");
-    const [reportToEdit, setReportToEdit] = useState<CostReport | null>(null);
-    const [products, setProducts] = useState<Product[]>([]);
-    
-    useEffect(() => {
-        const unsubProducts = onProductsUpdate(setProducts);
-        return () => unsubProducts();
-    }, []);
-    
-    const handleEditReport = (report: CostReport) => {
-        setReportToEdit(report);
-        setActiveTab("calculator");
-    };
-
-    const handleFinishEditing = () => {
-        setReportToEdit(null);
-        setActiveTab("saved");
-    };
-
-    const handleCancelEdit = () => {
-        setReportToEdit(null);
-    }
-    
-    const handleOpenProductTab = () => {
-        setActiveTab("products");
-    };
-
-    return (
-        <div className="flex flex-col gap-8">
-            <header>
-                <h1 className="text-3xl font-bold tracking-tight">Cost Report Generator</h1>
-                <p className="text-muted-foreground">Calculate product costs based on multiple raw materials and specifications.</p>
-            </header>
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList>
-                    <TabsTrigger value="calculator">Calculator</TabsTrigger>
-                    <TabsTrigger value="saved">Saved Reports</TabsTrigger>
-                    <TabsTrigger value="products">Products</TabsTrigger>
-                </TabsList>
-                <TabsContent value="calculator" className="pt-4">
-                    <CostReportCalculator 
-                        reportToEdit={reportToEdit} 
-                        onSaveSuccess={handleFinishEditing} 
-                        onCancelEdit={handleCancelEdit}
-                        products={products}
-                        onProductAdd={handleOpenProductTab}
-                    />
-                </TabsContent>
-                <TabsContent value="saved" className="pt-4">
-                    <SavedReportsList onEdit={handleEditReport} />
-                </TabsContent>
-                <TabsContent value="products" className="pt-4">
-                    <ProductList />
-                </TabsContent>
-            </Tabs>
         </div>
     );
 }
