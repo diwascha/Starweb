@@ -623,6 +623,13 @@ export interface EstimatedInvoice {
 
 // CRM Types
 
+export interface Accessory {
+  id: string;
+  name: string;
+  cost: number;
+}
+
+
 interface CalculatedValues {
     sheetSizeL: number;
     sheetSizeB: number;
@@ -656,6 +663,7 @@ export interface CostReportItem {
   flute4Gsm: string;
   liner4Gsm: string;
   wastagePercent: string;
+  accessories?: Accessory[];
   calculated: CalculatedValues;
 }
 

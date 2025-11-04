@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import type { Product, Party, PartyType, CostReport, CostReportItem, ProductSpecification, CostSetting } from '@/lib/types';
+import type { Product, Party, PartyType, CostReport, CostReportItem, ProductSpecification, CostSetting, Accessory } from '@/lib/types';
 import { onProductsUpdate, addProduct as addProductService, updateProduct as updateProductService, deleteProduct as deleteProductService } from '@/services/product-service';
 import { onPartiesUpdate, addParty, updateParty } from '@/services/party-service';
 import { onCostReportsUpdate, addCostReport, deleteCostReport, generateNextCostReportNumber, getCostReport, updateCostReport } from '@/services/cost-report-service';
@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Printer, Loader2, Plus, Trash2, ChevronsUpDown, Check, PlusCircle, Edit, Save, MoreHorizontal, Search, ArrowUpDown, History, Library, HistoryIcon } from 'lucide-react';
+import { Printer, Loader2, Plus, Trash2, ChevronsUpDown, Check, PlusCircle, Edit, Save, MoreHorizontal, Search, ArrowUpDown, History, Library, HistoryIcon, Paperclip } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon } from 'lucide-react';
@@ -274,7 +274,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     });
   };
 
-  const handleItemChange = (index: number, field: keyof Omit<CostReportItem, 'id' | 'calculated'>, value: string) => {
+  const handleItemChange = (index: number, field: keyof Omit<CostReportItem, 'id' | 'calculated' | 'accessories'>, value: string) => {
     const kCost = Number(kraftPaperCost) || 0;
     const vCost = Number(virginPaperCost) || 0;
     const cCost = Number(conversionCost) || 0;
@@ -318,6 +318,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
             liner4Gsm: spec.liner4Gsm || '',
             wastagePercent: '3.5',
             fluteType: 'B',
+            accessories: [],
         };
         
         const newItem = { ...newItemBase, calculated: calculateItemCost(newItemBase, kCost, vCost, cCost) };
@@ -329,7 +330,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     const kCost = Number(kraftPaperCost) || 0;
     const vCost = Number(virginPaperCost) || 0;
     const cCost = Number(conversionCost) || 0;
-    const newItemBase = { id: Date.now().toString(), productId: '', l:'',b:'',h:'', noOfPcs:'1', ply:'3', fluteType: 'B', paperType: 'KRAFT', paperBf:'18', paperShade: 'NS', boxType: 'RSC', topGsm:'120',flute1Gsm:'100',middleGsm:'',flute2Gsm:'',bottomGsm:'120', liner2Gsm: '', flute3Gsm: '', liner3Gsm: '', flute4Gsm: '', liner4Gsm: '', wastagePercent:'3.5' };
+    const newItemBase = { id: Date.now().toString(), productId: '', l:'',b:'',h:'', noOfPcs:'1', ply:'3', fluteType: 'B', paperType: 'KRAFT', paperBf:'18', paperShade: 'NS', boxType: 'RSC', topGsm:'120',flute1Gsm:'100',middleGsm:'',flute2Gsm:'',bottomGsm:'120', liner2Gsm: '', flute3Gsm: '', liner3Gsm: '', flute4Gsm: '', liner4Gsm: '', wastagePercent:'3.5', accessories: [] };
     const newItem = { ...newItemBase, calculated: calculateItemCost(newItemBase, kCost, vCost, cCost) };
     setItems(prev => [...prev, newItem]);
     setSelectedForPrint(prev => new Set(prev).add(newItem.id));
@@ -398,7 +399,12 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
            const vCost = Number(virginPaperCost) || 0;
            const cCost = Number(conversionCost) || 0;
 
-           const totalItemCost = items.reduce((sum, item) => sum + (item.calculated?.paperCost || 0), 0);
+           const totalItemCost = items.reduce((sum, item) => {
+             const paperCost = item.calculated?.paperCost || 0;
+             const accessoriesCost = (item.accessories || []).reduce((accSum, acc) => accSum + acc.cost, 0);
+             return sum + paperCost + accessoriesCost;
+           }, 0);
+
            const reportData: Omit<CostReport, 'id' | 'createdAt'> = {
               reportNumber,
               reportDate: reportDate.toISOString(),
@@ -465,7 +471,18 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     }, 250);
   };
 
-  const itemsToPrint = items.filter(item => selectedForPrint.has(item.id));
+  const itemsToPrint = useMemo(() => {
+    return items
+      .filter(item => selectedForPrint.has(item.id))
+      .map(item => {
+        const accessoriesCost = (item.accessories || []).reduce((sum, acc) => sum + acc.cost, 0);
+        return {
+          ...item,
+          totalItemCost: (item.calculated?.paperCost || 0) + accessoriesCost,
+        };
+      });
+  }, [items, selectedForPrint]);
+
   const selectedParty = parties.find(p => p.id === selectedPartyId);
   const [productSearch, setProductSearch] = useState('');
 
@@ -496,7 +513,41 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
         {part2 && <div>{part2}</div>}
       </div>
     );
-};
+  };
+
+  const handleAccessoryChange = (itemIndex: number, accIndex: number, field: 'name' | 'cost', value: string) => {
+    setItems(prevItems => {
+        const newItems = [...prevItems];
+        const accessories = [...(newItems[itemIndex].accessories || [])];
+        accessories[accIndex] = {
+            ...accessories[accIndex],
+            [field]: field === 'cost' ? parseFloat(value) || 0 : value
+        };
+        newItems[itemIndex] = { ...newItems[itemIndex], accessories };
+        return newItems;
+    });
+  };
+
+  const addAccessory = (itemIndex: number) => {
+    setItems(prevItems => {
+        const newItems = [...prevItems];
+        const accessories = newItems[itemIndex].accessories || [];
+        newItems[itemIndex] = {
+            ...newItems[itemIndex],
+            accessories: [...accessories, { id: Date.now().toString(), name: '', cost: 0 }]
+        };
+        return newItems;
+    });
+  };
+
+  const removeAccessory = (itemIndex: number, accId: string) => {
+    setItems(prevItems => {
+        const newItems = [...prevItems];
+        const accessories = (newItems[itemIndex].accessories || []).filter(acc => acc.id !== accId);
+        newItems[itemIndex] = { ...newItems[itemIndex], accessories };
+        return newItems;
+    });
+  };
 
 
   return (
@@ -651,7 +702,8 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                 <TableHead rowSpan={2} className="align-bottom min-w-[100px]">Box Wt Grams</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom min-w-[100px]">Waste 3.5%</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom min-w-[100px]">Total Box Wt</TableHead>
-                                <TableHead rowSpan={2} className="align-bottom min-w-[120px]">Total</TableHead>
+                                <TableHead rowSpan={2} className="align-bottom min-w-[120px]">Paper Cost</TableHead>
+                                <TableHead rowSpan={2} className="align-bottom min-w-[250px]">Accessories</TableHead>
                                 <TableHead rowSpan={2} className="w-[50px] align-bottom"></TableHead>
                             </TableRow>
                             <TableRow>
@@ -672,6 +724,8 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                         <TableBody>
                         {items.map((item, index) => {
                              const ply = parseInt(item.ply, 10);
+                             const accessoriesCost = (item.accessories || []).reduce((sum, acc) => sum + acc.cost, 0);
+                             const totalItemCost = (item.calculated?.paperCost || 0) + accessoriesCost;
                              return (
                             <TableRow key={item.id}>
                                 <TableCell>
@@ -773,13 +827,44 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                 <TableCell>{item.calculated.paperWeight.toFixed(2)}</TableCell>
                                 <TableCell>{((item.calculated.paperWeight * (parseFloat(item.wastagePercent) / 100 || 0))).toFixed(2)}</TableCell>
                                 <TableCell>{(item.calculated.totalBoxWeight).toFixed(2)}</TableCell>
-                                <TableCell className="font-bold">
+                                <TableCell className="font-medium">
                                     {item.calculated.paperCost > 0 ? item.calculated.paperCost.toFixed(2) : '...'}
                                 </TableCell>
                                  <TableCell>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleRemoveItem(item.id)}>
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
+                                    <div className="space-y-2">
+                                        {(item.accessories || []).map((acc, accIndex) => (
+                                            <div key={acc.id} className="flex items-center gap-1">
+                                                <Input
+                                                    type="text"
+                                                    placeholder="Accessory name"
+                                                    value={acc.name}
+                                                    onChange={e => handleAccessoryChange(index, accIndex, 'name', e.target.value)}
+                                                    className="h-8"
+                                                />
+                                                <Input
+                                                    type="number"
+                                                    placeholder="Cost"
+                                                    value={acc.cost || ''}
+                                                    onChange={e => handleAccessoryChange(index, accIndex, 'cost', e.target.value)}
+                                                    className="h-8 w-24"
+                                                />
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeAccessory(index, acc.id)}>
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        ))}
+                                        <Button variant="outline" size="sm" className="h-8 w-full" onClick={() => addAccessory(index)}>
+                                            <Paperclip className="mr-2 h-4 w-4"/> Add Accessory
+                                        </Button>
+                                    </div>
+                                </TableCell>
+                                 <TableCell>
+                                    <div className="flex flex-col items-center">
+                                      <span className="font-bold text-lg">{totalItemCost.toFixed(2)}</span>
+                                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleRemoveItem(item.id)}>
+                                          <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
                                 </TableCell>
                             </TableRow>
                         )})}
@@ -884,19 +969,37 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                 </TableHeader>
                 <TableBody>
                   {itemsToPrint.map((item, index) => (
-                    <TableRow key={item.id}>
-                      <TableCell>{index + 1}</TableCell>
-                      <TableCell>{products.find(p => p.id === item.productId)?.name || 'N/A'}</TableCell>
-                      <TableCell>{`${item.l}x${item.b}x${item.h}`}</TableCell>
-                      <TableCell>{`${item.ply} Ply, ${item.boxType}`}</TableCell>
-                      <TableCell>
+                    <tr key={item.id}>
+                      <td className="align-top">{index + 1}</td>
+                      <td className="align-top">
+                        <p>{products.find(p => p.id === item.productId)?.name || 'N/A'}</p>
+                        {(item.accessories || []).length > 0 && (
+                          <div className="text-xs text-muted-foreground pl-2">
+                            {item.accessories?.map(acc => (
+                              <p key={acc.id}>+ {acc.name}</p>
+                            ))}
+                          </div>
+                        )}
+                      </td>
+                      <td className="align-top">{`${item.l}x${item.b}x${item.h}`}</td>
+                      <td className="align-top">{`${item.ply} Ply, ${item.boxType}`}</td>
+                      <td className="align-top">
                           <div>{item.paperType}</div>
                           <div className="text-xs text-muted-foreground">{item.paperShade}</div>
-                      </TableCell>
-                       <TableCell><GsmDisplay item={item} /></TableCell>
-                      <TableCell className="text-right">{item.calculated.totalBoxWeight.toFixed(2)}</TableCell>
-                      <TableCell className="text-right">{item.calculated.paperCost.toFixed(2)}</TableCell>
-                    </TableRow>
+                      </td>
+                       <td className="align-top"><GsmDisplay item={item} /></td>
+                      <td className="align-top text-right">{item.calculated.totalBoxWeight.toFixed(2)}</td>
+                      <td className="align-top text-right">
+                        <p>{item.totalItemCost.toFixed(2)}</p>
+                         {(item.accessories || []).length > 0 && (
+                          <div className="text-xs text-muted-foreground pl-2 text-right">
+                            {item.accessories?.map(acc => (
+                              <p key={acc.id}>({acc.cost.toFixed(2)})</p>
+                            ))}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
                   ))}
                 </TableBody>
               </Table>
@@ -1112,7 +1215,15 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
 
     const printableReportItems = useMemo(() => {
         if (!reportToPrint) return [];
-        return reportToPrint.items.map(item => ({ ...item, calculated: calculateItemCost(item, reportToPrint) }))
+        return reportToPrint.items.map(item => {
+            const calculated = calculateItemCost(item, reportToPrint);
+            const accessoriesCost = (item.accessories || []).reduce((sum, acc) => sum + acc.cost, 0);
+            return {
+                ...item,
+                calculated,
+                totalItemCost: (calculated.paperCost || 0) + accessoriesCost
+            };
+        });
     }, [reportToPrint, calculateItemCost]);
     
     const GsmDisplay = ({ item }: { item: CostReportItem }) => {
@@ -1252,19 +1363,37 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
                             </TableHeader>
                             <TableBody>
                             {printableReportItems.map((item, index) => (
-                                <TableRow key={item.id}>
-                                    <TableCell>{index + 1}</TableCell>
-                                    <TableCell>{products.find(p => p.id === item.productId)?.name || 'N/A'}</TableCell>
-                                    <TableCell>{`${item.l}x${item.b}x${item.h}`}</TableCell>
-                                    <TableCell>{`${item.ply} Ply, ${item.boxType}`}</TableCell>
-                                    <TableCell>
+                                <tr key={item.id}>
+                                    <td className="align-top">{index + 1}</td>
+                                    <td className="align-top">
+                                        <p>{products.find(p => p.id === item.productId)?.name || 'N/A'}</p>
+                                        {(item.accessories || []).length > 0 && (
+                                        <div className="text-xs text-muted-foreground pl-2">
+                                            {item.accessories?.map(acc => (
+                                            <p key={acc.id}>+ {acc.name}</p>
+                                            ))}
+                                        </div>
+                                        )}
+                                    </td>
+                                    <td className="align-top">{`${item.l}x${item.b}x${item.h}`}</td>
+                                    <td className="align-top">{`${item.ply} Ply, ${item.boxType}`}</td>
+                                    <td className="align-top">
                                         <div>{item.paperType}</div>
                                         <div className="text-xs text-muted-foreground">{item.paperShade}</div>
-                                    </TableCell>
-                                    <TableCell><GsmDisplay item={item} /></TableCell>
-                                    <TableCell className="text-right">{item.calculated.totalBoxWeight.toFixed(2)}</TableCell>
-                                    <TableCell className="text-right">{item.calculated.paperCost.toFixed(2)}</TableCell>
-                                </TableRow>
+                                    </td>
+                                    <td className="align-top"><GsmDisplay item={item} /></td>
+                                    <td className="align-top text-right">{item.calculated.totalBoxWeight.toFixed(2)}</td>
+                                    <td className="align-top text-right">
+                                        <p>{item.totalItemCost.toFixed(2)}</p>
+                                        {(item.accessories || []).length > 0 && (
+                                        <div className="text-xs text-muted-foreground pl-2 text-right">
+                                            {item.accessories?.map(acc => (
+                                            <p key={acc.id}>({acc.cost.toFixed(2)})</p>
+                                            ))}
+                                        </div>
+                                        )}
+                                    </td>
+                                </tr>
                             ))}
                             </TableBody>
                         </Table>
@@ -1932,7 +2061,3 @@ export default function CostReportPage() {
         </div>
     );
 }
-
-    
-
-    
