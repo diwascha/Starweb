@@ -1007,9 +1007,18 @@ function ProductList() {
         return () => unsub();
     }, []);
     
-    const handleOpenEditDialog = (product: Product) => {
-        setEditingProduct(product);
-        setProductForm(product);
+    const handleOpenDialog = (product: Product | null) => {
+        if (product) {
+            setEditingProduct(product);
+            setProductForm(product);
+        } else {
+            setEditingProduct(null);
+            setProductForm({
+                specification: {
+                  dimension: '', ply: '3', topGsm: '', flute1Gsm: '', middleGsm: '', flute2Gsm: '', bottomGsm: '', paperBf: '', gsm: '', moisture: '', load: '', overlapWidth: '', printing: '', stapleWidth: '', stapling: '', weightOfBox: ''
+                }
+            });
+        }
         setIsProductDialogOpen(true);
     };
 
@@ -1021,25 +1030,35 @@ function ProductList() {
         setProductForm(prev => ({
             ...prev,
             specification: {
-                ...prev.specification,
+                ...(prev.specification as ProductSpecification),
                 [field]: value
-            } as ProductSpecification,
+            },
         }));
     };
 
     const handleSaveProduct = async () => {
-        if (!editingProduct || !user) return;
+        if (!user) return;
 
         try {
-            await updateProductService(editingProduct.id, {
-                ...productForm,
-                lastModifiedBy: user.username,
-            });
-            toast({ title: 'Success', description: 'Product updated.' });
+            if (editingProduct) {
+                 await updateProductService(editingProduct.id, {
+                    ...productForm,
+                    lastModifiedBy: user.username,
+                });
+                toast({ title: 'Success', description: 'Product updated.' });
+            } else {
+                await addProductService({
+                    ...productForm,
+                    createdBy: user.username,
+                    createdAt: new Date().toISOString()
+                } as Omit<Product, 'id'>);
+                toast({ title: 'Success', description: 'New product added.' });
+            }
+            
             setIsProductDialogOpen(false);
             setEditingProduct(null);
         } catch (error) {
-            toast({ title: 'Error', description: 'Failed to update product.', variant: 'destructive' });
+            toast({ title: 'Error', description: 'Failed to save product.', variant: 'destructive' });
         }
     };
 
@@ -1136,6 +1155,9 @@ function ProductList() {
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
                             </div>
+                            <Button onClick={() => handleOpenDialog(null)}>
+                                <PlusCircle className="mr-2 h-4 w-4" /> Add Product
+                            </Button>
                         </div>
                     </div>
                 </CardHeader>
@@ -1164,7 +1186,7 @@ function ProductList() {
                                     <TableCell>{formatGsm(product.specification)}</TableCell>
                                     <TableCell>{product.specification?.paperBf || 'N/A'}</TableCell>
                                     <TableCell className="text-right">
-                                        <Button variant="ghost" size="icon" onClick={() => handleOpenEditDialog(product)}>
+                                        <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(product)}>
                                             <Edit className="h-4 w-4" />
                                         </Button>
                                     </TableCell>
@@ -1178,7 +1200,7 @@ function ProductList() {
             <Dialog open={isProductDialogOpen} onOpenChange={setIsProductDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Edit Product: {editingProduct?.name}</DialogTitle>
+                        <DialogTitle>{editingProduct ? 'Edit Product' : 'Add New Product'}</DialogTitle>
                     </DialogHeader>
                     <div className="py-4 space-y-4">
                         <div className="space-y-2">
@@ -1192,7 +1214,7 @@ function ProductList() {
                         <Separator />
                         <h4 className="font-semibold">Specification</h4>
                         <div className="grid grid-cols-2 gap-4">
-                            {Object.keys(initialCalculatedState).map(key => {
+                            {Object.keys(productForm.specification || {}).map(key => {
                                 const specKey = key as keyof ProductSpecification;
                                 return (
                                     <div key={specKey} className="space-y-2">
@@ -1209,7 +1231,7 @@ function ProductList() {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsProductDialogOpen(false)}>Cancel</Button>
-                        <Button onClick={handleSaveProduct}>Save Changes</Button>
+                        <Button onClick={handleSaveProduct}>{editingProduct ? 'Save Changes' : 'Add Product'}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -1264,3 +1286,4 @@ export default function CostReportPage() {
         </div>
     );
 }
+
