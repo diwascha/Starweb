@@ -469,6 +469,36 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
   const selectedParty = parties.find(p => p.id === selectedPartyId);
   const [productSearch, setProductSearch] = useState('');
 
+  const GsmDisplay = ({ item }: { item: CostReportItem }) => {
+    const ply = parseInt(item.ply, 10);
+    
+    const parts = [
+        {label: 'T', value: item.topGsm},
+        {label: 'F1', value: item.flute1Gsm}
+    ];
+
+    if (ply >= 7) parts.push({label: 'L2', value: item.liner2Gsm});
+    if (ply >= 5) parts.push({label: 'F2', value: item.flute2Gsm});
+    if (ply === 5) parts.push({label: 'M', value: item.middleGsm});
+    if (ply >= 7) parts.push({label: 'L3', value: item.liner3Gsm});
+    if (ply >= 7) parts.push({label: 'F3', value: item.flute3Gsm});
+    if (ply >= 9) parts.push({label: 'L4', value: item.liner4Gsm});
+    if (ply >= 9) parts.push({label: 'F4', value: item.flute4Gsm});
+
+    parts.push({label: 'B', value: item.bottomGsm});
+
+    const part1 = parts.slice(0, 4).filter(p => p.value).map(p => `${p.label}:${p.value}`).join(' ');
+    const part2 = parts.slice(4).filter(p => p.value).map(p => `${p.label}:${p.value}`).join(' ');
+
+    return (
+      <div>
+        {part1}
+        {part2 && <div>{part2}</div>}
+      </div>
+    );
+};
+
+
   return (
     <div className="flex flex-col gap-8">
         {reportToEdit && (
@@ -730,16 +760,13 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                 <TableCell><Input value={item.paperBf} onChange={e => handleItemChange(index, 'paperBf', e.target.value)} className="w-16" /></TableCell>
                                 <TableCell><Input type="number" value={item.topGsm} onChange={e => handleItemChange(index, 'topGsm', e.target.value)} className="w-20" /></TableCell>
                                 <TableCell><Input type="number" value={item.flute1Gsm} onChange={e => handleItemChange(index, 'flute1Gsm', e.target.value)} className="w-20" /></TableCell>
-                                { ply >= 7 && <TableCell><Input type="number" value={item.liner2Gsm} onChange={e => handleItemChange(index, 'liner2Gsm', e.target.value)} className="w-20" /></TableCell> }
-                                { ply >= 5 && <TableCell><Input type="number" value={item.flute2Gsm} onChange={e => handleItemChange(index, 'flute2Gsm', e.target.value)} className="w-20" /></TableCell> }
-                                { ply === 5 && <TableCell><Input type="number" value={item.middleGsm} onChange={e => handleItemChange(index, 'middleGsm', e.target.value)} className="w-20" /></TableCell> }
-                                { ply >= 7 && <TableCell><Input type="number" value={item.liner3Gsm} onChange={e => handleItemChange(index, 'liner3Gsm', e.target.value)} className="w-20" /></TableCell> }
-                                { ply >= 7 && <TableCell><Input type="number" value={item.flute3Gsm} onChange={e => handleItemChange(index, 'flute3Gsm', e.target.value)} className="w-20" /></TableCell> }
-                                { ply >= 9 && <TableCell><Input type="number" value={item.liner4Gsm} onChange={e => handleItemChange(index, 'liner4Gsm', e.target.value)} className="w-20" /></TableCell> }
-                                { ply >= 9 && <TableCell><Input type="number" value={item.flute4Gsm} onChange={e => handleItemChange(index, 'flute4Gsm', e.target.value)} className="w-20" /></TableCell> }
-                                { ply < 5 && <><TableCell/><TableCell/><TableCell/><TableCell/><TableCell/><TableCell/></> }
-                                { ply === 5 && <><TableCell/><TableCell/><TableCell/><TableCell/></> }
-                                { ply === 7 && <><TableCell/></> }
+                                { ply >= 7 ? <TableCell><Input type="number" value={item.liner2Gsm} onChange={e => handleItemChange(index, 'liner2Gsm', e.target.value)} className="w-20" /></TableCell> : <TableCell />}
+                                { ply >= 5 ? <TableCell><Input type="number" value={item.flute2Gsm} onChange={e => handleItemChange(index, 'flute2Gsm', e.target.value)} className="w-20" /></TableCell> : <TableCell />}
+                                { ply === 5 ? <TableCell><Input type="number" value={item.middleGsm} onChange={e => handleItemChange(index, 'middleGsm', e.target.value)} className="w-20" /></TableCell> : <TableCell />}
+                                { ply >= 7 ? <TableCell><Input type="number" value={item.liner3Gsm} onChange={e => handleItemChange(index, 'liner3Gsm', e.target.value)} className="w-20" /></TableCell> : <TableCell />}
+                                { ply >= 7 ? <TableCell><Input type="number" value={item.flute3Gsm} onChange={e => handleItemChange(index, 'flute3Gsm', e.target.value)} className="w-20" /></TableCell> : <TableCell />}
+                                { ply >= 9 ? <TableCell><Input type="number" value={item.liner4Gsm} onChange={e => handleItemChange(index, 'liner4Gsm', e.target.value)} className="w-20" /></TableCell> : <TableCell />}
+                                { ply >= 9 ? <TableCell><Input type="number" value={item.flute4Gsm} onChange={e => handleItemChange(index, 'flute4Gsm', e.target.value)} className="w-20" /></TableCell> : <TableCell />}
                                 <TableCell><Input type="number" value={item.bottomGsm} onChange={e => handleItemChange(index, 'bottomGsm', e.target.value)} className="w-20" /></TableCell>
                                 <TableCell>{item.calculated.totalGsm.toFixed(2)}</TableCell>
                                 <TableCell>{(item.calculated.sheetSizeL / 10).toFixed(2)}</TableCell>
@@ -849,7 +876,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                         <TableHead className="text-black font-semibold">Sl.No</TableHead>
                         <TableHead className="text-black font-semibold">Particulars</TableHead>
                         <TableHead className="text-black font-semibold">Box Size (mm)</TableHead>
-                        <TableHead className="text-black font-semibold">Ply / Type</TableHead>
+                        <TableHead className="text-black font-semibold">Ply, Type</TableHead>
                         <TableHead className="text-black font-semibold">Paper</TableHead>
                         <TableHead className="text-black font-semibold">GSM</TableHead>
                         <TableHead className="text-black font-semibold text-right">Box Wt (Grams)</TableHead>
@@ -865,9 +892,9 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                       <TableCell>{item.ply} Ply, {item.boxType}</TableCell>
                       <TableCell>
                           <div>{item.paperType}</div>
-                          <div className="text-xs text-muted-foreground">Shade: {item.paperShade}</div>
+                          <div className="text-xs text-muted-foreground">{item.paperShade}</div>
                       </TableCell>
-                       <TableCell>{`T:${item.topGsm} F1:${item.flute1Gsm} ${item.middleGsm ? `M:${item.middleGsm} F2:${item.flute2Gsm} ` : ''}B:${item.bottomGsm}`}</TableCell>
+                       <TableCell><GsmDisplay item={item} /></TableCell>
                       <TableCell className="text-right">{item.calculated.totalBoxWeight.toFixed(2)}</TableCell>
                       <TableCell className="text-right">{item.calculated.paperCost.toFixed(2)}</TableCell>
                     </TableRow>
@@ -1089,9 +1116,34 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
         return reportToPrint.items.map(item => ({ ...item, calculated: calculateItemCost(item, reportToPrint) }))
     }, [reportToPrint, calculateItemCost]);
     
-    const printableTotalCost = useMemo(() => {
-        return printableReportItems.reduce((sum, item) => sum + item.calculated.paperCost, 0);
-    }, [printableReportItems]);
+    const GsmDisplay = ({ item }: { item: CostReportItem }) => {
+        const ply = parseInt(item.ply, 10);
+        
+        const parts = [
+            {label: 'T', value: item.topGsm},
+            {label: 'F1', value: item.flute1Gsm}
+        ];
+
+        if (ply >= 7) parts.push({label: 'L2', value: item.liner2Gsm});
+        if (ply >= 5) parts.push({label: 'F2', value: item.flute2Gsm});
+        if (ply === 5) parts.push({label: 'M', value: item.middleGsm});
+        if (ply >= 7) parts.push({label: 'L3', value: item.liner3Gsm});
+        if (ply >= 7) parts.push({label: 'F3', value: item.flute3Gsm});
+        if (ply >= 9) parts.push({label: 'L4', value: item.liner4Gsm});
+        if (ply >= 9) parts.push({label: 'F4', value: item.flute4Gsm});
+
+        parts.push({label: 'B', value: item.bottomGsm});
+
+        const part1 = parts.slice(0, 4).filter(p => p.value).map(p => `${p.label}:${p.value}`).join(' ');
+        const part2 = parts.slice(4).filter(p => p.value).map(p => `${p.label}:${p.value}`).join(' ');
+
+        return (
+          <div>
+            {part1}
+            {part2 && <div>{part2}</div>}
+          </div>
+        );
+    };
 
 
     return (
@@ -1192,7 +1244,7 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
                                     <TableHead className="text-black font-semibold">Sl.No</TableHead>
                                     <TableHead className="text-black font-semibold">Particulars</TableHead>
                                     <TableHead className="text-black font-semibold">Box Size (mm)</TableHead>
-                                    <TableHead className="text-black font-semibold">Ply / Type</TableHead>
+                                    <TableHead className="text-black font-semibold">Ply, Type</TableHead>
                                     <TableHead className="text-black font-semibold">Paper</TableHead>
                                     <TableHead className="text-black font-semibold">GSM</TableHead>
                                     <TableHead className="text-black font-semibold text-right">Box Wt (Grams)</TableHead>
@@ -1208,9 +1260,9 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
                                     <TableCell>{item.ply} Ply, {item.boxType}</TableCell>
                                     <TableCell>
                                         <div>{item.paperType}</div>
-                                        <div className="text-xs text-muted-foreground">Shade: {item.paperShade}</div>
+                                        <div className="text-xs text-muted-foreground">{item.paperShade}</div>
                                     </TableCell>
-                                    <TableCell>{`T:${item.topGsm} F1:${item.flute1Gsm} ${item.middleGsm ? `M:${item.middleGsm} F2:${item.flute2Gsm} ` : ''}B:${item.bottomGsm}`}</TableCell>
+                                    <TableCell><GsmDisplay item={item} /></TableCell>
                                     <TableCell className="text-right">{item.calculated.totalBoxWeight.toFixed(2)}</TableCell>
                                     <TableCell className="text-right">{item.calculated.paperCost.toFixed(2)}</TableCell>
                                 </TableRow>
@@ -1600,7 +1652,7 @@ function SavedProductsList() {
             await deleteProductService(id);
             toast({ title: 'Product Deleted' });
         } catch {
-            toast({ title: 'Error', description: 'Failed to delete product', variant: 'destructive'});
+            toast({ title: 'Error', description: 'Failed to delete product', variant = 'destructive' });
         }
     };
     
@@ -1748,7 +1800,7 @@ function CostingSettingsTab() {
         }, user.username);
         toast({ title: "Success", description: "Cost settings saved." });
     } catch (e) {
-        toast({ title: "Error", description: "Failed to save cost settings.", variant: "destructive" });
+        toast({ title: "Error", description: "Failed to save cost settings.", variant = "destructive" });
     }
   };
 
@@ -1881,5 +1933,7 @@ export default function CostReportPage() {
         </div>
     );
 }
+
+    
 
     
