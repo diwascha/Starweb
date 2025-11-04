@@ -505,14 +505,13 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                 <TableHead rowSpan={2} className="align-bottom">Type of Flute</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom">Paper Type</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom">Paper BF</TableHead>
-                                <TableHead colSpan={5} className="text-center">GSM</TableHead>
+                                <TableHead colSpan={9} className="text-center">GSM</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom min-w-[100px]">Total Gsm</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom min-w-[100px]">R. Size (cm)</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom min-w-[100px]">C. Size (cm)</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom min-w-[100px]">Box Wt Grams</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom min-w-[100px]">Waste 3.5%</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom min-w-[100px]">Total Box Wt</TableHead>
-                                <TableHead rowSpan={2} className="align-bottom min-w-[100px]">Box Rate/ Piece</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom min-w-[120px]">Total</TableHead>
                                 <TableHead rowSpan={2} className="w-[50px] align-bottom"></TableHead>
                             </TableRow>
@@ -522,13 +521,19 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                 <TableHead>H</TableHead>
                                 <TableHead>T</TableHead>
                                 <TableHead>F1</TableHead>
-                                <TableHead>M</TableHead>
+                                <TableHead>L2</TableHead>
                                 <TableHead>F2</TableHead>
+                                <TableHead>L3</TableHead>
+                                <TableHead>F3</TableHead>
+                                <TableHead>L4</TableHead>
+                                <TableHead>F4</TableHead>
                                 <TableHead>B</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                        {items.map((item, index) => (
+                        {items.map((item, index) => {
+                             const ply = parseInt(item.ply, 10);
+                             return (
                             <TableRow key={item.id}>
                                 <TableCell>
                                     <div className="flex items-center">
@@ -565,7 +570,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                                 />
                                                 <CommandList>
                                                     <CommandEmpty>
-                                                        <Button variant="ghost" className="w-full justify-start" onClick={onProductAdd}>
+                                                        <Button variant="ghost" className="w-full justify-start" onClick={() => onProductAdd()}>
                                                           <PlusCircle className="mr-2 h-4 w-4" /> Add "{productSearch}"
                                                         </Button>
                                                     </CommandEmpty>
@@ -586,7 +591,17 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                 <TableCell><Input type="number" value={item.b} onChange={e => handleItemChange(index, 'b', e.target.value)} className="w-16" /></TableCell>
                                 <TableCell><Input type="number" value={item.h} onChange={e => handleItemChange(index, 'h', e.target.value)} className="w-16" /></TableCell>
                                 <TableCell><Input type="number" value={item.noOfPcs} onChange={e => handleItemChange(index, 'noOfPcs', e.target.value)} className="w-16" /></TableCell>
-                                <TableCell><Input type="number" value={item.ply} onChange={e => handleItemChange(index, 'ply', e.target.value)} className="w-16" /></TableCell>
+                                <TableCell>
+                                    <Select value={item.ply} onValueChange={(value) => handleItemChange(index, 'ply', value)}>
+                                        <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="3">3 Ply</SelectItem>
+                                            <SelectItem value="5">5 Ply</SelectItem>
+                                            <SelectItem value="7">7 Ply</SelectItem>
+                                            <SelectItem value="9">9 Ply</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </TableCell>
                                 <TableCell><Input value={item.fluteType} onChange={e => handleItemChange(index, 'fluteType', e.target.value)} className="w-16" /></TableCell>
                                 <TableCell>
                                     <Select
@@ -606,8 +621,12 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                 <TableCell><Input value={item.paperBf} onChange={e => handleItemChange(index, 'paperBf', e.target.value)} className="w-16" /></TableCell>
                                 <TableCell><Input type="number" value={item.topGsm} onChange={e => handleItemChange(index, 'topGsm', e.target.value)} className="w-20" /></TableCell>
                                 <TableCell><Input type="number" value={item.flute1Gsm} onChange={e => handleItemChange(index, 'flute1Gsm', e.target.value)} className="w-20" /></TableCell>
-                                <TableCell><Input type="number" value={item.middleGsm} onChange={e => handleItemChange(index, 'middleGsm', e.target.value)} className="w-20" disabled={item.ply !== '5'}/></TableCell>
-                                <TableCell><Input type="number" value={item.flute2Gsm} onChange={e => handleItemChange(index, 'flute2Gsm', e.target.value)} className="w-20" disabled={item.ply !== '5'}/></TableCell>
+                                <TableCell><Input type="number" value={item.liner2Gsm} onChange={e => handleItemChange(index, 'liner2Gsm', e.target.value)} className="w-20" disabled={ply < 7} /></TableCell>
+                                <TableCell><Input type="number" value={item.flute2Gsm} onChange={e => handleItemChange(index, 'flute2Gsm', e.target.value)} className="w-20" disabled={ply < 5} /></TableCell>
+                                <TableCell><Input type="number" value={item.liner3Gsm} onChange={e => handleItemChange(index, 'liner3Gsm', e.target.value)} className="w-20" disabled={ply < 7} /></TableCell>
+                                <TableCell><Input type="number" value={item.flute3Gsm} onChange={e => handleItemChange(index, 'flute3Gsm', e.target.value)} className="w-20" disabled={ply < 7} /></TableCell>
+                                <TableCell><Input type="number" value={item.liner4Gsm} onChange={e => handleItemChange(index, 'liner4Gsm', e.target.value)} className="w-20" disabled={ply < 9} /></TableCell>
+                                <TableCell><Input type="number" value={item.flute4Gsm} onChange={e => handleItemChange(index, 'flute4Gsm', e.target.value)} className="w-20" disabled={ply < 9} /></TableCell>
                                 <TableCell><Input type="number" value={item.bottomGsm} onChange={e => handleItemChange(index, 'bottomGsm', e.target.value)} className="w-20" /></TableCell>
                                 <TableCell>{item.calculated.totalGsm.toFixed(2)}</TableCell>
                                 <TableCell>{(item.calculated.sheetSizeL / 10).toFixed(2)}</TableCell>
@@ -615,7 +634,6 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                 <TableCell>{item.calculated.paperWeight.toFixed(2)}</TableCell>
                                 <TableCell>{((item.calculated.paperWeight * (parseFloat(item.wastagePercent) / 100 || 0))).toFixed(2)}</TableCell>
                                 <TableCell>{(item.calculated.totalBoxWeight).toFixed(2)}</TableCell>
-                                <TableCell>{item.calculated.paperRate.toFixed(2)}</TableCell>
                                 <TableCell className="font-bold">
                                     {item.calculated.paperCost > 0 ? item.calculated.paperCost.toFixed(2) : '...'}
                                 </TableCell>
@@ -625,7 +643,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                     </Button>
                                 </TableCell>
                             </TableRow>
-                        ))}
+                        )})}
                         </TableBody>
                     </Table>
                 </div>
@@ -848,10 +866,18 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
         const middleGsm = parseInt(item.middleGsm, 10) || 0;
         const flute2Gsm = parseInt(item.flute2Gsm, 10) || 0;
         const bottomGsm = parseInt(item.bottomGsm, 10) || 0;
+        const liner2Gsm = parseInt(item.liner2Gsm, 10) || 0;
+        const flute3Gsm = parseInt(item.flute3Gsm, 10) || 0;
+        const liner3Gsm = parseInt(item.liner3Gsm, 10) || 0;
+        const flute4Gsm = parseInt(item.flute4Gsm, 10) || 0;
+        const liner4Gsm = parseInt(item.liner4Gsm, 10) || 0;
         const sheetArea = (sheetSizeL * sheetSizeB) / 1000000;
         let totalGsmForCalc = 0;
         if (ply === 3) totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor) + bottomGsm;
         else if (ply === 5) totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor) + middleGsm + (flute2Gsm * fluteFactor) + bottomGsm;
+        else if (ply === 7) totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor) + liner2Gsm + (flute2Gsm * fluteFactor) + liner3Gsm + (flute3Gsm * fluteFactor) + bottomGsm;
+        else if (ply === 9) totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor) + liner2Gsm + (flute2Gsm * fluteFactor) + liner3Gsm + (flute3Gsm * fluteFactor) + liner4Gsm + (flute4Gsm * fluteFactor) + bottomGsm;
+
         const paperWeightInGrams = (sheetArea * totalGsmForCalc) * noOfPcs;
         const wastage = parseFloat(item.wastagePercent) / 100 || 0;
         const totalBoxWeightInGrams = paperWeightInGrams * (1 + wastage);
