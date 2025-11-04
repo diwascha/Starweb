@@ -726,7 +726,6 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                         <TableHead className="text-black font-semibold">Ply</TableHead>
                         <TableHead className="text-black font-semibold">Paper</TableHead>
                         <TableHead className="text-black font-semibold text-right">Box Wt (Grams)</TableHead>
-                        <TableHead className="text-black font-semibold text-right">Box Rate/Piece</TableHead>
                         <TableHead className="text-black font-semibold text-right">Total</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -742,14 +741,13 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                       <TableCell>{item.ply}</TableCell>
                       <TableCell>{item.paperType}</TableCell>
                       <TableCell className="text-right">{item.calculated.totalBoxWeight.toFixed(2)}</TableCell>
-                      <TableCell className="text-right">{item.calculated.paperRate.toFixed(2)}</TableCell>
                       <TableCell className="text-right">{item.calculated.paperCost.toFixed(2)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
                 <TableFooter>
                     <TableRow className="font-bold text-base">
-                        <TableCell colSpan={7} className="text-right">Total</TableCell>
+                        <TableCell colSpan={6} className="text-right">Total</TableCell>
                         <TableCell className="text-right">{totalCostOfPrintedItems.toFixed(2)}</TableCell>
                     </TableRow>
                 </TableFooter>
@@ -983,7 +981,6 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
                                 <TableHead className="text-black font-semibold">Ply</TableHead>
                                 <TableHead className="text-black font-semibold">Paper</TableHead>
                                 <TableHead className="text-black font-semibold text-right">Box Wt (Grams)</TableHead>
-                                <TableHead className="text-black font-semibold text-right">Box Rate/Piece</TableHead>
                                 <TableHead className="text-black font-semibold text-right">Total</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -999,14 +996,13 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
                                 <TableCell>{item.ply}</TableCell>
                                 <TableCell>{item.paperType}</TableCell>
                                 <TableCell className="text-right">{item.calculated.totalBoxWeight.toFixed(2)}</TableCell>
-                                <TableCell className="text-right">{item.calculated.paperRate.toFixed(2)}</TableCell>
                                 <TableCell className="text-right">{item.calculated.paperCost.toFixed(2)}</TableCell>
                             </TableRow>
                             ))}
                         </TableBody>
                          <TableFooter>
                             <TableRow className="font-bold text-base">
-                                <TableCell colSpan={7} className="text-right">Total</TableCell>
+                                <TableCell colSpan={6} className="text-right">Total</TableCell>
                                 <TableCell className="text-right">{printableTotalCost.toFixed(2)}</TableCell>
                             </TableRow>
                         </TableFooter>
