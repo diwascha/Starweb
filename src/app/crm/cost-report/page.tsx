@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -609,7 +608,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                  <div className="flex justify-between items-center mt-4">
                     <Button variant="outline" size="sm" onClick={handleAddItem}><Plus className="mr-2 h-4 w-4" />Add Another Product</Button>
                     <div className="text-right">
-                        <span className="text-sm font-medium text-muted-foreground">Total Cost: </span>
+                        <span className="text-sm font-medium text-muted-foreground">Total Cost: </span> 
                         <span className="text-xl font-bold">{totalItemCost.toFixed(2)}</span>
                     </div>
                 </div>
@@ -1166,6 +1165,7 @@ export default function CostReportPage() {
     const [activeTab, setActiveTab] = useState("calculator");
     const [reportToEdit, setReportToEdit] = useState<CostReport | null>(null);
     const [products, setProducts] = useState<Product[]>([]);
+    const [parties, setParties] = useState<Party[]>([]);
     
     // State for the product dialog
     const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
@@ -1178,7 +1178,11 @@ export default function CostReportPage() {
     
     useEffect(() => {
         const unsubProducts = onProductsUpdate(setProducts);
-        return () => unsubProducts();
+        const unsubParties = onPartiesUpdate(setParties);
+        return () => {
+          unsubProducts();
+          unsubParties();
+        }
     }, []);
     
     const handleEditReport = (report: CostReport) => {
@@ -1212,7 +1216,7 @@ export default function CostReportPage() {
             relevantSpecFields.forEach(field => {
                 spec[field] = '';
             });
-            setProductForm({ name: '', materialCode: '', specification: spec, l: '', b: '', h: '' });
+            setProductForm({ name: '', materialCode: '', partyId: '', partyName: '', specification: spec, l: '', b: '', h: '' });
         }
         setIsProductDialogOpen(true);
     };
@@ -1230,12 +1234,16 @@ export default function CostReportPage() {
                 finalSpec[key as keyof ProductSpecification] = restOfForm.specification[key as keyof ProductSpecification];
             }
         }
+        
+        const party = parties.find(p => p.id === restOfForm.partyId);
 
         try {
             if (productToEdit) {
                  await updateProductService(productToEdit.id, {
                     name: restOfForm.name,
                     materialCode: restOfForm.materialCode,
+                    partyId: restOfForm.partyId,
+                    partyName: party?.name || '',
                     specification: finalSpec,
                     lastModifiedBy: user.username,
                 });
@@ -1244,6 +1252,8 @@ export default function CostReportPage() {
                 await addProductService({
                     name: restOfForm.name,
                     materialCode: restOfForm.materialCode,
+                    partyId: restOfForm.partyId,
+                    partyName: party?.name || '',
                     specification: finalSpec,
                     createdBy: user.username,
                     createdAt: new Date().toISOString()
@@ -1321,6 +1331,19 @@ export default function CostReportPage() {
                                     <Input id="material-code" value={productForm.materialCode || ''} onChange={(e) => handleProductFormChange('materialCode', e.target.value)} />
                                 </div>
                             </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="partyId">Party Name</Label>
+                                 <Select value={productForm.partyId} onValueChange={(value) => handleProductFormChange('partyId', value)}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select a party" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {parties.map(p => (
+                                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                             <Separator />
                             <h4 className="font-semibold">Specification</h4>
                              <div className="space-y-2">
@@ -1354,3 +1377,5 @@ export default function CostReportPage() {
         </div>
     );
 }
+
+    

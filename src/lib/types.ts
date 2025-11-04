@@ -1,6 +1,4 @@
 
-
-
 export interface RateHistoryEntry {
   rate: number;
   date: string; // ISO string when the rate was set
@@ -23,9 +21,9 @@ export interface ProductSpecification {
 export interface Product {
   id: string;
   name: string;
-  materialCode?: string; // Optional for costing products
+  materialCode?: string;
   partyId?: string;
-  partyName?: string; // Optional for costing products
+  partyName?: string; 
   partyAddress?: string; // Optional for costing products
   rate?: number;
   rateHistory?: RateHistoryEntry[];
@@ -658,3 +656,5 @@ export interface CostReport {
   createdBy: string;
   createdAt: string;
 }
+
+    
