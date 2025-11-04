@@ -116,7 +116,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     return () => unsubCostSettings();
   }, [reportToEdit]);
 
- const calculateItemCost = useCallback((item: Omit<CostReportItem, 'id' | 'calculated' | 'productId'>, globalKraftCost: number, globalVirginCost: number, globalConversionCost: number): CalculatedValues => {
+ const calculateItemCost = useCallback((item: Omit<CostReportItem, 'id' | 'calculated' | 'productId' | 'accessories'>, globalKraftCost: number, globalVirginCost: number, globalConversionCost: number): CalculatedValues => {
     const l = parseFloat(item.l) || 0;
     const b = parseFloat(item.b) || 0;
     const h = parseFloat(item.h) || 0;
@@ -195,7 +195,11 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     
     setItems(prevItems => prevItems.map(item => ({
         ...item,
-        calculated: calculateItemCost(item, kCost, vCost, cCost)
+        calculated: calculateItemCost(item, kCost, vCost, cCost),
+        accessories: (item.accessories || []).map(acc => ({
+            ...acc,
+            calculated: calculateItemCost(acc, kCost, vCost, cCost)
+        }))
     })));
   }, [kraftPaperCost, virginPaperCost, conversionCost, calculateItemCost]);
 
@@ -220,7 +224,16 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
       const kCost = reportToEdit.kraftPaperCost || 0;
       const vCost = reportToEdit.virginPaperCost || 0;
       const cCost = reportToEdit.conversionCost || 0;
-      setItems(reportToEdit.items.map(item => ({...item, id: item.id || Date.now().toString(), calculated: calculateItemCost(item, kCost, vCost, cCost)})));
+      setItems(reportToEdit.items.map(item => ({
+          ...item, 
+          id: item.id || Date.now().toString(), 
+          calculated: calculateItemCost(item, kCost, vCost, cCost),
+          accessories: (item.accessories || []).map(acc => ({
+              ...acc,
+              id: acc.id || Date.now().toString(),
+              calculated: calculateItemCost(acc, kCost, vCost, cCost)
+          }))
+      })));
       setSelectedForPrint(new Set(reportToEdit.items.map(i => i.id)));
     } else {
         generateNextCostReportNumber(costReports).then(setReportNumber);
@@ -317,7 +330,6 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
             flute4Gsm: spec.flute4Gsm || '',
             liner4Gsm: spec.liner4Gsm || '',
             wastagePercent: '3.5',
-            fluteType: 'B',
             accessories: [],
         };
         
@@ -401,7 +413,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
 
            const totalItemCost = items.reduce((sum, item) => {
              const paperCost = item.calculated?.paperCost || 0;
-             const accessoriesCost = (item.accessories || []).reduce((accSum, acc) => accSum + acc.cost, 0);
+             const accessoriesCost = (item.accessories || []).reduce((accSum, acc) => accSum + (acc.calculated?.paperCost || 0), 0);
              return sum + paperCost + accessoriesCost;
            }, 0);
 
@@ -413,7 +425,10 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
               kraftPaperCost: kCost,
               virginPaperCost: vCost,
               conversionCost: cCost,
-              items: items.map(({ calculated, ...item }) => item),
+              items: items.map(({ calculated, accessories, ...item }) => ({
+                ...item,
+                accessories: (accessories || []).map(({ calculated: accCalculated, ...acc }) => acc),
+            })),
               totalCost: totalItemCost,
               createdBy: user.username,
           };
@@ -475,7 +490,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     return items
       .filter(item => selectedForPrint.has(item.id))
       .map(item => {
-        const accessoriesCost = (item.accessories || []).reduce((sum, acc) => sum + acc.cost, 0);
+        const accessoriesCost = (item.accessories || []).reduce((sum, acc) => sum + (acc.calculated?.paperCost || 0), 0);
         return {
           ...item,
           totalItemCost: (item.calculated?.paperCost || 0) + accessoriesCost,
@@ -486,7 +501,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
   const selectedParty = parties.find(p => p.id === selectedPartyId);
   const [productSearch, setProductSearch] = useState('');
 
-  const GsmDisplay = ({ item }: { item: CostReportItem }) => {
+  const GsmDisplay = ({ item }: { item: CostReportItem | Accessory }) => {
     const ply = parseInt(item.ply, 10);
     
     const parts = [
@@ -514,27 +529,43 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
       </div>
     );
   };
+  
+  const handleAccessoryChange = (itemIndex: number, accIndex: number, field: keyof Accessory, value: string) => {
+    const kCost = Number(kraftPaperCost) || 0;
+    const vCost = Number(virginPaperCost) || 0;
+    const cCost = Number(conversionCost) || 0;
 
-  const handleAccessoryChange = (itemIndex: number, accIndex: number, field: 'name' | 'cost', value: string) => {
     setItems(prevItems => {
         const newItems = [...prevItems];
         const accessories = [...(newItems[itemIndex].accessories || [])];
-        accessories[accIndex] = {
-            ...accessories[accIndex],
-            [field]: field === 'cost' ? parseFloat(value) || 0 : value
-        };
+        const currentAccessory = { ...accessories[accIndex], [field]: value };
+        
+        const newCalculated = calculateItemCost(currentAccessory, kCost, vCost, cCost);
+        accessories[accIndex] = { ...currentAccessory, calculated: newCalculated };
         newItems[itemIndex] = { ...newItems[itemIndex], accessories };
         return newItems;
     });
   };
 
+
   const addAccessory = (itemIndex: number) => {
+    const kCost = Number(kraftPaperCost) || 0;
+    const vCost = Number(virginPaperCost) || 0;
+    const cCost = Number(conversionCost) || 0;
+    const newAccessoryBase = {
+        id: Date.now().toString(), productId: '', l: '', b: '', h: '', noOfPcs: '1', ply: '3',
+        fluteType: 'B', paperType: 'KRAFT', paperBf: '18', paperShade: 'NS', boxType: 'RSC',
+        topGsm: '120', flute1Gsm: '100', middleGsm: '', flute2Gsm: '', bottomGsm: '120',
+        liner2Gsm: '', flute3Gsm: '', liner3Gsm: '', flute4Gsm: '', liner4Gsm: '', wastagePercent: '3.5', name: 'Accessory'
+    };
+    const newAccessory = { ...newAccessoryBase, calculated: calculateItemCost(newAccessoryBase, kCost, vCost, cCost) };
+    
     setItems(prevItems => {
         const newItems = [...prevItems];
         const accessories = newItems[itemIndex].accessories || [];
         newItems[itemIndex] = {
             ...newItems[itemIndex],
-            accessories: [...accessories, { id: Date.now().toString(), name: '', cost: 0 }]
+            accessories: [...accessories, newAccessory]
         };
         return newItems;
     });
@@ -724,7 +755,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                         <TableBody>
                         {items.map((item, index) => {
                              const ply = parseInt(item.ply, 10);
-                             const accessoriesCost = (item.accessories || []).reduce((sum, acc) => sum + acc.cost, 0);
+                             const accessoriesCost = (item.accessories || []).reduce((sum, acc) => sum + (acc.calculated?.paperCost || 0), 0);
                              const totalItemCost = (item.calculated?.paperCost || 0) + accessoriesCost;
                              return (
                             <TableRow key={item.id}>
@@ -831,27 +862,39 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                     {item.calculated.paperCost > 0 ? item.calculated.paperCost.toFixed(2) : '...'}
                                 </TableCell>
                                  <TableCell>
-                                    <div className="space-y-2">
+                                     <div className="space-y-2">
                                         {(item.accessories || []).map((acc, accIndex) => (
-                                            <div key={acc.id} className="flex items-center gap-1">
-                                                <Input
-                                                    type="text"
-                                                    placeholder="Accessory name"
-                                                    value={acc.name}
-                                                    onChange={e => handleAccessoryChange(index, accIndex, 'name', e.target.value)}
-                                                    className="h-8"
-                                                />
-                                                <Input
-                                                    type="number"
-                                                    placeholder="Cost"
-                                                    value={acc.cost || ''}
-                                                    onChange={e => handleAccessoryChange(index, accIndex, 'cost', e.target.value)}
-                                                    className="h-8 w-24"
-                                                />
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeAccessory(index, acc.id)}>
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
-                                            </div>
+                                            <Popover key={acc.id}>
+                                                <PopoverTrigger asChild>
+                                                    <Button variant="outline" className="w-full justify-between h-8 text-xs">
+                                                        <span>{acc.name || 'Accessory'}</span>
+                                                        <span className="font-bold ml-2">{(acc.calculated?.paperCost || 0).toFixed(2)}</span>
+                                                    </Button>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-96 p-4 space-y-4">
+                                                    <div className="flex justify-between items-center">
+                                                        <h4 className="font-medium">Edit Accessory</h4>
+                                                         <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeAccessory(index, acc.id)}>
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                    <Input placeholder="Accessory Name (e.g. Plate)" value={acc.name} onChange={e => handleAccessoryChange(index, accIndex, 'name', e.target.value)} />
+                                                    <div className="grid grid-cols-3 gap-2">
+                                                        <Input placeholder="L" type="number" value={acc.l} onChange={e => handleAccessoryChange(index, accIndex, 'l', e.target.value)} />
+                                                        <Input placeholder="B" type="number" value={acc.b} onChange={e => handleAccessoryChange(index, accIndex, 'b', e.target.value)} />
+                                                        <Input placeholder="H" type="number" value={acc.h} onChange={e => handleAccessoryChange(index, accIndex, 'h', e.target.value)} />
+                                                    </div>
+                                                    <Select value={acc.ply} onValueChange={(v) => handleAccessoryChange(index, accIndex, 'ply', v)}>
+                                                        <SelectTrigger><SelectValue/></SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="3">3 Ply</SelectItem>
+                                                            <SelectItem value="5">5 Ply</SelectItem>
+                                                            <SelectItem value="7">7 Ply</SelectItem>
+                                                            <SelectItem value="9">9 Ply</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </PopoverContent>
+                                            </Popover>
                                         ))}
                                         <Button variant="outline" size="sm" className="h-8 w-full" onClick={() => addAccessory(index)}>
                                             <Paperclip className="mr-2 h-4 w-4"/> Add Accessory
@@ -994,7 +1037,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                          {(item.accessories || []).length > 0 && (
                           <div className="text-xs text-muted-foreground pl-2 text-right">
                             {item.accessories?.map(acc => (
-                              <p key={acc.id}>({acc.cost.toFixed(2)})</p>
+                              <p key={acc.id}>({(acc.calculated?.paperCost || 0).toFixed(2)})</p>
                             ))}
                           </div>
                         )}
@@ -1170,7 +1213,7 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
         }, 250);
     };
 
-    const calculateItemCost = useCallback((item: Omit<CostReportItem, 'id' | 'calculated' | 'productId'>, report: CostReport): CalculatedValues => {
+    const calculateItemCost = useCallback((item: Omit<CostReportItem, 'id' | 'calculated' | 'productId' | 'accessories'>, report: CostReport): CalculatedValues => {
         const l = parseFloat(item.l) || 0;
         const b = parseFloat(item.b) || 0;
         const h = parseFloat(item.h) || 0;
@@ -1217,7 +1260,10 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
         if (!reportToPrint) return [];
         return reportToPrint.items.map(item => {
             const calculated = calculateItemCost(item, reportToPrint);
-            const accessoriesCost = (item.accessories || []).reduce((sum, acc) => sum + acc.cost, 0);
+            const accessoriesCost = (item.accessories || []).reduce((sum, acc) => {
+                 const accCalculated = calculateItemCost(acc, reportToPrint);
+                 return sum + (accCalculated.paperCost || 0);
+            }, 0);
             return {
                 ...item,
                 calculated,
@@ -1226,7 +1272,7 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
         });
     }, [reportToPrint, calculateItemCost]);
     
-    const GsmDisplay = ({ item }: { item: CostReportItem }) => {
+    const GsmDisplay = ({ item }: { item: CostReportItem | Accessory }) => {
         const ply = parseInt(item.ply, 10);
         
         const parts = [
@@ -1387,9 +1433,12 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
                                         <p>{item.totalItemCost.toFixed(2)}</p>
                                         {(item.accessories || []).length > 0 && (
                                         <div className="text-xs text-muted-foreground pl-2 text-right">
-                                            {item.accessories?.map(acc => (
-                                            <p key={acc.id}>({acc.cost.toFixed(2)})</p>
-                                            ))}
+                                            {item.accessories?.map(acc => {
+                                                const accCalculated = calculateItemCost(acc, reportToPrint!);
+                                                return (
+                                                <p key={acc.id}>({(accCalculated.paperCost || 0).toFixed(2)})</p>
+                                                )
+                                            })}
                                         </div>
                                         )}
                                     </td>
@@ -2061,3 +2110,5 @@ export default function CostReportPage() {
         </div>
     );
 }
+
+    
