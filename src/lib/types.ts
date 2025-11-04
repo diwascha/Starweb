@@ -1,4 +1,5 @@
 
+
 export interface RateHistoryEntry {
   rate: number;
   date: string; // ISO string when the rate was set
@@ -10,13 +11,18 @@ export interface ProductSpecification {
   ply: string;
   paperBf: string;
   printing: string;
-  // GSM breakdown
+  // GSM breakdown for up to 9-ply
   topGsm: string;
   flute1Gsm: string;
-  middleGsm: string;
+  liner2Gsm: string; // For 7-ply and up
   flute2Gsm: string;
+  middleGsm: string; // Same as liner3 for 7-ply
+  flute3Gsm: string; // For 7-ply and up
+  liner4Gsm: string; // For 9-ply
+  flute4Gsm: string; // For 9-ply
   bottomGsm: string;
 }
+
 
 export interface Product {
   id: string;
@@ -637,6 +643,11 @@ export interface CostReportItem {
   middleGsm: string;
   flute2Gsm: string;
   bottomGsm: string;
+  liner2Gsm: string;
+  flute3Gsm: string;
+  liner3Gsm: string;
+  flute4Gsm: string;
+  liner4Gsm: string;
   wastagePercent: string;
   calculated: CalculatedValues;
 }

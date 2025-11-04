@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -102,6 +103,11 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     const middleGsm = parseInt(item.middleGsm, 10) || 0;
     const flute2Gsm = parseInt(item.flute2Gsm, 10) || 0;
     const bottomGsm = parseInt(item.bottomGsm, 10) || 0;
+    const liner2Gsm = parseInt(item.liner2Gsm, 10) || 0;
+    const flute3Gsm = parseInt(item.flute3Gsm, 10) || 0;
+    const liner3Gsm = parseInt(item.liner3Gsm, 10) || 0;
+    const flute4Gsm = parseInt(item.flute4Gsm, 10) || 0;
+    const liner4Gsm = parseInt(item.liner4Gsm, 10) || 0;
     
     const sheetArea = (sheetSizeL * sheetSizeB) / 1000000;
 
@@ -110,6 +116,10 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
         totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor) + bottomGsm;
     } else if (ply === 5) {
         totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor) + middleGsm + (flute2Gsm * fluteFactor) + bottomGsm;
+    } else if (ply === 7) {
+        totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor) + liner2Gsm + (flute2Gsm * fluteFactor) + liner3Gsm + (flute3Gsm * fluteFactor) + bottomGsm;
+    } else if (ply === 9) {
+        totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor) + liner2Gsm + (flute2Gsm * fluteFactor) + liner3Gsm + (flute3Gsm * fluteFactor) + liner4Gsm + (flute4Gsm * fluteFactor) + bottomGsm;
     }
 
     const paperWeightInGrams = (sheetArea * totalGsmForCalc) * noOfPcs;
@@ -237,7 +247,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     const kCost = Number(kraftPaperCost) || 0;
     const vCost = Number(virginPaperCost) || 0;
     const cCost = Number(conversionCost) || 0;
-    const newItem = { id: Date.now().toString(), productId: '', l:'',b:'',h:'', noOfPcs:'1', boxType: 'RSC', ply:'3', fluteType: 'B', paperType: 'KRAFT', paperShade:'Golden', paperBf:'18', topGsm:'120',flute1Gsm:'100',middleGsm:'',flute2Gsm:'',bottomGsm:'120',wastagePercent:'3.5' };
+    const newItem = { id: Date.now().toString(), productId: '', l:'',b:'',h:'', noOfPcs:'1', boxType: 'RSC', ply:'3', fluteType: 'B', paperType: 'KRAFT', paperShade:'Golden', paperBf:'18', topGsm:'120',flute1Gsm:'100',middleGsm:'',flute2Gsm:'',bottomGsm:'120', liner2Gsm: '', flute3Gsm: '', liner3Gsm: '', flute4Gsm: '', liner4Gsm: '', wastagePercent:'3.5' };
     setItems(prev => [...prev, { ...newItem, calculated: calculateItemCost(newItem, kCost, vCost, cCost) }]);
     setSelectedForPrint(prev => new Set(prev).add(newItem.id));
   };
@@ -1010,157 +1020,6 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
     );
 }
 
-function ProductList({ onProductAdd, onProductEdit }: { onProductAdd: () => void, onProductEdit: (product: Product) => void }) {
-    const [products, setProducts] = useState<Product[]>([]);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [filterPartyName, setFilterPartyName] = useState('All');
-    const [sortConfig, setSortConfig] = useState<{ key: keyof Product | 'gsm' | 'bf'; direction: 'asc' | 'desc' }>({ key: 'name', direction: 'asc' });
-    const { toast } = useToast();
-    const { user } = useAuth();
-    
-    useEffect(() => {
-        const unsub = onProductsUpdate(setProducts);
-        return () => unsub();
-    }, []);
-
-    const requestSort = (key: keyof Product | 'gsm' | 'bf') => {
-        let direction: 'asc' | 'desc' = 'asc';
-        if (sortConfig.key === key && sortConfig.direction === 'asc') {
-            direction = 'desc';
-        }
-        setSortConfig({ key, direction });
-    };
-    
-    const getSortableValue = (product: Product, key: keyof Product | 'gsm' | 'bf') => {
-        if (key === 'gsm') {
-            return product.specification?.topGsm || '';
-        }
-        if (key === 'bf') {
-            return product.specification?.paperBf || '';
-        }
-        return product[key as keyof Product] ?? '';
-    };
-
-    const uniquePartyNames = useMemo(() => {
-        const names = new Set(products.map(p => p.partyName).filter(Boolean));
-        return ['All', ...Array.from(names).sort()];
-    }, [products]);
-
-    const sortedProducts = useMemo(() => {
-        let sortable = [...products];
-
-        if (filterPartyName !== 'All') {
-            sortable = sortable.filter(p => p.partyName === filterPartyName);
-        }
-
-        if (searchQuery) {
-            sortable = sortable.filter(p => 
-                p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                (p.specification?.dimension || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-                (p.materialCode || '').toLowerCase().includes(searchQuery.toLowerCase())
-            );
-        }
-        
-        sortable.sort((a, b) => {
-            const aVal = getSortableValue(a, sortConfig.key);
-            const bVal = getSortableValue(b, sortConfig.key);
-            
-            if (typeof aVal === 'number' && typeof bVal === 'number') {
-                return sortConfig.direction === 'asc' ? aVal - bVal : bVal - aVal;
-            }
-            
-            const strA = String(aVal).toLowerCase();
-            const strB = String(bVal).toLowerCase();
-
-            if (strA < strB) return sortConfig.direction === 'asc' ? -1 : 1;
-            if (strA > strB) return sortConfig.direction === 'asc' ? 1 : -1;
-            return 0;
-        });
-        return sortable;
-    }, [products, sortConfig, searchQuery, filterPartyName]);
-
-    const formatGsm = (spec: Product['specification']) => {
-        if (!spec) return 'N/A';
-        if (spec.topGsm) {
-            return `${spec.topGsm}/${spec.flute1Gsm}/${spec.middleGsm ? `${spec.middleGsm}/${spec.flute2Gsm}/` : ''}${spec.bottomGsm}`;
-        }
-        return 'N/A';
-    };
-
-    return (
-        <>
-            <Card>
-                <CardHeader>
-                    <div className="flex justify-between items-center">
-                        <div>
-                            <CardTitle>Products for Costing</CardTitle>
-                            <CardDescription>A list of products available in the cost calculator.</CardDescription>
-                        </div>
-                         <div className="flex items-center gap-2">
-                            <Select value={filterPartyName} onValueChange={setFilterPartyName}>
-                                <SelectTrigger className="w-[180px]">
-                                    <SelectValue placeholder="Filter by party..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {uniquePartyNames.map(party => (
-                                        <SelectItem key={party} value={party}>{party}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <div className="relative">
-                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    placeholder="Search products..."
-                                    className="pl-8 w-full sm:w-[250px]"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                />
-                            </div>
-                            <Button onClick={onProductAdd}>
-                                <PlusCircle className="mr-2 h-4 w-4" /> Add Product
-                            </Button>
-                        </div>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead><Button variant="ghost" onClick={() => requestSort('name')}>Product Name <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
-                                <TableHead>Material Code</TableHead>
-                                <TableHead><Button variant="ghost" onClick={() => requestSort('partyName')}>Party Name <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
-                                <TableHead>Dimension</TableHead>
-                                <TableHead>Ply</TableHead>
-                                <TableHead><Button variant="ghost" onClick={() => requestSort('gsm')}>GSM</Button></TableHead>
-                                <TableHead><Button variant="ghost" onClick={() => requestSort('bf')}>BF</Button></TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {sortedProducts.map(product => (
-                                <TableRow key={product.id}>
-                                    <TableCell>{product.name}</TableCell>
-                                    <TableCell>{product.materialCode}</TableCell>
-                                    <TableCell>{product.partyName}</TableCell>
-                                    <TableCell>{product.specification?.dimension || 'N/A'}</TableCell>
-                                    <TableCell>{product.specification?.ply || 'N/A'}</TableCell>
-                                    <TableCell>{formatGsm(product.specification)}</TableCell>
-                                    <TableCell>{product.specification?.paperBf || 'N/A'}</TableCell>
-                                    <TableCell className="text-right">
-                                        <Button variant="ghost" size="icon" onClick={() => onProductEdit(product)}>
-                                            <Edit className="h-4 w-4" />
-                                        </Button>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
-        </>
-    );
-}
-
 export default function CostReportPage() {
     const [activeTab, setActiveTab] = useState("calculator");
     const [reportToEdit, setReportToEdit] = useState<CostReport | null>(null);
@@ -1174,7 +1033,7 @@ export default function CostReportPage() {
     const { toast } = useToast();
     const { user } = useAuth();
     
-    const relevantSpecFields: (keyof ProductSpecification)[] = ['ply', 'paperBf', 'topGsm', 'flute1Gsm', 'middleGsm', 'flute2Gsm', 'bottomGsm', 'printing'];
+    const relevantSpecFields: (keyof ProductSpecification)[] = ['ply', 'paperBf', 'topGsm', 'flute1Gsm', 'middleGsm', 'flute2Gsm', 'liner2Gsm', 'flute3Gsm', 'liner3Gsm', 'flute4Gsm', 'liner4Gsm', 'bottomGsm', 'printing'];
     
     useEffect(() => {
         const unsubProducts = onProductsUpdate(setProducts);
@@ -1216,6 +1075,7 @@ export default function CostReportPage() {
             relevantSpecFields.forEach(field => {
                 spec[field] = '';
             });
+            spec.ply = '3';
             setProductForm({ name: '', materialCode: '', partyId: '', partyName: '', specification: spec, l: '', b: '', h: '' });
         }
         setIsProductDialogOpen(true);
@@ -1281,6 +1141,8 @@ export default function CostReportPage() {
             },
         }));
     };
+    
+    const ply = parseInt(productForm.specification?.ply || '3', 10);
 
     return (
         <div className="flex flex-col gap-8">
@@ -1292,7 +1154,6 @@ export default function CostReportPage() {
                 <TabsList>
                     <TabsTrigger value="calculator">Calculator</TabsTrigger>
                     <TabsTrigger value="saved">Saved Reports</TabsTrigger>
-                    <TabsTrigger value="products">Products</TabsTrigger>
                 </TabsList>
                 <TabsContent value="calculator" className="pt-4">
                     <CostReportCalculator 
@@ -1305,12 +1166,6 @@ export default function CostReportPage() {
                 </TabsContent>
                 <TabsContent value="saved" className="pt-4">
                     <SavedReportsList onEdit={handleEditReport} />
-                </TabsContent>
-                <TabsContent value="products" className="pt-4">
-                    <ProductList 
-                      onProductAdd={() => handleOpenProductDialog(null)}
-                      onProductEdit={(product) => handleOpenProductDialog(product)}
-                    />
                 </TabsContent>
             </Tabs>
 
@@ -1355,16 +1210,80 @@ export default function CostReportPage() {
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
-                                {relevantSpecFields.map(key => (
-                                        <div key={key} className="space-y-2">
-                                            <Label htmlFor={`spec-${key}`}>{key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1')}</Label>
-                                            <Input
-                                                id={`spec-${key}`}
-                                                value={productForm.specification?.[key] || ''}
-                                                onChange={(e) => handleSpecChange(key, e.target.value)}
-                                            />
-                                        </div>
-                                ))}
+                               <div className="space-y-2">
+                                    <Label htmlFor={`spec-ply`}>Ply</Label>
+                                    <Select value={productForm.specification?.ply || '3'} onValueChange={(v) => handleSpecChange('ply', v)}>
+                                        <SelectTrigger><SelectValue/></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="3">3 Ply</SelectItem>
+                                            <SelectItem value="5">5 Ply</SelectItem>
+                                            <SelectItem value="7">7 Ply</SelectItem>
+                                            <SelectItem value="9">9 Ply</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                               </div>
+                               <div className="space-y-2">
+                                    <Label htmlFor={`spec-paperBf`}>Paper Bf</Label>
+                                    <Input id={`spec-paperBf`} value={productForm.specification?.paperBf || ''} onChange={(e) => handleSpecChange('paperBf', e.target.value)} />
+                               </div>
+                               <div className="space-y-2">
+                                    <Label htmlFor={`spec-topGsm`}>Top Gsm</Label>
+                                    <Input id={`spec-topGsm`} value={productForm.specification?.topGsm || ''} onChange={(e) => handleSpecChange('topGsm', e.target.value)} />
+                               </div>
+                               <div className="space-y-2">
+                                    <Label htmlFor={`spec-flute1Gsm`}>Flute 1 Gsm</Label>
+                                    <Input id={`spec-flute1Gsm`} value={productForm.specification?.flute1Gsm || ''} onChange={(e) => handleSpecChange('flute1Gsm', e.target.value)} />
+                               </div>
+                               {ply >= 5 && (
+                                   <div className="space-y-2">
+                                        <Label htmlFor={`spec-middleGsm`}>Middle Gsm</Label>
+                                        <Input id={`spec-middleGsm`} value={productForm.specification?.middleGsm || ''} onChange={(e) => handleSpecChange('middleGsm', e.target.value)} />
+                                   </div>
+                               )}
+                               {ply >= 5 && (
+                                   <div className="space-y-2">
+                                        <Label htmlFor={`spec-flute2Gsm`}>Flute 2 Gsm</Label>
+                                        <Input id={`spec-flute2Gsm`} value={productForm.specification?.flute2Gsm || ''} onChange={(e) => handleSpecChange('flute2Gsm', e.target.value)} />
+                                   </div>
+                               )}
+                               {ply >= 7 && (
+                                   <div className="space-y-2">
+                                        <Label htmlFor={`spec-liner2Gsm`}>Liner 2 Gsm</Label>
+                                        <Input id={`spec-liner2Gsm`} value={productForm.specification?.liner2Gsm || ''} onChange={(e) => handleSpecChange('liner2Gsm', e.target.value)} />
+                                   </div>
+                               )}
+                               {ply >= 7 && (
+                                   <div className="space-y-2">
+                                        <Label htmlFor={`spec-flute3Gsm`}>Flute 3 Gsm</Label>
+                                        <Input id={`spec-flute3Gsm`} value={productForm.specification?.flute3Gsm || ''} onChange={(e) => handleSpecChange('flute3Gsm', e.target.value)} />
+                                   </div>
+                               )}
+                               {ply >= 7 && (
+                                   <div className="space-y-2">
+                                        <Label htmlFor={`spec-liner3Gsm`}>Liner 3 Gsm</Label>
+                                        <Input id={`spec-liner3Gsm`} value={productForm.specification?.liner3Gsm || ''} onChange={(e) => handleSpecChange('liner3Gsm', e.target.value)} />
+                                   </div>
+                               )}
+                               {ply >= 9 && (
+                                   <div className="space-y-2">
+                                        <Label htmlFor={`spec-flute4Gsm`}>Flute 4 Gsm</Label>
+                                        <Input id={`spec-flute4Gsm`} value={productForm.specification?.flute4Gsm || ''} onChange={(e) => handleSpecChange('flute4Gsm', e.target.value)} />
+                                   </div>
+                               )}
+                               {ply >= 9 && (
+                                   <div className="space-y-2">
+                                        <Label htmlFor={`spec-liner4Gsm`}>Liner 4 Gsm</Label>
+                                        <Input id={`spec-liner4Gsm`} value={productForm.specification?.liner4Gsm || ''} onChange={(e) => handleSpecChange('liner4Gsm', e.target.value)} />
+                                   </div>
+                               )}
+                               <div className="space-y-2">
+                                    <Label htmlFor={`spec-bottomGsm`}>Bottom Gsm</Label>
+                                    <Input id={`spec-bottomGsm`} value={productForm.specification?.bottomGsm || ''} onChange={(e) => handleSpecChange('bottomGsm', e.target.value)} />
+                               </div>
+                               <div className="space-y-2">
+                                    <Label htmlFor={`spec-printing`}>Printing</Label>
+                                    <Input id={`spec-printing`} value={productForm.specification?.printing || ''} onChange={(e) => handleSpecChange('printing', e.target.value)} />
+                               </div>
                             </div>
                         </div>
                     </ScrollArea>
