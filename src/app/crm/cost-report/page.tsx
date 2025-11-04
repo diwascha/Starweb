@@ -501,7 +501,6 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                 <TableHead rowSpan={2} className="min-w-[200px] align-bottom">Item Name</TableHead>
                                 <TableHead colSpan={3} className="text-center">Box Size</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom">No of Pcs</TableHead>
-                                <TableHead rowSpan={2} className="align-bottom">Box Type</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom">No of Ply</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom">Type of Flute</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom">Paper Type</TableHead>
@@ -588,7 +587,6 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                 <TableCell><Input type="number" value={item.b} onChange={e => handleItemChange(index, 'b', e.target.value)} className="w-16" /></TableCell>
                                 <TableCell><Input type="number" value={item.h} onChange={e => handleItemChange(index, 'h', e.target.value)} className="w-16" /></TableCell>
                                 <TableCell><Input type="number" value={item.noOfPcs} onChange={e => handleItemChange(index, 'noOfPcs', e.target.value)} className="w-16" /></TableCell>
-                                <TableCell><Input value={item.boxType} onChange={e => handleItemChange(index, 'boxType', e.target.value)} className="w-20" /></TableCell>
                                 <TableCell><Input type="number" value={item.ply} onChange={e => handleItemChange(index, 'ply', e.target.value)} className="w-16" /></TableCell>
                                 <TableCell><Input value={item.fluteType} onChange={e => handleItemChange(index, 'fluteType', e.target.value)} className="w-16" /></TableCell>
                                 <TableCell>
@@ -1406,18 +1404,18 @@ function SavedProductsList() {
     const getGsmDisplay = (spec: Partial<ProductSpecification> | undefined) => {
         if (!spec) return 'N/A';
         const { ply, topGsm, flute1Gsm, bottomGsm, middleGsm, flute2Gsm, liner2Gsm, liner3Gsm, flute3Gsm, liner4Gsm, flute4Gsm } = spec;
-    
+        
         switch (String(ply)) {
             case '3':
-                return `${topGsm || '-'}/${flute1Gsm || '-'}/${bottomGsm || '-'}`;
+                return [topGsm, flute1Gsm, bottomGsm].filter(Boolean).join('/');
             case '5':
-                return `${topGsm || '-'}/${flute1Gsm || '-'}/${middleGsm || '-'}/${flute2Gsm || '-'}/${bottomGsm || '-'}`;
+                return [topGsm, flute1Gsm, middleGsm, flute2Gsm, bottomGsm].filter(Boolean).join('/');
             case '7':
-                return `${topGsm||'-'}/${flute1Gsm||'-'}/${liner2Gsm||'-'}/${flute2Gsm||'-'}/${liner3Gsm||'-'}/${flute3Gsm||'-'}/${bottomGsm||'-'}`;
+                return [topGsm, flute1Gsm, liner2Gsm, flute2Gsm, liner3Gsm, flute3Gsm, bottomGsm].filter(Boolean).join('/');
             case '9':
-                 return `${topGsm||'-'}/${flute1Gsm||'-'}/${liner2Gsm||'-'}/${flute2Gsm||'-'}/${liner3Gsm||'-'}/${flute3Gsm||'-'}/${liner4Gsm||'-'}/${flute4Gsm||'-'}/${bottomGsm||'-'}`;
+                 return [topGsm, flute1Gsm, liner2Gsm, flute2Gsm, liner3Gsm, flute3Gsm, liner4Gsm, flute4Gsm, bottomGsm].filter(Boolean).join('/');
             default:
-                return `${topGsm || '-'}/${bottomGsm || '-'}`;
+                return [topGsm, bottomGsm].filter(Boolean).join('/');
         }
     };
     
