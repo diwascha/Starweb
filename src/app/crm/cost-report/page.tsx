@@ -492,7 +492,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
 
     return (
       <div>
-        {part1}
+        <div>{part1}</div>
         {part2 && <div>{part2}</div>}
       </div>
     );
@@ -662,7 +662,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                 <TableHead>F1</TableHead>
                                 <TableHead>L2</TableHead>
                                 <TableHead>F2</TableHead>
-                                <TableHead>L3</TableHead>
+                                <TableHead>M/L3</TableHead>
                                 <TableHead>F3</TableHead>
                                 <TableHead>L4</TableHead>
                                 <TableHead>F4</TableHead>
@@ -760,13 +760,12 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                 <TableCell><Input value={item.paperBf} onChange={e => handleItemChange(index, 'paperBf', e.target.value)} className="w-16" /></TableCell>
                                 <TableCell><Input type="number" value={item.topGsm} onChange={e => handleItemChange(index, 'topGsm', e.target.value)} className="w-20" /></TableCell>
                                 <TableCell><Input type="number" value={item.flute1Gsm} onChange={e => handleItemChange(index, 'flute1Gsm', e.target.value)} className="w-20" /></TableCell>
-                                { ply >= 7 ? <TableCell><Input type="number" value={item.liner2Gsm} onChange={e => handleItemChange(index, 'liner2Gsm', e.target.value)} className="w-20" /></TableCell> : <TableCell />}
-                                { ply >= 5 ? <TableCell><Input type="number" value={item.flute2Gsm} onChange={e => handleItemChange(index, 'flute2Gsm', e.target.value)} className="w-20" /></TableCell> : <TableCell />}
-                                { ply === 5 ? <TableCell><Input type="number" value={item.middleGsm} onChange={e => handleItemChange(index, 'middleGsm', e.target.value)} className="w-20" /></TableCell> : <TableCell />}
-                                { ply >= 7 ? <TableCell><Input type="number" value={item.liner3Gsm} onChange={e => handleItemChange(index, 'liner3Gsm', e.target.value)} className="w-20" /></TableCell> : <TableCell />}
-                                { ply >= 7 ? <TableCell><Input type="number" value={item.flute3Gsm} onChange={e => handleItemChange(index, 'flute3Gsm', e.target.value)} className="w-20" /></TableCell> : <TableCell />}
-                                { ply >= 9 ? <TableCell><Input type="number" value={item.liner4Gsm} onChange={e => handleItemChange(index, 'liner4Gsm', e.target.value)} className="w-20" /></TableCell> : <TableCell />}
-                                { ply >= 9 ? <TableCell><Input type="number" value={item.flute4Gsm} onChange={e => handleItemChange(index, 'flute4Gsm', e.target.value)} className="w-20" /></TableCell> : <TableCell />}
+                                <TableCell>{ply >= 7 ? <Input type="number" value={item.liner2Gsm} onChange={e => handleItemChange(index, 'liner2Gsm', e.target.value)} className="w-20" /> : null}</TableCell>
+                                <TableCell>{ply >= 5 ? <Input type="number" value={item.flute2Gsm} onChange={e => handleItemChange(index, 'flute2Gsm', e.target.value)} className="w-20" /> : null}</TableCell>
+                                <TableCell>{ply === 5 ? <Input type="number" value={item.middleGsm} onChange={e => handleItemChange(index, 'middleGsm', e.target.value)} className="w-20" /> : (ply >= 7 ? <Input type="number" value={item.liner3Gsm} onChange={e => handleItemChange(index, 'liner3Gsm', e.target.value)} className="w-20" /> : null)}</TableCell>
+                                <TableCell>{ply >= 7 ? <Input type="number" value={item.flute3Gsm} onChange={e => handleItemChange(index, 'flute3Gsm', e.target.value)} className="w-20" /> : null}</TableCell>
+                                <TableCell>{ply >= 9 ? <Input type="number" value={item.liner4Gsm} onChange={e => handleItemChange(index, 'liner4Gsm', e.target.value)} className="w-20" /> : null}</TableCell>
+                                <TableCell>{ply >= 9 ? <Input type="number" value={item.flute4Gsm} onChange={e => handleItemChange(index, 'flute4Gsm', e.target.value)} className="w-20" /> : null}</TableCell>
                                 <TableCell><Input type="number" value={item.bottomGsm} onChange={e => handleItemChange(index, 'bottomGsm', e.target.value)} className="w-20" /></TableCell>
                                 <TableCell>{item.calculated.totalGsm.toFixed(2)}</TableCell>
                                 <TableCell>{(item.calculated.sheetSizeL / 10).toFixed(2)}</TableCell>
@@ -889,7 +888,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                       <TableCell>{index + 1}</TableCell>
                       <TableCell>{products.find(p => p.id === item.productId)?.name || 'N/A'}</TableCell>
                       <TableCell>{`${item.l}x${item.b}x${item.h}`}</TableCell>
-                      <TableCell>{item.ply} Ply, {item.boxType}</TableCell>
+                      <TableCell>{`${item.ply} Ply, ${item.boxType}`}</TableCell>
                       <TableCell>
                           <div>{item.paperType}</div>
                           <div className="text-xs text-muted-foreground">{item.paperShade}</div>
@@ -1139,7 +1138,7 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
 
         return (
           <div>
-            {part1}
+            <div>{part1}</div>
             {part2 && <div>{part2}</div>}
           </div>
         );
@@ -1257,7 +1256,7 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
                                     <TableCell>{index + 1}</TableCell>
                                     <TableCell>{products.find(p => p.id === item.productId)?.name || 'N/A'}</TableCell>
                                     <TableCell>{`${item.l}x${item.b}x${item.h}`}</TableCell>
-                                    <TableCell>{item.ply} Ply, {item.boxType}</TableCell>
+                                    <TableCell>{`${item.ply} Ply, ${item.boxType}`}</TableCell>
                                     <TableCell>
                                         <div>{item.paperType}</div>
                                         <div className="text-xs text-muted-foreground">{item.paperShade}</div>
@@ -1652,7 +1651,7 @@ function SavedProductsList() {
             await deleteProductService(id);
             toast({ title: 'Product Deleted' });
         } catch {
-            toast({ title: 'Error', description: 'Failed to delete product', variant = 'destructive' });
+            toast({ title: 'Error', description: 'Failed to delete product', variant: 'destructive' });
         }
     };
     
@@ -1800,7 +1799,7 @@ function CostingSettingsTab() {
         }, user.username);
         toast({ title: "Success", description: "Cost settings saved." });
     } catch (e) {
-        toast({ title: "Error", description: "Failed to save cost settings.", variant = "destructive" });
+        toast({ title: "Error", description: "Failed to save cost settings.", variant: "destructive" });
     }
   };
 
