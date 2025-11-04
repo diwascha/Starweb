@@ -220,6 +220,11 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
             middleGsm: spec.middleGsm || '',
             flute2Gsm: spec.flute2Gsm || '',
             bottomGsm: spec.bottomGsm || '',
+            liner2Gsm: spec.liner2Gsm || '',
+            flute3Gsm: spec.flute3Gsm || '',
+            liner3Gsm: spec.liner3Gsm || '',
+            flute4Gsm: spec.flute4Gsm || '',
+            liner4Gsm: spec.liner4Gsm || '',
         };
         newItems[index] = {
             ...updatedItem,
@@ -1330,7 +1335,7 @@ function SavedProductsList() {
                                             </CommandEmpty>
                                             <CommandGroup>
                                                 {parties.map(p => (
-                                                    <CommandItem key={p.id} value={p.name} onSelect={() => handleProductFormChange('partyId', p.id)}>
+                                                    <CommandItem key={p.id} value={p.name} onSelect={() => { handleProductFormChange('partyId', p.id); setPartySearch('');}}>
                                                         <Check className={cn("mr-2 h-4 w-4", productForm.partyId === p.id ? "opacity-100" : "opacity-0")} />
                                                         {p.name}
                                                     </CommandItem>
@@ -1504,6 +1509,10 @@ export default function CostReportPage() {
         setReportToEdit(null);
     }
     
+    const onProductAdd = () => {
+        setIsProductDialogOpen(true);
+    };
+
     return (
         <div className="flex flex-col gap-8">
             <header>
@@ -1522,7 +1531,7 @@ export default function CostReportPage() {
                         onSaveSuccess={handleFinishEditing} 
                         onCancelEdit={handleCancelEdit}
                         products={products}
-                        onProductAdd={() => setIsProductDialogOpen(true)}
+                        onProductAdd={onProductAdd}
                     />
                 </TabsContent>
                 <TabsContent value="saved" className="pt-4">
@@ -1534,20 +1543,7 @@ export default function CostReportPage() {
             </Tabs>
              {/* This dialog is now managed by the main page but triggered from the calculator */}
              <Dialog open={isProductDialogOpen} onOpenChange={setIsProductDialogOpen}>
-                <DialogContent className="max-w-xl">
-                    <DialogHeader>
-                        <DialogTitle>Add New Product</DialogTitle>
-                    </DialogHeader>
-                    {/* The form from SavedProductsList is complex, so we'll re-implement a simplified version here for now */}
-                    {/* In a real app, this would be a shared, reusable component */}
-                    <div className="py-4">
-                        <p className="text-muted-foreground">This dialog is a placeholder. A full form component would be created here.</p>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsProductDialogOpen(false)}>Cancel</Button>
-                        <Button>Add Product</Button>
-                    </DialogFooter>
-                </DialogContent>
+                 <SavedProductsList />
             </Dialog>
         </div>
     );
