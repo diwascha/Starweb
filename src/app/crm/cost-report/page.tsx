@@ -78,6 +78,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
   const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
   const [partyForm, setPartyForm] = useState<{ name: string; type: PartyType; address?: string; panNumber?: string; }>({ name: '', type: 'Customer', address: '', panNumber: '' });
   const [editingParty, setEditingParty] = useState<Party | null>(null);
+  const [partySearch, setPartySearch] = useState('');
   
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
@@ -410,14 +411,20 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                             </PopoverTrigger>
                             <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
                                 <Command>
-                                    <CommandInput placeholder="Search party..." />
+                                    <CommandInput 
+                                        placeholder="Search party..." 
+                                        value={partySearch}
+                                        onValueChange={setPartySearch}
+                                    />
                                     <CommandList>
                                         <CommandEmpty>
-                                             <Button variant="ghost" className="w-full justify-start" onClick={() => handleOpenPartyDialog(null, '')}><PlusCircle className="mr-2 h-4 w-4" /> Add New Party</Button>
+                                            <Button variant="ghost" className="w-full justify-start" onClick={() => handleOpenPartyDialog(null, partySearch)}>
+                                                <PlusCircle className="mr-2 h-4 w-4" /> Add "{partySearch}"
+                                            </Button>
                                         </CommandEmpty>
                                         <CommandGroup>
                                             {parties.map(p => (
-                                                <CommandItem key={p.id} value={p.name} onSelect={() => setSelectedPartyId(p.id)} className="flex justify-between">
+                                                <CommandItem key={p.id} value={p.name} onSelect={() => { setSelectedPartyId(p.id); setPartySearch(''); }} className="flex justify-between">
                                                     <div className="flex items-center">
                                                         <Check className={cn("mr-2 h-4 w-4", selectedPartyId === p.id ? "opacity-100" : "opacity-0")} />
                                                         {p.name}
