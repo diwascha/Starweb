@@ -418,7 +418,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                         <CommandGroup>
                                             {parties.map(p => (
                                                 <CommandItem key={p.id} value={p.name} onSelect={() => setSelectedPartyId(p.id)} className="flex justify-between">
-                                                    <div>
+                                                    <div className="flex items-center">
                                                         <Check className={cn("mr-2 h-4 w-4", selectedPartyId === p.id ? "opacity-100" : "opacity-0")} />
                                                         {p.name}
                                                     </div>
