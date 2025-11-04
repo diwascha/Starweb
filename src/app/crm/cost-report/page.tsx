@@ -53,11 +53,12 @@ interface CostReportCalculatorProps {
   reportToEdit: CostReport | null;
   onSaveSuccess: () => void;
   onCancelEdit: () => void;
+  products: Product[];
+  onProductAdd: () => void;
 }
 
 
-function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit }: CostReportCalculatorProps) {
-  const [products, setProducts] = useState<Product[]>([]);
+function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, products, onProductAdd }: CostReportCalculatorProps) {
   const [parties, setParties] = useState<Party[]>([]);
   const [costReports, setCostReports] = useState<CostReport[]>([]);
   const [selectedPartyId, setSelectedPartyId] = useState<string>('');
@@ -151,11 +152,9 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit }: Cos
 
 
   useEffect(() => {
-    const unsubProducts = onProductsUpdate(setProducts);
     const unsubParties = onPartiesUpdate(setParties);
     const unsubCostReports = onCostReportsUpdate(setCostReports);
     return () => {
-        unsubProducts();
         unsubParties();
         unsubCostReports();
     };
@@ -530,10 +529,32 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit }: Cos
                                     </div>
                                 </TableCell>
                                 <TableCell>
-                                    <Select onValueChange={(v) => handleProductSelect(index, v)} value={item.productId}>
-                                        <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
-                                        <SelectContent>{products.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
-                                    </Select>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button variant="outline" role="combobox" className="w-[200px] justify-between">
+                                                {item.productId ? products.find(p => p.id === item.productId)?.name : "Select product..."}
+                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
+                                            <Command>
+                                                <CommandInput placeholder="Search products..." />
+                                                <CommandList>
+                                                    <CommandEmpty>
+                                                        <Button variant="ghost" className="w-full justify-start" onClick={onProductAdd}><PlusCircle className="mr-2 h-4 w-4" /> Add New Product</Button>
+                                                    </CommandEmpty>
+                                                    <CommandGroup>
+                                                        {products.map(p => (
+                                                            <CommandItem key={p.id} value={p.name} onSelect={() => handleProductSelect(index, p.id)}>
+                                                                <Check className={cn("mr-2 h-4 w-4", item.productId === p.id ? "opacity-100" : "opacity-0")} />
+                                                                {p.name}
+                                                            </CommandItem>
+                                                        ))}
+                                                    </CommandGroup>
+                                                </CommandList>
+                                            </Command>
+                                        </PopoverContent>
+                                    </Popover>
                                 </TableCell>
                                 <TableCell><Input type="number" value={item.l} onChange={e => handleItemChange(index, 'l', e.target.value)} className="w-16" /></TableCell>
                                 <TableCell><Input type="number" value={item.b} onChange={e => handleItemChange(index, 'b', e.target.value)} className="w-16" /></TableCell>
@@ -1242,6 +1263,12 @@ function ProductList() {
 export default function CostReportPage() {
     const [activeTab, setActiveTab] = useState("calculator");
     const [reportToEdit, setReportToEdit] = useState<CostReport | null>(null);
+    const [products, setProducts] = useState<Product[]>([]);
+    
+    useEffect(() => {
+        const unsubProducts = onProductsUpdate(setProducts);
+        return () => unsubProducts();
+    }, []);
     
     const handleEditReport = (report: CostReport) => {
         setReportToEdit(report);
@@ -1256,6 +1283,10 @@ export default function CostReportPage() {
     const handleCancelEdit = () => {
         setReportToEdit(null);
     }
+    
+    const handleOpenProductTab = () => {
+        setActiveTab("products");
+    };
 
     return (
         <div className="flex flex-col gap-8">
@@ -1274,6 +1305,8 @@ export default function CostReportPage() {
                         reportToEdit={reportToEdit} 
                         onSaveSuccess={handleFinishEditing} 
                         onCancelEdit={handleCancelEdit}
+                        products={products}
+                        onProductAdd={handleOpenProductTab}
                     />
                 </TabsContent>
                 <TabsContent value="saved" className="pt-4">
@@ -1286,4 +1319,3 @@ export default function CostReportPage() {
         </div>
     );
 }
-
