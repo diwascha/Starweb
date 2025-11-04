@@ -677,14 +677,17 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                             </TableRow>
                         )})}
                         </TableBody>
+                        <TableFooter>
+                            <TableRow>
+                                <TableCell colSpan={27} className="text-right font-bold text-lg">Total Cost</TableCell>
+                                <TableCell className="font-bold text-lg">{totalItemCost.toFixed(2)}</TableCell>
+                                <TableCell />
+                            </TableRow>
+                        </TableFooter>
                     </Table>
                 </div>
-                 <div className="flex justify-between items-center mt-4">
+                 <div className="flex justify-start mt-4">
                     <Button variant="outline" size="sm" onClick={handleAddItem}><Plus className="mr-2 h-4 w-4" />Add Another Product</Button>
-                    <div className="text-right">
-                        <span className="text-sm font-medium text-muted-foreground">Total Cost: </span> 
-                        <span className="text-xl font-bold">{totalItemCost.toFixed(2)}</span>
-                    </div>
                 </div>
             </CardContent>
             
@@ -1631,3 +1634,4 @@ export default function CostReportPage() {
         </div>
     );
 }
+
