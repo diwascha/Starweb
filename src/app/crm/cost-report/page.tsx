@@ -32,6 +32,7 @@ import { AnnapurnaSIL } from '@/lib/fonts/AnnapurnaSIL-Regular-base64';
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 
 interface CalculatedValues {
@@ -1010,7 +1011,7 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
     );
 }
 
-function ProductList({ onProductAdd, productToEdit, onProductSave, onClearEdit }: { onProductAdd: () => void, productToEdit: Product | null, onProductSave: () => void, onClearEdit: () => void }) {
+function ProductList({ onProductAdd, onProductEdit }: { onProductAdd: () => void, onProductEdit: (product: Product) => void }) {
     const [products, setProducts] = useState<Product[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [filterPartyName, setFilterPartyName] = useState('All');
@@ -1146,7 +1147,7 @@ function ProductList({ onProductAdd, productToEdit, onProductSave, onClearEdit }
                                     <TableCell>{formatGsm(product.specification)}</TableCell>
                                     <TableCell>{product.specification?.paperBf || 'N/A'}</TableCell>
                                     <TableCell className="text-right">
-                                        <Button variant="ghost" size="icon" onClick={() => onProductAdd()}>
+                                        <Button variant="ghost" size="icon" onClick={() => onProductEdit(product)}>
                                             <Edit className="h-4 w-4" />
                                         </Button>
                                     </TableCell>
@@ -1273,45 +1274,45 @@ export default function CostReportPage() {
                 <TabsContent value="products" className="pt-4">
                     <ProductList 
                       onProductAdd={() => handleOpenProductDialog(null)}
-                      productToEdit={productToEdit}
-                      onProductSave={handleSaveProduct}
-                      onClearEdit={() => setProductToEdit(null)}
+                      onProductEdit={(product) => handleOpenProductDialog(product)}
                     />
                 </TabsContent>
             </Tabs>
 
             <Dialog open={isProductDialogOpen} onOpenChange={setIsProductDialogOpen}>
-                <DialogContent>
+                <DialogContent className="max-w-xl">
                     <DialogHeader>
                         <DialogTitle>{productToEdit ? 'Edit Product' : 'Add New Product'}</DialogTitle>
                     </DialogHeader>
-                    <div className="py-4 space-y-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="product-name">Product Name</Label>
-                            <Input id="product-name" value={productForm.name || ''} onChange={(e) => handleProductFormChange('name', e.target.value)} />
+                    <ScrollArea className="max-h-[70vh]">
+                        <div className="py-4 px-6 space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="product-name">Product Name</Label>
+                                <Input id="product-name" value={productForm.name || ''} onChange={(e) => handleProductFormChange('name', e.target.value)} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="product-rate">Rate</Label>
+                                <Input id="product-rate" type="number" value={productForm.rate || ''} onChange={(e) => handleProductFormChange('rate', parseFloat(e.target.value) || 0)} />
+                            </div>
+                            <Separator />
+                            <h4 className="font-semibold">Specification</h4>
+                            <div className="grid grid-cols-2 gap-4">
+                                {Object.keys(productForm.specification || {}).map(key => {
+                                    const specKey = key as keyof ProductSpecification;
+                                    return (
+                                        <div key={specKey} className="space-y-2">
+                                            <Label htmlFor={`spec-${specKey}`}>{specKey.charAt(0).toUpperCase() + specKey.slice(1)}</Label>
+                                            <Input
+                                                id={`spec-${specKey}`}
+                                                value={productForm.specification?.[specKey] || ''}
+                                                onChange={(e) => handleSpecChange(specKey, e.target.value)}
+                                            />
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="product-rate">Rate</Label>
-                            <Input id="product-rate" type="number" value={productForm.rate || ''} onChange={(e) => handleProductFormChange('rate', parseFloat(e.target.value) || 0)} />
-                        </div>
-                        <Separator />
-                        <h4 className="font-semibold">Specification</h4>
-                        <div className="grid grid-cols-2 gap-4">
-                            {Object.keys(productForm.specification || {}).map(key => {
-                                const specKey = key as keyof ProductSpecification;
-                                return (
-                                    <div key={specKey} className="space-y-2">
-                                        <Label htmlFor={`spec-${specKey}`}>{specKey.charAt(0).toUpperCase() + specKey.slice(1)}</Label>
-                                        <Input
-                                            id={`spec-${specKey}`}
-                                            value={productForm.specification?.[specKey] || ''}
-                                            onChange={(e) => handleSpecChange(specKey, e.target.value)}
-                                        />
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
+                    </ScrollArea>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsProductDialogOpen(false)}>Cancel</Button>
                         <Button onClick={handleSaveProduct}>{productToEdit ? 'Save Changes' : 'Add Product'}</Button>
