@@ -1057,7 +1057,8 @@ function ProductList({ onProductAdd, onProductEdit }: { onProductAdd: () => void
         if (searchQuery) {
             sortable = sortable.filter(p => 
                 p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                (p.specification?.dimension || '').toLowerCase().includes(searchQuery.toLowerCase())
+                (p.specification?.dimension || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                (p.materialCode || '').toLowerCase().includes(searchQuery.toLowerCase())
             );
         }
         
@@ -1127,8 +1128,8 @@ function ProductList({ onProductAdd, onProductEdit }: { onProductAdd: () => void
                         <TableHeader>
                             <TableRow>
                                 <TableHead><Button variant="ghost" onClick={() => requestSort('name')}>Product Name <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
+                                <TableHead>Material Code</TableHead>
                                 <TableHead><Button variant="ghost" onClick={() => requestSort('partyName')}>Party Name <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
-                                <TableHead><Button variant="ghost" onClick={() => requestSort('rate')}>Rate <ArrowUpDown className="ml-2 h-4 w-4 inline-block" /></Button></TableHead>
                                 <TableHead>Dimension</TableHead>
                                 <TableHead>Ply</TableHead>
                                 <TableHead><Button variant="ghost" onClick={() => requestSort('gsm')}>GSM</Button></TableHead>
@@ -1140,8 +1141,8 @@ function ProductList({ onProductAdd, onProductEdit }: { onProductAdd: () => void
                             {sortedProducts.map(product => (
                                 <TableRow key={product.id}>
                                     <TableCell>{product.name}</TableCell>
+                                    <TableCell>{product.materialCode}</TableCell>
                                     <TableCell>{product.partyName}</TableCell>
-                                    <TableCell>{product.rate?.toLocaleString() || 'N/A'}</TableCell>
                                     <TableCell>{product.specification?.dimension || 'N/A'}</TableCell>
                                     <TableCell>{product.specification?.ply || 'N/A'}</TableCell>
                                     <TableCell>{formatGsm(product.specification)}</TableCell>
@@ -1209,7 +1210,7 @@ export default function CostReportPage() {
             relevantSpecFields.forEach(field => {
                 spec[field] = '';
             });
-            setProductForm({ name: '', specification: spec });
+            setProductForm({ name: '', materialCode: '', specification: spec });
         }
         setIsProductDialogOpen(true);
     };
@@ -1228,6 +1229,7 @@ export default function CostReportPage() {
             if (productToEdit) {
                  await updateProductService(productToEdit.id, {
                     name: productForm.name,
+                    materialCode: productForm.materialCode,
                     specification: finalSpec,
                     lastModifiedBy: user.username,
                 });
@@ -1235,6 +1237,7 @@ export default function CostReportPage() {
             } else {
                 await addProductService({
                     name: productForm.name,
+                    materialCode: productForm.materialCode,
                     specification: finalSpec,
                     createdBy: user.username,
                     createdAt: new Date().toISOString()
@@ -1302,9 +1305,15 @@ export default function CostReportPage() {
                     </DialogHeader>
                     <ScrollArea className="max-h-[70vh]">
                         <div className="py-4 px-6 space-y-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="product-name">Product Name</Label>
-                                <Input id="product-name" value={productForm.name || ''} onChange={(e) => handleProductFormChange('name', e.target.value)} />
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="product-name">Product Name</Label>
+                                    <Input id="product-name" value={productForm.name || ''} onChange={(e) => handleProductFormChange('name', e.target.value)} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="material-code">Material Code</Label>
+                                    <Input id="material-code" value={productForm.materialCode || ''} onChange={(e) => handleProductFormChange('materialCode', e.target.value)} />
+                                </div>
                             </div>
                             <Separator />
                             <h4 className="font-semibold">Specification</h4>
