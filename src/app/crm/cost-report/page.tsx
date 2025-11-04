@@ -1038,73 +1038,35 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
     );
 }
 
-function SavedProductsList() {
-    const [products, setProducts] = useState<Product[]>([]);
-    const [parties, setParties] = useState<Party[]>([]);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [filterParty, setFilterParty] = useState('All');
-    const {toast} = useToast();
-    const {user} = useAuth();
-    
-    // Product Dialog State
-    const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
-    const [productToEdit, setProductToEdit] = useState<Product | null>(null);
+function ProductForm({ productToEdit, onSaveSuccess }: { productToEdit: Product | null, onSaveSuccess: () => void }) {
     const [productForm, setProductForm] = useState<Partial<Product> & { l?: string, b?: string, h?: string }>({ specification: {} });
-    
-    // Add party from product dialog
-    const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
-    const [partyForm, setPartyForm] = useState<{ name: string; type: PartyType; address?: string; panNumber?: string; }>({ name: '', type: 'Customer', address: '', panNumber: '' });
-    const [editingParty, setEditingParty] = useState<Party | null>(null);
+    const [parties, setParties] = useState<Party[]>([]);
     const [partySearch, setPartySearch] = useState('');
+    const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
+    const [newPartyForm, setNewPartyForm] = useState<{ name: string; type: PartyType; address?: string; panNumber?: string; }>({ name: '', type: 'Customer', address: '', panNumber: '' });
+    const [editingParty, setEditingParty] = useState<Party | null>(null);
 
-
+    const { user } = useAuth();
+    const { toast } = useToast();
+    
     const relevantSpecFields: (keyof ProductSpecification)[] = ['ply', 'paperBf', 'topGsm', 'flute1Gsm', 'middleGsm', 'flute2Gsm', 'liner2Gsm', 'flute3Gsm', 'liner3Gsm', 'flute4Gsm', 'liner4Gsm', 'bottomGsm', 'printing'];
 
+    useEffect(() => {
+        const unsubParties = onPartiesUpdate(setParties);
+        return () => unsubParties();
+    }, []);
 
     useEffect(() => {
-        const unsubProducts = onProductsUpdate(setProducts);
-        const unsubParties = onPartiesUpdate(setParties);
-        return () => {
-          unsubProducts();
-          unsubParties();
-        }
-    }, []);
-    
-    const sortedProducts = useMemo(() => {
-        let filtered = products;
-        if(filterParty !== 'All') {
-            filtered = filtered.filter(p => p.partyName === filterParty);
-        }
-        if(searchQuery) {
-            filtered = filtered.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
-        }
-        return filtered.sort((a,b) => a.name.localeCompare(b.name));
-    }, [products, searchQuery, filterParty]);
-
-    const uniqueParties = useMemo(() => ['All', ...Array.from(new Set(products.map(p => p.partyName).filter(Boolean)))], [products]);
-    
-    const handleDeleteProduct = async (id: string) => {
-        try {
-            await deleteProductService(id);
-            toast({ title: 'Product Deleted' });
-        } catch {
-            toast({ title: 'Error', description: 'Failed to delete product', variant: 'destructive'});
-        }
-    };
-    
-    const handleOpenProductDialog = (product: Product | null = null) => {
-        if (product) {
-            setProductToEdit(product);
+        if (productToEdit) {
             const spec: Partial<ProductSpecification> = {};
             relevantSpecFields.forEach(field => {
-                spec[field] = product.specification?.[field] || '';
+                spec[field] = productToEdit.specification?.[field] || '';
             });
             
-            const [l, b, h] = product.specification?.dimension?.split('x') || ['', '', ''];
+            const [l, b, h] = productToEdit.specification?.dimension?.split('x') || ['', '', ''];
 
-            setProductForm({ ...product, specification: spec, l, b, h });
+            setProductForm({ ...productToEdit, specification: spec, l, b, h });
         } else {
-            setProductToEdit(null);
             const spec: Partial<ProductSpecification> = {};
             relevantSpecFields.forEach(field => {
                 spec[field] = '';
@@ -1112,9 +1074,22 @@ function SavedProductsList() {
             spec.ply = '3';
             setProductForm({ name: '', materialCode: '', partyId: '', partyName: '', specification: spec, l: '', b: '', h: '' });
         }
-        setIsProductDialogOpen(true);
+    }, [productToEdit]);
+    
+    const handleProductFormChange = (field: keyof typeof productForm, value: any) => {
+        setProductForm(prev => ({ ...prev, [field]: value }));
     };
 
+    const handleSpecChange = (field: keyof ProductSpecification, value: string) => {
+        setProductForm(prev => ({
+            ...prev,
+            specification: {
+                ...(prev.specification as ProductSpecification),
+                [field]: value
+            },
+        }));
+    };
+    
     const handleSaveProduct = async () => {
         if (!user) return;
         
@@ -1154,51 +1129,35 @@ function SavedProductsList() {
                 } as Omit<Product, 'id'>);
                 toast({ title: 'Success', description: 'New product added.' });
             }
-            
-            setIsProductDialogOpen(false);
-            setProductToEdit(null);
+            onSaveSuccess();
         } catch (error) {
             toast({ title: 'Error', description: 'Failed to save product.', variant: 'destructive' });
         }
     };
     
-    const handleProductFormChange = (field: keyof Omit<typeof productForm, 'specification'>, value: any) => {
-        setProductForm(prev => ({ ...prev, [field]: value }));
-    };
-
-    const handleSpecChange = (field: keyof ProductSpecification, value: string) => {
-        setProductForm(prev => ({
-            ...prev,
-            specification: {
-                ...(prev.specification as ProductSpecification),
-                [field]: value
-            },
-        }));
-    };
-    
     const handleOpenPartyDialog = (partyToEdit: Party | null = null, searchName: string = '') => {
         if (partyToEdit) {
             setEditingParty(partyToEdit);
-            setPartyForm({ name: partyToEdit.name, type: partyToEdit.type, address: partyToEdit.address || '', panNumber: partyToEdit.panNumber || '' });
+            setNewPartyForm({ name: partyToEdit.name, type: partyToEdit.type, address: partyToEdit.address || '', panNumber: partyToEdit.panNumber || '' });
         } else {
             setEditingParty(null);
-            setPartyForm({ name: searchName, type: 'Customer', address: '', panNumber: '' });
+            setNewPartyForm({ name: searchName, type: 'Customer', address: '', panNumber: '' });
         }
         setIsPartyDialogOpen(true);
     };
 
     const handleSubmitParty = async () => {
         if (!user) return;
-        if (!partyForm.name) {
+        if (!newPartyForm.name) {
             toast({ title: 'Error', description: 'Party name is required.', variant: 'destructive' });
             return;
         }
         try {
             if (editingParty) {
-                await updateParty(editingParty.id, { ...partyForm, lastModifiedBy: user.username });
+                await updateParty(editingParty.id, { ...newPartyForm, lastModifiedBy: user.username });
                 toast({ title: 'Success', description: 'Party updated.' });
             } else {
-                const newPartyId = await addParty({ ...partyForm, createdBy: user.username });
+                const newPartyId = await addParty({ ...newPartyForm, createdBy: user.username });
                 setProductForm(prev => ({...prev, partyId: newPartyId}));
                 toast({ title: 'Success', description: 'New party added.' });
             }
@@ -1207,21 +1166,254 @@ function SavedProductsList() {
             toast({ title: 'Error', description: 'Failed to save party.', variant: 'destructive' });
         }
     };
-
-
+    
     const ply = parseInt(productForm.specification?.ply || '3', 10);
+    
+    return (
+        <>
+            <ScrollArea className="max-h-[70vh]">
+                <div className="py-4 px-6 space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="product-name">Product Name</Label>
+                            <Input id="product-name" value={productForm.name || ''} onChange={(e) => handleProductFormChange('name', e.target.value)} />
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="material-code">Material Code</Label>
+                            <Input id="material-code" value={productForm.materialCode || ''} onChange={(e) => handleProductFormChange('materialCode', e.target.value)} />
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="partyId">Party Name</Label>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button variant="outline" role="combobox" className="w-full justify-between">
+                                    {productForm.partyId ? parties.find(p => p.id === productForm.partyId)?.name : "Select party..."}
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
+                                <Command>
+                                    <CommandInput 
+                                        placeholder="Search party..." 
+                                        value={partySearch}
+                                        onValueChange={setPartySearch}
+                                    />
+                                    <CommandList>
+                                        <CommandEmpty>
+                                            <Button variant="ghost" className="w-full justify-start" onClick={() => handleOpenPartyDialog(null, partySearch)}>
+                                                <PlusCircle className="mr-2 h-4 w-4" /> Add "{partySearch}"
+                                            </Button>
+                                        </CommandEmpty>
+                                        <CommandGroup>
+                                            {parties.map(p => (
+                                                <CommandItem key={p.id} value={p.name} onSelect={() => { handleProductFormChange('partyId', p.id); setPartySearch('');}}>
+                                                    <Check className={cn("mr-2 h-4 w-4", productForm.partyId === p.id ? "opacity-100" : "opacity-0")} />
+                                                    {p.name}
+                                                </CommandItem>
+                                            ))}
+                                        </CommandGroup>
+                                    </CommandList>
+                                </Command>
+                            </PopoverContent>
+                        </Popover>
+                    </div>
+                    <Separator />
+                    <h4 className="font-semibold">Specification</h4>
+                     <div className="space-y-2">
+                        <Label>Dimension</Label>
+                        <div className="flex gap-2">
+                            <Input placeholder="L" type="number" value={productForm.l || ''} onChange={e => handleProductFormChange('l', e.target.value)} />
+                            <Input placeholder="B" type="number" value={productForm.b || ''} onChange={e => handleProductFormChange('b', e.target.value)} />
+                            <Input placeholder="H" type="number" value={productForm.h || ''} onChange={e => handleProductFormChange('h', e.target.value)} />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                       <div className="space-y-2">
+                            <Label htmlFor={`spec-ply`}>Ply</Label>
+                            <Select value={productForm.specification?.ply || '3'} onValueChange={(v) => handleSpecChange('ply', v)}>
+                                <SelectTrigger><SelectValue/></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="3">3 Ply</SelectItem>
+                                    <SelectItem value="5">5 Ply</SelectItem>
+                                    <SelectItem value="7">7 Ply</SelectItem>
+                                    <SelectItem value="9">9 Ply</SelectItem>
+                                </SelectContent>
+                            </Select>
+                       </div>
+                       <div className="space-y-2">
+                            <Label htmlFor={`spec-paperBf`}>Paper Bf</Label>
+                            <Input id={`spec-paperBf`} value={productForm.specification?.paperBf || ''} onChange={(e) => handleSpecChange('paperBf', e.target.value)} />
+                       </div>
+                       <div className="space-y-2">
+                            <Label htmlFor={`spec-topGsm`}>Top Gsm</Label>
+                            <Input id={`spec-topGsm`} value={productForm.specification?.topGsm || ''} onChange={(e) => handleSpecChange('topGsm', e.target.value)} />
+                       </div>
+                       <div className="space-y-2">
+                            <Label htmlFor={`spec-flute1Gsm`}>Flute 1 Gsm</Label>
+                            <Input id={`spec-flute1Gsm`} value={productForm.specification?.flute1Gsm || ''} onChange={(e) => handleSpecChange('flute1Gsm', e.target.value)} />
+                       </div>
+                       {ply >= 5 && (
+                           <div className="space-y-2">
+                                <Label htmlFor={`spec-middleGsm`}>Middle Gsm</Label>
+                                <Input id={`spec-middleGsm`} value={productForm.specification?.middleGsm || ''} onChange={(e) => handleSpecChange('middleGsm', e.target.value)} />
+                           </div>
+                       )}
+                       {ply >= 5 && (
+                           <div className="space-y-2">
+                                <Label htmlFor={`spec-flute2Gsm`}>Flute 2 Gsm</Label>
+                                <Input id={`spec-flute2Gsm`} value={productForm.specification?.flute2Gsm || ''} onChange={(e) => handleSpecChange('flute2Gsm', e.target.value)} />
+                           </div>
+                       )}
+                       {ply >= 7 && (
+                           <div className="space-y-2">
+                                <Label htmlFor={`spec-liner2Gsm`}>Liner 2 Gsm</Label>
+                                <Input id={`spec-liner2Gsm`} value={productForm.specification?.liner2Gsm || ''} onChange={(e) => handleSpecChange('liner2Gsm', e.target.value)} />
+                           </div>
+                       )}
+                       {ply >= 7 && (
+                           <div className="space-y-2">
+                                <Label htmlFor={`spec-flute3Gsm`}>Flute 3 Gsm</Label>
+                                <Input id={`spec-flute3Gsm`} value={productForm.specification?.flute3Gsm || ''} onChange={(e) => handleSpecChange('flute3Gsm', e.target.value)} />
+                           </div>
+                       )}
+                       {ply >= 7 && (
+                           <div className="space-y-2">
+                                <Label htmlFor={`spec-liner3Gsm`}>Liner 3 Gsm</Label>
+                                <Input id={`spec-liner3Gsm`} value={productForm.specification?.liner3Gsm || ''} onChange={(e) => handleSpecChange('liner3Gsm', e.target.value)} />
+                           </div>
+                       )}
+                       {ply >= 9 && (
+                           <div className="space-y-2">
+                                <Label htmlFor={`spec-flute4Gsm`}>Flute 4 Gsm</Label>
+                                <Input id={`spec-flute4Gsm`} value={productForm.specification?.flute4Gsm || ''} onChange={(e) => handleSpecChange('flute4Gsm', e.target.value)} />
+                           </div>
+                       )}
+                       {ply >= 9 && (
+                           <div className="space-y-2">
+                                <Label htmlFor={`spec-liner4Gsm`}>Liner 4 Gsm</Label>
+                                <Input id={`spec-liner4Gsm`} value={productForm.specification?.liner4Gsm || ''} onChange={(e) => handleSpecChange('liner4Gsm', e.target.value)} />
+                           </div>
+                       )}
+                       <div className="space-y-2">
+                            <Label htmlFor={`spec-bottomGsm`}>Bottom Gsm</Label>
+                            <Input id={`spec-bottomGsm`} value={productForm.specification?.bottomGsm || ''} onChange={(e) => handleSpecChange('bottomGsm', e.target.value)} />
+                       </div>
+                       <div className="space-y-2">
+                            <Label htmlFor={`spec-printing`}>Printing</Label>
+                            <Input id={`spec-printing`} value={productForm.specification?.printing || ''} onChange={(e) => handleSpecChange('printing', e.target.value)} />
+                       </div>
+                    </div>
+                </div>
+            </ScrollArea>
+             <DialogFooter>
+                <Button variant="outline" onClick={onSaveSuccess}>Cancel</Button>
+                <Button onClick={handleSaveProduct}>{productToEdit ? 'Save Changes' : 'Add Product'}</Button>
+            </DialogFooter>
+            
+            <Dialog open={isPartyDialogOpen} onOpenChange={setIsPartyDialogOpen}>
+              <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                      <DialogTitle>{editingParty ? 'Edit Party' : 'Add New Party'}</DialogTitle>
+                       <DialogDescription>
+                          {editingParty ? 'Update the details for this party.' : 'Create a new customer/vendor record.'}
+                      </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                      <div className="space-y-2">
+                          <Label htmlFor="party-name-dialog">Party Name</Label>
+                          <Input id="party-name-dialog" value={newPartyForm.name} onChange={e => setNewPartyForm(p => ({...p, name: e.target.value}))} />
+                      </div>
+                       <div className="space-y-2">
+                          <Label htmlFor="party-type-dialog">Party Type</Label>
+                          <Select value={newPartyForm.type} onValueChange={(v: PartyType) => setNewPartyForm(p => ({...p, type: v}))}>
+                              <SelectTrigger id="party-type-dialog"><SelectValue/></SelectTrigger>
+                              <SelectContent>
+                                  <SelectItem value="Vendor">Vendor</SelectItem>
+                                  <SelectItem value="Customer">Customer</SelectItem>
+                                  <SelectItem value="Both">Both</SelectItem>
+                              </SelectContent>
+                          </Select>
+                      </div>
+                      <div className="space-y-2">
+                          <Label htmlFor="party-pan-dialog">PAN Number</Label>
+                          <Input id="party-pan-dialog" value={newPartyForm.panNumber || ''} onChange={e => setNewPartyForm(p => ({...p, panNumber: e.target.value}))} />
+                      </div>
+                      <div className="space-y-2">
+                          <Label htmlFor="party-address-dialog">Address</Label>
+                          <Textarea id="party-address-dialog" value={newPartyForm.address || ''} onChange={e => setNewPartyForm(p => ({...p, address: e.target.value}))} />
+                      </div>
+                  </div>
+                  <DialogFooter>
+                      <Button variant="outline" onClick={() => setIsPartyDialogOpen(false)}>Cancel</Button>
+                      <Button onClick={handleSubmitParty}>{editingParty ? 'Save Changes' : 'Add Party'}</Button>
+                  </DialogFooter>
+              </DialogContent>
+          </Dialog>
+        </>
+    );
+}
+
+
+function SavedProductsList() {
+    const [products, setProducts] = useState<Product[]>([]);
+    const [parties, setParties] = useState<Party[]>([]);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [filterParty, setFilterParty] = useState('All');
+    const {toast} = useToast();
+    
+    // Product Dialog State
+    const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
+    const [productToEdit, setProductToEdit] = useState<Product | null>(null);
+
+
+    useEffect(() => {
+        const unsubProducts = onProductsUpdate(setProducts);
+        const unsubParties = onPartiesUpdate(setParties);
+        return () => {
+          unsubProducts();
+          unsubParties();
+        }
+    }, []);
+    
+    const sortedProducts = useMemo(() => {
+        let filtered = products;
+        if(filterParty !== 'All') {
+            filtered = filtered.filter(p => p.partyName === filterParty);
+        }
+        if(searchQuery) {
+            filtered = filtered.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+        }
+        return filtered.sort((a,b) => a.name.localeCompare(b.name));
+    }, [products, searchQuery, filterParty]);
+
+    const uniqueParties = useMemo(() => ['All', ...Array.from(new Set(products.map(p => p.partyName).filter(Boolean)))], [products]);
+    
+    const handleDeleteProduct = async (id: string) => {
+        try {
+            await deleteProductService(id);
+            toast({ title: 'Product Deleted' });
+        } catch {
+            toast({ title: 'Error', description: 'Failed to delete product', variant: 'destructive'});
+        }
+    };
+    
+    const handleOpenProductDialog = (product: Product | null = null) => {
+        setProductToEdit(product);
+        setIsProductDialogOpen(true);
+    };
     
     const getGsmDisplay = (spec: Partial<ProductSpecification> | undefined) => {
         if (!spec) return 'N/A';
-        const { topGsm, flute1Gsm, bottomGsm, middleGsm, flute2Gsm, liner2Gsm, liner3Gsm, flute3Gsm, liner4Gsm, flute4Gsm } = spec;
+        const { ply, topGsm, flute1Gsm, bottomGsm, middleGsm, flute2Gsm, liner2Gsm, liner3Gsm, flute3Gsm, liner4Gsm, flute4Gsm } = spec;
     
-        switch (spec.ply) {
+        switch (String(ply)) {
             case '3':
                 return `${topGsm || '-'}/${flute1Gsm || '-'}/${bottomGsm || '-'}`;
             case '5':
                 return `${topGsm || '-'}/${flute1Gsm || '-'}/${middleGsm || '-'}/${flute2Gsm || '-'}/${bottomGsm || '-'}`;
             case '7':
-                return `${topGsm || '-'}/${flute1Gsm || '-'}/${liner2Gsm || '-'}/${flute2Gsm || '-'}/${liner3Gsm || '-'}/${flute3Gsm || '-'}/${bottomGsm || '-'}`;
+                return `${topGsm||'-'}/${flute1Gsm||'-'}/${liner2Gsm||'-'}/${flute2Gsm||'-'}/${liner3Gsm||'-'}/${flute3Gsm||'-'}/${bottomGsm||'-'}`;
             case '9':
                  return `${topGsm||'-'}/${flute1Gsm||'-'}/${liner2Gsm||'-'}/${flute2Gsm||'-'}/${liner3Gsm||'-'}/${flute3Gsm||'-'}/${liner4Gsm||'-'}/${flute4Gsm||'-'}/${bottomGsm||'-'}`;
             default:
@@ -1306,186 +1498,15 @@ function SavedProductsList() {
                 <DialogHeader>
                     <DialogTitle>{productToEdit ? 'Edit Product' : 'Add New Product'}</DialogTitle>
                 </DialogHeader>
-                <ScrollArea className="max-h-[70vh]">
-                    <div className="py-4 px-6 space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="product-name">Product Name</Label>
-                                <Input id="product-name" value={productForm.name || ''} onChange={(e) => handleProductFormChange('name', e.target.value)} />
-                            </div>
-                             <div className="space-y-2">
-                                <Label htmlFor="material-code">Material Code</Label>
-                                <Input id="material-code" value={productForm.materialCode || ''} onChange={(e) => handleProductFormChange('materialCode', e.target.value)} />
-                            </div>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="partyId">Party Name</Label>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button variant="outline" role="combobox" className="w-full justify-between">
-                                        {productForm.partyId ? parties.find(p => p.id === productForm.partyId)?.name : "Select party..."}
-                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
-                                    <Command>
-                                        <CommandInput 
-                                            placeholder="Search party..." 
-                                            value={partySearch}
-                                            onValueChange={setPartySearch}
-                                        />
-                                        <CommandList>
-                                            <CommandEmpty>
-                                                <Button variant="ghost" className="w-full justify-start" onClick={() => handleOpenPartyDialog(null, partySearch)}>
-                                                    <PlusCircle className="mr-2 h-4 w-4" /> Add "{partySearch}"
-                                                </Button>
-                                            </CommandEmpty>
-                                            <CommandGroup>
-                                                {parties.map(p => (
-                                                    <CommandItem key={p.id} value={p.name} onSelect={() => { handleProductFormChange('partyId', p.id); setPartySearch('');}}>
-                                                        <Check className={cn("mr-2 h-4 w-4", productForm.partyId === p.id ? "opacity-100" : "opacity-0")} />
-                                                        {p.name}
-                                                    </CommandItem>
-                                                ))}
-                                            </CommandGroup>
-                                        </CommandList>
-                                    </Command>
-                                </PopoverContent>
-                            </Popover>
-                        </div>
-                        <Separator />
-                        <h4 className="font-semibold">Specification</h4>
-                         <div className="space-y-2">
-                            <Label>Dimension</Label>
-                            <div className="flex gap-2">
-                                <Input placeholder="L" type="number" value={productForm.l || ''} onChange={e => handleProductFormChange('l', e.target.value)} />
-                                <Input placeholder="B" type="number" value={productForm.b || ''} onChange={e => handleProductFormChange('b', e.target.value)} />
-                                <Input placeholder="H" type="number" value={productForm.h || ''} onChange={e => handleProductFormChange('h', e.target.value)} />
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                           <div className="space-y-2">
-                                <Label htmlFor={`spec-ply`}>Ply</Label>
-                                <Select value={productForm.specification?.ply || '3'} onValueChange={(v) => handleSpecChange('ply', v)}>
-                                    <SelectTrigger><SelectValue/></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="3">3 Ply</SelectItem>
-                                        <SelectItem value="5">5 Ply</SelectItem>
-                                        <SelectItem value="7">7 Ply</SelectItem>
-                                        <SelectItem value="9">9 Ply</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                           </div>
-                           <div className="space-y-2">
-                                <Label htmlFor={`spec-paperBf`}>Paper Bf</Label>
-                                <Input id={`spec-paperBf`} value={productForm.specification?.paperBf || ''} onChange={(e) => handleSpecChange('paperBf', e.target.value)} />
-                           </div>
-                           <div className="space-y-2">
-                                <Label htmlFor={`spec-topGsm`}>Top Gsm</Label>
-                                <Input id={`spec-topGsm`} value={productForm.specification?.topGsm || ''} onChange={(e) => handleSpecChange('topGsm', e.target.value)} />
-                           </div>
-                           <div className="space-y-2">
-                                <Label htmlFor={`spec-flute1Gsm`}>Flute 1 Gsm</Label>
-                                <Input id={`spec-flute1Gsm`} value={productForm.specification?.flute1Gsm || ''} onChange={(e) => handleSpecChange('flute1Gsm', e.target.value)} />
-                           </div>
-                           {ply >= 5 && (
-                               <div className="space-y-2">
-                                    <Label htmlFor={`spec-middleGsm`}>Middle Gsm</Label>
-                                    <Input id={`spec-middleGsm`} value={productForm.specification?.middleGsm || ''} onChange={(e) => handleSpecChange('middleGsm', e.target.value)} />
-                               </div>
-                           )}
-                           {ply >= 5 && (
-                               <div className="space-y-2">
-                                    <Label htmlFor={`spec-flute2Gsm`}>Flute 2 Gsm</Label>
-                                    <Input id={`spec-flute2Gsm`} value={productForm.specification?.flute2Gsm || ''} onChange={(e) => handleSpecChange('flute2Gsm', e.target.value)} />
-                               </div>
-                           )}
-                           {ply >= 7 && (
-                               <div className="space-y-2">
-                                    <Label htmlFor={`spec-liner2Gsm`}>Liner 2 Gsm</Label>
-                                    <Input id={`spec-liner2Gsm`} value={productForm.specification?.liner2Gsm || ''} onChange={(e) => handleSpecChange('liner2Gsm', e.target.value)} />
-                               </div>
-                           )}
-                           {ply >= 7 && (
-                               <div className="space-y-2">
-                                    <Label htmlFor={`spec-flute3Gsm`}>Flute 3 Gsm</Label>
-                                    <Input id={`spec-flute3Gsm`} value={productForm.specification?.flute3Gsm || ''} onChange={(e) => handleSpecChange('flute3Gsm', e.target.value)} />
-                               </div>
-                           )}
-                           {ply >= 7 && (
-                               <div className="space-y-2">
-                                    <Label htmlFor={`spec-liner3Gsm`}>Liner 3 Gsm</Label>
-                                    <Input id={`spec-liner3Gsm`} value={productForm.specification?.liner3Gsm || ''} onChange={(e) => handleSpecChange('liner3Gsm', e.target.value)} />
-                               </div>
-                           )}
-                           {ply >= 9 && (
-                               <div className="space-y-2">
-                                    <Label htmlFor={`spec-flute4Gsm`}>Flute 4 Gsm</Label>
-                                    <Input id={`spec-flute4Gsm`} value={productForm.specification?.flute4Gsm || ''} onChange={(e) => handleSpecChange('flute4Gsm', e.target.value)} />
-                               </div>
-                           )}
-                           {ply >= 9 && (
-                               <div className="space-y-2">
-                                    <Label htmlFor={`spec-liner4Gsm`}>Liner 4 Gsm</Label>
-                                    <Input id={`spec-liner4Gsm`} value={productForm.specification?.liner4Gsm || ''} onChange={(e) => handleSpecChange('liner4Gsm', e.target.value)} />
-                               </div>
-                           )}
-                           <div className="space-y-2">
-                                <Label htmlFor={`spec-bottomGsm`}>Bottom Gsm</Label>
-                                <Input id={`spec-bottomGsm`} value={productForm.specification?.bottomGsm || ''} onChange={(e) => handleSpecChange('bottomGsm', e.target.value)} />
-                           </div>
-                           <div className="space-y-2">
-                                <Label htmlFor={`spec-printing`}>Printing</Label>
-                                <Input id={`spec-printing`} value={productForm.specification?.printing || ''} onChange={(e) => handleSpecChange('printing', e.target.value)} />
-                           </div>
-                        </div>
-                    </div>
-                </ScrollArea>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsProductDialogOpen(false)}>Cancel</Button>
-                    <Button onClick={handleSaveProduct}>{productToEdit ? 'Save Changes' : 'Add Product'}</Button>
-                </DialogFooter>
+                 <ProductForm 
+                    productToEdit={productToEdit} 
+                    onSaveSuccess={() => {
+                        setIsProductDialogOpen(false);
+                        setProductToEdit(null);
+                    }}
+                />
             </DialogContent>
         </Dialog>
-         <Dialog open={isPartyDialogOpen} onOpenChange={setIsPartyDialogOpen}>
-          <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                  <DialogTitle>{editingParty ? 'Edit Party' : 'Add New Party'}</DialogTitle>
-                   <DialogDescription>
-                      {editingParty ? 'Update the details for this party.' : 'Create a new customer/vendor record.'}
-                  </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                  <div className="space-y-2">
-                      <Label htmlFor="party-name-dialog">Party Name</Label>
-                      <Input id="party-name-dialog" value={partyForm.name} onChange={e => setPartyForm(p => ({...p, name: e.target.value}))} />
-                  </div>
-                   <div className="space-y-2">
-                      <Label htmlFor="party-type-dialog">Party Type</Label>
-                      <Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm(p => ({...p, type: v}))}>
-                          <SelectTrigger id="party-type-dialog"><SelectValue/></SelectTrigger>
-                          <SelectContent>
-                              <SelectItem value="Vendor">Vendor</SelectItem>
-                              <SelectItem value="Customer">Customer</SelectItem>
-                              <SelectItem value="Both">Both</SelectItem>
-                          </SelectContent>
-                      </Select>
-                  </div>
-                  <div className="space-y-2">
-                      <Label htmlFor="party-pan-dialog">PAN Number</Label>
-                      <Input id="party-pan-dialog" value={partyForm.panNumber || ''} onChange={e => setPartyForm(p => ({...p, panNumber: e.target.value}))} />
-                  </div>
-                  <div className="space-y-2">
-                      <Label htmlFor="party-address-dialog">Address</Label>
-                      <Textarea id="party-address-dialog" value={partyForm.address || ''} onChange={e => setPartyForm(p => ({...p, address: e.target.value}))} />
-                  </div>
-              </div>
-              <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsPartyDialogOpen(false)}>Cancel</Button>
-                  <Button onClick={handleSubmitParty}>{editingParty ? 'Save Changes' : 'Add Party'}</Button>
-              </DialogFooter>
-          </DialogContent>
-      </Dialog>
       </>
     );
 }
@@ -1495,7 +1516,7 @@ export default function CostReportPage() {
     const [reportToEdit, setReportToEdit] = useState<CostReport | null>(null);
     const [products, setProducts] = useState<Product[]>([]);
     
-    const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
+    const [isProductAddDialogOpen, setIsProductAddDialogOpen] = useState(false);
     
     useEffect(() => {
         const unsubProducts = onProductsUpdate(setProducts);
@@ -1517,7 +1538,7 @@ export default function CostReportPage() {
     }
     
     const onProductAdd = () => {
-        setIsProductDialogOpen(true);
+        setIsProductAddDialogOpen(true);
     };
 
     return (
@@ -1549,20 +1570,14 @@ export default function CostReportPage() {
                 </TabsContent>
             </Tabs>
              {/* This dialog is now managed by the main page but triggered from the calculator */}
-             <Dialog open={isProductDialogOpen} onOpenChange={setIsProductDialogOpen}>
+             <Dialog open={isProductAddDialogOpen} onOpenChange={setIsProductAddDialogOpen}>
                  <DialogContent className="max-w-xl">
                     <DialogHeader>
                         <DialogTitle>Add New Product</DialogTitle>
                     </DialogHeader>
-                    {/* The SavedProductsList contains the form logic, we can reuse it, but we need to pass props to open the dialog in 'add' mode */}
-                    {/* A cleaner way would be a separate ProductForm component, but for now this works */}
-                    <SavedProductsList />
+                    <ProductForm productToEdit={null} onSaveSuccess={() => setIsProductAddDialogOpen(false)} />
                 </DialogContent>
             </Dialog>
         </div>
     );
 }
-
-
-
-    
