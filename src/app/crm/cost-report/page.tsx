@@ -254,7 +254,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
             l: l || '', b: b || '', h: h || '',
             ply: spec.ply || '3',
             paperBf: spec.paperBf || '',
-            paperShade: spec.paperShade || '',
+            paperShade: 'NS',
             boxType: spec.boxType || 'RSC',
             topGsm: spec.topGsm || '',
             flute1Gsm: spec.flute1Gsm || '',
@@ -549,10 +549,19 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
             <CardHeader>
                 <div className="flex items-center justify-between">
                     <CardTitle>Additional Costs</CardTitle>
-                    <Button variant="ghost" size="icon" onClick={() => setIsCostHistoryDialogOpen(true)}>
-                        <HistoryIcon className="h-5 w-5" />
-                        <span className="sr-only">View Cost History</span>
-                    </Button>
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" onClick={() => setIsCostHistoryDialogOpen(true)}>
+                                    <HistoryIcon className="h-5 w-5" />
+                                    <span className="sr-only">View Cost History</span>
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>View Costing History</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
                 </div>
             </CardHeader>
             <CardContent>
@@ -841,7 +850,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                         <TableHead className="text-black font-semibold">Sl.No</TableHead>
                         <TableHead className="text-black font-semibold">Particulars</TableHead>
                         <TableHead className="text-black font-semibold">Box Size (mm)</TableHead>
-                        <TableHead className="text-black font-semibold">Ply</TableHead>
+                        <TableHead className="text-black font-semibold">Ply / Type</TableHead>
                         <TableHead className="text-black font-semibold">Paper</TableHead>
                         <TableHead className="text-black font-semibold">GSM</TableHead>
                         <TableHead className="text-black font-semibold text-right">Box Wt (Grams)</TableHead>
@@ -854,12 +863,12 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                       <TableCell>{index + 1}</TableCell>
                       <TableCell>{products.find(p => p.id === item.productId)?.name || 'N/A'}</TableCell>
                       <TableCell>{`${item.l}x${item.b}x${item.h}`}</TableCell>
-                      <TableCell>{item.ply}</TableCell>
+                      <TableCell>{item.ply} Ply, {item.boxType}</TableCell>
                       <TableCell>
                           <div>{item.paperType}</div>
                           <div className="text-xs text-muted-foreground">Shade: {item.paperShade}</div>
                       </TableCell>
-                       <TableCell>{`T:${item.topGsm} F:${item.flute1Gsm} B:${item.bottomGsm}`}</TableCell>
+                       <TableCell>{`T:${item.topGsm} F1:${item.flute1Gsm} ${item.middleGsm ? `M:${item.middleGsm} F2:${item.flute2Gsm} ` : ''}B:${item.bottomGsm}`}</TableCell>
                       <TableCell className="text-right">{item.calculated.totalBoxWeight.toFixed(2)}</TableCell>
                       <TableCell className="text-right">{item.calculated.paperCost.toFixed(2)}</TableCell>
                     </TableRow>
@@ -1184,7 +1193,7 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
                                     <TableHead className="text-black font-semibold">Sl.No</TableHead>
                                     <TableHead className="text-black font-semibold">Particulars</TableHead>
                                     <TableHead className="text-black font-semibold">Box Size (mm)</TableHead>
-                                    <TableHead className="text-black font-semibold">Ply</TableHead>
+                                    <TableHead className="text-black font-semibold">Ply / Type</TableHead>
                                     <TableHead className="text-black font-semibold">Paper</TableHead>
                                     <TableHead className="text-black font-semibold">GSM</TableHead>
                                     <TableHead className="text-black font-semibold text-right">Box Wt (Grams)</TableHead>
@@ -1197,18 +1206,17 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
                                     <TableCell>{index + 1}</TableCell>
                                     <TableCell>{products.find(p => p.id === item.productId)?.name || 'N/A'}</TableCell>
                                     <TableCell>{`${item.l}x${item.b}x${item.h}`}</TableCell>
-                                    <TableCell>{item.ply}</TableCell>
+                                    <TableCell>{item.ply} Ply, {item.boxType}</TableCell>
                                     <TableCell>
                                         <div>{item.paperType}</div>
                                         <div className="text-xs text-muted-foreground">Shade: {item.paperShade}</div>
                                     </TableCell>
-                                    <TableCell>{`T:${item.topGsm} F:${item.flute1Gsm} B:${item.bottomGsm}`}</TableCell>
+                                    <TableCell>{`T:${item.topGsm} F1:${item.flute1Gsm} ${item.middleGsm ? `M:${item.middleGsm} F2:${item.flute2Gsm} ` : ''}B:${item.bottomGsm}`}</TableCell>
                                     <TableCell className="text-right">{item.calculated.totalBoxWeight.toFixed(2)}</TableCell>
                                     <TableCell className="text-right">{item.calculated.paperCost.toFixed(2)}</TableCell>
                                 </TableRow>
                             ))}
                             </TableBody>
-                        </Table>
                          <footer className="pt-8 text-xs space-y-4">
                             <div className="font-semibold">Terms & Conditions:</div>
                             <ul className="list-disc list-inside space-y-1">
@@ -1709,6 +1717,96 @@ function SavedProductsList() {
     );
 }
 
+function CostingSettingsTab() {
+  const [costSettings, setCostSettings] = useState<CostSetting | null>(null);
+  const [kraftPaperCost, setKraftPaperCost] = useState<number | ''>('');
+  const [virginPaperCost, setVirginPaperCost] = useState<number | ''>('');
+  const [conversionCost, setConversionCost] = useState<number | ''>('');
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const unsubCostSettings = onSettingUpdate('costing', (setting) => {
+        if (setting?.value) {
+            const settings = setting.value as CostSetting;
+            setCostSettings(settings);
+            setKraftPaperCost(settings.kraftPaperCost || '');
+            setVirginPaperCost(settings.virginPaperCost || '');
+            setConversionCost(settings.conversionCost || '');
+        }
+    });
+    return () => unsubCostSettings();
+  }, []);
+
+  const handleSaveCosts = async () => {
+    if (!user) return;
+    try {
+        await updateCostSettings({
+            kraftPaperCost: Number(kraftPaperCost) || 0,
+            virginPaperCost: Number(virginPaperCost) || 0,
+            conversionCost: Number(conversionCost) || 0,
+        }, user.username);
+        toast({ title: "Success", description: "Cost settings saved." });
+    } catch (e) {
+        toast({ title: "Error", description: "Failed to save cost settings.", variant: "destructive" });
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-1">
+            <CardHeader>
+                <CardTitle>Default Costs</CardTitle>
+                <CardDescription>These values will be used as defaults in new cost reports.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="space-y-2">
+                    <Label htmlFor="globalKraftCost">Kraft Paper Cost</Label>
+                    <Input id="globalKraftCost" type="number" placeholder="Enter cost" value={kraftPaperCost} onChange={e => setKraftPaperCost(e.target.value === '' ? '' : parseFloat(e.target.value))} />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="globalVirginCost">Virgin Paper Cost</Label>
+                    <Input id="globalVirginCost" type="number" placeholder="Enter cost" value={virginPaperCost} onChange={e => setVirginPaperCost(e.target.value === '' ? '' : parseFloat(e.target.value))} />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="globalConversionCost">Conversion Cost</Label>
+                    <Input id="globalConversionCost" type="number" placeholder="Enter cost" value={conversionCost} onChange={e => setConversionCost(e.target.value === '' ? '' : parseFloat(e.target.value))} />
+                </div>
+                <Button onClick={handleSaveCosts}>Save Default Costs</Button>
+            </CardContent>
+        </Card>
+        <Card className="lg:col-span-2">
+             <CardHeader>
+                <CardTitle>Costing History</CardTitle>
+                <CardDescription>Review past changes to paper and conversion costs.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <ScrollArea className="h-96">
+                    {(costSettings?.history || []).length > 0 ? (
+                    <div className="space-y-4">
+                        {[...(costSettings?.history || [])].reverse().map((entry, index) => (
+                        <div key={index} className="flex justify-between items-center text-sm p-3 bg-muted/50 rounded-lg">
+                            <div>
+                            <p className="font-medium capitalize">{entry.costType.replace('Cost', ' Cost')}</p>
+                            <p className="text-xs text-muted-foreground">{format(new Date(entry.date), "PPp")} by {entry.setBy}</p>
+                            </div>
+                            <div className="text-right">
+                            <p>{entry.newValue.toLocaleString()}</p>
+                            <p className="text-xs text-muted-foreground line-through">{entry.oldValue.toLocaleString()}</p>
+                            </div>
+                        </div>
+                        ))}
+                    </div>
+                    ) : (
+                    <div className="text-center text-muted-foreground p-8">No history found.</div>
+                    )}
+                </ScrollArea>
+            </CardContent>
+        </Card>
+    </div>
+  )
+}
+
 export default function CostReportPage() {
     const [activeTab, setActiveTab] = useState("calculator");
     const [reportToEdit, setReportToEdit] = useState<CostReport | null>(null);
@@ -1750,6 +1848,7 @@ export default function CostReportPage() {
                     <TabsTrigger value="calculator">Calculator</TabsTrigger>
                     <TabsTrigger value="saved">Saved Reports</TabsTrigger>
                     <TabsTrigger value="products">Products</TabsTrigger>
+                    <TabsTrigger value="costingSettings">Costing Settings</TabsTrigger>
                 </TabsList>
                 <TabsContent value="calculator" className="pt-4">
                     <CostReportCalculator 
@@ -1765,6 +1864,9 @@ export default function CostReportPage() {
                 </TabsContent>
                 <TabsContent value="products" className="pt-4">
                     <SavedProductsList />
+                </TabsContent>
+                 <TabsContent value="costingSettings" className="pt-4">
+                    <CostingSettingsTab />
                 </TabsContent>
             </Tabs>
              {/* This dialog is now managed by the main page but triggered from the calculator */}
@@ -1783,4 +1885,5 @@ export default function CostReportPage() {
     
 
     
+
 
