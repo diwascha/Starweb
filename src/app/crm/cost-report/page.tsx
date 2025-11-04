@@ -1209,7 +1209,7 @@ export default function CostReportPage() {
             relevantSpecFields.forEach(field => {
                 spec[field] = '';
             });
-            setProductForm({ name: '', rate: 0, specification: spec });
+            setProductForm({ name: '', specification: spec });
         }
         setIsProductDialogOpen(true);
     };
@@ -1228,7 +1228,6 @@ export default function CostReportPage() {
             if (productToEdit) {
                  await updateProductService(productToEdit.id, {
                     name: productForm.name,
-                    rate: productForm.rate,
                     specification: finalSpec,
                     lastModifiedBy: user.username,
                 });
@@ -1236,7 +1235,6 @@ export default function CostReportPage() {
             } else {
                 await addProductService({
                     name: productForm.name,
-                    rate: productForm.rate,
                     specification: finalSpec,
                     createdBy: user.username,
                     createdAt: new Date().toISOString()
@@ -1308,10 +1306,6 @@ export default function CostReportPage() {
                                 <Label htmlFor="product-name">Product Name</Label>
                                 <Input id="product-name" value={productForm.name || ''} onChange={(e) => handleProductFormChange('name', e.target.value)} />
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="product-rate">Rate</Label>
-                                <Input id="product-rate" type="number" value={productForm.rate || ''} onChange={(e) => handleProductFormChange('rate', parseFloat(e.target.value) || 0)} />
-                            </div>
                             <Separator />
                             <h4 className="font-semibold">Specification</h4>
                             <div className="grid grid-cols-2 gap-4">
@@ -1337,3 +1331,5 @@ export default function CostReportPage() {
         </div>
     );
 }
+
+    
