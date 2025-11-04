@@ -371,6 +371,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
   const itemsToPrint = items.filter(item => selectedForPrint.has(item.id));
   const totalCostOfPrintedItems = itemsToPrint.reduce((sum, item) => sum + (item.calculated?.paperCost || 0), 0);
   const selectedParty = parties.find(p => p.id === selectedPartyId);
+  const [productSearch, setProductSearch] = useState('');
 
   return (
     <div className="flex flex-col gap-8">
@@ -559,16 +560,20 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                         </PopoverTrigger>
                                         <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
                                             <Command>
-                                                <CommandInput placeholder="Search products..." />
+                                                <CommandInput
+                                                    placeholder="Search products..."
+                                                    value={productSearch}
+                                                    onValueChange={setProductSearch}
+                                                />
                                                 <CommandList>
                                                     <CommandEmpty>
                                                         <Button variant="ghost" className="w-full justify-start" onClick={onProductAdd}>
-                                                          <PlusCircle className="mr-2 h-4 w-4" /> Add New Product
+                                                          <PlusCircle className="mr-2 h-4 w-4" /> Add "{productSearch}"
                                                         </Button>
                                                     </CommandEmpty>
                                                     <CommandGroup>
                                                         {products.map(p => (
-                                                            <CommandItem key={p.id} value={p.name} onSelect={() => handleProductSelect(index, p.id)}>
+                                                            <CommandItem key={p.id} value={p.name} onSelect={() => { handleProductSelect(index, p.id); setProductSearch(''); }}>
                                                                 <Check className={cn("mr-2 h-4 w-4", item.productId === p.id ? "opacity-100" : "opacity-0")} />
                                                                 {p.name}
                                                             </CommandItem>
@@ -1208,8 +1213,8 @@ function SavedProductsList() {
     
     const getGsmDisplay = (spec: Partial<ProductSpecification> | undefined) => {
         if (!spec) return 'N/A';
-        const { topGsm, middleGsm, bottomGsm, flute1Gsm, flute2Gsm, liner2Gsm, liner3Gsm, flute3Gsm, liner4Gsm, flute4Gsm } = spec;
-        
+        const { topGsm, flute1Gsm, bottomGsm, middleGsm, flute2Gsm, liner2Gsm, liner3Gsm, flute3Gsm, liner4Gsm, flute4Gsm } = spec;
+    
         switch (spec.ply) {
             case '3':
                 return `${topGsm || '-'}/${flute1Gsm || '-'}/${bottomGsm || '-'}`;
@@ -1545,7 +1550,14 @@ export default function CostReportPage() {
             </Tabs>
              {/* This dialog is now managed by the main page but triggered from the calculator */}
              <Dialog open={isProductDialogOpen} onOpenChange={setIsProductDialogOpen}>
-                 <SavedProductsList />
+                 <DialogContent className="max-w-xl">
+                    <DialogHeader>
+                        <DialogTitle>Add New Product</DialogTitle>
+                    </DialogHeader>
+                    {/* The SavedProductsList contains the form logic, we can reuse it, but we need to pass props to open the dialog in 'add' mode */}
+                    {/* A cleaner way would be a separate ProductForm component, but for now this works */}
+                    <SavedProductsList />
+                </DialogContent>
             </Dialog>
         </div>
     );
