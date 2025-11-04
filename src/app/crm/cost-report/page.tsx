@@ -677,13 +677,6 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                             </TableRow>
                         )})}
                         </TableBody>
-                        <TableFooter>
-                            <TableRow>
-                                <TableCell colSpan={27} className="text-right font-bold text-lg">Total Cost</TableCell>
-                                <TableCell className="font-bold text-lg">{totalItemCost.toFixed(2)}</TableCell>
-                                <TableCell />
-                            </TableRow>
-                        </TableFooter>
                     </Table>
                 </div>
                  <div className="flex justify-start mt-4">
@@ -1634,4 +1627,5 @@ export default function CostReportPage() {
         </div>
     );
 }
+
 
