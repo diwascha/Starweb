@@ -88,17 +88,16 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
 
   const [isLoadProductsDialogOpen, setIsLoadProductsDialogOpen] = useState(false);
   const [productsToLoad, setProductsToLoad] = useState<Set<string>>(new Set());
+  const [loadProductPartyFilter, setLoadProductPartyFilter] = useState('All');
+
+  const filteredProductsForLoad = useMemo(() => {
+    if (loadProductPartyFilter === 'All') {
+        return products;
+    }
+    return products.filter(p => p.partyName === loadProductPartyFilter);
+  }, [products, loadProductPartyFilter]);
   
-  const groupedProducts = useMemo(() => {
-    return products.reduce((acc, product) => {
-        const partyName = product.partyName || 'Uncategorized';
-        if (!acc[partyName]) {
-            acc[partyName] = [];
-        }
-        acc[partyName].push(product);
-        return acc;
-    }, {} as Record<string, Product[]>);
-  }, [products]);
+  const uniquePartiesForLoad = useMemo(() => ['All', ...Array.from(new Set(products.map(p => p.partyName).filter(Boolean)))], [products]);
 
   useEffect(() => {
     const unsubCostSettings = onSettingUpdate('costing', (setting) => {
@@ -348,10 +347,6 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     });
   };
   
-  const totalItemCost = useMemo(() => {
-    return items.reduce((sum, item) => sum + (item.calculated?.paperCost || 0), 0);
-  }, [items]);
-  
   const handleOpenPartyDialog = (partyToEdit: Party | null = null, searchName: string = '') => {
     if (partyToEdit) {
         setEditingParty(partyToEdit);
@@ -395,6 +390,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
            const vCost = Number(virginPaperCost) || 0;
            const cCost = Number(conversionCost) || 0;
 
+           const totalItemCost = items.reduce((sum, item) => sum + (item.calculated?.paperCost || 0), 0);
            const reportData: Omit<CostReport, 'id' | 'createdAt'> = {
               reportNumber,
               reportDate: reportDate.toISOString(),
@@ -462,7 +458,6 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
   };
 
   const itemsToPrint = items.filter(item => selectedForPrint.has(item.id));
-  const totalCostOfPrintedItems = itemsToPrint.reduce((sum, item) => sum + (item.calculated?.paperCost || 0), 0);
   const selectedParty = parties.find(p => p.id === selectedPartyId);
   const [productSearch, setProductSearch] = useState('');
 
@@ -716,7 +711,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                 <TableCell><Input type="number" value={item.flute1Gsm} onChange={e => handleItemChange(index, 'flute1Gsm', e.target.value)} className="w-20" /></TableCell>
                                 { ply >= 7 && <TableCell><Input type="number" value={item.liner2Gsm} onChange={e => handleItemChange(index, 'liner2Gsm', e.target.value)} className="w-20" /></TableCell> }
                                 { ply >= 5 && <TableCell><Input type="number" value={item.flute2Gsm} onChange={e => handleItemChange(index, 'flute2Gsm', e.target.value)} className="w-20" /></TableCell> }
-                                { ply >= 5 && ply === 5 && <TableCell><Input type="number" value={item.middleGsm} onChange={e => handleItemChange(index, 'middleGsm', e.target.value)} className="w-20" /></TableCell> }
+                                { ply === 5 && <TableCell><Input type="number" value={item.middleGsm} onChange={e => handleItemChange(index, 'middleGsm', e.target.value)} className="w-20" /></TableCell> }
                                 { ply >= 7 && <TableCell><Input type="number" value={item.liner3Gsm} onChange={e => handleItemChange(index, 'liner3Gsm', e.target.value)} className="w-20" /></TableCell> }
                                 { ply >= 7 && <TableCell><Input type="number" value={item.flute3Gsm} onChange={e => handleItemChange(index, 'flute3Gsm', e.target.value)} className="w-20" /></TableCell> }
                                 { ply >= 9 && <TableCell><Input type="number" value={item.liner4Gsm} onChange={e => handleItemChange(index, 'liner4Gsm', e.target.value)} className="w-20" /></TableCell> }
@@ -742,13 +737,6 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                             </TableRow>
                         )})}
                         </TableBody>
-                         <TableFooter>
-                            <TableRow className="font-bold text-lg">
-                                <TableCell colSpan={26} className="text-right">Total Cost:</TableCell>
-                                <TableCell className="text-left">{totalItemCost.toFixed(2)}</TableCell>
-                                <TableCell></TableCell>
-                            </TableRow>
-                        </TableFooter>
                     </Table>
                 </div>
                 <div className="flex justify-start gap-2 mt-4">
@@ -889,41 +877,48 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
             <DialogTitle>Load Products</DialogTitle>
             <DialogDescription>Select products from the list to add them to the calculator.</DialogDescription>
           </DialogHeader>
-            <div className="py-4">
-                <ScrollArea className="h-96">
-                    {Object.entries(groupedProducts).map(([partyName, productList]) => (
-                        <div key={partyName} className="mb-4">
-                            <h3 className="font-semibold text-lg mb-2 sticky top-0 bg-background/95 backdrop-blur-sm z-10 p-2 -ml-2">{partyName}</h3>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="w-10"></TableHead>
-                                        <TableHead>Product Name</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {productList.map(p => (
-                                        <TableRow key={p.id}>
-                                            <TableCell>
-                                                <Checkbox
-                                                    checked={productsToLoad.has(p.id)}
-                                                    onCheckedChange={checked => {
-                                                        setProductsToLoad(prev => {
-                                                            const newSet = new Set(prev);
-                                                            if (checked) newSet.add(p.id);
-                                                            else newSet.delete(p.id);
-                                                            return newSet;
-                                                        });
-                                                    }}
-                                                />
-                                            </TableCell>
-                                            <TableCell>{p.name}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    ))}
+            <div className="py-4 space-y-4">
+                <Select value={loadProductPartyFilter} onValueChange={setLoadProductPartyFilter}>
+                    <SelectTrigger className="w-full sm:w-1/2">
+                        <SelectValue placeholder="Filter by party..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {uniquePartiesForLoad.map(party => (
+                            <SelectItem key={party} value={party}>{party}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                <ScrollArea className="h-80">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className="w-10"></TableHead>
+                                <TableHead>Product Name</TableHead>
+                                {loadProductPartyFilter === 'All' && <TableHead>Party Name</TableHead>}
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {filteredProductsForLoad.map(p => (
+                                <TableRow key={p.id}>
+                                    <TableCell>
+                                        <Checkbox
+                                            checked={productsToLoad.has(p.id)}
+                                            onCheckedChange={checked => {
+                                                setProductsToLoad(prev => {
+                                                    const newSet = new Set(prev);
+                                                    if (checked) newSet.add(p.id);
+                                                    else newSet.delete(p.id);
+                                                    return newSet;
+                                                });
+                                            }}
+                                        />
+                                    </TableCell>
+                                    <TableCell>{p.name}</TableCell>
+                                    {loadProductPartyFilter === 'All' && <TableCell>{p.partyName}</TableCell>}
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
                 </ScrollArea>
             </div>
           <DialogFooter>
