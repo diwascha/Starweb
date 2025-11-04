@@ -1486,7 +1486,6 @@ export default function CostReportPage() {
     const { toast } = useToast();
     const { user } = useAuth();
     
-    // Product Dialog State
     const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
     
     useEffect(() => {
