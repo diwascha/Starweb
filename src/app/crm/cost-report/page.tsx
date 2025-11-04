@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -1258,9 +1257,9 @@ function SavedProductsList() {
                          <div className="space-y-2">
                             <Label>Dimension</Label>
                             <div className="flex gap-2">
-                                <Input placeholder="L" type="number" value={productForm.l} onChange={e => handleProductFormChange('l', e.target.value)} />
-                                <Input placeholder="B" type="number" value={productForm.b} onChange={e => handleProductFormChange('b', e.target.value)} />
-                                <Input placeholder="H" type="number" value={productForm.h} onChange={e => handleProductFormChange('h', e.target.value)} />
+                                <Input placeholder="L" type="number" value={productForm.l || ''} onChange={e => handleProductFormChange('l', e.target.value)} />
+                                <Input placeholder="B" type="number" value={productForm.b || ''} onChange={e => handleProductFormChange('b', e.target.value)} />
+                                <Input placeholder="H" type="number" value={productForm.h || ''} onChange={e => handleProductFormChange('h', e.target.value)} />
                             </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
@@ -1412,3 +1411,5 @@ export default function CostReportPage() {
         </div>
     );
 }
+
+    
