@@ -12,8 +12,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Printer, Loader2, Plus, Trash2, ChevronsUpDown, Check, PlusCircle, Edit, Save, MoreHorizontal, Search, ArrowUpDown, History } from 'lucide-react';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
+import { Printer, Loader2, Plus, Trash2, ChevronsUpDown, Check, PlusCircle, Edit, Save, MoreHorizontal, Search, ArrowUpDown, History, Library } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon } from 'lucide-react';
 import { DualCalendar } from '@/components/ui/dual-calendar';
@@ -85,6 +85,9 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
   
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
+
+  const [isLoadProductsDialogOpen, setIsLoadProductsDialogOpen] = useState(false);
+  const [productsToLoad, setProductsToLoad] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const unsubCostSettings = onSettingUpdate('costing', (setting) => {
@@ -264,16 +267,63 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
         return newItems;
     });
   };
+  
+    const addItemFromProduct = (product: Product) => {
+        const spec = product.specification;
+        const [l, b, h] = spec.dimension?.split('x') || ['', '', ''];
+
+        const kCost = Number(kraftPaperCost) || 0;
+        const vCost = Number(virginPaperCost) || 0;
+        const cCost = Number(conversionCost) || 0;
+
+        const newItemBase = {
+            id: Date.now().toString() + product.id,
+            productId: product.id,
+            l: l || '', b: b || '', h: h || '',
+            noOfPcs: '1',
+            ply: spec.ply || '3',
+            paperType: 'KRAFT',
+            paperBf: spec.paperBf || '18',
+            topGsm: spec.topGsm || '120',
+            flute1Gsm: spec.flute1Gsm || '100',
+            middleGsm: spec.middleGsm || '',
+            flute2Gsm: spec.flute2Gsm || '',
+            bottomGsm: spec.bottomGsm || '120',
+            liner2Gsm: spec.liner2Gsm || '',
+            flute3Gsm: spec.flute3Gsm || '',
+            liner3Gsm: spec.liner3Gsm || '',
+            flute4Gsm: spec.flute4Gsm || '',
+            liner4Gsm: spec.liner4Gsm || '',
+            wastagePercent: '3.5',
+            fluteType: 'B',
+        };
+        
+        const newItem = { ...newItemBase, calculated: calculateItemCost(newItemBase, kCost, vCost, cCost) };
+        setItems(prev => [...prev, newItem]);
+        setSelectedForPrint(prev => new Set(prev).add(newItem.id));
+    };
 
   const handleAddItem = () => {
     const kCost = Number(kraftPaperCost) || 0;
     const vCost = Number(virginPaperCost) || 0;
     const cCost = Number(conversionCost) || 0;
-    const newItem = { id: Date.now().toString(), productId: '', l:'',b:'',h:'', noOfPcs:'1', ply:'3', fluteType: 'B', paperType: 'KRAFT', paperBf:'18', topGsm:'120',flute1Gsm:'100',middleGsm:'',flute2Gsm:'',bottomGsm:'120', liner2Gsm: '', flute3Gsm: '', liner3Gsm: '', flute4Gsm: '', liner4Gsm: '', wastagePercent:'3.5' };
-    setItems(prev => [...prev, { ...newItem, calculated: calculateItemCost(newItem, kCost, vCost, cCost) }]);
+    const newItemBase = { id: Date.now().toString(), productId: '', l:'',b:'',h:'', noOfPcs:'1', ply:'3', fluteType: 'B', paperType: 'KRAFT', paperBf:'18', topGsm:'120',flute1Gsm:'100',middleGsm:'',flute2Gsm:'',bottomGsm:'120', liner2Gsm: '', flute3Gsm: '', liner3Gsm: '', flute4Gsm: '', liner4Gsm: '', wastagePercent:'3.5' };
+    const newItem = { ...newItemBase, calculated: calculateItemCost(newItemBase, kCost, vCost, cCost) };
+    setItems(prev => [...prev, newItem]);
     setSelectedForPrint(prev => new Set(prev).add(newItem.id));
   };
   
+    const handleLoadProducts = () => {
+        productsToLoad.forEach(productId => {
+            const product = products.find(p => p.id === productId);
+            if (product) {
+                addItemFromProduct(product);
+            }
+        });
+        setProductsToLoad(new Set());
+        setIsLoadProductsDialogOpen(false);
+    };
+
   const handleRemoveItem = (id: string) => {
     setItems(prev => prev.filter(item => item.id !== id));
     setSelectedForPrint(prev => {
@@ -679,8 +729,9 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                         </TableBody>
                     </Table>
                 </div>
-                 <div className="flex justify-start mt-4">
+                 <div className="flex justify-start gap-2 mt-4">
                     <Button variant="outline" size="sm" onClick={handleAddItem}><Plus className="mr-2 h-4 w-4" />Add Another Product</Button>
+                    <Button variant="outline" size="sm" onClick={() => setIsLoadProductsDialogOpen(true)}><Library className="mr-2 h-4 w-4" /> Load Products</Button>
                 </div>
             </CardContent>
             
@@ -789,12 +840,6 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                     </TableRow>
                   ))}
                 </TableBody>
-                <TableFooter>
-                    <TableRow className="font-bold text-base">
-                        <TableCell colSpan={6} className="text-right">Total</TableCell>
-                        <TableCell className="text-right">{totalCostOfPrintedItems.toFixed(2)}</TableCell>
-                    </TableRow>
-                </TableFooter>
               </Table>
 
                 <footer className="pt-8 text-xs space-y-4">
@@ -813,6 +858,52 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsPreviewOpen(false)}>Cancel</Button>
             <Button onClick={doActualPrint}><Printer className="mr-2 h-4 w-4" /> Print</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={isLoadProductsDialogOpen} onOpenChange={setIsLoadProductsDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Load Products</DialogTitle>
+            <DialogDescription>Select products from the list to add them to the calculator.</DialogDescription>
+          </DialogHeader>
+            <div className="py-4">
+                <ScrollArea className="h-96">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className="w-10"></TableHead>
+                                <TableHead>Product Name</TableHead>
+                                <TableHead>Party Name</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {products.map(p => (
+                                <TableRow key={p.id}>
+                                    <TableCell>
+                                        <Checkbox
+                                            checked={productsToLoad.has(p.id)}
+                                            onCheckedChange={checked => {
+                                                setProductsToLoad(prev => {
+                                                    const newSet = new Set(prev);
+                                                    if (checked) newSet.add(p.id);
+                                                    else newSet.delete(p.id);
+                                                    return newSet;
+                                                });
+                                            }}
+                                        />
+                                    </TableCell>
+                                    <TableCell>{p.name}</TableCell>
+                                    <TableCell>{p.partyName}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </ScrollArea>
+            </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsLoadProductsDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleLoadProducts}>Add Selected Products</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1628,4 +1719,4 @@ export default function CostReportPage() {
     );
 }
 
-
+    
