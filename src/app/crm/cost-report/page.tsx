@@ -779,7 +779,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                              const totalItemCost = (item.calculated?.paperCost || 0) + accessoriesCost;
                              return (
                                 <Collapsible asChild key={item.id}>
-                                  <>
+                                  <tbody>
                                     <TableRow>
                                         <TableCell>
                                             <div className="flex items-center">
@@ -928,7 +928,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                             </TableCell>
                                         </tr>
                                     </CollapsibleContent>
-                                  </>
+                                  </tbody>
                                 </Collapsible>
                         )})}
                         </TableBody>
@@ -1481,6 +1481,13 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
                                 </tr>
                             ))}
                             </TableBody>
+                            <TableFooter>
+                                <TableRow>
+                                    <TableCell colSpan={8} className="text-right font-bold">
+                                        Total: {printableReportItems.reduce((sum, item) => sum + item.totalItemCost, 0).toFixed(2)}
+                                    </TableCell>
+                                </TableRow>
+                            </TableFooter>
                         </Table>
                          <footer className="pt-8 text-xs space-y-4">
                             <div className="font-semibold">Terms & Conditions:</div>
@@ -2147,4 +2154,6 @@ export default function CostReportPage() {
     );
 }
     
+    
+
     
