@@ -1163,12 +1163,6 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
                             </TableRow>
                             ))}
                         </TableBody>
-                         <TableFooter>
-                            <TableRow className="font-bold text-base">
-                                <TableCell colSpan={6} className="text-right">Total</TableCell>
-                                <TableCell className="text-right">{printableTotalCost.toFixed(2)}</TableCell>
-                            </TableRow>
-                        </TableFooter>
                         </Table>
                          <footer className="pt-8 text-xs space-y-4">
                             <div className="font-semibold">Terms & Conditions:</div>
