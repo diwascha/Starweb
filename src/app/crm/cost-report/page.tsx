@@ -252,7 +252,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     const kCost = Number(kraftPaperCost) || 0;
     const vCost = Number(virginPaperCost) || 0;
     const cCost = Number(conversionCost) || 0;
-    const newItem = { id: Date.now().toString(), productId: '', l:'',b:'',h:'', noOfPcs:'1', boxType: 'RSC', ply:'3', fluteType: 'B', paperType: 'KRAFT', paperShade:'NS', paperBf:'18', topGsm:'120',flute1Gsm:'100',middleGsm:'',flute2Gsm:'',bottomGsm:'120', liner2Gsm: '', flute3Gsm: '', liner3Gsm: '', flute4Gsm: '', liner4Gsm: '', wastagePercent:'3.5' };
+    const newItem = { id: Date.now().toString(), productId: '', l:'',b:'',h:'', noOfPcs:'1', boxType: 'RSC', ply:'3', fluteType: 'B', paperType: 'KRAFT', paperBf:'18', topGsm:'120',flute1Gsm:'100',middleGsm:'',flute2Gsm:'',bottomGsm:'120', liner2Gsm: '', flute3Gsm: '', liner3Gsm: '', flute4Gsm: '', liner4Gsm: '', wastagePercent:'3.5' };
     setItems(prev => [...prev, { ...newItem, calculated: calculateItemCost(newItem, kCost, vCost, cCost) }]);
     setSelectedForPrint(prev => new Set(prev).add(newItem.id));
   };
@@ -621,12 +621,16 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                 <TableCell><Input value={item.paperBf} onChange={e => handleItemChange(index, 'paperBf', e.target.value)} className="w-16" /></TableCell>
                                 <TableCell><Input type="number" value={item.topGsm} onChange={e => handleItemChange(index, 'topGsm', e.target.value)} className="w-20" /></TableCell>
                                 <TableCell><Input type="number" value={item.flute1Gsm} onChange={e => handleItemChange(index, 'flute1Gsm', e.target.value)} className="w-20" /></TableCell>
-                                <TableCell><Input type="number" value={item.liner2Gsm} onChange={e => handleItemChange(index, 'liner2Gsm', e.target.value)} className="w-20" disabled={ply < 7} /></TableCell>
-                                <TableCell><Input type="number" value={item.flute2Gsm} onChange={e => handleItemChange(index, 'flute2Gsm', e.target.value)} className="w-20" disabled={ply < 5} /></TableCell>
-                                <TableCell><Input type="number" value={item.liner3Gsm} onChange={e => handleItemChange(index, 'liner3Gsm', e.target.value)} className="w-20" disabled={ply < 7} /></TableCell>
-                                <TableCell><Input type="number" value={item.flute3Gsm} onChange={e => handleItemChange(index, 'flute3Gsm', e.target.value)} className="w-20" disabled={ply < 7} /></TableCell>
-                                <TableCell><Input type="number" value={item.liner4Gsm} onChange={e => handleItemChange(index, 'liner4Gsm', e.target.value)} className="w-20" disabled={ply < 9} /></TableCell>
-                                <TableCell><Input type="number" value={item.flute4Gsm} onChange={e => handleItemChange(index, 'flute4Gsm', e.target.value)} className="w-20" disabled={ply < 9} /></TableCell>
+                                { ply >= 7 && <TableCell><Input type="number" value={item.liner2Gsm} onChange={e => handleItemChange(index, 'liner2Gsm', e.target.value)} className="w-20" /></TableCell> }
+                                { ply >= 5 && <TableCell><Input type="number" value={item.flute2Gsm} onChange={e => handleItemChange(index, 'flute2Gsm', e.target.value)} className="w-20" /></TableCell> }
+                                { ply >= 5 && ply === 5 && <TableCell><Input type="number" value={item.middleGsm} onChange={e => handleItemChange(index, 'middleGsm', e.target.value)} className="w-20" /></TableCell> }
+                                { ply >= 7 && <TableCell><Input type="number" value={item.liner3Gsm} onChange={e => handleItemChange(index, 'liner3Gsm', e.target.value)} className="w-20" /></TableCell> }
+                                { ply >= 7 && <TableCell><Input type="number" value={item.flute3Gsm} onChange={e => handleItemChange(index, 'flute3Gsm', e.target.value)} className="w-20" /></TableCell> }
+                                { ply >= 9 && <TableCell><Input type="number" value={item.liner4Gsm} onChange={e => handleItemChange(index, 'liner4Gsm', e.target.value)} className="w-20" /></TableCell> }
+                                { ply >= 9 && <TableCell><Input type="number" value={item.flute4Gsm} onChange={e => handleItemChange(index, 'flute4Gsm', e.target.value)} className="w-20" /></TableCell> }
+                                { ply < 5 && <><TableCell/><TableCell/><TableCell/><TableCell/><TableCell/><TableCell/></> }
+                                { ply === 5 && <><TableCell/><TableCell/><TableCell/><TableCell/></> }
+                                { ply === 7 && <><TableCell/></> }
                                 <TableCell><Input type="number" value={item.bottomGsm} onChange={e => handleItemChange(index, 'bottomGsm', e.target.value)} className="w-20" /></TableCell>
                                 <TableCell>{item.calculated.totalGsm.toFixed(2)}</TableCell>
                                 <TableCell>{(item.calculated.sheetSizeL / 10).toFixed(2)}</TableCell>
@@ -1599,3 +1603,4 @@ export default function CostReportPage() {
         </div>
     );
 }
+
