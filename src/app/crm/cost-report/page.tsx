@@ -1170,11 +1170,11 @@ export default function CostReportPage() {
     // State for the product dialog
     const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
     const [productToEdit, setProductToEdit] = useState<Product | null>(null);
-    const [productForm, setProductForm] = useState<Partial<Product>>({ specification: {} });
+    const [productForm, setProductForm] = useState<Partial<Product> & { l?: string, b?: string, h?: string }>({ specification: {} });
     const { toast } = useToast();
     const { user } = useAuth();
     
-    const relevantSpecFields: (keyof ProductSpecification)[] = ['dimension', 'ply', 'paperBf', 'topGsm', 'flute1Gsm', 'middleGsm', 'flute2Gsm', 'bottomGsm', 'printing'];
+    const relevantSpecFields: (keyof ProductSpecification)[] = ['ply', 'paperBf', 'topGsm', 'flute1Gsm', 'middleGsm', 'flute2Gsm', 'bottomGsm', 'printing'];
     
     useEffect(() => {
         const unsubProducts = onProductsUpdate(setProducts);
@@ -1198,19 +1198,21 @@ export default function CostReportPage() {
     const handleOpenProductDialog = (product: Product | null = null) => {
         if (product) {
             setProductToEdit(product);
-            // Ensure all relevant fields are present, even if empty
             const spec: Partial<ProductSpecification> = {};
             relevantSpecFields.forEach(field => {
                 spec[field] = product.specification?.[field] || '';
             });
-            setProductForm({ ...product, specification: spec });
+            
+            const [l, b, h] = product.specification?.dimension?.split('x') || ['', '', ''];
+
+            setProductForm({ ...product, specification: spec, l, b, h });
         } else {
             setProductToEdit(null);
             const spec: Partial<ProductSpecification> = {};
             relevantSpecFields.forEach(field => {
                 spec[field] = '';
             });
-            setProductForm({ name: '', materialCode: '', specification: spec });
+            setProductForm({ name: '', materialCode: '', specification: spec, l: '', b: '', h: '' });
         }
         setIsProductDialogOpen(true);
     };
@@ -1218,26 +1220,30 @@ export default function CostReportPage() {
     const handleSaveProduct = async () => {
         if (!user) return;
         
-        const finalSpec: Partial<ProductSpecification> = {};
-        for(const key in productForm.specification) {
+        const { l, b, h, ...restOfForm } = productForm;
+        const dimension = (l || b || h) ? `${l || '0'}x${b || '0'}x${h || '0'}` : '';
+
+        const finalSpec: Partial<ProductSpecification> = { dimension };
+
+        for(const key in restOfForm.specification) {
             if(relevantSpecFields.includes(key as keyof ProductSpecification)) {
-                finalSpec[key as keyof ProductSpecification] = productForm.specification[key as keyof ProductSpecification];
+                finalSpec[key as keyof ProductSpecification] = restOfForm.specification[key as keyof ProductSpecification];
             }
         }
 
         try {
             if (productToEdit) {
                  await updateProductService(productToEdit.id, {
-                    name: productForm.name,
-                    materialCode: productForm.materialCode,
+                    name: restOfForm.name,
+                    materialCode: restOfForm.materialCode,
                     specification: finalSpec,
                     lastModifiedBy: user.username,
                 });
                 toast({ title: 'Success', description: 'Product updated.' });
             } else {
                 await addProductService({
-                    name: productForm.name,
-                    materialCode: productForm.materialCode,
+                    name: restOfForm.name,
+                    materialCode: restOfForm.materialCode,
                     specification: finalSpec,
                     createdBy: user.username,
                     createdAt: new Date().toISOString()
@@ -1252,7 +1258,7 @@ export default function CostReportPage() {
         }
     };
     
-    const handleProductFormChange = (field: keyof Product, value: any) => {
+    const handleProductFormChange = (field: keyof Omit<typeof productForm, 'specification'>, value: any) => {
         setProductForm(prev => ({ ...prev, [field]: value }));
     };
 
@@ -1317,6 +1323,14 @@ export default function CostReportPage() {
                             </div>
                             <Separator />
                             <h4 className="font-semibold">Specification</h4>
+                             <div className="space-y-2">
+                                <Label>Dimension</Label>
+                                <div className="flex gap-2">
+                                    <Input placeholder="L" type="number" value={productForm.l} onChange={e => handleProductFormChange('l', e.target.value)} />
+                                    <Input placeholder="B" type="number" value={productForm.b} onChange={e => handleProductFormChange('b', e.target.value)} />
+                                    <Input placeholder="H" type="number" value={productForm.h} onChange={e => handleProductFormChange('h', e.target.value)} />
+                                </div>
+                            </div>
                             <div className="grid grid-cols-2 gap-4">
                                 {relevantSpecFields.map(key => (
                                         <div key={key} className="space-y-2">
@@ -1340,5 +1354,3 @@ export default function CostReportPage() {
         </div>
     );
 }
-
-    
