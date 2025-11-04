@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import type { Product, Party, PartyType, CostReport, CostReportItem, ProductSpecification } from '@/lib/types';
+import type { Product, Party, PartyType, CostReport, CostReportItem, ProductSpecification, CostSetting } from '@/lib/types';
 import { onProductsUpdate, addProduct as addProductService, updateProduct as updateProductService, deleteProduct as deleteProductService } from '@/services/product-service';
 import { onPartiesUpdate, addParty, updateParty } from '@/services/party-service';
 import { onCostReportsUpdate, addCostReport, deleteCostReport, generateNextCostReportNumber, getCostReport, updateCostReport } from '@/services/cost-report-service';
@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Printer, Loader2, Plus, Trash2, ChevronsUpDown, Check, PlusCircle, Edit, Save, MoreHorizontal, Search, ArrowUpDown } from 'lucide-react';
+import { Printer, Loader2, Plus, Trash2, ChevronsUpDown, Check, PlusCircle, Edit, Save, MoreHorizontal, Search, ArrowUpDown, History } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon } from 'lucide-react';
@@ -32,6 +32,7 @@ import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader,
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { onSettingUpdate, updateCostSettings } from '@/services/settings-service';
 
 
 interface CalculatedValues {
@@ -65,9 +66,11 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
   const [reportNumber, setReportNumber] = useState('CR-001');
   const [reportDate, setReportDate] = useState<Date>(new Date());
   
-  const [kraftPaperCost, setKraftPaperCost] = useState<number | ''>(13.118);
+  const [costSettings, setCostSettings] = useState<CostSetting | null>(null);
+  const [kraftPaperCost, setKraftPaperCost] = useState<number | ''>('');
   const [virginPaperCost, setVirginPaperCost] = useState<number | ''>('');
-  const [conversionCost, setConversionCost] = useState<number | ''>(1);
+  const [conversionCost, setConversionCost] = useState<number | ''>('');
+
   const [isSaving, setIsSaving] = useState(false);
   const [items, setItems] = useState<CostReportItem[]>([]);
   const [selectedForPrint, setSelectedForPrint] = useState<Set<string>>(new Set());
@@ -83,6 +86,20 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    const unsubCostSettings = onSettingUpdate('costing', (setting) => {
+        if (setting?.value) {
+            const settings = setting.value as CostSetting;
+            setCostSettings(settings);
+            if (!reportToEdit) { // Only set from global if it's a new report
+                setKraftPaperCost(settings.kraftPaperCost || '');
+                setVirginPaperCost(settings.virginPaperCost || '');
+                setConversionCost(settings.conversionCost || '');
+            }
+        }
+    });
+    return () => unsubCostSettings();
+  }, [reportToEdit]);
 
  const calculateItemCost = useCallback((item: Omit<CostReportItem, 'id' | 'calculated' | 'productId'>, globalKraftCost: number, globalVirginCost: number, globalConversionCost: number): CalculatedValues => {
     const l = parseFloat(item.l) || 0;
@@ -187,13 +204,13 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
         generateNextCostReportNumber(costReports).then(setReportNumber);
         setReportDate(new Date());
         setSelectedPartyId('');
-        const kCost = Number(kraftPaperCost) || 0;
-        const vCost = Number(virginPaperCost) || 0;
-        const cCost = Number(conversionCost) || 0;
+        const kCost = Number(costSettings?.kraftPaperCost) || 0;
+        const vCost = Number(costSettings?.virginPaperCost) || 0;
+        const cCost = Number(costSettings?.conversionCost) || 0;
         setItems([]);
         setSelectedForPrint(new Set());
     }
-  }, [reportToEdit, costReports, calculateItemCost, kraftPaperCost, virginPaperCost, conversionCost]);
+  }, [reportToEdit, costReports, calculateItemCost, costSettings]);
 
 
   const handleProductSelect = (index: number, productId: string) => {
@@ -252,7 +269,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     const kCost = Number(kraftPaperCost) || 0;
     const vCost = Number(virginPaperCost) || 0;
     const cCost = Number(conversionCost) || 0;
-    const newItem = { id: Date.now().toString(), productId: '', l:'',b:'',h:'', noOfPcs:'1', boxType: 'RSC', ply:'3', fluteType: 'B', paperType: 'KRAFT', paperBf:'18', topGsm:'120',flute1Gsm:'100',middleGsm:'',flute2Gsm:'',bottomGsm:'120', liner2Gsm: '', flute3Gsm: '', liner3Gsm: '', flute4Gsm: '', liner4Gsm: '', wastagePercent:'3.5' };
+    const newItem = { id: Date.now().toString(), productId: '', l:'',b:'',h:'', noOfPcs:'1', ply:'3', fluteType: 'B', paperType: 'KRAFT', paperBf:'18', topGsm:'120',flute1Gsm:'100',middleGsm:'',flute2Gsm:'',bottomGsm:'120', liner2Gsm: '', flute3Gsm: '', liner3Gsm: '', flute4Gsm: '', liner4Gsm: '', wastagePercent:'3.5' };
     setItems(prev => [...prev, { ...newItem, calculated: calculateItemCost(newItem, kCost, vCost, cCost) }]);
     setSelectedForPrint(prev => new Set(prev).add(newItem.id));
   };
@@ -309,18 +326,29 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
       }
       setIsSaving(true);
       try {
+           const kCost = Number(kraftPaperCost) || 0;
+           const vCost = Number(virginPaperCost) || 0;
+           const cCost = Number(conversionCost) || 0;
+
            const reportData: Omit<CostReport, 'id' | 'createdAt'> = {
               reportNumber,
               reportDate: reportDate.toISOString(),
               partyId: selectedPartyId,
               partyName: parties.find(p => p.id === selectedPartyId)?.name || '',
-              kraftPaperCost: Number(kraftPaperCost) || 0,
-              virginPaperCost: Number(virginPaperCost) || 0,
-              conversionCost: Number(conversionCost) || 0,
+              kraftPaperCost: kCost,
+              virginPaperCost: vCost,
+              conversionCost: cCost,
               items: items.map(({ calculated, ...item }) => item),
               totalCost: totalItemCost,
               createdBy: user.username,
           };
+          
+          await updateCostSettings({
+            kraftPaperCost: kCost,
+            virginPaperCost: vCost,
+            conversionCost: cCost,
+          }, user.username);
+
 
           if (reportToEdit) {
               await updateCostReport(reportToEdit.id, {...reportData, lastModifiedBy: user.username});
@@ -1603,4 +1631,3 @@ export default function CostReportPage() {
         </div>
     );
 }
-

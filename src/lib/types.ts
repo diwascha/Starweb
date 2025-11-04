@@ -9,18 +9,27 @@ export interface RateHistoryEntry {
 export interface ProductSpecification {
   dimension: string;
   ply: string;
-  paperBf: string;
+  weightOfBox: string;
+  gsm: string;
+  stapleWidth: string;
+  stapling: string;
+  overlapWidth: string;
   printing: string;
-  // GSM breakdown for up to 9-ply
-  topGsm: string;
-  flute1Gsm: string;
-  liner2Gsm: string; // For 7-ply and up
-  flute2Gsm: string;
-  middleGsm: string; // Same as liner3 for 7-ply
-  flute3Gsm: string; // For 7-ply and up
-  liner4Gsm: string; // For 9-ply
-  flute4Gsm: string; // For 9-ply
-  bottomGsm: string;
+  moisture: string;
+  load: string;
+  paperShade?: string; // NS
+  boxType?: string; // RSC
+  paperBf?: string;
+  topGsm?: string;
+  flute1Gsm?: string;
+  middleGsm?: string;
+  flute2Gsm?: string;
+  bottomGsm?: string;
+  liner2Gsm?: string;
+  flute3Gsm?: string;
+  liner3Gsm?: string;
+  flute4Gsm?: string;
+  liner4Gsm?: string;
 }
 
 
@@ -632,11 +641,9 @@ export interface CostReportItem {
   b: string;
   h: string;
   noOfPcs: string;
-  boxType: string;
   ply: string;
   fluteType: string;
   paperType: string;
-  paperShade: string;
   paperBf: string;
   topGsm: string;
   flute1Gsm: string;
@@ -668,4 +675,22 @@ export interface CostReport {
   createdAt: string;
 }
 
+export interface CostSettingHistoryEntry {
+    costType: 'kraftPaperCost' | 'virginPaperCost' | 'conversionCost';
+    oldValue: number;
+    newValue: number;
+    date: string; // ISO
+    setBy: string;
+}
+
+export interface CostSetting {
+    kraftPaperCost: number;
+    virginPaperCost: number;
+    conversionCost: number;
+    history: CostSettingHistoryEntry[];
+    createdBy?: string;
+    createdAt?: string; // ISO
+    lastModifiedBy?: string;
+    lastModifiedAt?: string; // ISO
+}
     
