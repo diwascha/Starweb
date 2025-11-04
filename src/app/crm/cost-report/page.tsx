@@ -1020,21 +1020,22 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
     );
 }
 
-export default function CostReportPage() {
-    const [activeTab, setActiveTab] = useState("calculator");
-    const [reportToEdit, setReportToEdit] = useState<CostReport | null>(null);
+function SavedProductsList() {
     const [products, setProducts] = useState<Product[]>([]);
     const [parties, setParties] = useState<Party[]>([]);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [filterParty, setFilterParty] = useState('All');
+    const {toast} = useToast();
+    const {user} = useAuth();
     
-    // State for the product dialog
+    // Product Dialog State
     const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
     const [productToEdit, setProductToEdit] = useState<Product | null>(null);
     const [productForm, setProductForm] = useState<Partial<Product> & { l?: string, b?: string, h?: string }>({ specification: {} });
-    const { toast } = useToast();
-    const { user } = useAuth();
     
     const relevantSpecFields: (keyof ProductSpecification)[] = ['ply', 'paperBf', 'topGsm', 'flute1Gsm', 'middleGsm', 'flute2Gsm', 'liner2Gsm', 'flute3Gsm', 'liner3Gsm', 'flute4Gsm', 'liner4Gsm', 'bottomGsm', 'printing'];
-    
+
+
     useEffect(() => {
         const unsubProducts = onProductsUpdate(setProducts);
         const unsubParties = onPartiesUpdate(setParties);
@@ -1044,19 +1045,27 @@ export default function CostReportPage() {
         }
     }, []);
     
-    const handleEditReport = (report: CostReport) => {
-        setReportToEdit(report);
-        setActiveTab("calculator");
-    };
+    const sortedProducts = useMemo(() => {
+        let filtered = products;
+        if(filterParty !== 'All') {
+            filtered = filtered.filter(p => p.partyName === filterParty);
+        }
+        if(searchQuery) {
+            filtered = filtered.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+        }
+        return filtered.sort((a,b) => a.name.localeCompare(b.name));
+    }, [products, searchQuery, filterParty]);
 
-    const handleFinishEditing = () => {
-        setReportToEdit(null);
-        setActiveTab("saved");
+    const uniqueParties = useMemo(() => ['All', ...Array.from(new Set(products.map(p => p.partyName).filter(Boolean)))], [products]);
+    
+    const handleDeleteProduct = async (id: string) => {
+        try {
+            await deleteProductService(id);
+            toast({ title: 'Product Deleted' });
+        } catch {
+            toast({ title: 'Error', description: 'Failed to delete product', variant: 'destructive'});
+        }
     };
-
-    const handleCancelEdit = () => {
-        setReportToEdit(null);
-    }
     
     const handleOpenProductDialog = (product: Product | null = null) => {
         if (product) {
@@ -1143,7 +1152,235 @@ export default function CostReportPage() {
     };
     
     const ply = parseInt(productForm.specification?.ply || '3', 10);
+    
+    return (
+      <>
+        <Card>
+            <CardHeader>
+                <div className="flex justify-between items-center">
+                    <div>
+                        <CardTitle>Products for Costing</CardTitle>
+                        <CardDescription>A list of products available in the cost calculator.</CardDescription>
+                    </div>
+                     <div className="flex items-center gap-2">
+                        <Input placeholder="Search products..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-64" />
+                        <Select value={filterParty} onValueChange={setFilterParty}>
+                            <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                {uniqueParties.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        <Button onClick={() => handleOpenProductDialog()}><Plus className="mr-2 h-4 w-4" /> Add Product</Button>
+                    </div>
+                </div>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Product Name</TableHead>
+                            <TableHead>Party Name</TableHead>
+                            <TableHead>Dimension</TableHead>
+                            <TableHead>Ply</TableHead>
+                            <TableHead>Top/Mid/Bot GSM</TableHead>
+                            <TableHead>Paper BF</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {sortedProducts.map(p => (
+                            <TableRow key={p.id}>
+                                <TableCell>{p.name}</TableCell>
+                                <TableCell>{p.partyName || 'N/A'}</TableCell>
+                                <TableCell>{p.specification?.dimension || 'N/A'}</TableCell>
+                                <TableCell>{p.specification?.ply || 'N/A'}</TableCell>
+                                <TableCell>{`${p.specification?.topGsm || '-'}/${p.specification?.middleGsm || '-'}/${p.specification?.bottomGsm || '-'}`}</TableCell>
+                                <TableCell>{p.specification?.paperBf || 'N/A'}</TableCell>
+                                <TableCell className="text-right">
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger>
+                                        <DropdownMenuContent>
+                                            <DropdownMenuItem onSelect={() => handleOpenProductDialog(p)}><Edit className="mr-2 h-4 w-4"/>Edit</DropdownMenuItem>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild><DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4"/>Delete</DropdownMenuItem></AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                        <AlertDialogDescription>This will permanently delete this product.</AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => handleDeleteProduct(p.id)}>Delete</AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+        <Dialog open={isProductDialogOpen} onOpenChange={setIsProductDialogOpen}>
+            <DialogContent className="max-w-xl">
+                <DialogHeader>
+                    <DialogTitle>{productToEdit ? 'Edit Product' : 'Add New Product'}</DialogTitle>
+                </DialogHeader>
+                <ScrollArea className="max-h-[70vh]">
+                    <div className="py-4 px-6 space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="product-name">Product Name</Label>
+                                <Input id="product-name" value={productForm.name || ''} onChange={(e) => handleProductFormChange('name', e.target.value)} />
+                            </div>
+                             <div className="space-y-2">
+                                <Label htmlFor="material-code">Material Code</Label>
+                                <Input id="material-code" value={productForm.materialCode || ''} onChange={(e) => handleProductFormChange('materialCode', e.target.value)} />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="partyId">Party Name</Label>
+                             <Select value={productForm.partyId} onValueChange={(value) => handleProductFormChange('partyId', value)}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a party" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {parties.map(p => (
+                                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <Separator />
+                        <h4 className="font-semibold">Specification</h4>
+                         <div className="space-y-2">
+                            <Label>Dimension</Label>
+                            <div className="flex gap-2">
+                                <Input placeholder="L" type="number" value={productForm.l} onChange={e => handleProductFormChange('l', e.target.value)} />
+                                <Input placeholder="B" type="number" value={productForm.b} onChange={e => handleProductFormChange('b', e.target.value)} />
+                                <Input placeholder="H" type="number" value={productForm.h} onChange={e => handleProductFormChange('h', e.target.value)} />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                           <div className="space-y-2">
+                                <Label htmlFor={`spec-ply`}>Ply</Label>
+                                <Select value={productForm.specification?.ply || '3'} onValueChange={(v) => handleSpecChange('ply', v)}>
+                                    <SelectTrigger><SelectValue/></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="3">3 Ply</SelectItem>
+                                        <SelectItem value="5">5 Ply</SelectItem>
+                                        <SelectItem value="7">7 Ply</SelectItem>
+                                        <SelectItem value="9">9 Ply</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                           </div>
+                           <div className="space-y-2">
+                                <Label htmlFor={`spec-paperBf`}>Paper Bf</Label>
+                                <Input id={`spec-paperBf`} value={productForm.specification?.paperBf || ''} onChange={(e) => handleSpecChange('paperBf', e.target.value)} />
+                           </div>
+                           <div className="space-y-2">
+                                <Label htmlFor={`spec-topGsm`}>Top Gsm</Label>
+                                <Input id={`spec-topGsm`} value={productForm.specification?.topGsm || ''} onChange={(e) => handleSpecChange('topGsm', e.target.value)} />
+                           </div>
+                           <div className="space-y-2">
+                                <Label htmlFor={`spec-flute1Gsm`}>Flute 1 Gsm</Label>
+                                <Input id={`spec-flute1Gsm`} value={productForm.specification?.flute1Gsm || ''} onChange={(e) => handleSpecChange('flute1Gsm', e.target.value)} />
+                           </div>
+                           {ply >= 5 && (
+                               <div className="space-y-2">
+                                    <Label htmlFor={`spec-middleGsm`}>Middle Gsm</Label>
+                                    <Input id={`spec-middleGsm`} value={productForm.specification?.middleGsm || ''} onChange={(e) => handleSpecChange('middleGsm', e.target.value)} />
+                               </div>
+                           )}
+                           {ply >= 5 && (
+                               <div className="space-y-2">
+                                    <Label htmlFor={`spec-flute2Gsm`}>Flute 2 Gsm</Label>
+                                    <Input id={`spec-flute2Gsm`} value={productForm.specification?.flute2Gsm || ''} onChange={(e) => handleSpecChange('flute2Gsm', e.target.value)} />
+                               </div>
+                           )}
+                           {ply >= 7 && (
+                               <div className="space-y-2">
+                                    <Label htmlFor={`spec-liner2Gsm`}>Liner 2 Gsm</Label>
+                                    <Input id={`spec-liner2Gsm`} value={productForm.specification?.liner2Gsm || ''} onChange={(e) => handleSpecChange('liner2Gsm', e.target.value)} />
+                               </div>
+                           )}
+                           {ply >= 7 && (
+                               <div className="space-y-2">
+                                    <Label htmlFor={`spec-flute3Gsm`}>Flute 3 Gsm</Label>
+                                    <Input id={`spec-flute3Gsm`} value={productForm.specification?.flute3Gsm || ''} onChange={(e) => handleSpecChange('flute3Gsm', e.target.value)} />
+                               </div>
+                           )}
+                           {ply >= 7 && (
+                               <div className="space-y-2">
+                                    <Label htmlFor={`spec-liner3Gsm`}>Liner 3 Gsm</Label>
+                                    <Input id={`spec-liner3Gsm`} value={productForm.specification?.liner3Gsm || ''} onChange={(e) => handleSpecChange('liner3Gsm', e.target.value)} />
+                               </div>
+                           )}
+                           {ply >= 9 && (
+                               <div className="space-y-2">
+                                    <Label htmlFor={`spec-flute4Gsm`}>Flute 4 Gsm</Label>
+                                    <Input id={`spec-flute4Gsm`} value={productForm.specification?.flute4Gsm || ''} onChange={(e) => handleSpecChange('flute4Gsm', e.target.value)} />
+                               </div>
+                           )}
+                           {ply >= 9 && (
+                               <div className="space-y-2">
+                                    <Label htmlFor={`spec-liner4Gsm`}>Liner 4 Gsm</Label>
+                                    <Input id={`spec-liner4Gsm`} value={productForm.specification?.liner4Gsm || ''} onChange={(e) => handleSpecChange('liner4Gsm', e.target.value)} />
+                               </div>
+                           )}
+                           <div className="space-y-2">
+                                <Label htmlFor={`spec-bottomGsm`}>Bottom Gsm</Label>
+                                <Input id={`spec-bottomGsm`} value={productForm.specification?.bottomGsm || ''} onChange={(e) => handleSpecChange('bottomGsm', e.target.value)} />
+                           </div>
+                           <div className="space-y-2">
+                                <Label htmlFor={`spec-printing`}>Printing</Label>
+                                <Input id={`spec-printing`} value={productForm.specification?.printing || ''} onChange={(e) => handleSpecChange('printing', e.target.value)} />
+                           </div>
+                        </div>
+                    </div>
+                </ScrollArea>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsProductDialogOpen(false)}>Cancel</Button>
+                    <Button onClick={handleSaveProduct}>{productToEdit ? 'Save Changes' : 'Add Product'}</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+      </>
+    );
+}
 
+export default function CostReportPage() {
+    const [activeTab, setActiveTab] = useState("calculator");
+    const [reportToEdit, setReportToEdit] = useState<CostReport | null>(null);
+    const [products, setProducts] = useState<Product[]>([]);
+    
+    const { toast } = useToast();
+    const { user } = useAuth();
+    
+    // Product Dialog State
+    const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
+    
+    useEffect(() => {
+        const unsubProducts = onProductsUpdate(setProducts);
+        return () => unsubProducts();
+    }, []);
+    
+    const handleEditReport = (report: CostReport) => {
+        setReportToEdit(report);
+        setActiveTab("calculator");
+    };
+
+    const handleFinishEditing = () => {
+        setReportToEdit(null);
+        setActiveTab("saved");
+    };
+
+    const handleCancelEdit = () => {
+        setReportToEdit(null);
+    }
+    
     return (
         <div className="flex flex-col gap-8">
             <header>
@@ -1154,6 +1391,7 @@ export default function CostReportPage() {
                 <TabsList>
                     <TabsTrigger value="calculator">Calculator</TabsTrigger>
                     <TabsTrigger value="saved">Saved Reports</TabsTrigger>
+                    <TabsTrigger value="products">Products</TabsTrigger>
                 </TabsList>
                 <TabsContent value="calculator" className="pt-4">
                     <CostReportCalculator 
@@ -1161,140 +1399,16 @@ export default function CostReportPage() {
                         onSaveSuccess={handleFinishEditing} 
                         onCancelEdit={handleCancelEdit}
                         products={products}
-                        onProductAdd={() => handleOpenProductDialog(null)}
+                        onProductAdd={() => setIsProductDialogOpen(true)}
                     />
                 </TabsContent>
                 <TabsContent value="saved" className="pt-4">
                     <SavedReportsList onEdit={handleEditReport} />
                 </TabsContent>
+                <TabsContent value="products" className="pt-4">
+                    <SavedProductsList />
+                </TabsContent>
             </Tabs>
-
-            <Dialog open={isProductDialogOpen} onOpenChange={setIsProductDialogOpen}>
-                <DialogContent className="max-w-xl">
-                    <DialogHeader>
-                        <DialogTitle>{productToEdit ? 'Edit Product' : 'Add New Product'}</DialogTitle>
-                    </DialogHeader>
-                    <ScrollArea className="max-h-[70vh]">
-                        <div className="py-4 px-6 space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="product-name">Product Name</Label>
-                                    <Input id="product-name" value={productForm.name || ''} onChange={(e) => handleProductFormChange('name', e.target.value)} />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="material-code">Material Code</Label>
-                                    <Input id="material-code" value={productForm.materialCode || ''} onChange={(e) => handleProductFormChange('materialCode', e.target.value)} />
-                                </div>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="partyId">Party Name</Label>
-                                 <Select value={productForm.partyId} onValueChange={(value) => handleProductFormChange('partyId', value)}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select a party" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {parties.map(p => (
-                                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <Separator />
-                            <h4 className="font-semibold">Specification</h4>
-                             <div className="space-y-2">
-                                <Label>Dimension</Label>
-                                <div className="flex gap-2">
-                                    <Input placeholder="L" type="number" value={productForm.l} onChange={e => handleProductFormChange('l', e.target.value)} />
-                                    <Input placeholder="B" type="number" value={productForm.b} onChange={e => handleProductFormChange('b', e.target.value)} />
-                                    <Input placeholder="H" type="number" value={productForm.h} onChange={e => handleProductFormChange('h', e.target.value)} />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                               <div className="space-y-2">
-                                    <Label htmlFor={`spec-ply`}>Ply</Label>
-                                    <Select value={productForm.specification?.ply || '3'} onValueChange={(v) => handleSpecChange('ply', v)}>
-                                        <SelectTrigger><SelectValue/></SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="3">3 Ply</SelectItem>
-                                            <SelectItem value="5">5 Ply</SelectItem>
-                                            <SelectItem value="7">7 Ply</SelectItem>
-                                            <SelectItem value="9">9 Ply</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                               </div>
-                               <div className="space-y-2">
-                                    <Label htmlFor={`spec-paperBf`}>Paper Bf</Label>
-                                    <Input id={`spec-paperBf`} value={productForm.specification?.paperBf || ''} onChange={(e) => handleSpecChange('paperBf', e.target.value)} />
-                               </div>
-                               <div className="space-y-2">
-                                    <Label htmlFor={`spec-topGsm`}>Top Gsm</Label>
-                                    <Input id={`spec-topGsm`} value={productForm.specification?.topGsm || ''} onChange={(e) => handleSpecChange('topGsm', e.target.value)} />
-                               </div>
-                               <div className="space-y-2">
-                                    <Label htmlFor={`spec-flute1Gsm`}>Flute 1 Gsm</Label>
-                                    <Input id={`spec-flute1Gsm`} value={productForm.specification?.flute1Gsm || ''} onChange={(e) => handleSpecChange('flute1Gsm', e.target.value)} />
-                               </div>
-                               {ply >= 5 && (
-                                   <div className="space-y-2">
-                                        <Label htmlFor={`spec-middleGsm`}>Middle Gsm</Label>
-                                        <Input id={`spec-middleGsm`} value={productForm.specification?.middleGsm || ''} onChange={(e) => handleSpecChange('middleGsm', e.target.value)} />
-                                   </div>
-                               )}
-                               {ply >= 5 && (
-                                   <div className="space-y-2">
-                                        <Label htmlFor={`spec-flute2Gsm`}>Flute 2 Gsm</Label>
-                                        <Input id={`spec-flute2Gsm`} value={productForm.specification?.flute2Gsm || ''} onChange={(e) => handleSpecChange('flute2Gsm', e.target.value)} />
-                                   </div>
-                               )}
-                               {ply >= 7 && (
-                                   <div className="space-y-2">
-                                        <Label htmlFor={`spec-liner2Gsm`}>Liner 2 Gsm</Label>
-                                        <Input id={`spec-liner2Gsm`} value={productForm.specification?.liner2Gsm || ''} onChange={(e) => handleSpecChange('liner2Gsm', e.target.value)} />
-                                   </div>
-                               )}
-                               {ply >= 7 && (
-                                   <div className="space-y-2">
-                                        <Label htmlFor={`spec-flute3Gsm`}>Flute 3 Gsm</Label>
-                                        <Input id={`spec-flute3Gsm`} value={productForm.specification?.flute3Gsm || ''} onChange={(e) => handleSpecChange('flute3Gsm', e.target.value)} />
-                                   </div>
-                               )}
-                               {ply >= 7 && (
-                                   <div className="space-y-2">
-                                        <Label htmlFor={`spec-liner3Gsm`}>Liner 3 Gsm</Label>
-                                        <Input id={`spec-liner3Gsm`} value={productForm.specification?.liner3Gsm || ''} onChange={(e) => handleSpecChange('liner3Gsm', e.target.value)} />
-                                   </div>
-                               )}
-                               {ply >= 9 && (
-                                   <div className="space-y-2">
-                                        <Label htmlFor={`spec-flute4Gsm`}>Flute 4 Gsm</Label>
-                                        <Input id={`spec-flute4Gsm`} value={productForm.specification?.flute4Gsm || ''} onChange={(e) => handleSpecChange('flute4Gsm', e.target.value)} />
-                                   </div>
-                               )}
-                               {ply >= 9 && (
-                                   <div className="space-y-2">
-                                        <Label htmlFor={`spec-liner4Gsm`}>Liner 4 Gsm</Label>
-                                        <Input id={`spec-liner4Gsm`} value={productForm.specification?.liner4Gsm || ''} onChange={(e) => handleSpecChange('liner4Gsm', e.target.value)} />
-                                   </div>
-                               )}
-                               <div className="space-y-2">
-                                    <Label htmlFor={`spec-bottomGsm`}>Bottom Gsm</Label>
-                                    <Input id={`spec-bottomGsm`} value={productForm.specification?.bottomGsm || ''} onChange={(e) => handleSpecChange('bottomGsm', e.target.value)} />
-                               </div>
-                               <div className="space-y-2">
-                                    <Label htmlFor={`spec-printing`}>Printing</Label>
-                                    <Input id={`spec-printing`} value={productForm.specification?.printing || ''} onChange={(e) => handleSpecChange('printing', e.target.value)} />
-                               </div>
-                            </div>
-                        </div>
-                    </ScrollArea>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsProductDialogOpen(false)}>Cancel</Button>
-                        <Button onClick={handleSaveProduct}>{productToEdit ? 'Save Changes' : 'Add Product'}</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
         </div>
     );
 }
-
-    
