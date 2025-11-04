@@ -1152,6 +1152,24 @@ function SavedProductsList() {
     
     const ply = parseInt(productForm.specification?.ply || '3', 10);
     
+    const getGsmDisplay = (spec: Partial<ProductSpecification> | undefined) => {
+        if (!spec) return 'N/A';
+        const { topGsm, middleGsm, bottomGsm, flute1Gsm, flute2Gsm, liner2Gsm, liner3Gsm, flute3Gsm, liner4Gsm, flute4Gsm } = spec;
+        
+        switch (spec.ply) {
+            case '3':
+                return `${topGsm || '-'}/${flute1Gsm || '-'}/${bottomGsm || '-'}`;
+            case '5':
+                return `${topGsm || '-'}/${flute1Gsm || '-'}/${middleGsm || '-'}/${flute2Gsm || '-'}/${bottomGsm || '-'}`;
+            case '7':
+                return `${topGsm || '-'}/${flute1Gsm || '-'}/${liner2Gsm || '-'}/${flute2Gsm || '-'}/${liner3Gsm || '-'}/${flute3Gsm || '-'}/${bottomGsm || '-'}`;
+            case '9':
+                 return `${topGsm||'-'}/${flute1Gsm||'-'}/${liner2Gsm||'-'}/${flute2Gsm||'-'}/${liner3Gsm||'-'}/${flute3Gsm||'-'}/${liner4Gsm||'-'}/${flute4Gsm||'-'}/${bottomGsm||'-'}`;
+            default:
+                return `${topGsm || '-'}/${bottomGsm || '-'}`;
+        }
+    };
+    
     return (
       <>
         <Card>
@@ -1181,7 +1199,7 @@ function SavedProductsList() {
                             <TableHead>Party Name</TableHead>
                             <TableHead>Dimension</TableHead>
                             <TableHead>Ply</TableHead>
-                            <TableHead>Top/Mid/Bot GSM</TableHead>
+                            <TableHead>GSM</TableHead>
                             <TableHead>Paper BF</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
@@ -1194,10 +1212,7 @@ function SavedProductsList() {
                                 <TableCell>{p.specification?.dimension || 'N/A'}</TableCell>
                                 <TableCell>{p.specification?.ply || 'N/A'}</TableCell>
                                 <TableCell>
-                                  {p.specification?.ply === '5' 
-                                    ? `${p.specification?.topGsm || '-'}/${p.specification?.middleGsm || '-'}/${p.specification?.bottomGsm || '-'}`
-                                    : `${p.specification?.topGsm || '-'}/${p.specification?.flute1Gsm || '-'}/${p.specification?.bottomGsm || '-'}`
-                                  }
+                                  {getGsmDisplay(p.specification)}
                                 </TableCell>
                                 <TableCell>{p.specification?.paperBf || 'N/A'}</TableCell>
                                 <TableCell className="text-right">
