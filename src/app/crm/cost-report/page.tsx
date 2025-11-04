@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Printer, Loader2, Plus, Trash2, ChevronsUpDown, Check, PlusCircle, Edit, Save, MoreHorizontal, Search, ArrowUpDown, History, Library } from 'lucide-react';
+import { Printer, Loader2, Plus, Trash2, ChevronsUpDown, Check, PlusCircle, Edit, Save, MoreHorizontal, Search, ArrowUpDown, History, Library, HistoryIcon } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon } from 'lucide-react';
@@ -29,10 +29,11 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { AnnapurnaSIL } from '@/lib/fonts/AnnapurnaSIL-Regular-base64';
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { onSettingUpdate, updateCostSettings } from '@/services/settings-service';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 
 interface CalculatedValues {
@@ -70,6 +71,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
   const [kraftPaperCost, setKraftPaperCost] = useState<number | ''>('');
   const [virginPaperCost, setVirginPaperCost] = useState<number | ''>('');
   const [conversionCost, setConversionCost] = useState<number | ''>('');
+  const [isCostHistoryDialogOpen, setIsCostHistoryDialogOpen] = useState(false);
 
   const [isSaving, setIsSaving] = useState(false);
   const [items, setItems] = useState<CostReportItem[]>([]);
@@ -178,6 +180,13 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     
     return { sheetSizeL, sheetSizeB, sheetArea, totalGsm: totalGsmForCalc, paperWeight: paperWeightInGrams, totalBoxWeight: totalBoxWeightInGrams, paperRate: finalPaperRate, paperCost };
   }, []);
+
+  const handleCostChange = (costType: 'kraft' | 'virgin' | 'conversion', value: string) => {
+    const numericValue = value === '' ? '' : parseFloat(value);
+    if (costType === 'kraft') setKraftPaperCost(numericValue);
+    else if (costType === 'virgin') setVirginPaperCost(numericValue);
+    else if (costType === 'conversion') setConversionCost(numericValue);
+  }
 
   useEffect(() => {
     const kCost = Number(kraftPaperCost) || 0;
@@ -538,23 +547,27 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
 
         <Card>
             <CardHeader>
-                <CardTitle>Additional Costs</CardTitle>
+                <div className="flex items-center justify-between">
+                    <CardTitle>Additional Costs</CardTitle>
+                    <Button variant="ghost" size="icon" onClick={() => setIsCostHistoryDialogOpen(true)}>
+                        <HistoryIcon className="h-5 w-5" />
+                        <span className="sr-only">View Cost History</span>
+                    </Button>
+                </div>
             </CardHeader>
             <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                    <div className="space-y-2">
+                        <Label htmlFor="kraftPaperCost">Kraft Paper Cost</Label>
+                        <Input id="kraftPaperCost" type="number" placeholder="Enter cost" value={kraftPaperCost} onChange={e => handleCostChange('kraft', e.target.value)} />
+                    </div>
                         <div className="space-y-2">
-                            <Label htmlFor="kraftPaperCost">Kraft Paper Cost</Label>
-                            <Input id="kraftPaperCost" type="number" placeholder="Enter cost" value={kraftPaperCost} onChange={e => setKraftPaperCost(e.target.value === '' ? '' : parseFloat(e.target.value))} />
-                        </div>
-                         <div className="space-y-2">
-                            <Label htmlFor="virginPaperCost">Virgin Paper Cost</Label>
-                            <Input id="virginPaperCost" type="number" placeholder="Enter cost" value={virginPaperCost} onChange={e => setVirginPaperCost(e.target.value === '' ? '' : parseFloat(e.target.value))} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="conversionCost">Conversion Cost</Label>
-                            <Input id="conversionCost" type="number" placeholder="Enter cost" value={conversionCost} onChange={e => setConversionCost(e.target.value === '' ? '' : parseFloat(e.target.value))} />
-                        </div>
+                        <Label htmlFor="virginPaperCost">Virgin Paper Cost</Label>
+                        <Input id="virginPaperCost" type="number" placeholder="Enter cost" value={virginPaperCost} onChange={e => handleCostChange('virgin', e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="conversionCost">Conversion Cost</Label>
+                        <Input id="conversionCost" type="number" placeholder="Enter cost" value={conversionCost} onChange={e => handleCostChange('conversion', e.target.value)} />
                     </div>
                 </div>
             </CardContent>
@@ -830,6 +843,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                         <TableHead className="text-black font-semibold">Box Size (mm)</TableHead>
                         <TableHead className="text-black font-semibold">Ply</TableHead>
                         <TableHead className="text-black font-semibold">Paper</TableHead>
+                        <TableHead className="text-black font-semibold">GSM</TableHead>
                         <TableHead className="text-black font-semibold text-right">Box Wt (Grams)</TableHead>
                         <TableHead className="text-black font-semibold text-right">Total</TableHead>
                   </TableRow>
@@ -838,13 +852,14 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                   {itemsToPrint.map((item, index) => (
                     <TableRow key={item.id}>
                       <TableCell>{index + 1}</TableCell>
-                      <TableCell>
-                          <div>{products.find(p => p.id === item.productId)?.name || 'N/A'}</div>
-                          <div className="text-xs text-muted-foreground">{`T:${item.topGsm}, F1:${item.flute1Gsm}, ${item.ply === '5' ? `M:${item.middleGsm}, F2:${item.flute2Gsm}, `: ''}B:${item.bottomGsm}`}</div>
-                      </TableCell>
+                      <TableCell>{products.find(p => p.id === item.productId)?.name || 'N/A'}</TableCell>
                       <TableCell>{`${item.l}x${item.b}x${item.h}`}</TableCell>
                       <TableCell>{item.ply}</TableCell>
-                      <TableCell>{item.paperType}</TableCell>
+                      <TableCell>
+                          <div>{item.paperType}</div>
+                          <div className="text-xs text-muted-foreground">Shade: {item.paperShade}</div>
+                      </TableCell>
+                       <TableCell>{`T:${item.topGsm} F:${item.flute1Gsm} B:${item.bottomGsm}`}</TableCell>
                       <TableCell className="text-right">{item.calculated.totalBoxWeight.toFixed(2)}</TableCell>
                       <TableCell className="text-right">{item.calculated.paperCost.toFixed(2)}</TableCell>
                     </TableRow>
@@ -927,6 +942,34 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
           </DialogFooter>
         </DialogContent>
       </Dialog>
+        <Dialog open={isCostHistoryDialogOpen} onOpenChange={setIsCostHistoryDialogOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Costing History</DialogTitle>
+                <DialogDescription>Review past changes to paper and conversion costs.</DialogDescription>
+            </DialogHeader>
+            <ScrollArea className="h-96">
+                {(costSettings?.history || []).length > 0 ? (
+                <div className="space-y-4 p-4">
+                    {[...(costSettings?.history || [])].reverse().map((entry, index) => (
+                    <div key={index} className="flex justify-between items-center text-sm">
+                        <div>
+                        <p className="font-medium capitalize">{entry.costType.replace('Cost', ' Cost')}</p>
+                        <p className="text-xs text-muted-foreground">{format(new Date(entry.date), "PPp")} by {entry.setBy}</p>
+                        </div>
+                        <div className="text-right">
+                        <p>{entry.newValue.toLocaleString()}</p>
+                        <p className="text-xs text-muted-foreground line-through">{entry.oldValue.toLocaleString()}</p>
+                        </div>
+                    </div>
+                    ))}
+                </div>
+                ) : (
+                <div className="text-center text-muted-foreground p-8">No history found.</div>
+                )}
+            </ScrollArea>
+        </DialogContent>
+    </Dialog>
     </div>
   );
 }
@@ -1136,33 +1179,35 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
                             </div>
                         </div>
                         <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead className="text-black font-semibold">Sl.No</TableHead>
-                                <TableHead className="text-black font-semibold">Particulars</TableHead>
-                                <TableHead className="text-black font-semibold">Box Size (mm)</TableHead>
-                                <TableHead className="text-black font-semibold">Ply</TableHead>
-                                <TableHead className="text-black font-semibold">Paper</TableHead>
-                                <TableHead className="text-black font-semibold text-right">Box Wt (Grams)</TableHead>
-                                <TableHead className="text-black font-semibold text-right">Total</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="text-black font-semibold">Sl.No</TableHead>
+                                    <TableHead className="text-black font-semibold">Particulars</TableHead>
+                                    <TableHead className="text-black font-semibold">Box Size (mm)</TableHead>
+                                    <TableHead className="text-black font-semibold">Ply</TableHead>
+                                    <TableHead className="text-black font-semibold">Paper</TableHead>
+                                    <TableHead className="text-black font-semibold">GSM</TableHead>
+                                    <TableHead className="text-black font-semibold text-right">Box Wt (Grams)</TableHead>
+                                    <TableHead className="text-black font-semibold text-right">Total</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
                             {printableReportItems.map((item, index) => (
-                            <TableRow key={item.id}>
-                                <TableCell>{index + 1}</TableCell>
-                                <TableCell>
-                                    <div>{products.find(p => p.id === item.productId)?.name || 'N/A'}</div>
-                                    <div className="text-xs text-muted-foreground">{`T:${item.topGsm}, F1:${item.flute1Gsm}, ${item.ply === '5' ? `M:${item.middleGsm}, F2:${item.flute2Gsm}, `: ''}B:${item.bottomGsm}`}</div>
-                                </TableCell>
-                                <TableCell>{`${item.l}x${item.b}x${item.h}`}</TableCell>
-                                <TableCell>{item.ply}</TableCell>
-                                <TableCell>{item.paperType}</TableCell>
-                                <TableCell className="text-right">{item.calculated.totalBoxWeight.toFixed(2)}</TableCell>
-                                <TableCell className="text-right">{item.calculated.paperCost.toFixed(2)}</TableCell>
-                            </TableRow>
+                                <TableRow key={item.id}>
+                                    <TableCell>{index + 1}</TableCell>
+                                    <TableCell>{products.find(p => p.id === item.productId)?.name || 'N/A'}</TableCell>
+                                    <TableCell>{`${item.l}x${item.b}x${item.h}`}</TableCell>
+                                    <TableCell>{item.ply}</TableCell>
+                                    <TableCell>
+                                        <div>{item.paperType}</div>
+                                        <div className="text-xs text-muted-foreground">Shade: {item.paperShade}</div>
+                                    </TableCell>
+                                    <TableCell>{`T:${item.topGsm} F:${item.flute1Gsm} B:${item.bottomGsm}`}</TableCell>
+                                    <TableCell className="text-right">{item.calculated.totalBoxWeight.toFixed(2)}</TableCell>
+                                    <TableCell className="text-right">{item.calculated.paperCost.toFixed(2)}</TableCell>
+                                </TableRow>
                             ))}
-                        </TableBody>
+                            </TableBody>
                         </Table>
                          <footer className="pt-8 text-xs space-y-4">
                             <div className="font-semibold">Terms & Conditions:</div>
@@ -1738,3 +1783,4 @@ export default function CostReportPage() {
     
 
     
+
