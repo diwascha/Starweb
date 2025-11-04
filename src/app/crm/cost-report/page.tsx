@@ -254,7 +254,6 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
             l: l || '', b: b || '', h: h || '',
             ply: spec.ply || '3',
             paperBf: spec.paperBf || '',
-            paperShade: 'NS',
             boxType: spec.boxType || 'RSC',
             topGsm: spec.topGsm || '',
             flute1Gsm: spec.flute1Gsm || '',
@@ -1217,6 +1216,7 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
                                 </TableRow>
                             ))}
                             </TableBody>
+                        </Table>
                          <footer className="pt-8 text-xs space-y-4">
                             <div className="font-semibold">Terms & Conditions:</div>
                             <ul className="list-disc list-inside space-y-1">
@@ -1883,7 +1883,3 @@ export default function CostReportPage() {
 }
 
     
-
-    
-
-
