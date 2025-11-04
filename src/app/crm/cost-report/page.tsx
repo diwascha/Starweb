@@ -252,7 +252,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     const kCost = Number(kraftPaperCost) || 0;
     const vCost = Number(virginPaperCost) || 0;
     const cCost = Number(conversionCost) || 0;
-    const newItem = { id: Date.now().toString(), productId: '', l:'',b:'',h:'', noOfPcs:'1', boxType: 'RSC', ply:'3', fluteType: 'B', paperType: 'KRAFT', paperShade:'Golden', paperBf:'18', topGsm:'120',flute1Gsm:'100',middleGsm:'',flute2Gsm:'',bottomGsm:'120', liner2Gsm: '', flute3Gsm: '', liner3Gsm: '', flute4Gsm: '', liner4Gsm: '', wastagePercent:'3.5' };
+    const newItem = { id: Date.now().toString(), productId: '', l:'',b:'',h:'', noOfPcs:'1', boxType: 'RSC', ply:'3', fluteType: 'B', paperType: 'KRAFT', paperShade:'NS', paperBf:'18', topGsm:'120',flute1Gsm:'100',middleGsm:'',flute2Gsm:'',bottomGsm:'120', liner2Gsm: '', flute3Gsm: '', liner3Gsm: '', flute4Gsm: '', liner4Gsm: '', wastagePercent:'3.5' };
     setItems(prev => [...prev, { ...newItem, calculated: calculateItemCost(newItem, kCost, vCost, cCost) }]);
     setSelectedForPrint(prev => new Set(prev).add(newItem.id));
   };
@@ -504,7 +504,6 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                 <TableHead rowSpan={2} className="align-bottom">No of Ply</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom">Type of Flute</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom">Paper Type</TableHead>
-                                <TableHead rowSpan={2} className="align-bottom">Paper Shade</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom">Paper BF</TableHead>
                                 <TableHead colSpan={5} className="text-center">GSM</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom min-w-[100px]">Total Gsm</TableHead>
@@ -604,7 +603,6 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                         </SelectContent>
                                     </Select>
                                 </TableCell>
-                                <TableCell><Input value={item.paperShade} onChange={e => handleItemChange(index, 'paperShade', e.target.value)} className="w-24" /></TableCell>
                                 <TableCell><Input value={item.paperBf} onChange={e => handleItemChange(index, 'paperBf', e.target.value)} className="w-16" /></TableCell>
                                 <TableCell><Input type="number" value={item.topGsm} onChange={e => handleItemChange(index, 'topGsm', e.target.value)} className="w-20" /></TableCell>
                                 <TableCell><Input type="number" value={item.flute1Gsm} onChange={e => handleItemChange(index, 'flute1Gsm', e.target.value)} className="w-20" /></TableCell>
@@ -1569,7 +1567,7 @@ export default function CostReportPage() {
                     <DialogHeader>
                         <DialogTitle>Add New Product</DialogTitle>
                     </DialogHeader>
-                    <ProductForm productToEdit={null} onSaveSuccess={() => setIsProductAddDialogOpen(false)} />
+                     <ProductForm productToEdit={null} onSaveSuccess={() => setIsProductAddDialogOpen(false)} />
                 </DialogContent>
             </Dialog>
         </div>
