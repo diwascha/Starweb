@@ -1483,9 +1483,6 @@ export default function CostReportPage() {
     const [reportToEdit, setReportToEdit] = useState<CostReport | null>(null);
     const [products, setProducts] = useState<Product[]>([]);
     
-    const { toast } = useToast();
-    const { user } = useAuth();
-    
     const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
     
     useEffect(() => {
@@ -1535,6 +1532,24 @@ export default function CostReportPage() {
                     <SavedProductsList />
                 </TabsContent>
             </Tabs>
+             {/* This dialog is now managed by the main page but triggered from the calculator */}
+             <Dialog open={isProductDialogOpen} onOpenChange={setIsProductDialogOpen}>
+                <DialogContent className="max-w-xl">
+                    <DialogHeader>
+                        <DialogTitle>Add New Product</DialogTitle>
+                    </DialogHeader>
+                    {/* The form from SavedProductsList is complex, so we'll re-implement a simplified version here for now */}
+                    {/* In a real app, this would be a shared, reusable component */}
+                    <div className="py-4">
+                        <p className="text-muted-foreground">This dialog is a placeholder. A full form component would be created here.</p>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsProductDialogOpen(false)}>Cancel</Button>
+                        <Button>Add Product</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
+
