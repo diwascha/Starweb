@@ -1039,6 +1039,13 @@ function SavedProductsList() {
     const [productToEdit, setProductToEdit] = useState<Product | null>(null);
     const [productForm, setProductForm] = useState<Partial<Product> & { l?: string, b?: string, h?: string }>({ specification: {} });
     
+    // Add party from product dialog
+    const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
+    const [partyForm, setPartyForm] = useState<{ name: string; type: PartyType; address?: string; panNumber?: string; }>({ name: '', type: 'Customer', address: '', panNumber: '' });
+    const [editingParty, setEditingParty] = useState<Party | null>(null);
+    const [partySearch, setPartySearch] = useState('');
+
+
     const relevantSpecFields: (keyof ProductSpecification)[] = ['ply', 'paperBf', 'topGsm', 'flute1Gsm', 'middleGsm', 'flute2Gsm', 'liner2Gsm', 'flute3Gsm', 'liner3Gsm', 'flute4Gsm', 'liner4Gsm', 'bottomGsm', 'printing'];
 
 
@@ -1157,6 +1164,39 @@ function SavedProductsList() {
         }));
     };
     
+    const handleOpenPartyDialog = (partyToEdit: Party | null = null, searchName: string = '') => {
+        if (partyToEdit) {
+            setEditingParty(partyToEdit);
+            setPartyForm({ name: partyToEdit.name, type: partyToEdit.type, address: partyToEdit.address || '', panNumber: partyToEdit.panNumber || '' });
+        } else {
+            setEditingParty(null);
+            setPartyForm({ name: searchName, type: 'Customer', address: '', panNumber: '' });
+        }
+        setIsPartyDialogOpen(true);
+    };
+
+    const handleSubmitParty = async () => {
+        if (!user) return;
+        if (!partyForm.name) {
+            toast({ title: 'Error', description: 'Party name is required.', variant: 'destructive' });
+            return;
+        }
+        try {
+            if (editingParty) {
+                await updateParty(editingParty.id, { ...partyForm, lastModifiedBy: user.username });
+                toast({ title: 'Success', description: 'Party updated.' });
+            } else {
+                const newPartyId = await addParty({ ...partyForm, createdBy: user.username });
+                setProductForm(prev => ({...prev, partyId: newPartyId}));
+                toast({ title: 'Success', description: 'New party added.' });
+            }
+            setIsPartyDialogOpen(false);
+        } catch {
+            toast({ title: 'Error', description: 'Failed to save party.', variant: 'destructive' });
+        }
+    };
+
+
     const ply = parseInt(productForm.specification?.ply || '3', 10);
     
     const getGsmDisplay = (spec: Partial<ProductSpecification> | undefined) => {
@@ -1268,16 +1308,38 @@ function SavedProductsList() {
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="partyId">Party Name</Label>
-                             <Select value={productForm.partyId} onValueChange={(value) => handleProductFormChange('partyId', value)}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select a party" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {parties.map(p => (
-                                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" role="combobox" className="w-full justify-between">
+                                        {productForm.partyId ? parties.find(p => p.id === productForm.partyId)?.name : "Select party..."}
+                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
+                                    <Command>
+                                        <CommandInput 
+                                            placeholder="Search party..." 
+                                            value={partySearch}
+                                            onValueChange={setPartySearch}
+                                        />
+                                        <CommandList>
+                                            <CommandEmpty>
+                                                <Button variant="ghost" className="w-full justify-start" onClick={() => handleOpenPartyDialog(null, partySearch)}>
+                                                    <PlusCircle className="mr-2 h-4 w-4" /> Add "{partySearch}"
+                                                </Button>
+                                            </CommandEmpty>
+                                            <CommandGroup>
+                                                {parties.map(p => (
+                                                    <CommandItem key={p.id} value={p.name} onSelect={() => handleProductFormChange('partyId', p.id)}>
+                                                        <Check className={cn("mr-2 h-4 w-4", productForm.partyId === p.id ? "opacity-100" : "opacity-0")} />
+                                                        {p.name}
+                                                    </CommandItem>
+                                                ))}
+                                            </CommandGroup>
+                                        </CommandList>
+                                    </Command>
+                                </PopoverContent>
+                            </Popover>
                         </div>
                         <Separator />
                         <h4 className="font-semibold">Specification</h4>
@@ -1373,6 +1435,45 @@ function SavedProductsList() {
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+         <Dialog open={isPartyDialogOpen} onOpenChange={setIsPartyDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                  <DialogTitle>{editingParty ? 'Edit Party' : 'Add New Party'}</DialogTitle>
+                   <DialogDescription>
+                      {editingParty ? 'Update the details for this party.' : 'Create a new customer/vendor record.'}
+                  </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                  <div className="space-y-2">
+                      <Label htmlFor="party-name-dialog">Party Name</Label>
+                      <Input id="party-name-dialog" value={partyForm.name} onChange={e => setPartyForm(p => ({...p, name: e.target.value}))} />
+                  </div>
+                   <div className="space-y-2">
+                      <Label htmlFor="party-type-dialog">Party Type</Label>
+                      <Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm(p => ({...p, type: v}))}>
+                          <SelectTrigger id="party-type-dialog"><SelectValue/></SelectTrigger>
+                          <SelectContent>
+                              <SelectItem value="Vendor">Vendor</SelectItem>
+                              <SelectItem value="Customer">Customer</SelectItem>
+                              <SelectItem value="Both">Both</SelectItem>
+                          </SelectContent>
+                      </Select>
+                  </div>
+                  <div className="space-y-2">
+                      <Label htmlFor="party-pan-dialog">PAN Number</Label>
+                      <Input id="party-pan-dialog" value={partyForm.panNumber || ''} onChange={e => setPartyForm(p => ({...p, panNumber: e.target.value}))} />
+                  </div>
+                  <div className="space-y-2">
+                      <Label htmlFor="party-address-dialog">Address</Label>
+                      <Textarea id="party-address-dialog" value={partyForm.address || ''} onChange={e => setPartyForm(p => ({...p, address: e.target.value}))} />
+                  </div>
+              </div>
+              <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsPartyDialogOpen(false)}>Cancel</Button>
+                  <Button onClick={handleSubmitParty}>{editingParty ? 'Save Changes' : 'Add Party'}</Button>
+              </DialogFooter>
+          </DialogContent>
+      </Dialog>
       </>
     );
 }
