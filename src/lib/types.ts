@@ -9,26 +9,26 @@ export interface RateHistoryEntry {
 export interface ProductSpecification {
   dimension: string;
   ply: string;
-  weightOfBox: string;
-  gsm: string;
-  stapleWidth: string;
-  stapling: string;
-  overlapWidth: string;
+  paperBf: string;
   printing: string;
-  moisture: string;
-  load: string;
+  // GSM breakdown
+  topGsm: string;
+  flute1Gsm: string;
+  middleGsm: string;
+  flute2Gsm: string;
+  bottomGsm: string;
 }
 
 export interface Product {
   id: string;
   name: string;
-  materialCode: string;
+  materialCode?: string; // Optional for costing products
   partyId?: string;
-  partyName: string;
-  partyAddress: string;
+  partyName?: string; // Optional for costing products
+  partyAddress?: string; // Optional for costing products
   rate?: number;
   rateHistory?: RateHistoryEntry[];
-  specification: ProductSpecification;
+  specification: Partial<ProductSpecification>;
   createdBy: string;
   createdAt: string; // ISO string
   lastModifiedBy?: string | null;

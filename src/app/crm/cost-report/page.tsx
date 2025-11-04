@@ -1034,7 +1034,7 @@ function ProductList({ onProductAdd, onProductEdit }: { onProductAdd: () => void
     
     const getSortableValue = (product: Product, key: keyof Product | 'gsm' | 'bf') => {
         if (key === 'gsm') {
-            return product.specification?.topGsm || product.specification?.gsm || '';
+            return product.specification?.topGsm || '';
         }
         if (key === 'bf') {
             return product.specification?.paperBf || '';
@@ -1084,7 +1084,7 @@ function ProductList({ onProductAdd, onProductEdit }: { onProductAdd: () => void
         if (spec.topGsm) {
             return `${spec.topGsm}/${spec.flute1Gsm}/${spec.middleGsm ? `${spec.middleGsm}/${spec.flute2Gsm}/` : ''}${spec.bottomGsm}`;
         }
-        return spec.gsm || 'N/A';
+        return 'N/A';
     };
 
     return (
@@ -1173,6 +1173,8 @@ export default function CostReportPage() {
     const { toast } = useToast();
     const { user } = useAuth();
     
+    const relevantSpecFields: (keyof ProductSpecification)[] = ['dimension', 'ply', 'paperBf', 'topGsm', 'flute1Gsm', 'middleGsm', 'flute2Gsm', 'bottomGsm', 'printing'];
+    
     useEffect(() => {
         const unsubProducts = onProductsUpdate(setProducts);
         return () => unsubProducts();
@@ -1195,31 +1197,47 @@ export default function CostReportPage() {
     const handleOpenProductDialog = (product: Product | null = null) => {
         if (product) {
             setProductToEdit(product);
-            setProductForm(product);
+            // Ensure all relevant fields are present, even if empty
+            const spec: Partial<ProductSpecification> = {};
+            relevantSpecFields.forEach(field => {
+                spec[field] = product.specification?.[field] || '';
+            });
+            setProductForm({ ...product, specification: spec });
         } else {
             setProductToEdit(null);
-            setProductForm({
-                specification: {
-                  dimension: '', ply: '3', topGsm: '', flute1Gsm: '', middleGsm: '', flute2Gsm: '', bottomGsm: '', paperBf: '', gsm: '', moisture: '', load: '', overlapWidth: '', printing: '', stapleWidth: '', stapling: '', weightOfBox: ''
-                }
+            const spec: Partial<ProductSpecification> = {};
+            relevantSpecFields.forEach(field => {
+                spec[field] = '';
             });
+            setProductForm({ name: '', rate: 0, specification: spec });
         }
         setIsProductDialogOpen(true);
     };
 
     const handleSaveProduct = async () => {
         if (!user) return;
+        
+        const finalSpec: Partial<ProductSpecification> = {};
+        for(const key in productForm.specification) {
+            if(relevantSpecFields.includes(key as keyof ProductSpecification)) {
+                finalSpec[key as keyof ProductSpecification] = productForm.specification[key as keyof ProductSpecification];
+            }
+        }
 
         try {
             if (productToEdit) {
                  await updateProductService(productToEdit.id, {
-                    ...productForm,
+                    name: productForm.name,
+                    rate: productForm.rate,
+                    specification: finalSpec,
                     lastModifiedBy: user.username,
                 });
                 toast({ title: 'Success', description: 'Product updated.' });
             } else {
                 await addProductService({
-                    ...productForm,
+                    name: productForm.name,
+                    rate: productForm.rate,
+                    specification: finalSpec,
                     createdBy: user.username,
                     createdAt: new Date().toISOString()
                 } as Omit<Product, 'id'>);
@@ -1297,19 +1315,16 @@ export default function CostReportPage() {
                             <Separator />
                             <h4 className="font-semibold">Specification</h4>
                             <div className="grid grid-cols-2 gap-4">
-                                {Object.keys(productForm.specification || {}).map(key => {
-                                    const specKey = key as keyof ProductSpecification;
-                                    return (
-                                        <div key={specKey} className="space-y-2">
-                                            <Label htmlFor={`spec-${specKey}`}>{specKey.charAt(0).toUpperCase() + specKey.slice(1)}</Label>
+                                {relevantSpecFields.map(key => (
+                                        <div key={key} className="space-y-2">
+                                            <Label htmlFor={`spec-${key}`}>{key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1')}</Label>
                                             <Input
-                                                id={`spec-${specKey}`}
-                                                value={productForm.specification?.[specKey] || ''}
-                                                onChange={(e) => handleSpecChange(specKey, e.target.value)}
+                                                id={`spec-${key}`}
+                                                value={productForm.specification?.[key] || ''}
+                                                onChange={(e) => handleSpecChange(key, e.target.value)}
                                             />
                                         </div>
-                                    );
-                                })}
+                                ))}
                             </div>
                         </div>
                     </ScrollArea>
