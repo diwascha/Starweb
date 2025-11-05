@@ -1,5 +1,6 @@
 
 
+
 export interface RateHistoryEntry {
   rate: number;
   date: string; // ISO string when the rate was set
@@ -32,6 +33,31 @@ export interface ProductSpecification {
   liner4Gsm?: string;
 }
 
+export interface ProductAccessory {
+  id: string; // Unique within the product
+  name: string;
+  l: string;
+  b: string;
+  h: string;
+  noOfPcs: string;
+  ply: string;
+  fluteType: string;
+  paperType: string;
+  paperBf: string;
+  paperShade: string;
+  boxType: string;
+  topGsm: string;
+  flute1Gsm: string;
+  middleGsm: string;
+  flute2Gsm: string;
+  bottomGsm: string;
+  liner2Gsm: string;
+  flute3Gsm: string;
+  liner3Gsm: string;
+  flute4Gsm: string;
+  liner4Gsm: string;
+  wastagePercent: string;
+}
 
 export interface Product {
   id: string;
@@ -43,6 +69,7 @@ export interface Product {
   rate?: number;
   rateHistory?: RateHistoryEntry[];
   specification: Partial<ProductSpecification>;
+  accessories?: ProductAccessory[]; // Added to store default accessories
   createdBy: string;
   createdAt: string; // ISO string
   lastModifiedBy?: string | null;
@@ -623,10 +650,8 @@ export interface EstimatedInvoice {
 
 // CRM Types
 
-export interface Accessory {
-  id: string;
-  name: string;
-  cost: number;
+export interface Accessory extends ProductAccessory {
+  calculated: CalculatedValues;
 }
 
 
@@ -652,6 +677,8 @@ export interface CostReportItem {
   fluteType: string;
   paperType: string;
   paperBf: string;
+  paperShade: string; // Add this
+  boxType: string; // Add this
   topGsm: string;
   flute1Gsm: string;
   middleGsm: string;

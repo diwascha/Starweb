@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import type { Product, Party, PartyType, CostReport, CostReportItem, ProductSpecification, CostSetting, Accessory } from '@/lib/types';
+import type { Product, Party, PartyType, CostReport, CostReportItem, ProductSpecification, CostSetting, Accessory as ProductAccessory, Product as ProductType } from '@/lib/types';
 import { onProductsUpdate, addProduct as addProductService, updateProduct as updateProductService, deleteProduct as deleteProductService } from '@/services/product-service';
 import { onPartiesUpdate, addParty, updateParty } from '@/services/party-service';
 import { onCostReportsUpdate, addCostReport, deleteCostReport, generateNextCostReportNumber, getCostReport, updateCostReport } from '@/services/cost-report-service';
@@ -36,6 +36,10 @@ import { onSettingUpdate, updateCostSettings } from '@/services/settings-service
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
+
+interface Accessory extends ProductAccessory {
+  calculated: CalculatedValues;
+}
 
 interface CalculatedValues {
     sheetSizeL: number;
@@ -260,7 +264,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     };
   }, []);
   
-  const getFullAccessory = (acc: Partial<Accessory>): Omit<Accessory, 'calculated' | 'productId'> => {
+  const getFullAccessory = (acc: Partial<ProductAccessory>): Omit<Accessory, 'calculated' | 'productId'> => {
     return {
         id: acc.id || Date.now().toString() + Math.random(),
         name: acc.name || 'Accessory',
@@ -343,6 +347,12 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [bf, Number(cost) || 0]));
     const vCost = Number(virginPaperCost) || 0;
     const cCost = Number(conversionCost) || 0;
+    
+    const accessories = (product.accessories || []).map(acc => ({
+        ...getFullAccessory(acc),
+        calculated: calculateItemCost(getFullAccessory(acc), kCosts, vCost, cCost)
+    }));
+
 
     setItems(prevItems => {
         const newItems = [...prevItems];
@@ -363,6 +373,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
             liner3Gsm: spec.liner3Gsm || '',
             flute4Gsm: spec.flute4Gsm || '',
             liner4Gsm: spec.liner4Gsm || '',
+            accessories,
         };
         newItems[index] = {
             ...updatedItem,
@@ -394,6 +405,11 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
         const vCost = Number(virginPaperCost) || 0;
         const cCost = Number(conversionCost) || 0;
 
+        const accessories = (product.accessories || []).map(acc => ({
+            ...getFullAccessory(acc),
+            calculated: calculateItemCost(getFullAccessory(acc), kCosts, vCost, cCost)
+        }));
+
         const newItemBase = {
             id: Date.now().toString() + product.id,
             productId: product.id,
@@ -416,7 +432,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
             flute4Gsm: spec.flute4Gsm || '',
             liner4Gsm: spec.liner4Gsm || '',
             wastagePercent: '3.5',
-            accessories: [],
+            accessories,
         };
         
         const newItem = { ...newItemBase, calculated: calculateItemCost(newItemBase, kCosts, vCost, cCost) };
@@ -524,6 +540,17 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
             virginPaperCost: vCost,
             conversionCost: cCost,
           }, user.username);
+          
+          // Save accessories to products
+          for (const item of items) {
+            if (item.productId && item.accessories && item.accessories.length > 0) {
+              const productToUpdate = products.find(p => p.id === item.productId);
+              if (productToUpdate) {
+                const newAccessories = item.accessories.map(({ calculated, ...acc }) => acc as ProductAccessory);
+                await updateProductService(item.productId, { accessories: newAccessories });
+              }
+            }
+          }
 
 
           if (reportToEdit) {
@@ -1508,7 +1535,7 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
         });
     }, [reportToPrint, calculateItemCost]);
     
-    const GsmDisplay = ({ item }: { item: CostReportItem | Accessory }) => {
+    const GsmDisplay = ({ item }: { item: CostReportItem | ProductAccessory }) => {
         const ply = parseInt(item.ply, 10);
         
         if (ply === 0 || ply === 1) { // Plate
