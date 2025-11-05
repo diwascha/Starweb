@@ -901,7 +901,17 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                       <TableCell><Input type="number" placeholder="B" value={acc.b} onChange={e => handleAccessoryChange(index, accIndex, 'b', e.target.value)} className="w-16"/></TableCell>
                                       <TableCell><Input type="number" placeholder="H" value={acc.h} onChange={e => handleAccessoryChange(index, accIndex, 'h', e.target.value)} className="w-16"/></TableCell>
                                       <TableCell><Input type="number" placeholder="Pcs" value={acc.noOfPcs} onChange={e => handleAccessoryChange(index, accIndex, 'noOfPcs', e.target.value)} className="w-16"/></TableCell>
-                                      <TableCell><Input type="number" placeholder="Ply" value={acc.ply} onChange={e => handleAccessoryChange(index, accIndex, 'ply', e.target.value)} className="w-24"/></TableCell>
+                                      <TableCell>
+                                          <Select value={String(acc.ply)} onValueChange={(value) => handleAccessoryChange(index, accIndex, 'ply', value)}>
+                                              <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+                                              <SelectContent>
+                                                  <SelectItem value="3">3 Ply</SelectItem>
+                                                  <SelectItem value="5">5 Ply</SelectItem>
+                                                  <SelectItem value="7">7 Ply</SelectItem>
+                                                  <SelectItem value="9">9 Ply</SelectItem>
+                                              </SelectContent>
+                                          </Select>
+                                      </TableCell>
                                       <TableCell colSpan={2}></TableCell>
                                       <TableCell><Input placeholder="BF" value={acc.paperBf} onChange={e => handleAccessoryChange(index, accIndex, 'paperBf', e.target.value)} className="w-16"/></TableCell>
                                       <TableCell><Input type="number" placeholder="T GSM" value={acc.topGsm} onChange={e => handleAccessoryChange(index, accIndex, 'topGsm', e.target.value)} className="w-20"/></TableCell>
@@ -2136,5 +2146,6 @@ export default function CostReportPage() {
     
 
     
+
 
 
