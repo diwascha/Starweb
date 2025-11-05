@@ -520,7 +520,8 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
       if (ply >= 7) parts.push({ label: 'L2', value: item.liner2Gsm });
       parts.push({ label: 'F2', value: item.flute2Gsm });
       if (ply === 5) parts.push({ label: 'M', value: item.middleGsm });
-      if (ply >= 7) parts.push({ label: 'L3', value: item.liner3Gsm });
+      else if (ply >= 7) parts.push({ label: 'L3', value: item.liner3Gsm });
+      
       if (ply >= 7) parts.push({ label: 'F3', value: item.flute3Gsm });
     }
   
@@ -770,96 +771,95 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                              const accessoriesCost = (item.accessories || []).reduce((sum, acc) => sum + (acc.calculated?.paperCost || 0), 0);
                              const totalItemCost = (item.calculated?.paperCost || 0) + accessoriesCost;
                              return (
-                                <Collapsible asChild key={item.id}>
-                                  <tbody>
+                                <React.Fragment key={item.id}>
+                                  <Collapsible asChild>
                                     <TableRow>
-                                        <TableCell>
-                                            <div className="flex items-center">
-                                                <Checkbox
-                                                    checked={selectedForPrint.has(item.id)}
-                                                    onCheckedChange={(checked) => {
-                                                        setSelectedForPrint(prev => {
-                                                            const newSet = new Set(prev);
-                                                            if (checked) newSet.add(item.id);
-                                                            else newSet.delete(item.id);
-                                                            return newSet;
-                                                        });
-                                                    }}
-                                                    aria-label={`Select row ${index + 1}`}
-                                                    className="mr-2"
+                                      <TableCell>
+                                        <div className="flex items-center">
+                                          <Checkbox
+                                            checked={selectedForPrint.has(item.id)}
+                                            onCheckedChange={(checked) => {
+                                              setSelectedForPrint(prev => {
+                                                const newSet = new Set(prev);
+                                                if (checked) newSet.add(item.id);
+                                                else newSet.delete(item.id);
+                                                return newSet;
+                                              });
+                                            }}
+                                            aria-label={`Select row ${index + 1}`}
+                                            className="mr-2"
+                                          />
+                                          {index + 1}
+                                        </div>
+                                      </TableCell>
+                                      <TableCell>
+                                        <div className="flex items-center gap-2">
+                                          <Button variant="outline" size="sm" onClick={() => addAccessory(index)}>
+                                            +Acc.
+                                          </Button>
+                                          <Popover>
+                                            <PopoverTrigger asChild>
+                                              <Button variant="outline" role="combobox" className="w-[200px] justify-between">
+                                                {item.productId ? products.find(p => p.id === item.productId)?.name : "Select product..."}
+                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                              </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
+                                              <Command>
+                                                <CommandInput
+                                                  placeholder="Search products..."
+                                                  value={productSearch}
+                                                  onValueChange={setProductSearch}
                                                 />
-                                                {index + 1}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex items-center gap-2">
-                                                <Button variant="outline" size="sm" onClick={() => addAccessory(index)}>
-                                                +Acc.
-                                                </Button>
-                                                <Popover>
-                                                    <PopoverTrigger asChild>
-                                                        <Button variant="outline" role="combobox" className="w-[200px] justify-between">
-                                                            {item.productId ? products.find(p => p.id === item.productId)?.name : "Select product..."}
-                                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                                        </Button>
-                                                    </PopoverTrigger>
-                                                    <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
-                                                        <Command>
-                                                            <CommandInput
-                                                                placeholder="Search products..."
-                                                                value={productSearch}
-                                                                onValueChange={setProductSearch}
-                                                            />
-                                                            <CommandList>
-                                                                <CommandEmpty>
-                                                                    <Button variant="ghost" className="w-full justify-start" onClick={() => onProductAdd()}>
-                                                                    <PlusCircle className="mr-2 h-4 w-4" /> Add "{productSearch}"
-                                                                    </Button>
-                                                                </CommandEmpty>
-                                                                <CommandGroup>
-                                                                    {products.map(p => (
-                                                                        <CommandItem key={p.id} value={p.name} onSelect={() => { handleProductSelect(index, p.id); setProductSearch(''); }}>
-                                                                            <Check className={cn("mr-2 h-4 w-4", item.productId === p.id ? "opacity-100" : "opacity-0")} />
-                                                                            {p.name}
-                                                                        </CommandItem>
-                                                                    ))}
-                                                                </CommandGroup>
-                                                            </CommandList>
-                                                        </Command>
-                                                    </PopoverContent>
-                                                </Popover>
-                                            </div>
+                                                <CommandList>
+                                                  <CommandEmpty>
+                                                    <Button variant="ghost" className="w-full justify-start" onClick={() => onProductAdd()}>
+                                                      <PlusCircle className="mr-2 h-4 w-4" /> Add "{productSearch}"
+                                                    </Button>
+                                                  </CommandEmpty>
+                                                  <CommandGroup>
+                                                    {products.map(p => (
+                                                      <CommandItem key={p.id} value={p.name} onSelect={() => { handleProductSelect(index, p.id); setProductSearch(''); }}>
+                                                        <Check className={cn("mr-2 h-4 w-4", item.productId === p.id ? "opacity-100" : "opacity-0")} />
+                                                        {p.name}
+                                                      </CommandItem>
+                                                    ))}
+                                                  </CommandGroup>
+                                                </CommandList>
+                                              </CommandContent>
+                                            </Popover>
+                                          </div>
                                         </TableCell>
                                         <TableCell><Input type="number" value={item.l} onChange={e => handleItemChange(index, 'l', e.target.value)} className="w-16" /></TableCell>
                                         <TableCell><Input type="number" value={item.b} onChange={e => handleItemChange(index, 'b', e.target.value)} className="w-16" /></TableCell>
                                         <TableCell><Input type="number" value={item.h} onChange={e => handleItemChange(index, 'h', e.target.value)} className="w-16" /></TableCell>
                                         <TableCell><Input type="number" value={item.noOfPcs} onChange={e => handleItemChange(index, 'noOfPcs', e.target.value)} className="w-16" /></TableCell>
                                         <TableCell>
-                                            <Select value={item.ply} onValueChange={(value) => handleItemChange(index, 'ply', value)}>
-                                                <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="3">3 Ply</SelectItem>
-                                                    <SelectItem value="5">5 Ply</SelectItem>
-                                                    <SelectItem value="7">7 Ply</SelectItem>
-                                                    <SelectItem value="9">9 Ply</SelectItem>
-                                                </SelectContent>
-                                            </Select>
+                                          <Select value={item.ply} onValueChange={(value) => handleItemChange(index, 'ply', value)}>
+                                            <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                              <SelectItem value="3">3 Ply</SelectItem>
+                                              <SelectItem value="5">5 Ply</SelectItem>
+                                              <SelectItem value="7">7 Ply</SelectItem>
+                                              <SelectItem value="9">9 Ply</SelectItem>
+                                            </SelectContent>
+                                          </Select>
                                         </TableCell>
                                         <TableCell><Input value={item.fluteType} onChange={e => handleItemChange(index, 'fluteType', e.target.value)} className="w-16" /></TableCell>
                                         <TableCell>
-                                            <Select
-                                                value={item.paperType}
-                                                onValueChange={(value) => handleItemChange(index, 'paperType', value)}
-                                            >
-                                                <SelectTrigger className="w-32">
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="KRAFT">KRAFT</SelectItem>
-                                                    <SelectItem value="VIRGIN">VIRGIN</SelectItem>
-                                                    <SelectItem value="VIRGIN & KRAFT">VIRGIN & KRAFT</SelectItem>
-                                                </SelectContent>
-                                            </Select>
+                                          <Select
+                                            value={item.paperType}
+                                            onValueChange={(value) => handleItemChange(index, 'paperType', value)}
+                                          >
+                                            <SelectTrigger className="w-32">
+                                              <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              <SelectItem value="KRAFT">KRAFT</SelectItem>
+                                              <SelectItem value="VIRGIN">VIRGIN</SelectItem>
+                                              <SelectItem value="VIRGIN &amp; KRAFT">VIRGIN &amp; KRAFT</SelectItem>
+                                            </SelectContent>
+                                          </Select>
                                         </TableCell>
                                         <TableCell><Input value={item.paperBf} onChange={e => handleItemChange(index, 'paperBf', e.target.value)} className="w-16" /></TableCell>
                                         <TableCell><Input type="number" value={item.topGsm} onChange={e => handleItemChange(index, 'topGsm', e.target.value)} className="w-20" /></TableCell>
@@ -878,50 +878,51 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                         <TableCell>{((item.calculated.paperWeight * (parseFloat(item.wastagePercent) / 100 || 0))).toFixed(2)}</TableCell>
                                         <TableCell>{(item.calculated.totalBoxWeight).toFixed(2)}</TableCell>
                                         <TableCell className="font-medium">
-                                            {item.calculated.paperCost > 0 ? item.calculated.paperCost.toFixed(2) : '...'}
+                                          {item.calculated.paperCost > 0 ? item.calculated.paperCost.toFixed(2) : '...'}
                                         </TableCell>
                                         <TableCell className="font-medium">
-                                            <CollapsibleTrigger asChild>
-                                                <Button variant="link" className="p-0 h-auto">{accessoriesCost.toFixed(2)}</Button>
-                                            </CollapsibleTrigger>
+                                          <CollapsibleTrigger asChild>
+                                            <Button variant="link" className="p-0 h-auto">{accessoriesCost.toFixed(2)}</Button>
+                                          </CollapsibleTrigger>
                                         </TableCell>
                                         <TableCell>
-                                            <div className="flex flex-col items-center">
+                                          <div className="flex flex-col items-center">
                                             <span className="font-bold text-lg">{totalItemCost.toFixed(2)}</span>
                                             <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleRemoveItem(item.id)}>
-                                                <Trash2 className="h-4 w-4" />
+                                              <Trash2 className="h-4 w-4" />
                                             </Button>
-                                            </div>
+                                          </div>
                                         </TableCell>
-                                    </TableRow>
-                                    <CollapsibleContent asChild>
+                                      </TableRow>
+                                      <CollapsibleContent asChild>
                                         <tr>
-                                            <TableCell colSpan={28}>
-                                                <div className="p-4 bg-muted/50 rounded-lg">
-                                                    <h4 className="font-semibold mb-2">Accessories for {products.find(p => p.id === item.productId)?.name || 'this item'}</h4>
-                                                    <div className="space-y-4">
-                                                        {(item.accessories || []).map((acc, accIndex) => (
-                                                            <div key={acc.id} className="grid grid-cols-2 lg:grid-cols-4 gap-4 p-4 border rounded">
-                                                                <div className="space-y-2 col-span-full flex justify-between">
-                                                                    <Input placeholder="Accessory Name (e.g. Plate)" value={acc.name} onChange={e => handleAccessoryChange(index, accIndex, 'name', e.target.value)} className="max-w-xs" />
-                                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeAccessory(index, acc.id)}>
-                                                                        <Trash2 className="h-4 w-4" />
-                                                                    </Button>
-                                                                </div>
-                                                                <div className="space-y-2"><Label>L</Label><Input type="number" placeholder="L" value={acc.l} onChange={e => handleAccessoryChange(index, accIndex, 'l', e.target.value)} /></div>
-                                                                <div className="space-y-2"><Label>B</Label><Input type="number" placeholder="B" value={acc.b} onChange={e => handleAccessoryChange(index, accIndex, 'b', e.target.value)} /></div>
-                                                                <div className="space-y-2"><Label>Ply</Label><Input type="number" placeholder="Ply" value={acc.ply} onChange={e => handleAccessoryChange(index, accIndex, 'ply', e.target.value)} /></div>
-                                                                <div className="space-y-2"><Label>Pcs</Label><Input type="number" placeholder="Pcs" value={acc.noOfPcs} onChange={e => handleAccessoryChange(index, accIndex, 'noOfPcs', e.target.value)} /></div>
-                                                                <div className="space-y-2"><Label>Top GSM</Label><Input type="number" placeholder="Top GSM" value={acc.topGsm} onChange={e => handleAccessoryChange(index, accIndex, 'topGsm', e.target.value)} /></div>
-                                                            </div>
-                                                        ))}
+                                          <TableCell colSpan={28}>
+                                            <div className="p-4 bg-muted/50 rounded-lg">
+                                              <h4 className="font-semibold mb-2">Accessories for {products.find(p => p.id === item.productId)?.name || 'this item'}</h4>
+                                              <div className="space-y-4">
+                                                {(item.accessories || []).map((acc, accIndex) => (
+                                                  <div key={acc.id} className="grid grid-cols-2 lg:grid-cols-4 gap-4 p-4 border rounded">
+                                                    <div className="space-y-2 col-span-full flex justify-between">
+                                                      <Input placeholder="Accessory Name (e.g. Plate)" value={acc.name} onChange={e => handleAccessoryChange(index, accIndex, 'name', e.target.value)} className="max-w-xs" />
+                                                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeAccessory(index, acc.id)}>
+                                                        <Trash2 className="h-4 w-4" />
+                                                      </Button>
                                                     </div>
-                                                </div>
-                                            </TableCell>
+                                                    <div className="space-y-2"><Label>L</Label><Input type="number" placeholder="L" value={acc.l} onChange={e => handleAccessoryChange(index, accIndex, 'l', e.target.value)} /></div>
+                                                    <div className="space-y-2"><Label>B</Label><Input type="number" placeholder="B" value={acc.b} onChange={e => handleAccessoryChange(index, accIndex, 'b', e.target.value)} /></div>
+                                                    <div className="space-y-2"><Label>Ply</Label><Input type="number" placeholder="Ply" value={acc.ply} onChange={e => handleAccessoryChange(index, accIndex, 'ply', e.target.value)} /></div>
+                                                    <div className="space-y-2"><Label>Pcs</Label><Input type="number" placeholder="Pcs" value={acc.noOfPcs} onChange={e => handleAccessoryChange(index, accIndex, 'noOfPcs', e.target.value)} /></div>
+                                                    <div className="space-y-2"><Label>Top GSM</Label><Input type="number" placeholder="Top GSM" value={acc.topGsm} onChange={e => handleAccessoryChange(index, accIndex, 'topGsm', e.target.value)} /></div>
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            </div>
+                                          </TableCell>
                                         </tr>
-                                    </CollapsibleContent>
-                                  </tbody>
-                                </Collapsible>
+                                      </CollapsibleContent>
+                                    </TableRow>
+                                  </Collapsible>
+                                </React.Fragment>
                         )})}
                         </TableBody>
                     </Table>
@@ -1042,7 +1043,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                           <div>{item.paperType}</div>
                           <div className="text-xs text-muted-foreground">{item.paperShade}</div>
                       </td>
-                       <td className="align-top"><GsmDisplay item={item} /></td>
+                       <td className="align-top"><GsmDisplay item={item} /></TableCell>
                       <td className="align-top text-right">{item.calculated.totalBoxWeight.toFixed(2)}</td>
                       <td className="align-top text-right">
                         <p>{item.totalItemCost.toFixed(2)}</p>
@@ -1060,7 +1061,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
               </Table>
 
                 <footer className="pt-8 text-xs space-y-4">
-                    <div className="font-semibold">Terms & Conditions:</div>
+                    <div className="font-semibold">Terms &amp; Conditions:</div>
                     <ul className="list-disc list-inside space-y-1">
                         <li>VAT 13% will be extra.</li>
                         <li>Weight tolerance will be +/- 10%.</li>
@@ -1307,7 +1308,7 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
           if (ply >= 7) parts.push({ label: 'L2', value: item.liner2Gsm });
           parts.push({ label: 'F2', value: item.flute2Gsm });
           if (ply === 5) parts.push({ label: 'M', value: item.middleGsm });
-          if (ply >= 7) parts.push({ label: 'L3', value: item.liner3Gsm });
+          else if (ply >= 7) parts.push({ label: 'L3', value: item.liner3Gsm });
           if (ply >= 7) parts.push({ label: 'F3', value: item.flute3Gsm });
         }
       
@@ -1455,7 +1456,7 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
                                         <div>{item.paperType}</div>
                                         <div className="text-xs text-muted-foreground">{item.paperShade}</div>
                                     </td>
-                                    <td className="align-top"><GsmDisplay item={item} /></td>
+                                    <td className="align-top"><GsmDisplay item={item} /></TableCell>
                                     <td className="align-top text-right">{item.calculated.totalBoxWeight.toFixed(2)}</td>
                                     <td className="align-top text-right">
                                         <p>{item.totalItemCost.toFixed(2)}</p>
@@ -1475,7 +1476,7 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
                             </TableBody>
                         </Table>
                          <footer className="pt-8 text-xs space-y-4">
-                            <div className="font-semibold">Terms & Conditions:</div>
+                            <div className="font-semibold">Terms &amp; Conditions:</div>
                             <ul className="list-disc list-inside space-y-1">
                                 <li>VAT 13% will be extra.</li>
                                 <li>Weight tolerance will be +/- 10%.</li>
@@ -1500,7 +1501,7 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
 }
 
 function ProductForm({ productToEdit, onSaveSuccess }: { productToEdit: Product | null, onSaveSuccess: () => void }) {
-    const [productForm, setProductForm] = useState<Partial<Product> & { l?: string, b?: string, h?: string }>({ specification: {} });
+    const [productForm, setProductForm] = useState<Partial<Product> &amp; { l?: string, b?: string, h?: string }>({ specification: {} });
     const [parties, setParties] = useState<Party[]>([]);
     const [partySearch, setPartySearch] = useState('');
     const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
@@ -2142,3 +2143,4 @@ export default function CostReportPage() {
     
 
     
+
