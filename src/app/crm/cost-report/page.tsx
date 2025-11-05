@@ -1743,8 +1743,8 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
     );
 }
 
-function ProductForm({ productToEdit, onSaveSuccess }: { productToEdit: Product | null, onSaveSuccess: () => void }) {
-    const [productForm, setProductForm] = useState<Partial<Product> & { l?: string, b?: string, h?: string }>({ specification: {} });
+function ProductForm({ productToEdit, onSaveSuccess, onProductFormChange }: { productToEdit: Product | null, onSaveSuccess: () => void, onProductFormChange: (product: Partial<Product>) => void }) {
+    const [productForm, setProductForm] = useState<Partial<Product> & { l?: string, b?: string, h?: string, accessories?: ProductAccessory[] }>({ specification: {}, accessories: [] });
     const [parties, setParties] = useState<Party[]>([]);
     const [partySearch, setPartySearch] = useState('');
     const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
@@ -1770,7 +1770,7 @@ function ProductForm({ productToEdit, onSaveSuccess }: { productToEdit: Product 
             
             const [l, b, h] = productToEdit.specification?.dimension?.split('x') || ['', '', ''];
 
-            setProductForm({ ...productToEdit, specification: spec, l, b, h });
+            setProductForm({ ...productToEdit, specification: spec, l, b, h, accessories: productToEdit.accessories || [] });
         } else {
             const spec: Partial<ProductSpecification> = {};
             relevantSpecFields.forEach(field => {
@@ -1779,24 +1779,50 @@ function ProductForm({ productToEdit, onSaveSuccess }: { productToEdit: Product 
             spec.ply = '3';
             spec.paperShade = 'NS';
             spec.boxType = 'RSC';
-            setProductForm({ name: '', materialCode: '', partyId: '', partyName: '', specification: spec, l: '', b: '', h: '' });
+            setProductForm({ name: '', materialCode: '', partyId: '', partyName: '', specification: spec, l: '', b: '', h: '', accessories: [] });
         }
     }, [productToEdit]);
     
     const handleProductFormChange = (field: keyof typeof productForm, value: any) => {
-        setProductForm(prev => ({ ...prev, [field]: value }));
+        const updatedForm = { ...productForm, [field]: value };
+        setProductForm(updatedForm);
+        onProductFormChange(updatedForm);
     };
 
     const handleSpecChange = (field: keyof ProductSpecification, value: string) => {
-        setProductForm(prev => ({
-            ...prev,
+        const updatedForm = {
+            ...productForm,
             specification: {
-                ...(prev.specification as ProductSpecification),
+                ...(productForm.specification as ProductSpecification),
                 [field]: value
             },
-        }));
+        };
+        setProductForm(updatedForm);
+        onProductFormChange(updatedForm);
+    };
+
+     const handleAccessoryChange = (index: number, field: keyof Omit<ProductAccessory, 'id'>, value: string) => {
+        const updatedAccessories = [...(productForm.accessories || [])];
+        (updatedAccessories[index] as any)[field] = value;
+        handleProductFormChange('accessories', updatedAccessories);
     };
     
+    const addAccessory = () => {
+        const newAccessory: ProductAccessory = {
+            id: Date.now().toString(), name: 'Accessory', l: '', b: '', h: '', noOfPcs: '1', ply: '0',
+            fluteType: 'B', paperType: 'KRAFT', paperBf: '18 Bf', paperShade: 'NS', boxType: 'RSC',
+            topGsm: '', flute1Gsm: '', middleGsm: '', flute2Gsm: '', bottomGsm: '',
+            liner2Gsm: '', flute3Gsm: '', liner3Gsm: '', flute4Gsm: '', liner4Gsm: '', wastagePercent: '3.5'
+        };
+        handleProductFormChange('accessories', [...(productForm.accessories || []), newAccessory]);
+    };
+
+    const removeAccessory = (id: string) => {
+        const updatedAccessories = (productForm.accessories || []).filter(acc => acc.id !== id);
+        handleProductFormChange('accessories', updatedAccessories);
+    };
+
+
     const handleSaveProduct = async () => {
         if (!user) return;
         
@@ -1821,6 +1847,7 @@ function ProductForm({ productToEdit, onSaveSuccess }: { productToEdit: Product 
                     partyId: restOfForm.partyId,
                     partyName: party?.name || '',
                     specification: finalSpec,
+                    accessories: restOfForm.accessories,
                     lastModifiedBy: user.username,
                 });
                 toast({ title: 'Success', description: 'Product updated.' });
@@ -1831,6 +1858,7 @@ function ProductForm({ productToEdit, onSaveSuccess }: { productToEdit: Product 
                     partyId: restOfForm.partyId,
                     partyName: party?.name || '',
                     specification: finalSpec,
+                    accessories: restOfForm.accessories,
                     createdBy: user.username,
                     createdAt: new Date().toISOString()
                 } as Omit<Product, 'id'>);
@@ -1926,7 +1954,7 @@ function ProductForm({ productToEdit, onSaveSuccess }: { productToEdit: Product 
                         </Popover>
                     </div>
                     <Separator />
-                    <h4 className="font-semibold">Specification</h4>
+                    <h4 className="font-semibold">Main Product Specification</h4>
                      <div className="space-y-2">
                         <Label>Dimension</Label>
                         <div className="flex gap-2">
@@ -2011,6 +2039,50 @@ function ProductForm({ productToEdit, onSaveSuccess }: { productToEdit: Product 
                             <Input id={`spec-printing`} value={productForm.specification?.printing || ''} onChange={(e) => handleSpecChange('printing', e.target.value)} />
                        </div>
                     </div>
+                    <Separator />
+                    <h4 className="font-semibold">Default Accessories</h4>
+                    <div className="space-y-4">
+                        {(productForm.accessories || []).map((acc, index) => (
+                             <div key={acc.id} className="p-4 border rounded-md relative">
+                                 <Button type="button" variant="ghost" size="icon" className="absolute top-1 right-1 h-7 w-7 text-destructive" onClick={() => removeAccessory(acc.id)}>
+                                     <Trash2 className="h-4 w-4"/>
+                                 </Button>
+                                 <div className="grid grid-cols-2 gap-4">
+                                     <div className="space-y-2">
+                                         <Label>Accessory Name</Label>
+                                         <Input value={acc.name} onChange={e => handleAccessoryChange(index, 'name', e.target.value)}/>
+                                     </div>
+                                     <div className="space-y-2">
+                                         <Label>Dimensions (L/B/H)</Label>
+                                         <div className="flex gap-2">
+                                            <Input placeholder="L" type="number" value={acc.l} onChange={e => handleAccessoryChange(index, 'l', e.target.value)} />
+                                            <Input placeholder="B" type="number" value={acc.b} onChange={e => handleAccessoryChange(index, 'b', e.target.value)} />
+                                            <Input placeholder="H" type="number" value={acc.h} onChange={e => handleAccessoryChange(index, 'h', e.target.value)} />
+                                         </div>
+                                     </div>
+                                      <div className="space-y-2">
+                                        <Label>Ply</Label>
+                                        <Select value={acc.ply} onValueChange={(v) => handleAccessoryChange(index, 'ply', v)}>
+                                            <SelectTrigger><SelectValue/></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="3">3 Ply</SelectItem>
+                                                <SelectItem value="5">5 Ply</SelectItem>
+                                                <SelectItem value="7">7 Ply</SelectItem>
+                                                <SelectItem value="9">9 Ply</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                     </div>
+                                     <div className="space-y-2">
+                                         <Label>Paper Bf</Label>
+                                         <Input value={acc.paperBf} onChange={e => handleAccessoryChange(index, 'paperBf', e.target.value)} />
+                                     </div>
+                                 </div>
+                             </div>
+                        ))}
+                         <Button type="button" variant="outline" size="sm" onClick={addAccessory}>
+                            <PlusCircle className="mr-2 h-4 w-4" /> Add Accessory
+                        </Button>
+                    </div>
                 </div>
             </ScrollArea>
              <DialogFooter>
@@ -2064,22 +2136,18 @@ function ProductForm({ productToEdit, onSaveSuccess }: { productToEdit: Product 
 
 function SavedProductsList() {
     const [products, setProducts] = useState<Product[]>([]);
-    const [parties, setParties] = useState<Party[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [filterParty, setFilterParty] = useState('All');
     const {toast} = useToast();
     
-    // Product Dialog State
     const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
     const [productToEdit, setProductToEdit] = useState<Product | null>(null);
 
 
     useEffect(() => {
         const unsubProducts = onProductsUpdate(setProducts);
-        const unsubParties = onPartiesUpdate(setParties);
         return () => {
           unsubProducts();
-          unsubParties();
         }
     }, []);
     
@@ -2211,6 +2279,7 @@ function SavedProductsList() {
                         setIsProductDialogOpen(false);
                         setProductToEdit(null);
                     }}
+                    onProductFormChange={() => {}}
                 />
             </DialogContent>
         </Dialog>
@@ -2320,6 +2389,7 @@ export default function CostReportPage() {
     const [products, setProducts] = useState<Product[]>([]);
     
     const [isProductAddDialogOpen, setIsProductAddDialogOpen] = useState(false);
+    const [productFormData, setProductFormData] = useState<Partial<Product> | null>(null);
     
     useEffect(() => {
         const unsubProducts = onProductsUpdate(setProducts);
@@ -2341,6 +2411,7 @@ export default function CostReportPage() {
     }
     
     const onProductAdd = () => {
+        setProductFormData(null);
         setIsProductAddDialogOpen(true);
     };
 
@@ -2382,7 +2453,11 @@ export default function CostReportPage() {
                     <DialogHeader>
                         <DialogTitle>Add New Product</DialogTitle>
                     </DialogHeader>
-                     <ProductForm productToEdit={null} onSaveSuccess={() => setIsProductAddDialogOpen(false)} />
+                     <ProductForm 
+                        productToEdit={null} 
+                        onSaveSuccess={() => setIsProductAddDialogOpen(false)}
+                        onProductFormChange={setProductFormData}
+                    />
                 </DialogContent>
             </Dialog>
         </div>
