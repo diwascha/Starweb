@@ -119,18 +119,25 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     return () => unsubCostSettings();
   }, [reportToEdit]);
 
- const calculateItemCost = useCallback((item: Omit<CostReportItem, 'id' | 'calculated' | 'productId' | 'accessories'> | Omit<Accessory, 'id' | 'calculated' | 'productId'>, globalKraftCosts: Record<string, number>, globalVirginCost: number, globalConversionCost: number): CalculatedValues => {
+  const calculateItemCost = useCallback((item: Omit<CostReportItem, 'id' | 'calculated' | 'productId' | 'accessories'> | Omit<Accessory, 'id' | 'calculated' | 'productId'>, globalKraftCosts: Record<string, number>, globalVirginCost: number, globalConversionCost: number): CalculatedValues => {
     const l = parseFloat(item.l) || 0;
     const b = parseFloat(item.b) || 0;
     const h = parseFloat(item.h) || 0;
     const noOfPcs = parseInt(item.noOfPcs, 10) || 1; // Default to 1 for calculation
     
-    if (l === 0 && b === 0) return initialCalculatedState;
-
     // Check if it's a 3D box or a 2D sheet/pad
     const isBox = l > 0 && b > 0 && h > 0;
-    const sheetSizeL = isBox ? (b + h + 20) : l;
-    const sheetSizeB = isBox ? ((2 * l) + (2 * b) + 62) : b;
+    
+    let sheetSizeL, sheetSizeB;
+    if (isBox) {
+        sheetSizeL = b + h + 20;
+        sheetSizeB = (2 * l) + (2 * b) + 62;
+    } else {
+        const dims = [l, b, h].filter(dim => dim > 0);
+        if (dims.length < 2) return initialCalculatedState;
+        sheetSizeL = dims[0];
+        sheetSizeB = dims[1];
+    }
     
     if (sheetSizeL === 0 || sheetSizeB === 0) return initialCalculatedState;
 
@@ -159,8 +166,8 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
         totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor) + liner2Gsm + (flute2Gsm * fluteFactor) + liner3Gsm + (flute3Gsm * fluteFactor) + bottomGsm;
     } else if (ply === 9) {
         totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor) + liner2Gsm + (flute2Gsm * fluteFactor) + liner3Gsm + (flute3Gsm * fluteFactor) + liner4Gsm + (flute4Gsm * fluteFactor) + bottomGsm;
-    } else if (ply === 0 || ply === 1) { // For Plates/Pads
-        totalGsmForCalc = topGsm;
+    } else if (ply === 0 || ply === 1 || ply === 2) { // For Plates/Pads (2-ply is also a sheet)
+        totalGsmForCalc = topGsm + (ply === 2 ? (flute1Gsm * fluteFactor) + bottomGsm : 0);
     }
 
     const paperWeightInGrams = (sheetArea * totalGsmForCalc) * noOfPcs;
@@ -1324,14 +1331,21 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
         const l = parseFloat(item.l) || 0;
         const b = parseFloat(item.b) || 0;
         const h = parseFloat(item.h) || 0;
-        const noOfPcs = parseInt(item.noOfPcs, 10) || 1; // Default to 1
+        const noOfPcs = parseInt(item.noOfPcs, 10) || 1;
         const ply = parseInt(item.ply, 10) || 0;
         
-        if (l === 0 || b === 0) return initialCalculatedState;
-
         const isBox = l > 0 && b > 0 && h > 0;
-        const sheetSizeL = isBox ? (b + h + 20) : l;
-        const sheetSizeB = isBox ? ((2 * l) + (2 * b) + 62) : b;
+        let sheetSizeL, sheetSizeB;
+
+        if (isBox) {
+            sheetSizeL = b + h + 20;
+            sheetSizeB = (2 * l) + (2 * b) + 62;
+        } else {
+            const dims = [l, b, h].filter(dim => dim > 0);
+            if (dims.length < 2) return initialCalculatedState;
+            sheetSizeL = dims[0];
+            sheetSizeB = dims[1];
+        }
         
         if (sheetSizeL === 0 || sheetSizeB === 0) return initialCalculatedState;
         
@@ -1352,7 +1366,7 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
         else if (ply === 5) totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor) + middleGsm + (flute2Gsm * fluteFactor) + bottomGsm;
         else if (ply === 7) totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor) + liner2Gsm + (flute2Gsm * fluteFactor) + liner3Gsm + (flute3Gsm * fluteFactor) + bottomGsm;
         else if (ply === 9) totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor) + liner2Gsm + (flute2Gsm * fluteFactor) + liner3Gsm + (flute3Gsm * fluteFactor) + liner4Gsm + (flute4Gsm * fluteFactor) + bottomGsm;
-        else if (ply === 0 || ply === 1) totalGsmForCalc = topGsm;
+        else if (ply === 0 || ply === 1 || ply === 2) totalGsmForCalc = topGsm + (ply === 2 ? (flute1Gsm * fluteFactor) + bottomGsm : 0);
 
 
         const paperWeightInGrams = (sheetArea * totalGsmForCalc) * noOfPcs;
