@@ -148,7 +148,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
             sheetSizeB = deckle2;
         }
     } else {
-        const dims = [l, b, h].filter(dim => dim > 0);
+        const dims = [l, b, h].filter(dim => dim > 0).sort((a, b) => b - a);
         if (dims.length < 2) return initialCalculatedState;
         sheetSizeL = dims[0];
         sheetSizeB = dims[1];
@@ -260,35 +260,58 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     };
   }, []);
   
+  const getFullAccessory = (acc: Partial<Accessory>): Omit<Accessory, 'calculated' | 'productId'> => {
+    return {
+        id: acc.id || Date.now().toString() + Math.random(),
+        name: acc.name || 'Accessory',
+        l: acc.l || '', b: acc.b || '', h: acc.h || '',
+        noOfPcs: acc.noOfPcs || '1',
+        ply: acc.ply || '3',
+        fluteType: acc.fluteType || 'B',
+        paperType: acc.paperType || 'KRAFT',
+        paperBf: acc.paperBf || '18 Bf',
+        paperShade: acc.paperShade || 'NS',
+        boxType: acc.boxType || 'RSC',
+        topGsm: acc.topGsm || '',
+        flute1Gsm: acc.flute1Gsm || '',
+        middleGsm: acc.middleGsm || '',
+        flute2Gsm: acc.flute2Gsm || '',
+        bottomGsm: acc.bottomGsm || '',
+        liner2Gsm: acc.liner2Gsm || '',
+        flute3Gsm: acc.flute3Gsm || '',
+        liner3Gsm: acc.liner3Gsm || '',
+        flute4Gsm: acc.flute4Gsm || '',
+        liner4Gsm: acc.liner4Gsm || '',
+        wastagePercent: acc.wastagePercent || '3.5',
+    };
+  };
+
   useEffect(() => {
     if (reportToEdit) {
       setReportNumber(reportToEdit.reportNumber);
       setReportDate(new Date(reportToEdit.reportDate));
       setSelectedPartyId(reportToEdit.partyId);
 
-      // Set costs from the report first
       const reportKraftCosts = reportToEdit.kraftPaperCosts || initialKraftCosts;
-      const reportVirginCost = reportToEdit.virginPaperCost;
-      const reportConversionCost = reportToEdit.conversionCost;
+      const reportVirginCost = reportToEdit.virginPaperCost || 0;
+      const reportConversionCost = reportToEdit.conversionCost || 0;
 
       setKraftPaperCosts(reportKraftCosts);
       setVirginPaperCost(reportVirginCost);
       setConversionCost(reportConversionCost);
 
-      // Immediately use the report's costs for calculation, not the state which updates later
       const kCosts = Object.fromEntries(Object.entries(reportKraftCosts).map(([bf, cost]) => [bf, Number(cost) || 0]));
       const vCost = Number(reportVirginCost) || 0;
       const cCost = Number(reportConversionCost) || 0;
-
+      
       setItems(reportToEdit.items.map(item => ({
           ...item, 
           id: item.id || Date.now().toString(), 
           calculated: calculateItemCost(item, kCosts, vCost, cCost),
-          accessories: (item.accessories || []).map(acc => ({
-              ...acc,
-              id: acc.id || Date.now().toString(),
-              calculated: calculateItemCost(acc, kCosts, vCost, cCost)
-          }))
+          accessories: (item.accessories || []).map(acc => {
+              const fullAcc = getFullAccessory(acc);
+              return { ...fullAcc, calculated: calculateItemCost(fullAcc, kCosts, vCost, cCost) };
+          })
       })));
       setSelectedForPrint(new Set(reportToEdit.items.map(i => i.id)));
     } else {
@@ -948,7 +971,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                           <SelectContent>
                                             <SelectItem value="KRAFT">KRAFT</SelectItem>
                                             <SelectItem value="VIRGIN">VIRGIN</SelectItem>
-                                            <SelectItem value="VIRGIN &amp; KRAFT">VIRGIN &amp; KRAFT</SelectItem>
+                                            <SelectItem value="VIRGIN & KRAFT">VIRGIN & KRAFT</SelectItem>
                                           </SelectContent>
                                         </Select>
                                       </TableCell>
@@ -1033,7 +1056,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                                     <SelectContent>
                                                         <SelectItem value="KRAFT">KRAFT</SelectItem>
                                                         <SelectItem value="VIRGIN">VIRGIN</SelectItem>
-                                                        <SelectItem value="VIRGIN &amp; KRAFT">VIRGIN &amp; KRAFT</SelectItem>
+                                                        <SelectItem value="VIRGIN & KRAFT">VIRGIN & KRAFT</SelectItem>
                                                     </SelectContent>
                                                 </Select>
                                             </TableCell>
@@ -1403,7 +1426,7 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
                 sheetSizeB = deckle2;
             }
         } else {
-            const dims = [l, b, h].filter(dim => dim > 0);
+            const dims = [l, b, h].filter(dim => dim > 0).sort((a, b) => b - a);
             if (dims.length < 2) return initialCalculatedState;
             sheetSizeL = dims[0];
             sheetSizeB = dims[1];
