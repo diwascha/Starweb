@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Printer, Loader2, Plus, Trash2, ChevronsUpDown, Check, PlusCircle, Edit, Save, MoreHorizontal, Search, ArrowUpDown, History, Library, HistoryIcon, Paperclip } from 'lucide-react';
+import { Printer, Loader2, Plus, Trash2, ChevronsUpDown, Check, PlusCircle, Edit, Save, MoreHorizontal, Search, ArrowUpDown, History, Library, HistoryIcon, Paperclip, Clipboard, Copy } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon } from 'lucide-react';
@@ -322,6 +322,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
             paperBf: spec.paperBf || '18',
             paperShade: 'NS',
             boxType: 'RSC',
+            fluteType: 'B',
             topGsm: spec.topGsm || '120',
             flute1Gsm: spec.flute1Gsm || '100',
             middleGsm: spec.middleGsm || '',
@@ -592,6 +593,29 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
         return newItems;
     });
   };
+  
+    const copyItem = (itemToCopy: CostReportItem) => {
+        const kCost = Number(kraftPaperCost) || 0;
+        const vCost = Number(virginPaperCost) || 0;
+        const cCost = Number(conversionCost) || 0;
+        
+        const { id, accessories, ...restOfItem } = itemToCopy;
+        
+        const newItemBase = {
+            ...restOfItem,
+            id: Date.now().toString(),
+            accessories: (accessories || []).map(acc => {
+                const { id: accId, ...restOfAcc } = acc;
+                const newAccBase = { ...restOfAcc, id: Date.now().toString() + Math.random() };
+                return { ...newAccBase, calculated: calculateItemCost(newAccBase, kCost, vCost, cCost) };
+            }),
+        };
+        
+        const newItem = { ...newItemBase, calculated: calculateItemCost(newItemBase, kCost, vCost, cCost) };
+        setItems(prev => [...prev, newItem]);
+        setSelectedForPrint(prev => new Set(prev).add(newItem.id));
+        toast({ title: "Item Copied", description: "A copy of the item has been added to the list." });
+    };
 
 
   return (
@@ -886,9 +910,14 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                       <TableCell>
                                         <div className="flex flex-col items-center">
                                           <span className="font-bold text-lg">{totalItemCost.toFixed(2)}</span>
-                                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleRemoveItem(item.id)}>
-                                            <Trash2 className="h-4 w-4" />
-                                          </Button>
+                                            <div className="flex items-center">
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600" onClick={() => copyItem(item)}>
+                                                    <Copy className="h-4 w-4" />
+                                                </Button>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleRemoveItem(item.id)}>
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
                                         </div>
                                       </TableCell>
                                     </TableRow>
@@ -912,7 +941,17 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                               </SelectContent>
                                           </Select>
                                       </TableCell>
-                                      <TableCell colSpan={2}></TableCell>
+                                        <TableCell><Input placeholder="Flute" value={acc.fluteType} onChange={e => handleAccessoryChange(index, accIndex, 'fluteType', e.target.value)} className="w-16"/></TableCell>
+                                        <TableCell>
+                                            <Select value={acc.paperType} onValueChange={(value) => handleAccessoryChange(index, accIndex, 'paperType', value)}>
+                                                <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="KRAFT">KRAFT</SelectItem>
+                                                    <SelectItem value="VIRGIN">VIRGIN</SelectItem>
+                                                    <SelectItem value="VIRGIN &amp; KRAFT">VIRGIN &amp; KRAFT</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </TableCell>
                                       <TableCell><Input placeholder="BF" value={acc.paperBf} onChange={e => handleAccessoryChange(index, accIndex, 'paperBf', e.target.value)} className="w-16"/></TableCell>
                                       <TableCell><Input type="number" placeholder="T GSM" value={acc.topGsm} onChange={e => handleAccessoryChange(index, accIndex, 'topGsm', e.target.value)} className="w-20"/></TableCell>
                                       <TableCell colSpan={14} className="font-medium">
@@ -2146,6 +2185,7 @@ export default function CostReportPage() {
     
 
     
+
 
 
 
