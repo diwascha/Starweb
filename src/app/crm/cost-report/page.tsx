@@ -53,6 +53,7 @@ const initialCalculatedState: CalculatedValues = {
 };
 
 const bfOptions = ['16 Bf', '18 Bf', '20 Bf', '22 Bf'];
+const fluteOptions = ['A', 'B', 'A/B', 'B/A', 'A/A', 'B/B'];
 const initialKraftCosts: Record<string, number | ''> = {
     '16 Bf': '', '18 Bf': '', '20 Bf': '', '22 Bf': ''
 };
@@ -142,7 +143,19 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     if (sheetSizeL === 0 || sheetSizeB === 0) return initialCalculatedState;
 
     const ply = parseInt(item.ply, 10) || 0;
-    const fluteFactor = 1.38;
+    
+    const getFluteFactor = (fluteChar: string) => {
+        if (fluteChar === 'A') return 1.5;
+        if (fluteChar === 'B') return 1.38;
+        return 1.38; // Default to 'B'
+    };
+
+    const fluteTypes = (item.fluteType || 'B').split('/');
+    const fluteFactor1 = getFluteFactor(fluteTypes[0]);
+    const fluteFactor2 = getFluteFactor(fluteTypes[1] || fluteTypes[0]);
+    const fluteFactor3 = getFluteFactor(fluteTypes[2] || fluteTypes[1] || fluteTypes[0]);
+    const fluteFactor4 = getFluteFactor(fluteTypes[3] || fluteTypes[2] || fluteTypes[1] || fluteTypes[0]);
+
 
     const topGsm = parseInt(item.topGsm, 10) || 0;
     const flute1Gsm = parseInt(item.flute1Gsm, 10) || 0;
@@ -159,15 +172,15 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
 
     let totalGsmForCalc = 0;
     if (ply === 3) {
-        totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor) + bottomGsm;
+        totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor1) + bottomGsm;
     } else if (ply === 5) {
-        totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor) + middleGsm + (flute2Gsm * fluteFactor) + bottomGsm;
+        totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor1) + middleGsm + (flute2Gsm * fluteFactor2) + bottomGsm;
     } else if (ply === 7) {
-        totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor) + liner2Gsm + (flute2Gsm * fluteFactor) + liner3Gsm + (flute3Gsm * fluteFactor) + bottomGsm;
+        totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor1) + liner2Gsm + (flute2Gsm * fluteFactor2) + liner3Gsm + (flute3Gsm * fluteFactor3) + bottomGsm;
     } else if (ply === 9) {
-        totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor) + liner2Gsm + (flute2Gsm * fluteFactor) + liner3Gsm + (flute3Gsm * fluteFactor) + liner4Gsm + (flute4Gsm * fluteFactor) + bottomGsm;
+        totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor1) + liner2Gsm + (flute2Gsm * fluteFactor2) + liner3Gsm + (flute3Gsm * fluteFactor3) + liner4Gsm + (flute4Gsm * fluteFactor4) + bottomGsm;
     } else if (ply === 0 || ply === 1 || ply === 2) { // For Plates/Pads (2-ply is also a sheet)
-        totalGsmForCalc = topGsm + (ply === 2 ? (flute1Gsm * fluteFactor) + bottomGsm : 0);
+        totalGsmForCalc = topGsm + (ply === 2 ? (flute1Gsm * fluteFactor1) + bottomGsm : 0);
     }
 
     const paperWeightInGrams = (sheetArea * totalGsmForCalc) * noOfPcs;
@@ -182,7 +195,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     if (item.paperType === 'VIRGIN' && globalVirginCost > 0) {
         paperRate = globalVirginCost;
     } else if (item.paperType === 'VIRGIN & KRAFT' && topGsm > 0 && globalVirginCost > 0) {
-        const totalGsm = topGsm + (flute1Gsm * 1.38) + (ply === 5 ? middleGsm + (flute2Gsm * 1.38) : 0) + bottomGsm;
+        const totalGsm = topGsm + (flute1Gsm * fluteFactor1) + (ply === 5 ? middleGsm + (flute2Gsm * fluteFactor2) : 0) + bottomGsm;
         if (totalGsm > 0) {
             paperRate = (topGsm * globalVirginCost + (totalGsm - topGsm) * kraftCost) / totalGsm;
         } else {
@@ -893,7 +906,14 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                           </SelectContent>
                                         </Select>
                                       </TableCell>
-                                      <TableCell><Input value={item.fluteType} onChange={e => handleItemChange(index, 'fluteType', e.target.value)} className="w-16" /></TableCell>
+                                      <TableCell>
+                                        <Select value={item.fluteType} onValueChange={(value) => handleItemChange(index, 'fluteType', value)}>
+                                            <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                {fluteOptions.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                      </TableCell>
                                       <TableCell>
                                         <Select
                                           value={item.paperType}
@@ -976,7 +996,14 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                                     </SelectContent>
                                                 </Select>
                                             </TableCell>
-                                            <TableCell><Input placeholder="Flute" value={acc.fluteType} onChange={e => handleAccessoryChange(index, accIndex, 'fluteType', e.target.value)} className="w-16"/></TableCell>
+                                            <TableCell>
+                                                <Select value={acc.fluteType} onValueChange={(value) => handleAccessoryChange(index, accIndex, 'fluteType', value)}>
+                                                    <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+                                                    <SelectContent>
+                                                        {fluteOptions.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                                                    </SelectContent>
+                                                </Select>
+                                            </TableCell>
                                             <TableCell>
                                                 <Select value={acc.paperType} onValueChange={(value) => handleAccessoryChange(index, accIndex, 'paperType', value)}>
                                                     <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
@@ -1332,7 +1359,6 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
         const b = parseFloat(item.b) || 0;
         const h = parseFloat(item.h) || 0;
         const noOfPcs = parseInt(item.noOfPcs, 10) || 1;
-        const ply = parseInt(item.ply, 10) || 0;
         
         const isBox = l > 0 && b > 0 && h > 0;
         let sheetSizeL, sheetSizeB;
@@ -1349,7 +1375,19 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
         
         if (sheetSizeL === 0 || sheetSizeB === 0) return initialCalculatedState;
         
-        const fluteFactor = 1.38;
+        const ply = parseInt(item.ply, 10) || 0;
+        const getFluteFactor = (fluteChar: string) => {
+            if (fluteChar === 'A') return 1.5;
+            if (fluteChar === 'B') return 1.38;
+            return 1.38; // Default to 'B'
+        };
+
+        const fluteTypes = (item.fluteType || 'B').split('/');
+        const fluteFactor1 = getFluteFactor(fluteTypes[0]);
+        const fluteFactor2 = getFluteFactor(fluteTypes[1] || fluteTypes[0]);
+        const fluteFactor3 = getFluteFactor(fluteTypes[2] || fluteTypes[1] || fluteTypes[0]);
+        const fluteFactor4 = getFluteFactor(fluteTypes[3] || fluteTypes[2] || fluteTypes[1] || fluteTypes[0]);
+
         const topGsm = parseInt(item.topGsm, 10) || 0;
         const flute1Gsm = parseInt(item.flute1Gsm, 10) || 0;
         const middleGsm = parseInt(item.middleGsm, 10) || 0;
@@ -1362,11 +1400,11 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
         const liner4Gsm = parseInt(item.liner4Gsm, 10) || 0;
         const sheetArea = (sheetSizeL * sheetSizeB) / 1000000;
         let totalGsmForCalc = 0;
-        if (ply === 3) totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor) + bottomGsm;
-        else if (ply === 5) totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor) + middleGsm + (flute2Gsm * fluteFactor) + bottomGsm;
-        else if (ply === 7) totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor) + liner2Gsm + (flute2Gsm * fluteFactor) + liner3Gsm + (flute3Gsm * fluteFactor) + bottomGsm;
-        else if (ply === 9) totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor) + liner2Gsm + (flute2Gsm * fluteFactor) + liner3Gsm + (flute3Gsm * fluteFactor) + liner4Gsm + (flute4Gsm * fluteFactor) + bottomGsm;
-        else if (ply === 0 || ply === 1 || ply === 2) totalGsmForCalc = topGsm + (ply === 2 ? (flute1Gsm * fluteFactor) + bottomGsm : 0);
+        if (ply === 3) totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor1) + bottomGsm;
+        else if (ply === 5) totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor1) + middleGsm + (flute2Gsm * fluteFactor2) + bottomGsm;
+        else if (ply === 7) totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor1) + liner2Gsm + (flute2Gsm * fluteFactor2) + liner3Gsm + (flute3Gsm * fluteFactor3) + bottomGsm;
+        else if (ply === 9) totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor1) + liner2Gsm + (flute2Gsm * fluteFactor2) + liner3Gsm + (flute3Gsm * fluteFactor3) + liner4Gsm + (flute4Gsm * fluteFactor4) + bottomGsm;
+        else if (ply === 0 || ply === 1 || ply === 2) totalGsmForCalc = topGsm + (ply === 2 ? (flute1Gsm * fluteFactor1) + bottomGsm : 0);
 
 
         const paperWeightInGrams = (sheetArea * totalGsmForCalc) * noOfPcs;
@@ -1379,7 +1417,7 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
 
         if (item.paperType === 'VIRGIN' && report.virginPaperCost > 0) paperRate = report.virginPaperCost;
         else if (item.paperType === 'VIRGIN & KRAFT' && topGsm > 0 && report.virginPaperCost > 0) {
-            const totalGsm = topGsm + (flute1Gsm * 1.38) + (ply === 5 ? middleGsm + (flute2Gsm * 1.38) : 0) + bottomGsm;
+            const totalGsm = topGsm + (flute1Gsm * fluteFactor1) + (ply === 5 ? middleGsm + (flute2Gsm * fluteFactor2) : 0) + bottomGsm;
             if (totalGsm > 0) paperRate = (topGsm * report.virginPaperCost + (totalGsm - topGsm) * kraftCost) / totalGsm;
             else paperRate = kraftCost;
         } else paperRate = kraftCost;
@@ -2258,3 +2296,4 @@ export default function CostReportPage() {
         </div>
     );
 }
+
