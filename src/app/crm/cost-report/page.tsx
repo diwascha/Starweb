@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -53,6 +52,11 @@ const initialCalculatedState: CalculatedValues = {
     sheetSizeL: 0, sheetSizeB: 0, sheetArea: 0, totalGsm: 0, paperWeight: 0, totalBoxWeight: 0, paperRate: 0, paperCost: 0
 };
 
+const bfOptions = ['16 Bf', '18 Bf', '20 Bf', '22 Bf'];
+const initialKraftCosts: Record<string, number | ''> = {
+    '16 Bf': '', '18 Bf': '', '20 Bf': '', '22 Bf': ''
+};
+
 interface CostReportCalculatorProps {
   reportToEdit: CostReport | null;
   onSaveSuccess: () => void;
@@ -70,7 +74,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
   const [reportDate, setReportDate] = useState<Date>(new Date());
   
   const [costSettings, setCostSettings] = useState<CostSetting | null>(null);
-  const [kraftPaperCost, setKraftPaperCost] = useState<number | ''>('');
+  const [kraftPaperCosts, setKraftPaperCosts] = useState<Record<string, number | ''>>(initialKraftCosts);
   const [virginPaperCost, setVirginPaperCost] = useState<number | ''>('');
   const [conversionCost, setConversionCost] = useState<number | ''>('');
   const [isCostHistoryDialogOpen, setIsCostHistoryDialogOpen] = useState(false);
@@ -106,7 +110,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
             const settings = setting.value as CostSetting;
             setCostSettings(settings);
             if (!reportToEdit) { // Only set from global if it's a new report
-                setKraftPaperCost(settings.kraftPaperCost || '');
+                setKraftPaperCosts(settings.kraftPaperCosts || initialKraftCosts);
                 setVirginPaperCost(settings.virginPaperCost || '');
                 setConversionCost(settings.conversionCost || '');
             }
@@ -115,7 +119,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     return () => unsubCostSettings();
   }, [reportToEdit]);
 
- const calculateItemCost = useCallback((item: Omit<CostReportItem, 'id' | 'calculated' | 'productId' | 'accessories'> | Omit<Accessory, 'id' | 'calculated' | 'productId'>, globalKraftCost: number, globalVirginCost: number, globalConversionCost: number): CalculatedValues => {
+ const calculateItemCost = useCallback((item: Omit<CostReportItem, 'id' | 'calculated' | 'productId' | 'accessories'> | Omit<Accessory, 'id' | 'calculated' | 'productId'>, globalKraftCosts: Record<string, number>, globalVirginCost: number, globalConversionCost: number): CalculatedValues => {
     const l = parseFloat(item.l) || 0;
     const b = parseFloat(item.b) || 0;
     const h = parseFloat(item.h) || 0;
@@ -164,18 +168,19 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     const totalBoxWeightInKg = totalBoxWeightInGrams / 1000;
 
     let paperRate = 0;
+    const kraftCost = globalKraftCosts[item.paperBf] || 0;
     
     if (item.paperType === 'VIRGIN' && globalVirginCost > 0) {
         paperRate = globalVirginCost;
     } else if (item.paperType === 'VIRGIN & KRAFT' && topGsm > 0 && globalVirginCost > 0) {
         const totalGsm = topGsm + (flute1Gsm * 1.38) + (ply === 5 ? middleGsm + (flute2Gsm * 1.38) : 0) + bottomGsm;
         if (totalGsm > 0) {
-            paperRate = (topGsm * globalVirginCost + (totalGsm - topGsm) * globalKraftCost) / totalGsm;
+            paperRate = (topGsm * globalVirginCost + (totalGsm - topGsm) * kraftCost) / totalGsm;
         } else {
-             paperRate = globalKraftCost;
+             paperRate = kraftCost;
         }
     } else { // Default to KRAFT
-        paperRate = globalKraftCost;
+        paperRate = kraftCost;
     }
     
     const finalPaperRate = paperRate + globalConversionCost;
@@ -185,27 +190,29 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
   }, []);
 
 
-  const handleCostChange = (costType: 'kraft' | 'virgin' | 'conversion', value: string) => {
+  const handleCostChange = (costType: 'kraft' | 'virgin' | 'conversion', value: string, bf?: string) => {
     const numericValue = value === '' ? '' : parseFloat(value);
-    if (costType === 'kraft') setKraftPaperCost(numericValue);
+    if (costType === 'kraft' && bf) {
+        setKraftPaperCosts(prev => ({...prev, [bf]: numericValue}));
+    }
     else if (costType === 'virgin') setVirginPaperCost(numericValue);
     else if (costType === 'conversion') setConversionCost(numericValue);
   }
 
   useEffect(() => {
-    const kCost = Number(kraftPaperCost) || 0;
+    const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [bf, Number(cost) || 0]));
     const vCost = Number(virginPaperCost) || 0;
     const cCost = Number(conversionCost) || 0;
     
     setItems(prevItems => prevItems.map(item => ({
         ...item,
-        calculated: calculateItemCost(item, kCost, vCost, cCost),
+        calculated: calculateItemCost(item, kCosts, vCost, cCost),
         accessories: (item.accessories || []).map(acc => ({
             ...acc,
-            calculated: calculateItemCost(acc, kCost, vCost, cCost)
+            calculated: calculateItemCost(acc, kCosts, vCost, cCost)
         }))
     })));
-  }, [kraftPaperCost, virginPaperCost, conversionCost, calculateItemCost]);
+  }, [kraftPaperCosts, virginPaperCost, conversionCost, calculateItemCost]);
 
 
   useEffect(() => {
@@ -222,20 +229,20 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
       setReportNumber(reportToEdit.reportNumber);
       setReportDate(new Date(reportToEdit.reportDate));
       setSelectedPartyId(reportToEdit.partyId);
-      setKraftPaperCost(reportToEdit.kraftPaperCost);
+      setKraftPaperCosts(reportToEdit.kraftPaperCosts || initialKraftCosts);
       setVirginPaperCost(reportToEdit.virginPaperCost);
       setConversionCost(reportToEdit.conversionCost);
-      const kCost = reportToEdit.kraftPaperCost || 0;
+      const kCosts = Object.fromEntries(Object.entries(reportToEdit.kraftPaperCosts || initialKraftCosts).map(([bf, cost]) => [bf, Number(cost) || 0]));
       const vCost = reportToEdit.virginPaperCost || 0;
       const cCost = reportToEdit.conversionCost || 0;
       setItems(reportToEdit.items.map(item => ({
           ...item, 
           id: item.id || Date.now().toString(), 
-          calculated: calculateItemCost(item, kCost, vCost, cCost),
+          calculated: calculateItemCost(item, kCosts, vCost, cCost),
           accessories: (item.accessories || []).map(acc => ({
               ...acc,
               id: acc.id || Date.now().toString(),
-              calculated: calculateItemCost(acc, kCost, vCost, cCost)
+              calculated: calculateItemCost(acc, kCosts, vCost, cCost)
           }))
       })));
       setSelectedForPrint(new Set(reportToEdit.items.map(i => i.id)));
@@ -243,7 +250,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
         generateNextCostReportNumber(costReports).then(setReportNumber);
         setReportDate(new Date());
         setSelectedPartyId('');
-        const kCost = Number(costSettings?.kraftPaperCost) || 0;
+        const kCosts = Object.fromEntries(Object.entries(costSettings?.kraftPaperCosts || initialKraftCosts).map(([bf, cost]) => [bf, Number(cost) || 0]));
         const vCost = Number(costSettings?.virginPaperCost) || 0;
         const cCost = Number(costSettings?.conversionCost) || 0;
         setItems([]);
@@ -259,7 +266,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     const spec = product.specification;
     const [l,b,h] = spec.dimension?.split('x') || ['','',''];
     
-    const kCost = Number(kraftPaperCost) || 0;
+    const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [bf, Number(cost) || 0]));
     const vCost = Number(virginPaperCost) || 0;
     const cCost = Number(conversionCost) || 0;
 
@@ -285,21 +292,21 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
         };
         newItems[index] = {
             ...updatedItem,
-            calculated: calculateItemCost(updatedItem, kCost, vCost, cCost)
+            calculated: calculateItemCost(updatedItem, kCosts, vCost, cCost)
         };
         return newItems;
     });
   };
 
   const handleItemChange = (index: number, field: keyof Omit<CostReportItem, 'id' | 'calculated' | 'accessories'>, value: string) => {
-    const kCost = Number(kraftPaperCost) || 0;
+    const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [bf, Number(cost) || 0]));
     const vCost = Number(virginPaperCost) || 0;
     const cCost = Number(conversionCost) || 0;
 
     setItems(prevItems => {
         const newItems = [...prevItems];
         const currentItem = { ...newItems[index], [field]: value };
-        const newCalculated = calculateItemCost(currentItem, kCost, vCost, cCost);
+        const newCalculated = calculateItemCost(currentItem, kCosts, vCost, cCost);
         newItems[index] = { ...currentItem, calculated: newCalculated };
         return newItems;
     });
@@ -309,7 +316,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
         const spec = product.specification;
         const [l, b, h] = spec.dimension?.split('x') || ['', '', ''];
 
-        const kCost = Number(kraftPaperCost) || 0;
+        const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [bf, Number(cost) || 0]));
         const vCost = Number(virginPaperCost) || 0;
         const cCost = Number(conversionCost) || 0;
 
@@ -320,7 +327,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
             noOfPcs: '1',
             ply: spec.ply || '3',
             paperType: 'KRAFT',
-            paperBf: spec.paperBf || '18',
+            paperBf: spec.paperBf || '18 Bf',
             paperShade: 'NS',
             boxType: 'RSC',
             fluteType: 'B',
@@ -338,17 +345,17 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
             accessories: [],
         };
         
-        const newItem = { ...newItemBase, calculated: calculateItemCost(newItemBase, kCost, vCost, cCost) };
+        const newItem = { ...newItemBase, calculated: calculateItemCost(newItemBase, kCosts, vCost, cCost) };
         setItems(prev => [...prev, newItem]);
         setSelectedForPrint(prev => new Set(prev).add(newItem.id));
     };
 
   const handleAddItem = () => {
-    const kCost = Number(kraftPaperCost) || 0;
+    const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [bf, Number(cost) || 0]));
     const vCost = Number(virginPaperCost) || 0;
     const cCost = Number(conversionCost) || 0;
     const newItemBase = { id: Date.now().toString(), productId: '', l:'',b:'',h:'', noOfPcs:'1', ply:'3', fluteType: 'B', paperType: 'KRAFT', paperBf:'18 Bf', paperShade: 'NS', boxType: 'RSC', topGsm:'120',flute1Gsm:'100',middleGsm:'',flute2Gsm:'',bottomGsm:'120', liner2Gsm: '', flute3Gsm: '', liner3Gsm: '', flute4Gsm: '', liner4Gsm: '', wastagePercent:'3.5', accessories: [] };
-    const newItem = { ...newItemBase, calculated: calculateItemCost(newItemBase, kCost, vCost, cCost) };
+    const newItem = { ...newItemBase, calculated: calculateItemCost(newItemBase, kCosts, vCost, cCost) };
     setItems(prev => [...prev, newItem]);
     setSelectedForPrint(prev => new Set(prev).add(newItem.id));
   };
@@ -412,7 +419,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
       }
       setIsSaving(true);
       try {
-           const kCost = Number(kraftPaperCost) || 0;
+           const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [bf, Number(cost) || 0]));
            const vCost = Number(virginPaperCost) || 0;
            const cCost = Number(conversionCost) || 0;
 
@@ -427,7 +434,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
               reportDate: reportDate.toISOString(),
               partyId: selectedPartyId,
               partyName: parties.find(p => p.id === selectedPartyId)?.name || '',
-              kraftPaperCost: kCost,
+              kraftPaperCosts: kCosts,
               virginPaperCost: vCost,
               conversionCost: cCost,
               items: items.map(({ calculated, accessories, ...item }) => ({
@@ -439,7 +446,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
           };
           
           await updateCostSettings({
-            kraftPaperCost: kCost,
+            kraftPaperCosts: kCosts,
             virginPaperCost: vCost,
             conversionCost: cCost,
           }, user.username);
@@ -546,7 +553,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
   };
   
   const handleAccessoryChange = (itemIndex: number, accIndex: number, field: keyof Omit<Accessory, 'id' | 'calculated'>, value: string) => {
-    const kCost = Number(kraftPaperCost) || 0;
+    const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [bf, Number(cost) || 0]));
     const vCost = Number(virginPaperCost) || 0;
     const cCost = Number(conversionCost) || 0;
 
@@ -555,7 +562,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
         const accessories = [...(newItems[itemIndex].accessories || [])];
         const currentAccessory = { ...accessories[accIndex], [field]: value };
         
-        const newCalculated = calculateItemCost(currentAccessory, kCost, vCost, cCost);
+        const newCalculated = calculateItemCost(currentAccessory, kCosts, vCost, cCost);
         accessories[accIndex] = { ...currentAccessory, calculated: newCalculated };
         newItems[itemIndex] = { ...newItems[itemIndex], accessories };
         return newItems;
@@ -564,7 +571,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
 
 
   const addAccessory = (itemIndex: number) => {
-    const kCost = Number(kraftPaperCost) || 0;
+    const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [bf, Number(cost) || 0]));
     const vCost = Number(virginPaperCost) || 0;
     const cCost = Number(conversionCost) || 0;
     const newAccessoryBase = {
@@ -573,7 +580,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
         topGsm: '120', flute1Gsm: '', middleGsm: '', flute2Gsm: '', bottomGsm: '',
         liner2Gsm: '', flute3Gsm: '', liner3Gsm: '', flute4Gsm: '', liner4Gsm: '', wastagePercent: '3.5', name: 'Accessory'
     };
-    const newAccessory = { ...newAccessoryBase, calculated: calculateItemCost(newAccessoryBase, kCost, vCost, cCost) };
+    const newAccessory = { ...newAccessoryBase, calculated: calculateItemCost(newAccessoryBase, kCosts, vCost, cCost) };
     
     setItems(prevItems => {
         const newItems = [...prevItems];
@@ -596,7 +603,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
   };
   
     const copyItem = (itemToCopy: CostReportItem) => {
-        const kCost = Number(kraftPaperCost) || 0;
+        const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [bf, Number(cost) || 0]));
         const vCost = Number(virginPaperCost) || 0;
         const cCost = Number(conversionCost) || 0;
         
@@ -608,11 +615,11 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
             accessories: (accessories || []).map(acc => {
                 const { id: accId, ...restOfAcc } = acc;
                 const newAccBase = { ...restOfAcc, id: Date.now().toString() + Math.random() };
-                return { ...newAccBase, calculated: calculateItemCost(newAccBase, kCost, vCost, cCost) };
+                return { ...newAccBase, calculated: calculateItemCost(newAccBase, kCosts, vCost, cCost) };
             }),
         };
         
-        const newItem = { ...newItemBase, calculated: calculateItemCost(newItemBase, kCost, vCost, cCost) };
+        const newItem = { ...newItemBase, calculated: calculateItemCost(newItemBase, kCosts, vCost, cCost) };
         setItems(prev => [...prev, newItem]);
         setSelectedForPrint(prev => new Set(prev).add(newItem.id));
         toast({ title: "Item Copied", description: "A copy of the item has been added to the list." });
@@ -714,18 +721,25 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                 </div>
             </CardHeader>
             <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                    <div className="space-y-2">
-                        <Label htmlFor="kraftPaperCost">Kraft Paper Cost</Label>
-                        <Input id="kraftPaperCost" type="number" placeholder="Enter cost" value={kraftPaperCost} onChange={e => handleCostChange('kraft', e.target.value)} />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="space-y-4 rounded-lg border p-4 sm:col-span-2 lg:col-span-1">
+                        <Label>Kraft Paper Costs</Label>
+                        {bfOptions.map(bf => (
+                             <div key={bf} className="flex items-center justify-between">
+                                <Label htmlFor={`kraftPaperCost-${bf}`} className="text-sm font-normal">{bf}</Label>
+                                <Input id={`kraftPaperCost-${bf}`} type="number" placeholder="Rate" className="w-24 h-8" value={kraftPaperCosts[bf] ?? ''} onChange={e => handleCostChange('kraft', e.target.value, bf)} />
+                            </div>
+                        ))}
                     </div>
+                    <div className="space-y-4">
                         <div className="space-y-2">
-                        <Label htmlFor="virginPaperCost">Virgin Paper Cost</Label>
-                        <Input id="virginPaperCost" type="number" placeholder="Enter cost" value={virginPaperCost} onChange={e => handleCostChange('virgin', e.target.value)} />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="conversionCost">Conversion Cost</Label>
-                        <Input id="conversionCost" type="number" placeholder="Enter cost" value={conversionCost} onChange={e => handleCostChange('conversion', e.target.value)} />
+                            <Label htmlFor="virginPaperCost">Virgin Paper Cost</Label>
+                            <Input id="virginPaperCost" type="number" placeholder="Enter cost" value={virginPaperCost} onChange={e => handleCostChange('virgin', e.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="conversionCost">Conversion Cost</Label>
+                            <Input id="conversionCost" type="number" placeholder="Enter cost" value={conversionCost} onChange={e => handleCostChange('conversion', e.target.value)} />
+                        </div>
                     </div>
                 </div>
             </CardContent>
@@ -890,10 +904,9 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                         <Select value={item.paperBf} onValueChange={(value) => handleItemChange(index, 'paperBf', value)}>
                                           <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
                                           <SelectContent>
-                                            <SelectItem value="16 Bf">16 Bf</SelectItem>
-                                            <SelectItem value="18 Bf">18 Bf</SelectItem>
-                                            <SelectItem value="20 Bf">20 Bf</SelectItem>
-                                            <SelectItem value="22 Bf">22 Bf</SelectItem>
+                                            {bfOptions.map(bf => (
+                                                <SelectItem key={bf} value={bf}>{bf}</SelectItem>
+                                            ))}
                                           </SelectContent>
                                         </Select>
                                       </TableCell>
@@ -969,10 +982,9 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                                 <Select value={acc.paperBf} onValueChange={(value) => handleAccessoryChange(index, accIndex, 'paperBf', value)}>
                                                   <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
                                                   <SelectContent>
-                                                    <SelectItem value="16 Bf">16 Bf</SelectItem>
-                                                    <SelectItem value="18 Bf">18 Bf</SelectItem>
-                                                    <SelectItem value="20 Bf">20 Bf</SelectItem>
-                                                    <SelectItem value="22 Bf">22 Bf</SelectItem>
+                                                    {bfOptions.map(bf => (
+                                                        <SelectItem key={bf} value={bf}>{bf}</SelectItem>
+                                                    ))}
                                                   </SelectContent>
                                                 </Select>
                                             </TableCell>
@@ -1344,13 +1356,17 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
         const wastage = parseFloat(item.wastagePercent) / 100 || 0;
         const totalBoxWeightInGrams = paperWeightInGrams * (1 + wastage);
         const totalBoxWeightInKg = totalBoxWeightInGrams / 1000;
+        
         let paperRate = 0;
+        const kraftCost = report.kraftPaperCosts[item.paperBf] || 0;
+
         if (item.paperType === 'VIRGIN' && report.virginPaperCost > 0) paperRate = report.virginPaperCost;
         else if (item.paperType === 'VIRGIN & KRAFT' && topGsm > 0 && report.virginPaperCost > 0) {
             const totalGsm = topGsm + (flute1Gsm * 1.38) + (ply === 5 ? middleGsm + (flute2Gsm * 1.38) : 0) + bottomGsm;
-            if (totalGsm > 0) paperRate = (topGsm * report.virginPaperCost + (totalGsm - topGsm) * report.kraftPaperCost) / totalGsm;
-            else paperRate = report.kraftPaperCost;
-        } else paperRate = report.kraftPaperCost;
+            if (totalGsm > 0) paperRate = (topGsm * report.virginPaperCost + (totalGsm - topGsm) * kraftCost) / totalGsm;
+            else paperRate = kraftCost;
+        } else paperRate = kraftCost;
+
         const finalPaperRate = paperRate + report.conversionCost;
         const paperCost = totalBoxWeightInKg * finalPaperRate;
         return { sheetSizeL, sheetSizeB, sheetArea, totalGsm: totalGsmForCalc, paperWeight: paperWeightInGrams, totalBoxWeight: totalBoxWeightInGrams, paperRate: finalPaperRate, paperCost };
@@ -2057,7 +2073,7 @@ function SavedProductsList() {
 
 function CostingSettingsTab() {
   const [costSettings, setCostSettings] = useState<CostSetting | null>(null);
-  const [kraftPaperCost, setKraftPaperCost] = useState<number | ''>('');
+  const [kraftPaperCosts, setKraftPaperCosts] = useState<Record<string, number | ''>>(initialKraftCosts);
   const [virginPaperCost, setVirginPaperCost] = useState<number | ''>('');
   const [conversionCost, setConversionCost] = useState<number | ''>('');
   const { user } = useAuth();
@@ -2068,7 +2084,7 @@ function CostingSettingsTab() {
         if (setting?.value) {
             const settings = setting.value as CostSetting;
             setCostSettings(settings);
-            setKraftPaperCost(settings.kraftPaperCost || '');
+            setKraftPaperCosts(settings.kraftPaperCosts || initialKraftCosts);
             setVirginPaperCost(settings.virginPaperCost || '');
             setConversionCost(settings.conversionCost || '');
         }
@@ -2079,8 +2095,9 @@ function CostingSettingsTab() {
   const handleSaveCosts = async () => {
     if (!user) return;
     try {
+        const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [bf, Number(cost) || 0]));
         await updateCostSettings({
-            kraftPaperCost: Number(kraftPaperCost) || 0,
+            kraftPaperCosts: kCosts,
             virginPaperCost: Number(virginPaperCost) || 0,
             conversionCost: Number(conversionCost) || 0,
         }, user.username);
@@ -2098,9 +2115,14 @@ function CostingSettingsTab() {
                 <CardDescription>These values will be used as defaults in new cost reports.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-                <div className="space-y-2">
-                    <Label htmlFor="globalKraftCost">Kraft Paper Cost</Label>
-                    <Input id="globalKraftCost" type="number" placeholder="Enter cost" value={kraftPaperCost} onChange={e => setKraftPaperCost(e.target.value === '' ? '' : parseFloat(e.target.value))} />
+                <div className="space-y-4 rounded-lg border p-4">
+                    <Label>Kraft Paper Costs</Label>
+                    {bfOptions.map(bf => (
+                        <div key={bf} className="flex items-center justify-between">
+                            <Label htmlFor={`globalKraftCost-${bf}`} className="text-sm font-normal">{bf}</Label>
+                            <Input id={`globalKraftCost-${bf}`} type="number" placeholder="Rate" className="w-24 h-8" value={kraftPaperCosts[bf] ?? ''} onChange={e => setKraftPaperCosts(prev => ({...prev, [bf]: e.target.value === '' ? '' : parseFloat(e.target.value)}))} />
+                        </div>
+                    ))}
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="globalVirginCost">Virgin Paper Cost</Label>
@@ -2219,14 +2241,3 @@ export default function CostReportPage() {
         </div>
     );
 }
-    
-    
-
-    
-
-
-
-
-
-
-

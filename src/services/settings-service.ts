@@ -41,10 +41,17 @@ export const updateCostSettings = async (newCosts: Partial<CostSetting>, updated
         const newHistory: CostSettingHistoryEntry[] = currentData.history || [];
         
         let changed = false;
-        if (newCosts.kraftPaperCost !== undefined && newCosts.kraftPaperCost !== currentData.kraftPaperCost) {
-            newHistory.push({ costType: 'kraftPaperCost', oldValue: currentData.kraftPaperCost, newValue: newCosts.kraftPaperCost, date: now, setBy: updatedBy });
-            changed = true;
+
+        // Check Kraft Paper Costs
+        if (newCosts.kraftPaperCosts) {
+            for (const bf in newCosts.kraftPaperCosts) {
+                if (newCosts.kraftPaperCosts[bf] !== (currentData.kraftPaperCosts?.[bf] || 0)) {
+                    newHistory.push({ costType: `kraftPaperCost-${bf}`, oldValue: currentData.kraftPaperCosts?.[bf] || 0, newValue: newCosts.kraftPaperCosts[bf], date: now, setBy: updatedBy });
+                    changed = true;
+                }
+            }
         }
+
         if (newCosts.virginPaperCost !== undefined && newCosts.virginPaperCost !== currentData.virginPaperCost) {
             newHistory.push({ costType: 'virginPaperCost', oldValue: currentData.virginPaperCost, newValue: newCosts.virginPaperCost, date: now, setBy: updatedBy });
             changed = true;
@@ -69,13 +76,17 @@ export const updateCostSettings = async (newCosts: Partial<CostSetting>, updated
     } else {
         // Create it for the first time
          const newHistory: CostSettingHistoryEntry[] = [];
-         if (newCosts.kraftPaperCost) newHistory.push({ costType: 'kraftPaperCost', oldValue: 0, newValue: newCosts.kraftPaperCost, date: now, setBy: updatedBy });
+         if (newCosts.kraftPaperCosts) {
+            for (const bf in newCosts.kraftPaperCosts) {
+                newHistory.push({ costType: `kraftPaperCost-${bf}`, oldValue: 0, newValue: newCosts.kraftPaperCosts[bf], date: now, setBy: updatedBy });
+            }
+         }
          if (newCosts.virginPaperCost) newHistory.push({ costType: 'virginPaperCost', oldValue: 0, newValue: newCosts.virginPaperCost, date: now, setBy: updatedBy });
          if (newCosts.conversionCost) newHistory.push({ costType: 'conversionCost', oldValue: 0, newValue: newCosts.conversionCost, date: now, setBy: updatedBy });
 
         await setDoc(docRef, {
             value: {
-                kraftPaperCost: newCosts.kraftPaperCost || 0,
+                kraftPaperCosts: newCosts.kraftPaperCosts || {},
                 virginPaperCost: newCosts.virginPaperCost || 0,
                 conversionCost: newCosts.conversionCost || 0,
                 history: newHistory,
@@ -85,4 +96,3 @@ export const updateCostSettings = async (newCosts: Partial<CostSetting>, updated
         });
     }
 };
-

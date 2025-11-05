@@ -674,7 +674,7 @@ export interface CostReport {
   reportDate: string; // ISO string
   partyId: string;
   partyName: string;
-  kraftPaperCost: number;
+  kraftPaperCosts: Record<string, number>;
   virginPaperCost: number;
   conversionCost: number;
   items: Omit<CostReportItem, 'calculated'>[]; // We only store the inputs, not the calculated values
@@ -684,7 +684,7 @@ export interface CostReport {
 }
 
 export interface CostSettingHistoryEntry {
-    costType: 'kraftPaperCost' | 'virginPaperCost' | 'conversionCost';
+    costType: 'kraftPaperCost' | 'virginPaperCost' | 'conversionCost' | string; // Allow string for dynamic kraft cost keys
     oldValue: number;
     newValue: number;
     date: string; // ISO
@@ -692,7 +692,7 @@ export interface CostSettingHistoryEntry {
 }
 
 export interface CostSetting {
-    kraftPaperCost: number;
+    kraftPaperCosts: Record<string, number>;
     virginPaperCost: number;
     conversionCost: number;
     history: CostSettingHistoryEntry[];
