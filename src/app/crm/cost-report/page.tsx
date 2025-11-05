@@ -114,7 +114,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     return () => unsubCostSettings();
   }, [reportToEdit]);
 
- const calculateItemCost = useCallback((item: Omit<CostReportItem, 'id' | 'calculated' | 'productId' | 'accessories'>, globalKraftCost: number, globalVirginCost: number, globalConversionCost: number): CalculatedValues => {
+ const calculateItemCost = useCallback((item: Omit<CostReportItem, 'id' | 'calculated' | 'productId' | 'accessories'> | Omit<Accessory, 'id' | 'calculated' | 'productId'>, globalKraftCost: number, globalVirginCost: number, globalConversionCost: number): CalculatedValues => {
     const l = parseFloat(item.l) || 0;
     const b = parseFloat(item.b) || 0;
     const h = parseFloat(item.h) || 0;
@@ -544,7 +544,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     );
   };
   
-  const handleAccessoryChange = (itemIndex: number, accIndex: number, field: keyof Accessory, value: string) => {
+  const handleAccessoryChange = (itemIndex: number, accIndex: number, field: keyof Omit<Accessory, 'id' | 'calculated'>, value: string) => {
     const kCost = Number(kraftPaperCost) || 0;
     const vCost = Number(virginPaperCost) || 0;
     const cCost = Number(conversionCost) || 0;
@@ -921,49 +921,59 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                         </div>
                                       </TableCell>
                                     </TableRow>
-                                    {(item.accessories || []).map((acc, accIndex) => (
-                                    <TableRow key={acc.id} className="bg-muted/50">
-                                      <TableCell colSpan={2} className="pl-12">
-                                        <Input placeholder="Accessory Name" value={acc.name} onChange={e => handleAccessoryChange(index, accIndex, 'name', e.target.value)} />
-                                      </TableCell>
-                                      <TableCell><Input type="number" placeholder="L" value={acc.l} onChange={e => handleAccessoryChange(index, accIndex, 'l', e.target.value)} className="w-16"/></TableCell>
-                                      <TableCell><Input type="number" placeholder="B" value={acc.b} onChange={e => handleAccessoryChange(index, accIndex, 'b', e.target.value)} className="w-16"/></TableCell>
-                                      <TableCell><Input type="number" placeholder="H" value={acc.h} onChange={e => handleAccessoryChange(index, accIndex, 'h', e.target.value)} className="w-16"/></TableCell>
-                                      <TableCell><Input type="number" placeholder="Pcs" value={acc.noOfPcs} onChange={e => handleAccessoryChange(index, accIndex, 'noOfPcs', e.target.value)} className="w-16"/></TableCell>
-                                      <TableCell>
-                                          <Select value={String(acc.ply)} onValueChange={(value) => handleAccessoryChange(index, accIndex, 'ply', value)}>
-                                              <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
-                                              <SelectContent>
-                                                  <SelectItem value="3">3 Ply</SelectItem>
-                                                  <SelectItem value="5">5 Ply</SelectItem>
-                                                  <SelectItem value="7">7 Ply</SelectItem>
-                                                  <SelectItem value="9">9 Ply</SelectItem>
-                                              </SelectContent>
-                                          </Select>
-                                      </TableCell>
-                                        <TableCell><Input placeholder="Flute" value={acc.fluteType} onChange={e => handleAccessoryChange(index, accIndex, 'fluteType', e.target.value)} className="w-16"/></TableCell>
-                                        <TableCell>
-                                            <Select value={acc.paperType} onValueChange={(value) => handleAccessoryChange(index, accIndex, 'paperType', value)}>
-                                                <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="KRAFT">KRAFT</SelectItem>
-                                                    <SelectItem value="VIRGIN">VIRGIN</SelectItem>
-                                                    <SelectItem value="VIRGIN &amp; KRAFT">VIRGIN &amp; KRAFT</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </TableCell>
-                                      <TableCell><Input placeholder="BF" value={acc.paperBf} onChange={e => handleAccessoryChange(index, accIndex, 'paperBf', e.target.value)} className="w-16"/></TableCell>
-                                      <TableCell><Input type="number" placeholder="T GSM" value={acc.topGsm} onChange={e => handleAccessoryChange(index, accIndex, 'topGsm', e.target.value)} className="w-20"/></TableCell>
-                                      <TableCell colSpan={14} className="font-medium">
-                                        {acc.calculated.paperCost > 0 ? acc.calculated.paperCost.toFixed(2) : '...'}
-                                      </TableCell>
-                                      <TableCell>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeAccessory(index, acc.id)}>
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                      </TableCell>
-                                    </TableRow>
-                                  ))}
+                                    {(item.accessories || []).map((acc, accIndex) => {
+                                        const accPly = parseInt(acc.ply, 10);
+                                        return (
+                                        <TableRow key={acc.id} className="bg-muted/50">
+                                            <TableCell colSpan={2} className="pl-12">
+                                                <Input placeholder="Accessory Name" value={acc.name} onChange={e => handleAccessoryChange(index, accIndex, 'name', e.target.value)} />
+                                            </TableCell>
+                                            <TableCell><Input type="number" placeholder="L" value={acc.l} onChange={e => handleAccessoryChange(index, accIndex, 'l', e.target.value)} className="w-16"/></TableCell>
+                                            <TableCell><Input type="number" placeholder="B" value={acc.b} onChange={e => handleAccessoryChange(index, accIndex, 'b', e.target.value)} className="w-16"/></TableCell>
+                                            <TableCell><Input type="number" placeholder="H" value={acc.h} onChange={e => handleAccessoryChange(index, accIndex, 'h', e.target.value)} className="w-16"/></TableCell>
+                                            <TableCell><Input type="number" placeholder="Pcs" value={acc.noOfPcs} onChange={e => handleAccessoryChange(index, accIndex, 'noOfPcs', e.target.value)} className="w-16"/></TableCell>
+                                            <TableCell>
+                                                <Select value={String(acc.ply)} onValueChange={(value) => handleAccessoryChange(index, accIndex, 'ply', value)}>
+                                                    <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="3">3 Ply</SelectItem>
+                                                        <SelectItem value="5">5 Ply</SelectItem>
+                                                        <SelectItem value="7">7 Ply</SelectItem>
+                                                        <SelectItem value="9">9 Ply</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </TableCell>
+                                            <TableCell><Input placeholder="Flute" value={acc.fluteType} onChange={e => handleAccessoryChange(index, accIndex, 'fluteType', e.target.value)} className="w-16"/></TableCell>
+                                            <TableCell>
+                                                <Select value={acc.paperType} onValueChange={(value) => handleAccessoryChange(index, accIndex, 'paperType', value)}>
+                                                    <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="KRAFT">KRAFT</SelectItem>
+                                                        <SelectItem value="VIRGIN">VIRGIN</SelectItem>
+                                                        <SelectItem value="VIRGIN &amp; KRAFT">VIRGIN &amp; KRAFT</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </TableCell>
+                                            <TableCell><Input placeholder="BF" value={acc.paperBf} onChange={e => handleAccessoryChange(index, accIndex, 'paperBf', e.target.value)} className="w-16"/></TableCell>
+                                            <TableCell><Input type="number" value={acc.topGsm} onChange={e => handleAccessoryChange(index, accIndex, 'topGsm', e.target.value)} className="w-20" /></TableCell>
+                                            <TableCell><Input type="number" value={acc.flute1Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'flute1Gsm', e.target.value)} className="w-20" /></TableCell>
+                                            <TableCell>{accPly >= 7 ? <Input type="number" value={acc.liner2Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'liner2Gsm', e.target.value)} className="w-20" /> : null}</TableCell>
+                                            <TableCell>{accPly >= 5 ? <Input type="number" value={acc.flute2Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'flute2Gsm', e.target.value)} className="w-20" /> : null}</TableCell>
+                                            <TableCell>{accPly === 5 ? <Input type="number" value={acc.middleGsm} onChange={e => handleAccessoryChange(index, accIndex, 'middleGsm', e.target.value)} className="w-20" /> : (accPly >= 7 ? <Input type="number" value={acc.liner3Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'liner3Gsm', e.target.value)} className="w-20" /> : null)}</TableCell>
+                                            <TableCell>{accPly >= 7 ? <Input type="number" value={acc.flute3Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'flute3Gsm', e.target.value)} className="w-20" /> : null}</TableCell>
+                                            <TableCell>{accPly >= 9 ? <Input type="number" value={acc.liner4Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'liner4Gsm', e.target.value)} className="w-20" /> : null}</TableCell>
+                                            <TableCell>{accPly >= 9 ? <Input type="number" value={acc.flute4Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'flute4Gsm', e.target.value)} className="w-20" /> : null}</TableCell>
+                                            <TableCell><Input type="number" value={acc.bottomGsm} onChange={e => handleAccessoryChange(index, accIndex, 'bottomGsm', e.target.value)} className="w-20" /></TableCell>
+                                            <TableCell colSpan={6} className="font-medium">
+                                                {acc.calculated.paperCost > 0 ? acc.calculated.paperCost.toFixed(2) : '...'}
+                                            </TableCell>
+                                            <TableCell>
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeAccessory(index, acc.id)}>
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    )})}
                                 </React.Fragment>
                         )})}
                         </TableBody>
@@ -1268,7 +1278,7 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
         }, 250);
     };
 
-    const calculateItemCost = useCallback((item: Omit<CostReportItem, 'id' | 'calculated' | 'productId' | 'accessories'>, report: CostReport): CalculatedValues => {
+    const calculateItemCost = useCallback((item: Omit<CostReportItem, 'id' | 'calculated' | 'productId' | 'accessories'> | Omit<Accessory, 'id' | 'calculated' | 'productId'>, report: CostReport): CalculatedValues => {
         const l = parseFloat(item.l) || 0;
         const b = parseFloat(item.b) || 0;
         const h = parseFloat(item.h) || 0;
@@ -2185,6 +2195,7 @@ export default function CostReportPage() {
     
 
     
+
 
 
 
