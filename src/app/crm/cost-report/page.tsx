@@ -125,10 +125,12 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     const h = parseFloat(item.h) || 0;
     const noOfPcs = parseInt(item.noOfPcs, 10) || 1; // Default to 1 for calculation
     
-    if (l === 0 && b === 0 && h === 0) return initialCalculatedState;
+    if (l === 0 && b === 0) return initialCalculatedState;
 
-    const sheetSizeL = (l > 0 && b > 0 && h > 0) ? (b + h + 20) : l;
-    const sheetSizeB = (l > 0 && b > 0 && h > 0) ? ((2 * l) + (2 * b) + 62) : b;
+    // Check if it's a 3D box or a 2D sheet/pad
+    const isBox = l > 0 && b > 0 && h > 0;
+    const sheetSizeL = isBox ? (b + h + 20) : l;
+    const sheetSizeB = isBox ? ((2 * l) + (2 * b) + 62) : b;
     
     if (sheetSizeL === 0 || sheetSizeB === 0) return initialCalculatedState;
 
@@ -1325,10 +1327,11 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
         const noOfPcs = parseInt(item.noOfPcs, 10) || 1; // Default to 1
         const ply = parseInt(item.ply, 10) || 0;
         
-        if (l === 0 && b === 0 && h === 0) return initialCalculatedState;
+        if (l === 0 || b === 0) return initialCalculatedState;
 
-        const sheetSizeL = (l > 0 && b > 0 && h > 0) ? (b + h + 20) : l;
-        const sheetSizeB = (l > 0 && b > 0 && h > 0) ? ((2 * l) + (2 * b) + 62) : b;
+        const isBox = l > 0 && b > 0 && h > 0;
+        const sheetSizeL = isBox ? (b + h + 20) : l;
+        const sheetSizeB = isBox ? ((2 * l) + (2 * b) + 62) : b;
         
         if (sheetSizeL === 0 || sheetSizeB === 0) return initialCalculatedState;
         
