@@ -93,18 +93,10 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
   const [productsToLoad, setProductsToLoad] = useState<Set<string>>(new Set());
   const [loadProductPartyFilter, setLoadProductPartyFilter] = useState('All');
   
-  const groupedProducts = useMemo(() => {
-    return products.reduce((acc, product) => {
-        const partyName = product.partyName || 'Uncategorized';
-        if (!acc[partyName]) {
-            acc[partyName] = [];
-        }
-        acc[partyName].push(product);
-        return acc;
-    }, {} as Record<string, Product[]>);
+  const uniquePartiesForLoad = useMemo(() => {
+    const partyNames = new Set(products.map(p => p.partyName).filter(Boolean));
+    return ['All', ...Array.from(partyNames).sort()];
   }, [products]);
-  
-  const uniquePartiesForLoad = useMemo(() => ['All', ...Object.keys(groupedProducts).sort()], [groupedProducts]);
 
 
   useEffect(() => {
@@ -801,41 +793,41 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex items-center gap-2">
-                                            <Popover>
-                                                <PopoverTrigger asChild>
-                                                    <Button variant="outline" role="combobox" className="w-[200px] justify-between">
-                                                        {item.productId ? products.find(p => p.id === item.productId)?.name : "Select product..."}
-                                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                                    </Button>
-                                                </PopoverTrigger>
-                                                <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
-                                                    <Command>
-                                                        <CommandInput
-                                                            placeholder="Search products..."
-                                                            value={productSearch}
-                                                            onValueChange={setProductSearch}
-                                                        />
-                                                        <CommandList>
-                                                            <CommandEmpty>
-                                                                <Button variant="ghost" className="w-full justify-start" onClick={() => onProductAdd()}>
-                                                                <PlusCircle className="mr-2 h-4 w-4" /> Add "{productSearch}"
-                                                                </Button>
-                                                            </CommandEmpty>
-                                                            <CommandGroup>
-                                                                {products.map(p => (
-                                                                    <CommandItem key={p.id} value={p.name} onSelect={() => { handleProductSelect(index, p.id); setProductSearch(''); }}>
-                                                                        <Check className={cn("mr-2 h-4 w-4", item.productId === p.id ? "opacity-100" : "opacity-0")} />
-                                                                        {p.name}
-                                                                    </CommandItem>
-                                                                ))}
-                                                            </CommandGroup>
-                                                        </CommandList>
-                                                    </Command>
-                                                </PopoverContent>
-                                            </Popover>
-                                            <Button variant="outline" size="sm" onClick={() => addAccessory(index)}>
-                                               +Acc.
-                                            </Button>
+                                                <Button variant="outline" size="sm" onClick={() => addAccessory(index)}>
+                                                +Acc.
+                                                </Button>
+                                                <Popover>
+                                                    <PopoverTrigger asChild>
+                                                        <Button variant="outline" role="combobox" className="w-[200px] justify-between">
+                                                            {item.productId ? products.find(p => p.id === item.productId)?.name : "Select product..."}
+                                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                        </Button>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
+                                                        <Command>
+                                                            <CommandInput
+                                                                placeholder="Search products..."
+                                                                value={productSearch}
+                                                                onValueChange={setProductSearch}
+                                                            />
+                                                            <CommandList>
+                                                                <CommandEmpty>
+                                                                    <Button variant="ghost" className="w-full justify-start" onClick={() => onProductAdd()}>
+                                                                    <PlusCircle className="mr-2 h-4 w-4" /> Add "{productSearch}"
+                                                                    </Button>
+                                                                </CommandEmpty>
+                                                                <CommandGroup>
+                                                                    {products.map(p => (
+                                                                        <CommandItem key={p.id} value={p.name} onSelect={() => { handleProductSelect(index, p.id); setProductSearch(''); }}>
+                                                                            <Check className={cn("mr-2 h-4 w-4", item.productId === p.id ? "opacity-100" : "opacity-0")} />
+                                                                            {p.name}
+                                                                        </CommandItem>
+                                                                    ))}
+                                                                </CommandGroup>
+                                                            </CommandList>
+                                                        </Command>
+                                                    </PopoverContent>
+                                                </Popover>
                                             </div>
                                         </TableCell>
                                         <TableCell><Input type="number" value={item.l} onChange={e => handleItemChange(index, 'l', e.target.value)} className="w-16" /></TableCell>
@@ -1087,7 +1079,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
         </DialogContent>
       </Dialog>
       <Dialog open={isLoadProductsDialogOpen} onOpenChange={setIsLoadProductsDialogOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-xl">
           <DialogHeader>
             <DialogTitle>Load Products</DialogTitle>
             <DialogDescription>Select products from the list to add them to the calculator.</DialogDescription>
@@ -1481,13 +1473,6 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
                                 </tr>
                             ))}
                             </TableBody>
-                            <TableFooter>
-                                <TableRow>
-                                    <TableCell colSpan={8} className="text-right font-bold">
-                                        Total: {printableReportItems.reduce((sum, item) => sum + item.totalItemCost, 0).toFixed(2)}
-                                    </TableCell>
-                                </TableRow>
-                            </TableFooter>
                         </Table>
                          <footer className="pt-8 text-xs space-y-4">
                             <div className="font-semibold">Terms & Conditions:</div>
