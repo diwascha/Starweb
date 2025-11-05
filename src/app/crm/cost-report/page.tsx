@@ -265,12 +265,21 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
       setReportNumber(reportToEdit.reportNumber);
       setReportDate(new Date(reportToEdit.reportDate));
       setSelectedPartyId(reportToEdit.partyId);
-      setKraftPaperCosts(reportToEdit.kraftPaperCosts || initialKraftCosts);
-      setVirginPaperCost(reportToEdit.virginPaperCost);
-      setConversionCost(reportToEdit.conversionCost);
-      const kCosts = Object.fromEntries(Object.entries(reportToEdit.kraftPaperCosts || initialKraftCosts).map(([bf, cost]) => [bf, Number(cost) || 0]));
-      const vCost = reportToEdit.virginPaperCost || 0;
-      const cCost = reportToEdit.conversionCost || 0;
+
+      // Set costs from the report first
+      const reportKraftCosts = reportToEdit.kraftPaperCosts || initialKraftCosts;
+      const reportVirginCost = reportToEdit.virginPaperCost;
+      const reportConversionCost = reportToEdit.conversionCost;
+
+      setKraftPaperCosts(reportKraftCosts);
+      setVirginPaperCost(reportVirginCost);
+      setConversionCost(reportConversionCost);
+
+      // Immediately use the report's costs for calculation, not the state which updates later
+      const kCosts = Object.fromEntries(Object.entries(reportKraftCosts).map(([bf, cost]) => [bf, Number(cost) || 0]));
+      const vCost = Number(reportVirginCost) || 0;
+      const cCost = Number(reportConversionCost) || 0;
+
       setItems(reportToEdit.items.map(item => ({
           ...item, 
           id: item.id || Date.now().toString(), 
