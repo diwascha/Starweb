@@ -49,6 +49,8 @@ const AccordionMenuTrigger = ({ children, isActive }: { children: React.ReactNod
     <AccordionTrigger className={cn(
         "flex w-full items-center gap-2 rounded-md p-2 text-left text-sm font-medium ring-sidebar-ring transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50",
         isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
+        "hover:no-underline", // remove underline on hover
+        "py-2", // adjust padding
         "[&[data-state=open]>svg:last-child]:rotate-180"
     )}>
         {children}
@@ -143,7 +145,7 @@ export function AppSidebar() {
                         <Calculator />
                         <span className={cn(sidebarState === 'collapsed' && 'hidden')}>Finance</span>
                     </AccordionMenuTrigger>
-                    <AccordionContent className="ml-4">
+                    <AccordionContent className="ml-4 pl-0 pb-0">
                         <SidebarMenu>
                             <SidebarMenuItem>
                                 <SidebarMenuButton asChild isActive={getIsActive('/finance/estimate-invoice')}>
@@ -171,7 +173,7 @@ export function AppSidebar() {
                         <FileText />
                         <span className={cn(sidebarState === 'collapsed' && 'hidden')}>Test Report Mgmt</span>
                     </AccordionMenuTrigger>
-                    <AccordionContent className="ml-4">
+                    <AccordionContent className="ml-4 pl-0 pb-0">
                         <SidebarMenu>
                             {hasPermission('reports', 'create') && (
                                 <SidebarMenuItem>
@@ -199,7 +201,7 @@ export function AppSidebar() {
                         <ShoppingCart />
                         <span className={cn(sidebarState === 'collapsed' && 'hidden')}>Purchase Order Mgmt</span>
                     </AccordionMenuTrigger>
-                    <AccordionContent className="ml-4">
+                    <AccordionContent className="ml-4 pl-0 pb-0">
                        <SidebarMenu>
                             {hasPermission('purchaseOrders', 'view') && (
                                 <SidebarMenuItem>
@@ -222,7 +224,7 @@ export function AppSidebar() {
                         <Briefcase />
                         <span className={cn(sidebarState === 'collapsed' && 'hidden')}>CRM</span>
                     </AccordionMenuTrigger>
-                    <AccordionContent className="ml-4">
+                    <AccordionContent className="ml-4 pl-0 pb-0">
                         <SidebarMenu>
                             <SidebarMenuItem>
                                 <SidebarMenuButton asChild isActive={getIsActive('/crm/cost-report')}><Link href="/crm/cost-report"><Calculator /><span>Cost Report</span></Link></SidebarMenuButton>
@@ -240,7 +242,7 @@ export function AppSidebar() {
                     <Building2 />
                     <span className={cn(sidebarState === 'collapsed' && 'hidden')}>HRMS</span>
                 </AccordionMenuTrigger>
-                <AccordionContent className="ml-4">
+                <AccordionContent className="ml-4 pl-0 pb-0">
                     <SidebarMenu>
                         <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/hr/employees')}><Link href="/hr/employees"><Users /><span>Employees</span></Link></SidebarMenuButton></SidebarMenuItem>
                         <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/hr/attendance')}><Link href="/hr/attendance"><Calendar /><span>Attendance</span></Link></SidebarMenuButton></SidebarMenuItem>
@@ -258,7 +260,7 @@ export function AppSidebar() {
                         <Truck />
                         <span className={cn(sidebarState === 'collapsed' && 'hidden')}>Fleet Management</span>
                     </AccordionMenuTrigger>
-                    <AccordionContent className="ml-4">
+                    <AccordionContent className="ml-4 pl-0 pb-0">
                        <SidebarMenu>
                             <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/vehicles')}><Link href="/fleet/vehicles"><Truck /><span>Vehicles</span></Link></SidebarMenuButton></SidebarMenuItem>
                             <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/drivers')}><Link href="/fleet/drivers"><Users /><span>Drivers</span></Link></SidebarMenuButton></SidebarMenuItem>
