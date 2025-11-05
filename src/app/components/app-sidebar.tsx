@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -102,7 +103,7 @@ export function AppSidebar() {
   
   const getActiveAccordionItem = () => {
     if (getIsActive('/finance')) return 'finance';
-    if (getIsActive('/reports') || getIsActive('/products')) return 'reports';
+    if (getIsActive('/reports') || getIsActive('/products') || getIsActive('/report/new')) return 'reports';
     if (getIsActive('/purchase-orders') || getIsActive('/raw-materials')) return 'purchase-orders';
     if (getIsActive('/crm')) return 'crm';
     if (getIsActive('/hr')) return 'hr';
@@ -166,7 +167,7 @@ export function AppSidebar() {
 
             {(hasPermission('reports', 'view') || hasPermission('products', 'view')) && (
                  <AccordionItem value="reports" className="border-b-0">
-                    <AccordionMenuTrigger isActive={getIsActive('/reports') || getIsActive('/products')}>
+                    <AccordionMenuTrigger isActive={getIsActive('/reports') || getIsActive('/products') || getIsActive('/report/new')}>
                         <FileText />
                         <span className={cn(sidebarState === 'collapsed' && 'hidden')}>Test Report Mgmt</span>
                     </AccordionMenuTrigger>
