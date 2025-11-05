@@ -292,27 +292,30 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
       setReportDate(new Date(reportToEdit.reportDate));
       setSelectedPartyId(reportToEdit.partyId);
 
+      // Directly use costs from the report being edited
       const reportKraftCosts = reportToEdit.kraftPaperCosts || initialKraftCosts;
       const reportVirginCost = reportToEdit.virginPaperCost || 0;
       const reportConversionCost = reportToEdit.conversionCost || 0;
 
+      // Set the state for the UI cost inputs
       setKraftPaperCosts(reportKraftCosts);
       setVirginPaperCost(reportVirginCost);
       setConversionCost(reportConversionCost);
 
+      // Ensure numerical values for calculation
       const kCosts = Object.fromEntries(Object.entries(reportKraftCosts).map(([bf, cost]) => [bf, Number(cost) || 0]));
       const vCost = Number(reportVirginCost) || 0;
       const cCost = Number(reportConversionCost) || 0;
       
-      setItems(reportToEdit.items.map(item => ({
-          ...item, 
-          id: item.id || Date.now().toString(), 
-          calculated: calculateItemCost(item, kCosts, vCost, cCost),
-          accessories: (item.accessories || []).map(acc => {
+      // Recalculate items based on the loaded report's costs
+      setItems(reportToEdit.items.map(item => {
+          const fullItem = { ...item, calculated: calculateItemCost(item, kCosts, vCost, cCost) };
+          fullItem.accessories = (item.accessories || []).map(acc => {
               const fullAcc = getFullAccessory(acc);
               return { ...fullAcc, calculated: calculateItemCost(fullAcc, kCosts, vCost, cCost) };
-          })
-      })));
+          });
+          return fullItem;
+      }));
       setSelectedForPrint(new Set(reportToEdit.items.map(i => i.id)));
     } else {
         generateNextCostReportNumber(costReports).then(setReportNumber);
@@ -321,6 +324,9 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
         const kCosts = Object.fromEntries(Object.entries(costSettings?.kraftPaperCosts || initialKraftCosts).map(([bf, cost]) => [bf, Number(cost) || 0]));
         const vCost = Number(costSettings?.virginPaperCost) || 0;
         const cCost = Number(costSettings?.conversionCost) || 0;
+        setKraftPaperCosts(costSettings?.kraftPaperCosts || initialKraftCosts);
+        setVirginPaperCost(costSettings?.virginPaperCost || '');
+        setConversionCost(costSettings?.conversionCost || '');
         setItems([]);
         setSelectedForPrint(new Set());
     }
