@@ -131,8 +131,22 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     
     let sheetSizeL, sheetSizeB;
     if (isBox) {
-        sheetSizeL = b + h + 20;
-        sheetSizeB = (2 * l) + (2 * b) + 62;
+        // Calculate both orientations to find the most efficient one
+        const cutOff1 = b + h + 20;
+        const deckle1 = (2 * l) + (2 * b) + 62;
+        const area1 = cutOff1 * deckle1;
+
+        const cutOff2 = l + h + 20;
+        const deckle2 = (2 * b) + (2 * l) + 62;
+        const area2 = cutOff2 * deckle2;
+
+        if (area1 <= area2) {
+            sheetSizeL = cutOff1;
+            sheetSizeB = deckle1;
+        } else {
+            sheetSizeL = cutOff2;
+            sheetSizeB = deckle2;
+        }
     } else {
         const dims = [l, b, h].filter(dim => dim > 0);
         if (dims.length < 2) return initialCalculatedState;
@@ -1364,8 +1378,21 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
         let sheetSizeL, sheetSizeB;
 
         if (isBox) {
-            sheetSizeL = b + h + 20;
-            sheetSizeB = (2 * l) + (2 * b) + 62;
+            const cutOff1 = b + h + 20;
+            const deckle1 = (2 * l) + (2 * b) + 62;
+            const area1 = cutOff1 * deckle1;
+
+            const cutOff2 = l + h + 20;
+            const deckle2 = (2 * b) + (2 * l) + 62;
+            const area2 = cutOff2 * deckle2;
+
+            if (area1 <= area2) {
+                sheetSizeL = cutOff1;
+                sheetSizeB = deckle1;
+            } else {
+                sheetSizeL = cutOff2;
+                sheetSizeB = deckle2;
+            }
         } else {
             const dims = [l, b, h].filter(dim => dim > 0);
             if (dims.length < 2) return initialCalculatedState;
@@ -1432,7 +1459,7 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
         return reportToPrint.items.map(item => {
             const calculated = calculateItemCost(item, reportToPrint);
             const accessoriesCost = (item.accessories || []).reduce((sum, acc) => {
-                 const accCalculated = calculateItemCost(acc, reportToPrint);
+                 const accCalculated = calculateItemCost(acc, reportToPrint!);
                  return sum + (accCalculated.paperCost || 0);
             }, 0);
             return {
@@ -2297,3 +2324,6 @@ export default function CostReportPage() {
     );
 }
 
+
+
+    
