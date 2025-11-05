@@ -347,7 +347,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     const kCost = Number(kraftPaperCost) || 0;
     const vCost = Number(virginPaperCost) || 0;
     const cCost = Number(conversionCost) || 0;
-    const newItemBase = { id: Date.now().toString(), productId: '', l:'',b:'',h:'', noOfPcs:'1', ply:'3', fluteType: 'B', paperType: 'KRAFT', paperBf:'18', paperShade: 'NS', boxType: 'RSC', topGsm:'120',flute1Gsm:'100',middleGsm:'',flute2Gsm:'',bottomGsm:'120', liner2Gsm: '', flute3Gsm: '', liner3Gsm: '', flute4Gsm: '', liner4Gsm: '', wastagePercent:'3.5', accessories: [] };
+    const newItemBase = { id: Date.now().toString(), productId: '', l:'',b:'',h:'', noOfPcs:'1', ply:'3', fluteType: 'B', paperType: 'KRAFT', paperBf:'18 Bf', paperShade: 'NS', boxType: 'RSC', topGsm:'120',flute1Gsm:'100',middleGsm:'',flute2Gsm:'',bottomGsm:'120', liner2Gsm: '', flute3Gsm: '', liner3Gsm: '', flute4Gsm: '', liner4Gsm: '', wastagePercent:'3.5', accessories: [] };
     const newItem = { ...newItemBase, calculated: calculateItemCost(newItemBase, kCost, vCost, cCost) };
     setItems(prev => [...prev, newItem]);
     setSelectedForPrint(prev => new Set(prev).add(newItem.id));
@@ -569,7 +569,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     const cCost = Number(conversionCost) || 0;
     const newAccessoryBase = {
         id: Date.now().toString(), productId: '', l: '', b: '', h: '0', noOfPcs: '1', ply: '0',
-        fluteType: 'B', paperType: 'KRAFT', paperBf: '', paperShade: 'NS', boxType: 'RSC',
+        fluteType: 'B', paperType: 'KRAFT', paperBf: '18 Bf', paperShade: 'NS', boxType: 'RSC',
         topGsm: '120', flute1Gsm: '', middleGsm: '', flute2Gsm: '', bottomGsm: '',
         liner2Gsm: '', flute3Gsm: '', liner3Gsm: '', flute4Gsm: '', liner4Gsm: '', wastagePercent: '3.5', name: 'Accessory'
     };
@@ -886,7 +886,17 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                           </SelectContent>
                                         </Select>
                                       </TableCell>
-                                      <TableCell><Input value={item.paperBf} onChange={e => handleItemChange(index, 'paperBf', e.target.value)} className="w-16" /></TableCell>
+                                      <TableCell>
+                                        <Select value={item.paperBf} onValueChange={(value) => handleItemChange(index, 'paperBf', value)}>
+                                          <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="16 Bf">16 Bf</SelectItem>
+                                            <SelectItem value="18 Bf">18 Bf</SelectItem>
+                                            <SelectItem value="20 Bf">20 Bf</SelectItem>
+                                            <SelectItem value="22 Bf">22 Bf</SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                      </TableCell>
                                       <TableCell><Input type="number" value={item.topGsm} onChange={e => handleItemChange(index, 'topGsm', e.target.value)} className="w-20" /></TableCell>
                                       <TableCell><Input type="number" value={item.flute1Gsm} onChange={e => handleItemChange(index, 'flute1Gsm', e.target.value)} className="w-20" /></TableCell>
                                       <TableCell>{ply >= 7 ? <Input type="number" value={item.liner2Gsm} onChange={e => handleItemChange(index, 'liner2Gsm', e.target.value)} className="w-20" /> : null}</TableCell>
@@ -955,7 +965,17 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                                     </SelectContent>
                                                 </Select>
                                             </TableCell>
-                                            <TableCell><Input placeholder="BF" value={acc.paperBf} onChange={e => handleAccessoryChange(index, accIndex, 'paperBf', e.target.value)} className="w-16"/></TableCell>
+                                            <TableCell>
+                                                <Select value={acc.paperBf} onValueChange={(value) => handleAccessoryChange(index, accIndex, 'paperBf', value)}>
+                                                  <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+                                                  <SelectContent>
+                                                    <SelectItem value="16 Bf">16 Bf</SelectItem>
+                                                    <SelectItem value="18 Bf">18 Bf</SelectItem>
+                                                    <SelectItem value="20 Bf">20 Bf</SelectItem>
+                                                    <SelectItem value="22 Bf">22 Bf</SelectItem>
+                                                  </SelectContent>
+                                                </Select>
+                                            </TableCell>
                                             <TableCell><Input type="number" value={acc.topGsm} onChange={e => handleAccessoryChange(index, accIndex, 'topGsm', e.target.value)} className="w-20" /></TableCell>
                                             <TableCell><Input type="number" value={acc.flute1Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'flute1Gsm', e.target.value)} className="w-20" /></TableCell>
                                             <TableCell>{accPly >= 7 ? <Input type="number" value={acc.liner2Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'liner2Gsm', e.target.value)} className="w-20" /> : null}</TableCell>
@@ -2203,6 +2223,7 @@ export default function CostReportPage() {
     
 
     
+
 
 
 
