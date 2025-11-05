@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -964,9 +965,16 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                             <TableCell>{accPly >= 9 ? <Input type="number" value={acc.liner4Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'liner4Gsm', e.target.value)} className="w-20" /> : null}</TableCell>
                                             <TableCell>{accPly >= 9 ? <Input type="number" value={acc.flute4Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'flute4Gsm', e.target.value)} className="w-20" /> : null}</TableCell>
                                             <TableCell><Input type="number" value={acc.bottomGsm} onChange={e => handleAccessoryChange(index, accIndex, 'bottomGsm', e.target.value)} className="w-20" /></TableCell>
-                                            <TableCell colSpan={6} className="font-medium">
-                                                {acc.calculated.paperCost > 0 ? acc.calculated.paperCost.toFixed(2) : '...'}
+                                            <TableCell>{acc.calculated.totalGsm.toFixed(2)}</TableCell>
+                                            <TableCell>{(acc.calculated.sheetSizeL / 10).toFixed(2)}</TableCell>
+                                            <TableCell>{(acc.calculated.sheetSizeB / 10).toFixed(2)}</TableCell>
+                                            <TableCell>{acc.calculated.paperWeight.toFixed(2)}</TableCell>
+                                            <TableCell>{((acc.calculated.paperWeight * (parseFloat(acc.wastagePercent) / 100 || 0))).toFixed(2)}</TableCell>
+                                            <TableCell>{(acc.calculated.totalBoxWeight).toFixed(2)}</TableCell>
+                                            <TableCell className="font-medium">
+                                              {acc.calculated.paperCost > 0 ? acc.calculated.paperCost.toFixed(2) : '...'}
                                             </TableCell>
+                                            <TableCell></TableCell>
                                             <TableCell>
                                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeAccessory(index, acc.id)}>
                                                     <Trash2 className="h-4 w-4" />
@@ -2195,6 +2203,7 @@ export default function CostReportPage() {
     
 
     
+
 
 
 
