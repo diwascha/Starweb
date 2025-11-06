@@ -1,8 +1,9 @@
 
 import type {NextConfig} from 'next';
 
-const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
-const isTauriBuild = process.env.npm_lifecycle_event === 'tauri:build';
+// This is a reliable way to detect if the build is for Tauri,
+// as Tauri sets this environment variable during its build process.
+const isTauri = !!process.env.TAURI_PLATFORM;
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -13,7 +14,7 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   images: {
-    unoptimized: isDesktop,
+    unoptimized: isTauri, // Unoptimized images are required for static export.
     remotePatterns: [
       {
         protocol: 'https',
@@ -31,11 +32,11 @@ const nextConfig: NextConfig = {
   },
   env: {
     NEXT_PUBLIC_FIREBASE_PROJECT_ID: 'testreportgen',
-    // This environment variable acts as the switch for the desktop build.
-    // Set NEXT_PUBLIC_IS_DESKTOP=true when building for Tauri/Electron.
-    NEXT_PUBLIC_IS_DESKTOP: process.env.NEXT_PUBLIC_IS_DESKTOP || 'false',
+    // We now set NEXT_PUBLIC_IS_DESKTOP based on the reliable `isTauri` flag.
+    NEXT_PUBLIC_IS_DESKTOP: String(isTauri),
   },
-  output: isDesktop && isTauriBuild ? 'export' : undefined,
+  // Use static export (`output: 'export'`) only when it's a Tauri build.
+  output: isTauri ? 'export' : undefined,
 };
 
 export default nextConfig;

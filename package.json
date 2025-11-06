@@ -7,13 +7,13 @@
     "dev": "next dev --turbopack -p 9002",
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
     "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
-    "build": "NEXT_PUBLIC_IS_DESKTOP=false next build",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "tauri": "tauri",
-    "tauri:dev": "NEXT_PUBLIC_IS_DESKTOP=true tauri dev",
-    "tauri:build": "NEXT_PUBLIC_IS_DESKTOP=true tauri build"
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
   },
   "dependencies": {
     "@genkit-ai/googleai": "^1.14.1",
