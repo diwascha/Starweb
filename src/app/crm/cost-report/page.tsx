@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -122,7 +123,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                 const accessoriesRows = (item.accessories || []).map(acc => [
                     "",
                     `+ ${acc.name}`,
-                    formatAccessoryDimension(acc),
+                    formatAccessoryDimension(acc as ProductAccessory),
                     `${acc.ply} Ply`,
                     `${acc.paperType} ${acc.paperBf}`,
                     `${acc.topGsm}`,
@@ -241,7 +242,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                                  <TableRow key={acc.id} className="bg-muted/30">
                                      <TableCell></TableCell>
                                      <TableCell className="pl-6">+ {acc.name}</TableCell>
-                                     <TableCell>{formatAccessoryDimension(acc)}</TableCell>
+                                     <TableCell>{formatAccessoryDimension(acc as ProductAccessory)}</TableCell>
                                      <TableCell>{acc.ply} Ply</TableCell>
                                      <TableCell>{acc.paperType} {acc.paperBf}</TableCell>
                                      <TableCell>{acc.topGsm}</TableCell>
@@ -547,13 +548,14 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
       const reportVirginCost = reportToEdit.virginPaperCost || 0;
       const reportConversionCost = reportToEdit.conversionCost || 0;
 
-      setKraftPaperCosts(reportKraftCosts);
-      setVirginPaperCost(reportVirginCost);
-      setConversionCost(reportConversionCost);
+      // When editing a report, load its specific costs into the state
+      setKraftPaperCosts(Object.fromEntries(Object.entries(reportKraftCosts).map(([bf, cost]) => [bf, cost === 0 ? '' : cost])));
+      setVirginPaperCost(reportVirginCost === 0 ? '' : reportVirginCost);
+      setConversionCost(reportConversionCost === 0 ? '' : reportConversionCost);
 
-      const kCosts = Object.fromEntries(Object.entries(reportKraftCosts).map(([bf, cost]) => [bf, Number(cost) || 0]));
-      const vCost = Number(reportVirginCost) || 0;
-      const cCost = Number(reportConversionCost) || 0;
+      const kCosts = reportKraftCosts || {};
+      const vCost = reportVirginCost || 0;
+      const cCost = reportConversionCost || 0;
       
       setItems(reportToEdit.items.map(item => {
           const fullItem = { ...item, calculated: calculateItemCost(item, kCosts, vCost, cCost) };
@@ -568,12 +570,13 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
         generateNextCostReportNumber(costReports).then(setReportNumber);
         setReportDate(new Date());
         setSelectedPartyId('');
-        const kCosts = Object.fromEntries(Object.entries(costSettings?.kraftPaperCosts || initialKraftCosts).map(([bf, cost]) => [bf, Number(cost) || 0]));
-        const vCost = Number(costSettings?.virginPaperCost) || 0;
-        const cCost = Number(costSettings?.conversionCost) || 0;
-        setKraftPaperCosts(costSettings?.kraftPaperCosts || initialKraftCosts);
-        setVirginPaperCost(costSettings?.virginPaperCost || '');
-        setConversionCost(costSettings?.conversionCost || '');
+        // For a new report, use the global settings
+        const globalKraftCosts = costSettings?.kraftPaperCosts || initialKraftCosts;
+        const globalVirginCost = costSettings?.virginPaperCost || '';
+        const globalConversionCost = costSettings?.conversionCost || '';
+        setKraftPaperCosts(globalKraftCosts);
+        setVirginPaperCost(globalVirginCost);
+        setConversionCost(globalConversionCost);
         setItems([]);
         setSelectedForPrint(new Set());
     }
