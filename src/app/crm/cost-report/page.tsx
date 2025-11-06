@@ -56,6 +56,13 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
     const dims = [acc.l, acc.b, acc.h].filter(d => d && parseFloat(d) > 0);
     return dims.join('x');
   };
+  
+   const getProductDisplayName = (productId: string) => {
+    const product = products.find(p => p.id === productId);
+    if (!product) return 'Custom Item';
+    return product.materialCode ? `${product.name} (${product.materialCode})` : product.name;
+  };
+
 
   const handlePrint = () => {
     const printableArea = printRef.current;
@@ -108,7 +115,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
             doc.text(`Date: ${toNepaliDate(reportDate.toISOString())} BS (${format(reportDate, "MMMM do, yyyy")})`, doc.internal.pageSize.getWidth() - 14, 50, { align: 'right' });
 
             const body = items.flatMap((item, index) => {
-                const productName = products.find(p => p.id === item.productId)?.name || 'Custom Item';
+                const productName = getProductDisplayName(item.productId);
                 const mainRow = [
                     index + 1,
                     productName,
@@ -230,7 +237,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                            <React.Fragment key={item.id}>
                              <TableRow>
                                 <TableCell>{index + 1}</TableCell>
-                                <TableCell>{products.find(p => p.id === item.productId)?.name || 'Custom Item'}</TableCell>
+                                <TableCell>{getProductDisplayName(item.productId)}</TableCell>
                                 <TableCell>{item.l}x{item.b}x{item.h}</TableCell>
                                 <TableCell>{item.ply} Ply, {item.boxType}</TableCell>
                                 <TableCell>{item.paperType} {item.paperBf}</TableCell>
@@ -246,8 +253,8 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                                      <TableCell>{acc.ply} Ply</TableCell>
                                      <TableCell>{acc.paperType} {acc.paperBf}</TableCell>
                                      <TableCell>{acc.topGsm}</TableCell>
-                                     <TableCell>{acc.calculated.totalBoxWeight.toFixed(2)}</TableCell>
-                                     <TableCell className="text-right">({acc.calculated.paperCost.toFixed(2)})</TableCell>
+                                     <TableCell>{(acc.calculated.totalBoxWeight || 0).toFixed(2)}</TableCell>
+                                     <TableCell className="text-right">({(acc.calculated.paperCost || 0).toFixed(2)})</TableCell>
                                  </TableRow>
                              ))}
                            </React.Fragment>
@@ -544,17 +551,15 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
       setReportDate(new Date(reportToEdit.reportDate));
       setSelectedPartyId(reportToEdit.partyId);
 
-      // When editing a report, load its specific costs into the state
       const kCostsFromReport = reportToEdit.kraftPaperCosts || {};
       const filledKraftCosts = { ...initialKraftCosts };
       for (const bf in filledKraftCosts) {
-          filledKraftCosts[bf] = kCostsFromReport[bf] || '';
+          filledKraftCosts[bf] = kCostsFromReport[bf] || (costSettings?.kraftPaperCosts?.[bf] ?? '');
       }
       setKraftPaperCosts(filledKraftCosts);
-      setVirginPaperCost(reportToEdit.virginPaperCost || '');
-      setConversionCost(reportToEdit.conversionCost || '');
+      setVirginPaperCost(reportToEdit.virginPaperCost || (costSettings?.virginPaperCost ?? ''));
+      setConversionCost(reportToEdit.conversionCost || (costSettings?.conversionCost ?? ''));
       
-      // Use the loaded costs to calculate item values
       const kCostsForCalc = reportToEdit.kraftPaperCosts || {};
       const vCost = reportToEdit.virginPaperCost || 0;
       const cCost = reportToEdit.conversionCost || 0;
@@ -572,7 +577,6 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
         generateNextCostReportNumber(costReports).then(setReportNumber);
         setReportDate(new Date());
         setSelectedPartyId('');
-        // For a new report, use the global settings
         if (costSettings) {
             setKraftPaperCosts(costSettings.kraftPaperCosts || initialKraftCosts);
             setVirginPaperCost(costSettings.virginPaperCost || '');
@@ -1101,6 +1105,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                              const ply = parseInt(item.ply, 10);
                              const accessoriesCost = (item.accessories || []).reduce((sum, acc) => sum + (acc.calculated?.paperCost || 0), 0);
                              const totalItemCost = (item.calculated?.paperCost || 0) + accessoriesCost;
+                             const selectedProduct = products.find(p => p.id === item.productId);
                              return (
                                 <React.Fragment key={item.id}>
                                   <TableRow>
@@ -1130,7 +1135,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                           <Popover>
                                             <PopoverTrigger asChild>
                                               <Button variant="outline" role="combobox" className="w-[200px] justify-between">
-                                                {item.productId ? products.find(p => p.id === item.productId)?.name : "Select product..."}
+                                                {selectedProduct ? `${selectedProduct.name} ${selectedProduct.materialCode ? `(${selectedProduct.materialCode})` : ''}` : "Select product..."}
                                                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                               </Button>
                                             </PopoverTrigger>
@@ -1149,9 +1154,9 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                                   </CommandEmpty>
                                                   <CommandGroup>
                                                     {products.map(p => (
-                                                      <CommandItem key={p.id} value={p.name} onSelect={() => { handleProductSelect(index, p.id); setProductSearch(''); }}>
+                                                      <CommandItem key={p.id} value={`${p.name} ${p.materialCode}`} onSelect={() => { handleProductSelect(index, p.id); setProductSearch(''); }}>
                                                         <Check className={cn("mr-2 h-4 w-4", item.productId === p.id ? "opacity-100" : "opacity-0")} />
-                                                        {p.name}
+                                                        {p.name} {p.materialCode && `(${p.materialCode})`}
                                                       </CommandItem>
                                                     ))}
                                                   </CommandGroup>
@@ -1433,7 +1438,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                             }}
                                         />
                                     </TableCell>
-                                    <TableCell>{p.name}</TableCell>
+                                    <TableCell>{p.name} {p.materialCode && `(${p.materialCode})`}</TableCell>
                                     {loadProductPartyFilter === 'All' && <TableCell>{p.partyName}</TableCell>}
                                 </TableRow>
                             ))}
@@ -1635,10 +1640,13 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
     const printableReportItems = useMemo(() => {
         if (!reportToPrint) return [];
         return reportToPrint.items.map(item => {
-            const accessoriesWithCalc = (item.accessories || []).map(acc => ({
-                ...getFullAccessory(acc),
-                calculated: calculateItemCost(getFullAccessory(acc), reportToPrint),
-            }));
+            const accessoriesWithCalc = (item.accessories || []).map(acc => {
+                const fullAcc = getFullAccessory(acc);
+                return {
+                    ...fullAcc,
+                    calculated: calculateItemCost(fullAcc, reportToPrint),
+                };
+            });
             const accessoriesCost = accessoriesWithCalc.reduce((sum, acc) => sum + (acc.calculated?.paperCost || 0), 0);
             return {
                 ...item,
@@ -2145,7 +2153,7 @@ function SavedProductsList() {
             filtered = filtered.filter(p => p.partyName === filterParty);
         }
         if(searchQuery) {
-            filtered = filtered.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+            filtered = filtered.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || (p.materialCode || '').toLowerCase().includes(searchQuery.toLowerCase()));
         }
         return filtered.sort((a,b) => a.name.localeCompare(b.name));
     }, [products, searchQuery, filterParty]);
@@ -2221,7 +2229,7 @@ function SavedProductsList() {
                     <TableBody>
                         {sortedProducts.map(p => (
                             <TableRow key={p.id}>
-                                <TableCell>{p.name}</TableCell>
+                                <TableCell>{p.name} {p.materialCode && `(${p.materialCode})`}</TableCell>
                                 <TableCell>{p.partyName || 'N/A'}</TableCell>
                                 <TableCell>{p.specification?.dimension || 'N/A'}</TableCell>
                                 <TableCell>{p.specification?.ply || 'N/A'}</TableCell>
@@ -2451,4 +2459,3 @@ export default function CostReportPage() {
         </div>
     );
 }
-
