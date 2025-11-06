@@ -2450,5 +2450,3 @@ export default function CostReportPage() {
         </div>
     );
 }
-
-    
