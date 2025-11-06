@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Printer, Loader2, Plus, Trash2, ChevronsUpDown, Check, PlusCircle, Edit, Save, MoreHorizontal, Search, ArrowUpDown, History, Library, HistoryIcon, Paperclip, Clipboard, Copy } from 'lucide-react';
+import { Printer, Loader2, Plus, Trash2, ChevronsUpDown, Check, PlusCircle, Edit, Save, MoreHorizontal, Search, ArrowUpDown, History, Library, HistoryIcon, Paperclip, Clipboard, Copy, Image as ImageIcon } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon } from 'lucide-react';
@@ -27,6 +27,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import html2canvas from 'html2canvas';
 import { AnnapurnaSIL } from '@/lib/fonts/AnnapurnaSIL-Regular-base64';
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
@@ -98,6 +99,8 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
   
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
+  const [isExporting, setIsExporting] = useState(false);
+
 
   const [isLoadProductsDialogOpen, setIsLoadProductsDialogOpen] = useState(false);
   const [productsToLoad, setProductsToLoad] = useState<Set<string>>(new Set());
@@ -598,6 +601,56 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
         printWindow?.close();
     }, 250);
   };
+
+  const handleExportPdf = async () => {
+        if (!printRef.current) return;
+        setIsExporting(true);
+        try {
+            const doc = new jsPDF();
+
+            // Add font to VFS
+            doc.addFileToVFS("AnnapurnaSIL.ttf", AnnapurnaSIL);
+            doc.addFont("AnnapurnaSIL.ttf", "AnnapurnaSIL", "normal", "Unicode");
+
+            const canvas = await html2canvas(printRef.current, { scale: 2 });
+            const imgData = canvas.toDataURL('image/png');
+            
+            const pdfWidth = doc.internal.pageSize.getWidth();
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+            
+            doc.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            doc.save(`Quotation-${reportNumber}.pdf`);
+
+        } catch (error) {
+            console.error('PDF export failed:', error);
+            toast({ title: 'Error', description: 'Failed to export PDF.', variant: 'destructive' });
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+    const handleExportJpg = async () => {
+        if (!printRef.current) return;
+        setIsExporting(true);
+
+        try {
+            const canvas = await html2canvas(printRef.current, { 
+                scale: 3, 
+                useCORS: true,
+                backgroundColor: '#ffffff'
+            });
+            const link = document.createElement('a');
+            link.download = `Quotation-${reportNumber}.jpg`;
+            link.href = canvas.toDataURL('image/jpeg', 0.9);
+            link.click();
+        } catch (error) {
+            console.error(`Failed to export as JPG`, error);
+            toast({ title: 'Export Failed', description: `Could not export invoice as JPG.`, variant: 'destructive' });
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
 
   const itemsToPrint = useMemo(() => {
     return items
@@ -1280,9 +1333,19 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                 </footer>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="sm:justify-between">
             <Button variant="outline" onClick={() => setIsPreviewOpen(false)}>Cancel</Button>
-            <Button onClick={doActualPrint}><Printer className="mr-2 h-4 w-4" /> Print</Button>
+            <div className="flex gap-2">
+                <Button variant="outline" onClick={handleExportJpg} disabled={isExporting}>
+                    {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ImageIcon className="mr-2 h-4 w-4"/>}
+                     Export as JPG
+                </Button>
+                <Button variant="outline" onClick={handleExportPdf} disabled={isExporting}>
+                    {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
+                    Export as PDF
+                </Button>
+                <Button onClick={doActualPrint}><Printer className="mr-2 h-4 w-4" /> Print</Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -2135,13 +2198,13 @@ function ProductForm({ productToEdit, onSaveSuccess, onProductFormChange }: { pr
 
 
 function SavedProductsList() {
-    const [products, setProducts] = useState<Product[]>([]);
+    const [products, setProducts] = useState<ProductType[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [filterParty, setFilterParty] = useState('All');
     const {toast} = useToast();
     
     const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
-    const [productToEdit, setProductToEdit] = useState<Product | null>(null);
+    const [productToEdit, setProductToEdit] = useState<ProductType | null>(null);
 
 
     useEffect(() => {
@@ -2173,7 +2236,7 @@ function SavedProductsList() {
         }
     };
     
-    const handleOpenProductDialog = (product: Product | null = null) => {
+    const handleOpenProductDialog = (product: ProductType | null = null) => {
         setProductToEdit(product);
         setIsProductDialogOpen(true);
     };
