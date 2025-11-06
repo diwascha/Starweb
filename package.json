@@ -11,8 +11,8 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "tauri": "tauri",
-    "tauri:dev": "node_modules/.bin/tauri dev",
-    "tauri:build": "node_modules/.bin/tauri build"
+    "tauri:dev": "npm exec tauri dev",
+    "tauri:build": "npm exec tauri build"
   },
   "dependencies": {
     "@genkit-ai/googleai": "^1.14.1",
