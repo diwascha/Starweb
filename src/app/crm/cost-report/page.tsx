@@ -1505,7 +1505,7 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
         const totalBoxWeightInKg = totalBoxWeightInGrams / 1000;
         
         let paperRate = 0;
-        const kraftCost = report.kraftPaperCosts[item.paperBf] || 0;
+        const kraftCost = (report.kraftPaperCosts || {})[item.paperBf] || 0;
 
         if (item.paperType === 'VIRGIN' && report.virginPaperCost > 0) paperRate = report.virginPaperCost;
         else if (item.paperType === 'VIRGIN & KRAFT' && topGsm > 0 && report.virginPaperCost > 0) {
