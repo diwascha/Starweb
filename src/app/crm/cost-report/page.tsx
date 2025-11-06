@@ -80,6 +80,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
         setIsExporting(true);
         try {
             const doc = new jsPDF();
+            autoTable(doc); // Apply the plugin
             
             // Header
             doc.setFont("Helvetica", "bold");
@@ -133,9 +134,9 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                 
                 return [mainRow, ...accessoriesRows];
             });
-
-            autoTable(doc, {
-                startY: 70,
+            
+            (doc as any).autoTable({
+                startY: 65,
                 head: [['Sl.No', 'Particulars', 'Box Size (mm)', 'Ply, Type', 'Paper', 'GSM', 'Box Wt (Grams)', 'Total']],
                 body: body,
                 theme: 'grid',
@@ -246,7 +247,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                                      <TableCell>{acc.ply} Ply</TableCell>
                                      <TableCell>{acc.paperType} {acc.paperBf}</TableCell>
                                      <TableCell>{acc.topGsm}</TableCell>
-                                      <TableCell>{(acc.calculated?.totalBoxWeight || 0).toFixed(2)}</TableCell>
+                                     <TableCell>{(acc.calculated?.totalBoxWeight || 0).toFixed(2)}</TableCell>
                                      <TableCell className="text-right">({(acc.calculated?.paperCost || 0).toFixed(2)})</TableCell>
                                  </TableRow>
                              ))}
@@ -2155,7 +2156,7 @@ function SavedProductsList() {
             await deleteProductService(id);
             toast({ title: 'Product Deleted' });
         } catch {
-            toast({ title: 'Error', description: 'Failed to delete product', variant = 'destructive' });
+            toast({ title: 'Error', description: 'Failed to delete product', variant: 'destructive' });
         }
     };
     
@@ -2305,7 +2306,7 @@ function CostingSettingsTab() {
         }, user.username);
         toast({ title: "Success", description: "Cost settings saved." });
     } catch (e) {
-        toast({ title: "Error", description: "Failed to save cost settings.", variant = "destructive" });
+        toast({ title: "Error", description: "Failed to save cost settings.", variant: 'destructive' });
     }
   };
 
