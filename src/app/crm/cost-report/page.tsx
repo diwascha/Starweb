@@ -26,7 +26,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import html2canvas from 'html2canvas';
 import { AnnapurnaSIL } from '@/lib/fonts/AnnapurnaSIL-Regular-base64';
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
@@ -1349,7 +1349,7 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
             else paperRate = kraftCost;
         } else paperRate = kraftCost;
 
-        const finalPaperRate = paperRate + report.conversionCost;
+        const finalPaperRate = paperRate + (report.conversionCost || 0);
         const paperCost = totalBoxWeightInKg * finalPaperRate;
         return { sheetSizeL, sheetSizeB, sheetArea, totalGsm: totalGsmForCalc, paperWeight: paperWeightInGrams, totalBoxWeight: totalBoxWeightInGrams, paperRate: finalPaperRate, paperCost };
     }, []);
@@ -2151,15 +2151,96 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
         if (!printRef.current) return;
         setIsExporting(true);
         try {
-            const doc = new jsPDF();
+            const doc = new jsPDF({
+                orientation: 'p',
+                unit: 'pt',
+                format: 'a4'
+            });
+            
             doc.addFileToVFS("AnnapurnaSIL.ttf", AnnapurnaSIL);
             doc.addFont("AnnapurnaSIL.ttf", "AnnapurnaSIL", "normal", "Unicode");
-            const canvas = await html2canvas(printRef.current, { scale: 2 });
-            const imgData = canvas.toDataURL('image/png');
-            const pdfWidth = doc.internal.pageSize.getWidth();
-            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-            doc.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            doc.setFont('AnnapurnaSIL', 'normal');
+
+            // Header
+            doc.setFontSize(16);
+            doc.setFont('Helvetica', 'bold');
+            doc.text("SHIVAM PACKAGING INDUSTRIES PVT LTD.", doc.internal.pageSize.getWidth() / 2, 40, { align: 'center' });
+            doc.setFontSize(12);
+            doc.setFont('Helvetica', 'normal');
+            doc.text("HETAUDA 08, BAGMATI PROVIENCE, NEPAL", doc.internal.pageSize.getWidth() / 2, 55, { align: 'center' });
+            doc.setFontSize(14);
+            doc.setFont('Helvetica', 'bold');
+            doc.text("QUOTATION", doc.internal.pageSize.getWidth() / 2, 70, { align: 'center', baseline: 'middle' });
+
+            // Info section
+            doc.setFontSize(10);
+            doc.setFont('Helvetica', 'normal');
+            doc.text("To,", 20, 90);
+            if (party?.name) doc.text(party.name, 20, 102);
+            if (party?.address) doc.text(party.address, 20, 114);
+
+            doc.text(`Ref No: ${reportNumber}`, doc.internal.pageSize.getWidth() - 20, 90, { align: 'right' });
+            doc.text(`Date: ${toNepaliDate(reportDate.toISOString())} BS (${format(reportDate, "PPP")})`, doc.internal.pageSize.getWidth() - 20, 102, { align: 'right' });
+
+
+            // Table
+            const head = [['Sl.No', 'Particulars', 'Box Size (mm)', 'Ply, Type', 'Paper', 'GSM', 'Box Wt (Grams)', 'Total']];
+            const body = items.map((item, index) => {
+                 const gsmString = `${item.topGsm}/${item.flute1Gsm}/${ply === 5 ? `${item.middleGsm}/` : ''}${ply >= 5 ? `${item.flute2Gsm}/` : ''}${item.bottomGsm}`;
+
+                const accessoriesText = (item.accessories || []).map((acc: any) => `+ ${acc.name}`).join('\n');
+                const particulars = `${products.find(p => p.id === item.productId)?.name || 'N/A'}${accessoriesText ? `\n${accessoriesText}` : ''}`;
+                
+                 const accessoriesCostText = (item.accessories || []).map((acc: any) => `(${(acc.calculated?.paperCost || 0).toFixed(2)})`).join('\n');
+                 const totalText = `${item.totalItemCost.toFixed(2)}${accessoriesCostText ? `\n${accessoriesCostText}`: ''}`;
+
+
+                return [
+                    index + 1,
+                    particulars,
+                    `${item.l}x${item.b}x${item.h}`,
+                    `${item.ply} Ply, ${item.boxType}`,
+                    `${item.paperType}\n${item.paperShade}`,
+                    gsmString,
+                    item.calculated.totalBoxWeight.toFixed(2),
+                    totalText
+                ];
+            });
+
+            autoTable(doc, {
+                head,
+                body,
+                startY: 130,
+                theme: 'grid',
+                styles: { fontSize: 8, cellPadding: 2, font: 'Helvetica' },
+                headStyles: { fillColor: [230, 230, 230], textColor: 0, fontStyle: 'bold' },
+                columnStyles: {
+                    0: { cellWidth: 25 },
+                    1: { cellWidth: 100 },
+                    2: { cellWidth: 'auto'},
+                    3: { cellWidth: 'auto'},
+                    4: { cellWidth: 'auto'},
+                    5: { cellWidth: 'auto'},
+                    6: { cellWidth: 'auto', halign: 'right' },
+                    7: { cellWidth: 'auto', halign: 'right' },
+                },
+                didDrawPage: (data) => {
+                    // Footer on each page
+                    const pageHeight = doc.internal.pageSize.getHeight();
+                    doc.setFontSize(8);
+                    doc.setFont('Helvetica', 'normal');
+                    doc.text("Terms & Conditions:", 20, pageHeight - 80);
+                    doc.text("VAT 13% will be extra.", 30, pageHeight - 70);
+                    doc.text("Weight tolerance will be +/- 10%.", 30, pageHeight - 60);
+                    doc.text("The rates are valid for 7 days from the date of this quotation.", 30, pageHeight - 50);
+
+                    doc.line(20, pageHeight - 30, 100, pageHeight - 30);
+                    doc.text("Authorized Signature", 20, pageHeight - 22);
+                },
+            });
+
             doc.save(`Quotation-${reportNumber}.pdf`);
+
         } catch (error) {
             console.error('PDF export failed:', error);
             toast({ title: 'Error', description: 'Failed to export PDF.', variant: 'destructive' });
@@ -2349,3 +2430,4 @@ export default function CostReportPage() {
 
     
 
+    
