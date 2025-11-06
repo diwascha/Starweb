@@ -72,6 +72,250 @@ interface CostReportCalculatorProps {
 }
 
 
+// Quotation Preview Component
+interface QuotationPreviewDialogProps {
+  isOpen: boolean;
+  onOpenChange: (isOpen: boolean) => void;
+  reportNumber: string;
+  reportDate: Date;
+  party: Party | null | undefined;
+  items: (CostReportItem & { totalItemCost: number })[];
+  products: Product[];
+}
+
+function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate, party, items, products }: QuotationPreviewDialogProps) {
+  const printRef = useRef<HTMLDivElement>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const { toast } = useToast();
+
+  const handlePrint = () => {
+    const printableArea = printRef.current;
+    if (!printableArea) return;
+    
+    const printWindow = window.open('', '', 'height=800,width=800');
+    printWindow?.document.write('<html><head><title>Print Quotation</title>');
+    printWindow?.document.write('<style>@media print{@page{size: A4;margin: 0;}body{margin: 1.6cm;}}</style>');
+    printWindow?.document.write('</head><body>');
+    printWindow?.document.write(printableArea.innerHTML);
+    printWindow?.document.write('</body></html>');
+    printWindow?.document.close();
+    printWindow?.focus();
+    setTimeout(() => {
+        printWindow?.print();
+        printWindow?.close();
+    }, 250);
+  };
+  
+    const handleExportPdf = async () => {
+        if (!party) return;
+        setIsExporting(true);
+        try {
+            const doc = new jsPDF();
+
+            doc.addFileToVFS("AnnapurnaSIL.ttf", AnnapurnaSIL);
+            doc.addFont("AnnapurnaSIL.ttf", "AnnapurnaSIL", "normal");
+            
+            // Header
+            doc.setFont("Helvetica", "bold");
+            doc.setFontSize(16);
+            doc.text("SHIVAM PACKAGING INDUSTRIES PVT LTD.", doc.internal.pageSize.getWidth() / 2, 20, { align: "center" });
+            
+            doc.setFont("Helvetica", "normal");
+            doc.setFontSize(10);
+            doc.text("HETAUDA 08, BAGMATI PROVIENCE, NEPAL", doc.internal.pageSize.getWidth() / 2, 26, { align: "center" });
+
+            doc.setFont("Helvetica", "bold");
+            doc.setFontSize(14);
+            doc.text("QUOTATION", doc.internal.pageSize.getWidth() / 2, 35, { align: "center" });
+            
+            // Info
+            doc.setFontSize(10);
+            doc.text(`To,`, 14, 45);
+            doc.setFont("Helvetica", "bold");
+            doc.text(party.name, 14, 50);
+            doc.setFont("Helvetica", "normal");
+            if (party.address) doc.text(party.address, 14, 55);
+            
+            doc.text(`Ref No: ${reportNumber}`, doc.internal.pageSize.getWidth() - 14, 45, { align: 'right' });
+            doc.text(`Date: ${toNepaliDate(reportDate.toISOString())} BS (${format(reportDate, "MMMM do, yyyy")})`, doc.internal.pageSize.getWidth() - 14, 50, { align: 'right' });
+
+            const body = items.flatMap((item, index) => {
+                const productName = products.find(p => p.id === item.productId)?.name || 'Custom Item';
+                const mainRow = [
+                    index + 1,
+                    productName,
+                    `${item.l}x${item.b}x${item.h}`,
+                    `${item.ply} Ply, ${item.boxType}`,
+                    `${item.paperType} ${item.paperBf}`,
+                    `${item.topGsm}/${item.flute1Gsm}/${item.bottomGsm}`,
+                     `${item.calculated.totalBoxWeight.toFixed(2)}`,
+                    `Rs. ${item.totalItemCost.toFixed(2)}`
+                ];
+
+                const accessoriesRows = (item.accessories || []).map(acc => [
+                    "",
+                    `+ ${acc.name}`,
+                    `${acc.l}x${acc.b}`,
+                    `${acc.ply} Ply`,
+                    `${acc.paperType} ${acc.paperBf}`,
+                    `${acc.topGsm}`,
+                    `${acc.calculated.totalBoxWeight.toFixed(2)}`,
+                    `(${acc.calculated.paperCost.toFixed(2)})`
+                ]);
+                
+                return [mainRow, ...accessoriesRows];
+            });
+
+            (doc as any).autoTable({
+                startY: 65,
+                head: [['Sl.No', 'Particulars', 'Box Size (mm)', 'Ply, Type', 'Paper', 'GSM', 'Box Wt (Grams)', 'Total']],
+                body: body,
+                theme: 'grid',
+                headStyles: { fillColor: [230, 230, 230], textColor: 20, fontStyle: 'bold' },
+                didDrawPage: (data: any) => {
+                    let finalY = data.cursor.y;
+                    doc.setFontSize(10);
+                    doc.text("Terms & Conditions:", 14, finalY + 10);
+                    doc.text("VAT 13% will be extra.", 14, finalY + 15);
+                    doc.text("Weight tolerance will be +/- 10%.", 14, finalY + 20);
+                    doc.text("The rates are valid for 7 days from the date of this quotation.", 14, finalY + 25);
+                    
+                    doc.text("Authorized Signature", doc.internal.pageSize.getWidth() - 14, finalY + 40, { align: 'right' });
+                }
+            });
+
+            doc.save(`Quotation-${reportNumber}.pdf`);
+
+        } catch (error) {
+            console.error('PDF export failed:', error);
+            toast({ title: 'Error', description: 'Failed to export PDF.', variant: 'destructive' });
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+
+    const handleExportJpg = async () => {
+        if (!printRef.current) return;
+        setIsExporting(true);
+
+        try {
+            const canvas = await html2canvas(printRef.current, { 
+                scale: 3, 
+                useCORS: true,
+                backgroundColor: '#ffffff'
+            });
+            const link = document.createElement('a');
+            link.download = `Quotation-${reportNumber}.jpg`;
+            link.href = canvas.toDataURL('image/jpeg', 0.9);
+            link.click();
+        } catch (error) {
+            console.error(`Failed to export as JPG`, error);
+            toast({ title: 'Export Failed', description: `Could not export invoice as JPG.`, variant: 'destructive' });
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-6xl">
+        <DialogHeader>
+          <DialogTitle>Quotation Preview</DialogTitle>
+          <DialogDescription>Review the quotation before printing.</DialogDescription>
+        </DialogHeader>
+        <div className="max-h-[70vh] overflow-auto bg-gray-100 p-8">
+            <div ref={printRef} className="w-[210mm] mx-auto bg-white p-8 text-black">
+               <header className="text-center space-y-1 mb-6">
+                    <h1 className="text-2xl font-bold">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
+                    <p className="text-base">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
+                    <h2 className="text-xl font-bold underline mt-2">QUOTATION</h2>
+                </header>
+                 <div className="grid grid-cols-2 text-sm mb-4">
+                    <div>
+                        <p>To,</p>
+                        <p className="font-bold">{party?.name}</p>
+                        <p>{party?.address}</p>
+                    </div>
+                    <div className="text-right">
+                        <p>Ref No: {reportNumber}</p>
+                        <p>Date: {toNepaliDate(reportDate.toISOString())} BS ({format(reportDate, "MMMM do, yyyy")})</p>
+                    </div>
+                </div>
+                <Table className="text-xs">
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Sl.No</TableHead>
+                            <TableHead>Particulars</TableHead>
+                            <TableHead>Box Size (mm)</TableHead>
+                            <TableHead>Ply, Type</TableHead>
+                            <TableHead>Paper</TableHead>
+                            <TableHead>GSM</TableHead>
+                            <TableHead>Box Wt (Grams)</TableHead>
+                            <TableHead className="text-right">Total</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {items.map((item, index) => (
+                           <React.Fragment key={item.id}>
+                             <TableRow>
+                                <TableCell>{index + 1}</TableCell>
+                                <TableCell>{products.find(p => p.id === item.productId)?.name || 'Custom Item'}</TableCell>
+                                <TableCell>{item.l}x{item.b}x{item.h}</TableCell>
+                                <TableCell>{item.ply} Ply, {item.boxType}</TableCell>
+                                <TableCell>{item.paperType} {item.paperBf}</TableCell>
+                                <TableCell>{item.topGsm}/{item.flute1Gsm}/{item.bottomGsm}</TableCell>
+                                <TableCell>{item.calculated.totalBoxWeight.toFixed(2)}</TableCell>
+                                <TableCell className="text-right font-bold">Rs. {item.totalItemCost.toFixed(2)}</TableCell>
+                             </TableRow>
+                             {(item.accessories || []).map((acc) => (
+                                 <TableRow key={acc.id} className="bg-muted/30">
+                                     <TableCell></TableCell>
+                                     <TableCell className="pl-6">+ {acc.name}</TableCell>
+                                     <TableCell>{acc.l}x{acc.b}</TableCell>
+                                     <TableCell>{acc.ply} Ply</TableCell>
+                                     <TableCell>{acc.paperType} {acc.paperBf}</TableCell>
+                                     <TableCell>{acc.topGsm}</TableCell>
+                                      <TableCell>{acc.calculated.totalBoxWeight.toFixed(2)}</TableCell>
+                                     <TableCell className="text-right">({acc.calculated.paperCost.toFixed(2)})</TableCell>
+                                 </TableRow>
+                             ))}
+                           </React.Fragment>
+                        ))}
+                    </TableBody>
+                </Table>
+                <div className="mt-8">
+                    <h4 className="font-bold">Terms & Conditions:</h4>
+                    <ul className="list-disc list-inside text-sm">
+                        <li>VAT 13% will be extra.</li>
+                        <li>Weight tolerance will be +/- 10%.</li>
+                        <li>The rates are valid for 7 days from the date of this quotation.</li>
+                    </ul>
+                </div>
+                 <div className="mt-16 text-right">
+                    <p className="font-bold">Authorized Signature</p>
+                </div>
+            </div>
+        </div>
+        <DialogFooter className="sm:justify-end gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button variant="outline" onClick={handleExportJpg} disabled={isExporting}>
+                {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ImageIcon className="mr-2 h-4 w-4"/>}
+                 Export as JPG
+            </Button>
+            <Button variant="outline" onClick={handleExportPdf} disabled={isExporting}>
+                {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
+                Export as PDF
+            </Button>
+            <Button onClick={handlePrint}><Printer className="mr-2 h-4 w-4" /> Print</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+
 function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, products, onProductAdd }: CostReportCalculatorProps) {
   const [parties, setParties] = useState<Party[]>([]);
   const [costReports, setCostReports] = useState<CostReport[]>([]);
