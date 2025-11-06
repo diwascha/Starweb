@@ -1442,6 +1442,7 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
     const [reportToPrint, setReportToPrint] = useState<CostReport | null>(null);
     const printRef = useRef<HTMLDivElement>(null);
+    const [isExporting, setIsExporting] = useState(false);
 
 
     useEffect(() => {
@@ -1491,6 +1492,45 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
             printWindow?.close();
         }, 250);
     };
+
+    const handleExportPdf = async () => {
+        if (!printRef.current || !reportToPrint) return;
+        setIsExporting(true);
+        try {
+            const doc = new jsPDF();
+            doc.addFileToVFS("AnnapurnaSIL.ttf", AnnapurnaSIL);
+            doc.addFont("AnnapurnaSIL.ttf", "AnnapurnaSIL", "normal", "Unicode");
+            const canvas = await html2canvas(printRef.current, { scale: 2 });
+            const imgData = canvas.toDataURL('image/png');
+            const pdfWidth = doc.internal.pageSize.getWidth();
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+            doc.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            doc.save(`Quotation-${reportToPrint.reportNumber}.pdf`);
+        } catch (error) {
+            console.error('PDF export failed:', error);
+            toast({ title: 'Error', description: 'Failed to export PDF.', variant: 'destructive' });
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+    const handleExportJpg = async () => {
+        if (!printRef.current || !reportToPrint) return;
+        setIsExporting(true);
+        try {
+            const canvas = await html2canvas(printRef.current, { scale: 3, useCORS: true, backgroundColor: '#ffffff' });
+            const link = document.createElement('a');
+            link.download = `Quotation-${reportToPrint.reportNumber}.jpg`;
+            link.href = canvas.toDataURL('image/jpeg', 0.9);
+            link.click();
+        } catch (error) {
+            console.error(`Failed to export as JPG`, error);
+            toast({ title: 'Export Failed', description: `Could not export invoice as JPG.`, variant: 'destructive' });
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
 
     const calculateItemCost = useCallback((item: Omit<CostReportItem, 'id' | 'calculated' | 'productId' | 'accessories'> | Omit<Accessory, 'id' | 'calculated' | 'productId'>, report: CostReport): CalculatedValues => {
         const l = parseFloat(item.l) || 0;
@@ -1790,9 +1830,19 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
                         </footer>
                     </div>
                   </div>
-                  <DialogFooter>
+                  <DialogFooter className="sm:justify-between">
                     <Button variant="outline" onClick={() => setIsPreviewOpen(false)}>Cancel</Button>
-                    <Button onClick={doActualPrint}><Printer className="mr-2 h-4 w-4" /> Print</Button>
+                    <div className="flex gap-2">
+                        <Button variant="outline" onClick={handleExportJpg} disabled={isExporting}>
+                            {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ImageIcon className="mr-2 h-4 w-4"/>}
+                             Export as JPG
+                        </Button>
+                        <Button variant="outline" onClick={handleExportPdf} disabled={isExporting}>
+                            {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
+                            Export as PDF
+                        </Button>
+                        <Button onClick={doActualPrint}><Printer className="mr-2 h-4 w-4" /> Print</Button>
+                    </div>
                   </DialogFooter>
                   </>
               )}
