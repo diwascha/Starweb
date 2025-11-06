@@ -299,22 +299,18 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
       setReportDate(new Date(reportToEdit.reportDate));
       setSelectedPartyId(reportToEdit.partyId);
 
-      // Directly use costs from the report being edited
       const reportKraftCosts = reportToEdit.kraftPaperCosts || initialKraftCosts;
       const reportVirginCost = reportToEdit.virginPaperCost || 0;
       const reportConversionCost = reportToEdit.conversionCost || 0;
 
-      // Set the state for the UI cost inputs
       setKraftPaperCosts(reportKraftCosts);
       setVirginPaperCost(reportVirginCost);
       setConversionCost(reportConversionCost);
 
-      // Ensure numerical values for calculation
       const kCosts = Object.fromEntries(Object.entries(reportKraftCosts).map(([bf, cost]) => [bf, Number(cost) || 0]));
       const vCost = Number(reportVirginCost) || 0;
       const cCost = Number(reportConversionCost) || 0;
       
-      // Recalculate items based on the loaded report's costs
       setItems(reportToEdit.items.map(item => {
           const fullItem = { ...item, calculated: calculateItemCost(item, kCosts, vCost, cCost) };
           fullItem.accessories = (item.accessories || []).map(acc => {
