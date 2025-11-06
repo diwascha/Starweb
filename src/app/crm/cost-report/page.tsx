@@ -80,7 +80,6 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
         setIsExporting(true);
         try {
             const doc = new jsPDF();
-            autoTable(doc); // Apply the plugin
             
             // Header
             doc.setFont("Helvetica", "bold");
@@ -135,7 +134,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                 return [mainRow, ...accessoriesRows];
             });
             
-            (doc as any).autoTable({
+            autoTable(doc, {
                 startY: 65,
                 head: [['Sl.No', 'Particulars', 'Box Size (mm)', 'Ply, Type', 'Paper', 'GSM', 'Box Wt (Grams)', 'Total']],
                 body: body,
@@ -247,8 +246,8 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                                      <TableCell>{acc.ply} Ply</TableCell>
                                      <TableCell>{acc.paperType} {acc.paperBf}</TableCell>
                                      <TableCell>{acc.topGsm}</TableCell>
-                                     <TableCell>{(acc.calculated?.totalBoxWeight || 0).toFixed(2)}</TableCell>
-                                     <TableCell className="text-right">({(acc.calculated?.paperCost || 0).toFixed(2)})</TableCell>
+                                     <TableCell>{acc.calculated.totalBoxWeight.toFixed(2)}</TableCell>
+                                     <TableCell className="text-right">({acc.calculated.paperCost.toFixed(2)})</TableCell>
                                  </TableRow>
                              ))}
                            </React.Fragment>
@@ -1381,15 +1380,17 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
               </DialogFooter>
           </DialogContent>
       </Dialog>
-        <QuotationPreviewDialog
-            isOpen={isPreviewOpen}
-            onOpenChange={setIsPreviewOpen}
-            reportNumber={reportNumber}
-            reportDate={reportDate}
-            party={selectedParty}
-            items={itemsToPrint}
-            products={products}
-        />
+        {isPreviewOpen && (
+            <QuotationPreviewDialog
+                isOpen={isPreviewOpen}
+                onOpenChange={setIsPreviewOpen}
+                reportNumber={reportNumber}
+                reportDate={reportDate}
+                party={selectedParty}
+                items={itemsToPrint}
+                products={products}
+            />
+        )}
       <Dialog open={isLoadProductsDialogOpen} onOpenChange={setIsLoadProductsDialogOpen}>
         <DialogContent className="max-w-xl">
           <DialogHeader>
@@ -1715,7 +1716,7 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
             </CardContent>
         </Card>
         
-        {reportToPrint && (
+        {reportToPrint && isPreviewOpen && (
             <QuotationPreviewDialog
                 isOpen={isPreviewOpen}
                 onOpenChange={setIsPreviewOpen}
@@ -2450,3 +2451,4 @@ export default function CostReportPage() {
         </div>
     );
 }
+
