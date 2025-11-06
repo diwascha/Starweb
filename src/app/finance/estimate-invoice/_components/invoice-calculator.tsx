@@ -26,7 +26,6 @@ import { InvoiceView } from './invoice-view';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import html2canvas from 'html2canvas';
-import { AnnapurnaSIL } from '@/lib/fonts/AnnapurnaSIL-Regular-base64';
 
 
 interface InvoiceCalculatorProps {
@@ -270,19 +269,11 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
             const { party, items, grossTotal, vatTotal, netTotal, amountInWords, date, invoiceNumber } = invoiceData;
             
             const doc = new jsPDF();
-
-            // Add font to VFS
-            doc.addFileToVFS("AnnapurnaSIL.ttf", AnnapurnaSIL);
-            doc.addFont("AnnapurnaSIL.ttf", "AnnapurnaSIL", "normal", "Unicode");
             
             // Header
             doc.setFont('Helvetica', 'bold');
             doc.setFontSize(16);
             doc.text('SHIVAM PACKAGING INDUSTRIES PVT LTD.', doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
-
-            doc.setFont('AnnapurnaSIL');
-            doc.setFontSize(14);
-            doc.text('शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.', doc.internal.pageSize.getWidth() / 2, 22, { align: 'center' });
 
             doc.setFont('Helvetica', 'normal');
             doc.setFontSize(10);
@@ -326,7 +317,6 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
                     
                     doc.text('Gross Total', 140, finalY + 8, { align: 'right' });
                     doc.text(grossTotal.toLocaleString(undefined, {minimumFractionDigits: 2}), 200, finalY + 8, { align: 'right' });
-                    
                     doc.text('VAT (13%)', 140, finalY + 15, { align: 'right' });
                     doc.text(vatTotal.toLocaleString(undefined, {minimumFractionDigits: 2}), 200, finalY + 15, { align: 'right' });
                     

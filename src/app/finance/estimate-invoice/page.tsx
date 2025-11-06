@@ -27,7 +27,6 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import html2canvas from 'html2canvas';
 import { format } from 'date-fns';
-import { AnnapurnaSIL } from '@/lib/fonts/AnnapurnaSIL-Regular-base64';
 
 
 function FormSkeleton() {
@@ -158,18 +157,10 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
         try {
             const doc = new jsPDF();
             
-            // Add font to VFS
-            doc.addFileToVFS("AnnapurnaSIL.ttf", AnnapurnaSIL);
-            doc.addFont("AnnapurnaSIL.ttf", "AnnapurnaSIL", "normal", "Unicode");
-            
             // Header
             doc.setFont('Helvetica', 'bold');
             doc.setFontSize(16);
             doc.text('SHIVAM PACKAGING INDUSTRIES PVT LTD.', doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
-
-            doc.setFont('AnnapurnaSIL');
-            doc.setFontSize(14);
-            doc.text('शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.', doc.internal.pageSize.getWidth() / 2, 22, { align: 'center' });
 
             doc.setFont('Helvetica', 'normal');
             doc.setFontSize(10);
@@ -309,9 +300,7 @@ function SavedInvoicesList({ onEdit }: { onEdit: (invoice: EstimatedInvoice) => 
                        <TableCell>{inv.netTotal.toLocaleString()}</TableCell>
                        <TableCell className="text-right">
                          <DropdownMenu>
-                           <DropdownMenuTrigger asChild>
-                             <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button>
-                           </DropdownMenuTrigger>
+                           <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                            <DropdownMenuContent align="end">
                                 <DropdownMenuItem onSelect={() => handleViewInvoice(inv)}><View className="mr-2 h-4 w-4"/> View</DropdownMenuItem>
                                 <DropdownMenuItem onSelect={() => handlePrint(inv)}><Printer className="mr-2 h-4 w-4"/> Print</DropdownMenuItem>
@@ -431,7 +420,7 @@ function SavedRatesList() {
     };
 
     const filteredProducts = useMemo(() => {
-        return products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.partyName.toLowerCase().includes(searchQuery.toLowerCase()));
+        return products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || (p.partyName || '').toLowerCase().includes(searchQuery.toLowerCase()));
     }, [products, searchQuery]);
 
     return (

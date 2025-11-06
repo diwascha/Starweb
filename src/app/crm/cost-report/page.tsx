@@ -37,41 +37,6 @@ import { onSettingUpdate, updateCostSettings } from '@/services/settings-service
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
-
-interface Accessory extends ProductAccessory {
-  calculated: CalculatedValues;
-}
-
-interface CalculatedValues {
-    sheetSizeL: number;
-    sheetSizeB: number;
-    sheetArea: number;
-    totalGsm: number;
-    paperWeight: number;
-    totalBoxWeight: number;
-    paperRate: number;
-    paperCost: number;
-}
-
-const initialCalculatedState: CalculatedValues = {
-    sheetSizeL: 0, sheetSizeB: 0, sheetArea: 0, totalGsm: 0, paperWeight: 0, totalBoxWeight: 0, paperRate: 0, paperCost: 0
-};
-
-const bfOptions = ['16 Bf', '18 Bf', '20 Bf', '22 Bf'];
-const fluteOptions = ['A', 'B', 'A/B', 'B/A', 'A/A', 'B/B'];
-const initialKraftCosts: Record<string, number | ''> = {
-    '16 Bf': '', '18 Bf': '', '20 Bf': '', '22 Bf': ''
-};
-
-interface CostReportCalculatorProps {
-  reportToEdit: CostReport | null;
-  onSaveSuccess: () => void;
-  onCancelEdit: () => void;
-  products: Product[];
-  onProductAdd: () => void;
-}
-
-
 // Quotation Preview Component
 interface QuotationPreviewDialogProps {
   isOpen: boolean;
@@ -111,9 +76,6 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
         setIsExporting(true);
         try {
             const doc = new jsPDF();
-
-            doc.addFileToVFS("AnnapurnaSIL.ttf", AnnapurnaSIL);
-            doc.addFont("AnnapurnaSIL.ttf", "AnnapurnaSIL", "normal");
             
             // Header
             doc.setFont("Helvetica", "bold");
@@ -313,6 +275,40 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
       </DialogContent>
     </Dialog>
   );
+}
+
+
+interface CostReportCalculatorProps {
+  reportToEdit: CostReport | null;
+  onSaveSuccess: () => void;
+  onCancelEdit: () => void;
+  products: Product[];
+  onProductAdd: () => void;
+}
+
+const initialCalculatedState: CalculatedValues = {
+    sheetSizeL: 0, sheetSizeB: 0, sheetArea: 0, totalGsm: 0, paperWeight: 0, totalBoxWeight: 0, paperRate: 0, paperCost: 0
+};
+
+const bfOptions = ['16 Bf', '18 Bf', '20 Bf', '22 Bf'];
+const fluteOptions = ['A', 'B', 'A/B', 'B/A', 'A/A', 'B/B'];
+const initialKraftCosts: Record<string, number | ''> = {
+    '16 Bf': '', '18 Bf': '', '20 Bf': '', '22 Bf': ''
+};
+
+interface Accessory extends ProductAccessory {
+  calculated: CalculatedValues;
+}
+
+interface CalculatedValues {
+    sheetSizeL: number;
+    sheetSizeB: number;
+    sheetArea: number;
+    totalGsm: number;
+    paperWeight: number;
+    totalBoxWeight: number;
+    paperRate: number;
+    paperCost: number;
 }
 
 
@@ -1598,12 +1594,38 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
         return { sheetSizeL, sheetSizeB, sheetArea, totalGsm: totalGsmForCalc, paperWeight: paperWeightInGrams, totalBoxWeight: totalBoxWeightInGrams, paperRate: finalPaperRate, paperCost };
     }, []);
 
+    const getFullAccessory = (acc: Partial<ProductAccessory>): Omit<Accessory, 'calculated' | 'productId'> => {
+        return {
+            id: acc.id || Date.now().toString() + Math.random(),
+            name: acc.name || 'Accessory',
+            l: acc.l || '', b: acc.b || '', h: acc.h || '',
+            noOfPcs: acc.noOfPcs || '1',
+            ply: acc.ply || '3',
+            fluteType: acc.fluteType || 'B',
+            paperType: acc.paperType || 'KRAFT',
+            paperBf: acc.paperBf || '18 Bf',
+            paperShade: acc.paperShade || 'NS',
+            boxType: acc.boxType || 'RSC',
+            topGsm: acc.topGsm || '',
+            flute1Gsm: acc.flute1Gsm || '',
+            middleGsm: acc.middleGsm || '',
+            flute2Gsm: acc.flute2Gsm || '',
+            bottomGsm: acc.bottomGsm || '',
+            liner2Gsm: acc.liner2Gsm || '',
+            flute3Gsm: acc.flute3Gsm || '',
+            liner3Gsm: acc.liner3Gsm || '',
+            flute4Gsm: acc.flute4Gsm || '',
+            liner4Gsm: acc.liner4Gsm || '',
+            wastagePercent: acc.wastagePercent || '3.5',
+        };
+    };
+
     const printableReportItems = useMemo(() => {
         if (!reportToPrint) return [];
         return reportToPrint.items.map(item => {
             const accessoriesWithCalc = (item.accessories || []).map(acc => ({
-                ...acc,
-                calculated: calculateItemCost(acc, reportToPrint),
+                ...getFullAccessory(acc),
+                calculated: calculateItemCost(getFullAccessory(acc), reportToPrint),
             }));
             const accessoriesCost = accessoriesWithCalc.reduce((sum, acc) => sum + (acc.calculated.paperCost || 0), 0);
             return {
@@ -1613,7 +1635,7 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
                 totalItemCost: (calculateItemCost(item, reportToPrint).paperCost || 0) + accessoriesCost
             };
         });
-    }, [reportToPrint, calculateItemCost]);
+    }, [reportToPrint, calculateItemCost, getFullAccessory]);
     
 
     return (

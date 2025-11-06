@@ -39,7 +39,6 @@ export function InvoiceView({
         <div id="invoice-header">
             <header className="text-center space-y-1 mb-6">
                 <h1 className="text-2xl font-bold">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
-                <h2 className="text-xl font-['AnnapurnaSIL']">शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.</h2>
                 <p className="text-base">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
                 <h2 className="text-xl font-bold underline mt-2">ESTIMATE INVOICE</h2>
             </header>
