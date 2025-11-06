@@ -8,6 +8,11 @@ const nepaliMonths = [
     "Kartik", "Mangsir", "Poush", "Magh", "Falgun", "Chaitra"
 ];
 
+// This function is required for Next.js static exports to work with dynamic routes.
+export async function generateStaticParams() {
+  return [];
+}
+
 export default async function PayslipPage({ params, searchParams }: { params: { employeeId: string }, searchParams: { year: string, month: string } }) {
     const { employeeId } = params;
     const bsYear = parseInt(searchParams.year, 10);
