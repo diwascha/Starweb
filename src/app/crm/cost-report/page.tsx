@@ -544,24 +544,26 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
       setReportDate(new Date(reportToEdit.reportDate));
       setSelectedPartyId(reportToEdit.partyId);
 
-      const reportKraftCosts = reportToEdit.kraftPaperCosts || initialKraftCosts;
-      const reportVirginCost = reportToEdit.virginPaperCost || 0;
-      const reportConversionCost = reportToEdit.conversionCost || 0;
-
       // When editing a report, load its specific costs into the state
-      setKraftPaperCosts(Object.fromEntries(Object.entries(reportKraftCosts).map(([bf, cost]) => [bf, cost === 0 ? '' : cost])));
-      setVirginPaperCost(reportVirginCost === 0 ? '' : reportVirginCost);
-      setConversionCost(reportConversionCost === 0 ? '' : reportConversionCost);
-
-      const kCosts = reportKraftCosts || {};
-      const vCost = reportVirginCost || 0;
-      const cCost = reportConversionCost || 0;
+      const kCostsFromReport = reportToEdit.kraftPaperCosts || {};
+      const filledKraftCosts = { ...initialKraftCosts };
+      for (const bf in filledKraftCosts) {
+          filledKraftCosts[bf] = kCostsFromReport[bf] || '';
+      }
+      setKraftPaperCosts(filledKraftCosts);
+      setVirginPaperCost(reportToEdit.virginPaperCost || '');
+      setConversionCost(reportToEdit.conversionCost || '');
+      
+      // Use the loaded costs to calculate item values
+      const kCostsForCalc = reportToEdit.kraftPaperCosts || {};
+      const vCost = reportToEdit.virginPaperCost || 0;
+      const cCost = reportToEdit.conversionCost || 0;
       
       setItems(reportToEdit.items.map(item => {
-          const fullItem = { ...item, calculated: calculateItemCost(item, kCosts, vCost, cCost) };
+          const fullItem = { ...item, calculated: calculateItemCost(item, kCostsForCalc, vCost, cCost) };
           fullItem.accessories = (item.accessories || []).map(acc => {
               const fullAcc = getFullAccessory(acc);
-              return { ...fullAcc, calculated: calculateItemCost(fullAcc, kCosts, vCost, cCost) };
+              return { ...fullAcc, calculated: calculateItemCost(fullAcc, kCostsForCalc, vCost, cCost) };
           });
           return fullItem;
       }));
@@ -571,12 +573,11 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
         setReportDate(new Date());
         setSelectedPartyId('');
         // For a new report, use the global settings
-        const globalKraftCosts = costSettings?.kraftPaperCosts || initialKraftCosts;
-        const globalVirginCost = costSettings?.virginPaperCost || '';
-        const globalConversionCost = costSettings?.conversionCost || '';
-        setKraftPaperCosts(globalKraftCosts);
-        setVirginPaperCost(globalVirginCost);
-        setConversionCost(globalConversionCost);
+        if (costSettings) {
+            setKraftPaperCosts(costSettings.kraftPaperCosts || initialKraftCosts);
+            setVirginPaperCost(costSettings.virginPaperCost || '');
+            setConversionCost(costSettings.conversionCost || '');
+        }
         setItems([]);
         setSelectedForPrint(new Set());
     }
@@ -616,7 +617,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
             bottomGsm: spec.bottomGsm || '',
             liner2Gsm: spec.liner2Gsm || '',
             flute3Gsm: spec.flute3Gsm || '',
-            liner3Gsm: spec.liner3Gsm || '',
+            liner3Gsm: spec.flute3Gsm || '',
             flute4Gsm: spec.flute4Gsm || '',
             liner4Gsm: spec.liner4Gsm || '',
             accessories,
@@ -2154,7 +2155,7 @@ function SavedProductsList() {
             await deleteProductService(id);
             toast({ title: 'Product Deleted' });
         } catch {
-            toast({ title: 'Error', description: 'Failed to delete product', variant: 'destructive' });
+            toast({ title: 'Error', description: 'Failed to delete product', variant = 'destructive' });
         }
     };
     
@@ -2304,7 +2305,7 @@ function CostingSettingsTab() {
         }, user.username);
         toast({ title: "Success", description: "Cost settings saved." });
     } catch (e) {
-        toast({ title: "Error", description: "Failed to save cost settings.", variant: "destructive" });
+        toast({ title: "Error", description: "Failed to save cost settings.", variant = "destructive" });
     }
   };
 
@@ -2448,3 +2449,5 @@ export default function CostReportPage() {
         </div>
     );
 }
+
+    
