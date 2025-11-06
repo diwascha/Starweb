@@ -2,6 +2,11 @@
 import ReportView from './_components/report-view';
 import { getReport } from '@/services/report-service';
 
+// This function is required for Next.js static exports to work with dynamic routes.
+export async function generateStaticParams() {
+  return [];
+}
+
 // This is a Server Component that fetches initial data
 export default async function ReportPage({ params }: { params: { id: string } }) {
   const initialReport = await getReport(params.id);

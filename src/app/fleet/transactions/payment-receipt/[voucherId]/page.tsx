@@ -16,6 +16,11 @@ import { getParties } from '@/services/party-service';
 import { getAccounts } from '@/services/account-service';
 import VoucherViewClient from './_components/VoucherViewClient';
 
+// This function is required for Next.js static exports to work with dynamic routes.
+export async function generateStaticParams() {
+  return [];
+}
+
 export default async function VoucherViewPage({ params }: { params: { voucherId: string } }) {
   const { voucherId } = params;
   const transactions = await getVoucherTransactions(voucherId);
@@ -25,7 +30,7 @@ export default async function VoucherViewPage({ params }: { params: { voucherId:
 
   if (transactions.length === 0) {
     return (
-      <div class="flex justify-center items-center h-full">
+      <div className="flex justify-center items-center h-full">
         <p>Voucher not found.</p>
       </div>
     );
