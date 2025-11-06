@@ -1601,15 +1601,16 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
     const printableReportItems = useMemo(() => {
         if (!reportToPrint) return [];
         return reportToPrint.items.map(item => {
-            const calculated = calculateItemCost(item, reportToPrint);
-            const accessoriesCost = (item.accessories || []).reduce((sum, acc) => {
-                 const accCalculated = calculateItemCost(acc, reportToPrint!);
-                 return sum + (accCalculated.paperCost || 0);
-            }, 0);
+            const accessoriesWithCalc = (item.accessories || []).map(acc => ({
+                ...acc,
+                calculated: calculateItemCost(acc, reportToPrint),
+            }));
+            const accessoriesCost = accessoriesWithCalc.reduce((sum, acc) => sum + (acc.calculated.paperCost || 0), 0);
             return {
                 ...item,
-                calculated,
-                totalItemCost: (calculated.paperCost || 0) + accessoriesCost
+                accessories: accessoriesWithCalc,
+                calculated: calculateItemCost(item, reportToPrint),
+                totalItemCost: (calculateItemCost(item, reportToPrint).paperCost || 0) + accessoriesCost
             };
         });
     }, [reportToPrint, calculateItemCost]);
