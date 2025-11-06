@@ -77,10 +77,9 @@ function DashboardSkeleton() {
 
 
 export default async function ReportDashboardPage() {
-   // Note: Server-side permission check would be ideal here if we had access to the user session.
-   // For now, we'll let the client-side auth handling in the sidebar manage visibility.
-   const initialReports = await getReports();
-   const initialProducts = await getProducts();
+   const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
+   const initialReports = isDesktop ? [] : await getReports();
+   const initialProducts = isDesktop ? [] : await getProducts();
   
   return (
     <div className="flex flex-col gap-8">
@@ -96,10 +95,6 @@ export default async function ReportDashboardPage() {
       <div>
         <h2 className="text-xl font-bold tracking-tight mb-4">Quick Access</h2>
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {/* Filtering modules based on permission should ideally happen where auth state is available.
-                The sidebar already does this, so we'll render them all here and rely on the sidebar's auth guard.
-                A more robust solution would involve a server-side session check.
-            */}
             {reportModules.map((module) => (
             <Link href={module.href} key={module.name}>
                 <Card className="h-full transition-all hover:shadow-md">

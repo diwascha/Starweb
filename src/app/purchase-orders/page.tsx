@@ -2,7 +2,7 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { ShoppingCart, Wrench } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getPurchaseOrders } from '@/services/purchase-order-service';
 import { getRawMaterials } from '@/services/raw-material-service';
@@ -47,8 +47,9 @@ function DashboardSkeleton() {
 
 
 export default async function PurchaseOrderDashboardPage() {
-   const initialPurchaseOrders = await getPurchaseOrders();
-   const initialRawMaterials = await getRawMaterials();
+   const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
+   const initialPurchaseOrders = isDesktop ? [] : await getPurchaseOrders();
+   const initialRawMaterials = isDesktop ? [] : await getRawMaterials();
   
   return (
     <div className="flex flex-col gap-8">
@@ -82,5 +83,3 @@ export default async function PurchaseOrderDashboardPage() {
     </div>
   );
 }
-
-    

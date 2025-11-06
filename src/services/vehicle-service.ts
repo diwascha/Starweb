@@ -24,6 +24,10 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Vehicle =
 }
 
 export const getVehicles = async (): Promise<Vehicle[]> => {
+    const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
+    if (isDesktop) {
+        return [];
+    }
     const snapshot = await getDocs(vehiclesCollection);
     return snapshot.docs.map(fromFirestore);
 };

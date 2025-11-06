@@ -50,6 +50,10 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
 }
 
 export const getEmployees = async (): Promise<Employee[]> => {
+    const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
+    if (isDesktop) {
+        return [];
+    }
     const snapshot = await getDocs(employeesCollection);
     return snapshot.docs.map(fromFirestore).filter(emp => isValidEmployeeName(emp.name));
 };

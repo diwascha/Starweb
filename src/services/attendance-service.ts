@@ -33,6 +33,10 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Attendanc
 };
 
 export const getAttendance = async (): Promise<AttendanceRecord[]> => {
+    const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
+    if (isDesktop) {
+        return [];
+    }
     const snapshot = await getDocs(attendanceCollection);
     return snapshot.docs.map(fromFirestore);
 };

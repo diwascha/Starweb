@@ -2,6 +2,7 @@
 import type {NextConfig} from 'next';
 
 const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
+const isTauriBuild = process.env.npm_lifecycle_event === 'tauri:build';
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -34,7 +35,7 @@ const nextConfig: NextConfig = {
     // Set NEXT_PUBLIC_IS_DESKTOP=true when building for Tauri/Electron.
     NEXT_PUBLIC_IS_DESKTOP: process.env.NEXT_PUBLIC_IS_DESKTOP || 'false',
   },
-  output: isDesktop ? 'export' : undefined,
+  output: isDesktop && isTauriBuild ? 'export' : undefined,
 };
 
 export default nextConfig;

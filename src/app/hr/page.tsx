@@ -77,22 +77,6 @@ function DashboardSkeleton() {
     );
 }
 
-// Helper to safely convert Firestore Timestamps or other date formats to ISO strings
-const toSafeISOString = (date: any): string | undefined => {
-  if (!date) return undefined;
-  // Firestore Timestamp
-  if (date && typeof date.toDate === 'function') {
-    return date.toDate().toISOString();
-  }
-  // Already a Date object or a valid date string
-  const d = new Date(date);
-  if (!isNaN(d.getTime())) {
-    return d.toISOString();
-  }
-  return undefined;
-};
-
-// Deep serialization helper
 const serializeObject = <T extends Record<string, any>>(obj: T): T => {
     const newObj: Record<string, any> = {};
     for (const key in obj) {
@@ -100,7 +84,6 @@ const serializeObject = <T extends Record<string, any>>(obj: T): T => {
         if (value && typeof value === 'object' && value.hasOwnProperty('seconds') && value.hasOwnProperty('nanoseconds')) {
              newObj[key] = new Date(value.seconds * 1000).toISOString();
         } else if (value && typeof value === 'object') {
-            // This handles nested objects that might contain Timestamps
             newObj[key] = serializeObject(value);
         } else {
             newObj[key] = value;
@@ -111,22 +94,13 @@ const serializeObject = <T extends Record<string, any>>(obj: T): T => {
 
 
 export default async function HRPage() {
-    const employeesRaw = await getEmployees();
-    const attendanceRaw = await getAttendance();
+    const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
+    const employeesRaw = isDesktop ? [] : await getEmployees();
+    const attendanceRaw = isDesktop ? [] : await getAttendance();
 
     // Sanitize data before passing it to the client component
-    const initialEmployees = employeesRaw.map(e => serializeObject({
-        ...e,
-        dateOfBirth: toSafeISOString(e.dateOfBirth),
-        joiningDate: toSafeISOString(e.joiningDate),
-        createdAt: toSafeISOString(e.createdAt),
-        lastModifiedAt: toSafeISOString(e.lastModifiedAt),
-    }));
-    
-    const initialAttendance = attendanceRaw.map(a => serializeObject({
-        ...a,
-        date: toSafeISOString(a.date),
-    }));
+    const initialEmployees = employeesRaw.map(e => serializeObject(e));
+    const initialAttendance = attendanceRaw.map(a => serializeObject(a));
   
   return (
     <div className="flex flex-col gap-8">

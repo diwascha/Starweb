@@ -25,6 +25,10 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
 }
 
 export const getPurchaseOrders = async (): Promise<PurchaseOrder[]> => {
+    const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
+    if (isDesktop) {
+        return [];
+    }
     const snapshot = await getDocs(purchaseOrdersCollection);
     return snapshot.docs.map(fromFirestore);
 };

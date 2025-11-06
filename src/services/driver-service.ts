@@ -25,6 +25,10 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Driver =>
 }
 
 export const getDrivers = async (): Promise<Driver[]> => {
+    const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
+    if (isDesktop) {
+        return [];
+    }
     const snapshot = await getDocs(driversCollection);
     return snapshot.docs.map(fromFirestore);
 };

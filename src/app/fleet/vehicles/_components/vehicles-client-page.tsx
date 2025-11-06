@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -43,9 +44,10 @@ const vehicleStatuses: VehicleStatus[] = ['Active', 'In Maintenance', 'Decommiss
 type VehicleSortKey = 'name' | 'make' | 'model' | 'status' | 'driverName' | 'authorship';
 type SortDirection = 'asc' | 'desc';
 
-export default function VehiclesClientPage({ initialVehicles, initialDrivers }: { initialVehicles: Vehicle[], initialDrivers: Driver[] }) {
+export default function VehiclesClientPage({ initialVehicles = [], initialDrivers = [] }: { initialVehicles?: Vehicle[], initialDrivers?: Driver[] }) {
     const [vehicles, setVehicles] = useState<Vehicle[]>(initialVehicles);
     const [drivers, setDrivers] = useState<Driver[]>(initialDrivers);
+    const [isLoading, setIsLoading] = useState(initialVehicles.length === 0);
     
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
@@ -68,7 +70,10 @@ export default function VehiclesClientPage({ initialVehicles, initialDrivers }: 
     const driversById = useMemo(() => new Map(drivers.map(d => [d.id, d.name])), [drivers]);
 
     useEffect(() => {
-        const unsubVehicles = onVehiclesUpdate(setVehicles);
+        const unsubVehicles = onVehiclesUpdate((data) => {
+            setVehicles(data);
+            setIsLoading(false);
+        });
         const unsubDrivers = onDriversUpdate(setDrivers);
         return () => {
             unsubVehicles();
@@ -175,8 +180,9 @@ export default function VehiclesClientPage({ initialVehicles, initialDrivers }: 
                 return 0;
             }
 
-            const aVal = a[sortConfig.key];
-            const bVal = b[sortConfig.key];
+            const aVal = a[sortConfig.key as keyof typeof a] ?? '';
+            const bVal = b[sortConfig.key as keyof typeof b] ?? '';
+
             if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
             if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
             return 0;
@@ -186,6 +192,13 @@ export default function VehiclesClientPage({ initialVehicles, initialDrivers }: 
 
 
     const renderContent = () => {
+        if (isLoading) {
+            return (
+                <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
+                  <h3 className="text-2xl font-bold tracking-tight">Loading...</h3>
+                </div>
+            );
+        }
         if (vehicles.length === 0) {
             return (
                 <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">

@@ -17,6 +17,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Product =
         rate: data.rate,
         rateHistory: data.rateHistory || [],
         specification: data.specification,
+        accessories: data.accessories,
         createdBy: data.createdBy,
         createdAt: data.createdAt,
         lastModifiedBy: data.lastModifiedBy,
@@ -25,6 +26,10 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Product =
 }
 
 export const getProducts = async (): Promise<Product[]> => {
+    const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
+    if (isDesktop) {
+        return [];
+    }
     const snapshot = await getDocs(productsCollection);
     return snapshot.docs.map(fromFirestore);
 };

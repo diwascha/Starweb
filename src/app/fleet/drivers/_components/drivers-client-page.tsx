@@ -73,12 +73,12 @@ export default function DriversClientPage({ initialDrivers = [] }: { initialDriv
     // For desktop builds, initialDrivers will be empty, so we fetch client-side.
     // For web builds, data is pre-fetched, but we still set up the listener for real-time updates.
     useEffect(() => {
-        const unsubscribe = onDriversUpdate(setDrivers);
-        if (initialDrivers.length === 0) {
-            setIsLoading(false); // Listener will provide the data.
-        }
+        const unsubscribe = onDriversUpdate((data) => {
+            setDrivers(data);
+            setIsLoading(false);
+        });
         return () => unsubscribe();
-    }, [initialDrivers.length]);
+    }, []);
 
     const resetForm = () => {
         setEditingDriver(null);
@@ -209,9 +209,13 @@ export default function DriversClientPage({ initialDrivers = [] }: { initialDriv
                 if (aDate > bDate) return sortConfig.direction === 'asc' ? 1 : -1;
                 return 0;
             }
+            
+            const aVal = a[sortConfig.key as keyof Driver] ?? '';
+            const bVal = b[sortConfig.key as keyof Driver] ?? '';
 
-            if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
-            if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'asc' ? 1 : -1;
+
+            if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
             return 0;
         });
         return filtered;
