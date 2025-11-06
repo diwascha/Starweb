@@ -98,8 +98,6 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
   const [partySearch, setPartySearch] = useState('');
   
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const printRef = useRef<HTMLDivElement>(null);
-  const [isExporting, setIsExporting] = useState(false);
 
 
   const [isLoadProductsDialogOpen, setIsLoadProductsDialogOpen] = useState(false);
@@ -580,73 +578,6 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     setIsPreviewOpen(true);
   };
   
-  const doActualPrint = () => {
-    const printableArea = printRef.current;
-    if (!printableArea) return;
-
-    const printWindow = window.open('', '', 'height=800,width=800');
-    printWindow?.document.write('<html><head><title>Cost Report</title>');
-    printWindow?.document.write('<style>@media print{@page{size: auto;margin: 20mm;}body{margin: 0;}}</style>');
-    printWindow?.document.write('</head><body>');
-    printWindow?.document.write(printableArea.innerHTML);
-    printWindow?.document.write('</body></html>');
-    printWindow?.document.close();
-    printWindow?.focus();
-    setTimeout(() => {
-        printWindow?.print();
-        printWindow?.close();
-    }, 250);
-  };
-
-  const handleExportPdf = async () => {
-        if (!printRef.current) return;
-        setIsExporting(true);
-        try {
-            const doc = new jsPDF();
-
-            // Add font to VFS
-            doc.addFileToVFS("AnnapurnaSIL.ttf", AnnapurnaSIL);
-            doc.addFont("AnnapurnaSIL.ttf", "AnnapurnaSIL", "normal", "Unicode");
-
-            const canvas = await html2canvas(printRef.current, { scale: 2 });
-            const imgData = canvas.toDataURL('image/png');
-            
-            const pdfWidth = doc.internal.pageSize.getWidth();
-            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-            
-            doc.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-            doc.save(`Quotation-${reportNumber}.pdf`);
-
-        } catch (error) {
-            console.error('PDF export failed:', error);
-            toast({ title: 'Error', description: 'Failed to export PDF.', variant: 'destructive' });
-        } finally {
-            setIsExporting(false);
-        }
-    };
-
-    const handleExportJpg = async () => {
-        if (!printRef.current) return;
-        setIsExporting(true);
-
-        try {
-            const canvas = await html2canvas(printRef.current, { 
-                scale: 3, 
-                useCORS: true,
-                backgroundColor: '#ffffff'
-            });
-            const link = document.createElement('a');
-            link.download = `Quotation-${reportNumber}.jpg`;
-            link.href = canvas.toDataURL('image/jpeg', 0.9);
-            link.click();
-        } catch (error) {
-            console.error(`Failed to export as JPG`, error);
-            toast({ title: 'Export Failed', description: `Could not export invoice as JPG.`, variant: 'destructive' });
-        } finally {
-            setIsExporting(false);
-        }
-    };
-
 
   const itemsToPrint = useMemo(() => {
     return items
@@ -662,45 +593,6 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
 
   const selectedParty = parties.find(p => p.id === selectedPartyId);
   const [productSearch, setProductSearch] = useState('');
-
-  const GsmDisplay = ({ item }: { item: CostReportItem | Accessory }) => {
-    const ply = parseInt(item.ply, 10);
-    
-    if (ply === 0 || ply === 1) { // Plate
-        return <div>T: {item.topGsm}</div>;
-    }
-
-    const parts = [
-      { label: 'T', value: item.topGsm },
-      { label: 'F1', value: item.flute1Gsm },
-    ];
-  
-    if (ply >= 5) {
-      if (ply >= 7) parts.push({ label: 'L2', value: item.liner2Gsm });
-      parts.push({ label: 'F2', value: item.flute2Gsm });
-      if (ply === 5) parts.push({ label: 'M', value: item.middleGsm });
-      else if (ply >= 7) parts.push({ label: 'L3', value: item.liner3Gsm });
-      
-      if (ply >= 7) parts.push({ label: 'F3', value: item.flute3Gsm });
-    }
-  
-    if (ply >= 9) {
-      parts.push({ label: 'L4', value: item.liner4Gsm });
-      parts.push({ label: 'F4', value: item.flute4Gsm });
-    }
-  
-    parts.push({ label: 'B', value: item.bottomGsm });
-  
-    const part1 = parts.slice(0, 4).filter(p => p.value).map(p => `${p.label}:${p.value}`).join(' ');
-    const part2 = parts.slice(4).filter(p => p.value).map(p => `${p.label}:${p.value}`).join(' ');
-  
-    return (
-      <div>
-        <div>{part1}</div>
-        {part2 && <div>{part2}</div>}
-      </div>
-    );
-  };
   
   const handleAccessoryChange = (itemIndex: number, accIndex: number, field: keyof Omit<Accessory, 'id' | 'calculated'>, value: string) => {
     const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [bf, Number(cost) || 0]));
@@ -1238,113 +1130,15 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
               </DialogFooter>
           </DialogContent>
       </Dialog>
-      <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-        <DialogContent className="max-w-6xl">
-          <DialogHeader>
-            <DialogTitle>Quotation Preview</DialogTitle>
-            <DialogDescription>Review the quotation before printing.</DialogDescription>
-          </DialogHeader>
-          <div className="max-h-[70vh] overflow-auto p-4 bg-gray-100">
-             <div ref={printRef} className="bg-white text-black p-8 font-sans text-sm space-y-6 w-[210mm] mx-auto">
-                 <header className="text-center space-y-1">
-                    <h1 className="text-2xl font-bold">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
-                    <p className="text-lg">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
-                    <h2 className="text-xl font-semibold underline mt-2">QUOTATION</h2>
-                </header>
-                
-                <div className="grid grid-cols-2 text-xs">
-                    {selectedParty && (
-                        <div>
-                            <p className="font-bold">To,</p>
-                            <p>{selectedParty.name}</p>
-                            {selectedParty.address && <p>{selectedParty.address}</p>}
-                        </div>
-                    )}
-                    <div className="text-right">
-                        <p><span className="font-semibold">Ref No:</span> {reportNumber}</p>
-                        <p><span className="font-semibold">Date:</span> {toNepaliDate(reportDate.toISOString())} BS ({format(reportDate, "PPP")})</p>
-                    </div>
-                </div>
-
-              <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead className="text-black font-semibold">Sl.No</TableHead>
-                        <TableHead className="text-black font-semibold">Particulars</TableHead>
-                        <TableHead className="text-black font-semibold">Box Size (mm)</TableHead>
-                        <TableHead className="text-black font-semibold">Ply, Type</TableHead>
-                        <TableHead className="text-black font-semibold">Paper</TableHead>
-                        <TableHead className="text-black font-semibold">GSM</TableHead>
-                        <TableHead className="text-black font-semibold text-right">Box Wt (Grams)</TableHead>
-                        <TableHead className="text-black font-semibold text-right">Total</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {itemsToPrint.map((item, index) => (
-                    <tr key={item.id}>
-                      <td className="align-top">{index + 1}</td>
-                      <td className="align-top">
-                        <p>{products.find(p => p.id === item.productId)?.name || 'N/A'}</p>
-                        {(item.accessories || []).length > 0 && (
-                          <div className="text-xs text-muted-foreground pl-2">
-                            {item.accessories?.map(acc => (
-                              <p key={acc.id}>+ {acc.name}</p>
-                            ))}
-                          </div>
-                        )}
-                      </td>
-                      <td className="align-top">{`${item.l}x${item.b}x${item.h}`}</td>
-                      <td className="align-top">{`${item.ply} Ply, ${item.boxType}`}</td>
-                      <td className="align-top">
-                          <div>{item.paperType}</div>
-                          <div className="text-xs text-muted-foreground">{item.paperShade}</div>
-                      </td>
-                       <td className="align-top"><GsmDisplay item={item} /></td>
-                      <td className="align-top text-right">{item.calculated.totalBoxWeight.toFixed(2)}</td>
-                      <td className="align-top text-right">
-                        <p>{item.totalItemCost.toFixed(2)}</p>
-                         {(item.accessories || []).length > 0 && (
-                          <div className="text-xs text-muted-foreground pl-2 text-right">
-                            {item.accessories?.map(acc => (
-                              <p key={acc.id}>({(acc.calculated?.paperCost || 0).toFixed(2)})</p>
-                            ))}
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </TableBody>
-              </Table>
-
-                <footer className="pt-8 text-xs space-y-4">
-                    <div className="font-semibold">Terms &amp; Conditions:</div>
-                    <ul className="list-disc list-inside space-y-1">
-                        <li>VAT 13% will be extra.</li>
-                        <li>Weight tolerance will be +/- 10%.</li>
-                        <li>The rates are valid for 7 days from the date of this quotation.</li>
-                    </ul>
-                    <div className="pt-12">
-                        <p className="border-t border-gray-400 w-48">Authorized Signature</p>
-                    </div>
-                </footer>
-            </div>
-          </div>
-          <DialogFooter className="sm:justify-between">
-            <Button variant="outline" onClick={() => setIsPreviewOpen(false)}>Cancel</Button>
-            <div className="flex gap-2">
-                <Button variant="outline" onClick={handleExportJpg} disabled={isExporting}>
-                    {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ImageIcon className="mr-2 h-4 w-4"/>}
-                     Export as JPG
-                </Button>
-                <Button variant="outline" onClick={handleExportPdf} disabled={isExporting}>
-                    {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
-                    Export as PDF
-                </Button>
-                <Button onClick={doActualPrint}><Printer className="mr-2 h-4 w-4" /> Print</Button>
-            </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        <QuotationPreviewDialog
+            isOpen={isPreviewOpen}
+            onOpenChange={setIsPreviewOpen}
+            reportNumber={reportNumber}
+            reportDate={reportDate}
+            party={selectedParty}
+            items={itemsToPrint}
+            products={products}
+        />
       <Dialog open={isLoadProductsDialogOpen} onOpenChange={setIsLoadProductsDialogOpen}>
         <DialogContent className="max-w-xl">
           <DialogHeader>
@@ -1441,8 +1235,6 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
 
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
     const [reportToPrint, setReportToPrint] = useState<CostReport | null>(null);
-    const printRef = useRef<HTMLDivElement>(null);
-    const [isExporting, setIsExporting] = useState(false);
 
 
     useEffect(() => {
@@ -1475,62 +1267,6 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
         setIsPreviewOpen(true);
     }
     
-    const doActualPrint = () => {
-        const printableArea = printRef.current;
-        if (!printableArea) return;
-
-        const printWindow = window.open('', '', 'height=800,width=800');
-        printWindow?.document.write('<html><head><title>Cost Report</title>');
-        printWindow?.document.write('<style>@media print{@page{size: auto;margin: 20mm;}body{margin: 0;}}</style>');
-        printWindow?.document.write('</head><body>');
-        printWindow?.document.write(printableArea.innerHTML);
-        printWindow?.document.write('</body></html>');
-        printWindow?.document.close();
-        printWindow?.focus();
-        setTimeout(() => {
-            printWindow?.print();
-            printWindow?.close();
-        }, 250);
-    };
-
-    const handleExportPdf = async () => {
-        if (!printRef.current || !reportToPrint) return;
-        setIsExporting(true);
-        try {
-            const doc = new jsPDF();
-            doc.addFileToVFS("AnnapurnaSIL.ttf", AnnapurnaSIL);
-            doc.addFont("AnnapurnaSIL.ttf", "AnnapurnaSIL", "normal", "Unicode");
-            const canvas = await html2canvas(printRef.current, { scale: 2 });
-            const imgData = canvas.toDataURL('image/png');
-            const pdfWidth = doc.internal.pageSize.getWidth();
-            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-            doc.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-            doc.save(`Quotation-${reportToPrint.reportNumber}.pdf`);
-        } catch (error) {
-            console.error('PDF export failed:', error);
-            toast({ title: 'Error', description: 'Failed to export PDF.', variant: 'destructive' });
-        } finally {
-            setIsExporting(false);
-        }
-    };
-
-    const handleExportJpg = async () => {
-        if (!printRef.current || !reportToPrint) return;
-        setIsExporting(true);
-        try {
-            const canvas = await html2canvas(printRef.current, { scale: 3, useCORS: true, backgroundColor: '#ffffff' });
-            const link = document.createElement('a');
-            link.download = `Quotation-${reportToPrint.reportNumber}.jpg`;
-            link.href = canvas.toDataURL('image/jpeg', 0.9);
-            link.click();
-        } catch (error) {
-            console.error(`Failed to export as JPG`, error);
-            toast({ title: 'Export Failed', description: `Could not export invoice as JPG.`, variant: 'destructive' });
-        } finally {
-            setIsExporting(false);
-        }
-    };
-
 
     const calculateItemCost = useCallback((item: Omit<CostReportItem, 'id' | 'calculated' | 'productId' | 'accessories'> | Omit<Accessory, 'id' | 'calculated' | 'productId'>, report: CostReport): CalculatedValues => {
         const l = parseFloat(item.l) || 0;
@@ -1634,44 +1370,6 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
         });
     }, [reportToPrint, calculateItemCost]);
     
-    const GsmDisplay = ({ item }: { item: CostReportItem | ProductAccessory }) => {
-        const ply = parseInt(item.ply, 10);
-        
-        if (ply === 0 || ply === 1) { // Plate
-            return <div>T: {item.topGsm}</div>;
-        }
-
-        const parts = [
-          { label: 'T', value: item.topGsm },
-          { label: 'F1', value: item.flute1Gsm },
-        ];
-      
-        if (ply >= 5) {
-          if (ply >= 7) parts.push({ label: 'L2', value: item.liner2Gsm });
-          parts.push({ label: 'F2', value: item.flute2Gsm });
-          if (ply === 5) parts.push({ label: 'M', value: item.middleGsm });
-          else if (ply >= 7) parts.push({ label: 'L3', value: item.liner3Gsm });
-          if (ply >= 7) parts.push({ label: 'F3', value: item.flute3Gsm });
-        }
-      
-        if (ply >= 9) {
-          parts.push({ label: 'L4', value: item.liner4Gsm });
-          parts.push({ label: 'F4', value: item.flute4Gsm });
-        }
-      
-        parts.push({ label: 'B', value: item.bottomGsm });
-      
-        const part1 = parts.slice(0, 4).filter(p => p.value).map(p => `${p.label}:${p.value}`).join(' ');
-        const part2 = parts.slice(4).filter(p => p.value).map(p => `${p.label}:${p.value}`).join(' ');
-      
-        return (
-          <div>
-            <div>{part1}</div>
-            {part2 && <div>{part2}</div>}
-          </div>
-        );
-    };
-
 
     return (
         <>
@@ -1739,115 +1437,17 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
             </CardContent>
         </Card>
         
-        <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-            <DialogContent className="max-w-6xl">
-              <DialogHeader>
-                <DialogTitle>Quotation Preview</DialogTitle>
-                <DialogDescription>Review the quotation before printing.</DialogDescription>
-              </DialogHeader>
-              {reportToPrint && (
-                  <>
-                  <div className="max-h-[70vh] overflow-auto p-4 bg-gray-100">
-                     <div ref={printRef} className="bg-white text-black p-8 font-sans text-sm space-y-6 w-[210mm] mx-auto">
-                         <header className="text-center space-y-1">
-                            <h1 className="text-2xl font-bold">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
-                            <p className="text-lg">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
-                            <h2 className="text-xl font-semibold underline mt-2">QUOTATION</h2>
-                        </header>
-                        <div className="grid grid-cols-2 text-xs">
-                            <div>
-                                <p className="font-bold">To,</p>
-                                <p>{reportToPrint.partyName}</p>
-                                <p>{parties.find(p => p.id === reportToPrint.partyId)?.address}</p>
-                            </div>
-                            <div className="text-right">
-                                <p><span className="font-semibold">Ref No:</span> {reportToPrint.reportNumber}</p>
-                                <p><span className="font-semibold">Date:</span> {toNepaliDate(reportToPrint.reportDate)} BS ({format(new Date(reportToPrint.reportDate), "PPP")})</p>
-                            </div>
-                        </div>
-                        <Table>
-                           <TableHeader>
-                                <TableRow>
-                                    <TableHead className="text-black font-semibold">Sl.No</TableHead>
-                                    <TableHead className="text-black font-semibold">Particulars</TableHead>
-                                    <TableHead className="text-black font-semibold">Box Size (mm)</TableHead>
-                                    <TableHead className="text-black font-semibold">Ply, Type</TableHead>
-                                    <TableHead className="text-black font-semibold">Paper</TableHead>
-                                    <TableHead className="text-black font-semibold">GSM</TableHead>
-                                    <TableHead className="text-black font-semibold text-right">Box Wt (Grams)</TableHead>
-                                    <TableHead className="text-black font-semibold text-right">Total</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                            {printableReportItems.map((item, index) => (
-                                <tr key={item.id}>
-                                    <td className="align-top">{index + 1}</td>
-                                    <td className="align-top">
-                                        <p>{products.find(p => p.id === item.productId)?.name || 'N/A'}</p>
-                                        {(item.accessories || []).length > 0 && (
-                                        <div className="text-xs text-muted-foreground pl-2">
-                                            {item.accessories?.map(acc => (
-                                            <p key={acc.id}>+ {acc.name}</p>
-                                            ))}
-                                        </div>
-                                        )}
-                                    </td>
-                                    <td className="align-top">{`${item.l}x${item.b}x${item.h}`}</td>
-                                    <td className="align-top">{`${item.ply} Ply, ${item.boxType}`}</td>
-                                    <td className="align-top">
-                                        <div>{item.paperType}</div>
-                                        <div className="text-xs text-muted-foreground">{item.paperShade}</div>
-                                    </td>
-                                    <td className="align-top"><GsmDisplay item={item} /></td>
-                                    <td className="align-top text-right">{item.calculated.totalBoxWeight.toFixed(2)}</td>
-                                    <td className="align-top text-right">
-                                        <p>{item.totalItemCost.toFixed(2)}</p>
-                                        {(item.accessories || []).length > 0 && (
-                                        <div className="text-xs text-muted-foreground pl-2 text-right">
-                                            {item.accessories?.map(acc => {
-                                                const accCalculated = calculateItemCost(acc, reportToPrint!);
-                                                return (
-                                                <p key={acc.id}>({(accCalculated.paperCost || 0).toFixed(2)})</p>
-                                                )
-                                            })}
-                                        </div>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
-                            </TableBody>
-                        </Table>
-                         <footer className="pt-8 text-xs space-y-4">
-                            <div className="font-semibold">Terms &amp; Conditions:</div>
-                            <ul className="list-disc list-inside space-y-1">
-                                <li>VAT 13% will be extra.</li>
-                                <li>Weight tolerance will be +/- 10%.</li>
-                                <li>The rates are valid for 7 days from the date of this quotation.</li>
-                            </ul>
-                            <div className="pt-12">
-                                <p className="border-t border-gray-400 w-48">Authorized Signature</p>
-                            </div>
-                        </footer>
-                    </div>
-                  </div>
-                  <DialogFooter className="sm:justify-between">
-                    <Button variant="outline" onClick={() => setIsPreviewOpen(false)}>Cancel</Button>
-                    <div className="flex gap-2">
-                        <Button variant="outline" onClick={handleExportJpg} disabled={isExporting}>
-                            {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ImageIcon className="mr-2 h-4 w-4"/>}
-                             Export as JPG
-                        </Button>
-                        <Button variant="outline" onClick={handleExportPdf} disabled={isExporting}>
-                            {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
-                            Export as PDF
-                        </Button>
-                        <Button onClick={doActualPrint}><Printer className="mr-2 h-4 w-4" /> Print</Button>
-                    </div>
-                  </DialogFooter>
-                  </>
-              )}
-            </DialogContent>
-        </Dialog>
+        {reportToPrint && (
+            <QuotationPreviewDialog
+                isOpen={isPreviewOpen}
+                onOpenChange={setIsPreviewOpen}
+                reportNumber={reportToPrint.reportNumber}
+                reportDate={new Date(reportToPrint.reportDate)}
+                party={parties.find(p => p.id === reportToPrint!.partyId)}
+                items={printableReportItems}
+                products={products}
+            />
+        )}
       </>
     );
 }
@@ -2492,6 +2092,178 @@ function CostingSettingsTab() {
   )
 }
 
+interface QuotationPreviewDialogProps {
+  isOpen: boolean;
+  onOpenChange: (isOpen: boolean) => void;
+  reportNumber: string;
+  reportDate: Date;
+  party: Party | null | undefined;
+  items: any[]; // The calculated items to print
+  products: Product[];
+}
+
+function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate, party, items, products }: QuotationPreviewDialogProps) {
+    const printRef = useRef<HTMLDivElement>(null);
+    const [isExporting, setIsExporting] = useState(false);
+    const { toast } = useToast();
+
+    const doActualPrint = () => {
+        const printableArea = printRef.current;
+        if (!printableArea) return;
+
+        const printWindow = window.open('', '', 'height=800,width=800');
+        printWindow?.document.write('<html><head><title>Cost Report</title>');
+        printWindow?.document.write('<style>@media print{@page{size: auto;margin: 20mm;}body{margin: 0;}}</style>');
+        printWindow?.document.write('</head><body>');
+        printWindow?.document.write(printableArea.innerHTML);
+        printWindow?.document.write('</body></html>');
+        printWindow?.document.close();
+        printWindow?.focus();
+        setTimeout(() => {
+            printWindow?.print();
+            printWindow?.close();
+        }, 250);
+    };
+    
+    const GsmDisplay = ({ item }: { item: any }) => {
+        const ply = parseInt(item.ply, 10);
+        if (ply === 0 || ply === 1) return <div>T: {item.topGsm}</div>;
+        const parts = [{ label: 'T', value: item.topGsm }, { label: 'F1', value: item.flute1Gsm }];
+        if (ply >= 5) {
+            if (ply >= 7) parts.push({ label: 'L2', value: item.liner2Gsm });
+            parts.push({ label: 'F2', value: item.flute2Gsm });
+            if (ply === 5) parts.push({ label: 'M', value: item.middleGsm });
+            else if (ply >= 7) parts.push({ label: 'L3', value: item.liner3Gsm });
+            if (ply >= 7) parts.push({ label: 'F3', value: item.flute3Gsm });
+        }
+        if (ply >= 9) {
+            parts.push({ label: 'L4', value: item.liner4Gsm });
+            parts.push({ label: 'F4', value: item.flute4Gsm });
+        }
+        parts.push({ label: 'B', value: item.bottomGsm });
+        const part1 = parts.slice(0, 4).filter(p => p.value).map(p => `${p.label}:${p.value}`).join(' ');
+        const part2 = parts.slice(4).filter(p => p.value).map(p => `${p.label}:${p.value}`).join(' ');
+        return <div><div>{part1}</div>{part2 && <div>{part2}</div>}</div>;
+    };
+
+
+    const handleExportPdf = async () => {
+        if (!printRef.current) return;
+        setIsExporting(true);
+        try {
+            const doc = new jsPDF();
+            doc.addFileToVFS("AnnapurnaSIL.ttf", AnnapurnaSIL);
+            doc.addFont("AnnapurnaSIL.ttf", "AnnapurnaSIL", "normal", "Unicode");
+            const canvas = await html2canvas(printRef.current, { scale: 2 });
+            const imgData = canvas.toDataURL('image/png');
+            const pdfWidth = doc.internal.pageSize.getWidth();
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+            doc.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            doc.save(`Quotation-${reportNumber}.pdf`);
+        } catch (error) {
+            console.error('PDF export failed:', error);
+            toast({ title: 'Error', description: 'Failed to export PDF.', variant: 'destructive' });
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+    const handleExportJpg = async () => {
+        if (!printRef.current) return;
+        setIsExporting(true);
+        try {
+            const canvas = await html2canvas(printRef.current, { scale: 3, useCORS: true, backgroundColor: '#ffffff' });
+            const link = document.createElement('a');
+            link.download = `Quotation-${reportNumber}.jpg`;
+            link.href = canvas.toDataURL('image/jpeg', 0.9);
+            link.click();
+        } catch (error) {
+            console.error(`Failed to export as JPG`, error);
+            toast({ title: 'Export Failed', description: `Could not export invoice as JPG.`, variant: 'destructive' });
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-6xl">
+                <DialogHeader>
+                    <DialogTitle>Quotation Preview</DialogTitle>
+                    <DialogDescription>Review the quotation before printing.</DialogDescription>
+                </DialogHeader>
+                <div className="max-h-[70vh] overflow-auto p-4 bg-gray-100">
+                    <div ref={printRef} className="bg-white text-black p-8 font-sans text-sm space-y-6 w-[210mm] mx-auto">
+                        <header className="text-center space-y-1">
+                            <h1 className="text-2xl font-bold">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
+                            <p className="text-lg">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
+                            <h2 className="text-xl font-semibold underline mt-2">QUOTATION</h2>
+                        </header>
+                        <div className="grid grid-cols-2 text-xs">
+                            {party && (<div><p className="font-bold">To,</p><p>{party.name}</p>{party.address && <p>{party.address}</p>}</div>)}
+                            <div className="text-right">
+                                <p><span className="font-semibold">Ref No:</span> {reportNumber}</p>
+                                <p><span className="font-semibold">Date:</span> {toNepaliDate(reportDate.toISOString())} BS ({format(reportDate, "PPP")})</p>
+                            </div>
+                        </div>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="text-black font-semibold">Sl.No</TableHead>
+                                    <TableHead className="text-black font-semibold">Particulars</TableHead>
+                                    <TableHead className="text-black font-semibold">Box Size (mm)</TableHead>
+                                    <TableHead className="text-black font-semibold">Ply, Type</TableHead>
+                                    <TableHead className="text-black font-semibold">Paper</TableHead>
+                                    <TableHead className="text-black font-semibold">GSM</TableHead>
+                                    <TableHead className="text-black font-semibold text-right">Box Wt (Grams)</TableHead>
+                                    <TableHead className="text-black font-semibold text-right">Total</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {items.map((item, index) => (
+                                    <tr key={item.id}>
+                                        <td className="align-top">{index + 1}</td>
+                                        <td className="align-top">
+                                            <p>{products.find(p => p.id === item.productId)?.name || 'N/A'}</p>
+                                            {(item.accessories || []).length > 0 && (<div className="text-xs text-muted-foreground pl-2">{item.accessories?.map((acc: any) => (<p key={acc.id}>+ {acc.name}</p>))}</div>)}
+                                        </td>
+                                        <td className="align-top">{`${item.l}x${item.b}x${item.h}`}</td>
+                                        <td className="align-top">{`${item.ply} Ply, ${item.boxType}`}</td>
+                                        <td className="align-top"><div>{item.paperType}</div><div className="text-xs text-muted-foreground">{item.paperShade}</div></td>
+                                        <td className="align-top"><GsmDisplay item={item} /></td>
+                                        <td className="align-top text-right">{item.calculated.totalBoxWeight.toFixed(2)}</td>
+                                        <td className="align-top text-right">
+                                            <p>{item.totalItemCost.toFixed(2)}</p>
+                                            {(item.accessories || []).length > 0 && (<div className="text-xs text-muted-foreground pl-2 text-right">{item.accessories?.map((acc: any) => (<p key={acc.id}>({(acc.calculated?.paperCost || 0).toFixed(2)})</p>))}</div>)}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </TableBody>
+                        </Table>
+                        <footer className="pt-8 text-xs space-y-4">
+                            <div className="font-semibold">Terms & Conditions:</div>
+                            <ul className="list-disc list-inside space-y-1">
+                                <li>VAT 13% will be extra.</li>
+                                <li>Weight tolerance will be +/- 10%.</li>
+                                <li>The rates are valid for 7 days from the date of this quotation.</li>
+                            </ul>
+                            <div className="pt-12"><p className="border-t border-gray-400 w-48">Authorized Signature</p></div>
+                        </footer>
+                    </div>
+                </div>
+                <DialogFooter className="sm:justify-between">
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+                    <div className="flex gap-2">
+                        <Button variant="outline" onClick={handleExportJpg} disabled={isExporting}>{isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ImageIcon className="mr-2 h-4 w-4"/>} Export as JPG</Button>
+                        <Button variant="outline" onClick={handleExportPdf} disabled={isExporting}>{isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>} Export as PDF</Button>
+                        <Button onClick={doActualPrint}><Printer className="mr-2 h-4 w-4" /> Print</Button>
+                    </div>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 export default function CostReportPage() {
     const [activeTab, setActiveTab] = useState("calculator");
     const [reportToEdit, setReportToEdit] = useState<CostReport | null>(null);
@@ -2576,3 +2348,4 @@ export default function CostReportPage() {
 
 
     
+
