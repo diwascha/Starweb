@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -35,7 +34,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { onSettingUpdate, updateCostSettings } from '@/services/settings-service';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { AnnapurnaSIL } from '@/lib/fonts/AnnapurnaSIL-Regular-base64';
 
 // Quotation Preview Component
 interface QuotationPreviewDialogProps {
@@ -52,6 +50,11 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
   const printRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
+  
+  const formatAccessoryDimension = (acc: ProductAccessory) => {
+    const dims = [acc.l, acc.b, acc.h].filter(d => d && parseFloat(d) > 0);
+    return dims.join('x');
+  };
 
   const handlePrint = () => {
     const printableArea = printRef.current;
@@ -97,6 +100,8 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
             doc.text(party.name, 14, 50);
             doc.setFont("Helvetica", "normal");
             if (party.address) doc.text(party.address, 14, 55);
+            if (party.panNumber) doc.text(`PAN: ${party.panNumber}`, 14, 60);
+
             
             doc.text(`Ref No: ${reportNumber}`, doc.internal.pageSize.getWidth() - 14, 45, { align: 'right' });
             doc.text(`Date: ${toNepaliDate(reportDate.toISOString())} BS (${format(reportDate, "MMMM do, yyyy")})`, doc.internal.pageSize.getWidth() - 14, 50, { align: 'right' });
@@ -110,26 +115,26 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                     `${item.ply} Ply, ${item.boxType}`,
                     `${item.paperType} ${item.paperBf}`,
                     `${item.topGsm}/${item.flute1Gsm}/${item.bottomGsm}`,
-                     `${item.calculated.totalBoxWeight.toFixed(2)}`,
+                     `${(item.calculated?.totalBoxWeight || 0).toFixed(2)}`,
                     `Rs. ${item.totalItemCost.toFixed(2)}`
                 ];
 
                 const accessoriesRows = (item.accessories || []).map(acc => [
                     "",
                     `+ ${acc.name}`,
-                    `${acc.l}x${acc.b}`,
+                    formatAccessoryDimension(acc),
                     `${acc.ply} Ply`,
                     `${acc.paperType} ${acc.paperBf}`,
                     `${acc.topGsm}`,
-                    `${acc.calculated.totalBoxWeight.toFixed(2)}`,
-                    `(${acc.calculated.paperCost.toFixed(2)})`
+                    `${(acc.calculated?.totalBoxWeight || 0).toFixed(2)}`,
+                    `(${(acc.calculated?.paperCost || 0).toFixed(2)})`
                 ]);
                 
                 return [mainRow, ...accessoriesRows];
             });
 
             autoTable(doc, {
-                startY: 65,
+                startY: 70,
                 head: [['Sl.No', 'Particulars', 'Box Size (mm)', 'Ply, Type', 'Paper', 'GSM', 'Box Wt (Grams)', 'Total']],
                 body: body,
                 theme: 'grid',
@@ -199,6 +204,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                         <p>To,</p>
                         <p className="font-bold">{party?.name}</p>
                         <p>{party?.address}</p>
+                        {party?.panNumber && <p>PAN No: {party.panNumber}</p>}
                     </div>
                     <div className="text-right">
                         <p>Ref No: {reportNumber}</p>
@@ -228,14 +234,14 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                                 <TableCell>{item.ply} Ply, {item.boxType}</TableCell>
                                 <TableCell>{item.paperType} {item.paperBf}</TableCell>
                                 <TableCell>{item.topGsm}/{item.flute1Gsm}/{item.bottomGsm}</TableCell>
-                                <TableCell>{item.calculated.totalBoxWeight.toFixed(2)}</TableCell>
+                                <TableCell>{(item.calculated?.totalBoxWeight || 0).toFixed(2)}</TableCell>
                                 <TableCell className="text-right font-bold">Rs. {item.totalItemCost.toFixed(2)}</TableCell>
                              </TableRow>
                              {(item.accessories || []).map((acc) => (
                                  <TableRow key={acc.id} className="bg-muted/30">
                                      <TableCell></TableCell>
                                      <TableCell className="pl-6">+ {acc.name}</TableCell>
-                                     <TableCell>{acc.l}x{acc.b}</TableCell>
+                                     <TableCell>{formatAccessoryDimension(acc)}</TableCell>
                                      <TableCell>{acc.ply} Ply</TableCell>
                                      <TableCell>{acc.paperType} {acc.paperBf}</TableCell>
                                      <TableCell>{acc.topGsm}</TableCell>
@@ -1627,7 +1633,7 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
                 ...getFullAccessory(acc),
                 calculated: calculateItemCost(getFullAccessory(acc), reportToPrint),
             }));
-            const accessoriesCost = accessoriesWithCalc.reduce((sum, acc) => sum + (acc.calculated.paperCost || 0), 0);
+            const accessoriesCost = accessoriesWithCalc.reduce((sum, acc) => sum + (acc.calculated?.paperCost || 0), 0);
             return {
                 ...item,
                 accessories: accessoriesWithCalc,
