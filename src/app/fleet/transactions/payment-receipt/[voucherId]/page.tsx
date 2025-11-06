@@ -18,6 +18,8 @@ import VoucherViewClient from './_components/VoucherViewClient';
 
 // This function is required for Next.js static exports to work with dynamic routes.
 export async function generateStaticParams() {
+  // In a desktop build, we don't need to pre-render any specific pages.
+  // Returning an empty array is sufficient.
   return [];
 }
 
