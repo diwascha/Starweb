@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, 'useState', useEffect, useMemo, useCallback, useRef } from 'react';
 import type { Product, Party, PartyType, CostReport, CostReportItem, ProductSpecification, CostSetting, Accessory as ProductAccessory, Product as ProductType } from '@/lib/types';
 import { onProductsUpdate, addProduct as addProductService, updateProduct as updateProductService, deleteProduct as deleteProductService } from '@/services/product-service';
 import { onPartiesUpdate, addParty, updateParty } from '@/services/party-service';
@@ -28,7 +28,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import html2canvas from 'html2canvas';
-import { AnnapurnaSIL } from '@/lib/fonts/AnnapurnaSIL-Regular-base64';
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -128,7 +127,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                 return [mainRow, ...accessoriesRows];
             });
 
-            (doc as any).autoTable({
+            autoTable(doc, {
                 startY: 65,
                 head: [['Sl.No', 'Particulars', 'Box Size (mm)', 'Ply, Type', 'Paper', 'GSM', 'Box Wt (Grams)', 'Total']],
                 body: body,
@@ -239,8 +238,8 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                                      <TableCell>{acc.ply} Ply</TableCell>
                                      <TableCell>{acc.paperType} {acc.paperBf}</TableCell>
                                      <TableCell>{acc.topGsm}</TableCell>
-                                      <TableCell>{acc.calculated.totalBoxWeight.toFixed(2)}</TableCell>
-                                     <TableCell className="text-right">({acc.calculated.paperCost.toFixed(2)})</TableCell>
+                                      <TableCell>{(acc.calculated?.totalBoxWeight || 0).toFixed(2)}</TableCell>
+                                     <TableCell className="text-right">({(acc.calculated?.paperCost || 0).toFixed(2)})</TableCell>
                                  </TableRow>
                              ))}
                            </React.Fragment>
