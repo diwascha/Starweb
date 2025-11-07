@@ -1,26 +1,33 @@
 
-import { getVoucherTransactions } from '@/services/transaction-service';
+import { getVoucherTransactions, getTransactions } from '@/services/transaction-service';
 import type { Transaction, Vehicle, Party, Account } from '@/lib/types';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
-import { Printer } from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
-import { toNepaliDate, cn } from '@/lib/utils';
-import { onVehiclesUpdate } from '@/services/vehicle-service';
-import { onPartiesUpdate } from '@/services/party-service';
-import { onAccountsUpdate } from '@/services/account-service';
-import { format } from 'date-fns';
+import VoucherViewClient from './_components/VoucherViewClient';
 import { getVehicles } from '@/services/vehicle-service';
 import { getParties } from '@/services/party-service';
 import { getAccounts } from '@/services/account-service';
-import VoucherViewClient from './_components/VoucherViewClient';
+
 
 // This function is required for Next.js static exports to work with dynamic routes.
 export async function generateStaticParams() {
-  // In a desktop build, we don't need to pre-render any specific pages.
-  // Returning an empty array is sufficient.
-  return [];
+  const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
+  if (!isDesktop) return [];
+
+  try {
+    const transactions = await getTransactions();
+    const voucherIds = new Set(transactions.map(t => t.voucherId).filter(Boolean));
+    
+    // Also include legacy transactions that might not have a voucherId
+    transactions.forEach(t => {
+        if (!t.voucherId) {
+            voucherIds.add(`legacy-${t.id}`);
+        }
+    });
+
+    return Array.from(voucherIds).map(id => ({ voucherId: id as string }));
+  } catch (error) {
+    console.error("Failed to generate static params for vouchers:", error);
+    return [];
+  }
 }
 
 export default async function VoucherViewPage({ params }: { params: { voucherId: string } }) {
