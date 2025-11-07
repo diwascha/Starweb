@@ -4,7 +4,6 @@ import { getPurchaseOrder, getPurchaseOrders } from '@/services/purchase-order-s
 
 // This function is required for Next.js static exports to work with dynamic routes.
 export async function generateStaticParams() {
-  // For static export, we need to fetch all purchase orders for the build process.
   const purchaseOrders = await getPurchaseOrders(true); // Force fetch for build
   if (!purchaseOrders || purchaseOrders.length === 0) {
     return [];
@@ -22,5 +21,5 @@ export default async function PurchaseOrderPage({ params }: { params: { id: stri
     return <div>Purchase Order not found.</div>;
   }
   
-  return <PurchaseOrderView initialPurchaseOrder={initialPurchaseOrder} />;
+  return <PurchaseOrderView initialPurchaseOrder={initialPurchaseOrder} poId={params.id} />;
 }
