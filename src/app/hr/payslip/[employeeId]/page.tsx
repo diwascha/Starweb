@@ -11,24 +11,23 @@ const nepaliMonths = [
 // This function is required for Next.js static exports to work with dynamic routes.
 export async function generateStaticParams() {
   const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
-  // For desktop builds, we need to fetch the data to generate pages.
-  // For web builds, we can let Next.js handle it on-demand if we want.
-  // But for full export, we must provide all params.
-  try {
-    const employees = await getEmployees();
-    if (!employees || employees.length === 0) {
-      // If no employees, return an empty array to avoid build errors.
-      // The page will show a "not found" message.
+  // For desktop builds, we must pre-generate all possible paths.
+  if (isDesktop) {
+    try {
+      const employees = await getEmployees();
+      if (!employees || employees.length === 0) {
+        return [];
+      }
+      return employees.map((employee) => ({
+        employeeId: employee.id,
+      }));
+    } catch (error) {
+      console.error("Failed to generate static params for payslips:", error);
       return [];
     }
-    return employees.map((employee) => ({
-      employeeId: employee.id,
-    }));
-  } catch (error) {
-    console.error("Failed to generate static params for payslips:", error);
-    // Return empty array on error to prevent build from crashing.
-    return [];
   }
+  // For web builds, we can let Next.js handle it on-demand.
+  return [];
 }
 
 export default async function PayslipPage({ params, searchParams }: { params: { employeeId: string }, searchParams: { year: string, month: string } }) {
