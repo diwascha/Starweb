@@ -10,24 +10,12 @@ import { getAccounts } from '@/services/account-service';
 // This function is required for Next.js static exports to work with dynamic routes.
 export async function generateStaticParams() {
   const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
-  if (!isDesktop) return [];
-
-  try {
-    const transactions = await getTransactions();
-    const voucherIds = new Set(transactions.map(t => t.voucherId).filter(Boolean));
-    
-    // Also include legacy transactions that might not have a voucherId
-    transactions.forEach(t => {
-        if (!t.voucherId) {
-            voucherIds.add(`legacy-${t.id}`);
-        }
-    });
-
-    return Array.from(voucherIds).map(id => ({ voucherId: id as string }));
-  } catch (error) {
-    console.error("Failed to generate static params for vouchers:", error);
+  if (!isDesktop) {
     return [];
   }
+  const transactions = await getTransactions();
+  const voucherIds = Array.from(new Set(transactions.map(t => t.voucherId).filter(Boolean)));
+  return voucherIds.map(id => ({ voucherId: id as string }));
 }
 
 export default async function VoucherViewPage({ params }: { params: { voucherId: string } }) {

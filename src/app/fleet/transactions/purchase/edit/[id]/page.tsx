@@ -1,5 +1,5 @@
 
-import { getTransaction } from '@/services/transaction-service';
+import { getTransaction, getTransactions } from '@/services/transaction-service';
 import { getVehicles } from '@/services/vehicle-service';
 import { getParties } from '@/services/party-service';
 import { getAccounts } from '@/services/account-service';
@@ -7,7 +7,16 @@ import { PurchaseForm } from '../../../_components/purchase-form';
 
 // This function is required for Next.js static exports to work with dynamic routes.
 export async function generateStaticParams() {
-  return [];
+  const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
+  if (!isDesktop) {
+    return [];
+  }
+  const transactions = await getTransactions();
+  // Filter for purchase transactions to avoid generating pages for other types
+  const purchaseTransactions = transactions.filter(t => t.type === 'Purchase');
+  return purchaseTransactions.map((t) => ({
+    id: t.id,
+  }));
 }
 
 export default async function EditPurchasePage({ params }: { params: { id: string } }) {

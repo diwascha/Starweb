@@ -8,7 +8,13 @@ import { PaymentReceiptForm } from '../../../_components/payment-receipt-form';
 
 // This function is required for Next.js static exports to work with dynamic routes.
 export async function generateStaticParams() {
-  return [];
+    const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
+    if (!isDesktop) {
+        return [];
+    }
+    const transactions = await getTransactions();
+    const voucherIds = Array.from(new Set(transactions.map(t => t.voucherId).filter(Boolean)));
+    return voucherIds.map(id => ({ voucherId: id as string }));
 }
 
 export default async function EditVoucherPage({ params }: { params: { voucherId: string } }) {

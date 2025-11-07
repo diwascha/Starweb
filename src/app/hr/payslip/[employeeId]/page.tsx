@@ -1,5 +1,5 @@
 
-import { getEmployee } from '@/services/employee-service';
+import { getEmployee, getEmployees } from '@/services/employee-service';
 import { getPayrollForEmployee } from '@/services/payroll-service';
 import PayslipView from './_components/payslip-view';
 
@@ -10,7 +10,16 @@ const nepaliMonths = [
 
 // This function is required for Next.js static exports to work with dynamic routes.
 export async function generateStaticParams() {
-  return [];
+  const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
+  if (!isDesktop) {
+    return [];
+  }
+  // We can't know which year/month will be viewed, so we generate for all employees
+  // The page will handle missing data.
+  const employees = await getEmployees();
+  return employees.map((employee) => ({
+    employeeId: employee.id,
+  }));
 }
 
 export default async function PayslipPage({ params, searchParams }: { params: { employeeId: string }, searchParams: { year: string, month: string } }) {

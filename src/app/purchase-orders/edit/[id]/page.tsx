@@ -1,10 +1,17 @@
 
 import { PurchaseOrderForm } from '@/app/purchase-orders/_components/purchase-order-form';
-import { getPurchaseOrder } from '@/services/purchase-order-service';
+import { getPurchaseOrder, getPurchaseOrders } from '@/services/purchase-order-service';
 
 // This function is required for Next.js static exports to work with dynamic routes.
 export async function generateStaticParams() {
-  return [];
+    const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
+    if (!isDesktop) {
+        return [];
+    }
+    const purchaseOrders = await getPurchaseOrders();
+    return purchaseOrders.map((po) => ({
+        id: po.id,
+    }));
 }
 
 // This is a Server Component that fetches initial data
