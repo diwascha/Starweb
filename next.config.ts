@@ -1,3 +1,4 @@
+
 import type {NextConfig} from 'next';
 
 const isTauri = process.env.TAURI_BUILD === 'true';
