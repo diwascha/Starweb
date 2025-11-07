@@ -2,8 +2,8 @@
   "build": {
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
-    "frontendDist": "../out",
     "devPath": "http://localhost:9002",
+    "distDir": "../out",
     "withGlobalTauri": true
   },
   "package": {
