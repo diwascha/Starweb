@@ -6,7 +6,11 @@ const isTauri = process.env.TAURI_BUILD === 'true';
 const nextConfig: NextConfig = {
   /* config options here */
   experimental: {
-    serverActions: true,
+    serverActions: {
+      bodySizeLimit: '4mb',
+      // This is the key change: server actions must be disabled for static export.
+      enabled: !isTauri,
+    },
   },
   typescript: {
     ignoreBuildErrors: true,
