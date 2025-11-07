@@ -30,7 +30,7 @@ export default async function PayslipPage({ params, searchParams }: { params: { 
     if (isNaN(bsYear) || isNaN(bsMonth)) {
         return (
             <div className="flex justify-center items-center h-full">
-                <p>Invalid year or month provided.</p>
+                <p>Invalid year or month provided in the URL parameters.</p>
             </div>
         );
     }
@@ -51,7 +51,7 @@ export default async function PayslipPage({ params, searchParams }: { params: { 
     if (!payrollData) {
         return (
             <div className="flex justify-center items-center h-full">
-                <p>No payroll data found for this employee for the selected period. Please ensure it has been imported.</p>
+                <p>No payroll data found for this employee for the selected period. Please ensure it has been imported or calculated.</p>
             </div>
         );
     }
