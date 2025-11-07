@@ -14,9 +14,9 @@ export async function generateStaticParams() {
   if (!isDesktop) {
     return [];
   }
+  const employees = await getEmployees();
   // We can't know which year/month will be viewed, so we generate for all employees
   // The page will handle missing data.
-  const employees = await getEmployees();
   return employees.map((employee) => ({
     employeeId: employee.id,
   }));
