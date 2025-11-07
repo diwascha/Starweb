@@ -6,6 +6,11 @@ const isTauriBuild = process.env.npm_lifecycle_event === 'tauri:build';
 
 const nextConfig: NextConfig = {
   /* config options here */
+  experimental: {
+    serverActions: {
+      staticExport: isTauriBuild,
+    },
+  },
   typescript: {
     ignoreBuildErrors: true,
   },
