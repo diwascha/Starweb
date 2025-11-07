@@ -7,6 +7,11 @@ const isTauri = !!process.env.TAURI_PLATFORM;
 
 const nextConfig: NextConfig = {
   /* config options here */
+  experimental: {
+    serverActions: {
+      staticExport: true,
+    },
+  },
   typescript: {
     ignoreBuildErrors: true,
   },
