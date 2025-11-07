@@ -1,14 +1,12 @@
 
 import type {NextConfig} from 'next';
 
-const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
-const isTauriBuild = process.env.npm_lifecycle_event === 'tauri:build';
+const isTauri = process.env.TAURI_BUILD === 'true';
 
 const nextConfig: NextConfig = {
   /* config options here */
   experimental: {
-    // Disable server actions for static export builds (Electron)
-    serverActions: !isDesktop,
+    serverActions: !isTauri,
   },
   typescript: {
     ignoreBuildErrors: true,
@@ -17,7 +15,7 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   images: {
-    unoptimized: isDesktop,
+    unoptimized: isTauri,
     remotePatterns: [
       {
         protocol: 'https',
@@ -35,11 +33,10 @@ const nextConfig: NextConfig = {
   },
   env: {
     NEXT_PUBLIC_FIREBASE_PROJECT_ID: 'testreportgen',
-    // This environment variable acts as the switch for the desktop build.
-    // Set NEXT_PUBLIC_IS_DESKTOP=true when building for Tauri/Electron.
-    NEXT_PUBLIC_IS_DESKTOP: process.env.NEXT_PUBLIC_IS_DESKTOP || 'false',
+    NEXT_PUBLIC_IS_DESKTOP: String(isTauri),
   },
-  output: isDesktop && isTauriBuild ? 'export' : undefined,
+  output: isTauri ? 'export' : undefined,
+  distDir: isTauri ? 'out' : '.next',
 };
 
 export default nextConfig;
