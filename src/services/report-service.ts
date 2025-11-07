@@ -43,9 +43,9 @@ const fromDocSnapshot = (docSnap: DocumentData): Report => {
     };
 };
 
-export const getReports = async (): Promise<Report[]> => {
+export const getReports = async (forceFetch: boolean = false): Promise<Report[]> => {
     const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
-    if (isDesktop) {
+    if (isDesktop && !forceFetch) {
         return [];
     }
     const snapshot = await getDocs(reportsCollection);

@@ -5,11 +5,10 @@ import { getReport, getReports } from '@/services/report-service';
 
 // This function is required for Next.js static exports to work with dynamic routes.
 export async function generateStaticParams() {
-  const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
-  if (!isDesktop) {
+  const reports = await getReports(true); // Force fetch for build
+  if (!reports || reports.length === 0) {
     return [];
   }
-  const reports = await getReports();
   return reports.map((report) => ({
     id: report.id,
   }));
