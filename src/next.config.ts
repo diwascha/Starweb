@@ -7,9 +7,8 @@ const isTauriBuild = process.env.npm_lifecycle_event === 'tauri:build';
 const nextConfig: NextConfig = {
   /* config options here */
   experimental: {
-    serverActions: {
-      staticExport: isTauriBuild,
-    },
+    // Disable server actions for static export builds (Electron)
+    serverActions: !isDesktop,
   },
   typescript: {
     ignoreBuildErrors: true,
