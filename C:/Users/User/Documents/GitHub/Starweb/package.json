@@ -11,8 +11,8 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "electron:dev": "cross-env IS_ELECTRON=true npm run build && electron .",
-    "electron:build": "cross-env IS_ELECTRON=true next build && electron-builder"
+    "electron:dev": "npm run build && set IS_ELECTRON=true&& electron .",
+    "electron:build": "set IS_ELECTRON=true&& next build && electron-builder"
   },
   "dependencies": {
     "@genkit-ai/googleai": "^1.14.1",
@@ -69,7 +69,6 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "@types/recharts": "^1.8.29",
-    "cross-env": "^7.0.3",
     "electron": "^31.2.1",
     "electron-builder": "^25.0.2",
     "electron-is-dev": "^3.0.1",
