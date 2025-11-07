@@ -1,15 +1,13 @@
 
 import type {NextConfig} from 'next';
 
-// This is a reliable way to detect if the build is for Tauri,
-// as Tauri sets this environment variable during its build process.
-const isTauri = !!process.env.TAURI_PLATFORM;
+const isElectron = process.env.IS_ELECTRON === 'true';
 
 const nextConfig: NextConfig = {
   /* config options here */
   experimental: {
     serverActions: {
-      staticExport: true,
+      staticExport: isElectron,
     },
   },
   typescript: {
@@ -19,7 +17,7 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   images: {
-    unoptimized: isTauri, // Unoptimized images are required for static export.
+    unoptimized: isElectron, // Unoptimized images are required for static export.
     remotePatterns: [
       {
         protocol: 'https',
@@ -37,11 +35,12 @@ const nextConfig: NextConfig = {
   },
   env: {
     NEXT_PUBLIC_FIREBASE_PROJECT_ID: 'testreportgen',
-    // We now set NEXT_PUBLIC_IS_DESKTOP based on the reliable `isTauri` flag.
-    NEXT_PUBLIC_IS_DESKTOP: String(isTauri),
+    // We now set NEXT_PUBLIC_IS_DESKTOP based on the reliable `isElectron` flag.
+    NEXT_PUBLIC_IS_DESKTOP: String(isElectron),
   },
-  // Use static export (`output: 'export'`) only when it's a Tauri build.
-  output: isTauri ? 'export' : undefined,
+  // Use static export (`output: 'export'`) only when it's an Electron build.
+  output: isElectron ? 'export' : undefined,
+  distDir: isElectron ? 'out' : '.next',
 };
 
 export default nextConfig;
