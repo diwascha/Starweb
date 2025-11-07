@@ -49,9 +49,9 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
     };
 }
 
-export const getEmployees = async (): Promise<Employee[]> => {
+export const getEmployees = async (forceFetch: boolean = false): Promise<Employee[]> => {
     const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
-    if (isDesktop) {
+    if (isDesktop && !forceFetch) {
         return [];
     }
     const snapshot = await getDocs(employeesCollection);

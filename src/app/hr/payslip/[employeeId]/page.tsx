@@ -12,7 +12,8 @@ const nepaliMonths = [
 export async function generateStaticParams() {
   // For static export, we need to fetch all employees regardless of the environment.
   try {
-    const employees = await getEmployees();
+    // This now correctly fetches employees for the build process.
+    const employees = await getEmployees(true); 
     if (!employees || employees.length === 0) {
       return [];
     }
