@@ -1,13 +1,11 @@
 import type {NextConfig} from 'next';
 
-const isElectron = process.env.IS_ELECTRON === 'true';
+const isTauri = process.env.TAURI_BUILD === 'true';
 
 const nextConfig: NextConfig = {
   /* config options here */
   experimental: {
-    serverActions: {
-      staticExport: isElectron,
-    },
+    serverActions: !isTauri,
   },
   typescript: {
     ignoreBuildErrors: true,
@@ -16,7 +14,7 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   images: {
-    unoptimized: isElectron, // Unoptimized images are required for static export.
+    unoptimized: isTauri,
     remotePatterns: [
       {
         protocol: 'https',
@@ -34,12 +32,10 @@ const nextConfig: NextConfig = {
   },
   env: {
     NEXT_PUBLIC_FIREBASE_PROJECT_ID: 'testreportgen',
-    // We now set NEXT_PUBLIC_IS_DESKTOP based on the reliable `isElectron` flag.
-    NEXT_PUBLIC_IS_DESKTOP: String(isElectron),
+    NEXT_PUBLIC_IS_DESKTOP: String(isTauri),
   },
-  // Use static export (`output: 'export'`) only when it's an Electron build.
-  output: isElectron ? 'export' : undefined,
-  distDir: isElectron ? 'out' : '.next',
+  output: isTauri ? 'export' : undefined,
+  distDir: isTauri ? 'out' : '.next',
 };
 
 export default nextConfig;
