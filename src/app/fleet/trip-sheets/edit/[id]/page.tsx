@@ -13,7 +13,7 @@ export async function generateStaticParams() {
     return [];
   }
   try {
-    const trips = await getTrips(true); // Fetch all trips to generate params
+    const trips = await getTrips(true); // Force fetch for build
     if (!trips || trips.length === 0) {
       return [];
     }
