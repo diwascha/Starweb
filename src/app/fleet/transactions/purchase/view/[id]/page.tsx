@@ -1,4 +1,3 @@
-
 import { getTransaction, getTransactions } from '@/services/transaction-service';
 import PurchaseViewClient from './_components/PurchaseViewClient';
 import { getVehicles } from '@/services/vehicle-service';
