@@ -1,4 +1,3 @@
-
 import ReportView from './_components/report-view';
 import { getReport, getReports } from '@/services/report-service';
 
@@ -6,8 +5,6 @@ import { getReport, getReports } from '@/services/report-service';
 export async function generateStaticParams() {
   const isDesktop = process.env.TAURI_BUILD === 'true';
   if (!isDesktop) {
-    // For web builds, we might not want to pre-render every single page.
-    // Returning an empty array means pages will be generated on-demand.
     return [];
   }
   try {

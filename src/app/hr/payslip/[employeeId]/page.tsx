@@ -1,4 +1,3 @@
-
 import { getEmployee, getEmployees } from '@/services/employee-service';
 import { getPayrollForEmployee } from '@/services/payroll-service';
 import PayslipView from './_components/payslip-view';

@@ -1,4 +1,3 @@
-
 import { ReportForm } from '@/app/report/new/_components/report-form';
 import { getTrip, getTrips } from '@/services/trip-service';
 import { TripSheetForm } from '../../new/_components/trip-sheet-form';

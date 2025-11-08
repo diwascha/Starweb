@@ -1,4 +1,3 @@
-
 import { db } from '@/lib/firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDoc, query, where } from 'firebase/firestore';
 import type { Report } from '@/lib/types';
@@ -44,7 +43,7 @@ const fromDocSnapshot = (docSnap: DocumentData): Report => {
 };
 
 export const getReports = async (forceFetch: boolean = false): Promise<Report[]> => {
-    const isDesktop = process.env.TAURI_BUILD === 'true';
+    const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
     if (isDesktop && !forceFetch) {
         return [];
     }
@@ -78,13 +77,14 @@ export const getReport = async (id: string): Promise<Report | null> => {
 };
 
 export const getReportsByProductId = async (productId: string): Promise<Report[]> => {
+    if (!productId) return [];
     const q = query(reportsCollection, where("product.id", "==", productId));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(fromFirestore);
 }
 
 export const getReportsForSerial = async (): Promise<Pick<Report, 'serialNumber'>[]> => {
-    const isDesktop = process.env.TAURI_BUILD === 'true';
+    const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
     if (isDesktop) {
         // In desktop mode, we can't pre-fetch, so we return an empty array.
         // The logic in the component will need to rely on the onSnapshot listener.
@@ -96,6 +96,7 @@ export const getReportsForSerial = async (): Promise<Pick<Report, 'serialNumber'
 
 
 export const updateReport = async (id: string, report: Partial<Omit<Report, 'id' | 'serialNumber' | 'date' | 'createdAt' | 'createdBy'>>): Promise<void> => {
+    if (!id) return;
     const reportDoc = doc(db, 'reports', id);
     await updateDoc(reportDoc, {
         ...report,
@@ -104,6 +105,7 @@ export const updateReport = async (id: string, report: Partial<Omit<Report, 'id'
 };
 
 export const deleteReport = async (id: string): Promise<void> => {
+    if (!id) return;
     const reportDoc = doc(db, 'reports', id);
     await deleteDoc(reportDoc);
 };

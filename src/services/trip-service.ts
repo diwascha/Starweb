@@ -1,4 +1,3 @@
-
 import { db } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, doc, updateDoc, deleteDoc, getDoc, writeBatch } from 'firebase/firestore';
 import type { Trip, Transaction } from '@/lib/types';
@@ -151,6 +150,7 @@ export const onTripsUpdate = (callback: (trips: Trip[]) => void): () => void => 
 };
 
 export const getTrip = async (id: string): Promise<Trip | null> => {
+    if (!id) return null;
     const tripDoc = doc(db, 'trips', id);
     const docSnap = await getDoc(tripDoc);
     if (docSnap.exists()) {
@@ -269,6 +269,7 @@ export const updateTrip = async (id: string, tripUpdate: Partial<Omit<Trip, 'id'
 
 
 export const deleteTrip = async (id: string): Promise<void> => {
+    if (!id) return;
     let batch = writeBatch(db);
     let writeCount = 0;
 

@@ -1,4 +1,3 @@
-
 import { db } from '@/lib/firebase';
 import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, writeBatch, query, where, getDoc } from 'firebase/firestore';
 import type { Transaction } from '@/lib/types';
@@ -35,6 +34,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
 }
 
 export const getTransactionsForParty = async (partyId: string): Promise<Transaction[]> => {
+    if (!partyId) return [];
     const q = query(transactionsCollection, where("partyId", "==", partyId));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(fromFirestore);
@@ -120,6 +120,7 @@ export const onTransactionsUpdate = (callback: (transactions: Transaction[]) => 
 };
 
 export const getTransaction = async (id: string): Promise<Transaction | null> => {
+    if (!id) return null;
     const transactionDoc = doc(db, 'transactions', id);
     const docSnap = await getDoc(transactionDoc);
     if (docSnap.exists()) {
@@ -130,7 +131,7 @@ export const getTransaction = async (id: string): Promise<Transaction | null> =>
 };
 
 export const getTransactions = async (forceFetch: boolean = false): Promise<Transaction[]> => {
-    const isDesktop = process.env.TAURI_BUILD === 'true';
+    const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
     if (isDesktop && !forceFetch) {
         return [];
     }
@@ -140,6 +141,7 @@ export const getTransactions = async (forceFetch: boolean = false): Promise<Tran
 
 
 export const getVoucherTransactions = async (voucherId: string): Promise<Transaction[]> => {
+    if (!voucherId) return [];
     const q = query(transactionsCollection, where("voucherId", "==", voucherId));
     const querySnapshot = await getDocs(q);
     if (!querySnapshot.empty) {
@@ -158,6 +160,7 @@ export const getVoucherTransactions = async (voucherId: string): Promise<Transac
 
 
 export const updateTransaction = async (id: string, transaction: Partial<Omit<Transaction, 'id'>>): Promise<void> => {
+    if (!id) return;
     const transactionDoc = doc(db, 'transactions', id);
     await updateDoc(transactionDoc, {
         ...transaction,
@@ -248,6 +251,7 @@ export const updateVoucher = async (voucherId: string, voucherData: any, modifie
 
 
 export const deleteTransaction = async (id: string): Promise<void> => {
+    if (!id) return;
     const transactionDoc = doc(db, 'transactions', id);
     await deleteDoc(transactionDoc);
 };
