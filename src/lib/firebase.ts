@@ -1,5 +1,6 @@
+
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore, enableIndexedDbPersistence, initializeFirestore } from "firebase/firestore";
+import { getFirestore, initializeFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
@@ -14,6 +15,8 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
+// Initialize Firestore with offline persistence enabled.
+// This single initialization handles the cache and avoids the "SDK cache is already specified" error.
 const db = initializeFirestore(app, {
   localCache: {
     kind: 'indexedDb',
@@ -24,24 +27,5 @@ const db = initializeFirestore(app, {
 });
 
 const storage = getStorage(app);
-
-// Enable offline persistence
-if (typeof window !== 'undefined') {
-  try {
-    enableIndexedDbPersistence(db)
-      .catch((err) => {
-        if (err.code == 'failed-precondition') {
-          console.warn('Firestore persistence failed: Multiple tabs open. Persistence will be enabled in one tab only.');
-        } else if (err.code == 'unimplemented') {
-          console.warn('Firestore persistence failed: Browser does not support all of the features required.');
-        } else {
-          console.error("Firestore persistence error:", err);
-        }
-      });
-  } catch (error) {
-      console.error("Error enabling Firestore persistence:", error);
-  }
-}
-
 
 export { app, db, storage };
