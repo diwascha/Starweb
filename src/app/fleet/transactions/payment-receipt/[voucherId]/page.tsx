@@ -13,9 +13,14 @@ export async function generateStaticParams() {
   if (!isDesktop) {
     return [];
   }
-  const transactions = await getTransactions();
-  const voucherIds = Array.from(new Set(transactions.map(t => t.voucherId).filter(Boolean)));
-  return voucherIds.map(id => ({ voucherId: id as string }));
+  try {
+    const transactions = await getTransactions();
+    const voucherIds = Array.from(new Set(transactions.map(t => t.voucherId).filter(Boolean)));
+    return voucherIds.map(id => ({ voucherId: id as string }));
+  } catch (error) {
+    console.error("Failed to generate static params for vouchers:", error);
+    return [];
+  }
 }
 
 export default async function VoucherViewPage({ params }: { params: { voucherId: string } }) {

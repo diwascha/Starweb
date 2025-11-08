@@ -6,15 +6,22 @@ import { getReport, getReports } from '@/services/report-service';
 export async function generateStaticParams() {
   const isDesktop = process.env.TAURI_BUILD === 'true';
   if (!isDesktop) {
+    // For web builds, we might not want to pre-render every single page.
+    // Returning an empty array means pages will be generated on-demand.
     return [];
   }
-  const reports = await getReports(true);
-  if (!reports || reports.length === 0) {
+  try {
+    const reports = await getReports(true);
+    if (!reports || reports.length === 0) {
+      return [];
+    }
+    return reports.map((report) => ({
+      id: report.id,
+    }));
+  } catch (error) {
+    console.error("Failed to generate static params for reports:", error);
     return [];
   }
-  return reports.map((report) => ({
-    id: report.id,
-  }));
 }
 
 // This is a Server Component that fetches initial data

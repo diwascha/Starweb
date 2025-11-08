@@ -11,14 +11,19 @@ export async function generateStaticParams() {
   if (!isDesktop) {
     return [];
   }
-  const transactions = await getTransactions();
-  const purchaseTransactions = transactions.filter(t => t.type === 'Purchase');
-  if (!purchaseTransactions || purchaseTransactions.length === 0) {
+  try {
+    const transactions = await getTransactions();
+    const purchaseTransactions = transactions.filter(t => t.type === 'Purchase');
+    if (!purchaseTransactions || purchaseTransactions.length === 0) {
+      return [];
+    }
+    return purchaseTransactions.map((t) => ({
+      id: t.id,
+    }));
+  } catch (error) {
+    console.error("Failed to generate static params for view purchases:", error);
     return [];
   }
-  return purchaseTransactions.map((t) => ({
-    id: t.id,
-  }));
 }
 
 export default async function PurchaseViewPage({ params }: { params: { id: string } }) {

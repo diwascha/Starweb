@@ -12,15 +12,20 @@ export async function generateStaticParams() {
     if (!isDesktop) {
         return [];
     }
-    const transactions = await getTransactions();
-    // Filter for purchase transactions to avoid generating pages for other types
-    const purchaseTransactions = transactions.filter(t => t.type === 'Purchase');
-    if (!purchaseTransactions || purchaseTransactions.length === 0) {
+    try {
+      const transactions = await getTransactions();
+      // Filter for purchase transactions to avoid generating pages for other types
+      const purchaseTransactions = transactions.filter(t => t.type === 'Purchase');
+      if (!purchaseTransactions || purchaseTransactions.length === 0) {
+        return [];
+      }
+      return purchaseTransactions.map((t) => ({
+          id: t.id,
+      }));
+    } catch (error) {
+      console.error("Failed to generate static params for edit purchases:", error);
       return [];
     }
-    return purchaseTransactions.map((t) => ({
-        id: t.id,
-    }));
 }
 
 export default async function EditPurchasePage({ params }: { params: { id: string } }) {

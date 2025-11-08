@@ -8,13 +8,18 @@ export async function generateStaticParams() {
   if (!isDesktop) {
     return [];
   }
-  const purchaseOrders = await getPurchaseOrders(true); // Force fetch for build
-  if (!purchaseOrders || purchaseOrders.length === 0) {
-      return [];
+  try {
+    const purchaseOrders = await getPurchaseOrders(true); // Force fetch for build
+    if (!purchaseOrders || purchaseOrders.length === 0) {
+        return [];
+    }
+    return purchaseOrders.map((po) => ({
+      id: po.id,
+    }));
+  } catch (error) {
+    console.error("Failed to generate static params for PO oversights:", error);
+    return [];
   }
-  return purchaseOrders.map((po) => ({
-    id: po.id,
-  }));
 }
 
 // This is a Server Component that fetches initial data

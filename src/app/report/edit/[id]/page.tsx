@@ -9,13 +9,18 @@ export async function generateStaticParams() {
   if (!isDesktop) {
     return [];
   }
-  const reports = await getReports(true); // Force fetch for build
-  if (!reports || reports.length === 0) {
+  try {
+    const reports = await getReports(true); // Force fetch for build
+    if (!reports || reports.length === 0) {
+      return [];
+    }
+    return reports.map((report) => ({
+      id: report.id,
+    }));
+  } catch (error) {
+    console.error("Failed to generate static params for edit reports:", error);
     return [];
   }
-  return reports.map((report) => ({
-    id: report.id,
-  }));
 }
 
 // This is a Server Component that fetches initial data

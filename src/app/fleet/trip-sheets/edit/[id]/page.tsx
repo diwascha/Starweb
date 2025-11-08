@@ -8,11 +8,16 @@ export async function generateStaticParams() {
   if (!isDesktop) {
     return [];
   }
-  const trips = await getTrips();
-  if (!trips || trips.length === 0) {
+  try {
+    const trips = await getTrips();
+    if (!trips || trips.length === 0) {
+      return [];
+    }
+    return trips.map(trip => ({ id: trip.id }));
+  } catch (error) {
+    console.error("Failed to generate static params for edit trip sheets:", error);
     return [];
   }
-  return trips.map(trip => ({ id: trip.id }));
 }
 
 // This is a Server Component that fetches initial data
