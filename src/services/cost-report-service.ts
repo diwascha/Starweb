@@ -5,7 +5,7 @@ import type { CostReport } from '@/lib/types';
 
 const costReportsCollection = collection(db, 'costReports');
 
-const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): CostReport => {
+const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentData): CostReport => {
     const data = snapshot.data();
     return {
         id: snapshot.id,
@@ -31,6 +31,7 @@ export const onCostReportsUpdate = (callback: (reports: CostReport[]) => void): 
 };
 
 export const getCostReport = async (id: string): Promise<CostReport | null> => {
+    if (!id || typeof id !== 'string') return null;
     const docRef = doc(db, 'costReports', id);
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {

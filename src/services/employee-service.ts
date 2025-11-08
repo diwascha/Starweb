@@ -59,6 +59,7 @@ export const getEmployees = async (forceFetch: boolean = false): Promise<Employe
 };
 
 export const getEmployee = async (id: string): Promise<Employee | null> => {
+    if (!id || typeof id !== 'string') return null;
     const employeeDoc = doc(db, 'employees', id);
     const docSnap = await getDoc(employeeDoc);
     if (docSnap.exists()) {

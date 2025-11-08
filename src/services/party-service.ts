@@ -26,6 +26,7 @@ export const getParties = async (): Promise<Party[]> => {
 };
 
 export const getParty = async (id: string): Promise<Party | null> => {
+    if (!id || typeof id !== 'string') return null;
     const docRef = doc(db, 'parties', id);
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
@@ -35,6 +36,7 @@ export const getParty = async (id: string): Promise<Party | null> => {
 }
 
 export const getPartyByName = async (name: string): Promise<Party | null> => {
+    if (!name || typeof name !== 'string') return null;
     const q = query(partiesCollection, where("name", "==", name), limit(1));
     const querySnapshot = await getDocs(q);
     if (!querySnapshot.empty) {

@@ -1,3 +1,4 @@
+
 import { db } from '@/lib/firebase';
 import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, writeBatch, query, where, getDoc } from 'firebase/firestore';
 import type { Transaction } from '@/lib/types';
@@ -120,7 +121,7 @@ export const onTransactionsUpdate = (callback: (transactions: Transaction[]) => 
 };
 
 export const getTransaction = async (id: string): Promise<Transaction | null> => {
-    if (!id) return null;
+    if (!id || typeof id !== 'string') return null;
     const transactionDoc = doc(db, 'transactions', id);
     const docSnap = await getDoc(transactionDoc);
     if (docSnap.exists()) {
@@ -141,7 +142,7 @@ export const getTransactions = async (forceFetch: boolean = false): Promise<Tran
 
 
 export const getVoucherTransactions = async (voucherId: string): Promise<Transaction[]> => {
-    if (!voucherId) return [];
+    if (!voucherId || typeof voucherId !== 'string') return [];
     const q = query(transactionsCollection, where("voucherId", "==", voucherId));
     const querySnapshot = await getDocs(q);
     if (!querySnapshot.empty) {
@@ -158,15 +159,6 @@ export const getVoucherTransactions = async (voucherId: string): Promise<Transac
     return [];
 };
 
-
-export const updateTransaction = async (id: string, transaction: Partial<Omit<Transaction, 'id'>>): Promise<void> => {
-    if (!id) return;
-    const transactionDoc = doc(db, 'transactions', id);
-    await updateDoc(transactionDoc, {
-        ...transaction,
-        lastModifiedAt: new Date().toISOString(),
-    });
-};
 
 export const updateVoucher = async (voucherId: string, voucherData: any, modifiedBy: string) => {
     let batch = writeBatch(db);
