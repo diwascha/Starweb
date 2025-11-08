@@ -9,6 +9,7 @@ export async function generateStaticParams() {
     return [];
   }
   try {
+    // We pass `true` to force fetch the data during the build process
     const trips = await getTrips(true);
     if (!trips || trips.length === 0) {
       return [];
