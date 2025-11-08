@@ -244,10 +244,26 @@ export default function TripSheetsPage() {
                         {hasPermission('fleet', 'view') && (<DropdownMenuItem onSelect={() => router.push(`/fleet/trip-sheets/${trip.id}`)}><View className="mr-2 h-4 w-4" /> View</DropdownMenuItem>)}
                         {hasPermission('fleet', 'edit') && (<DropdownMenuItem onClick={() => router.push(`/fleet/trip-sheets/edit?id=${trip.id}`)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>)}
                         {hasPermission('fleet', 'delete') && <DropdownMenuSeparator />}
-                        {hasPermission('fleet', 'delete') && (<AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()}><Trash2 className="mr-2 h-4 w-4 text-destructive" /><span className="text-destructive">Delete</span></DropdownMenuItem></AlertDialogTrigger>
-                            <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone. This will permanently delete the trip sheet.</AlertDialogDescription></AlertDialogHeader>
-                            <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteTrip(trip.id)}>Delete</AlertDialogAction></AlertDialogContent>
-                        </AlertDialog>)}
+                        {hasPermission('fleet', 'delete') && (
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                                        <Trash2 className="mr-2 h-4 w-4 text-destructive" />
+                                        <span className="text-destructive">Delete</span>
+                                    </DropdownMenuItem>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                        <AlertDialogDescription>This action cannot be undone. This will permanently delete the trip sheet.</AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleDeleteTrip(trip.id)}>Delete</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        )}
                         </DropdownMenuContent>
                     </DropdownMenu></TableCell>
                 </TableRow>
