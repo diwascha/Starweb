@@ -50,7 +50,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
 }
 
 export const getEmployees = async (forceFetch: boolean = false): Promise<Employee[]> => {
-    const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
+    const isDesktop = process.env.TAURI_BUILD === 'true';
     if (isDesktop && !forceFetch) {
         return [];
     }

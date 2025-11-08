@@ -25,9 +25,9 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Product =
     };
 }
 
-export const getProducts = async (): Promise<Product[]> => {
-    const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
-    if (isDesktop) {
+export const getProducts = async (forceFetch: boolean = false): Promise<Product[]> => {
+    const isDesktop = process.env.TAURI_BUILD === 'true';
+    if (isDesktop && !forceFetch) {
         return [];
     }
     const snapshot = await getDocs(productsCollection);

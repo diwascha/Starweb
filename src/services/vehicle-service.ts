@@ -23,9 +23,9 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Vehicle =
     };
 }
 
-export const getVehicles = async (): Promise<Vehicle[]> => {
-    const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
-    if (isDesktop) {
+export const getVehicles = async (forceFetch: boolean = false): Promise<Vehicle[]> => {
+    const isDesktop = process.env.TAURI_BUILD === 'true';
+    if (isDesktop && !forceFetch) {
         return [];
     }
     const snapshot = await getDocs(vehiclesCollection);

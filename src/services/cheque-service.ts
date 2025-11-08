@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, deleteDoc, query, orderBy, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, deleteDoc, query, orderBy, updateDoc, getDocs } from 'firebase/firestore';
 import type { Cheque } from '@/lib/types';
 
 const chequesCollection = collection(db, 'cheques');
@@ -48,6 +48,12 @@ export const onChequesUpdate = (callback: (cheques: Cheque[]) => void): () => vo
         callback(snapshot.docs.map(fromFirestore));
     });
 };
+
+export const getCheques = async (): Promise<Cheque[]> => {
+    const q = query(chequesCollection, orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(fromFirestore);
+}
 
 export const deleteCheque = async (id: string): Promise<void> => {
     const chequeDoc = doc(db, 'cheques', id);

@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import type { Destination } from '@/lib/types';
 
 const destinationsCollection = collection(db, 'destinations');
@@ -15,6 +15,11 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Destinati
         lastModifiedBy: data.lastModifiedBy,
         lastModifiedAt: data.lastModifiedAt,
     };
+}
+
+export const getDestinations = async (): Promise<Destination[]> => {
+    const snapshot = await getDocs(destinationsCollection);
+    return snapshot.docs.map(fromFirestore);
 }
 
 export const addDestination = async (destination: Omit<Destination, 'id'>): Promise<string> => {

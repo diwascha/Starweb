@@ -24,6 +24,11 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): PolicyOrM
     };
 }
 
+export const getPolicies = async (): Promise<PolicyOrMembership[]> => {
+    const snapshot = await getDocs(policiesCollection);
+    return snapshot.docs.map(fromFirestore);
+}
+
 export const addPolicy = async (policy: Omit<PolicyOrMembership, 'id'>): Promise<string> => {
     const docRef = await addDoc(policiesCollection, {
         ...policy,

@@ -13,7 +13,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
         reportDate: data.reportDate,
         partyId: data.partyId,
         partyName: data.partyName,
-        kraftPaperCost: data.kraftPaperCost,
+        kraftPaperCosts: data.kraftPaperCosts,
         virginPaperCost: data.virginPaperCost,
         conversionCost: data.conversionCost,
         items: data.items,
@@ -21,6 +21,12 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
         createdBy: data.createdBy,
         createdAt: data.createdAt,
     };
+};
+
+export const getCostReports = async (): Promise<CostReport[]> => {
+    const q = query(costReportsCollection, orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(fromFirestore);
 };
 
 export const onCostReportsUpdate = (callback: (reports: CostReport[]) => void): () => void => {

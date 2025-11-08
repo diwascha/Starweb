@@ -44,7 +44,7 @@ const fromDocSnapshot = (docSnap: DocumentData): Report => {
 };
 
 export const getReports = async (forceFetch: boolean = false): Promise<Report[]> => {
-    const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
+    const isDesktop = process.env.TAURI_BUILD === 'true';
     if (isDesktop && !forceFetch) {
         return [];
     }
@@ -85,7 +85,7 @@ export const getReportsByProductId = async (productId: string): Promise<Report[]
 }
 
 export const getReportsForSerial = async (): Promise<Pick<Report, 'serialNumber'>[]> => {
-    const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
+    const isDesktop = process.env.TAURI_BUILD === 'true';
     if (isDesktop) {
         // In desktop mode, we can't pre-fetch, so we return an empty array.
         // The logic in the component will need to rely on the onSnapshot listener.

@@ -23,9 +23,9 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): RawMateri
     };
 }
 
-export const getRawMaterials = async (): Promise<RawMaterial[]> => {
-    const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
-    if (isDesktop) {
+export const getRawMaterials = async (forceFetch: boolean = false): Promise<RawMaterial[]> => {
+    const isDesktop = process.env.TAURI_BUILD === 'true';
+    if (isDesktop && !forceFetch) {
         return [];
     }
     const snapshot = await getDocs(rawMaterialsCollection);
