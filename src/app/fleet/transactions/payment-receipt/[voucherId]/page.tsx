@@ -1,3 +1,4 @@
+
 import { getVoucherTransactions, getTransactions } from '@/services/transaction-service';
 import type { Transaction, Vehicle, Party, Account } from '@/lib/types';
 import VoucherViewClient from './_components/VoucherViewClient';
@@ -13,7 +14,7 @@ export async function generateStaticParams() {
     return [];
   }
   try {
-    const transactions = await getTransactions();
+    const transactions = await getTransactions(true);
     const voucherIds = Array.from(new Set(transactions.map(t => t.voucherId).filter(Boolean)));
     return voucherIds.map(id => ({ voucherId: id as string }));
   } catch (error) {

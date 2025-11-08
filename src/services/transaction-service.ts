@@ -129,7 +129,11 @@ export const getTransaction = async (id: string): Promise<Transaction | null> =>
     }
 };
 
-export const getTransactions = async (): Promise<Transaction[]> => {
+export const getTransactions = async (forceFetch: boolean = false): Promise<Transaction[]> => {
+    const isDesktop = process.env.TAURI_BUILD === 'true';
+    if (isDesktop && !forceFetch) {
+        return [];
+    }
     const snapshot = await getDocs(transactionsCollection);
     return snapshot.docs.map(fromFirestore);
 };

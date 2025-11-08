@@ -1,3 +1,4 @@
+
 import { getVoucherTransactions } from '@/services/transaction-service';
 import { getVehicles } from '@/services/vehicle-service';
 import { getParties } from '@/services/party-service';
@@ -13,7 +14,7 @@ export async function generateStaticParams() {
         return [];
     }
     try {
-      const transactions = await getTransactions();
+      const transactions = await getTransactions(true);
       const voucherIds = Array.from(new Set(transactions.map(t => t.voucherId).filter(Boolean)));
       return voucherIds.map(id => ({ voucherId: id as string }));
     } catch (error) {

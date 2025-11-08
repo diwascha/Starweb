@@ -1,3 +1,4 @@
+
 import { getTransaction, getTransactions } from '@/services/transaction-service';
 import PurchaseViewClient from './_components/PurchaseViewClient';
 import { getVehicles } from '@/services/vehicle-service';
@@ -11,7 +12,7 @@ export async function generateStaticParams() {
     return [];
   }
   try {
-    const transactions = await getTransactions();
+    const transactions = await getTransactions(true);
     const purchaseTransactions = transactions.filter(t => t.type === 'Purchase');
     if (!purchaseTransactions || purchaseTransactions.length === 0) {
       return [];

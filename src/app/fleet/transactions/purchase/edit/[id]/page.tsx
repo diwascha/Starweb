@@ -1,3 +1,4 @@
+
 import { getTransaction, getTransactions } from '@/services/transaction-service';
 import { getVehicles } from '@/services/vehicle-service';
 import { getParties } from '@/services/party-service';
@@ -12,7 +13,7 @@ export async function generateStaticParams() {
         return [];
     }
     try {
-      const transactions = await getTransactions();
+      const transactions = await getTransactions(true);
       // Filter for purchase transactions to avoid generating pages for other types
       const purchaseTransactions = transactions.filter(t => t.type === 'Purchase');
       if (!purchaseTransactions || purchaseTransactions.length === 0) {
