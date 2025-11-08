@@ -4,6 +4,7 @@ import { getVehicles } from '@/services/vehicle-service';
 import { getParties } from '@/services/party-service';
 import { getAccounts } from '@/services/account-service';
 import { PurchaseForm } from '../../../_components/purchase-form';
+import { getUoms } from '@/services/uom-service';
 
 // This function is required for Next.js static exports to work with dynamic routes.
 export async function generateStaticParams() {
@@ -14,6 +15,9 @@ export async function generateStaticParams() {
     const transactions = await getTransactions();
     // Filter for purchase transactions to avoid generating pages for other types
     const purchaseTransactions = transactions.filter(t => t.type === 'Purchase');
+    if (!purchaseTransactions || purchaseTransactions.length === 0) {
+      return [];
+    }
     return purchaseTransactions.map((t) => ({
         id: t.id,
     }));
@@ -22,11 +26,12 @@ export async function generateStaticParams() {
 export default async function EditPurchasePage({ params }: { params: { id: string } }) {
   const { id } = params;
   
-  const [initialTransaction, vehicles, parties, accounts] = await Promise.all([
+  const [initialTransaction, vehicles, parties, accounts, uoms] = await Promise.all([
     getTransaction(id),
     getVehicles(),
     getParties(),
-    getAccounts()
+    getAccounts(),
+    getUoms()
   ]);
 
   if (!initialTransaction) {
@@ -55,7 +60,7 @@ export default async function EditPurchasePage({ params }: { params: { id: strin
           accounts={accounts}
           parties={parties}
           vehicles={vehicles}
-          uoms={[]}
+          uoms={uoms}
           onFormSubmit={async () => {}}
           onCancel={() => {}}
           initialValues={initialFormValues}

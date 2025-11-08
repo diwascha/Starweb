@@ -1,6 +1,6 @@
 
 import { TripSheetForm } from '@/app/fleet/trip-sheets/new/_components/trip-sheet-form';
-import { getTrip, onTripsUpdate, getTrips } from '@/services/trip-service';
+import { getTrip, getTrips } from '@/services/trip-service';
 
 // This function is required for Next.js static exports to work with dynamic routes.
 export async function generateStaticParams() {
@@ -9,6 +9,9 @@ export async function generateStaticParams() {
     return [];
   }
   const trips = await getTrips();
+  if (!trips || trips.length === 0) {
+    return [];
+  }
   return trips.map(trip => ({ id: trip.id }));
 }
 

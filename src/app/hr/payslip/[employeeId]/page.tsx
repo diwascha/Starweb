@@ -30,8 +30,8 @@ export async function generateStaticParams() {
 
 export default async function PayslipPage({ params, searchParams }: { params: { employeeId: string }, searchParams: { year: string, month: string } }) {
     const { employeeId } = params;
-    const bsYear = parseInt(searchParams.year, 10);
-    const bsMonth = parseInt(searchParams.month, 10);
+    const bsYear = parseInt(searchParams?.year, 10);
+    const bsMonth = parseInt(searchParams?.month, 10);
 
     if (isNaN(bsYear) || isNaN(bsMonth)) {
         return (

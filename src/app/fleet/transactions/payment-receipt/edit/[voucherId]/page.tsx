@@ -5,6 +5,7 @@ import { getParties } from '@/services/party-service';
 import { getAccounts } from '@/services/account-service';
 import { getTransactions } from '@/services/transaction-service';
 import { PaymentReceiptForm } from '../../../_components/payment-receipt-form';
+import { Suspense } from 'react';
 
 // This function is required for Next.js static exports to work with dynamic routes.
 export async function generateStaticParams() {
@@ -63,15 +64,17 @@ export default async function EditVoucherPage({ params }: { params: { voucherId:
         <h1 className="text-3xl font-bold tracking-tight">Edit Voucher</h1>
         <p className="text-muted-foreground">Modify the details for voucher #{initialFormValues.voucherNo}.</p>
       </header>
-        <PaymentReceiptForm
-          accounts={accounts}
-          parties={parties}
-          vehicles={vehicles}
-          transactions={allTransactions}
-          onFormSubmit={async () => {}}
-          onCancel={() => {}}
-          initialValues={initialFormValues}
-        />
+        <Suspense fallback={<div>Loading form...</div>}>
+            <PaymentReceiptForm
+            accounts={accounts}
+            parties={parties}
+            vehicles={vehicles}
+            transactions={allTransactions}
+            onFormSubmit={async () => {}}
+            onCancel={() => {}}
+            initialValues={initialFormValues}
+            />
+        </Suspense>
     </div>
   );
 }
