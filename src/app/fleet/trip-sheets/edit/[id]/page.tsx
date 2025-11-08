@@ -9,7 +9,7 @@ export async function generateStaticParams() {
     return [];
   }
   try {
-    const trips = await getTrips();
+    const trips = await getTrips(true);
     if (!trips || trips.length === 0) {
       return [];
     }
