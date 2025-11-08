@@ -1,3 +1,4 @@
+
 import { getVoucherTransactions, getTransactions } from '@/services/transaction-service';
 import type { Transaction, Vehicle, Party, Account } from '@/lib/types';
 import VoucherViewClient from './_components/VoucherViewClient';
