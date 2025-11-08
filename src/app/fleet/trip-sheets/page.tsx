@@ -239,14 +239,14 @@ export default function TripSheetsPage() {
                         </TooltipContent></Tooltip></TooltipProvider>
                     </TableCell>
                     <TableCell className="text-right"><DropdownMenu>
-                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="ml-2 h-4 w-4" /></Button></DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                         {hasPermission('fleet', 'view') && (<DropdownMenuItem onSelect={() => router.push(`/fleet/trip-sheets/${trip.id}`)}><View className="mr-2 h-4 w-4" /> View</DropdownMenuItem>)}
-                        {hasPermission('fleet', 'edit') && (<DropdownMenuItem onClick={() => router.push(`/fleet/trip-sheets/edit/${trip.id}`)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>)}
+                        {hasPermission('fleet', 'edit') && (<DropdownMenuItem onClick={() => router.push(`/fleet/trip-sheets/edit?id=${trip.id}`)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>)}
                         {hasPermission('fleet', 'delete') && <DropdownMenuSeparator />}
                         {hasPermission('fleet', 'delete') && (<AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()}><Trash2 className="mr-2 h-4 w-4 text-destructive" /><span className="text-destructive">Delete</span></DropdownMenuItem></AlertDialogTrigger>
                             <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone. This will permanently delete the trip sheet.</AlertDialogDescription></AlertDialogHeader>
-                            <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteTrip(trip.id)}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+                            <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteTrip(trip.id)}>Delete</AlertDialogAction></AlertDialogContent>
                         </AlertDialog>)}
                         </DropdownMenuContent>
                     </DropdownMenu></TableCell>
