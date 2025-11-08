@@ -19,6 +19,8 @@ export async function generateStaticParams() {
     if (!employees || employees.length === 0) {
       return [];
     }
+    // Note: We don't know which year/month combos exist, so we can't fully generate all payslips.
+    // This will generate one param per employee, and the page will still need to handle missing data gracefully.
     return employees.map((employee) => ({
       employeeId: employee.id,
     }));
