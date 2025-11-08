@@ -34,7 +34,10 @@ export const getPurchaseOrders = async (forceFetch: boolean = false): Promise<Pu
 };
 
 export const addPurchaseOrder = async (po: Omit<PurchaseOrder, 'id'>): Promise<string> => {
-    const docRef = await addDoc(purchaseOrdersCollection, po);
+    const docRef = await addDoc(purchaseOrdersCollection, {
+        ...po,
+        createdAt: new Date().toISOString(),
+    });
     return docRef.id;
 };
 
@@ -45,6 +48,10 @@ export const onPurchaseOrdersUpdate = (callback: (purchaseOrders: PurchaseOrder[
 };
 
 export const getPurchaseOrder = async (id: string): Promise<PurchaseOrder | null> => {
+    if (!id || typeof id !== 'string') {
+        console.error("getPurchaseOrder called with an invalid ID:", id);
+        return null;
+    }
     const poDoc = doc(db, 'purchaseOrders', id);
     const docSnap = await getDoc(poDoc);
     if (docSnap.exists()) {
