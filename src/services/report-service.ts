@@ -64,6 +64,10 @@ export const onReportsUpdate = (callback: (reports: Report[]) => void): () => vo
 };
 
 export const getReport = async (id: string): Promise<Report | null> => {
+    if (!id) {
+        console.error("getReport called with an invalid ID.");
+        return null;
+    }
     const reportDoc = doc(db, 'reports', id);
     const docSnap = await getDoc(reportDoc);
     if (docSnap.exists()) {
