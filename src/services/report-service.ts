@@ -3,8 +3,6 @@ import { db } from '@/lib/firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDoc, query, where } from 'firebase/firestore';
 import type { Report } from '@/lib/types';
 
-const reportsCollection = collection(db, 'reports');
-
 const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Report => {
     const data = snapshot.data();
     return {
@@ -64,8 +62,8 @@ export const onReportsUpdate = (callback: (reports: Report[]) => void): () => vo
 };
 
 export const getReport = async (id: string): Promise<Report | null> => {
-    if (!id) {
-        console.error("getReport called with an invalid ID.");
+    if (!id || typeof id !== 'string') {
+        console.error("getReport called with an invalid ID:", id);
         return null;
     }
     const reportDoc = doc(db, 'reports', id);

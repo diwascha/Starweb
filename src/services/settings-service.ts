@@ -6,6 +6,7 @@ import type { AppSetting, CostSetting, CostSettingHistoryEntry } from '@/lib/typ
 const settingsCollection = collection(db, 'settings');
 
 export const getSetting = async (id: string): Promise<AppSetting | null> => {
+    if (!id) return null;
     const docRef = doc(db, 'settings', id);
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
@@ -15,6 +16,11 @@ export const getSetting = async (id: string): Promise<AppSetting | null> => {
 };
 
 export const onSettingUpdate = (id: string, callback: (setting: AppSetting | null) => void): () => void => {
+    if (!id) {
+        console.error("onSettingUpdate called with an invalid ID.");
+        callback(null);
+        return () => {}; // Return a no-op unsubscribe function
+    }
     const docRef = doc(db, 'settings', id);
     return onSnapshot(docRef, (docSnap) => {
         if (docSnap.exists()) {
@@ -22,11 +28,15 @@ export const onSettingUpdate = (id: string, callback: (setting: AppSetting | nul
         } else {
             callback(null);
         }
+    }, (error) => {
+        console.error(`Error listening to setting ${id}:`, error);
+        callback(null);
     });
 };
 
 
 export const setSetting = async (id: string, value: any): Promise<void> => {
+    if (!id) return;
     const docRef = doc(db, 'settings', id);
     await setDoc(docRef, { value });
 };
