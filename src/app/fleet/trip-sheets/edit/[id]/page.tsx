@@ -1,21 +1,15 @@
 
 import { TripSheetForm } from '@/app/fleet/trip-sheets/new/_components/trip-sheet-form';
-import { getTrip, onTripsUpdate } from '@/services/trip-service';
+import { getTrip, onTripsUpdate, getTrips } from '@/services/trip-service';
 
 // This function is required for Next.js static exports to work with dynamic routes.
 export async function generateStaticParams() {
-  const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
+  const isDesktop = process.env.TAURI_BUILD === 'true';
   if (!isDesktop) {
     return [];
   }
-  // This is tricky as we can't await onSnapshot here. We'll fetch the current state.
-  // A helper function in the service would be better, but this will work.
-  return new Promise(resolve => {
-    const unsub = onTripsUpdate(trips => {
-      unsub(); // Unsubscribe immediately after getting the data
-      resolve(trips.map(trip => ({ id: trip.id })));
-    });
-  });
+  const trips = await getTrips();
+  return trips.map(trip => ({ id: trip.id }));
 }
 
 // This is a Server Component that fetches initial data

@@ -36,6 +36,16 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
     };
 }
 
+export const getTrips = async (): Promise<Trip[]> => {
+    const isDesktop = process.env.TAURI_BUILD === 'true';
+    if (isDesktop) {
+        return [];
+    }
+    const snapshot = await getDocs(tripsCollection);
+    return snapshot.docs.map(fromFirestore);
+};
+
+
 const calculateNetPay = (trip: Omit<Trip, 'id' | 'salesTransactionId' | 'createdAt'>): number => {
     const days = trip.detentionStartDate && trip.detentionEndDate ? differenceInDays(new Date(trip.detentionEndDate), new Date(trip.detentionStartDate)) + 1 : 0;
     
@@ -296,5 +306,3 @@ export const deleteTrip = async (id: string): Promise<void> => {
         await batch.commit();
     }
 };
-
-    

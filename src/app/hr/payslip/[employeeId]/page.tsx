@@ -10,14 +10,15 @@ const nepaliMonths = [
 
 // This function is required for Next.js static exports to work with dynamic routes.
 export async function generateStaticParams() {
-  // For static export, we need to fetch all employees regardless of the environment.
+  const isDesktop = process.env.TAURI_BUILD === 'true';
+  if (!isDesktop) {
+    return [];
+  }
   try {
-    // This now correctly fetches employees for the build process.
     const employees = await getEmployees(true); 
     if (!employees || employees.length === 0) {
       return [];
     }
-    // We need to generate a param for each employee.
     return employees.map((employee) => ({
       employeeId: employee.id,
     }));

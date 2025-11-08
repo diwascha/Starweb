@@ -7,6 +7,10 @@ import { getAccounts } from '@/services/account-service';
 
 // This function is required for Next.js static exports to work with dynamic routes.
 export async function generateStaticParams() {
+  const isDesktop = process.env.TAURI_BUILD === 'true';
+  if (!isDesktop) {
+    return [];
+  }
   const transactions = await getTransactions();
   const purchaseTransactions = transactions.filter(t => t.type === 'Purchase');
   if (!purchaseTransactions || purchaseTransactions.length === 0) {

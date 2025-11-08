@@ -9,7 +9,7 @@ import { getAccounts } from '@/services/account-service';
 
 // This function is required for Next.js static exports to work with dynamic routes.
 export async function generateStaticParams() {
-  const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
+  const isDesktop = process.env.TAURI_BUILD === 'true';
   if (!isDesktop) {
     return [];
   }

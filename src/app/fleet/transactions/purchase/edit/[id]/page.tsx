@@ -7,16 +7,16 @@ import { PurchaseForm } from '../../../_components/purchase-form';
 
 // This function is required for Next.js static exports to work with dynamic routes.
 export async function generateStaticParams() {
-  const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
-  if (!isDesktop) {
-    return [];
-  }
-  const transactions = await getTransactions();
-  // Filter for purchase transactions to avoid generating pages for other types
-  const purchaseTransactions = transactions.filter(t => t.type === 'Purchase');
-  return purchaseTransactions.map((t) => ({
-    id: t.id,
-  }));
+    const isDesktop = process.env.TAURI_BUILD === 'true';
+    if (!isDesktop) {
+        return [];
+    }
+    const transactions = await getTransactions();
+    // Filter for purchase transactions to avoid generating pages for other types
+    const purchaseTransactions = transactions.filter(t => t.type === 'Purchase');
+    return purchaseTransactions.map((t) => ({
+        id: t.id,
+    }));
 }
 
 export default async function EditPurchasePage({ params }: { params: { id: string } }) {
