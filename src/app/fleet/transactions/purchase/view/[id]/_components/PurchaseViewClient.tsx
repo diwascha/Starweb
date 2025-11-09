@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -10,6 +11,11 @@ import { Separator } from '@/components/ui/separator';
 import { toNepaliDate } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
+import { getTransaction } from '@/services/transaction-service';
+import { getVehicles } from '@/services/vehicle-service';
+import { getParties } from '@/services/party-service';
+import { getAccounts } from '@/services/account-service';
+
 
 interface PurchaseViewClientProps {
   initialTransaction: Transaction;

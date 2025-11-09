@@ -242,7 +242,7 @@ export default function TripSheetsPage() {
                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="ml-2 h-4 w-4" /></Button></DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                         {hasPermission('fleet', 'view') && (<DropdownMenuItem onSelect={() => router.push(`/fleet/trip-sheets/${trip.id}`)}><View className="mr-2 h-4 w-4" /> View</DropdownMenuItem>)}
-                        {hasPermission('fleet', 'edit') && (<DropdownMenuItem onClick={() => router.push(`/fleet/trip-sheets/edit?id=${trip.id}`)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>)}
+                        {hasPermission('fleet', 'edit') && (<DropdownMenuItem onClick={() => router.push(`/fleet/trip-sheets/edit/${trip.id}`)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>)}
                         {hasPermission('fleet', 'delete') && <DropdownMenuSeparator />}
                         {hasPermission('fleet', 'delete') && (
                             <AlertDialog>
