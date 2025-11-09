@@ -1,6 +1,6 @@
 
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
+import { getFirestore, enableIndexedDbPersistence, initializeFirestore, persistentLocalCache } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
@@ -14,33 +14,26 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const db = getFirestore(app);
-const storage = getStorage(app);
 
 // --- Robust Offline Persistence ---
-// A flag to ensure we only try to enable persistence once.
-let persistenceEnabled = false;
+let db: ReturnType<typeof getFirestore>;
 
-if (typeof window !== 'undefined' && !persistenceEnabled) {
+if (typeof window !== 'undefined') {
   try {
-    enableIndexedDbPersistence(db)
-      .then(() => {
-        console.log("Firebase offline persistence enabled.");
-        persistenceEnabled = true;
-      })
-      .catch((error: any) => {
-          if (error.code == 'failed-precondition') {
-              console.warn("Firestore offline persistence could not be enabled, multiple tabs open?");
-          } else if (error.code == 'unimplemented') {
-              console.log("Firestore offline persistence is not available in this browser.");
-          }
-          persistenceEnabled = true; // Mark as "attempted" to prevent retries
-      });
-  } catch (error) {
-    console.error("Error setting up offline persistence:", error);
-    persistenceEnabled = true; // Mark as "attempted" even if it throws synchronously
+    // Use initializeFirestore for more control over caching
+    db = initializeFirestore(app, {
+      localCache: persistentLocalCache({})
+    });
+  } catch (error: any) {
+    console.error("Failed to initialize Firestore with persistent cache, falling back.", error);
+    // Fallback to default getFirestore if initialization fails
+    db = getFirestore(app);
   }
+} else {
+  // Server-side rendering or environments without window
+  db = getFirestore(app);
 }
 
+const storage = getStorage(app);
 
 export { app, db, storage };

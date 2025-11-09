@@ -55,6 +55,7 @@ export const addCostReport = async (report: Omit<CostReport, 'id' | 'createdAt'>
 };
 
 export const updateCostReport = async (id: string, report: Partial<Omit<CostReport, 'id'>>): Promise<void> => {
+    if (!id) return;
     const reportDoc = doc(db, 'costReports', id);
     await updateDoc(reportDoc, {
         ...report,
@@ -64,6 +65,7 @@ export const updateCostReport = async (id: string, report: Partial<Omit<CostRepo
 
 
 export const deleteCostReport = async (id: string): Promise<void> => {
+    if (!id) return;
     await deleteDoc(doc(db, 'costReports', id));
 };
 

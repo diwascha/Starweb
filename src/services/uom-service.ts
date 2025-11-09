@@ -38,6 +38,7 @@ export const onUomsUpdate = (callback: (uoms: UnitOfMeasurement[]) => void): () 
 };
 
 export const updateUom = async (id: string, uom: Partial<Omit<UnitOfMeasurement, 'id'>>): Promise<void> => {
+    if (!id) return;
     const uomDoc = doc(db, 'uom', id);
     await updateDoc(uomDoc, {
         ...uom,
@@ -46,6 +47,7 @@ export const updateUom = async (id: string, uom: Partial<Omit<UnitOfMeasurement,
 };
 
 export const deleteUom = async (id: string): Promise<void> => {
+    if (!id) return;
     const uomDoc = doc(db, 'uom', id);
     await deleteDoc(uomDoc);
 };

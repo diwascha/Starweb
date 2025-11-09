@@ -47,6 +47,7 @@ export const onVehiclesUpdate = (callback: (vehicles: Vehicle[]) => void): () =>
 };
 
 export const updateVehicle = async (id: string, vehicle: Partial<Omit<Vehicle, 'id'>>): Promise<void> => {
+    if (!id) return;
     const vehicleDoc = doc(db, 'vehicles', id);
     await updateDoc(vehicleDoc, {
         ...vehicle,
@@ -55,6 +56,7 @@ export const updateVehicle = async (id: string, vehicle: Partial<Omit<Vehicle, '
 };
 
 export const deleteVehicle = async (id: string): Promise<void> => {
+    if (!id) return;
     const vehicleDoc = doc(db, 'vehicles', id);
     await deleteDoc(vehicleDoc);
 };

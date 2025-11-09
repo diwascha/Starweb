@@ -63,11 +63,13 @@ export const getPurchaseOrder = async (id: string): Promise<PurchaseOrder | null
 
 
 export const updatePurchaseOrder = async (id: string, po: Partial<Omit<PurchaseOrder, 'id'>>): Promise<void> => {
+    if (!id) return;
     const poDoc = doc(db, 'purchaseOrders', id);
     await updateDoc(poDoc, po);
 };
 
 export const deletePurchaseOrder = async (id: string): Promise<void> => {
+    if (!id) return;
     const poDoc = doc(db, 'purchaseOrders', id);
     await deleteDoc(poDoc);
 };

@@ -65,6 +65,7 @@ export const onPartiesUpdate = (callback: (parties: Party[]) => void): () => voi
 };
 
 export const updateParty = async (id: string, party: Partial<Omit<Party, 'id'>>): Promise<void> => {
+    if (!id) return;
     const partyDoc = doc(db, 'parties', id);
     await updateDoc(partyDoc, {
         ...party,
@@ -73,6 +74,7 @@ export const updateParty = async (id: string, party: Partial<Omit<Party, 'id'>>)
 };
 
 export const deleteParty = async (id: string): Promise<void> => {
+    if (!id) return;
     const partyDoc = doc(db, 'parties', id);
     await deleteDoc(partyDoc);
 };

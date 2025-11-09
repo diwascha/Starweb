@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -12,13 +13,7 @@ import {
   SidebarContent,
   useSidebar,
 } from '@/components/ui/sidebar';
-import {
-    Accordion,
-    AccordionContent,
-    AccordionItem,
-    AccordionTrigger,
-} from "@/components/ui/accordion"
-import { FileText, LayoutDashboard, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users, Calendar, Award, Wallet, Building2, PlusCircle, Truck, ShieldCheck, CreditCard, ArrowRightLeft, TrendingUp, BarChart2, Notebook, Download, Calculator, PanelLeft, PanelRight, Receipt, Briefcase, ChevronDown } from 'lucide-react';
+import { FileText, LayoutDashboard, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users, Calendar, Award, Wallet, Building2, PlusCircle, Truck, ShieldCheck, CreditCard, ArrowRightLeft, TrendingUp, BarChart2, Notebook, Download, Calculator, PanelLeft, PanelRight, Receipt, Briefcase } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
@@ -44,26 +39,12 @@ function SidebarCollapseButton() {
     )
 }
 
-const AccordionMenuTrigger = ({ children, isActive }: { children: React.ReactNode, isActive: boolean }) => (
-    <AccordionTrigger className={cn(
-        "flex w-full items-center gap-2 rounded-md p-2 text-left text-sm font-medium ring-sidebar-ring transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50",
-        isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
-        "hover:no-underline", // remove underline on hover
-        "py-2", // adjust padding
-        "[&[data-state=open]>svg:last-child]:rotate-180"
-    )}>
-        {children}
-        <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200 ml-auto" />
-    </AccordionTrigger>
-);
-
 export function AppSidebar() {
   const pathname = usePathname();
   const [isClient, setIsClient] = useState(false);
   const { user, logout, hasPermission } = useAuth();
   const { toast } = useToast();
   const [isExporting, setIsExporting] = useState(false);
-  const { state: sidebarState } = useSidebar();
 
   useEffect(() => {
     setIsClient(true);
@@ -102,16 +83,6 @@ export function AppSidebar() {
     return pathname.startsWith(path) && (pathname[path.length] === '/' || pathname.length === path.length);
   };
   
-  const getActiveAccordionItem = () => {
-    if (getIsActive('/finance')) return 'finance';
-    if (getIsActive('/reports') || getIsActive('/products') || getIsActive('/report/new')) return 'reports';
-    if (getIsActive('/purchase-orders') || getIsActive('/raw-materials')) return 'purchase-orders';
-    if (getIsActive('/crm')) return 'crm';
-    if (getIsActive('/hr')) return 'hr';
-    if (getIsActive('/fleet')) return 'fleet';
-    return '';
-  };
-  
   if (!user) {
     return null;
   }
@@ -137,154 +108,179 @@ export function AppSidebar() {
             )}
         </SidebarMenu>
         
-        <Accordion type="single" collapsible defaultValue={getActiveAccordionItem()} className="w-full">
-            {hasPermission('finance', 'view') && (
-                <AccordionItem value="finance" className="border-b-0">
-                    <AccordionMenuTrigger isActive={getIsActive('/finance')}>
+        {hasPermission('finance', 'view') && (
+            <SidebarMenu>
+                <SidebarSeparator />
+                 <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={getIsActive('/finance')}>
+                    <Link href="/finance">
                         <Calculator />
-                        <span className={cn(sidebarState === 'collapsed' && 'hidden')}>Finance</span>
-                    </AccordionMenuTrigger>
-                    <AccordionContent className="ml-4 pl-0 pb-0">
-                        <SidebarMenu>
-                            <SidebarMenuItem>
-                                <SidebarMenuButton asChild isActive={getIsActive('/finance/estimate-invoice')}>
-                                <Link href="/finance/estimate-invoice"><FileText /><span>Estimate Invoice</span></Link>
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
-                            <SidebarMenuItem>
-                                <SidebarMenuButton asChild isActive={getIsActive('/finance/tds-calculator')}>
-                                <Link href="/finance/tds-calculator"><Calculator /><span>TDS Calculator</span></Link>
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
-                            <SidebarMenuItem>
-                                <SidebarMenuButton asChild isActive={getIsActive('/finance/cheque-generator')}>
-                                <Link href="/finance/cheque-generator"><Receipt /><span>Cheque Generator</span></Link>
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
-                        </SidebarMenu>
-                    </AccordionContent>
-                </AccordionItem>
-            )}
+                        <span>Finance</span>
+                    </Link>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+                <div className="ml-4">
+                    <SidebarMenuItem>
+                        <SidebarMenuButton asChild isActive={getIsActive('/finance/estimate-invoice')}>
+                        <Link href="/finance/estimate-invoice">
+                            <FileText />
+                            <span>Estimate Invoice</span>
+                        </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton asChild isActive={getIsActive('/finance/tds-calculator')}>
+                        <Link href="/finance/tds-calculator">
+                            <Calculator />
+                            <span>TDS Calculator</span>
+                        </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton asChild isActive={getIsActive('/finance/cheque-generator')}>
+                        <Link href="/finance/cheque-generator">
+                            <Receipt />
+                            <span>Cheque Generator</span>
+                        </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                </div>
+            </SidebarMenu>
+        )}
 
-            {(hasPermission('reports', 'view') || hasPermission('products', 'view')) && (
-                 <AccordionItem value="reports" className="border-b-0">
-                    <AccordionMenuTrigger isActive={getIsActive('/reports') || getIsActive('/products') || getIsActive('/report/new')}>
+        {(hasPermission('reports', 'view') || hasPermission('products', 'view')) && (
+            <SidebarMenu>
+                <SidebarSeparator />
+                 <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={getIsActive('/reports')}>
+                    <Link href="/reports">
                         <FileText />
-                        <span className={cn(sidebarState === 'collapsed' && 'hidden')}>Test Report Mgmt</span>
-                    </AccordionMenuTrigger>
-                    <AccordionContent className="ml-4 pl-0 pb-0">
-                        <SidebarMenu>
-                            {hasPermission('reports', 'create') && (
-                                <SidebarMenuItem>
-                                    <SidebarMenuButton asChild isActive={getIsActive('/report/new', true)}><Link href="/report/new"><PlusCircle /><span>New QT Reports</span></Link></SidebarMenuButton>
-                                </SidebarMenuItem>
-                            )}
-                            {hasPermission('reports', 'view') && (
-                                <SidebarMenuItem>
-                                    <SidebarMenuButton asChild isActive={getIsActive('/reports/list')}><Link href="/reports/list"><FileSpreadsheet /><span>QT Reports Database</span></Link></SidebarMenuButton>
-                                </SidebarMenuItem>
-                            )}
-                            {hasPermission('products', 'view') && (
-                                <SidebarMenuItem>
-                                    <SidebarMenuButton asChild isActive={getIsActive('/products')}><Link href="/products"><Package /><span>QT Products</span></Link></SidebarMenuButton>
-                                </SidebarMenuItem>
-                            )}
-                        </SidebarMenu>
-                    </AccordionContent>
-                </AccordionItem>
-            )}
-            
-            {(hasPermission('purchaseOrders', 'view') || hasPermission('rawMaterials', 'view')) && (
-                 <AccordionItem value="purchase-orders" className="border-b-0">
-                    <AccordionMenuTrigger isActive={getIsActive('/purchase-orders') || getIsActive('/raw-materials')}>
-                        <ShoppingCart />
-                        <span className={cn(sidebarState === 'collapsed' && 'hidden')}>Purchase Order Mgmt</span>
-                    </AccordionMenuTrigger>
-                    <AccordionContent className="ml-4 pl-0 pb-0">
-                       <SidebarMenu>
-                            {hasPermission('purchaseOrders', 'view') && (
-                                <SidebarMenuItem>
-                                    <SidebarMenuButton asChild isActive={getIsActive('/purchase-orders/list')}><Link href="/purchase-orders/list"><FileSpreadsheet /><span>Purchase Orders</span></Link></SidebarMenuButton>
-                                </SidebarMenuItem>
-                            )}
-                            {hasPermission('rawMaterials', 'view') && (
-                                <SidebarMenuItem>
-                                    <SidebarMenuButton asChild isActive={getIsActive('/raw-materials')}><Link href="/raw-materials"><Wrench /><span>Raw Materials</span></Link></SidebarMenuButton>
-                                </SidebarMenuItem>
-                            )}
-                        </SidebarMenu>
-                    </AccordionContent>
-                </AccordionItem>
-            )}
-
-            {hasPermission('crm', 'view') && (
-                 <AccordionItem value="crm" className="border-b-0">
-                    <AccordionMenuTrigger isActive={getIsActive('/crm')}>
-                        <Briefcase />
-                        <span className={cn(sidebarState === 'collapsed' && 'hidden')}>CRM</span>
-                    </AccordionMenuTrigger>
-                    <AccordionContent className="ml-4 pl-0 pb-0">
-                        <SidebarMenu>
-                            <SidebarMenuItem>
-                                <SidebarMenuButton asChild isActive={getIsActive('/crm/cost-report')}><Link href="/crm/cost-report"><Calculator /><span>Cost Report</span></Link></SidebarMenuButton>
-                            </SidebarMenuItem>
-                            <SidebarMenuItem>
-                                <SidebarMenuButton asChild isActive={getIsActive('/crm/pack-spec')}><Link href="/crm/pack-spec"><FileText /><span>PackSpec</span></Link></SidebarMenuButton>
-                            </SidebarMenuItem>
-                        </SidebarMenu>
-                    </AccordionContent>
-                </AccordionItem>
-            )}
+                        <span>Test Report Mgmt</span>
+                    </Link>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+                <div className="ml-4">
+                    {hasPermission('reports', 'create') && (
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={getIsActive('/report/new', true)}><Link href="/report/new"><PlusCircle /><span>New QT Reports</span></Link></SidebarMenuButton>
+                        </SidebarMenuItem>
+                    )}
+                    {hasPermission('reports', 'view') && (
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={getIsActive('/reports/list')}><Link href="/reports/list"><FileSpreadsheet /><span>QT Reports Database</span></Link></SidebarMenuButton>
+                        </SidebarMenuItem>
+                    )}
+                    {hasPermission('products', 'view') && (
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={getIsActive('/products')}><Link href="/products"><Package /><span>QT Products</span></Link></SidebarMenuButton>
+                        </SidebarMenuItem>
+                    )}
+                </div>
+            </SidebarMenu>
+        )}
         
-            <AccordionItem value="hr" className="border-b-0">
-                <AccordionMenuTrigger isActive={getIsActive('/hr')}>
+        {(hasPermission('purchaseOrders', 'view') || hasPermission('rawMaterials', 'view')) && (
+            <SidebarMenu>
+                <SidebarSeparator />
+                 <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={getIsActive('/purchase-orders')}>
+                    <Link href="/purchase-orders">
+                        <ShoppingCart />
+                        <span>Purchase Order Mgmt</span>
+                    </Link>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+                <div className="ml-4">
+                    {hasPermission('purchaseOrders', 'view') && (
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={getIsActive('/purchase-orders/list')}><Link href="/purchase-orders/list"><FileSpreadsheet /><span>Purchase Orders</span></Link></SidebarMenuButton>
+                        </SidebarMenuItem>
+                    )}
+                    {hasPermission('rawMaterials', 'view') && (
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={getIsActive('/raw-materials')}><Link href="/raw-materials"><Wrench /><span>Raw Materials</span></Link></SidebarMenuButton>
+                        </SidebarMenuItem>
+                    )}
+                </div>
+            </SidebarMenu>
+        )}
+
+        {hasPermission('crm', 'view') && (
+            <SidebarMenu>
+                <SidebarSeparator />
+                <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={getIsActive('/crm')}>
+                    <Link href="/crm">
+                        <Briefcase />
+                        <span>CRM</span>
+                    </Link>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+                <div className="ml-4">
+                    <SidebarMenuItem>
+                        <SidebarMenuButton asChild isActive={getIsActive('/crm/cost-report')}><Link href="/crm/cost-report"><Calculator /><span>Cost Report</span></Link></SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton asChild isActive={getIsActive('/crm/pack-spec')}><Link href="/crm/pack-spec"><FileText /><span>PackSpec</span></Link></SidebarMenuButton>
+                    </SidebarMenuItem>
+                </div>
+            </SidebarMenu>
+        )}
+    
+        <SidebarMenu>
+             <SidebarSeparator />
+             <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={getIsActive('/hr')}>
+                <Link href="/hr">
                     <Building2 />
-                    <span className={cn(sidebarState === 'collapsed' && 'hidden')}>HRMS</span>
-                </AccordionMenuTrigger>
-                <AccordionContent className="ml-4 pl-0 pb-0">
-                    <SidebarMenu>
-                        <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/hr/employees')}><Link href="/hr/employees"><Users /><span>Employees</span></Link></SidebarMenuButton></SidebarMenuItem>
-                        <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/hr/attendance')}><Link href="/hr/attendance"><Calendar /><span>Attendance</span></Link></SidebarMenuButton></SidebarMenuItem>
-                        <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/hr/analytics')}><Link href="/hr/analytics"><BarChart2 /><span>Analytics</span></Link></SidebarMenuButton></SidebarMenuItem>
-                        <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/hr/payroll')}><Link href="/hr/payroll"><FileText /><span>Payroll</span></Link></SidebarMenuButton></SidebarMenuItem>
-                        <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/hr/bonus')}><Link href="/hr/bonus"><Award /><span>Bonus</span></Link></SidebarMenuButton></SidebarMenuItem>
-                        <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/hr/payslip')}><Link href="/hr/payslip"><Wallet /><span>Payslip</span></Link></SidebarMenuButton></SidebarMenuItem>
-                    </SidebarMenu>
-                </AccordionContent>
-            </AccordionItem>
-            
-            {hasPermission('fleet', 'view') && (
-                <AccordionItem value="fleet" className="border-b-0">
-                    <AccordionMenuTrigger isActive={getIsActive('/fleet')}>
+                    <span>HRMS</span>
+                </Link>
+                </SidebarMenuButton>
+            </SidebarMenuItem>
+            <div className="ml-4">
+                <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/hr/employees')}><Link href="/hr/employees"><Users /><span>Employees</span></Link></SidebarMenuButton></SidebarMenuItem>
+                <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/hr/attendance')}><Link href="/hr/attendance"><Calendar /><span>Attendance</span></Link></SidebarMenuButton></SidebarMenuItem>
+                <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/hr/analytics')}><Link href="/hr/analytics"><BarChart2 /><span>Analytics</span></Link></SidebarMenuButton></SidebarMenuItem>
+                <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/hr/payroll')}><Link href="/hr/payroll"><FileText /><span>Payroll</span></Link></SidebarMenuButton></SidebarMenuItem>
+                <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/hr/bonus')}><Link href="/hr/bonus"><Award /><span>Bonus</span></Link></SidebarMenuButton></SidebarMenuItem>
+                <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/hr/payslip')}><Link href="/hr/payslip"><Wallet /><span>Payslip</span></Link></SidebarMenuButton></SidebarMenuItem>
+            </div>
+        </SidebarMenu>
+        
+        {hasPermission('fleet', 'view') && (
+             <SidebarMenu>
+                <SidebarSeparator />
+                 <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={getIsActive('/fleet')}>
+                    <Link href="/fleet">
                         <Truck />
-                        <span className={cn(sidebarState === 'collapsed' && 'hidden')}>Fleet Management</span>
-                    </AccordionMenuTrigger>
-                    <AccordionContent className="ml-4 pl-0 pb-0">
-                       <SidebarMenu>
-                            <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/vehicles')}><Link href="/fleet/vehicles"><Truck /><span>Vehicles</span></Link></SidebarMenuButton></SidebarMenuItem>
-                            <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/drivers')}><Link href="/fleet/drivers"><Users /><span>Drivers</span></Link></SidebarMenuButton></SidebarMenuItem>
-                            <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/policies')}><Link href="/fleet/policies"><ShieldCheck /><span>Policies & Memberships</span></Link></SidebarMenuButton></SidebarMenuItem>
-                            <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions')}><Link href="/fleet/transactions"><CreditCard /><span>Transactions</span></Link></SidebarMenuButton></SidebarMenuItem>
+                        <span>Fleet Management</span>
+                    </Link>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+                <div className="ml-4">
+                    <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/vehicles')}><Link href="/fleet/vehicles"><Truck /><span>Vehicles</span></Link></SidebarMenuButton></SidebarMenuItem>
+                    <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/drivers')}><Link href="/fleet/drivers"><Users /><span>Drivers</span></Link></SidebarMenuButton></SidebarMenuItem>
+                    <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/policies')}><Link href="/fleet/policies"><ShieldCheck /><span>Policies & Memberships</span></Link></SidebarMenuButton></SidebarMenuItem>
+                    <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions')}><Link href="/fleet/transactions"><CreditCard /><span>Transactions</span></Link></SidebarMenuButton></SidebarMenuItem>
+                    <div className="ml-4">
+                        <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/parties')}><Link href="/fleet/parties"><Users /><span>Party Ledger</span></Link></SidebarMenuButton></SidebarMenuItem>
+                        <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/trip-sheets')}><Link href="/fleet/trip-sheets"><FileText /><span>Sales - Trip Sheet</span></Link></SidebarMenuButton></SidebarMenuItem>
+                        {hasPermission('fleet', 'create') && (
                             <div className="ml-4">
-                                <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/parties')}><Link href="/fleet/parties"><Users /><span>Party Ledger</span></Link></SidebarMenuButton></SidebarMenuItem>
-                                <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/trip-sheets')}><Link href="/fleet/trip-sheets"><FileText /><span>Sales - Trip Sheet</span></Link></SidebarMenuButton></SidebarMenuItem>
-                                {hasPermission('fleet', 'create') && (
-                                    <div className="ml-4">
-                                        <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/trip-sheets/new')}><Link href="/fleet/trip-sheets/new"><TrendingUp /><span>Sales Entry</span></Link></SidebarMenuButton></SidebarMenuItem>
-                                    </div>
-                                )}
-                                {hasPermission('fleet', 'create') && (
-                                    <>
-                                        <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/purchase/new')}><Link href="/fleet/transactions/purchase/new"><ShoppingCart /><span>Purchase</span></Link></SidebarMenuButton></SidebarMenuItem>
-                                        <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/payment-receipt/new')}><Link href="/fleet/transactions/payment-receipt/new"><ArrowRightLeft /><span>Payment / Receipt</span></Link></SidebarMenuButton></SidebarMenuItem>
-                                    </>
-                                )}
+                                <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/trip-sheets/new')}><Link href="/fleet/trip-sheets/new"><TrendingUp /><span>Sales Entry</span></Link></SidebarMenuButton></SidebarMenuItem>
                             </div>
-                        </SidebarMenu>
-                    </AccordionContent>
-                </AccordionItem>
-            )}
-        </Accordion>
+                        )}
+                        {hasPermission('fleet', 'create') && (
+                            <>
+                                <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/purchase/new')}><Link href="/fleet/transactions/purchase/new"><ShoppingCart /><span>Purchase</span></Link></SidebarMenuButton></SidebarMenuItem>
+                                <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/payment-receipt/new')}><Link href="/fleet/transactions/payment-receipt/new"><ArrowRightLeft /><span>Payment / Receipt</span></Link></SidebarMenuButton></SidebarMenuItem>
+                            </>
+                        )}
+                    </div>
+                </div>
+            </SidebarMenu>
+        )}
         
         <SidebarMenu>
             <SidebarSeparator />

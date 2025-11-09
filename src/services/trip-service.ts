@@ -162,6 +162,7 @@ export const getTrip = async (id: string): Promise<Trip | null> => {
 };
 
 export const updateTrip = async (id: string, tripUpdate: Partial<Omit<Trip, 'id' | 'createdAt'>>): Promise<void> => {
+    if (!id) return;
     let batch = writeBatch(db);
     let writeCount = 0;
     const tripRef = doc(db, 'trips', id);

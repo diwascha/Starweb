@@ -85,12 +85,6 @@ export const getReportsByProductId = async (productId: string): Promise<Report[]
 }
 
 export const getReportsForSerial = async (): Promise<Pick<Report, 'serialNumber'>[]> => {
-    const isDesktop = process.env.TAURI_BUILD === 'true';
-    if (isDesktop) {
-        // In desktop mode, we can't pre-fetch, so we return an empty array.
-        // The logic in the component will need to rely on the onSnapshot listener.
-        return [];
-    }
     const snapshot = await getDocs(reportsCollection);
     return snapshot.docs.map(doc => ({ serialNumber: doc.data().serialNumber }));
 };
