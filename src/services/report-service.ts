@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { connectionPromiseInstance as connectionPromise } from '@/lib/firebase-connection';
+import { connectionPromise } from '@/lib/firebase-connection';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDoc, query, where } from 'firebase/firestore';
 import type { Report } from '@/lib/types';
 
@@ -44,7 +44,7 @@ const fromDocSnapshot = (docSnap: DocumentData): Report => {
     };
 };
 
-export const getReports = async (): Promise<Report[]> => {
+export const getReports = async (forceFetch: boolean = false): Promise<Report[]> => {
     await connectionPromise;
     const snapshot = await getDocs(reportsCollection);
     return snapshot.docs.map(fromFirestore);
@@ -89,7 +89,7 @@ export const getReportsByProductId = async (productId: string): Promise<Report[]
     return snapshot.docs.map(fromFirestore);
 }
 
-export const getReportsForSerial = async (): Promise<Pick<Report, 'serialNumber'>[]> => {
+export const getReportsForSerial = async (forceFetch: boolean = false): Promise<Pick<Report, 'serialNumber'>[]> => {
     await connectionPromise;
     const snapshot = await getDocs(reportsCollection);
     return snapshot.docs.map(doc => ({ serialNumber: doc.data().serialNumber }));

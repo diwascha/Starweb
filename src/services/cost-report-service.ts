@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { connectionPromiseInstance as connectionPromise } from '@/lib/firebase-connection';
+import { connectionPromise } from '@/lib/firebase-connection';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, query, orderBy, deleteDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
 import type { CostReport } from '@/lib/types';
 
@@ -24,7 +24,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
     };
 };
 
-export const getCostReports = async (): Promise<CostReport[]> => {
+export const getCostReports = async (forceFetch: boolean = false): Promise<CostReport[]> => {
     await connectionPromise;
     const q = query(costReportsCollection, orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);

@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { connectionPromiseInstance as connectionPromise } from '@/lib/firebase-connection';
+import { connectionPromise } from '@/lib/firebase-connection';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, doc, updateDoc, deleteDoc, getDoc, writeBatch } from 'firebase/firestore';
 import type { Trip, Transaction } from '@/lib/types';
 import { differenceInDays } from 'date-fns';
@@ -37,7 +37,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
     };
 }
 
-export const getTrips = async (): Promise<Trip[]> => {
+export const getTrips = async (forceFetch: boolean = false): Promise<Trip[]> => {
     await connectionPromise;
     const snapshot = await getDocs(tripsCollection);
     return snapshot.docs.map(fromFirestore);

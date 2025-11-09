@@ -1,5 +1,6 @@
 
 import { db } from '@/lib/firebase';
+import { connectionPromise } from '@/lib/firebase-connection';
 import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, writeBatch, query, where, getDoc } from 'firebase/firestore';
 import type { Transaction } from '@/lib/types';
 
@@ -35,6 +36,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
 }
 
 export const getTransactionsForParty = async (partyId: string): Promise<Transaction[]> => {
+    await connectionPromise;
     if (!partyId) return [];
     const q = query(transactionsCollection, where("partyId", "==", partyId));
     const querySnapshot = await getDocs(q);
@@ -43,6 +45,7 @@ export const getTransactionsForParty = async (partyId: string): Promise<Transact
 
 
 export const addTransaction = async (transaction: Omit<Transaction, 'id' | 'createdAt' | 'lastModifiedAt'>): Promise<string> => {
+    await connectionPromise;
     const docRef = await addDoc(transactionsCollection, {
         ...transaction,
         createdAt: new Date().toISOString(),
@@ -51,6 +54,7 @@ export const addTransaction = async (transaction: Omit<Transaction, 'id' | 'crea
 };
 
 export const updateTransaction = async (id: string, transaction: Partial<Omit<Transaction, 'id'>>): Promise<void> => {
+    await connectionPromise;
     const transactionDoc = doc(db, 'transactions', id);
     await updateDoc(transactionDoc, {
         ...transaction,
@@ -60,6 +64,7 @@ export const updateTransaction = async (id: string, transaction: Partial<Omit<Tr
 
 
 export const saveVoucher = async (voucherData: any, createdBy: string) => {
+    await connectionPromise;
     let batch = writeBatch(db);
     let writeCount = 0;
     const BATCH_LIMIT = 499;
@@ -124,12 +129,17 @@ export const saveVoucher = async (voucherData: any, createdBy: string) => {
 
 
 export const onTransactionsUpdate = (callback: (transactions: Transaction[]) => void): () => void => {
+    connectionPromise.then(() => {
+        // Ready to listen
+    }).catch(err => console.error("Firestore connection failed, not attaching listener", err));
+
     return onSnapshot(transactionsCollection, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
     });
 };
 
 export const getTransaction = async (id: string): Promise<Transaction | null> => {
+    await connectionPromise;
     if (!id || typeof id !== 'string') return null;
     const transactionDoc = doc(db, 'transactions', id);
     const docSnap = await getDoc(transactionDoc);
@@ -140,13 +150,15 @@ export const getTransaction = async (id: string): Promise<Transaction | null> =>
     }
 };
 
-export const getTransactions = async (): Promise<Transaction[]> => {
+export const getTransactions = async (forceFetch: boolean = false): Promise<Transaction[]> => {
+    await connectionPromise;
     const snapshot = await getDocs(transactionsCollection);
     return snapshot.docs.map(fromFirestore);
 };
 
 
 export const getVoucherTransactions = async (voucherId: string): Promise<Transaction[]> => {
+    await connectionPromise;
     if (!voucherId || typeof voucherId !== 'string') return [];
     const q = query(transactionsCollection, where("voucherId", "==", voucherId));
     const querySnapshot = await getDocs(q);
@@ -166,6 +178,10 @@ export const getVoucherTransactions = async (voucherId: string): Promise<Transac
 
 
 export const onVoucherTransactionsUpdate = (voucherId: string, callback: (transactions: Transaction[]) => void): () => void => {
+    connectionPromise.then(() => {
+        // Ready to listen
+    }).catch(err => console.error("Firestore connection failed, not attaching listener", err));
+
     const q = query(transactionsCollection, where("voucherId", "==", voucherId));
     return onSnapshot(q, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
@@ -174,6 +190,7 @@ export const onVoucherTransactionsUpdate = (voucherId: string, callback: (transa
 
 
 export const updateVoucher = async (voucherId: string, voucherData: any, modifiedBy: string) => {
+    await connectionPromise;
     let batch = writeBatch(db);
     let writeCount = 0;
     const BATCH_LIMIT = 499;
@@ -256,12 +273,14 @@ export const updateVoucher = async (voucherId: string, voucherData: any, modifie
 
 
 export const deleteTransaction = async (id: string): Promise<void> => {
+    await connectionPromise;
     if (!id) return;
     const transactionDoc = doc(db, 'transactions', id);
     await deleteDoc(transactionDoc);
 };
 
 export const deleteVoucher = async (voucherId: string): Promise<void> => {
+    await connectionPromise;
     const BATCH_LIMIT = 499;
     
     if (voucherId.startsWith('legacy-')) {

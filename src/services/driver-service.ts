@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { connectionPromiseInstance as connectionPromise } from '@/lib/firebase-connection';
+import { connectionPromise } from '@/lib/firebase-connection';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import type { Driver } from '@/lib/types';
 import { deleteFile } from './storage-service';
@@ -25,7 +25,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Driver =>
     };
 }
 
-export const getDrivers = async (): Promise<Driver[]> => {
+export const getDrivers = async (forceFetch: boolean = false): Promise<Driver[]> => {
     await connectionPromise;
     const snapshot = await getDocs(driversCollection);
     return snapshot.docs.map(fromFirestore);

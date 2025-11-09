@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { connectionPromiseInstance as connectionPromise } from '@/lib/firebase-connection';
+import { connectionPromise } from '@/lib/firebase-connection';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDoc, getDocs, query, where, limit } from 'firebase/firestore';
 import type { Party } from '@/lib/types';
 
@@ -21,7 +21,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
     };
 }
 
-export const getParties = async (): Promise<Party[]> => {
+export const getParties = async (forceFetch: boolean = false): Promise<Party[]> => {
     await connectionPromise;
     const snapshot = await getDocs(partiesCollection);
     return snapshot.docs.map(fromFirestore);

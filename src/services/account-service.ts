@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { connectionPromiseInstance as connectionPromise } from '@/lib/firebase-connection';
+import { connectionPromise } from '@/lib/firebase-connection';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import type { Account } from '@/lib/types';
 
@@ -22,7 +22,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Account =
     };
 }
 
-export const getAccounts = async (): Promise<Account[]> => {
+export const getAccounts = async (forceFetch: boolean = false): Promise<Account[]> => {
     await connectionPromise;
     const snapshot = await getDocs(accountsCollection);
     return snapshot.docs.map(fromFirestore);

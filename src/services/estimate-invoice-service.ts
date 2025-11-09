@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { connectionPromiseInstance as connectionPromise } from '@/lib/firebase-connection';
+import { connectionPromise } from '@/lib/firebase-connection';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs, query, orderBy, getDoc } from 'firebase/firestore';
 import type { EstimatedInvoice } from '@/lib/types';
 
@@ -24,7 +24,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
     };
 }
 
-export const getEstimatedInvoices = async (): Promise<EstimatedInvoice[]> => {
+export const getEstimatedInvoices = async (forceFetch: boolean = false): Promise<EstimatedInvoice[]> => {
     await connectionPromise;
     const q = query(invoicesCollection, orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);

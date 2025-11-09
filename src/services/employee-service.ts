@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { connectionPromiseInstance as connectionPromise } from '@/lib/firebase-connection';
+import { connectionPromise } from '@/lib/firebase-connection';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDoc } from 'firebase/firestore';
 import type { Employee } from '@/lib/types';
 import { deleteFile } from './storage-service';
@@ -50,7 +50,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
     };
 }
 
-export const getEmployees = async (): Promise<Employee[]> => {
+export const getEmployees = async (forceFetch: boolean = false): Promise<Employee[]> => {
     await connectionPromise;
     const snapshot = await getDocs(employeesCollection);
     return snapshot.docs.map(fromFirestore).filter(emp => isValidEmployeeName(emp.name));

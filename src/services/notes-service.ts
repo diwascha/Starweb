@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { connectionPromiseInstance as connectionPromise } from '@/lib/firebase-connection';
+import { connectionPromise } from '@/lib/firebase-connection';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, orderBy, query, writeBatch } from 'firebase/firestore';
 import type { NoteItem } from '@/lib/types';
 import { subDays } from 'date-fns';
@@ -24,7 +24,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): NoteItem 
     };
 }
 
-export const getNoteItems = async (): Promise<NoteItem[]> => {
+export const getNoteItems = async (forceFetch: boolean = false): Promise<NoteItem[]> => {
     await connectionPromise;
     const q = query(notesCollection, orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);

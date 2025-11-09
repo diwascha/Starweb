@@ -1,25 +1,15 @@
 
 let resolveConnection: () => void;
-let rejectConnection: (reason?: any) => void;
 
-let connectionPromise: Promise<void> | null = null;
+// A simple promise that acts as a gatekeeper for Firestore operations.
+// It ensures that getFirestore() has been called before any service tries to use the db instance.
+export const connectionPromise: Promise<void> = new Promise<void>((resolve) => {
+  resolveConnection = resolve;
+});
 
-export const createConnectionPromise = () => {
-    if (!connectionPromise) {
-        connectionPromise = new Promise<void>((resolve, reject) => {
-            resolveConnection = resolve;
-            rejectConnection = reject;
-
-            // Timeout to prevent waiting forever
-            setTimeout(() => {
-                reject(new Error("Firestore connection timed out."));
-            }, 30000); // 30-second timeout
-        });
-    }
-    return connectionPromise;
+// This function will be called from firebase.ts once the db object is initialized.
+export const signalConnectionEstablished = () => {
+  if (resolveConnection) {
+    resolveConnection();
+  }
 };
-
-// Initialize the promise as soon as this module is loaded.
-export let connectionPromiseInstance = createConnectionPromise();
-
-export { resolveConnection, rejectConnection };

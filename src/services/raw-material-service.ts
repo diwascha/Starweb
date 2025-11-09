@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { connectionPromiseInstance as connectionPromise } from '@/lib/firebase-connection';
+import { connectionPromise } from '@/lib/firebase-connection';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import type { RawMaterial, UnitOfMeasurement } from '@/lib/types';
 import { getUoms, addUom } from './uom-service';
@@ -24,7 +24,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): RawMateri
     };
 }
 
-export const getRawMaterials = async (): Promise<RawMaterial[]> => {
+export const getRawMaterials = async (forceFetch: boolean = false): Promise<RawMaterial[]> => {
     await connectionPromise;
     const snapshot = await getDocs(rawMaterialsCollection);
     return snapshot.docs.map(fromFirestore);

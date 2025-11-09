@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { connectionPromiseInstance as connectionPromise } from '@/lib/firebase-connection';
+import { connectionPromise } from '@/lib/firebase-connection';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDoc } from 'firebase/firestore';
 import type { Product, RateHistoryEntry } from '@/lib/types';
 
@@ -26,7 +26,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Product =
     };
 }
 
-export const getProducts = async (): Promise<Product[]> => {
+export const getProducts = async (forceFetch: boolean = false): Promise<Product[]> => {
     await connectionPromise;
     const snapshot = await getDocs(productsCollection);
     return snapshot.docs.map(fromFirestore);

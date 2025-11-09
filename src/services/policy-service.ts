@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { connectionPromiseInstance as connectionPromise } from '@/lib/firebase-connection';
+import { connectionPromise } from '@/lib/firebase-connection';
 import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs } from 'firebase/firestore';
 import type { PolicyOrMembership } from '@/lib/types';
 
@@ -25,7 +25,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): PolicyOrM
     };
 }
 
-export const getPolicies = async (): Promise<PolicyOrMembership[]> => {
+export const getPolicies = async (forceFetch: boolean = false): Promise<PolicyOrMembership[]> => {
     await connectionPromise;
     const snapshot = await getDocs(policiesCollection);
     return snapshot.docs.map(fromFirestore);

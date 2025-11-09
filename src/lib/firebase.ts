@@ -1,8 +1,8 @@
 
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
-import { getFirestore, Firestore, onSnapshot, doc } from "firebase/firestore";
+import { getFirestore, Firestore } from "firebase/firestore";
 import { getStorage, FirebaseStorage } from "firebase/storage";
-import { connectionPromiseInstance as connectionPromise, resolveConnection, rejectConnection } from './firebase-connection';
+import { signalConnectionEstablished } from './firebase-connection';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -30,29 +30,12 @@ const initializeFirebase = (): FirebaseInstances => {
   const db = getFirestore(app);
   const storage = getStorage(app);
   
-  // Connection status listener
-  try {
-    const connectedDoc = doc(db, '_internal/checkConnection');
-    onSnapshot(connectedDoc, {
-      next: (snapshot) => {
-        // This confirms we can reach the server.
-        resolveConnection();
-      },
-      error: (err) => {
-        // This can happen if offline, but onSnapshot might eventually connect.
-        // For a more robust check, you might need a different strategy,
-        // but for now, we'll assume an error here means a significant problem.
-        console.warn("Firestore connection check snapshot error:", err.message);
-        // We don't reject here because onSnapshot will keep trying.
-        // The timeout in firebase-connection.ts will handle persistent failures.
-      }
-    });
-  } catch (err) {
-      console.error("Error setting up connection listener:", err);
-      rejectConnection(err);
-  }
-
   firebaseInstances = { app, db, storage };
+  
+  // Signal that the db instance is created and other parts of the app can proceed.
+  // The Firebase SDK will handle the actual online/offline status and queue requests.
+  signalConnectionEstablished();
+
   return firebaseInstances;
 };
 

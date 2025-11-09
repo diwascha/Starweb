@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { connectionPromiseInstance as connectionPromise } from '@/lib/firebase-connection';
+import { connectionPromise } from '@/lib/firebase-connection';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, deleteDoc, getDocs } from 'firebase/firestore';
 import type { TdsCalculation, DocumentPrefixes } from '@/lib/types';
 import { getSetting } from './settings-service';
@@ -40,7 +40,7 @@ export const addTdsCalculation = async (calculation: Omit<TdsCalculation, 'id' |
     return docRef.id;
 };
 
-export const getTdsCalculations = async (): Promise<TdsCalculation[]> => {
+export const getTdsCalculations = async (forceFetch: boolean = false): Promise<TdsCalculation[]> => {
     await connectionPromise;
     const snapshot = await getDocs(tdsCollection);
     return snapshot.docs.map(fromFirestore);

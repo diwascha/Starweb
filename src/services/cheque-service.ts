@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { connectionPromiseInstance as connectionPromise } from '@/lib/firebase-connection';
+import { connectionPromise } from '@/lib/firebase-connection';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, deleteDoc, query, orderBy, updateDoc, getDocs } from 'firebase/firestore';
 import type { Cheque } from '@/lib/types';
 
@@ -56,7 +56,7 @@ export const onChequesUpdate = (callback: (cheques: Cheque[]) => void): () => vo
     });
 };
 
-export const getCheques = async (): Promise<Cheque[]> => {
+export const getCheques = async (forceFetch: boolean = false): Promise<Cheque[]> => {
     await connectionPromise;
     const q = query(chequesCollection, orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);

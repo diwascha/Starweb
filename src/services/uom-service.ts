@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { connectionPromiseInstance as connectionPromise } from '@/lib/firebase-connection';
+import { connectionPromise } from '@/lib/firebase-connection';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import type { UnitOfMeasurement } from '@/lib/types';
 
@@ -19,7 +19,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): UnitOfMea
     };
 }
 
-export const getUoms = async (): Promise<UnitOfMeasurement[]> => {
+export const getUoms = async (forceFetch: boolean = false): Promise<UnitOfMeasurement[]> => {
     await connectionPromise;
     const snapshot = await getDocs(uomCollection);
     return snapshot.docs.map(fromFirestore);
