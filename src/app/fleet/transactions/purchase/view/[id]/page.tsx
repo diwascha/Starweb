@@ -1,38 +1,53 @@
 
-import { getTransaction, getTransactions } from '@/services/transaction-service';
+'use client';
+
+import { useEffect, useState } from 'react';
+import { getTransaction } from '@/services/transaction-service';
 import PurchaseViewClient from './_components/PurchaseViewClient';
 import { getVehicles } from '@/services/vehicle-service';
 import { getParties } from '@/services/party-service';
 import { getAccounts } from '@/services/account-service';
+import type { Transaction, Vehicle, Party, Account } from '@/lib/types';
 
-// This function is required for Next.js static exports to work with dynamic routes.
-export async function generateStaticParams() {
-    // Always try to generate params for desktop builds
-    if (process.env.TAURI_BUILD !== 'true') {
-        return [];
-    }
 
-  try {
-    const transactions = await getTransactions(true); // Force fetch for build
-    const purchaseTransactions = transactions.filter(t => t.type === 'Purchase');
-    if (!purchaseTransactions || purchaseTransactions.length === 0) {
-      return [];
-    }
-    return purchaseTransactions.map((t) => ({
-      id: t.id,
-    }));
-  } catch (error) {
-    console.error("Failed to generate static params for view purchases:", error);
-    return [];
-  }
-}
-
-export default async function PurchaseViewPage({ params }: { params: { id: string } }) {
+export default function PurchaseViewPage({ params }: { params: { id: string } }) {
   const { id } = params;
-  const transaction = await getTransaction(id);
-  const vehicles = await getVehicles();
-  const parties = await getParties();
-  const accounts = await getAccounts();
+  const [transaction, setTransaction] = useState<Transaction | null>(null);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [parties, setParties] = useState<Party[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchData() {
+      setIsLoading(true);
+      try {
+        const [txnData, vehicleData, partyData, accountData] = await Promise.all([
+          getTransaction(id),
+          getVehicles(),
+          getParties(),
+          getAccounts(),
+        ]);
+        setTransaction(txnData);
+        setVehicles(vehicleData);
+        setParties(partyData);
+        setAccounts(accountData);
+      } catch (error) {
+        console.error("Failed to fetch purchase data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchData();
+  }, [id]);
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-full">
+        <p>Loading transaction...</p>
+      </div>
+    );
+  }
 
   if (!transaction) {
     return (
@@ -51,3 +66,4 @@ export default async function PurchaseViewPage({ params }: { params: { id: strin
     />
   );
 }
+

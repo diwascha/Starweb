@@ -1,35 +1,38 @@
 
+'use client';
+
+import { useEffect, useState } from 'react';
 import ReportView from './_components/report-view';
-import { getReport, getReports } from '@/services/report-service';
+import { getReport } from '@/services/report-service';
+import type { Report } from '@/lib/types';
 
-// This function is required for Next.js static exports to work with dynamic routes.
-export async function generateStaticParams() {
-  // Always try to generate params for desktop builds
-  if (process.env.TAURI_BUILD !== 'true') {
-    return [];
-  }
 
-  try {
-    const reports = await getReports(true); // Force fetch for build
-    if (!reports || reports.length === 0) {
-      return [];
+export default function ReportPage({ params }: { params: { id: string } }) {
+  const { id } = params;
+  const [report, setReport] = useState<Report | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchReport() {
+      setIsLoading(true);
+      const reportData = await getReport(id);
+      setReport(reportData);
+      setIsLoading(false);
     }
-    return reports.map((report) => ({
-      id: report.id,
-    }));
-  } catch (error) {
-    console.error("Failed to generate static params for reports:", error);
-    return [];
+    fetchReport();
+  }, [id]);
+
+  if (isLoading) {
+    return (
+        <div className="flex justify-center items-center h-full">
+            <p>Loading report...</p>
+        </div>
+    );
   }
-}
 
-// This is a Server Component that fetches initial data
-export default async function ReportPage({ params }: { params: { id: string } }) {
-  const initialReport = await getReport(params.id);
-
-  if (!initialReport) {
+  if (!report) {
     return <div>Report not found.</div>;
   }
   
-  return <ReportView initialReport={initialReport} />;
+  return <ReportView initialReport={report} />;
 }
