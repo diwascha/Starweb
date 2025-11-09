@@ -270,7 +270,6 @@ export function AppSidebar() {
                     <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/policies')}><Link href="/fleet/policies"><ShieldCheck /><span>Policies & Memberships</span></Link></SidebarMenuButton></SidebarMenuItem>
                     <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions')}><Link href="/fleet/transactions"><CreditCard /><span>Transactions</span></Link></SidebarMenuButton></SidebarMenuItem>
                     <div className="ml-4">
-                        <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/parties')}><Link href="/fleet/parties"><Users /><span>Party Ledger</span></Link></SidebarMenuButton></SidebarMenuItem>
                         <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/trip-sheets')}><Link href="/fleet/trip-sheets"><FileText /><span>Sales - Trip Sheet</span></Link></SidebarMenuButton></SidebarMenuItem>
                         {hasPermission('fleet', 'create') && (
                             <div className="ml-4">
