@@ -1,5 +1,6 @@
 
-import { db, connectionPromise } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
+import { connectionPromiseInstance as connectionPromise } from '@/lib/firebase-connection';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import type { Driver } from '@/lib/types';
 import { deleteFile } from './storage-service';

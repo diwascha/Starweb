@@ -1,5 +1,6 @@
 
-import { db, connectionPromise } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
+import { connectionPromiseInstance as connectionPromise } from '@/lib/firebase-connection';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, orderBy, query, writeBatch } from 'firebase/firestore';
 import type { NoteItem } from '@/lib/types';
 import { subDays } from 'date-fns';

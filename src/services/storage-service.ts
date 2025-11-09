@@ -1,5 +1,6 @@
 
-import { storage, connectionPromise } from '@/lib/firebase';
+import { storage } from '@/lib/firebase';
+import { connectionPromiseInstance as connectionPromise } from '@/lib/firebase-connection';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
 export const uploadFile = async (file: File, path: string): Promise<string> => {

@@ -1,5 +1,6 @@
 
-import { db, connectionPromise } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
+import { connectionPromiseInstance as connectionPromise } from '@/lib/firebase-connection';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDoc } from 'firebase/firestore';
 import type { Product, RateHistoryEntry } from '@/lib/types';
 

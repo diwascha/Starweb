@@ -1,5 +1,6 @@
 
-import { db, connectionPromise } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
+import { connectionPromiseInstance as connectionPromise } from '@/lib/firebase-connection';
 import { collection, doc, writeBatch, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, query, where, limit, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import type { AttendanceRecord, RawAttendanceRow, Payroll, Employee } from '@/lib/types';
 import NepaliDate from 'nepali-date-converter';

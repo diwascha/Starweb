@@ -1,5 +1,6 @@
 
 import { db } from '@/lib/firebase';
+import { connectionPromiseInstance as connectionPromise } from '@/lib/firebase-connection';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, doc, updateDoc, deleteDoc, getDoc, writeBatch } from 'firebase/firestore';
 import type { Trip, Transaction } from '@/lib/types';
 import { differenceInDays } from 'date-fns';
@@ -37,6 +38,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
 }
 
 export const getTrips = async (forceFetch: boolean = false): Promise<Trip[]> => {
+    await connectionPromise;
     const isDesktop = process.env.TAURI_BUILD === 'true';
     if (isDesktop && !forceFetch) {
         return [];
@@ -73,6 +75,7 @@ const commitBatch = async (batch: ReturnType<typeof writeBatch>) => {
 
 
 export const addTrip = async (trip: Omit<Trip, 'id' | 'createdAt' | 'salesTransactionId'>): Promise<string> => {
+    await connectionPromise;
     let batch = writeBatch(db);
     let writeCount = 0;
     const now = new Date().toISOString();
@@ -145,12 +148,17 @@ export const addTrip = async (trip: Omit<Trip, 'id' | 'createdAt' | 'salesTransa
 };
 
 export const onTripsUpdate = (callback: (trips: Trip[]) => void): () => void => {
+    connectionPromise.then(() => {
+        // Ready to listen
+    }).catch(err => console.error("Firestore connection failed, not attaching listener", err));
+    
     return onSnapshot(tripsCollection, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
     });
 };
 
 export const getTrip = async (id: string): Promise<Trip | null> => {
+    await connectionPromise;
     if (!id || typeof id !== 'string') return null;
     const tripDoc = doc(db, 'trips', id);
     const docSnap = await getDoc(tripDoc);
@@ -162,6 +170,7 @@ export const getTrip = async (id: string): Promise<Trip | null> => {
 };
 
 export const updateTrip = async (id: string, tripUpdate: Partial<Omit<Trip, 'id' | 'createdAt'>>): Promise<void> => {
+    await connectionPromise;
     if (!id) return;
     let batch = writeBatch(db);
     let writeCount = 0;
@@ -271,6 +280,7 @@ export const updateTrip = async (id: string, tripUpdate: Partial<Omit<Trip, 'id'
 
 
 export const deleteTrip = async (id: string): Promise<void> => {
+    await connectionPromise;
     if (!id) return;
     let batch = writeBatch(db);
     let writeCount = 0;
