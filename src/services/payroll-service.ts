@@ -43,6 +43,8 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
 export const onPayrollUpdate = (callback: (records: Payroll[]) => void): () => void => {
     return onSnapshot(payrollCollection, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
+    }, (error) => {
+        console.error("onPayrollUpdate listener failed: ", error);
     });
 };
 

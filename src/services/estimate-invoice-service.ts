@@ -23,7 +23,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
     };
 }
 
-export const getEstimatedInvoices = async (forceFetch: boolean = false): Promise<EstimatedInvoice[]> => {
+export const getEstimatedInvoices = async (): Promise<EstimatedInvoice[]> => {
     const q = query(invoicesCollection, orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(fromFirestore);
@@ -57,6 +57,8 @@ export const onEstimatedInvoicesUpdate = (callback: (invoices: EstimatedInvoice[
     const q = query(invoicesCollection, orderBy('createdAt', 'desc'));
     return onSnapshot(q, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
+    }, (error) => {
+        console.error("onEstimatedInvoicesUpdate listener failed: ", error);
     });
 };
 

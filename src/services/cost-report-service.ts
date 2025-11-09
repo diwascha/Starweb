@@ -23,7 +23,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
     };
 };
 
-export const getCostReports = async (forceFetch: boolean = false): Promise<CostReport[]> => {
+export const getCostReports = async (): Promise<CostReport[]> => {
     const q = query(costReportsCollection, orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(fromFirestore);
@@ -33,6 +33,8 @@ export const onCostReportsUpdate = (callback: (reports: CostReport[]) => void): 
     const q = query(costReportsCollection, orderBy('createdAt', 'desc'));
     return onSnapshot(q, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
+    }, (error) => {
+        console.error("onCostReportsUpdate listener failed: ", error);
     });
 };
 

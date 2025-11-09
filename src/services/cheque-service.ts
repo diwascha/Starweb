@@ -46,10 +46,12 @@ export const onChequesUpdate = (callback: (cheques: Cheque[]) => void): () => vo
     const q = query(chequesCollection, orderBy('createdAt', 'desc'));
     return onSnapshot(q, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
+    }, (error) => {
+        console.error("onChequesUpdate listener failed: ", error);
     });
 };
 
-export const getCheques = async (forceFetch: boolean = false): Promise<Cheque[]> => {
+export const getCheques = async (): Promise<Cheque[]> => {
     const q = query(chequesCollection, orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(fromFirestore);

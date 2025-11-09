@@ -126,6 +126,8 @@ export const saveVoucher = async (voucherData: any, createdBy: string) => {
 export const onTransactionsUpdate = (callback: (transactions: Transaction[]) => void): () => void => {
     return onSnapshot(transactionsCollection, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
+    }, (error) => {
+        console.error("onTransactionsUpdate listener failed: ", error);
     });
 };
 
@@ -140,7 +142,7 @@ export const getTransaction = async (id: string): Promise<Transaction | null> =>
     }
 };
 
-export const getTransactions = async (forceFetch: boolean = false): Promise<Transaction[]> => {
+export const getTransactions = async (): Promise<Transaction[]> => {
     const snapshot = await getDocs(transactionsCollection);
     return snapshot.docs.map(fromFirestore);
 };
@@ -169,6 +171,8 @@ export const onVoucherTransactionsUpdate = (voucherId: string, callback: (transa
     const q = query(transactionsCollection, where("voucherId", "==", voucherId));
     return onSnapshot(q, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
+    }, (error) => {
+        console.error("onVoucherTransactionsUpdate listener failed: ", error);
     });
 };
 

@@ -43,7 +43,7 @@ const fromDocSnapshot = (docSnap: DocumentData): Report => {
     };
 };
 
-export const getReports = async (forceFetch: boolean = false): Promise<Report[]> => {
+export const getReports = async (): Promise<Report[]> => {
     const snapshot = await getDocs(reportsCollection);
     return snapshot.docs.map(fromFirestore);
 };
@@ -56,6 +56,8 @@ export const addReport = async (report: Omit<Report, 'id'>): Promise<string> => 
 export const onReportsUpdate = (callback: (reports: Report[]) => void): () => void => {
     return onSnapshot(reportsCollection, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
+    }, (error) => {
+        console.error("onReportsUpdate listener failed: ", error);
     });
 };
 
@@ -80,7 +82,7 @@ export const getReportsByProductId = async (productId: string): Promise<Report[]
     return snapshot.docs.map(fromFirestore);
 }
 
-export const getReportsForSerial = async (forceFetch: boolean = false): Promise<Pick<Report, 'serialNumber'>[]> => {
+export const getReportsForSerial = async (): Promise<Pick<Report, 'serialNumber'>[]> => {
     const snapshot = await getDocs(reportsCollection);
     return snapshot.docs.map(doc => ({ serialNumber: doc.data().serialNumber }));
 };

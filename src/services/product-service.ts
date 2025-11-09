@@ -25,7 +25,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Product =
     };
 }
 
-export const getProducts = async (forceFetch: boolean = false): Promise<Product[]> => {
+export const getProducts = async (): Promise<Product[]> => {
     const snapshot = await getDocs(productsCollection);
     return snapshot.docs.map(fromFirestore);
 };
@@ -38,6 +38,8 @@ export const addProduct = async (product: Omit<Product, 'id'>): Promise<string> 
 export const onProductsUpdate = (callback: (products: Product[]) => void): () => void => {
     return onSnapshot(productsCollection, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
+    }, (error) => {
+        console.error("onProductsUpdate listener failed: ", error);
     });
 };
 

@@ -32,7 +32,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Attendanc
     };
 };
 
-export const getAttendance = async (forceFetch: boolean = false): Promise<AttendanceRecord[]> => {
+export const getAttendance = async (): Promise<AttendanceRecord[]> => {
     const snapshot = await getDocs(attendanceCollection);
     return snapshot.docs.map(fromFirestore);
 };
@@ -197,11 +197,13 @@ export const deleteAllAttendance = async (): Promise<void> => {
 export const onAttendanceUpdate = (callback: (records: AttendanceRecord[]) => void): () => void => {
     return onSnapshot(attendanceCollection, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
+    }, (error) => {
+        console.error("onAttendanceUpdate listener failed: ", error);
     });
 };
 
 export const getAttendanceForMonth = async (bsYear: number, bsMonth: number): Promise<AttendanceRecord[]> => {
-    const allRecords = await getAttendance(true);
+    const allRecords = await getAttendance();
     return allRecords.filter(r => {
         try {
             if (!r.date || isNaN(new Date(r.date).getTime())) return false;
@@ -214,7 +216,7 @@ export const getAttendanceForMonth = async (bsYear: number, bsMonth: number): Pr
 };
 
 export const getAttendanceYears = async (): Promise<number[]> => {
-    const allRecords = await getAttendance(true);
+    const allRecords = await getAttendance();
     const years = new Set(allRecords.map(r => {
         try {
             if (!r.date || isNaN(new Date(r.date).getTime())) return null;
