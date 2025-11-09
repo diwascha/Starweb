@@ -19,7 +19,7 @@ import {
     AccordionItem,
     AccordionTrigger,
 } from "@/components/ui/accordion"
-import { FileText, LayoutDashboard, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users, Calendar, Award, Wallet, Building2, PlusCircle, Truck, ShieldCheck, CreditCard, ArrowRightLeft, TrendingUp, BarChart2, Notebook, Download, Calculator, PanelLeft, PanelRight, Receipt, Briefcase, ChevronDown } from 'lucide-react';
+import { FileText, LayoutDashboard, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users, Calendar, Award, Wallet, Building2, PlusCircle, Truck, ShieldCheck, CreditCard, ArrowRightLeft, TrendingUp, BarChart2, Notebook, Download, Calculator, PanelLeft, PanelRight, Receipt, Briefcase, ChevronDown, Wifi, WifiOff } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
@@ -28,6 +28,28 @@ import { useToast } from '@/hooks/use-toast';
 import { exportData } from '@/services/backup-service';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useConnectionStatus } from '@/hooks/use-connection-status';
+import { Badge } from './ui/badge';
+
+function ConnectionStatus() {
+    const isConnected = useConnectionStatus();
+
+    return (
+        <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground p-2">
+            {isConnected ? (
+                <>
+                    <Wifi className="h-4 w-4 text-green-500" />
+                    <span>Online</span>
+                </>
+            ) : (
+                <>
+                    <WifiOff className="h-4 w-4 text-red-500" />
+                    <span>Offline</span>
+                </>
+            )}
+        </div>
+    );
+}
 
 function SidebarCollapseButton() {
     const { state, toggleSidebar } = useSidebar();
@@ -322,6 +344,7 @@ export function AppSidebar() {
         <SidebarSeparator />
          <div className="flex flex-col gap-2 p-2 text-sm">
             <p className="font-medium text-sidebar-foreground truncate">{user.username}</p>
+            <ConnectionStatus />
          </div>
         <SidebarMenuItem>
             <Button variant="ghost" className="w-full justify-start gap-2" onClick={handleSignOut}>
