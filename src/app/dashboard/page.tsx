@@ -51,14 +51,15 @@ export default function DashboardPage() {
             <CardHeader className="p-4">
                 <CardTitle>Nepali Calendar</CardTitle>
             </CardHeader>
-            <CardContent className="p-0">
+            <CardContent className="p-0 flex justify-center">
                  <iframe 
-                    src="https://www.hamropatro.com/widgets/calender-small.php" 
+                    src="https://www.hamropatro.com/widgets/calender-medium.php" 
                     frameBorder="0" 
                     scrolling="no" 
                     marginWidth="0" 
                     marginHeight="0" 
-                    style={{ border: 'none', overflow: 'hidden', width: '100%', height: '290px' }}>
+                    style={{ border: 'none', overflow: 'hidden', width: '295px', height: '385px' }}
+                    allowTransparency={true}>
                  </iframe>
             </CardContent>
         </Card>
