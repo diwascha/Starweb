@@ -21,7 +21,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Account =
     };
 }
 
-export const getAccounts = async (forceFetch = false): Promise<Account[]> => {
+export const getAccounts = async (): Promise<Account[]> => {
     const snapshot = await getDocs(accountsCollection);
     return snapshot.docs.map(fromFirestore);
 };
@@ -53,7 +53,7 @@ export const onAccountsUpdate = (callback: (accounts: Account[]) => void): () =>
             callback(snapshot.docs.map(fromFirestore));
         },
         (error) => {
-            console.error("onAccountsUpdate listener failed: ", error);
+            console.error("FIREBASE FAIL MESSAGE (Accounts):", error.message, error);
         }
     );
 };

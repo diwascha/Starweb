@@ -23,7 +23,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): NoteItem 
     };
 }
 
-export const getNoteItems = async (forceFetch = false): Promise<NoteItem[]> => {
+export const getNoteItems = async (): Promise<NoteItem[]> => {
     const q = query(notesCollection, orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(fromFirestore);
@@ -44,7 +44,7 @@ export const onNoteItemsUpdate = (callback: (items: NoteItem[]) => void): () => 
             callback(snapshot.docs.map(fromFirestore));
         },
         (error) => {
-            console.error("onNoteItemsUpdate listener failed: ", error);
+            console.error("FIREBASE FAIL MESSAGE (Notes):", error.message, error);
         }
     );
 };

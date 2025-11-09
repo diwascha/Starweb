@@ -23,7 +23,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): RawMateri
     };
 }
 
-export const getRawMaterials = async (forceFetch = false): Promise<RawMaterial[]> => {
+export const getRawMaterials = async (): Promise<RawMaterial[]> => {
     const snapshot = await getDocs(rawMaterialsCollection);
     return snapshot.docs.map(fromFirestore);
 };
@@ -90,7 +90,7 @@ export const onRawMaterialsUpdate = (callback: (materials: RawMaterial[]) => voi
             callback(materials);
         },
         (error) => {
-            console.error("onRawMaterialsUpdate listener failed: ", error);
+            console.error("FIREBASE FAIL MESSAGE (Raw Materials):", error.message, error);
         }
     );
 };

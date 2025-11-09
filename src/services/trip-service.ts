@@ -36,7 +36,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
     };
 }
 
-export const getTrips = async (forceFetch = false): Promise<Trip[]> => {
+export const getTrips = async (): Promise<Trip[]> => {
     const snapshot = await getDocs(tripsCollection);
     return snapshot.docs.map(fromFirestore);
 };
@@ -146,7 +146,7 @@ export const onTripsUpdate = (callback: (trips: Trip[]) => void): () => void => 
             callback(snapshot.docs.map(fromFirestore));
         },
         (error) => {
-            console.error("onTripsUpdate listener failed: ", error);
+            console.error("FIREBASE FAIL MESSAGE (Trips):", error.message, error);
         }
     );
 };

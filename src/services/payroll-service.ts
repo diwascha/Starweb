@@ -44,7 +44,7 @@ export const onPayrollUpdate = (callback: (records: Payroll[]) => void): () => v
     return onSnapshot(payrollCollection, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
     }, (error) => {
-        console.error("onPayrollUpdate listener failed: ", error);
+        console.error("FIREBASE FAIL MESSAGE (Payroll):", error.message, error);
     });
 };
 

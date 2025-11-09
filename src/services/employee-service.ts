@@ -49,7 +49,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
     };
 }
 
-export const getEmployees = async (forceFetch = false): Promise<Employee[]> => {
+export const getEmployees = async (): Promise<Employee[]> => {
     const snapshot = await getDocs(employeesCollection);
     return snapshot.docs.map(fromFirestore).filter(emp => isValidEmployeeName(emp.name));
 };
@@ -81,7 +81,7 @@ export const onEmployeesUpdate = (callback: (employees: Employee[]) => void): ()
             callback(validEmployees);
         },
         (error) => {
-            console.error("onEmployeesUpdate listener failed: ", error);
+            console.error("FIREBASE FAIL MESSAGE (Employees):", error.message, error);
         }
     );
 };

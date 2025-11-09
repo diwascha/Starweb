@@ -43,7 +43,7 @@ const fromDocSnapshot = (docSnap: DocumentData): Report => {
     };
 };
 
-export const getReports = async (forceFetch = false): Promise<Report[]> => {
+export const getReports = async (): Promise<Report[]> => {
     const snapshot = await getDocs(reportsCollection);
     return snapshot.docs.map(fromFirestore);
 };
@@ -59,7 +59,7 @@ export const onReportsUpdate = (callback: (reports: Report[]) => void): () => vo
             callback(snapshot.docs.map(fromFirestore));
         },
         (error) => {
-            console.error("onReportsUpdate listener failed: ", error);
+            console.error("FIREBASE FAIL MESSAGE (Reports):", error.message, error);
         }
     );
 };

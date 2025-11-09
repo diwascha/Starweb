@@ -17,7 +17,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Destinati
     };
 }
 
-export const getDestinations = async (forceFetch = false): Promise<Destination[]> => {
+export const getDestinations = async (): Promise<Destination[]> => {
     const snapshot = await getDocs(destinationsCollection);
     return snapshot.docs.map(fromFirestore);
 }
@@ -36,7 +36,7 @@ export const onDestinationsUpdate = (callback: (destinations: Destination[]) => 
             callback(snapshot.docs.map(fromFirestore));
         },
         (error) => {
-            console.error("onDestinationsUpdate listener failed: ", error);
+            console.error("FIREBASE FAIL MESSAGE (Destinations):", error.message, error);
         }
     );
 };

@@ -23,7 +23,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Vehicle =
     };
 }
 
-export const getVehicles = async (forceFetch = false): Promise<Vehicle[]> => {
+export const getVehicles = async (): Promise<Vehicle[]> => {
     const snapshot = await getDocs(vehiclesCollection);
     return snapshot.docs.map(fromFirestore);
 };
@@ -42,7 +42,7 @@ export const onVehiclesUpdate = (callback: (vehicles: Vehicle[]) => void): () =>
             callback(snapshot.docs.map(fromFirestore));
         },
         (error) => {
-            console.error("onVehiclesUpdate listener failed: ", error);
+            console.error("FIREBASE FAIL MESSAGE (Vehicles):", error.message, error);
         }
     );
 };

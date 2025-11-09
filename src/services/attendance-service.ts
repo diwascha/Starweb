@@ -32,7 +32,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Attendanc
     };
 };
 
-export const getAttendance = async (forceFetch = false): Promise<AttendanceRecord[]> => {
+export const getAttendance = async (): Promise<AttendanceRecord[]> => {
     const snapshot = await getDocs(attendanceCollection);
     return snapshot.docs.map(fromFirestore);
 };
@@ -200,7 +200,7 @@ export const onAttendanceUpdate = (callback: (records: AttendanceRecord[]) => vo
             callback(snapshot.docs.map(fromFirestore));
         },
         (error) => {
-            console.error("onAttendanceUpdate listener failed: ", error);
+            console.error("FIREBASE FAIL MESSAGE (Attendance):", error.message, error);
         }
     );
 };

@@ -129,7 +129,7 @@ export const onTransactionsUpdate = (callback: (transactions: Transaction[]) => 
             callback(snapshot.docs.map(fromFirestore));
         },
         (error) => {
-            console.error("onTransactionsUpdate listener failed: ", error);
+            console.error("FIREBASE FAIL MESSAGE (Transactions):", error.message, error);
         }
     );
 };
@@ -145,7 +145,7 @@ export const getTransaction = async (id: string): Promise<Transaction | null> =>
     }
 };
 
-export const getTransactions = async (forceFetch = false): Promise<Transaction[]> => {
+export const getTransactions = async (): Promise<Transaction[]> => {
     const snapshot = await getDocs(transactionsCollection);
     return snapshot.docs.map(fromFirestore);
 };
@@ -177,7 +177,7 @@ export const onVoucherTransactionsUpdate = (voucherId: string, callback: (transa
             callback(snapshot.docs.map(fromFirestore));
         },
         (error) => {
-            console.error("onVoucherTransactionsUpdate listener failed: ", error);
+            console.error("FIREBASE FAIL MESSAGE (Voucher Transactions):", error.message, error);
         }
     );
 };

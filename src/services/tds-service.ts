@@ -37,7 +37,7 @@ export const addTdsCalculation = async (calculation: Omit<TdsCalculation, 'id' |
     return docRef.id;
 };
 
-export const getTdsCalculations = async (forceFetch = false): Promise<TdsCalculation[]> => {
+export const getTdsCalculations = async (): Promise<TdsCalculation[]> => {
     const snapshot = await getDocs(tdsCollection);
     return snapshot.docs.map(fromFirestore);
 }
@@ -48,7 +48,7 @@ export const onTdsCalculationsUpdate = (callback: (calculations: TdsCalculation[
             callback(snapshot.docs.map(fromFirestore));
         },
         (error) => {
-            console.error("onTdsCalculationsUpdate listener failed: ", error);
+            console.error("FIREBASE FAIL MESSAGE (TDS):", error.message, error);
         }
     );
 };

@@ -12,28 +12,9 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-interface FirebaseInstances {
-  app: FirebaseApp;
-  db: Firestore;
-  storage: FirebaseStorage;
-}
-
-let firebaseInstances: FirebaseInstances | null = null;
-
-const initializeFirebase = (): FirebaseInstances => {
-  if (firebaseInstances) {
-    return firebaseInstances;
-  }
-
-  const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-  const db = getFirestore(app);
-  const storage = getStorage(app);
-  
-  firebaseInstances = { app, db, storage };
-
-  return firebaseInstances;
-};
-
-const { app, db, storage } = initializeFirebase();
+// This ensures we only initialize Firebase once.
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const db = getFirestore(app);
+const storage = getStorage(app);
 
 export { app, db, storage };

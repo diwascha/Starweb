@@ -34,7 +34,7 @@ export const onSettingUpdate = (id: string, callback: (setting: AppSetting | nul
             }
         },
         (error) => {
-            console.error(`Error listening to setting ${id}:`, error);
+            console.error(`FIREBASE FAIL MESSAGE (Setting ${id}):`, error.message, error);
             callback(null);
         }
     );

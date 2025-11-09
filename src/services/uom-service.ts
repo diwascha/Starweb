@@ -18,7 +18,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): UnitOfMea
     };
 }
 
-export const getUoms = async (forceFetch = false): Promise<UnitOfMeasurement[]> => {
+export const getUoms = async (): Promise<UnitOfMeasurement[]> => {
     const snapshot = await getDocs(uomCollection);
     return snapshot.docs.map(fromFirestore);
 };
@@ -37,7 +37,7 @@ export const onUomsUpdate = (callback: (uoms: UnitOfMeasurement[]) => void): () 
             callback(snapshot.docs.map(fromFirestore));
         },
         (error) => {
-            console.error("onUomsUpdate listener failed: ", error);
+            console.error("FIREBASE FAIL MESSAGE (UoM):", error.message, error);
         }
     );
 };
