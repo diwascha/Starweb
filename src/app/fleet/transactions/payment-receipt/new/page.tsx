@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, Suspense } from 'react';
@@ -92,7 +91,7 @@ export default function NewPaymentReceiptPage() {
 
     useEffect(() => {
         const paymentReceipts = transactions.filter(t => t.type === 'Payment' || t.type === 'Receipt');
-        generateNextVoucherNumber(paymentReceipts).then(setNextVoucherNum);
+        generateNextVoucherNumber(paymentReceipts, 'PRV-').then(setNextVoucherNum);
     }, [transactions]);
 
     const handleFormSubmit = async (values: any) => {
@@ -120,7 +119,7 @@ export default function NewPaymentReceiptPage() {
     };
     
     const handlePrint = (voucherId: string) => {
-        const printWindow = window.open(`/fleet/transactions/payment-receipt/${voucherId}`, '_blank');
+        const printWindow = window.open(`/fleet/transactions/payment-receipt?voucherId=${voucherId}`, '_blank');
         if (printWindow) {
             printWindow.onload = () => {
                 setTimeout(() => printWindow.print(), 500); // Give it a moment to render
@@ -342,7 +341,7 @@ export default function NewPaymentReceiptPage() {
                                                    <DropdownMenu>
                                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                                         <DropdownMenuContent align="end">
-                                                            <DropdownMenuItem onSelect={() => router.push(`/fleet/transactions/payment-receipt/${voucher.voucherId}`)}><View className="mr-2 h-4 w-4" /> View</DropdownMenuItem>
+                                                            <DropdownMenuItem onSelect={() => router.push(`/fleet/transactions/payment-receipt?voucherId=${voucher.voucherId}`)}><View className="mr-2 h-4 w-4" /> View</DropdownMenuItem>
                                                             <DropdownMenuItem onSelect={() => router.push(`/fleet/transactions/payment-receipt/edit/${voucher.voucherId}`)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
                                                             <DropdownMenuItem onSelect={() => handlePrint(voucher.voucherId)}><Printer className="mr-2 h-4 w-4" /> Print</DropdownMenuItem>
                                                             <DropdownMenuSeparator />
