@@ -32,7 +32,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Attendanc
     };
 };
 
-export const getAttendance = async (): Promise<AttendanceRecord[]> => {
+export const getAttendance = async (forceFetch = false): Promise<AttendanceRecord[]> => {
     const snapshot = await getDocs(attendanceCollection);
     return snapshot.docs.map(fromFirestore);
 };
@@ -195,11 +195,14 @@ export const deleteAllAttendance = async (): Promise<void> => {
 
 
 export const onAttendanceUpdate = (callback: (records: AttendanceRecord[]) => void): () => void => {
-    return onSnapshot(attendanceCollection, (snapshot) => {
-        callback(snapshot.docs.map(fromFirestore));
-    }, (error) => {
-        console.error("onAttendanceUpdate listener failed: ", error);
-    });
+    return onSnapshot(attendanceCollection, 
+        (snapshot) => {
+            callback(snapshot.docs.map(fromFirestore));
+        },
+        (error) => {
+            console.error("onAttendanceUpdate listener failed: ", error);
+        }
+    );
 };
 
 export const getAttendanceForMonth = async (bsYear: number, bsMonth: number): Promise<AttendanceRecord[]> => {

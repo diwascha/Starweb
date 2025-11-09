@@ -23,7 +23,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): RawMateri
     };
 }
 
-export const getRawMaterials = async (): Promise<RawMaterial[]> => {
+export const getRawMaterials = async (forceFetch = false): Promise<RawMaterial[]> => {
     const snapshot = await getDocs(rawMaterialsCollection);
     return snapshot.docs.map(fromFirestore);
 };
@@ -82,14 +82,17 @@ export const addRawMaterial = async (material: Omit<RawMaterial, 'id'>): Promise
 };
 
 export const onRawMaterialsUpdate = (callback: (materials: RawMaterial[]) => void): () => void => {
-    return onSnapshot(rawMaterialsCollection, (snapshot) => {
-        const materials = snapshot.docs.map(fromFirestore);
-        // Consolidate units in the background
-        consolidateUnits(materials);
-        callback(materials);
-    }, (error) => {
-        console.error("onRawMaterialsUpdate listener failed: ", error);
-    });
+    return onSnapshot(rawMaterialsCollection, 
+        (snapshot) => {
+            const materials = snapshot.docs.map(fromFirestore);
+            // Consolidate units in the background
+            consolidateUnits(materials);
+            callback(materials);
+        },
+        (error) => {
+            console.error("onRawMaterialsUpdate listener failed: ", error);
+        }
+    );
 };
 
 export const updateRawMaterial = async (id: string, material: Partial<Omit<RawMaterial, 'id'>>): Promise<void> => {

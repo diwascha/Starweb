@@ -20,7 +20,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
     };
 }
 
-export const getParties = async (): Promise<Party[]> => {
+export const getParties = async (forceFetch = false): Promise<Party[]> => {
     const snapshot = await getDocs(partiesCollection);
     return snapshot.docs.map(fromFirestore);
 };
@@ -55,11 +55,14 @@ export const addParty = async (party: Omit<Party, 'id'>): Promise<string> => {
 };
 
 export const onPartiesUpdate = (callback: (parties: Party[]) => void): () => void => {
-    return onSnapshot(partiesCollection, (snapshot) => {
-        callback(snapshot.docs.map(fromFirestore));
-    }, (error) => {
-        console.error("onPartiesUpdate listener failed: ", error);
-    });
+    return onSnapshot(partiesCollection, 
+        (snapshot) => {
+            callback(snapshot.docs.map(fromFirestore));
+        },
+        (error) => {
+            console.error("onPartiesUpdate listener failed: ", error);
+        }
+    );
 };
 
 export const updateParty = async (id: string, party: Partial<Omit<Party, 'id'>>): Promise<void> => {

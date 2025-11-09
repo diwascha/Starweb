@@ -24,7 +24,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): PolicyOrM
     };
 }
 
-export const getPolicies = async (): Promise<PolicyOrMembership[]> => {
+export const getPolicies = async (forceFetch = false): Promise<PolicyOrMembership[]> => {
     const snapshot = await getDocs(policiesCollection);
     return snapshot.docs.map(fromFirestore);
 }
@@ -38,11 +38,14 @@ export const addPolicy = async (policy: Omit<PolicyOrMembership, 'id'>): Promise
 };
 
 export const onPoliciesUpdate = (callback: (policies: PolicyOrMembership[]) => void): () => void => {
-    return onSnapshot(policiesCollection, (snapshot) => {
-        callback(snapshot.docs.map(fromFirestore));
-    }, (error) => {
-        console.error("onPoliciesUpdate listener failed: ", error);
-    });
+    return onSnapshot(policiesCollection, 
+        (snapshot) => {
+            callback(snapshot.docs.map(fromFirestore));
+        },
+        (error) => {
+            console.error("onPoliciesUpdate listener failed: ", error);
+        }
+    );
 };
 
 export const updatePolicy = async (id: string, policy: Partial<Omit<PolicyOrMembership, 'id'>>): Promise<void> => {

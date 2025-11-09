@@ -49,7 +49,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
     };
 }
 
-export const getEmployees = async (): Promise<Employee[]> => {
+export const getEmployees = async (forceFetch = false): Promise<Employee[]> => {
     const snapshot = await getDocs(employeesCollection);
     return snapshot.docs.map(fromFirestore).filter(emp => isValidEmployeeName(emp.name));
 };
@@ -75,12 +75,15 @@ export const addEmployee = async (employee: Omit<Employee, 'id'>): Promise<strin
 };
 
 export const onEmployeesUpdate = (callback: (employees: Employee[]) => void): () => void => {
-    return onSnapshot(employeesCollection, (snapshot) => {
-        const validEmployees = snapshot.docs.map(fromFirestore).filter(emp => isValidEmployeeName(emp.name));
-        callback(validEmployees);
-    }, (error) => {
-        console.error("onEmployeesUpdate listener failed: ", error);
-    });
+    return onSnapshot(employeesCollection, 
+        (snapshot) => {
+            const validEmployees = snapshot.docs.map(fromFirestore).filter(emp => isValidEmployeeName(emp.name));
+            callback(validEmployees);
+        },
+        (error) => {
+            console.error("onEmployeesUpdate listener failed: ", error);
+        }
+    );
 };
 
 export const updateEmployee = async (id: string, employee: Partial<Omit<Employee, 'id'>>): Promise<void> => {

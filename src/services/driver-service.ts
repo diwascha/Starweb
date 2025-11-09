@@ -24,7 +24,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Driver =>
     };
 }
 
-export const getDrivers = async (): Promise<Driver[]> => {
+export const getDrivers = async (forceFetch = false): Promise<Driver[]> => {
     const snapshot = await getDocs(driversCollection);
     return snapshot.docs.map(fromFirestore);
 };
@@ -38,11 +38,14 @@ export const addDriver = async (driver: Omit<Driver, 'id'>): Promise<string> => 
 };
 
 export const onDriversUpdate = (callback: (drivers: Driver[]) => void): () => void => {
-    return onSnapshot(driversCollection, (snapshot) => {
-        callback(snapshot.docs.map(fromFirestore));
-    }, (error) => {
-        console.error("onDriversUpdate listener failed: ", error);
-    });
+    return onSnapshot(driversCollection, 
+        (snapshot) => {
+            callback(snapshot.docs.map(fromFirestore));
+        },
+        (error) => {
+            console.error("onDriversUpdate listener failed: ", error);
+        }
+    );
 };
 
 export const updateDriver = async (id: string, driver: Partial<Omit<Driver, 'id'>>): Promise<void> => {

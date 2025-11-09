@@ -25,16 +25,19 @@ export const onSettingUpdate = (id: string, callback: (setting: AppSetting | nul
         return () => {}; // Return a no-op unsubscribe function
     }
     const docRef = doc(db, 'settings', id);
-    return onSnapshot(docRef, (docSnap) => {
-        if (docSnap.exists()) {
-            callback({ id: docSnap.id, ...docSnap.data() } as AppSetting);
-        } else {
+    return onSnapshot(docRef, 
+        (docSnap) => {
+            if (docSnap.exists()) {
+                callback({ id: docSnap.id, ...docSnap.data() } as AppSetting);
+            } else {
+                callback(null);
+            }
+        },
+        (error) => {
+            console.error(`Error listening to setting ${id}:`, error);
             callback(null);
         }
-    }, (error) => {
-        console.error(`Error listening to setting ${id}:`, error);
-        callback(null);
-    });
+    );
 };
 
 

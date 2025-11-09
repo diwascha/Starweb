@@ -21,7 +21,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Account =
     };
 }
 
-export const getAccounts = async (): Promise<Account[]> => {
+export const getAccounts = async (forceFetch = false): Promise<Account[]> => {
     const snapshot = await getDocs(accountsCollection);
     return snapshot.docs.map(fromFirestore);
 };
@@ -48,9 +48,13 @@ export const deleteAccount = async (id: string): Promise<void> => {
 };
 
 export const onAccountsUpdate = (callback: (accounts: Account[]) => void): () => void => {
-    return onSnapshot(accountsCollection, (snapshot) => {
-        callback(snapshot.docs.map(fromFirestore));
-    }, (error) => {
-        console.error("onAccountsUpdate listener failed: ", error);
-    });
+    return onSnapshot(accountsCollection, 
+        (snapshot) => {
+            callback(snapshot.docs.map(fromFirestore));
+        },
+        (error) => {
+            console.error("onAccountsUpdate listener failed: ", error);
+            // Optionally, inform the user about the error
+        }
+    );
 };

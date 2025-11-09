@@ -23,7 +23,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
     };
 }
 
-export const getEstimatedInvoices = async (): Promise<EstimatedInvoice[]> => {
+export const getEstimatedInvoices = async (forceFetch = false): Promise<EstimatedInvoice[]> => {
     const q = query(invoicesCollection, orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(fromFirestore);
@@ -55,11 +55,14 @@ export const updateEstimatedInvoice = async (id: string, invoice: Partial<Omit<E
 
 export const onEstimatedInvoicesUpdate = (callback: (invoices: EstimatedInvoice[]) => void): () => void => {
     const q = query(invoicesCollection, orderBy('createdAt', 'desc'));
-    return onSnapshot(q, (snapshot) => {
-        callback(snapshot.docs.map(fromFirestore));
-    }, (error) => {
-        console.error("onEstimatedInvoicesUpdate listener failed: ", error);
-    });
+    return onSnapshot(q, 
+        (snapshot) => {
+            callback(snapshot.docs.map(fromFirestore));
+        },
+        (error) => {
+            console.error("onEstimatedInvoicesUpdate listener failed: ", error);
+        }
+    );
 };
 
 export const deleteEstimatedInvoice = async (id: string): Promise<void> => {

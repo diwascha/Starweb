@@ -17,7 +17,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Destinati
     };
 }
 
-export const getDestinations = async (): Promise<Destination[]> => {
+export const getDestinations = async (forceFetch = false): Promise<Destination[]> => {
     const snapshot = await getDocs(destinationsCollection);
     return snapshot.docs.map(fromFirestore);
 }
@@ -31,11 +31,14 @@ export const addDestination = async (destination: Omit<Destination, 'id'>): Prom
 };
 
 export const onDestinationsUpdate = (callback: (destinations: Destination[]) => void): () => void => {
-    return onSnapshot(destinationsCollection, (snapshot) => {
-        callback(snapshot.docs.map(fromFirestore));
-    }, (error) => {
-        console.error("onDestinationsUpdate listener failed: ", error);
-    });
+    return onSnapshot(destinationsCollection, 
+        (snapshot) => {
+            callback(snapshot.docs.map(fromFirestore));
+        },
+        (error) => {
+            console.error("onDestinationsUpdate listener failed: ", error);
+        }
+    );
 };
 
 export const updateDestination = async (id: string, destination: Partial<Omit<Destination, 'id'>>): Promise<void> => {

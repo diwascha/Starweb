@@ -23,7 +23,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): NoteItem 
     };
 }
 
-export const getNoteItems = async (): Promise<NoteItem[]> => {
+export const getNoteItems = async (forceFetch = false): Promise<NoteItem[]> => {
     const q = query(notesCollection, orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(fromFirestore);
@@ -39,11 +39,14 @@ export const addNoteItem = async (item: Omit<NoteItem, 'id' | 'createdAt'>): Pro
 
 export const onNoteItemsUpdate = (callback: (items: NoteItem[]) => void): () => void => {
     const q = query(notesCollection, orderBy('createdAt', 'desc'));
-    return onSnapshot(q, (snapshot) => {
-        callback(snapshot.docs.map(fromFirestore));
-    }, (error) => {
-        console.error("onNoteItemsUpdate listener failed: ", error);
-    });
+    return onSnapshot(q, 
+        (snapshot) => {
+            callback(snapshot.docs.map(fromFirestore));
+        },
+        (error) => {
+            console.error("onNoteItemsUpdate listener failed: ", error);
+        }
+    );
 };
 
 export const updateNoteItem = async (id: string, item: Partial<Omit<NoteItem, 'id'>>): Promise<void> => {

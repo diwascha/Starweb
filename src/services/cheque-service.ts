@@ -44,14 +44,17 @@ export const updateCheque = async (id: string, cheque: Partial<Omit<Cheque, 'id'
 
 export const onChequesUpdate = (callback: (cheques: Cheque[]) => void): () => void => {
     const q = query(chequesCollection, orderBy('createdAt', 'desc'));
-    return onSnapshot(q, (snapshot) => {
-        callback(snapshot.docs.map(fromFirestore));
-    }, (error) => {
-        console.error("onChequesUpdate listener failed: ", error);
-    });
+    return onSnapshot(q, 
+        (snapshot) => {
+            callback(snapshot.docs.map(fromFirestore));
+        },
+        (error) => {
+            console.error("onChequesUpdate listener failed: ", error);
+        }
+    );
 };
 
-export const getCheques = async (): Promise<Cheque[]> => {
+export const getCheques = async (forceFetch = false): Promise<Cheque[]> => {
     const q = query(chequesCollection, orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(fromFirestore);

@@ -24,7 +24,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
     };
 }
 
-export const getPurchaseOrders = async (): Promise<PurchaseOrder[]> => {
+export const getPurchaseOrders = async (forceFetch = false): Promise<PurchaseOrder[]> => {
     const snapshot = await getDocs(purchaseOrdersCollection);
     return snapshot.docs.map(fromFirestore);
 };
@@ -38,11 +38,14 @@ export const addPurchaseOrder = async (po: Omit<PurchaseOrder, 'id'>): Promise<s
 };
 
 export const onPurchaseOrdersUpdate = (callback: (purchaseOrders: PurchaseOrder[]) => void): () => void => {
-    return onSnapshot(purchaseOrdersCollection, (snapshot) => {
-        callback(snapshot.docs.map(fromFirestore));
-    }, (error) => {
-        console.error("onPurchaseOrdersUpdate listener failed: ", error);
-    });
+    return onSnapshot(purchaseOrdersCollection, 
+        (snapshot) => {
+            callback(snapshot.docs.map(fromFirestore));
+        },
+        (error) => {
+            console.error("onPurchaseOrdersUpdate listener failed: ", error);
+        }
+    );
 };
 
 export const getPurchaseOrder = async (id: string): Promise<PurchaseOrder | null> => {

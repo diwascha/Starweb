@@ -36,7 +36,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
     };
 }
 
-export const getTrips = async (): Promise<Trip[]> => {
+export const getTrips = async (forceFetch = false): Promise<Trip[]> => {
     const snapshot = await getDocs(tripsCollection);
     return snapshot.docs.map(fromFirestore);
 };
@@ -141,11 +141,14 @@ export const addTrip = async (trip: Omit<Trip, 'id' | 'createdAt' | 'salesTransa
 };
 
 export const onTripsUpdate = (callback: (trips: Trip[]) => void): () => void => {
-    return onSnapshot(tripsCollection, (snapshot) => {
-        callback(snapshot.docs.map(fromFirestore));
-    }, (error) => {
-        console.error("onTripsUpdate listener failed: ", error);
-    });
+    return onSnapshot(tripsCollection, 
+        (snapshot) => {
+            callback(snapshot.docs.map(fromFirestore));
+        },
+        (error) => {
+            console.error("onTripsUpdate listener failed: ", error);
+        }
+    );
 };
 
 export const getTrip = async (id: string): Promise<Trip | null> => {
