@@ -26,6 +26,9 @@ export async function generateStaticParams() {
       transactions.forEach(t => {
           if (t.voucherId) {
               voucherIds.add(t.voucherId);
+          } else if (t.type === 'Payment' || t.type === 'Receipt') {
+              // Fallback for legacy data that might not have a voucherId
+              voucherIds.add(`legacy-${t.id}`);
           }
       });
       
