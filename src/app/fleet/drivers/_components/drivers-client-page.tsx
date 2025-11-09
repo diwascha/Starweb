@@ -48,7 +48,7 @@ type SortDirection = 'asc' | 'desc';
 
 export default function DriversClientPage({ initialDrivers = [] }: { initialDrivers?: Driver[] }) {
     const [drivers, setDrivers] = useState<Driver[]>(initialDrivers);
-    const [isLoading, setIsLoading] = useState(initialDrivers.length === 0);
+    const [isLoading, setIsLoading] = useState(false);
     
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
@@ -70,8 +70,6 @@ export default function DriversClientPage({ initialDrivers = [] }: { initialDriv
     const { toast } = useToast();
     const { hasPermission, user } = useAuth();
     
-    // For desktop builds, initialDrivers will be empty, so we fetch client-side.
-    // For web builds, data is pre-fetched, but we still set up the listener for real-time updates.
     useEffect(() => {
         const unsubscribe = onDriversUpdate((data) => {
             setDrivers(data);

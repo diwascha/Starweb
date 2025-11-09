@@ -7,7 +7,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { getReports } from '@/services/report-service';
 import { getProducts } from '@/services/product-service';
 import ReportDashboardClient from './_components/report-dashboard-client';
-import { hasPermission } from '@/services/user-service'; // We need a server-side way to check permissions
 
 const reportModules = [
     {

@@ -47,7 +47,7 @@ type SortDirection = 'asc' | 'desc';
 export default function VehiclesClientPage({ initialVehicles = [], initialDrivers = [] }: { initialVehicles?: Vehicle[], initialDrivers?: Driver[] }) {
     const [vehicles, setVehicles] = useState<Vehicle[]>(initialVehicles);
     const [drivers, setDrivers] = useState<Driver[]>(initialDrivers);
-    const [isLoading, setIsLoading] = useState(initialVehicles.length === 0);
+    const [isLoading, setIsLoading] = useState(false);
     
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);

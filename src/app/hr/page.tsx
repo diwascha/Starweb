@@ -77,29 +77,9 @@ function DashboardSkeleton() {
     );
 }
 
-const serializeObject = <T extends Record<string, any>>(obj: T): T => {
-    const newObj: Record<string, any> = {};
-    for (const key in obj) {
-        const value = obj[key];
-        if (value && typeof value === 'object' && value.hasOwnProperty('seconds') && value.hasOwnProperty('nanoseconds')) {
-             newObj[key] = new Date(value.seconds * 1000).toISOString();
-        } else if (value && typeof value === 'object') {
-            newObj[key] = serializeObject(value);
-        } else {
-            newObj[key] = value;
-        }
-    }
-    return newObj as T;
-}
-
-
 export default async function HRPage() {
-    const employeesRaw = await getEmployees();
-    const attendanceRaw = await getAttendance();
-
-    // Sanitize data before passing it to the client component
-    const initialEmployees = employeesRaw.map(e => serializeObject(e));
-    const initialAttendance = attendanceRaw.map(a => serializeObject(a));
+    const initialEmployees = await getEmployees();
+    const initialAttendance = await getAttendance();
   
   return (
     <div className="flex flex-col gap-8">
