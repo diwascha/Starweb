@@ -1,13 +1,27 @@
 
+'use client';
 import ReportView from './_components/report-view';
-import { getReport, getReports } from '@/services/report-service';
+import { getReport } from '@/services/report-service';
+import { useEffect, useState } from 'react';
+import type { Report } from '@/lib/types';
 
-// This is a Server Component that fetches initial data
-export default async function ReportPage({ params }: { params: { id: string } }) {
+export default function ReportPage({ params }: { params: { id: string } }) {
   const { id } = params;
-  const initialReport = await getReport(id);
+  const [report, setReport] = useState<Report | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  if (!initialReport) {
+  useEffect(() => {
+    getReport(id).then(data => {
+      setReport(data);
+      setLoading(false);
+    });
+  }, [id]);
+
+  if (loading) {
+    return <div>Loading report...</div>;
+  }
+
+  if (!report) {
     return (
         <div className="flex justify-center items-center h-full">
             <p>Report not found.</p>
@@ -15,5 +29,5 @@ export default async function ReportPage({ params }: { params: { id: string } })
     );
   }
   
-  return <ReportView initialReport={initialReport} />;
+  return <ReportView initialReport={report} />;
 }

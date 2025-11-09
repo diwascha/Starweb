@@ -46,9 +46,9 @@ import Image from 'next/image';
 type DriverSortKey = 'name' | 'nickname' | 'licenseNumber' | 'contactNumber' | 'dateOfBirth' | 'authorship';
 type SortDirection = 'asc' | 'desc';
 
-export default function DriversClientPage({ initialDrivers = [] }: { initialDrivers?: Driver[] }) {
-    const [drivers, setDrivers] = useState<Driver[]>(initialDrivers);
-    const [isLoading, setIsLoading] = useState(false);
+export default function DriversClientPage() {
+    const [drivers, setDrivers] = useState<Driver[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
@@ -71,6 +71,7 @@ export default function DriversClientPage({ initialDrivers = [] }: { initialDriv
     const { hasPermission, user } = useAuth();
     
     useEffect(() => {
+        setIsLoading(true);
         const unsubscribe = onDriversUpdate((data) => {
             setDrivers(data);
             setIsLoading(false);

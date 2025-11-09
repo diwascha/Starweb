@@ -44,10 +44,10 @@ const vehicleStatuses: VehicleStatus[] = ['Active', 'In Maintenance', 'Decommiss
 type VehicleSortKey = 'name' | 'make' | 'model' | 'status' | 'driverName' | 'authorship';
 type SortDirection = 'asc' | 'desc';
 
-export default function VehiclesClientPage({ initialVehicles = [], initialDrivers = [] }: { initialVehicles?: Vehicle[], initialDrivers?: Driver[] }) {
-    const [vehicles, setVehicles] = useState<Vehicle[]>(initialVehicles);
-    const [drivers, setDrivers] = useState<Driver[]>(initialDrivers);
-    const [isLoading, setIsLoading] = useState(false);
+export default function VehiclesClientPage() {
+    const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+    const [drivers, setDrivers] = useState<Driver[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
@@ -70,6 +70,7 @@ export default function VehiclesClientPage({ initialVehicles = [], initialDriver
     const driversById = useMemo(() => new Map(drivers.map(d => [d.id, d.name])), [drivers]);
 
     useEffect(() => {
+        setIsLoading(true);
         const unsubVehicles = onVehiclesUpdate((data) => {
             setVehicles(data);
             setIsLoading(false);

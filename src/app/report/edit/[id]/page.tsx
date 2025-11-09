@@ -1,16 +1,30 @@
 
+'use client';
 import { ReportForm } from '@/app/report/new/_components/report-form';
-import { getReport, getReports } from '@/services/report-service';
+import { getReport } from '@/services/report-service';
+import { useEffect, useState } from 'react';
+import type { Report } from '@/lib/types';
 
 
-// This is a Server Component that fetches initial data
-export default async function EditReportPage({ params }: { params: { id: string } }) {
+export default function EditReportPage({ params }: { params: { id: string } }) {
   const { id } = params;
-  const initialReport = await getReport(id);
+  const [report, setReport] = useState<Report | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  if (!initialReport) {
+  useEffect(() => {
+    getReport(id).then(data => {
+      setReport(data);
+      setLoading(false);
+    });
+  }, [id]);
+
+  if (loading) {
+    return <div>Loading report...</div>;
+  }
+
+  if (!report) {
     return <div>Report not found.</div>;
   }
 
-  return <ReportForm reportToEdit={initialReport} />;
+  return <ReportForm reportToEdit={report} />;
 }

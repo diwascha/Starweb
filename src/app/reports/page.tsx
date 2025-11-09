@@ -1,11 +1,10 @@
 
+'use client';
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { FileText, FileSpreadsheet, Package, PlusCircle } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getReports } from '@/services/report-service';
-import { getProducts } from '@/services/product-service';
 import ReportDashboardClient from './_components/report-dashboard-client';
 
 const reportModules = [
@@ -75,10 +74,7 @@ function DashboardSkeleton() {
 }
 
 
-export default async function ReportDashboardPage() {
-   const initialReports = await getReports();
-   const initialProducts = await getProducts();
-  
+export default function ReportDashboardPage() {
   return (
     <div className="flex flex-col gap-8">
       <header>
@@ -87,7 +83,7 @@ export default async function ReportDashboardPage() {
       </header>
 
       <Suspense fallback={<DashboardSkeleton />}>
-        <ReportDashboardClient initialReports={initialReports} initialProducts={initialProducts} />
+        <ReportDashboardClient initialReports={[]} initialProducts={[]} />
       </Suspense>
 
       <div>

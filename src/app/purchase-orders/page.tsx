@@ -1,11 +1,10 @@
 
+'use client';
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { ShoppingCart, Wrench } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getPurchaseOrders } from '@/services/purchase-order-service';
-import { getRawMaterials } from '@/services/raw-material-service';
 import PurchaseOrderDashboardClient from './_components/purchase-order-dashboard-client';
 
 
@@ -46,10 +45,7 @@ function DashboardSkeleton() {
 }
 
 
-export default async function PurchaseOrderDashboardPage() {
-   const initialPurchaseOrders = await getPurchaseOrders();
-   const initialRawMaterials = await getRawMaterials();
-  
+export default function PurchaseOrderDashboardPage() {
   return (
     <div className="flex flex-col gap-8">
       <header>
@@ -58,7 +54,7 @@ export default async function PurchaseOrderDashboardPage() {
       </header>
 
       <Suspense fallback={<DashboardSkeleton />}>
-        <PurchaseOrderDashboardClient initialPurchaseOrders={initialPurchaseOrders} initialRawMaterials={initialRawMaterials} />
+        <PurchaseOrderDashboardClient initialPurchaseOrders={[]} initialRawMaterials={[]} />
       </Suspense>
 
       <div>

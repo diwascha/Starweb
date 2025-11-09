@@ -1,14 +1,35 @@
 
+'use client';
 import { TripSheetForm } from '../../new/_components/trip-sheet-form';
-import { getTrip, getTrips } from '@/services/trip-service';
+import { getTrip } from '@/services/trip-service';
+import { useEffect, useState } from 'react';
+import type { Trip } from '@/lib/types';
 
 
-// This is a Server Component that fetches initial data
-export default async function EditTripSheetPage({ params }: { params: { id: string } }) {
+export default function EditTripSheetPage({ params }: { params: { id: string } }) {
   const { id } = params;
-  const initialTrip = await getTrip(id);
+  const [trip, setTrip] = useState<Trip | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  if (!initialTrip) {
+  useEffect(() => {
+    if (id) {
+      getTrip(id).then(data => {
+        setTrip(data);
+        setLoading(false);
+      });
+    }
+  }, [id]);
+  
+
+  if (loading) {
+    return (
+        <main className="p-6">
+            <h1 className="text-xl font-semibold">Loading...</h1>
+        </main>
+    );
+  }
+
+  if (!trip) {
     return (
         <main className="p-6">
             <h1 className="text-xl font-semibold text-destructive">Error</h1>
@@ -17,5 +38,5 @@ export default async function EditTripSheetPage({ params }: { params: { id: stri
     );
   }
 
-  return <TripSheetForm tripToEdit={initialTrip} />;
+  return <TripSheetForm tripToEdit={trip} />;
 }

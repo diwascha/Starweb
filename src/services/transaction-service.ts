@@ -165,6 +165,14 @@ export const getVoucherTransactions = async (voucherId: string): Promise<Transac
 };
 
 
+export const onVoucherTransactionsUpdate = (voucherId: string, callback: (transactions: Transaction[]) => void): () => void => {
+    const q = query(transactionsCollection, where("voucherId", "==", voucherId));
+    return onSnapshot(q, (snapshot) => {
+        callback(snapshot.docs.map(fromFirestore));
+    });
+};
+
+
 export const updateVoucher = async (voucherId: string, voucherData: any, modifiedBy: string) => {
     let batch = writeBatch(db);
     let writeCount = 0;

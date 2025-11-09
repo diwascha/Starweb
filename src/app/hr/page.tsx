@@ -1,11 +1,10 @@
 
+'use client';
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Users, Calendar, FileText, Award, Wallet, CheckCircle, XCircle, BarChart2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getEmployees } from '@/services/employee-service';
-import { getAttendance } from '@/services/attendance-service';
 import HrDashboardClient from './_components/hr-dashboard-client';
 
 
@@ -77,10 +76,7 @@ function DashboardSkeleton() {
     );
 }
 
-export default async function HRPage() {
-    const initialEmployees = await getEmployees();
-    const initialAttendance = await getAttendance();
-  
+export default function HRPage() {
   return (
     <div className="flex flex-col gap-8">
       <header>
@@ -89,7 +85,7 @@ export default async function HRPage() {
       </header>
 
       <Suspense fallback={<DashboardSkeleton />}>
-        <HrDashboardClient initialEmployees={initialEmployees} initialAttendance={initialAttendance} />
+        <HrDashboardClient initialEmployees={[]} initialAttendance={[]} />
       </Suspense>
 
       <div>
