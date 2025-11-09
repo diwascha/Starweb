@@ -1,7 +1,9 @@
 
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
-import { getFirestore, Firestore } from "firebase/firestore";
+import { getFirestore, Firestore, connectFirestoreEmulator } from "firebase/firestore";
 import { getStorage, FirebaseStorage } from "firebase/storage";
+import { getAuth, Auth, connectAuthEmulator } from 'firebase/auth';
+import { signalConnectionEstablished } from './firebase-connection';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -12,9 +14,21 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// This ensures we only initialize Firebase once.
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const db = getFirestore(app);
-const storage = getStorage(app);
+let app: FirebaseApp;
+let db: Firestore;
+let storage: FirebaseStorage;
+let auth: Auth;
 
-export { app, db, storage };
+if (getApps().length === 0) {
+  app = initializeApp(firebaseConfig);
+} else {
+  app = getApp();
+}
+
+db = getFirestore(app);
+storage = getStorage(app);
+auth = getAuth(app);
+
+signalConnectionEstablished();
+
+export { app, db, storage, auth };
