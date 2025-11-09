@@ -4,8 +4,7 @@
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
     "devPath": "http://localhost:9002",
-    "distDir": "../out",
-    "withGlobalTauri": true
+    "distDir": "../out"
   },
   "app": {
     "windows": [
