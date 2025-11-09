@@ -50,6 +50,15 @@ export const addTransaction = async (transaction: Omit<Transaction, 'id' | 'crea
     return docRef.id;
 };
 
+export const updateTransaction = async (id: string, transaction: Partial<Omit<Transaction, 'id'>>): Promise<void> => {
+    const transactionDoc = doc(db, 'transactions', id);
+    await updateDoc(transactionDoc, {
+        ...transaction,
+        lastModifiedAt: new Date().toISOString(),
+    });
+};
+
+
 export const saveVoucher = async (voucherData: any, createdBy: string) => {
     let batch = writeBatch(db);
     let writeCount = 0;

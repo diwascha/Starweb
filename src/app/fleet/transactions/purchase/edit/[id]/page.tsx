@@ -5,6 +5,12 @@ import { getParties } from '@/services/party-service';
 import { getAccounts } from '@/services/account-service';
 import { PurchaseForm } from '../../../_components/purchase-form';
 import { getUoms } from '@/services/uom-service';
+import { updateTransaction } from '@/services/transaction-service';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/use-auth';
+import { useToast } from '@/hooks/use-toast';
+import EditPurchaseClientPage from './_components/EditPurchaseClientPage';
+
 
 // This function is required for Next.js static exports to work with dynamic routes.
 export async function generateStaticParams() {
@@ -61,15 +67,15 @@ export default async function EditPurchasePage({ params }: { params: { id: strin
         <h1 className="text-3xl font-bold tracking-tight">Edit Purchase</h1>
         <p className="text-muted-foreground">Modify the details for purchase #{initialFormValues.purchaseNumber}.</p>
       </header>
-        <PurchaseForm
+        <EditPurchaseClientPage
           accounts={accounts}
           parties={parties}
           vehicles={vehicles}
           uoms={uoms}
-          onFormSubmit={async () => {}}
-          onCancel={() => {}}
           initialValues={initialFormValues}
+          transactionId={id}
         />
     </div>
   );
 }
+
