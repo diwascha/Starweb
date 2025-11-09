@@ -24,11 +24,8 @@ export async function generateStaticParams() {
       
       const voucherIds = new Set<string>();
       transactions.forEach(t => {
-          if (t.voucherId) {
+          if (t.voucherId && (t.type === 'Payment' || t.type === 'Receipt')) {
               voucherIds.add(t.voucherId);
-          } else if (t.type === 'Payment' || t.type === 'Receipt') {
-              // Fallback for legacy data that might not have a voucherId
-              voucherIds.add(`legacy-${t.id}`);
           }
       });
       
@@ -46,10 +43,10 @@ export default async function EditVoucherPage({ params }: { params: { voucherId:
   
   const [initialTransactions, vehicles, parties, accounts, allTransactions] = await Promise.all([
     getVoucherTransactions(voucherId),
-    getVehicles(),
-    getParties(),
-    getAccounts(),
-    getTransactions(),
+    getVehicles(true),
+    getParties(true),
+    getAccounts(true),
+    getTransactions(true),
   ]);
 
   if (!initialTransactions || initialTransactions.length === 0) {
@@ -75,7 +72,7 @@ export default async function EditVoucherPage({ params }: { params: { voucherId:
     billingType: base.billingType,
     accountId: base.accountId,
     chequeNo: base.chequeNumber,
-    chequeDate: base.chequeDate ? new Date(base.chequeDate) : null,
+    chequeDate: base.chequeDate ? new Date(base.chequeDate) : undefined,
     items: items,
     remarks: base.remarks,
   };
