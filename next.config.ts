@@ -8,8 +8,6 @@ const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
       bodySizeLimit: '4mb',
-      // This is the key change: server actions must be disabled for static export.
-      enabled: !isTauri,
     },
   },
   typescript: {
@@ -33,10 +31,14 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+       {
+        protocol: 'https',
+        hostname: 'firebasestorage.googleapis.com',
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
-  output: isTauri ? 'export' : undefined,
-  distDir: isTauri ? 'out' : '.next',
 };
 
 export default nextConfig;
