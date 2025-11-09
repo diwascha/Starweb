@@ -66,4 +66,3 @@ export default function PurchaseViewPage({ params }: { params: { id: string } })
     />
   );
 }
-
