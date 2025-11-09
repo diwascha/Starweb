@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -122,7 +123,7 @@ export default function VoucherViewClient({
         </div>
 
       </div>
-      <style jsx global>{\`
+      <style>{`
         @media print {
           @page { size: A4; margin: 0.5in; }
           body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background-color: #fff; }
@@ -131,7 +132,7 @@ export default function VoucherViewClient({
           .printable-area { position: absolute; left: 0; top: 0; width: 100%; height: auto; margin: 0; padding: 0; border: none; font-size: 10px; }
           .print\\:hidden { display: none; }
         }
-      \`}</style>
+      `}</style>
     </>
   );
 }
