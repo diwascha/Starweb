@@ -299,10 +299,12 @@ export default function ReportView({ initialReport }: { initialReport: Report })
             background-color: #fff !important;
           }
           body > * {
-            display: none !important;
+            visibility: hidden;
           }
-          body > .printable-area {
-            display: block !important;
+          .printable-area, .printable-area * {
+            visibility: visible;
+          }
+          .printable-area {
             position: absolute;
             left: 0;
             top: 0;
@@ -311,7 +313,7 @@ export default function ReportView({ initialReport }: { initialReport: Report })
             margin: 0;
             padding: 0;
             border: none;
-            font-size: 10px;
+            font-size: 10px; /* Smaller base font size for print */
           }
            .print\:hidden {
               display: none !important;
