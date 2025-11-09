@@ -6,6 +6,8 @@ import { getAccounts } from '@/services/account-service';
 import { getTransactions } from '@/services/transaction-service';
 import { PaymentReceiptForm } from '../../../_components/payment-receipt-form';
 import { Suspense } from 'react';
+import type { Transaction } from '@/lib/types';
+
 
 // This function is required for Next.js static exports to work with dynamic routes.
 export async function generateStaticParams() {
@@ -19,8 +21,15 @@ export async function generateStaticParams() {
       if (!transactions || transactions.length === 0) {
         return [];
       }
-      const voucherIds = Array.from(new Set(transactions.map(t => t.voucherId).filter(Boolean)));
-      return voucherIds.map(id => ({
+      
+      const voucherIds = new Set<string>();
+      transactions.forEach(t => {
+          if (t.voucherId) {
+              voucherIds.add(t.voucherId);
+          }
+      });
+      
+      return Array.from(voucherIds).map(id => ({
         voucherId: id,
       }));
     } catch (error) {
