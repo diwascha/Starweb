@@ -24,12 +24,8 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Vehicle =
     };
 }
 
-export const getVehicles = async (forceFetch: boolean = false): Promise<Vehicle[]> => {
+export const getVehicles = async (): Promise<Vehicle[]> => {
     await connectionPromise;
-    const isDesktop = process.env.TAURI_BUILD === 'true';
-    if (isDesktop && !forceFetch) {
-        return [];
-    }
     const snapshot = await getDocs(vehiclesCollection);
     return snapshot.docs.map(fromFirestore);
 };

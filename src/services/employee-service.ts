@@ -50,12 +50,8 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
     };
 }
 
-export const getEmployees = async (forceFetch: boolean = false): Promise<Employee[]> => {
+export const getEmployees = async (): Promise<Employee[]> => {
     await connectionPromise;
-    const isDesktop = process.env.TAURI_BUILD === 'true';
-    if (isDesktop && !forceFetch) {
-        return [];
-    }
     const snapshot = await getDocs(employeesCollection);
     return snapshot.docs.map(fromFirestore).filter(emp => isValidEmployeeName(emp.name));
 };

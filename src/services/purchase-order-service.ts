@@ -25,12 +25,8 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
     };
 }
 
-export const getPurchaseOrders = async (forceFetch: boolean = false): Promise<PurchaseOrder[]> => {
+export const getPurchaseOrders = async (): Promise<PurchaseOrder[]> => {
     await connectionPromise;
-    const isDesktop = process.env.TAURI_BUILD === 'true';
-    if (isDesktop && !forceFetch) {
-        return [];
-    }
     const snapshot = await getDocs(purchaseOrdersCollection);
     return snapshot.docs.map(fromFirestore);
 };

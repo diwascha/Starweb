@@ -33,12 +33,8 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Attendanc
     };
 };
 
-export const getAttendance = async (forceFetch: boolean = false): Promise<AttendanceRecord[]> => {
+export const getAttendance = async (): Promise<AttendanceRecord[]> => {
     await connectionPromise;
-    const isDesktop = process.env.TAURI_BUILD === 'true';
-    if (isDesktop && !forceFetch) {
-        return [];
-    }
     const snapshot = await getDocs(attendanceCollection);
     return snapshot.docs.map(fromFirestore);
 };
@@ -217,7 +213,7 @@ export const onAttendanceUpdate = (callback: (records: AttendanceRecord[]) => vo
 
 export const getAttendanceForMonth = async (bsYear: number, bsMonth: number): Promise<AttendanceRecord[]> => {
     await connectionPromise;
-    const allRecords = await getAttendance(true);
+    const allRecords = await getAttendance();
     return allRecords.filter(r => {
         try {
             if (!r.date || isNaN(new Date(r.date).getTime())) return false;
@@ -231,7 +227,7 @@ export const getAttendanceForMonth = async (bsYear: number, bsMonth: number): Pr
 
 export const getAttendanceYears = async (): Promise<number[]> => {
     await connectionPromise;
-    const allRecords = await getAttendance(true);
+    const allRecords = await getAttendance();
     const years = new Set(allRecords.map(r => {
         try {
             if (!r.date || isNaN(new Date(r.date).getTime())) return null;

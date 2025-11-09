@@ -22,12 +22,8 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Account =
     };
 }
 
-export const getAccounts = async (forceFetch: boolean = false): Promise<Account[]> => {
+export const getAccounts = async (): Promise<Account[]> => {
     await connectionPromise;
-    const isDesktop = process.env.TAURI_BUILD === 'true';
-    if (isDesktop && !forceFetch) {
-        return [];
-    }
     const snapshot = await getDocs(accountsCollection);
     return snapshot.docs.map(fromFirestore);
 };

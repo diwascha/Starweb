@@ -24,12 +24,8 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): RawMateri
     };
 }
 
-export const getRawMaterials = async (forceFetch: boolean = false): Promise<RawMaterial[]> => {
+export const getRawMaterials = async (): Promise<RawMaterial[]> => {
     await connectionPromise;
-    const isDesktop = process.env.TAURI_BUILD === 'true';
-    if (isDesktop && !forceFetch) {
-        return [];
-    }
     const snapshot = await getDocs(rawMaterialsCollection);
     return snapshot.docs.map(fromFirestore);
 };

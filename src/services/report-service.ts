@@ -44,12 +44,8 @@ const fromDocSnapshot = (docSnap: DocumentData): Report => {
     };
 };
 
-export const getReports = async (forceFetch: boolean = false): Promise<Report[]> => {
+export const getReports = async (): Promise<Report[]> => {
     await connectionPromise;
-    const isDesktop = process.env.TAURI_BUILD === 'true';
-    if (isDesktop && !forceFetch) {
-        return [];
-    }
     const snapshot = await getDocs(reportsCollection);
     return snapshot.docs.map(fromFirestore);
 };

@@ -21,12 +21,8 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
     };
 }
 
-export const getParties = async (forceFetch: boolean = false): Promise<Party[]> => {
+export const getParties = async (): Promise<Party[]> => {
     await connectionPromise;
-    const isDesktop = process.env.TAURI_BUILD === 'true';
-    if (isDesktop && !forceFetch) {
-        return [];
-    }
     const snapshot = await getDocs(partiesCollection);
     return snapshot.docs.map(fromFirestore);
 };

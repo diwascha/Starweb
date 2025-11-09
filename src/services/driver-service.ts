@@ -25,12 +25,8 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Driver =>
     };
 }
 
-export const getDrivers = async (forceFetch: boolean = false): Promise<Driver[]> => {
+export const getDrivers = async (): Promise<Driver[]> => {
     await connectionPromise;
-    const isDesktop = process.env.TAURI_BUILD === 'true';
-    if (isDesktop && !forceFetch) {
-        return [];
-    }
     const snapshot = await getDocs(driversCollection);
     return snapshot.docs.map(fromFirestore);
 };

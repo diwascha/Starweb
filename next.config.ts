@@ -1,8 +1,6 @@
 
 import type {NextConfig} from 'next';
 
-const isTauri = process.env.TAURI_BUILD === 'true';
-
 const nextConfig: NextConfig = {
   /* config options here */
   experimental: {
@@ -17,7 +15,7 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   images: {
-    unoptimized: isTauri,
+    unoptimized: false,
     remotePatterns: [
       {
         protocol: 'https',
