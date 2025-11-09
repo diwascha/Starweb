@@ -79,6 +79,7 @@ export const deleteCostReport = async (id: string): Promise<void> => {
 };
 
 export const generateNextCostReportNumber = async (reports: Pick<CostReport, 'reportNumber'>[]): Promise<string> => {
+    await connectionPromise;
     const prefix = 'CR-';
     let maxNumber = 0;
     reports.forEach(report => {

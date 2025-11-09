@@ -2,7 +2,7 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getFirestore, Firestore, onSnapshot, doc } from "firebase/firestore";
 import { getStorage, FirebaseStorage } from "firebase/storage";
-import { connectionPromise, resolveConnection, rejectConnection } from './firebase-connection';
+import { createConnectionPromise, resolveConnection, rejectConnection } from './firebase-connection';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -20,6 +20,10 @@ interface FirebaseInstances {
 }
 
 let firebaseInstances: FirebaseInstances | null = null;
+
+// Initialize the connection promise immediately
+export const connectionPromise = createConnectionPromise();
+
 
 const initializeFirebase = (): FirebaseInstances => {
   if (firebaseInstances) {
@@ -49,4 +53,4 @@ const initializeFirebase = (): FirebaseInstances => {
 
 const { app, db, storage } = initializeFirebase();
 
-export { app, db, storage, connectionPromise };
+export { app, db, storage };

@@ -58,7 +58,7 @@ export const updateProduct = async (id: string, productUpdate: Partial<Omit<Prod
     if (!productDoc.exists()) {
         throw new Error("Product not found");
     }
-    const existingProduct = fromFirestore(productDoc);
+    const existingProduct = fromFirestore(productDoc as QueryDocumentSnapshot<DocumentData>);
     
     const updates: Partial<Product> = { ...productUpdate };
 
