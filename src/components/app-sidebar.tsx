@@ -13,13 +13,7 @@ import {
   SidebarContent,
   useSidebar,
 } from '@/components/ui/sidebar';
-import {
-    Accordion,
-    AccordionContent,
-    AccordionItem,
-    AccordionTrigger,
-} from "@/components/ui/accordion"
-import { FileText, LayoutDashboard, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users, Calendar, Award, Wallet, Building2, PlusCircle, Truck, ShieldCheck, CreditCard, ArrowRightLeft, TrendingUp, BarChart2, Notebook, Download, Calculator, PanelLeft, PanelRight, Receipt, Briefcase, ChevronDown, Wifi, WifiOff } from 'lucide-react';
+import { FileText, LayoutDashboard, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users, Calendar, Award, Wallet, Building2, PlusCircle, Truck, ShieldCheck, CreditCard, ArrowRightLeft, TrendingUp, BarChart2, Notebook, Download, Calculator, PanelLeft, PanelRight, Receipt, Briefcase, Wifi, WifiOff } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
@@ -29,7 +23,6 @@ import { exportData } from '@/services/backup-service';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useConnectionStatus } from '@/hooks/use-connection-status';
-import { Badge } from './ui/badge';
 
 function ConnectionStatus() {
     const isConnected = useConnectionStatus();
@@ -50,6 +43,7 @@ function ConnectionStatus() {
         </div>
     );
 }
+
 
 function SidebarCollapseButton() {
     const { state, toggleSidebar } = useSidebar();

@@ -1,15 +1,16 @@
+
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { getDatabase, ref, onValue, off } from "firebase/database";
 import { app } from '@/lib/firebase';
 
-export function useConnectionStatus() {
-  const [isConnected, setIsConnected] = useState<boolean>(true); // Assume online initially
+const ConnectionStatusContext = createContext<boolean>(true);
+
+export function ConnectionStatusProvider({ children }: { children: ReactNode }) {
+  const [isConnected, setIsConnected] = useState<boolean>(true);
 
   useEffect(() => {
-    // The Realtime Database's .info/connected is a good proxy for general Firebase connectivity.
-    // It's lightweight and designed for this purpose.
     const db = getDatabase(app);
     const connectedRef = ref(db, '.info/connected');
 
@@ -17,11 +18,18 @@ export function useConnectionStatus() {
       setIsConnected(snap.val() === true);
     });
 
-    // Cleanup listener on component unmount
     return () => {
       off(connectedRef, 'value', listener);
     };
   }, []);
 
-  return isConnected;
+  return (
+    <ConnectionStatusContext.Provider value={isConnected}>
+      {children}
+    </ConnectionStatusContext.Provider>
+  );
+}
+
+export function useConnectionStatus() {
+  return useContext(ConnectionStatusContext);
 }
