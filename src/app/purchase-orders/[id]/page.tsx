@@ -11,7 +11,7 @@ export async function generateStaticParams() {
   try {
     const purchaseOrders = await getPurchaseOrders(true); // Force fetch for build
     if (!purchaseOrders || purchaseOrders.length === 0) {
-      return [];
+        return [];
     }
     return purchaseOrders.map((po) => ({
       id: po.id,
@@ -24,11 +24,6 @@ export async function generateStaticParams() {
 
 // This is a Server Component that fetches initial data
 export default async function PurchaseOrderPage({ params }: { params: { id: string } }) {
-  const initialPurchaseOrder = await getPurchaseOrder(params.id);
-
-  if (!initialPurchaseOrder) {
-    return <div>Purchase Order not found.</div>;
-  }
-  
-  return <PurchaseOrderView initialPurchaseOrder={initialPurchaseOrder} poId={params.id} />;
+  // The client component will now handle fetching, so we can pass null.
+  return <PurchaseOrderView initialPurchaseOrder={null} poId={params.id} />;
 }
