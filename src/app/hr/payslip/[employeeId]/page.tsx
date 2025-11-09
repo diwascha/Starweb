@@ -8,20 +8,6 @@ const nepaliMonths = [
     "Kartik", "Mangsir", "Poush", "Magh", "Falgun", "Chaitra"
 ];
 
-// This function is required for Next.js static exports to work with dynamic routes.
-export async function generateStaticParams() {
-  const employees = await getEmployees();
-  if (!employees || employees.length === 0) {
-    return [];
-  }
-  // We can't know which year/month combos exist without fetching all payroll data,
-  // which is inefficient. Instead, we can return just the employee IDs.
-  // The page will need to handle cases where a payslip for a specific month doesn't exist.
-  return employees.map((employee) => ({
-    employeeId: employee.id,
-  }));
-}
-
 export default async function PayslipPage({ params, searchParams }: { params: { employeeId: string }, searchParams: { year: string, month: string } }) {
     const { employeeId } = params;
     const bsYear = parseInt(searchParams?.year, 10);

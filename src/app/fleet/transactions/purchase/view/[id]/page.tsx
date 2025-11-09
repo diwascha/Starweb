@@ -5,17 +5,6 @@ import { getVehicles } from '@/services/vehicle-service';
 import { getParties } from '@/services/party-service';
 import { getAccounts } from '@/services/account-service';
 
-export async function generateStaticParams() {
-  const transactions = await getTransactions();
-  const purchaseTransactions = transactions.filter(t => t.type === 'Purchase');
-  if (!purchaseTransactions || purchaseTransactions.length === 0) {
-    return [];
-  }
-  return purchaseTransactions.map((t) => ({
-    id: t.id,
-  }));
-}
-
 export default async function PurchaseViewPage({ params }: { params: { id: string } }) {
   const { id } = params;
   const [initialTransaction, vehicles, parties, accounts] = await Promise.all([

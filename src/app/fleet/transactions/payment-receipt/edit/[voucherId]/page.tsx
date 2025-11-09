@@ -9,30 +9,6 @@ import { Suspense } from 'react';
 import type { Transaction } from '@/lib/types';
 
 
-// This function is required for Next.js static exports to work with dynamic routes.
-export async function generateStaticParams() {
-    try {
-      const transactions = await getTransactions(true); // Force fetch for build
-      if (!transactions || transactions.length === 0) {
-        return [];
-      }
-      
-      const voucherIds = new Set<string>();
-      transactions.forEach(t => {
-          if (t.voucherId && (t.type === 'Payment' || t.type === 'Receipt')) {
-              voucherIds.add(t.voucherId);
-          }
-      });
-      
-      return Array.from(voucherIds).map(id => ({
-        voucherId: id,
-      }));
-    } catch (error) {
-      console.error("Failed to generate static params for edit vouchers:", error);
-      return [];
-    }
-}
-
 export default async function EditVoucherPage({ params }: { params: { voucherId: string } }) {
   const { voucherId } = params;
   

@@ -7,18 +7,6 @@ import { getUoms } from '@/services/uom-service';
 import EditPurchaseClientPage from './_components/EditPurchaseClientPage';
 
 
-// This function is required for Next.js static exports to work with dynamic routes.
-export async function generateStaticParams() {
-    const transactions = await getTransactions();
-    const purchaseTransactions = transactions.filter(t => t.type === 'Purchase');
-    if (!purchaseTransactions || purchaseTransactions.length === 0) {
-      return [];
-    }
-    return purchaseTransactions.map((t) => ({
-        id: t.id,
-    }));
-}
-
 export default async function EditPurchasePage({ params }: { params: { id: string } }) {
   const { id } = params;
   
