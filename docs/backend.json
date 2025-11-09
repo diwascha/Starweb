@@ -1,0 +1,54 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Represents a user of the application.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "The unique identifier for the user."
+        },
+        "username": {
+          "type": "string",
+          "description": "The user's chosen username."
+        },
+        "permissions": {
+          "type": "object",
+          "description": "A map of module to action permissions."
+        }
+      },
+      "required": ["id", "username"]
+    },
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Stores additional information about a user.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The ID of the user this profile belongs to."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "The user's display name."
+        },
+        "photoURL": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL of the user's profile picture."
+        }
+      },
+      "required": ["userId"]
+    }
+  },
+  "auth": {
+    "providers": ["password"]
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Stores public profiles for users."
+    }
+  }
+}
