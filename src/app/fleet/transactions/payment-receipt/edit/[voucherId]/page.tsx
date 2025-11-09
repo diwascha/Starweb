@@ -11,11 +11,6 @@ import type { Transaction } from '@/lib/types';
 
 // This function is required for Next.js static exports to work with dynamic routes.
 export async function generateStaticParams() {
-    // Always try to generate params for desktop builds
-    if (process.env.TAURI_BUILD !== 'true') {
-        return [];
-    }
-
     try {
       const transactions = await getTransactions(true); // Force fetch for build
       if (!transactions || transactions.length === 0) {
