@@ -86,4 +86,3 @@ export default async function EditVoucherPage({ params }: { params: { voucherId:
     </div>
   );
 }
-
