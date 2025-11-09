@@ -1,4 +1,3 @@
-
 {
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -6,7 +5,6 @@
     "frontendDist": "../out"
   },
   "app": {
-    "identifier": "com.starweb.desktop.app",
     "windows": [
       {
         "fullscreen": false,
@@ -19,6 +17,9 @@
     "security": {
       "csp": null
     }
+  },
+  "bundle": {
+    "identifier": "com.starweb.desktop.app"
   },
   "plugins": {
     "shell": {
