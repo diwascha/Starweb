@@ -15,6 +15,9 @@ export async function generateStaticParams() {
   }
   try {
     const transactions = await getTransactions(true);
+    if (!transactions || transactions.length === 0) {
+      return [];
+    }
     const voucherIds = Array.from(new Set(transactions.map(t => t.voucherId).filter(Boolean)));
     return voucherIds.map(id => ({ voucherId: id as string }));
   } catch (error) {
