@@ -1,19 +1,44 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
-
-import { getVoucherTransactions } from '@/services/transaction-service';
+import { getTransactions, getVoucherTransactions } from '@/services/transaction-service';
 import type { Transaction, Vehicle, Party, Account } from '@/lib/types';
 import VoucherViewClient from './_components/VoucherViewClient';
 import { getVehicles } from '@/services/vehicle-service';
 import { getParties } from '@/services/party-service';
 import { getAccounts } from '@/services/account-service';
 
-export default function VoucherViewPage() {
-  const sp = useSearchParams();
-  // read /fleet/transactions/payment-receipt?voucherId=123
-  const voucherId = useMemo(() => sp.get('voucherId') ?? '', [sp]);
+// This function is required for Next.js static exports to work with dynamic routes.
+export async function generateStaticParams() {
+  // Always try to generate params for desktop builds
+  if (process.env.TAURI_BUILD !== 'true') {
+    return [];
+  }
+  try {
+    const transactions = await getTransactions(true); // Force fetch for build
+    if (!transactions || transactions.length === 0) {
+      return [];
+    }
+    
+    // Group transactions by voucherId to get unique voucherIds
+    const voucherIds = transactions.reduce((acc, t) => {
+        if (t.voucherId) {
+            acc.add(t.voucherId);
+        }
+        return acc;
+    }, new Set<string>());
+
+    return Array.from(voucherIds).map(id => ({
+      voucherId: id,
+    }));
+  } catch (error) {
+    console.error("Failed to generate static params for vouchers:", error);
+    return [];
+  }
+}
+
+export default function VoucherViewPage({ params }: { params: { voucherId: string } }) {
+  const { voucherId } = params;
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
