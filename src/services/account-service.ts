@@ -54,7 +54,6 @@ export const onAccountsUpdate = (callback: (accounts: Account[]) => void): () =>
         },
         (error) => {
             console.error("onAccountsUpdate listener failed: ", error);
-            // Optionally, inform the user about the error
         }
     );
 };
