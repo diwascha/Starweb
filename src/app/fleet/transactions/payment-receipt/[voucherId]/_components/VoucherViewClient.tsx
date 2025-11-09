@@ -1,15 +1,13 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
 import type { Transaction, Vehicle, Party, Account } from '@/lib/types';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Printer } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { toNepaliDate } from '@/lib/utils';
 import { format } from 'date-fns';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 
 interface VoucherViewClientProps {
   initialTransactions: Transaction[];
@@ -124,16 +122,16 @@ export default function VoucherViewClient({
         </div>
 
       </div>
-      <style jsx global>{`
+      <style jsx global>{\`
         @media print {
           @page { size: A4; margin: 0.5in; }
           body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background-color: #fff; }
           body * { visibility: hidden; }
           .printable-area, .printable-area * { visibility: visible; }
           .printable-area { position: absolute; left: 0; top: 0; width: 100%; height: auto; margin: 0; padding: 0; border: none; font-size: 10px; }
-          .print\:hidden { display: none; }
+          .print\\:hidden { display: none; }
         }
-      `}</style>
+      \`}</style>
     </>
   );
 }

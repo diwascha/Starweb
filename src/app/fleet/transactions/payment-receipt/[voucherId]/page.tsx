@@ -1,5 +1,4 @@
-
-import { getTransactions, getVoucherTransactions } from '@/services/transaction-service';
+import { getVoucherTransactions, getTransactions } from '@/services/transaction-service';
 import type { Transaction, Vehicle, Party, Account } from '@/lib/types';
 import VoucherViewClient from './_components/VoucherViewClient';
 import { getVehicles } from '@/services/vehicle-service';
@@ -40,8 +39,8 @@ export default async function VoucherViewPage({ params }: { params: { voucherId:
   
   const [initialTransactions, vehicles, parties, accounts] = await Promise.all([
     getVoucherTransactions(voucherId),
-    getVehicles(),
-    getParties(),
+    getVehicles(true),
+    getParties(true),
     getAccounts(),
   ]);
 
