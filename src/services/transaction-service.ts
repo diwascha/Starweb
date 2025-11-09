@@ -132,7 +132,7 @@ export const getTransaction = async (id: string): Promise<Transaction | null> =>
 };
 
 export const getTransactions = async (forceFetch: boolean = false): Promise<Transaction[]> => {
-    const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
+    const isDesktop = process.env.TAURI_BUILD === 'true';
     if (isDesktop && !forceFetch) {
         return [];
     }

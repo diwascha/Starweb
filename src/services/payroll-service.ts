@@ -441,5 +441,3 @@ export const generateAnalyticsForMonth = (
 
     return { punctuality, behavior, patterns, workforce };
 };
-
-    
