@@ -1,10 +1,37 @@
+
 {
   "build": {
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
-    "frontendDist": "../out"
+    "devPath": "http://localhost:9002",
+    "distDir": "../.next"
   },
-  "app": {
+  "package": {
+    "productName": "starweb",
+    "version": "0.1.0"
+  },
+  "tauri": {
+    "allowlist": {
+      "all": false,
+      "shell": {
+        "all": false,
+        "open": true
+      }
+    },
+    "bundle": {
+      "active": true,
+      "icon": [
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
+      ],
+      "identifier": "com.starweb.desktop.app"
+    },
+    "security": {
+      "csp": null
+    },
     "windows": [
       {
         "fullscreen": false,
@@ -13,18 +40,6 @@
         "width": 1200,
         "height": 800
       }
-    ],
-    "security": {
-      "csp": null
-    }
-  },
-  "bundle": {
-    "active": true
-  },
-  "identifier": "com.starweb.desktop.app",
-  "plugins": {
-    "shell": {
-      "open": true
-    }
+    ]
   }
 }
