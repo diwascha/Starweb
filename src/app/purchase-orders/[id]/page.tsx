@@ -25,6 +25,7 @@ export async function generateStaticParams() {
 
 // This is a Server Component that fetches initial data
 export default async function PurchaseOrderPage({ params }: { params: { id: string } }) {
-  // The client component will now handle fetching, so we can pass null.
-  return <PurchaseOrderView initialPurchaseOrder={null} poId={params.id} />;
+  const initialPurchaseOrder = await getPurchaseOrder(params.id);
+  
+  return <PurchaseOrderView initialPurchaseOrder={initialPurchaseOrder} poId={params.id} />;
 }
