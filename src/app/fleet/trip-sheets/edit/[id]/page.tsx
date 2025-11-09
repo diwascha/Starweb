@@ -5,23 +5,13 @@ import { getTrip, getTrips } from '@/services/trip-service';
 
 // This function is required for Next.js static exports to work with dynamic routes.
 export async function generateStaticParams() {
-  // Always try to generate params for desktop builds
-  if (process.env.TAURI_BUILD !== 'true') {
-    return [];
-  }
-
-  try {
-    const trips = await getTrips(true); // Force fetch for build
+    const trips = await getTrips();
     if (!trips || trips.length === 0) {
       return [];
     }
     return trips.map((trip) => ({
       id: trip.id,
     }));
-  } catch (error) {
-    console.error("Failed to generate static params for edit trip sheets:", error);
-    return [];
-  }
 }
 
 // This is a Server Component that fetches initial data

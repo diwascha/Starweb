@@ -77,9 +77,8 @@ function DashboardSkeleton() {
 
 
 export default async function ReportDashboardPage() {
-   const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
-   const initialReports = isDesktop ? [] : await getReports();
-   const initialProducts = isDesktop ? [] : await getProducts();
+   const initialReports = await getReports();
+   const initialProducts = await getProducts();
   
   return (
     <div className="flex flex-col gap-8">

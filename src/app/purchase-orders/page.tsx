@@ -47,9 +47,8 @@ function DashboardSkeleton() {
 
 
 export default async function PurchaseOrderDashboardPage() {
-   const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
-   const initialPurchaseOrders = isDesktop ? [] : await getPurchaseOrders();
-   const initialRawMaterials = isDesktop ? [] : await getRawMaterials();
+   const initialPurchaseOrders = await getPurchaseOrders();
+   const initialRawMaterials = await getRawMaterials();
   
   return (
     <div className="flex flex-col gap-8">

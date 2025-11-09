@@ -6,31 +6,23 @@ import { getParties } from '@/services/party-service';
 import { getAccounts } from '@/services/account-service';
 
 export async function generateStaticParams() {
-  if (process.env.TAURI_BUILD !== 'true') {
+  const transactions = await getTransactions();
+  const purchaseTransactions = transactions.filter(t => t.type === 'Purchase');
+  if (!purchaseTransactions || purchaseTransactions.length === 0) {
     return [];
   }
-  try {
-    const transactions = await getTransactions(true);
-    const purchaseTransactions = transactions.filter(t => t.type === 'Purchase');
-    if (!purchaseTransactions || purchaseTransactions.length === 0) {
-      return [];
-    }
-    return purchaseTransactions.map((t) => ({
-      id: t.id,
-    }));
-  } catch (error) {
-    console.error("Failed to generate static params for purchase view:", error);
-    return [];
-  }
+  return purchaseTransactions.map((t) => ({
+    id: t.id,
+  }));
 }
 
 export default async function PurchaseViewPage({ params }: { params: { id: string } }) {
   const { id } = params;
   const [initialTransaction, vehicles, parties, accounts] = await Promise.all([
     getTransaction(id),
-    getVehicles(true),
-    getParties(true),
-    getAccounts(true),
+    getVehicles(),
+    getParties(),
+    getAccounts(),
   ]);
 
   if (!initialTransaction) {

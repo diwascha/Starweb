@@ -94,9 +94,8 @@ const serializeObject = <T extends Record<string, any>>(obj: T): T => {
 
 
 export default async function HRPage() {
-    const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
-    const employeesRaw = isDesktop ? [] : await getEmployees();
-    const attendanceRaw = isDesktop ? [] : await getAttendance();
+    const employeesRaw = await getEmployees();
+    const attendanceRaw = await getAttendance();
 
     // Sanitize data before passing it to the client component
     const initialEmployees = employeesRaw.map(e => serializeObject(e));

@@ -24,12 +24,8 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): NoteItem 
     };
 }
 
-export const getNoteItems = async (forceFetch: boolean = false): Promise<NoteItem[]> => {
+export const getNoteItems = async (): Promise<NoteItem[]> => {
     await connectionPromise;
-    const isDesktop = process.env.TAURI_BUILD === 'true';
-    if (isDesktop && !forceFetch) {
-        return [];
-    }
     const q = query(notesCollection, orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(fromFirestore);

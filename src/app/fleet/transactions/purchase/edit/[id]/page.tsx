@@ -9,24 +9,14 @@ import EditPurchaseClientPage from './_components/EditPurchaseClientPage';
 
 // This function is required for Next.js static exports to work with dynamic routes.
 export async function generateStaticParams() {
-    // Always try to generate params for desktop builds
-    if (process.env.TAURI_BUILD !== 'true') {
-        return [];
-    }
-
-    try {
-      const transactions = await getTransactions(true); // Force fetch for build
-      const purchaseTransactions = transactions.filter(t => t.type === 'Purchase');
-      if (!purchaseTransactions || purchaseTransactions.length === 0) {
-        return [];
-      }
-      return purchaseTransactions.map((t) => ({
-          id: t.id,
-      }));
-    } catch (error) {
-      console.error("Failed to generate static params for edit purchases:", error);
+    const transactions = await getTransactions();
+    const purchaseTransactions = transactions.filter(t => t.type === 'Purchase');
+    if (!purchaseTransactions || purchaseTransactions.length === 0) {
       return [];
     }
+    return purchaseTransactions.map((t) => ({
+        id: t.id,
+    }));
 }
 
 export default async function EditPurchasePage({ params }: { params: { id: string } }) {
@@ -73,5 +63,3 @@ export default async function EditPurchasePage({ params }: { params: { id: strin
     </div>
   );
 }
-
-

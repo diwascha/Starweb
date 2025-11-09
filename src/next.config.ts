@@ -1,15 +1,11 @@
 
 import type {NextConfig} from 'next';
 
-const isTauri = process.env.TAURI_BUILD === 'true';
-
 const nextConfig: NextConfig = {
   /* config options here */
   experimental: {
     serverActions: {
       bodySizeLimit: '4mb',
-      // This is the key change: server actions must be disabled for static export.
-      enabled: !isTauri,
     },
   },
   typescript: {
@@ -19,7 +15,7 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   images: {
-    unoptimized: isTauri,
+    unoptimized: false,
     remotePatterns: [
       {
         protocol: 'https',
@@ -41,8 +37,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  output: isTauri ? 'export' : undefined,
-  distDir: isTauri ? 'out' : '.next',
 };
 
 export default nextConfig;

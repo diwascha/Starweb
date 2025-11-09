@@ -37,12 +37,8 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
     };
 }
 
-export const getTrips = async (forceFetch: boolean = false): Promise<Trip[]> => {
+export const getTrips = async (): Promise<Trip[]> => {
     await connectionPromise;
-    const isDesktop = process.env.TAURI_BUILD === 'true';
-    if (isDesktop && !forceFetch) {
-        return [];
-    }
     const snapshot = await getDocs(tripsCollection);
     return snapshot.docs.map(fromFirestore);
 };

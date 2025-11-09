@@ -10,25 +10,16 @@ const nepaliMonths = [
 
 // This function is required for Next.js static exports to work with dynamic routes.
 export async function generateStaticParams() {
-  // Always try to generate params for desktop builds
-  if (process.env.TAURI_BUILD !== 'true') {
+  const employees = await getEmployees();
+  if (!employees || employees.length === 0) {
     return [];
   }
-  try {
-    const employees = await getEmployees(true); // Force fetch for build
-    if (!employees || employees.length === 0) {
-      return [];
-    }
-    // We can't know which year/month combos exist without fetching all payroll data,
-    // which is inefficient. Instead, we can return just the employee IDs.
-    // The page will need to handle cases where a payslip for a specific month doesn't exist.
-    return employees.map((employee) => ({
-      employeeId: employee.id,
-    }));
-  } catch (error) {
-    console.error("Failed to generate static params for payslips:", error);
-    return [];
-  }
+  // We can't know which year/month combos exist without fetching all payroll data,
+  // which is inefficient. Instead, we can return just the employee IDs.
+  // The page will need to handle cases where a payslip for a specific month doesn't exist.
+  return employees.map((employee) => ({
+    employeeId: employee.id,
+  }));
 }
 
 export default async function PayslipPage({ params, searchParams }: { params: { employeeId: string }, searchParams: { year: string, month: string } }) {
