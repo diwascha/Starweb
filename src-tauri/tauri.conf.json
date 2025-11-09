@@ -19,8 +19,9 @@
     }
   },
   "bundle": {
-    "identifier": "com.starweb.desktop.app"
+    "active": true
   },
+  "identifier": "com.starweb.desktop.app",
   "plugins": {
     "shell": {
       "open": true
