@@ -23,11 +23,13 @@ export async function generateStaticParams() {
     // Group transactions by voucherId to get unique IDs
     const voucherIds = new Set<string>();
     transactions.forEach(t => {
-        if (t.voucherId) {
-            voucherIds.add(t.voucherId);
-        } else if (t.type === 'Payment' || t.type === 'Receipt') {
-            // Fallback for legacy data that might not have a voucherId
-            voucherIds.add(`legacy-${t.id}`);
+        if (t.type === 'Payment' || t.type === 'Receipt') {
+            if (t.voucherId) {
+                voucherIds.add(t.voucherId);
+            } else {
+                // Fallback for legacy data that might not have a voucherId
+                voucherIds.add(`legacy-${t.id}`);
+            }
         }
     });
     
