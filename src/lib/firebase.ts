@@ -12,28 +12,34 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-// --- Robust Offline Persistence ---
-let db: ReturnType<typeof getFirestore>;
-
-if (typeof window !== 'undefined') {
-  try {
-    // Use initializeFirestore for more control over caching
-    db = initializeFirestore(app, {
-      localCache: persistentLocalCache({})
-    });
-  } catch (error: any) {
-    console.error("Failed to initialize Firestore with persistent cache, falling back.", error);
-    // Fallback to default getFirestore if initialization fails
-    db = getFirestore(app);
-  }
-} else {
-  // Server-side rendering or environments without window
-  db = getFirestore(app);
-}
-
+const db = getFirestore(app);
 const storage = getStorage(app);
+
+// --- Robust Offline Persistence ---
+let persistenceEnabled = false;
+
+export const initializeOfflinePersistence = async () => {
+  if (persistenceEnabled || typeof window === 'undefined') {
+    return;
+  }
+  
+  try {
+    await enableIndexedDbPersistence(db);
+    persistenceEnabled = true;
+  } catch (error: any) {
+    if (error.code === 'failed-precondition') {
+      console.warn("Firestore: Multiple tabs open, persistence can only be enabled in one. Offline support will be disabled for this tab.");
+    } else if (error.code === 'unimplemented') {
+      console.warn("Firestore: The current browser does not support all of the features required to enable persistence.");
+    } else {
+      console.error("Firestore: Error enabling persistence:", error);
+    }
+  }
+};
+
+// Attempt to initialize persistence when this module is loaded
+initializeOfflinePersistence();
 
 export { app, db, storage };
