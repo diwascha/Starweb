@@ -8,13 +8,13 @@ import { getUoms } from '@/services/uom-service';
 
 // This function is required for Next.js static exports to work with dynamic routes.
 export async function generateStaticParams() {
-    const isDesktop = process.env.TAURI_BUILD === 'true';
-    if (!isDesktop) {
+    // Always try to generate params for desktop builds
+    if (process.env.TAURI_BUILD !== 'true') {
         return [];
     }
+
     try {
-      const transactions = await getTransactions(true);
-      // Filter for purchase transactions to avoid generating pages for other types
+      const transactions = await getTransactions(true); // Force fetch for build
       const purchaseTransactions = transactions.filter(t => t.type === 'Purchase');
       if (!purchaseTransactions || purchaseTransactions.length === 0) {
         return [];

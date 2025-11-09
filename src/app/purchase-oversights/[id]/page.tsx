@@ -4,10 +4,11 @@ import { getPurchaseOrders, getPurchaseOrder } from '@/services/purchase-order-s
 
 // This function is required for Next.js static exports to work with dynamic routes.
 export async function generateStaticParams() {
-  const isDesktop = process.env.TAURI_BUILD === 'true';
-  if (!isDesktop) {
+  // Always try to generate params for desktop builds
+  if (process.env.TAURI_BUILD !== 'true') {
     return [];
   }
+  
   try {
     const purchaseOrders = await getPurchaseOrders(true); // Force fetch for build
     if (!purchaseOrders || purchaseOrders.length === 0) {

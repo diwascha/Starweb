@@ -5,12 +5,11 @@ import { getTrip, getTrips } from '@/services/trip-service';
 
 // This function is required for Next.js static exports to work with dynamic routes.
 export async function generateStaticParams() {
-  const isDesktop = process.env.TAURI_BUILD === 'true';
-  // For desktop builds, we must pre-render all possible pages.
-  // For web builds, this could be an empty array to generate pages on-demand.
-  if (!isDesktop) {
+  // Always try to generate params for desktop builds
+  if (process.env.TAURI_BUILD !== 'true') {
     return [];
   }
+
   try {
     const trips = await getTrips(true); // Force fetch for build
     if (!trips || trips.length === 0) {

@@ -9,17 +9,20 @@ import { Suspense } from 'react';
 
 // This function is required for Next.js static exports to work with dynamic routes.
 export async function generateStaticParams() {
-    const isDesktop = process.env.TAURI_BUILD === 'true';
-    if (!isDesktop) {
+    // Always try to generate params for desktop builds
+    if (process.env.TAURI_BUILD !== 'true') {
         return [];
     }
+
     try {
-      const transactions = await getTransactions(true);
+      const transactions = await getTransactions(true); // Force fetch for build
       if (!transactions || transactions.length === 0) {
         return [];
       }
       const voucherIds = Array.from(new Set(transactions.map(t => t.voucherId).filter(Boolean)));
-      return voucherIds.map(id => ({ voucherId: id as string }));
+      return voucherIds.map(id => ({
+        voucherId: id,
+      }));
     } catch (error) {
       console.error("Failed to generate static params for edit vouchers:", error);
       return [];
