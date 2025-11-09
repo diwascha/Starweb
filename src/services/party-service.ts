@@ -1,5 +1,5 @@
 
-import { db } from '@/lib/firebase';
+import { db, connectionPromise } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDoc, getDocs, query, where, limit } from 'firebase/firestore';
 import type { Party } from '@/lib/types';
 
@@ -21,6 +21,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
 }
 
 export const getParties = async (forceFetch: boolean = false): Promise<Party[]> => {
+    await connectionPromise;
     const isDesktop = process.env.TAURI_BUILD === 'true';
     if (isDesktop && !forceFetch) {
         return [];
@@ -30,6 +31,7 @@ export const getParties = async (forceFetch: boolean = false): Promise<Party[]> 
 };
 
 export const getParty = async (id: string): Promise<Party | null> => {
+    await connectionPromise;
     if (!id || typeof id !== 'string') return null;
     const docRef = doc(db, 'parties', id);
     const docSnap = await getDoc(docRef);
@@ -40,6 +42,7 @@ export const getParty = async (id: string): Promise<Party | null> => {
 }
 
 export const getPartyByName = async (name: string): Promise<Party | null> => {
+    await connectionPromise;
     if (!name || typeof name !== 'string') return null;
     const q = query(partiesCollection, where("name", "==", name), limit(1));
     const querySnapshot = await getDocs(q);
@@ -51,6 +54,7 @@ export const getPartyByName = async (name: string): Promise<Party | null> => {
 
 
 export const addParty = async (party: Omit<Party, 'id'>): Promise<string> => {
+    await connectionPromise;
     const docRef = await addDoc(partiesCollection, {
         ...party,
         createdAt: new Date().toISOString(),
@@ -59,12 +63,17 @@ export const addParty = async (party: Omit<Party, 'id'>): Promise<string> => {
 };
 
 export const onPartiesUpdate = (callback: (parties: Party[]) => void): () => void => {
+    connectionPromise.then(() => {
+        // Ready to listen
+    }).catch(err => console.error("Firestore connection failed, not attaching listener", err));
+
     return onSnapshot(partiesCollection, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
     });
 };
 
 export const updateParty = async (id: string, party: Partial<Omit<Party, 'id'>>): Promise<void> => {
+    await connectionPromise;
     if (!id) return;
     const partyDoc = doc(db, 'parties', id);
     await updateDoc(partyDoc, {
@@ -74,6 +83,7 @@ export const updateParty = async (id: string, party: Partial<Omit<Party, 'id'>>)
 };
 
 export const deleteParty = async (id: string): Promise<void> => {
+    await connectionPromise;
     if (!id) return;
     const partyDoc = doc(db, 'parties', id);
     await deleteDoc(partyDoc);

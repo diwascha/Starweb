@@ -1,5 +1,5 @@
 
-import { db } from '@/lib/firebase';
+import { db, connectionPromise } from '@/lib/firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, orderBy, query, writeBatch } from 'firebase/firestore';
 import type { NoteItem } from '@/lib/types';
 import { subDays } from 'date-fns';
@@ -24,6 +24,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): NoteItem 
 }
 
 export const getNoteItems = async (forceFetch: boolean = false): Promise<NoteItem[]> => {
+    await connectionPromise;
     const isDesktop = process.env.TAURI_BUILD === 'true';
     if (isDesktop && !forceFetch) {
         return [];
@@ -34,6 +35,7 @@ export const getNoteItems = async (forceFetch: boolean = false): Promise<NoteIte
 };
 
 export const addNoteItem = async (item: Omit<NoteItem, 'id' | 'createdAt'>): Promise<string> => {
+    await connectionPromise;
     const docRef = await addDoc(notesCollection, {
         ...item,
         createdAt: new Date().toISOString(),
@@ -42,6 +44,10 @@ export const addNoteItem = async (item: Omit<NoteItem, 'id' | 'createdAt'>): Pro
 };
 
 export const onNoteItemsUpdate = (callback: (items: NoteItem[]) => void): () => void => {
+    connectionPromise.then(() => {
+        // Ready to listen
+    }).catch(err => console.error("Firestore connection failed, not attaching listener", err));
+
     const q = query(notesCollection, orderBy('createdAt', 'desc'));
     return onSnapshot(q, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
@@ -49,6 +55,7 @@ export const onNoteItemsUpdate = (callback: (items: NoteItem[]) => void): () => 
 };
 
 export const updateNoteItem = async (id: string, item: Partial<Omit<NoteItem, 'id'>>): Promise<void> => {
+    await connectionPromise;
     const itemDoc = doc(db, 'notes', id);
     await updateDoc(itemDoc, {
         ...item,
@@ -57,11 +64,13 @@ export const updateNoteItem = async (id: string, item: Partial<Omit<NoteItem, 'i
 };
 
 export const deleteNoteItem = async (id: string): Promise<void> => {
+    await connectionPromise;
     const itemDoc = doc(db, 'notes', id);
     await deleteDoc(itemDoc);
 };
 
 export const cleanupOldItems = async (): Promise<number> => {
+    await connectionPromise;
     const fourteenDaysAgo = subDays(new Date(), 14).toISOString();
     const now = new Date();
 

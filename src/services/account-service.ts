@@ -1,5 +1,5 @@
 
-import { db } from '@/lib/firebase';
+import { db, connectionPromise } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import type { Account } from '@/lib/types';
 
@@ -22,11 +22,13 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Account =
 }
 
 export const getAccounts = async (): Promise<Account[]> => {
+    await connectionPromise;
     const snapshot = await getDocs(accountsCollection);
     return snapshot.docs.map(fromFirestore);
 };
 
 export const addAccount = async (account: Omit<Account, 'id'>): Promise<string> => {
+    await connectionPromise;
     const docRef = await addDoc(accountsCollection, {
         ...account,
         createdAt: new Date().toISOString(),
@@ -35,6 +37,7 @@ export const addAccount = async (account: Omit<Account, 'id'>): Promise<string> 
 };
 
 export const updateAccount = async (id: string, account: Partial<Omit<Account, 'id'>>): Promise<void> => {
+    await connectionPromise;
     const accountDoc = doc(db, 'accounts', id);
     await updateDoc(accountDoc, {
         ...account,
@@ -43,11 +46,16 @@ export const updateAccount = async (id: string, account: Partial<Omit<Account, '
 };
 
 export const deleteAccount = async (id: string): Promise<void> => {
+    await connectionPromise;
     const accountDoc = doc(db, 'accounts', id);
     await deleteDoc(accountDoc);
 };
 
 export const onAccountsUpdate = (callback: (accounts: Account[]) => void): () => void => {
+    connectionPromise.then(() => {
+        // Ready to listen
+    }).catch(err => console.error("Firestore connection failed, not attaching listener", err));
+
     return onSnapshot(accountsCollection, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
     });

@@ -1,5 +1,5 @@
 
-import { db } from '@/lib/firebase';
+import { db, connectionPromise } from '@/lib/firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import type { RawMaterial, UnitOfMeasurement } from '@/lib/types';
 import { getUoms, addUom } from './uom-service';
@@ -24,6 +24,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): RawMateri
 }
 
 export const getRawMaterials = async (forceFetch: boolean = false): Promise<RawMaterial[]> => {
+    await connectionPromise;
     const isDesktop = process.env.TAURI_BUILD === 'true';
     if (isDesktop && !forceFetch) {
         return [];
@@ -35,6 +36,7 @@ export const getRawMaterials = async (forceFetch: boolean = false): Promise<RawM
 
 // Function to consolidate units
 const consolidateUnits = async (materials: RawMaterial[], createdBy: string = 'System') => {
+    await connectionPromise;
     try {
         const existingUoms = await getUoms();
         const existingAbbrs = new Set(existingUoms.map(u => u.abbreviation.toLowerCase()));
@@ -71,6 +73,7 @@ const consolidateUnits = async (materials: RawMaterial[], createdBy: string = 'S
 
 
 export const addRawMaterial = async (material: Omit<RawMaterial, 'id'>): Promise<string> => {
+    await connectionPromise;
     // Consolidate units before adding new material
     if (material.units) {
       const existingUoms = await getUoms();
@@ -86,6 +89,10 @@ export const addRawMaterial = async (material: Omit<RawMaterial, 'id'>): Promise
 };
 
 export const onRawMaterialsUpdate = (callback: (materials: RawMaterial[]) => void): () => void => {
+    connectionPromise.then(() => {
+        // Ready to listen
+    }).catch(err => console.error("Firestore connection failed, not attaching listener", err));
+
     return onSnapshot(rawMaterialsCollection, (snapshot) => {
         const materials = snapshot.docs.map(fromFirestore);
         // Consolidate units in the background
@@ -95,6 +102,7 @@ export const onRawMaterialsUpdate = (callback: (materials: RawMaterial[]) => voi
 };
 
 export const updateRawMaterial = async (id: string, material: Partial<Omit<RawMaterial, 'id'>>): Promise<void> => {
+    await connectionPromise;
     // Consolidate units before updating material
     if (material.units && material.lastModifiedBy) {
       const existingUoms = await getUoms();
@@ -110,6 +118,7 @@ export const updateRawMaterial = async (id: string, material: Partial<Omit<RawMa
 };
 
 export const deleteRawMaterial = async (id: string): Promise<void> => {
+    await connectionPromise;
     const materialDoc = doc(db, 'rawMaterials', id);
     await deleteDoc(materialDoc);
 };

@@ -1,5 +1,5 @@
 
-import { db } from '@/lib/firebase';
+import { db, connectionPromise } from '@/lib/firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDoc } from 'firebase/firestore';
 import type { PurchaseOrder } from '@/lib/types';
 
@@ -25,6 +25,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
 }
 
 export const getPurchaseOrders = async (forceFetch: boolean = false): Promise<PurchaseOrder[]> => {
+    await connectionPromise;
     const isDesktop = process.env.TAURI_BUILD === 'true';
     if (isDesktop && !forceFetch) {
         return [];
@@ -34,6 +35,7 @@ export const getPurchaseOrders = async (forceFetch: boolean = false): Promise<Pu
 };
 
 export const addPurchaseOrder = async (po: Omit<PurchaseOrder, 'id'>): Promise<string> => {
+    await connectionPromise;
     const docRef = await addDoc(purchaseOrdersCollection, {
         ...po,
         createdAt: new Date().toISOString(),
@@ -42,12 +44,17 @@ export const addPurchaseOrder = async (po: Omit<PurchaseOrder, 'id'>): Promise<s
 };
 
 export const onPurchaseOrdersUpdate = (callback: (purchaseOrders: PurchaseOrder[]) => void): () => void => {
+    connectionPromise.then(() => {
+        // Ready to listen
+    }).catch(err => console.error("Firestore connection failed, not attaching listener", err));
+
     return onSnapshot(purchaseOrdersCollection, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
     });
 };
 
 export const getPurchaseOrder = async (id: string): Promise<PurchaseOrder | null> => {
+    await connectionPromise;
     if (!id || typeof id !== 'string') {
         console.error("getPurchaseOrder called with an invalid ID:", id);
         return null;
@@ -63,12 +70,14 @@ export const getPurchaseOrder = async (id: string): Promise<PurchaseOrder | null
 
 
 export const updatePurchaseOrder = async (id: string, po: Partial<Omit<PurchaseOrder, 'id'>>): Promise<void> => {
+    await connectionPromise;
     if (!id) return;
     const poDoc = doc(db, 'purchaseOrders', id);
     await updateDoc(poDoc, po);
 };
 
 export const deletePurchaseOrder = async (id: string): Promise<void> => {
+    await connectionPromise;
     if (!id) return;
     const poDoc = doc(db, 'purchaseOrders', id);
     await deleteDoc(poDoc);

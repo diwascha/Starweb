@@ -1,5 +1,5 @@
 
-import { db } from '@/lib/firebase';
+import { db, connectionPromise } from '@/lib/firebase';
 import { collection, doc, writeBatch, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, query, where, limit, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import type { AttendanceRecord, RawAttendanceRow, Payroll, Employee } from '@/lib/types';
 import NepaliDate from 'nepali-date-converter';
@@ -33,6 +33,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Attendanc
 };
 
 export const getAttendance = async (forceFetch: boolean = false): Promise<AttendanceRecord[]> => {
+    await connectionPromise;
     const isDesktop = process.env.TAURI_BUILD === 'true';
     if (isDesktop && !forceFetch) {
         return [];
@@ -50,6 +51,7 @@ export const addAttendanceRecords = async (
     sourceSheetName: string,
     onProgress: (progress: number) => void
 ): Promise<{ attendanceCount: number, newEmployees: string[], skippedCount: number }> => {
+    await connectionPromise;
     const CHUNK_SIZE = 400;
     
     const headerRow = jsonData[0];
@@ -130,16 +132,19 @@ export const addAttendanceRecords = async (
 
 
 export const updateAttendanceRecord = async (id: string, record: Partial<AttendanceRecord>): Promise<void> => {
+    await connectionPromise;
     const recordDoc = doc(db, 'attendance', id);
     await updateDoc(recordDoc, record);
 };
 
 export const deleteAttendanceRecord = async (id: string): Promise<void> => {
+    await connectionPromise;
     const recordDoc = doc(db, 'attendance', id);
     await deleteDoc(recordDoc);
 };
 
 export const deleteAttendanceForMonth = async (bsYear: number, bsMonth: number): Promise<void> => {
+    await connectionPromise;
     const payrollCollection = collection(db, 'payroll');
     const qPayroll = query(payrollCollection, where("bsYear", "==", bsYear), where("bsMonth", "==", bsMonth));
     const payrollSnapshot = await getDocs(qPayroll);
@@ -176,6 +181,7 @@ export const deleteAttendanceForMonth = async (bsYear: number, bsMonth: number):
 };
 
 export const deleteAllAttendance = async (): Promise<void> => {
+    await connectionPromise;
     const attendanceSnapshot = await getDocs(attendanceCollection);
     const payrollSnapshot = await getDocs(collection(db, 'payroll'));
 
@@ -199,12 +205,17 @@ export const deleteAllAttendance = async (): Promise<void> => {
 
 
 export const onAttendanceUpdate = (callback: (records: AttendanceRecord[]) => void): () => void => {
+    connectionPromise.then(() => {
+        // Ready to listen
+    }).catch(err => console.error("Firestore connection failed, not attaching listener", err));
+
     return onSnapshot(attendanceCollection, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
     });
 };
 
 export const getAttendanceForMonth = async (bsYear: number, bsMonth: number): Promise<AttendanceRecord[]> => {
+    await connectionPromise;
     const allRecords = await getAttendance(true);
     return allRecords.filter(r => {
         try {
@@ -218,6 +229,7 @@ export const getAttendanceForMonth = async (bsYear: number, bsMonth: number): Pr
 };
 
 export const getAttendanceYears = async (): Promise<number[]> => {
+    await connectionPromise;
     const allRecords = await getAttendance(true);
     const years = new Set(allRecords.map(r => {
         try {

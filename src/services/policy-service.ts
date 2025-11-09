@@ -1,5 +1,5 @@
 
-import { db } from '@/lib/firebase';
+import { db, connectionPromise } from '@/lib/firebase';
 import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs } from 'firebase/firestore';
 import type { PolicyOrMembership } from '@/lib/types';
 
@@ -25,11 +25,13 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): PolicyOrM
 }
 
 export const getPolicies = async (): Promise<PolicyOrMembership[]> => {
+    await connectionPromise;
     const snapshot = await getDocs(policiesCollection);
     return snapshot.docs.map(fromFirestore);
 }
 
 export const addPolicy = async (policy: Omit<PolicyOrMembership, 'id'>): Promise<string> => {
+    await connectionPromise;
     const docRef = await addDoc(policiesCollection, {
         ...policy,
         createdAt: new Date().toISOString(),
@@ -38,12 +40,17 @@ export const addPolicy = async (policy: Omit<PolicyOrMembership, 'id'>): Promise
 };
 
 export const onPoliciesUpdate = (callback: (policies: PolicyOrMembership[]) => void): () => void => {
+    connectionPromise.then(() => {
+        // Ready to listen
+    }).catch(err => console.error("Firestore connection failed, not attaching listener", err));
+
     return onSnapshot(policiesCollection, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
     });
 };
 
 export const updatePolicy = async (id: string, policy: Partial<Omit<PolicyOrMembership, 'id'>>): Promise<void> => {
+    await connectionPromise;
     const policyDoc = doc(db, 'policies', id);
     await updateDoc(policyDoc, {
         ...policy,
@@ -52,6 +59,7 @@ export const updatePolicy = async (id: string, policy: Partial<Omit<PolicyOrMemb
 };
 
 export const deletePolicy = async (id: string): Promise<void> => {
+    await connectionPromise;
     const policyDoc = doc(db, 'policies', id);
     await deleteDoc(policyDoc);
 };
