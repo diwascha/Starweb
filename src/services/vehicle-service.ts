@@ -1,6 +1,5 @@
 
 import { db } from '@/lib/firebase';
-import { connectionPromise } from '@/lib/firebase-connection';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import type { Vehicle } from '@/lib/types';
 
@@ -25,13 +24,11 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Vehicle =
 }
 
 export const getVehicles = async (forceFetch: boolean = false): Promise<Vehicle[]> => {
-    await connectionPromise;
     const snapshot = await getDocs(vehiclesCollection);
     return snapshot.docs.map(fromFirestore);
 };
 
 export const addVehicle = async (vehicle: Omit<Vehicle, 'id'>): Promise<string> => {
-    await connectionPromise;
     const docRef = await addDoc(vehiclesCollection, {
         ...vehicle,
         createdAt: new Date().toISOString(),
@@ -40,17 +37,12 @@ export const addVehicle = async (vehicle: Omit<Vehicle, 'id'>): Promise<string> 
 };
 
 export const onVehiclesUpdate = (callback: (vehicles: Vehicle[]) => void): () => void => {
-    connectionPromise.then(() => {
-        // Ready to listen
-    }).catch(err => console.error("Firestore connection failed, not attaching listener", err));
-
     return onSnapshot(vehiclesCollection, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
     });
 };
 
 export const updateVehicle = async (id: string, vehicle: Partial<Omit<Vehicle, 'id'>>): Promise<void> => {
-    await connectionPromise;
     if (!id) return;
     const vehicleDoc = doc(db, 'vehicles', id);
     await updateDoc(vehicleDoc, {
@@ -60,7 +52,6 @@ export const updateVehicle = async (id: string, vehicle: Partial<Omit<Vehicle, '
 };
 
 export const deleteVehicle = async (id: string): Promise<void> => {
-    await connectionPromise;
     if (!id) return;
     const vehicleDoc = doc(db, 'vehicles', id);
     await deleteDoc(vehicleDoc);

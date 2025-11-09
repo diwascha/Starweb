@@ -1,6 +1,5 @@
 
 import { db } from '@/lib/firebase';
-import { connectionPromise } from '@/lib/firebase-connection';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, query, orderBy, deleteDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
 import type { CostReport } from '@/lib/types';
 
@@ -25,17 +24,12 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
 };
 
 export const getCostReports = async (forceFetch: boolean = false): Promise<CostReport[]> => {
-    await connectionPromise;
     const q = query(costReportsCollection, orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(fromFirestore);
 };
 
 export const onCostReportsUpdate = (callback: (reports: CostReport[]) => void): () => void => {
-    connectionPromise.then(() => {
-        // Ready to listen
-    }).catch(err => console.error("Firestore connection failed, not attaching listener", err));
-
     const q = query(costReportsCollection, orderBy('createdAt', 'desc'));
     return onSnapshot(q, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
@@ -43,7 +37,6 @@ export const onCostReportsUpdate = (callback: (reports: CostReport[]) => void): 
 };
 
 export const getCostReport = async (id: string): Promise<CostReport | null> => {
-    await connectionPromise;
     if (!id || typeof id !== 'string') return null;
     const docRef = doc(db, 'costReports', id);
     const docSnap = await getDoc(docRef);
@@ -54,7 +47,6 @@ export const getCostReport = async (id: string): Promise<CostReport | null> => {
 }
 
 export const addCostReport = async (report: Omit<CostReport, 'id' | 'createdAt'>): Promise<string> => {
-    await connectionPromise;
     const docRef = await addDoc(costReportsCollection, {
         ...report,
         createdAt: new Date().toISOString(),
@@ -63,7 +55,6 @@ export const addCostReport = async (report: Omit<CostReport, 'id' | 'createdAt'>
 };
 
 export const updateCostReport = async (id: string, report: Partial<Omit<CostReport, 'id'>>): Promise<void> => {
-    await connectionPromise;
     if (!id) return;
     const reportDoc = doc(db, 'costReports', id);
     await updateDoc(reportDoc, {
@@ -74,13 +65,11 @@ export const updateCostReport = async (id: string, report: Partial<Omit<CostRepo
 
 
 export const deleteCostReport = async (id: string): Promise<void> => {
-    await connectionPromise;
     if (!id) return;
     await deleteDoc(doc(db, 'costReports', id));
 };
 
 export const generateNextCostReportNumber = async (reports: Pick<CostReport, 'reportNumber'>[]): Promise<string> => {
-    await connectionPromise;
     const prefix = 'CR-';
     let maxNumber = 0;
     reports.forEach(report => {

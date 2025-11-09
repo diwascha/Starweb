@@ -1,6 +1,5 @@
 
 import { db } from '@/lib/firebase';
-import { connectionPromise } from '@/lib/firebase-connection';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, deleteDoc, query, orderBy, updateDoc, getDocs } from 'firebase/firestore';
 import type { Cheque } from '@/lib/types';
 
@@ -28,7 +27,6 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Cheque =>
 }
 
 export const addCheque = async (cheque: Omit<Cheque, 'id' | 'createdAt'>): Promise<string> => {
-    await connectionPromise;
     const docRef = await addDoc(chequesCollection, {
         ...cheque,
         createdAt: new Date().toISOString(),
@@ -37,7 +35,6 @@ export const addCheque = async (cheque: Omit<Cheque, 'id' | 'createdAt'>): Promi
 };
 
 export const updateCheque = async (id: string, cheque: Partial<Omit<Cheque, 'id'>>): Promise<void> => {
-    await connectionPromise;
     const chequeDoc = doc(db, 'cheques', id);
     await updateDoc(chequeDoc, {
         ...cheque,
@@ -46,10 +43,6 @@ export const updateCheque = async (id: string, cheque: Partial<Omit<Cheque, 'id'
 };
 
 export const onChequesUpdate = (callback: (cheques: Cheque[]) => void): () => void => {
-    connectionPromise.then(() => {
-        // Ready to listen
-    }).catch(err => console.error("Firestore connection failed, not attaching listener", err));
-
     const q = query(chequesCollection, orderBy('createdAt', 'desc'));
     return onSnapshot(q, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
@@ -57,14 +50,12 @@ export const onChequesUpdate = (callback: (cheques: Cheque[]) => void): () => vo
 };
 
 export const getCheques = async (forceFetch: boolean = false): Promise<Cheque[]> => {
-    await connectionPromise;
     const q = query(chequesCollection, orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(fromFirestore);
 }
 
 export const deleteCheque = async (id: string): Promise<void> => {
-    await connectionPromise;
     const chequeDoc = doc(db, 'cheques', id);
     await deleteDoc(chequeDoc);
 };

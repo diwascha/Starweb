@@ -1,6 +1,5 @@
 
 import { db } from '@/lib/firebase';
-import { connectionPromise } from '@/lib/firebase-connection';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs, query, orderBy, getDoc } from 'firebase/firestore';
 import type { EstimatedInvoice } from '@/lib/types';
 
@@ -25,14 +24,12 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
 }
 
 export const getEstimatedInvoices = async (forceFetch: boolean = false): Promise<EstimatedInvoice[]> => {
-    await connectionPromise;
     const q = query(invoicesCollection, orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(fromFirestore);
 };
 
 export const getEstimatedInvoice = async (id: string): Promise<EstimatedInvoice | null> => {
-    await connectionPromise;
     if (!id || typeof id !== 'string') return null;
     const docRef = doc(db, 'estimatedInvoices', id);
     const docSnap = await getDoc(docRef);
@@ -43,13 +40,11 @@ export const getEstimatedInvoice = async (id: string): Promise<EstimatedInvoice 
 };
 
 export const addEstimatedInvoice = async (invoice: Omit<EstimatedInvoice, 'id'>): Promise<string> => {
-    await connectionPromise;
     const docRef = await addDoc(invoicesCollection, invoice);
     return docRef.id;
 };
 
 export const updateEstimatedInvoice = async (id: string, invoice: Partial<Omit<EstimatedInvoice, 'id'>>): Promise<void> => {
-    await connectionPromise;
     const invoiceDoc = doc(db, 'estimatedInvoices', id);
     await updateDoc(invoiceDoc, {
         ...invoice,
@@ -59,10 +54,6 @@ export const updateEstimatedInvoice = async (id: string, invoice: Partial<Omit<E
 
 
 export const onEstimatedInvoicesUpdate = (callback: (invoices: EstimatedInvoice[]) => void): () => void => {
-    connectionPromise.then(() => {
-        // Ready to listen
-    }).catch(err => console.error("Firestore connection failed, not attaching listener", err));
-
     const q = query(invoicesCollection, orderBy('createdAt', 'desc'));
     return onSnapshot(q, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
@@ -70,7 +61,6 @@ export const onEstimatedInvoicesUpdate = (callback: (invoices: EstimatedInvoice[
 };
 
 export const deleteEstimatedInvoice = async (id: string): Promise<void> => {
-    await connectionPromise;
     const invoiceDoc = doc(db, 'estimatedInvoices', id);
     await deleteDoc(invoiceDoc);
 };

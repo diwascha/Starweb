@@ -1,13 +1,11 @@
 
 import { db } from '@/lib/firebase';
-import { connectionPromise } from '@/lib/firebase-connection';
 import { collection, doc, getDoc, setDoc, onSnapshot, updateDoc } from 'firebase/firestore';
 import type { AppSetting, CostSetting, CostSettingHistoryEntry } from '@/lib/types';
 
 const settingsCollection = collection(db, 'settings');
 
 export const getSetting = async (id: string): Promise<AppSetting | null> => {
-    await connectionPromise;
     if (!id || typeof id !== 'string') {
         console.error("getSetting called with invalid ID:", id);
         return null;
@@ -21,10 +19,6 @@ export const getSetting = async (id: string): Promise<AppSetting | null> => {
 };
 
 export const onSettingUpdate = (id: string, callback: (setting: AppSetting | null) => void): () => void => {
-    connectionPromise.then(() => {
-        // Ready to listen
-    }).catch(err => console.error("Firestore connection failed, not attaching listener", err));
-
     if (!id || typeof id !== 'string') {
         console.error("onSettingUpdate called with an invalid ID:", id);
         callback(null);
@@ -45,14 +39,12 @@ export const onSettingUpdate = (id: string, callback: (setting: AppSetting | nul
 
 
 export const setSetting = async (id: string, value: any): Promise<void> => {
-    await connectionPromise;
     if (!id) return;
     const docRef = doc(db, 'settings', id);
     await setDoc(docRef, { value });
 };
 
 export const updateCostSettings = async (newCosts: Partial<CostSetting>, updatedBy: string): Promise<void> => {
-    await connectionPromise;
     const docRef = doc(db, 'settings', 'costing');
     const docSnap = await getDoc(docRef);
     const now = new Date().toISOString();

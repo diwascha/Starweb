@@ -1,6 +1,5 @@
 
 import { db } from '@/lib/firebase';
-import { connectionPromise } from '@/lib/firebase-connection';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import type { Driver } from '@/lib/types';
 import { deleteFile } from './storage-service';
@@ -26,13 +25,11 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Driver =>
 }
 
 export const getDrivers = async (forceFetch: boolean = false): Promise<Driver[]> => {
-    await connectionPromise;
     const snapshot = await getDocs(driversCollection);
     return snapshot.docs.map(fromFirestore);
 };
 
 export const addDriver = async (driver: Omit<Driver, 'id'>): Promise<string> => {
-    await connectionPromise;
     const docRef = await addDoc(driversCollection, {
         ...driver,
         createdAt: new Date().toISOString(),
@@ -41,17 +38,12 @@ export const addDriver = async (driver: Omit<Driver, 'id'>): Promise<string> => 
 };
 
 export const onDriversUpdate = (callback: (drivers: Driver[]) => void): () => void => {
-    connectionPromise.then(() => {
-        // Ready to listen
-    }).catch(err => console.error("Firestore connection failed, not attaching listener", err));
-
     return onSnapshot(driversCollection, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
     });
 };
 
 export const updateDriver = async (id: string, driver: Partial<Omit<Driver, 'id'>>): Promise<void> => {
-    await connectionPromise;
     const driverDoc = doc(db, 'drivers', id);
     await updateDoc(driverDoc, {
         ...driver,
@@ -60,7 +52,6 @@ export const updateDriver = async (id: string, driver: Partial<Omit<Driver, 'id'
 };
 
 export const deleteDriver = async (id: string, photoURL?: string): Promise<void> => {
-    await connectionPromise;
     if (photoURL) {
         try {
             await deleteFile(photoURL);

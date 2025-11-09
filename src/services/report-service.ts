@@ -1,6 +1,5 @@
 
 import { db } from '@/lib/firebase';
-import { connectionPromise } from '@/lib/firebase-connection';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDoc, query, where } from 'firebase/firestore';
 import type { Report } from '@/lib/types';
 
@@ -45,29 +44,22 @@ const fromDocSnapshot = (docSnap: DocumentData): Report => {
 };
 
 export const getReports = async (forceFetch: boolean = false): Promise<Report[]> => {
-    await connectionPromise;
     const snapshot = await getDocs(reportsCollection);
     return snapshot.docs.map(fromFirestore);
 };
 
 export const addReport = async (report: Omit<Report, 'id'>): Promise<string> => {
-    await connectionPromise;
     const docRef = await addDoc(reportsCollection, report);
     return docRef.id;
 };
 
 export const onReportsUpdate = (callback: (reports: Report[]) => void): () => void => {
-    connectionPromise.then(() => {
-        // Ready to listen
-    }).catch(err => console.error("Firestore connection failed, not attaching listener", err));
-
     return onSnapshot(reportsCollection, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
     });
 };
 
 export const getReport = async (id: string): Promise<Report | null> => {
-    await connectionPromise;
     if (!id || typeof id !== 'string') {
         console.error("getReport called with an invalid ID:", id);
         return null;
@@ -82,7 +74,6 @@ export const getReport = async (id: string): Promise<Report | null> => {
 };
 
 export const getReportsByProductId = async (productId: string): Promise<Report[]> => {
-    await connectionPromise;
     if (!productId) return [];
     const q = query(reportsCollection, where("product.id", "==", productId));
     const snapshot = await getDocs(q);
@@ -90,14 +81,12 @@ export const getReportsByProductId = async (productId: string): Promise<Report[]
 }
 
 export const getReportsForSerial = async (forceFetch: boolean = false): Promise<Pick<Report, 'serialNumber'>[]> => {
-    await connectionPromise;
     const snapshot = await getDocs(reportsCollection);
     return snapshot.docs.map(doc => ({ serialNumber: doc.data().serialNumber }));
 };
 
 
 export const updateReport = async (id: string, report: Partial<Omit<Report, 'id' | 'serialNumber' | 'date' | 'createdAt' | 'createdBy'>>): Promise<void> => {
-    await connectionPromise;
     if (!id) return;
     const reportDoc = doc(db, 'reports', id);
     await updateDoc(reportDoc, {
@@ -107,7 +96,6 @@ export const updateReport = async (id: string, report: Partial<Omit<Report, 'id'
 };
 
 export const deleteReport = async (id: string): Promise<void> => {
-    await connectionPromise;
     if (!id) return;
     const reportDoc = doc(db, 'reports', id);
     await deleteDoc(reportDoc);

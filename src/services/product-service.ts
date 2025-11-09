@@ -1,6 +1,5 @@
 
 import { db } from '@/lib/firebase';
-import { connectionPromise } from '@/lib/firebase-connection';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDoc } from 'firebase/firestore';
 import type { Product, RateHistoryEntry } from '@/lib/types';
 
@@ -27,29 +26,22 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Product =
 }
 
 export const getProducts = async (forceFetch: boolean = false): Promise<Product[]> => {
-    await connectionPromise;
     const snapshot = await getDocs(productsCollection);
     return snapshot.docs.map(fromFirestore);
 };
 
 export const addProduct = async (product: Omit<Product, 'id'>): Promise<string> => {
-    await connectionPromise;
     const docRef = await addDoc(productsCollection, product);
     return docRef.id;
 };
 
 export const onProductsUpdate = (callback: (products: Product[]) => void): () => void => {
-    connectionPromise.then(() => {
-        // Ready to listen
-    }).catch(err => console.error("Firestore connection failed, not attaching listener", err));
-
     return onSnapshot(productsCollection, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
     });
 };
 
 export const updateProduct = async (id: string, productUpdate: Partial<Omit<Product, 'id'>>): Promise<void> => {
-    await connectionPromise;
     const productDocRef = doc(db, 'products', id);
     const productDoc = await getDoc(productDocRef);
     if (!productDoc.exists()) {
@@ -77,7 +69,6 @@ export const updateProduct = async (id: string, productUpdate: Partial<Omit<Prod
 
 
 export const deleteProduct = async (id: string): Promise<void> => {
-    await connectionPromise;
     const productDoc = doc(db, 'products', id);
     await deleteDoc(productDoc);
 };

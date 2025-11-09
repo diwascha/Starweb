@@ -1,6 +1,5 @@
 
 import { db } from '@/lib/firebase';
-import { connectionPromise } from '@/lib/firebase-connection';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDoc } from 'firebase/firestore';
 import type { Employee } from '@/lib/types';
 import { deleteFile } from './storage-service';
@@ -51,13 +50,11 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
 }
 
 export const getEmployees = async (forceFetch: boolean = false): Promise<Employee[]> => {
-    await connectionPromise;
     const snapshot = await getDocs(employeesCollection);
     return snapshot.docs.map(fromFirestore).filter(emp => isValidEmployeeName(emp.name));
 };
 
 export const getEmployee = async (id: string): Promise<Employee | null> => {
-    await connectionPromise;
     if (!id || typeof id !== 'string') return null;
     const employeeDoc = doc(db, 'employees', id);
     const docSnap = await getDoc(employeeDoc);
@@ -70,7 +67,6 @@ export const getEmployee = async (id: string): Promise<Employee | null> => {
 
 
 export const addEmployee = async (employee: Omit<Employee, 'id'>): Promise<string> => {
-    await connectionPromise;
     const docRef = await addDoc(employeesCollection, {
         ...employee,
         createdAt: new Date().toISOString(),
@@ -79,10 +75,6 @@ export const addEmployee = async (employee: Omit<Employee, 'id'>): Promise<strin
 };
 
 export const onEmployeesUpdate = (callback: (employees: Employee[]) => void): () => void => {
-    connectionPromise.then(() => {
-        // Ready to listen
-    }).catch(err => console.error("Firestore connection failed, not attaching listener", err));
-    
     return onSnapshot(employeesCollection, (snapshot) => {
         const validEmployees = snapshot.docs.map(fromFirestore).filter(emp => isValidEmployeeName(emp.name));
         callback(validEmployees);
@@ -90,7 +82,6 @@ export const onEmployeesUpdate = (callback: (employees: Employee[]) => void): ()
 };
 
 export const updateEmployee = async (id: string, employee: Partial<Omit<Employee, 'id'>>): Promise<void> => {
-    await connectionPromise;
     const employeeDoc = doc(db, 'employees', id);
     await updateDoc(employeeDoc, {
         ...employee,
@@ -99,7 +90,6 @@ export const updateEmployee = async (id: string, employee: Partial<Omit<Employee
 };
 
 export const deleteEmployee = async (id: string, photoURL?: string): Promise<void> => {
-    await connectionPromise;
     if (photoURL) {
         try {
             await deleteFile(photoURL);
