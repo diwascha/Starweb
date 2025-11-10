@@ -864,8 +864,8 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                 ))}
                                 <input
                                     placeholder={quickAddForm.units.length === 0 ? "e.g. Kg, Ton..." : ""}
-                                    value={quickAddUnitInput}
-                                    onChange={e => setQuickAddUnitInput(e.target.value)}
+                                    value={unitInputValue}
+                                    onChange={e => setUnitInputValue(e.target.value)}
                                     onKeyDown={handleQuickAddUnitKeyDown}
                                     className="bg-transparent outline-none flex-1 placeholder:text-muted-foreground text-sm"
                                 />
@@ -917,14 +917,3 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     </div>
   );
 }
-
-    
-
-    
-
-
-
-
-    
-
-    
