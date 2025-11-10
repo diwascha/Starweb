@@ -83,7 +83,8 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isQuickAddMaterialDialogOpen, setIsQuickAddMaterialDialogOpen] = useState(false);
   const [quickAddMaterialSearch, setQuickAddMaterialSearch] = useState('');
-  const [quickAddUnitInput, setQuickAddUnitInput] = useState('');
+  
+  const [isQuickAddUnitPopoverOpen, setIsQuickAddUnitPopoverOpen] = useState(false);
   const [unitInputValue, setUnitInputValue] = useState('');
 
 
@@ -351,7 +352,6 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   const [quickAddForm, setQuickAddForm] = useState({
       type: '', name: '', size: '', gsm: '', bf: '', units: [] as string[]
   });
-  const [isQuickAddUnitPopoverOpen, setIsQuickAddUnitPopoverOpen] = useState(false);
   
   useEffect(() => {
     if (isQuickAddMaterialDialogOpen) {
@@ -771,16 +771,10 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
             <Button type="button" variant="outline" onClick={() => router.back()}>
                 Cancel
             </Button>
-            {(poToEdit && poToEdit.isDraft) && (
-                <Button type="button" onClick={form.handleSubmit(v => onSubmit(v, false))} disabled={isSubmitting}>
-                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    Save Draft
-                </Button>
-            )}
-            {!poToEdit && (
+            {(!poToEdit || poToEdit.isDraft) && (
                 <Button type="button" variant="secondary" onClick={form.handleSubmit(v => onSubmit(v, false))} disabled={isSubmitting}>
                     {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    Save as Draft
+                    Save Draft
                 </Button>
             )}
             <Button type="button" onClick={form.handleSubmit(v => onSubmit(v, true))} disabled={isSubmitting}>
@@ -942,3 +936,4 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     
 
     
+
