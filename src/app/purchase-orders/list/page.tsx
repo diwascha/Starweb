@@ -293,7 +293,7 @@ export default function PurchaseOrdersListPage() {
                             </DropdownMenuItem>
                         )}
                         {hasPermission('purchaseOrders', 'edit') && (
-                            <DropdownMenuItem onClick={() => router.push(`/purchase-orders/edit/${po.id}`)} disabled={po.status === 'Delivered' || po.status === 'Canceled'}>
+                            <DropdownMenuItem onClick={() => router.push(`/purchase-orders/edit?id=${po.id}`)} disabled={po.status === 'Delivered' || po.status === 'Canceled'}>
                                 <Edit className="mr-2 h-4 w-4" /> Edit
                             </DropdownMenuItem>
                         )}
