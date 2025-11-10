@@ -62,6 +62,17 @@ const materialTypesForAdd = [
 
 const paperTypes = ['Kraft Paper', 'Virgin Paper'];
 
+const generateMaterialName = (type: string, size: string, gsm: string, bf: string) => {
+    if (paperTypes.includes(type)) {
+        const parts = [type];
+        if (size) parts.push(`${size} inch`);
+        if (gsm) parts.push(`${gsm} GSM`);
+        if (bf) parts.push(`${bf} BF`);
+        return parts.join(' - ');
+    }
+    return '';
+};
+
 export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
@@ -85,8 +96,8 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   const [quickAddMaterialSearch, setQuickAddMaterialSearch] = useState('');
   
   const [unitInputValue, setUnitInputValue] = useState('');
-  const [isQuickAddUnitPopoverOpen, setIsQuickAddUnitPopoverOpen] = useState(false);
   const [quickAddUnitInput, setQuickAddUnitInput] = useState('');
+  const [isQuickAddUnitPopoverOpen, setIsQuickAddUnitPopoverOpen] = useState(false);
 
 
   const defaultValues = useMemo(() => {
@@ -116,7 +127,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   });
   
   const watchedItems = form.watch("items");
-
+  
   const quantityTotalsByUnit = useMemo(() => {
     return (watchedItems || []).reduce((acc, item) => {
         const quantity = parseFloat(item.quantity);
@@ -249,16 +260,15 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     }
     setIsSubmitting(true);
     try {
-      let summary = "Purchase order updated.";
       if (poToEdit) {
         let updatedPOForFirestore: Partial<Omit<PurchaseOrder, 'id'>>;
 
-        if (poToEdit.isDraft) { // If editing a draft
+        if (poToEdit.isDraft) { 
           updatedPOForFirestore = {
             ...values,
             poDate: values.poDate.toISOString(),
-            isDraft: !finalize, // Becomes false only if we are finalizing
-            status: finalize ? 'Ordered' : 'Draft', // Stays 'Draft' if not finalizing
+            isDraft: !finalize,
+            status: finalize ? 'Ordered' : 'Draft', 
             lastModifiedBy: user.username,
             updatedAt: new Date().toISOString(),
           };
@@ -273,7 +283,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         } else { // If editing a finalized order
             const newAmendment: Amendment = {
               date: new Date().toISOString(),
-              remarks: summary || 'No specific changes were identified.',
+              remarks: 'Order amended after finalization.', // A generic remark for now
               amendedBy: user.username,
             };
             
@@ -733,7 +743,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                 Cancel
             </Button>
             
-            {poToEdit && poToEdit.isDraft ? (
+             {poToEdit?.isDraft === true ? (
                 <>
                     <Button type="button" variant="secondary" onClick={form.handleSubmit(v => onSubmit(v, false))} disabled={isSubmitting}>
                         {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -912,3 +922,5 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     </div>
   );
 }
+
+    
