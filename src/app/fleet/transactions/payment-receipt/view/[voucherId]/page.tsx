@@ -6,7 +6,7 @@ import { useParams } from 'next/navigation';
 
 import { onVoucherTransactionsUpdate } from '@/services/transaction-service';
 import type { Transaction, Vehicle, Party, Account } from '@/lib/types';
-import VoucherViewClient from '../../../_components/VoucherViewClient';
+import VoucherViewClient from '../../_components/VoucherViewClient';
 import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onPartiesUpdate } from '@/services/party-service';
 import { onAccountsUpdate } from '@/services/account-service';
