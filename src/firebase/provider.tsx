@@ -21,7 +21,7 @@ interface FirebaseContextType {
 const FirebaseContext = createContext<FirebaseContextType | null>(null);
 
 interface FirebaseProviderProps extends Omit<FirebaseContextType, 'isConnected'> {
-    children: ReactNode;
+    children: React.ReactNode;
 }
 
 export const FirebaseProvider = ({ children, app, auth, db, storage, rtdb }: FirebaseProviderProps) => {
