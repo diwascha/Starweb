@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import {
   Sidebar,
   SidebarHeader,
@@ -21,6 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { exportData } from '@/services/backup-service';
 import { Loader2 } from 'lucide-react';
 import { useConnectionStatus } from '@/firebase';
+import { useState } from 'react';
 
 function SidebarCollapseButton() {
     const { state, toggleSidebar } = useSidebar();
@@ -39,7 +39,11 @@ function SidebarCollapseButton() {
 }
 
 function ConnectionStatusIndicator() {
-  const isConnected = useConnectionStatus();
+  const { user } = useAuth();
+  const isFirebaseConnected = useConnectionStatus();
+
+  // The local "Administrator" is always considered online.
+  const isConnected = user?.is_admin ? true : isFirebaseConnected;
 
   return (
     <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
