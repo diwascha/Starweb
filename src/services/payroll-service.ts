@@ -1,11 +1,14 @@
 
-import { db } from '@/lib/firebase';
+import { getFirebase } from '@/lib/firebase';
 import { collection, doc, writeBatch, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, query, where, limit, getDoc } from 'firebase/firestore';
 import type { Payroll, Employee, AttendanceRecord, PunctualityInsight, BehaviorInsight, PatternInsight, WorkforceAnalytics } from '@/lib/types';
 import NepaliDate from 'nepali-date-converter';
 import { getSetting } from './settings-service';
 
-const payrollCollection = collection(db, 'payroll');
+const getPayrollCollection = () => {
+    const { db } = getFirebase();
+    return collection(db, 'payroll');
+}
 
 const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentData): Payroll => {
     const data = snapshot.data();
@@ -41,6 +44,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
 
 
 export const onPayrollUpdate = (callback: (records: Payroll[]) => void): () => void => {
+    const payrollCollection = getPayrollCollection();
     return onSnapshot(payrollCollection, (snapshot) => {
         callback(snapshot.docs.map(fromFirestore));
     }, (error) => {
@@ -49,6 +53,7 @@ export const onPayrollUpdate = (callback: (records: Payroll[]) => void): () => v
 };
 
 export const getPayrollForEmployee = async (employeeId: string, bsYear: number, bsMonth: number): Promise<Payroll | null> => {
+    const payrollCollection = getPayrollCollection();
     const q = query(payrollCollection, 
         where("employeeId", "==", employeeId),
         where("bsYear", "==", bsYear),
@@ -64,7 +69,8 @@ export const getPayrollForEmployee = async (employeeId: string, bsYear: number, 
 
 export const getPayrollYears = async (): Promise<number[]> => {
     try {
-        const q = query(collection(db, 'payroll'));
+        const payrollCollection = getPayrollCollection();
+        const q = query(payrollCollection);
         const snapshot = await getDocs(q);
         if (snapshot.empty) {
             return [];
@@ -78,6 +84,8 @@ export const getPayrollYears = async (): Promise<number[]> => {
 };
 
 export const deletePayrollForMonth = async (bsYear: number, bsMonth: number): Promise<void> => {
+    const { db } = getFirebase();
+    const payrollCollection = getPayrollCollection();
     const q = query(payrollCollection, where("bsYear", "==", bsYear), where("bsMonth", "==", bsMonth));
     const snapshot = await getDocs(q);
 
@@ -137,6 +145,8 @@ export const calculateAndSavePayrollForMonth = async (
     
     const payrollRecords: Omit<Payroll, 'id'>[] = [];
     const now = new Date().toISOString();
+    const { db } = getFirebase();
+    const payrollCollection = getPayrollCollection();
 
     for (const employee of workingEmployees) {
         const employeeAttendance = monthlyAttendance.filter(r => r.employeeName === employee.name);
@@ -258,6 +268,8 @@ export const importPayrollFromSheet = async (
     
     const headerRow = jsonData[0];
     const dataRows = jsonData.slice(1);
+    const { db } = getFirebase();
+    const payrollCollection = getPayrollCollection();
     
     const nameIndex = headerRow.map(h => String(h || '').trim().toLowerCase()).indexOf('name');
     if (nameIndex === -1) {
