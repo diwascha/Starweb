@@ -294,11 +294,11 @@ export default function NewPurchasePage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead><Button variant="ghost" onClick={() => requestSort('date')}>Date <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                                    <TableHead><Button variant="ghost" onClick={() => requestSort('vehicleName')}>Vehicle <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                                    <TableHead><Button variant="ghost" onClick={() => requestSort('partyName')}>Supplier <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                                    <TableHead><Button variant="ghost" onClick={() => requestSort('amount')}>Amount <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                                    <TableHead><Button variant="ghost" onClick={() => requestSort('authorship')}>Authorship <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                    <TableHead><Button variant="ghost" onClick={() => requestSort('date')}>Date <ArrowUpDown className="mr-2 h-4 w-4" /></Button></TableHead>
+                                    <TableHead><Button variant="ghost" onClick={() => requestSort('vehicleName')}>Vehicle <ArrowUpDown className="mr-2 h-4 w-4" /></Button></TableHead>
+                                    <TableHead><Button variant="ghost" onClick={() => requestSort('partyName')}>Supplier <ArrowUpDown className="mr-2 h-4 w-4" /></Button></TableHead>
+                                    <TableHead><Button variant="ghost" onClick={() => requestSort('amount')}>Amount <ArrowUpDown className="mr-2 h-4 w-4" /></Button></TableHead>
+                                    <TableHead><Button variant="ghost" onClick={() => requestSort('authorship')}>Authorship <ArrowUpDown className="mr-2 h-4 w-4" /></Button></TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -327,7 +327,7 @@ export default function NewPurchasePage() {
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem onSelect={() => router.push(`/fleet/transactions/purchase/view/${txn.id}`)}><View className="mr-2 h-4 w-4" /> View</DropdownMenuItem>
+                                                    <DropdownMenuItem onSelect={() => router.push(`/fleet/transactions/purchase/view?id=${txn.id}`)}><View className="mr-2 h-4 w-4" /> View</DropdownMenuItem>
                                                     <DropdownMenuItem onSelect={() => router.push(`/fleet/transactions/purchase/edit/${txn.id}`)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
                                                     <DropdownMenuSeparator />
                                                     <AlertDialog>
