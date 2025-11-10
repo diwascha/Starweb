@@ -10,7 +10,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onPartiesUpdate } from '@/services/party-service';
 import { onAccountsUpdate } from '@/services/account-service';
-import { onTransactionsUpdate, saveVoucher, deleteVoucher } from '@/services/transaction-service';
+import { onTransactionsUpdate, saveVoucher, deleteVoucher, updateVoucher } from '@/services/transaction-service';
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Download, CalendarIcon, ArrowUpDown, MoreHorizontal, View, Edit, Printer, Trash2, User } from 'lucide-react';
@@ -343,7 +343,7 @@ export default function NewPaymentReceiptPage() {
                                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                                         <DropdownMenuContent align="end">
                                                             <DropdownMenuItem onSelect={() => router.push(`/fleet/transactions/payment-receipt?voucherId=${voucher.voucherId}`)}><View className="mr-2 h-4 w-4" /> View</DropdownMenuItem>
-                                                            <DropdownMenuItem onSelect={() => router.push(`/fleet/transactions/payment-receipt/edit/${voucher.voucherId}`)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
+                                                            <DropdownMenuItem onSelect={() => router.push(`/fleet/transactions/payment-receipt/edit?voucherId=${voucher.voucherId}`)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
                                                             <DropdownMenuItem onSelect={() => handlePrint(voucher.voucherId)}><Printer className="mr-2 h-4 w-4" /> Print</DropdownMenuItem>
                                                             <DropdownMenuSeparator />
                                                             <AlertDialog>
