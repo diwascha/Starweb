@@ -139,9 +139,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   }, [isClient, poToEdit, purchaseOrders, form, defaultValues]);
 
   const companies = useMemo(() => {
-    return parties
-      .filter(p => p.type === 'Vendor' || p.type === 'Both')
-      .sort((a,b) => a.name.localeCompare(b.name));
+    return [...parties].sort((a,b) => a.name.localeCompare(b.name));
   }, [parties]);
 
 
