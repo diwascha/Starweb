@@ -780,6 +780,10 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                     <Label htmlFor="party-name-dialog">Supplier Name</Label>
                     <Input id="party-name-dialog" value={partyForm.name} onChange={(e) => setPartyForm(prev => ({...prev, name: e.target.value}))}/>
                 </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="party-pan-dialog">PAN Number</Label>
+                    <Input id="party-pan-dialog" value={partyForm.panNumber || ''} onChange={(e) => setPartyForm(prev => ({...prev, panNumber: e.target.value}))}/>
+                </div>
                 <div className="space-y-2">
                     <Label htmlFor="party-address-dialog">Address</Label>
                     <Textarea id="party-address-dialog" value={partyForm.address} onChange={(e) => setPartyForm(prev => ({...prev, address: e.target.value}))}/>
@@ -910,3 +914,5 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     </div>
   );
 }
+
+    
