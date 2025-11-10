@@ -128,14 +128,16 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   
   const watchedItems = form.watch("items");
   
-  const quantityTotalsByUnit = (watchedItems || []).reduce((acc, item) => {
-      const quantity = parseFloat(item.quantity);
-      const unit = item.unit;
-      if (!isNaN(quantity) && unit) {
-          acc[unit] = (acc[unit] || 0) + quantity;
-      }
-      return acc;
-  }, {} as Record<string, number>);
+  const quantityTotalsByUnit = useMemo(() => {
+    return (watchedItems || []).reduce((acc, item) => {
+        const quantity = parseFloat(item.quantity);
+        const unit = item.unit;
+        if (!isNaN(quantity) && unit) {
+            acc[unit] = (acc[unit] || 0) + quantity;
+        }
+        return acc;
+    }, {} as Record<string, number>);
+  }, [watchedItems]);
 
 
   useEffect(() => {
@@ -270,7 +272,10 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
             lastModifiedBy: user.username,
             updatedAt: new Date().toISOString(),
           };
-        } else {
+           await updatePurchaseOrder(poToEdit.id, updatedPOForFirestore);
+           toast({ title: 'Success', description: `Purchase Order ${finalize ? 'finalized' : 'draft saved'}.` });
+           router.push(finalize ? `/purchase-orders/view?id=${poToEdit.id}` : '/purchase-orders/list');
+        } else { // Is not a draft, so it's a finalized order being amended
           const newAmendment: Amendment = {
             date: new Date().toISOString(),
             remarks: 'Order amended after finalization.',
@@ -284,12 +289,11 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
             lastModifiedBy: user.username,
             amendments: [...(poToEdit.amendments || []), newAmendment],
           };
+          await updatePurchaseOrder(poToEdit.id, updatedPOForFirestore);
+          toast({ title: 'Success', description: 'Purchase Order updated.' });
+          router.push(`/purchase-orders/view?id=${poToEdit.id}`);
         }
-        await updatePurchaseOrder(poToEdit.id, updatedPOForFirestore);
-        toast({ title: 'Success', description: 'Purchase Order updated.' });
-        router.push(finalize ? `/purchase-orders/${poToEdit.id}` : '/purchase-orders/list');
-
-      } else {
+      } else { // creating new
         const now = new Date().toISOString();
         const newPO: Omit<PurchaseOrder, 'id'> = {
           ...values,
@@ -303,7 +307,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         };
         const newPOId = await addPurchaseOrder(newPO);
         toast({ title: 'Success', description: `Purchase Order ${finalize ? 'created' : 'saved as draft'}.` });
-        router.push(finalize ? `/purchase-orders/${newPOId}` : '/purchase-orders/list');
+        router.push(finalize ? `/purchase-orders/view?id=${newPOId}` : '/purchase-orders/list');
       }
     } catch (error) {
       console.error('Failed to save purchase order:', error);
@@ -317,7 +321,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     }
   }
 
-  const title = poToEdit ? (poToEdit.isDraft ? 'Edit Draft Purchase Order' : 'Edit Finalized Purchase Order') : 'Create New Purchase Order';
+  const title = poToEdit ? (poToEdit.isDraft ? 'Edit Draft Purchase Order' : 'Amend Finalized Purchase Order') : 'Create New Purchase Order';
   const showPaperColumns = itemFilterType === 'All' || paperTypes.includes(itemFilterType);
 
   const [quickAddForm, setQuickAddForm] = useState({
@@ -733,7 +737,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
             </Button>
             
             {poToEdit && !poToEdit.isDraft ? (
-                <Button type="button" onClick={form.handleSubmit(v => onSubmit(v, true))} disabled={isSubmitting}>
+                 <Button type="button" onClick={form.handleSubmit(v => onSubmit(v, false))} disabled={isSubmitting}>
                     {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                     Save Changes
                 </Button>
