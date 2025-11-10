@@ -1,3 +1,4 @@
+
 'use client';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -6,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import type { RawMaterial, PurchaseOrder, Amendment, UnitOfMeasurement } from '@/lib/types';
+import type { RawMaterial, PurchaseOrder, Amendment, UnitOfMeasurement, Party, PartyType } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
@@ -28,6 +29,8 @@ import { onRawMaterialsUpdate, addRawMaterial } from '@/services/raw-material-se
 import { onPurchaseOrdersUpdate, addPurchaseOrder, updatePurchaseOrder } from '@/services/purchase-order-service';
 import { onUomsUpdate, addUom } from '@/services/uom-service';
 import { Badge } from '@/components/ui/badge';
+import { onPartiesUpdate, addParty, updateParty } from '@/services/party-service';
+
 
 const poItemSchema = z.object({
   rawMaterialId: z.string().min(1, 'Material is required.'),
@@ -63,13 +66,20 @@ const paperTypes = ['Kraft Paper', 'Virgin Paper'];
 export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
+  const [parties, setParties] = useState<Party[]>([]);
   const [uoms, setUoms] = useState<UnitOfMeasurement[]>([]);
   const router = useRouter();
   const { toast } = useToast();
   const { user } = useAuth();
   const [isClient, setIsClient] = useState(false);
+  
   const [isCompanyPopoverOpen, setIsCompanyPopoverOpen] = useState(false);
-  const [editingCompany, setEditingCompany] = useState<{ oldName: string; newName: string; newAddress: string } | null>(null);
+  const [companySearch, setCompanySearch] = useState('');
+  
+  const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
+  const [editingParty, setEditingParty] = useState<Party | null>(null);
+  const [partyForm, setPartyForm] = useState<{name: string, type: PartyType, address?: string, panNumber?: string}>({name: '', type: 'Vendor', address: '', panNumber: ''});
+  
   const [itemFilterType, setItemFilterType] = useState<string>('All');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isQuickAddMaterialDialogOpen, setIsQuickAddMaterialDialogOpen] = useState(false);
@@ -106,10 +116,12 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     const unsubRawMaterials = onRawMaterialsUpdate(setRawMaterials);
     const unsubPOs = onPurchaseOrdersUpdate(setPurchaseOrders);
     const unsubUoms = onUomsUpdate(setUoms);
+    const unsubParties = onPartiesUpdate(setParties);
     return () => {
       unsubRawMaterials();
       unsubPOs();
       unsubUoms();
+      unsubParties();
     };
   }, []);
   
@@ -127,14 +139,11 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   }, [isClient, poToEdit, purchaseOrders, form, defaultValues]);
 
   const companies = useMemo(() => {
-    const companyMap = new Map<string, {name: string, address: string}>();
-    purchaseOrders.forEach(po => {
-        if (po.companyName && !companyMap.has(po.companyName.toLowerCase())) {
-            companyMap.set(po.companyName.toLowerCase(), { name: po.companyName, address: po.companyAddress });
-        }
-    });
-    return Array.from(companyMap.values()).sort((a,b) => a.name.localeCompare(b.name));
-  }, [purchaseOrders]);
+    return parties
+      .filter(p => p.type === 'Vendor' || p.type === 'Both')
+      .sort((a,b) => a.name.localeCompare(b.name));
+  }, [parties]);
+
 
   const materialTypesForFilter = useMemo(() => {
     const types = new Set(rawMaterials.map(m => m.type));
@@ -165,13 +174,51 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     form.setValue('companyName', companyName);
     const existingCompany = companies.find(c => c.name.toLowerCase() === companyName.toLowerCase());
     if (existingCompany) {
-      form.setValue('companyAddress', existingCompany.address);
+      form.setValue('companyAddress', existingCompany.address || '');
     } else {
       form.setValue('companyAddress', '');
     }
     setIsCompanyPopoverOpen(false);
   };
   
+  const handleOpenPartyDialog = (party: Party | null = null, searchName: string = '') => {
+      if (party) {
+          setEditingParty(party);
+          setPartyForm({ name: party.name, type: party.type, address: party.address || '', panNumber: party.panNumber || '' });
+      } else {
+          setEditingParty(null);
+          setPartyForm({ name: searchName, type: 'Vendor', address: '', panNumber: '' });
+      }
+      setIsCompanyPopoverOpen(false); // Close popover when opening dialog
+      setIsPartyDialogOpen(true);
+  };
+
+  const handlePartySubmit = async () => {
+    if(!user) return;
+    if(!partyForm.name || !partyForm.type) {
+        toast({title: 'Error', description: 'Party name and type are required.', variant: 'destructive'});
+        return;
+    }
+    try {
+        if (editingParty) {
+            await updateParty(editingParty.id, { ...partyForm, lastModifiedBy: user.username });
+            form.setValue('companyName', partyForm.name);
+            form.setValue('companyAddress', partyForm.address || '');
+            toast({title: 'Success', description: 'Party updated.'});
+        } else {
+            const newPartyId = await addParty({...partyForm, createdBy: user.username});
+            const newParty = {id: newPartyId, ...partyForm};
+            form.setValue('companyName', newParty.name);
+            form.setValue('companyAddress', newParty.address || '');
+            toast({title: 'Success', description: 'New party added.'});
+        }
+        setIsPartyDialogOpen(false);
+    } catch {
+         toast({title: 'Error', description: 'Failed to save party.', variant: 'destructive'});
+    }
+  };
+
+
   const handleItemMaterialChange = (index: number, rawMaterialId: string) => {
     const material = rawMaterials.find(p => p.id === rawMaterialId);
     if (material) {
@@ -186,35 +233,6 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         unit: (material.units && material.units[0]) || '',
       });
     }
-  };
-  
-  const handleEditCompany = (company: {name: string, address: string}) => {
-    setEditingCompany({ oldName: company.name, newName: company.name, newAddress: company.address });
-  };
-  
-  const handleUpdateCompany = async () => {
-    if (!editingCompany) return;
-
-    const { oldName, newName, newAddress } = editingCompany;
-
-    if (!newName.trim() || !newAddress.trim()) {
-      toast({ title: 'Error', description: 'Company name and address cannot be empty.', variant: 'destructive' });
-      return;
-    }
-
-    const updates = purchaseOrders
-      .filter(po => po.companyName === oldName)
-      .map(po => updatePurchaseOrder(po.id, { companyName: newName, companyAddress: newAddress }));
-      
-    await Promise.all(updates);
-    
-    if (form.getValues('companyName') === oldName) {
-        form.setValue('companyName', newName);
-        form.setValue('companyAddress', newAddress);
-    }
-
-    toast({ title: 'Success', description: `Company "${oldName}" updated to "${newName}".` });
-    setEditingCompany(null);
   };
 
   const addNewItem = () => {
@@ -495,27 +513,27 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                             </Button>
                             </FormControl>
                         </PopoverTrigger>
-                        <PopoverContent className="p-0">
+                        <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
                             <Command>
                                 <CommandInput 
                                     placeholder="Search or add company..."
-                                    onValueChange={(value) => form.setValue('companyName', value)}
-                                    value={field.value}
+                                    value={companySearch}
+                                    onValueChange={setCompanySearch}
                                 />
                                 <CommandList>
                                     <CommandEmpty>
-                                        <button type="button" className="w-full text-left p-2 text-sm" onClick={() => handleCompanySelect(field.value)}>
-                                            Add "{field.value}"
-                                        </button>
+                                        <CommandItem onSelect={() => handleOpenPartyDialog(null, companySearch)}>
+                                            <PlusCircle className="mr-2 h-4 w-4"/> Add "{companySearch}"
+                                        </CommandItem>
                                     </CommandEmpty>
                                     <CommandGroup>
                                         {companies.map((company) => (
-                                            <CommandItem key={company.name} value={company.name} onSelect={() => handleCompanySelect(company.name)} className="flex justify-between items-center">
+                                            <CommandItem key={company.id} value={company.name} onSelect={() => handleCompanySelect(company.name)} className="flex justify-between items-center">
                                                 <div className="flex items-center">
                                                     <Check className={cn("mr-2 h-4 w-4", field.value?.toLowerCase() === company.name.toLowerCase() ? "opacity-100" : "opacity-0")} />
                                                     {company.name}
                                                 </div>
-                                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleEditCompany(company); }}>
+                                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleOpenPartyDialog(company); }}>
                                                     <Edit className="h-4 w-4"/>
                                                 </Button>
                                             </CommandItem>
@@ -723,7 +741,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
           </Card>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => router.back()}>
-                Cancel
+                {poToEdit ? 'Cancel Edit' : 'Cancel'}
             </Button>
             {poToEdit && poToEdit.isDraft && (
                 <Button type="button" onClick={form.handleSubmit(v => onSubmit(v, false))} disabled={isSubmitting}>
@@ -745,34 +763,28 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         </form>
       </Form>
       
-      <Dialog open={!!editingCompany} onOpenChange={() => setEditingCompany(null)}>
+      <Dialog open={isPartyDialogOpen} onOpenChange={(isOpen) => {
+          if(!isOpen) setEditingParty(null);
+          setIsPartyDialogOpen(isOpen);
+      }}>
         <DialogContent>
             <DialogHeader>
-                <DialogTitle>Edit Company</DialogTitle>
+                <DialogTitle>{editingParty ? 'Edit Supplier' : 'Add New Supplier'}</DialogTitle>
             </DialogHeader>
-            {editingCompany && (
-                <div className="grid gap-4 py-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="company-name-edit">Company Name</Label>
-                        <Input
-                            id="company-name-edit"
-                            value={editingCompany.newName}
-                            onChange={(e) => setEditingCompany(prev => prev ? { ...prev, newName: e.target.value } : null)}
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="company-address-edit">Company Address</Label>
-                        <Textarea
-                            id="company-address-edit"
-                            value={editingCompany.newAddress}
-                            onChange={(e) => setEditingCompany(prev => prev ? { ...prev, newAddress: e.target.value } : null)}
-                        />
-                    </div>
+            <div className="grid gap-4 py-4">
+                <div className="space-y-2">
+                    <Label htmlFor="party-name-dialog">Supplier Name</Label>
+                    <Input id="party-name-dialog" value={partyForm.name} onChange={(e) => setPartyForm(prev => ({...prev, name: e.target.value}))}/>
                 </div>
-            )}
+                <div className="space-y-2">
+                    <Label htmlFor="party-address-dialog">Address</Label>
+                    <Textarea id="party-address-dialog" value={partyForm.address} onChange={(e) => setPartyForm(prev => ({...prev, address: e.target.value}))}/>
+                </div>
+                 <input type="hidden" value={partyForm.type = 'Vendor'} />
+            </div>
             <DialogFooter>
-                <Button variant="outline" onClick={() => setEditingCompany(null)}>Cancel</Button>
-                <Button onClick={handleUpdateCompany}>Save Changes</Button>
+                <Button variant="outline" onClick={() => setIsPartyDialogOpen(false)}>Cancel</Button>
+                <Button onClick={handlePartySubmit}>{editingParty ? 'Save Changes' : 'Add Supplier'}</Button>
             </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -808,6 +820,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                          />
                      </div>
                  )}
+                 
                  {isQuickAddPaper && (
                      <>
                         <div className="space-y-2">
