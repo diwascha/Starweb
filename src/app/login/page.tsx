@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -17,6 +16,7 @@ import { exportData } from '@/services/backup-service';
 import { format } from 'date-fns';
 import { signInWithEmailAndPassword, AuthErrorCodes } from 'firebase/auth';
 import { useAuthService } from '@/firebase';
+import { getAdminCredentials } from '@/services/user-service';
 
 
 const loginSchema = z.object({
@@ -30,7 +30,7 @@ export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { user, loading: authLoading } = useAuth();
+  const { user, login, loading: authLoading } = useAuth();
   const auth = useAuthService();
 
   const {
@@ -84,14 +84,29 @@ export default function LoginPage() {
 
   const onSubmit = async (data: LoginFormValues) => {
     setIsSubmitting(true);
+    
+    if (data.username.toLowerCase() === 'administrator') {
+        const adminCreds = getAdminCredentials();
+        if (data.password === adminCreds.password) {
+            await login({ username: 'Administrator', id: 'admin', permissions: {}}, true);
+            toast({ title: 'Success', description: 'Admin logged in successfully. Redirecting...' });
+            await handleDailyBackup();
+            // Redirect will be handled by useEffect
+        } else {
+            toast({ title: 'Login Failed', description: 'Invalid username or password.', variant: 'destructive'});
+        }
+        setIsSubmitting(false);
+        return;
+    }
+
+    // For regular Firebase users
     const email = `${data.username.toLowerCase()}@starweb.com`;
 
     try {
       await signInWithEmailAndPassword(auth, email, data.password);
-      
+      // onAuthStateChanged will handle setting the user session
       toast({ title: 'Success', description: 'Logged in successfully. Redirecting...' });
       await handleDailyBackup();
-      // The useEffect will handle the redirect
       
     } catch (error: any) {
       let errorMessage = 'An unknown error occurred.';
