@@ -743,24 +743,26 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                 Cancel
             </Button>
             
-             {poToEdit?.isDraft === true ? (
-                <>
-                    <Button type="button" variant="secondary" onClick={form.handleSubmit(v => onSubmit(v, false))} disabled={isSubmitting}>
-                        {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        Save Draft
-                    </Button>
+            {poToEdit ? (
+                poToEdit.isDraft ? (
+                    <>
+                        <Button type="button" variant="secondary" onClick={form.handleSubmit(v => onSubmit(v, false))} disabled={isSubmitting}>
+                            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            Save Draft
+                        </Button>
+                        <Button type="button" onClick={form.handleSubmit(v => onSubmit(v, true))} disabled={isSubmitting}>
+                            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            Finalize Purchase Order
+                        </Button>
+                    </>
+                ) : (
                     <Button type="button" onClick={form.handleSubmit(v => onSubmit(v, true))} disabled={isSubmitting}>
                         {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        Finalize Purchase Order
+                        Save Changes
                     </Button>
-                </>
-            ) : poToEdit && !poToEdit.isDraft ? (
-                <Button type="button" onClick={form.handleSubmit(v => onSubmit(v, true))} disabled={isSubmitting}>
-                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    Save Changes
-                </Button>
+                )
             ) : (
-                 <>
+                <>
                     <Button type="button" variant="secondary" onClick={form.handleSubmit(v => onSubmit(v, false))} disabled={isSubmitting}>
                         {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                         Save as Draft
@@ -922,5 +924,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     </div>
   );
 }
+
+    
 
     
