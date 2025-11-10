@@ -22,7 +22,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { summarizePurchaseOrderChanges } from '@/ai/flows/summarize-po-changes-flow';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { onRawMaterialsUpdate, addRawMaterial } from '@/services/raw-material-service';
@@ -113,14 +112,16 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   
   const watchedItems = form.watch("items");
 
-  const quantityTotalsByUnit = (watchedItems || []).reduce((acc, item) => {
-    const quantity = parseFloat(item.quantity);
-    const unit = item.unit;
-    if (!isNaN(quantity) && unit) {
-        acc[unit] = (acc[unit] || 0) + quantity;
-    }
-    return acc;
-  }, {} as Record<string, number>);
+  const quantityTotalsByUnit = useMemo(() => {
+    return (watchedItems || []).reduce((acc, item) => {
+        const quantity = parseFloat(item.quantity);
+        const unit = item.unit;
+        if (!isNaN(quantity) && unit) {
+            acc[unit] = (acc[unit] || 0) + quantity;
+        }
+        return acc;
+    }, {} as Record<string, number>);
+  }, [watchedItems]);
 
 
   useEffect(() => {
@@ -282,7 +283,17 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
               isDraft: false, // Ensure it's not a draft
             };
 
-            const { summary } = await summarizePurchaseOrderChanges(poToEdit, updatedPODataForAI);
+            const response = await fetch('/api/summarize-po', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ originalPO: poToEdit, updatedPO: updatedPODataForAI }),
+            });
+
+            if (!response.ok) {
+                throw new Error('AI summarization failed');
+            }
+
+            const { summary } = await response.json();
             
             const newAmendment: Amendment = {
               date: new Date().toISOString(),
@@ -921,5 +932,3 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     </div>
   );
 }
-
-    
