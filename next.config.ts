@@ -2,7 +2,8 @@
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
-  output: 'standalone',
+  output: 'export',
+  serverActions: false,
   typescript: {
     ignoreBuildErrors: true,
   },
