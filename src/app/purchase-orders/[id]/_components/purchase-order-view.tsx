@@ -16,6 +16,8 @@ import { differenceInDays } from 'date-fns';
 import { getPurchaseOrder } from '@/services/purchase-order-service';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 
 const paperTypes = ['Kraft Paper', 'Virgin Paper'];
@@ -38,72 +40,127 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
   const handleExport = async (format: 'pdf' | 'jpg') => {
     if (!purchaseOrder) return;
     
-    if (format === 'pdf') setIsGeneratingPdf(true);
-    else setIsGeneratingJpg(true);
-
-    const printableArea = document.querySelector('.printable-area') as HTMLElement;
-    if (!printableArea) {
-      if (format === 'pdf') setIsGeneratingPdf(false);
-      else setIsGeneratingJpg(false);
-      return;
-    }
-
-    try {
-        const html2canvas = (await import('html2canvas')).default;
-        
-        const canvas = await html2canvas(printableArea, {
-            scale: 2,
-            useCORS: true,
-            logging: false,
-            onclone: (document) => {
-                if (!includeAmendments) {
-                    const amendmentSection = document.getElementById('amendment-history-section');
-                    if (amendmentSection) {
-                        amendmentSection.style.display = 'none';
-                    }
-                }
-            }
-        });
-
-        if (format === 'pdf') {
-            const jsPDF = (await import('jspdf')).default;
-            const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: 'a4' });
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = pdf.internal.pageSize.getHeight();
-            const canvasWidth = canvas.width;
-            const canvasHeight = canvas.height;
-            let position = 0;
-            let remainingHeight = canvasHeight;
-
-            while (remainingHeight > 0) {
-                const pageCanvasHeight = Math.min(remainingHeight, canvasWidth * (pdfHeight/pdfWidth));
-                const pageCanvas = document.createElement('canvas');
-                pageCanvas.width = canvasWidth;
-                pageCanvas.height = pageCanvasHeight;
-
-                const ctx = pageCanvas.getContext('2d');
-                ctx?.drawImage(canvas, 0, position, canvasWidth, pageCanvasHeight, 0, 0, canvasWidth, pageCanvasHeight);
-                const pageImgData = pageCanvas.toDataURL('image/png');
-                const pageHeight = pdfWidth * (pageCanvasHeight / canvasWidth);
-                
-                if (position > 0) pdf.addPage();
-                pdf.addImage(pageImgData, 'PNG', 0, 0, pdfWidth, pageHeight);
-                
-                position += pageCanvasHeight;
-                remainingHeight -= pageCanvasHeight;
-            }
-            pdf.save(`PO-${purchaseOrder.poNumber}.pdf`);
-        } else { // JPG
+    if (format === 'jpg') {
+        setIsGeneratingJpg(true);
+        const printableArea = document.querySelector('.printable-area') as HTMLElement;
+        if (!printableArea) {
+            setIsGeneratingJpg(false);
+            return;
+        }
+        try {
+            const html2canvas = (await import('html2canvas')).default;
+            const canvas = await html2canvas(printableArea, {
+                scale: 2, useCORS: true, logging: false,
+                onclone: (doc) => { if (!includeAmendments) doc.getElementById('amendment-history-section')?.style.setProperty('display', 'none', 'important'); }
+            });
             const link = document.createElement('a');
             link.download = `PO-${purchaseOrder.poNumber}.jpg`;
             link.href = canvas.toDataURL('image/jpeg', 0.9);
             link.click();
+        } catch (error) {
+            console.error(`Error generating JPG`, error);
+        } finally {
+            setIsGeneratingJpg(false);
         }
-    } catch (error) {
-        console.error(`Error generating ${format.toUpperCase()}`, error);
-    } finally {
-        if (format === 'pdf') setIsGeneratingPdf(false);
-        else setIsGeneratingJpg(false);
+    } else { // PDF
+        setIsGeneratingPdf(true);
+        try {
+            const doc = new jsPDF();
+            
+            // Header
+            doc.setFont('Helvetica', 'bold');
+            doc.setFontSize(16);
+            doc.text('SHIVAM PACKAGING INDUSTRIES PVT LTD.', doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
+            
+            doc.setFont('Helvetica', 'normal');
+            doc.setFontSize(10);
+            doc.text('HETAUDA 08, BAGMATI PROVIENCE, NEPAL', doc.internal.pageSize.getWidth() / 2, 21, { align: 'center' });
+
+            doc.setFont('Helvetica', 'bold');
+            doc.setFontSize(14);
+            doc.text('PURCHASE ORDER', doc.internal.pageSize.getWidth() / 2, 30, { align: 'center' });
+            
+            if (purchaseOrder.amendments && purchaseOrder.amendments.length > 0 && purchaseOrder.updatedAt) {
+                const amendedDate = new Date(purchaseOrder.updatedAt);
+                doc.setFontSize(8);
+                doc.setFont('Helvetica', 'italic');
+                doc.text(`(AMENDED PO-LAST RELEASED-${amendedDate.toLocaleDateString('en-CA')})`, doc.internal.pageSize.getWidth() / 2, 35, { align: 'center' });
+            }
+
+            // Info
+            doc.setFontSize(10);
+            doc.setFont('Helvetica', 'normal');
+            doc.text(`To:`, 14, 45);
+            doc.setFont('Helvetica', 'bold');
+            doc.text(purchaseOrder.companyName, 14, 50);
+            doc.setFont('Helvetica', 'normal');
+            if (purchaseOrder.companyAddress) doc.text(purchaseOrder.companyAddress, 14, 55);
+            if (purchaseOrder.panNumber) doc.text(`PAN: ${purchaseOrder.panNumber}`, 14, 60);
+
+            doc.text(`PO No: ${purchaseOrder.poNumber}`, doc.internal.pageSize.getWidth() - 14, 45, { align: 'right' });
+            const nepaliPoDate = new NepaliDate(new Date(purchaseOrder.poDate)).format('YYYY/MM/DD');
+            doc.text(`Date: ${nepaliPoDate} BS`, doc.internal.pageSize.getWidth() - 14, 50, { align: 'right' });
+            
+            let finalY = 65;
+
+            for (const [type, items] of Object.entries(groupedItems)) {
+                const isPaper = paperTypes.includes(type);
+                const head = [['S.N.', 'Description', ...(isPaper ? ['Size (Inch)', 'GSM', 'BF'] : []), 'Quantity']];
+                
+                const body = items.map((item, index) => [
+                    index + 1,
+                    item.rawMaterialName,
+                    ...(isPaper ? [item.size || '-', item.gsm || '-', item.bf || '-'] : []),
+                    `${item.quantity} ${item.unit}`
+                ]);
+
+                autoTable(doc, {
+                    startY: finalY,
+                    head: [[{ content: type, colSpan: head[0].length, styles: { fontStyle: 'bold', fillColor: [230, 230, 230], textColor: 20 } }]],
+                    body: [],
+                    theme: 'grid',
+                    showHead: 'firstPage',
+                });
+                 
+                autoTable(doc, {
+                    startY: (doc as any).lastAutoTable.finalY,
+                    head: head,
+                    body: body,
+                    theme: 'grid',
+                    headStyles: { fillColor: [240, 240, 240], textColor: 20 },
+                });
+                
+                finalY = (doc as any).lastAutoTable.finalY + 10;
+            }
+            
+            if (includeAmendments && purchaseOrder.amendments && purchaseOrder.amendments.length > 0) {
+                finalY += 5;
+                doc.setFont('Helvetica', 'bold');
+                doc.text("Amendment History", 14, finalY);
+                finalY += 5;
+                autoTable(doc, {
+                    startY: finalY,
+                    head: [['#', 'Date & Time', 'Remarks']],
+                    body: purchaseOrder.amendments.map((am, i) => [i + 1, new Date(am.date).toLocaleString(), am.remarks]),
+                    theme: 'grid',
+                    headStyles: { fillColor: [240, 240, 240], textColor: 20 },
+                });
+                finalY = (doc as any).lastAutoTable.finalY + 10;
+            }
+
+            doc.setFontSize(8);
+            doc.text("This is a digitally issued document and is valid without a signature.", doc.internal.pageSize.getWidth() / 2, doc.internal.pageSize.getHeight() - 15, { align: 'center' });
+            doc.setFontSize(10);
+            doc.text("SHIVAM PACKAGING INDUSTRIES PVT LTD.", doc.internal.pageSize.getWidth() / 2, doc.internal.pageSize.getHeight() - 10, { align: 'center' });
+
+
+            doc.save(`PO-${purchaseOrder.poNumber}.pdf`);
+
+        } catch (error) {
+            console.error('PDF export failed:', error);
+        } finally {
+            setIsGeneratingPdf(false);
+        }
     }
   };
   
@@ -413,5 +470,3 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
     </>
   );
 }
-
-    
