@@ -14,17 +14,31 @@ interface FirebaseContextType {
     db: Firestore;
     storage: FirebaseStorage;
     rtdb: Database;
+    isConnected: boolean;
 }
 
 const FirebaseContext = createContext<FirebaseContextType | null>(null);
 
-interface FirebaseProviderProps extends FirebaseContextType {
+interface FirebaseProviderProps extends Omit<FirebaseContextType, 'isConnected'> {
     children: ReactNode;
 }
 
 export const FirebaseProvider = ({ children, app, auth, db, storage, rtdb }: FirebaseProviderProps) => {
+    const [isConnected, setIsConnected] = useState(true);
+
+    useEffect(() => {
+        const connectedRef = ref(rtdb, '.info/connected');
+        const listener = onValue(connectedRef, (snap) => {
+            setIsConnected(snap.val() === true);
+        });
+
+        return () => {
+            off(connectedRef, 'value', listener);
+        };
+    }, [rtdb]);
+
     return (
-        <FirebaseContext.Provider value={{ app, auth, db, storage, rtdb }}>
+        <FirebaseContext.Provider value={{ app, auth, db, storage, rtdb, isConnected }}>
             {children}
         </FirebaseContext.Provider>
     );
@@ -43,3 +57,4 @@ export const useAuthService = () => useFirebase().auth;
 export const useFirestore = () => useFirebase().db;
 export const useStorage = () => useFirebase().storage;
 export const useDb = () => useFirebase().rtdb;
+export const useConnectionStatus = () => useFirebase().isConnected;
