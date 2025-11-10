@@ -1,4 +1,3 @@
-
 'use client';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -260,45 +259,43 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     }
     setIsSubmitting(true);
     try {
-      if (poToEdit) {
+      if (poToEdit) { // This is an edit
         let updatedPOForFirestore: Partial<Omit<PurchaseOrder, 'id'>>;
-
-        if (poToEdit.isDraft) { 
+  
+        if (poToEdit.isDraft) { // Editing a draft
           updatedPOForFirestore = {
             ...values,
             poDate: values.poDate.toISOString(),
             isDraft: !finalize,
-            status: finalize ? 'Ordered' : 'Draft', 
+            status: finalize ? 'Ordered' : 'Draft',
             lastModifiedBy: user.username,
             updatedAt: new Date().toISOString(),
           };
-           await updatePurchaseOrder(poToEdit.id, updatedPOForFirestore);
-           if (finalize) {
-               toast({ title: 'Success', description: 'Purchase Order has been finalized.' });
-               router.push(`/purchase-orders/${poToEdit.id}`);
-           } else {
-               toast({ title: 'Success', description: 'Draft saved.' });
-               router.push('/purchase-orders/list');
-           }
-        } else { // If editing a finalized order
-            const newAmendment: Amendment = {
-              date: new Date().toISOString(),
-              remarks: 'Order amended after finalization.', // A generic remark for now
-              amendedBy: user.username,
-            };
-            
-            updatedPOForFirestore = {
-                ...values,
-                poDate: values.poDate.toISOString(),
-                updatedAt: new Date().toISOString(),
-                status: 'Amended',
-                lastModifiedBy: user.username,
-                amendments: [...(poToEdit.amendments || []), newAmendment],
-            };
-
-            await updatePurchaseOrder(poToEdit.id, updatedPOForFirestore);
-            toast({ title: 'Success', description: 'Purchase Order updated.' });
+          await updatePurchaseOrder(poToEdit.id, updatedPOForFirestore);
+          if (finalize) {
+            toast({ title: 'Success', description: 'Purchase Order has been finalized.' });
             router.push(`/purchase-orders/${poToEdit.id}`);
+          } else {
+            toast({ title: 'Success', description: 'Draft saved.' });
+            router.push('/purchase-orders/list');
+          }
+        } else { // Editing a finalized order
+          const newAmendment: Amendment = {
+            date: new Date().toISOString(),
+            remarks: 'Order amended after finalization.', // A generic remark for now
+            amendedBy: user.username,
+          };
+          updatedPOForFirestore = {
+            ...values,
+            poDate: values.poDate.toISOString(),
+            updatedAt: new Date().toISOString(),
+            status: 'Amended',
+            lastModifiedBy: user.username,
+            amendments: [...(poToEdit.amendments || []), newAmendment],
+          };
+          await updatePurchaseOrder(poToEdit.id, updatedPOForFirestore);
+          toast({ title: 'Success', description: 'Purchase Order updated.' });
+          router.push(`/purchase-orders/${poToEdit.id}`);
         }
       } else { // Creating new PO
         const now = new Date().toISOString();
@@ -743,29 +740,16 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                 Cancel
             </Button>
             
-            {poToEdit ? (
-                poToEdit.isDraft ? (
-                    <>
-                        <Button type="button" variant="secondary" onClick={form.handleSubmit(v => onSubmit(v, false))} disabled={isSubmitting}>
-                            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                            Save Draft
-                        </Button>
-                        <Button type="button" onClick={form.handleSubmit(v => onSubmit(v, true))} disabled={isSubmitting}>
-                            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                            Finalize Purchase Order
-                        </Button>
-                    </>
-                ) : (
-                    <Button type="button" onClick={form.handleSubmit(v => onSubmit(v, true))} disabled={isSubmitting}>
-                        {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        Save Changes
-                    </Button>
-                )
+            {poToEdit && !poToEdit.isDraft ? (
+                <Button type="button" onClick={form.handleSubmit(v => onSubmit(v, true))} disabled={isSubmitting}>
+                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Save Changes
+                </Button>
             ) : (
-                <>
+                 <>
                     <Button type="button" variant="secondary" onClick={form.handleSubmit(v => onSubmit(v, false))} disabled={isSubmitting}>
                         {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        Save as Draft
+                        Save {poToEdit ? 'Draft' : 'as Draft'}
                     </Button>
                     <Button type="button" onClick={form.handleSubmit(v => onSubmit(v, true))} disabled={isSubmitting}>
                         {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
