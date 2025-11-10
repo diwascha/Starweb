@@ -113,6 +113,16 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   
   const watchedItems = form.watch("items");
 
+  const quantityTotalsByUnit = (watchedItems || []).reduce((acc, item) => {
+    const quantity = parseFloat(item.quantity);
+    const unit = item.unit;
+    if (!isNaN(quantity) && unit) {
+        acc[unit] = (acc[unit] || 0) + quantity;
+    }
+    return acc;
+  }, {} as Record<string, number>);
+
+
   useEffect(() => {
     setIsClient(true);
     const unsubRawMaterials = onRawMaterialsUpdate(setRawMaterials);
@@ -156,18 +166,6 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     }
     return rawMaterials.filter(m => m.type === itemFilterType);
   }, [rawMaterials, itemFilterType]);
-
-  const quantityTotalsByUnit = useMemo(() => {
-    return (watchedItems || []).reduce((acc, item) => {
-      const quantity = parseFloat(item.quantity);
-      const unit = item.unit;
-      if (!isNaN(quantity) && unit) {
-        acc[unit] = (acc[unit] || 0) + quantity;
-      }
-      return acc;
-    }, {} as Record<string, number>);
-  }, [watchedItems]);
-
 
   const handleCompanySelect = (companyName: string) => {
     form.setValue('companyName', companyName);
@@ -870,8 +868,8 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                 ))}
                                 <input
                                     placeholder={quickAddForm.units.length === 0 ? "e.g. Kg, Ton..." : ""}
-                                    value={unitInputValue}
-                                    onChange={e => setUnitInputValue(e.target.value)}
+                                    value={quickAddUnitInput}
+                                    onChange={e => setQuickAddUnitInput(e.target.value)}
                                     onKeyDown={handleQuickAddUnitKeyDown}
                                     className="bg-transparent outline-none flex-1 placeholder:text-muted-foreground text-sm"
                                 />
@@ -881,8 +879,8 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                 <Command>
                                     <CommandInput 
                                         placeholder="Search or add unit..."
-                                        value={unitInputValue}
-                                        onValueChange={setUnitInputValue}
+                                        value={quickAddUnitInput}
+                                        onValueChange={setQuickAddUnitInput}
                                         onKeyDown={(e) => {
                                              if (e.key === ' ' && e.currentTarget.value.endsWith(' ')) {
                                                 e.preventDefault();
@@ -925,6 +923,3 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
 }
 
     
-
-    
-
