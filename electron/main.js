@@ -2,13 +2,38 @@
 
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
-const isDev = require('electron-is-dev');
 const { spawn } = require('child_process');
-const waitOn = require('wait-on');
+const http = require('http');
 
 let nextProcess;
 let win;
 const port = '9002';
+const startUrl = `http://localhost:${port}`;
+const isDev = !app.isPackaged;
+
+function waitForHttp(url, timeoutMs = 30000, intervalMs = 300) {
+    const start = Date.now();
+    return new Promise((resolve, reject) => {
+        const tick = () => {
+            const req = http.request(url, { method: 'GET' }, res => {
+                res.resume();
+                if (res.statusCode && res.statusCode < 500) return resolve();
+                next();
+            });
+            req.on('error', next);
+            req.end();
+        };
+        const next = () => {
+            if (Date.now() - start > timeoutMs) {
+                reject(new Error(`Timeout waiting for ${url}`));
+            } else {
+                setTimeout(tick, intervalMs);
+            }
+        };
+        tick();
+    });
+}
+
 
 function createWindow() {
   // Create the browser window.
@@ -21,13 +46,13 @@ function createWindow() {
     },
   });
 
-  const startUrl = `http://localhost:${port}`;
 
   if (isDev) {
     // In development, Next.js server is started by npm script, so we just wait for it
+    const waitOn = require('wait-on');
     const waitOnOpts = {
       resources: [startUrl],
-      timeout: 10000,
+      timeout: 30000,
     };
     waitOn(waitOnOpts).then(() => {
         win.loadURL(startUrl);
@@ -43,15 +68,11 @@ function createWindow() {
       // The `detached: true` option is important for ensuring the child process
       // doesn't stay alive when the parent Electron app exits.
       detached: true, 
-      stdio: 'inherit' // Pipe server output to Electron's console
+      stdio: 'ignore' 
     });
 
-    const waitOnOpts = {
-      resources: [startUrl],
-      timeout: 15000, // Increased timeout for production server start
-    };
-    
-    waitOn(waitOnOpts).then(() => {
+    waitForHttp(startUrl, 30000, 300)
+    .then(() => {
         win.loadURL(startUrl);
     }).catch(err => {
         console.error('Error waiting for Next.js production server:', err);
