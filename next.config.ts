@@ -2,8 +2,13 @@
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
+<<<<<<< HEAD
   output: 'export',
   serverActions: false,
+=======
+  output: 'standalone',
+  productionBrowserSourceMaps: false,
+>>>>>>> refs/remotes/origin/main
   typescript: {
     ignoreBuildErrors: true,
   },

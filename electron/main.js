@@ -1,10 +1,10 @@
-
 // main.js
 
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const http = require('http');
+const fs = require('fs');
 
 let serverProc;
 let win;
@@ -12,17 +12,16 @@ const port = '9002';
 const startUrl = `http://localhost:${port}`;
 const isDev = !app.isPackaged;
 
-function waitForHttp(url, timeoutMs = 30000, intervalMs = 300) {
+function waitForHttp(url, timeoutMs = 40000, intervalMs = 300) {
     const start = Date.now();
     return new Promise((resolve, reject) => {
         const tick = () => {
-            const req = http.request(url, { method: 'GET' }, res => {
+            const req = http.get(url, res => {
                 res.resume();
                 if (res.statusCode && res.statusCode < 500) return resolve();
                 next();
             });
             req.on('error', next);
-            req.end();
         };
         const next = () => {
             if (Date.now() - start > timeoutMs) {
@@ -36,12 +35,24 @@ function waitForHttp(url, timeoutMs = 30000, intervalMs = 300) {
 }
 
 function startNextProdServer() {
-  const serverPath = path.join(process.resourcesPath, 'app/.next/standalone/server.js');
-  serverProc = spawn(process.execPath, [serverPath, '-p', port], {
-    stdio: 'ignore',
+  const standaloneDir = path.join(process.resourcesPath, '.next/standalone');
+  const serverJs = path.join(standaloneDir, 'server.js');
+
+  const logDir = app.getPath('userData');
+  const logFile = path.join(logDir, 'next-server.log');
+  const out = fs.createWriteStream(logFile, { flags: 'a' });
+  const err = fs.createWriteStream(logFile, { flags: 'a' });
+
+  serverProc = spawn(process.execPath, [serverJs], {
+    cwd: standaloneDir,
+    env: { ...process.env, PORT: port },
+    stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: true,
     detached: true,
   });
+  
+  serverProc.stdout?.pipe(out);
+  serverProc.stderr?.pipe(err);
 }
 
 function createWindow() {
@@ -53,6 +64,13 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true, 
     },
+  });
+
+  win.webContents.on('did-fail-load', (_e, code, desc, url) => {
+    console.error('did-fail-load', code, desc, url);
+  });
+  win.webContents.on('render-process-gone', (_e, details) => {
+    console.error('renderer gone', details);
   });
 
 
