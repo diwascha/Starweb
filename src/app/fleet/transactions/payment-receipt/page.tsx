@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Suspense, useEffect, useMemo, useState } from 'react';
@@ -5,7 +6,7 @@ import { useSearchParams } from 'next/navigation';
 
 import { getVoucherTransactions } from '@/services/transaction-service';
 import type { Transaction, Vehicle, Party, Account } from '@/lib/types';
-import VoucherViewClient from './_components/VoucherViewClient';
+import VoucherViewClient from '../_components/VoucherViewClient';
 import { getVehicles } from '@/services/vehicle-service';
 import { getParties } from '@/services/party-service';
 import { getAccounts } from '@/services/account-service';
