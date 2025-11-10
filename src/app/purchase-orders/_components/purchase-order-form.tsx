@@ -117,14 +117,16 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   
   const watchedItems = form.watch("items");
 
-  const quantityTotalsByUnit = (watchedItems || []).reduce((acc, item) => {
-    const quantity = parseFloat(item.quantity);
-    const unit = item.unit;
-    if (!isNaN(quantity) && unit) {
-        acc[unit] = (acc[unit] || 0) + quantity;
-    }
-    return acc;
-  }, {} as Record<string, number>);
+  const quantityTotalsByUnit = useMemo(() => {
+    return (watchedItems || []).reduce((acc, item) => {
+        const quantity = parseFloat(item.quantity);
+        const unit = item.unit;
+        if (!isNaN(quantity) && unit) {
+            acc[unit] = (acc[unit] || 0) + quantity;
+        }
+        return acc;
+    }, {} as Record<string, number>);
+  }, [watchedItems]);
 
 
   useEffect(() => {
@@ -746,16 +748,24 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
             <Button type="button" variant="outline" onClick={() => router.back()}>
                 Cancel
             </Button>
-            {(!poToEdit || poToEdit.isDraft) && (
-                <Button type="button" variant="secondary" onClick={form.handleSubmit(v => onSubmit(v, false))} disabled={isSubmitting}>
+            
+            {poToEdit && !poToEdit.isDraft ? (
+                <Button type="button" onClick={form.handleSubmit(v => onSubmit(v, true))} disabled={isSubmitting}>
                     {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    Save Draft
+                    Save Changes
                 </Button>
+            ) : (
+                <>
+                    <Button type="button" variant="secondary" onClick={form.handleSubmit(v => onSubmit(v, false))} disabled={isSubmitting}>
+                        {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Save Draft
+                    </Button>
+                    <Button type="button" onClick={form.handleSubmit(v => onSubmit(v, true))} disabled={isSubmitting}>
+                        {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Finalize Purchase Order
+                    </Button>
+                </>
             )}
-            <Button type="button" onClick={form.handleSubmit(v => onSubmit(v, true))} disabled={isSubmitting}>
-                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                {poToEdit && !poToEdit.isDraft ? 'Save Changes' : 'Finalize Purchase Order'}
-            </Button>
           </div>
         </form>
       </Form>
@@ -913,3 +923,6 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     
 
 
+
+
+    
