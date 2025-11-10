@@ -697,11 +697,9 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
             </CardContent>
           </Card>
           <div className="flex justify-end gap-2">
-             {poToEdit && (
-                <Button type="button" variant="outline" onClick={() => router.back()}>
-                    Cancel Edit
-                </Button>
-            )}
+            <Button type="button" variant="outline" onClick={() => router.back()}>
+                Cancel
+            </Button>
             <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isSubmitting ? 'Saving...' : buttonText}
