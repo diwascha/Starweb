@@ -1,6 +1,6 @@
 
 'use client';
-import { PurchaseForm } from './purchase-form';
+import { PurchaseForm } from '../../_components/purchase-form';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
