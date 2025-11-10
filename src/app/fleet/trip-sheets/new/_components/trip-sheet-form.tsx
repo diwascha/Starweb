@@ -193,6 +193,15 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
         const unsubDestinations = onDestinationsUpdate(setDestinations);
         const unsubTrips = onTripsUpdate(setTrips);
 
+        return () => {
+            unsubVehicles();
+            unsubParties();
+            unsubDestinations();
+            unsubTrips();
+        };
+    }, []);
+
+    useEffect(() => {
         if (tripToEdit) {
             form.reset(defaultValues);
             if (tripToEdit.detentionStartDate) {
@@ -201,13 +210,6 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
         } else {
             generateNextSalesNumber(trips).then(num => form.setValue('tripNumber', num));
         }
-
-        return () => {
-            unsubVehicles();
-            unsubParties();
-            unsubDestinations();
-            unsubTrips();
-        };
     }, [tripToEdit, form, defaultValues, trips]);
 
     const vendors = useMemo(() => parties.filter(p => p.type === 'Vendor' || p.type === 'Both'), [parties]);
@@ -251,7 +253,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
     } = useMemo(() => {
         const values = watchedFormValues;
         
-        const days = values.detentionStartDate && values.detentionEndDate ? differenceInDays(values.detentionEndDate, values.detentionStartDate) + 1 : 0;
+        const days = values.detentionStartDate && values.detentionEndDate ? differenceInDays(new Date(values.detentionEndDate), new Date(values.detentionStartDate)) + 1 : 0;
         
         const totalFreight = (values.destinations || [])
             .filter(d => d && d.name && d.name.trim() !== '' && d.freight && Number(d.freight) > 0)
