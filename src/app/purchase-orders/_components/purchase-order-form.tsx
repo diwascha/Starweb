@@ -111,6 +111,8 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     name: "items",
   });
   
+  const watchedItems = form.watch("items");
+
   useEffect(() => {
     setIsClient(true);
     const unsubRawMaterials = onRawMaterialsUpdate(setRawMaterials);
@@ -155,7 +157,6 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     return rawMaterials.filter(m => m.type === itemFilterType);
   }, [rawMaterials, itemFilterType]);
 
-  const watchedItems = form.watch("items");
   const quantityTotalsByUnit = useMemo(() => {
     return (watchedItems || []).reduce((acc, item) => {
       const quantity = parseFloat(item.quantity);
@@ -332,7 +333,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     }
   }
 
-  const title = poToEdit ? 'Edit Purchase Order' : 'Create New Purchase Order';
+  const title = poToEdit ? (poToEdit.isDraft ? 'Edit Draft Purchase Order' : 'Edit Purchase Order') : 'Create New Purchase Order';
   const showPaperColumns = itemFilterType === 'All' || paperTypes.includes(itemFilterType);
 
   const [quickAddForm, setQuickAddForm] = useState({
@@ -528,12 +529,12 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                 />
                                 <CommandList>
                                     <CommandEmpty>
-                                        <Button variant="ghost" className="w-full justify-start" onClick={() => {
+                                        <CommandItem onSelect={() => {
                                           handleOpenPartyDialog(null, companySearch);
                                           setCompanySearch('');
                                         }}>
                                             <PlusCircle className="mr-2 h-4 w-4"/> Add "{companySearch}"
-                                        </Button>
+                                        </CommandItem>
                                     </CommandEmpty>
                                     <CommandGroup>
                                         {companies.map((company) => (
@@ -926,3 +927,4 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     
 
     
+
