@@ -1,6 +1,8 @@
 {
-  "name": "nextn",
+  "name": "starweb",
   "version": "0.1.0",
+  "description": "StarWeb desktop app for HRMS/Payroll/CRM/Finance",
+  "author": "Diwas Chaulagain",
   "private": true,
   "main": "electron/main.js",
   "scripts": {
