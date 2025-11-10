@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, ReactNode } from 'react';
@@ -17,13 +18,9 @@ export function FirebaseClientProvider({ children }: { children: ReactNode }) {
 
     if (!isClient || !firebaseServices) {
         return (
-            <html>
-                <body>
-                    <div className="flex h-screen items-center justify-center">
-                        <p>Loading application...</p>
-                    </div>
-                </body>
-            </html>
+            <div className="flex h-screen items-center justify-center">
+                <p>Loading application...</p>
+            </div>
         );
     }
 
