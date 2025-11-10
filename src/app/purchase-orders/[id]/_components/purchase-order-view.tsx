@@ -245,7 +245,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, party, poId }:
           <CardHeader className="p-2">
             <CardTitle className="text-base">To: {party?.name || purchaseOrder.companyName}</CardTitle>
             <p className="text-sm">{party?.address || purchaseOrder.companyAddress}</p>
-            {party?.panNumber && <p className="text-sm">PAN: {party.panNumber}</p>}
+            {(party?.panNumber || purchaseOrder.panNumber) && <p className="text-sm">PAN: {party?.panNumber || purchaseOrder.panNumber}</p>}
           </CardHeader>
           <CardContent className="space-y-4 p-2">
             <section className="space-y-2">
@@ -267,8 +267,8 @@ export default function PurchaseOrderView({ initialPurchaseOrder, party, poId }:
                     : items;
 
                   const totals = sortedItems.reduce((acc, item) => {
-                      const quantity = parseFloat(item.quantity) || 0;
-                      if (quantity > 0) {
+                      const quantity = parseFloat(item.quantity);
+                      if (!isNaN(quantity) && quantity > 0) {
                           acc[item.unit] = (acc[item.unit] || 0) + quantity;
                       }
                       return acc;
@@ -386,7 +386,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, party, poId }:
           body {
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
-            background-color: #fff;
+            background-color: #fff !important;
           }
           body > * {
             visibility: hidden;
