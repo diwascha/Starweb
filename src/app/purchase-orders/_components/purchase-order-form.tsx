@@ -383,36 +383,44 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         return;
     }
 
-    const finalName = isPaper ? generateMaterialName(type, size, gsm, bf) : name;
-    if (!finalName) {
-        toast({ title: 'Error', description: 'Please fill out the material details.', variant: 'destructive' });
-        return;
+    if (!isPaper && name.trim() === '') {
+      toast({ title: 'Error', description: 'Please provide a name/description.', variant: 'destructive' });
+      return;
     }
     
-    for (const unitAbbr of units) {
-      const exists = uoms.some(u => u.abbreviation.toLowerCase() === unitAbbr.toLowerCase());
-      if (!exists) {
-        await addUom({
-          name: unitAbbr,
-          abbreviation: unitAbbr,
-          createdBy: user.username,
-          createdAt: new Date().toISOString()
-        });
-      }
-    }
+    const finalName = isPaper 
+        ? generateMaterialName(
+            type.trim(), 
+            size.trim(), 
+            gsm.trim(), 
+            bf.trim()
+          )
+        : name.trim();
+    
+      try {
+        for (const unitAbbr of units) {
+          const exists = uoms.some(u => u.abbreviation.toLowerCase() === unitAbbr.toLowerCase());
+          if (!exists) {
+            await addUom({
+              name: unitAbbr,
+              abbreviation: unitAbbr,
+              createdBy: user.username,
+              createdAt: new Date().toISOString()
+            });
+          }
+        }
 
-    const newMaterial: Omit<RawMaterial, 'id'> = {
-        type,
-        name: finalName,
-        size: isPaper ? size : '',
-        gsm: isPaper ? gsm : '',
-        bf: isPaper ? bf : '',
-        units: units,
-        createdBy: user.username,
-        createdAt: new Date().toISOString(),
-    };
-    
-    try {
+        const newMaterial: Omit<RawMaterial, 'id'> = {
+            type,
+            name: finalName,
+            size: isPaper ? size : '',
+            gsm: isPaper ? gsm : '',
+            bf: isPaper ? bf : '',
+            units: units,
+            createdBy: user.username,
+            createdAt: new Date().toISOString(),
+        };
+        
         await addRawMaterial(newMaterial);
         toast({ title: 'Success', description: `Added "${finalName}".` });
         setIsQuickAddMaterialDialogOpen(false);
@@ -861,7 +869,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                 ))}
                                 <input
                                     placeholder={quickAddForm.units.length === 0 ? "e.g. Kg, Ton..." : ""}
-                                    value={quickAddUnitInput}
+                                    value={unitInputValue}
                                     onChange={e => setUnitInputValue(e.target.value)}
                                     onKeyDown={handleQuickAddUnitKeyDown}
                                     className="bg-transparent outline-none flex-1 placeholder:text-muted-foreground text-sm"
@@ -872,7 +880,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                 <Command>
                                     <CommandInput 
                                         placeholder="Search or add unit..."
-                                        value={quickAddUnitInput}
+                                        value={unitInputValue}
                                         onValueChange={setUnitInputValue}
                                         onKeyDown={(e) => {
                                              if (e.key === ' ' && e.currentTarget.value.endsWith(' ')) {
