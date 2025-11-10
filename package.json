@@ -7,8 +7,8 @@
     "dev": "next dev --turbopack -p 9002",
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
     "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
-    "build": "next build && next export",
-    "start": "next start",
+    "build": "next build",
+    "start": "next start -p 9002",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "electron:dev": "concurrently \"npm:dev\" \"npm:electron\"",
@@ -85,8 +85,10 @@
     "appId": "com.starweb.app",
     "productName": "STARWEB",
     "files": [
-      "out/**/*",
-      "electron/**/*"
+      ".next/**/*",
+      "node_modules/**/*",
+      "electron/**/*",
+      "package.json"
     ],
     "directories": {
       "buildResources": "assets",
