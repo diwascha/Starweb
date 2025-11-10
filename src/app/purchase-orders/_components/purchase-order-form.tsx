@@ -428,7 +428,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     if (!quickAddForm.units.includes(unit)) {
         setQuickAddForm(prev => ({...prev, units: [...prev.units, unit]}));
     }
-    setUnitInputValue('');
+    setQuickAddUnitInput('');
   };
 
   const handleQuickAddUnitRemove = (unit: string) => {
@@ -442,7 +442,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         if (newUnit && !quickAddForm.units.find(u => u.toLowerCase() === newUnit.toLowerCase())) {
             setQuickAddForm(prev => ({...prev, units: [...prev.units, newUnit]}));
         }
-        setUnitInputValue('');
+        setQuickAddUnitInput('');
     }
   };
 
@@ -758,7 +758,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                 <>
                     <Button type="button" variant="secondary" onClick={form.handleSubmit(v => onSubmit(v, false))} disabled={isSubmitting}>
                         {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        Save Draft
+                        {poToEdit ? 'Save Draft' : 'Save as Draft'}
                     </Button>
                     <Button type="button" onClick={form.handleSubmit(v => onSubmit(v, true))} disabled={isSubmitting}>
                         {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -864,8 +864,8 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                 ))}
                                 <input
                                     placeholder={quickAddForm.units.length === 0 ? "e.g. Kg, Ton..." : ""}
-                                    value={unitInputValue}
-                                    onChange={e => setUnitInputValue(e.target.value)}
+                                    value={quickAddUnitInput}
+                                    onChange={e => setQuickAddUnitInput(e.target.value)}
                                     onKeyDown={handleQuickAddUnitKeyDown}
                                     className="bg-transparent outline-none flex-1 placeholder:text-muted-foreground text-sm"
                                 />
@@ -924,5 +924,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
 
 
 
+
+    
 
     
