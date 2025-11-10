@@ -1,10 +1,13 @@
 
-import { db } from '@/lib/firebase';
+import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import type { RawMaterial, UnitOfMeasurement } from '@/lib/types';
 import { getUoms, addUom } from './uom-service';
 
-const rawMaterialsCollection = collection(db, 'rawMaterials');
+const getRawMaterialsCollection = () => {
+    const { db } = getFirebase();
+    return collection(db, 'rawMaterials');
+};
 
 const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): RawMaterial => {
     const data = snapshot.data();
@@ -24,7 +27,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): RawMateri
 }
 
 export const getRawMaterials = async (): Promise<RawMaterial[]> => {
-    const snapshot = await getDocs(rawMaterialsCollection);
+    const snapshot = await getDocs(getRawMaterialsCollection());
     return snapshot.docs.map(fromFirestore);
 };
 
@@ -77,12 +80,12 @@ export const addRawMaterial = async (material: Omit<RawMaterial, 'id'>): Promise
         }
       }
     }
-    const docRef = await addDoc(rawMaterialsCollection, material);
+    const docRef = await addDoc(getRawMaterialsCollection(), material);
     return docRef.id;
 };
 
 export const onRawMaterialsUpdate = (callback: (materials: RawMaterial[]) => void): () => void => {
-    return onSnapshot(rawMaterialsCollection, 
+    return onSnapshot(getRawMaterialsCollection(), 
         (snapshot) => {
             const materials = snapshot.docs.map(fromFirestore);
             // Consolidate units in the background
@@ -106,11 +109,11 @@ export const updateRawMaterial = async (id: string, material: Partial<Omit<RawMa
         }
       }
     }
-    const materialDoc = doc(db, 'rawMaterials', id);
+    const materialDoc = doc(getRawMaterialsCollection(), id);
     await updateDoc(materialDoc, material);
 };
 
 export const deleteRawMaterial = async (id: string): Promise<void> => {
-    const materialDoc = doc(db, 'rawMaterials', id);
+    const materialDoc = doc(getRawMaterialsCollection(), id);
     await deleteDoc(materialDoc);
 };

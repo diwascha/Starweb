@@ -1,9 +1,12 @@
 
-import { db } from '@/lib/firebase';
+import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs } from 'firebase/firestore';
 import type { PolicyOrMembership } from '@/lib/types';
 
-const policiesCollection = collection(db, 'policies');
+const getPoliciesCollection = () => {
+    const { db } = getFirebase();
+    return collection(db, 'policies');
+}
 
 const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): PolicyOrMembership => {
     const data = snapshot.data();
@@ -25,12 +28,12 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): PolicyOrM
 }
 
 export const getPolicies = async (): Promise<PolicyOrMembership[]> => {
-    const snapshot = await getDocs(policiesCollection);
+    const snapshot = await getDocs(getPoliciesCollection());
     return snapshot.docs.map(fromFirestore);
 }
 
 export const addPolicy = async (policy: Omit<PolicyOrMembership, 'id'>): Promise<string> => {
-    const docRef = await addDoc(policiesCollection, {
+    const docRef = await addDoc(getPoliciesCollection(), {
         ...policy,
         createdAt: new Date().toISOString(),
     });
@@ -38,7 +41,7 @@ export const addPolicy = async (policy: Omit<PolicyOrMembership, 'id'>): Promise
 };
 
 export const onPoliciesUpdate = (callback: (policies: PolicyOrMembership[]) => void): () => void => {
-    return onSnapshot(policiesCollection, 
+    return onSnapshot(getPoliciesCollection(), 
         (snapshot) => {
             callback(snapshot.docs.map(fromFirestore));
         },
@@ -49,7 +52,7 @@ export const onPoliciesUpdate = (callback: (policies: PolicyOrMembership[]) => v
 };
 
 export const updatePolicy = async (id: string, policy: Partial<Omit<PolicyOrMembership, 'id'>>): Promise<void> => {
-    const policyDoc = doc(db, 'policies', id);
+    const policyDoc = doc(getPoliciesCollection(), id);
     await updateDoc(policyDoc, {
         ...policy,
         lastModifiedAt: new Date().toISOString(),
@@ -57,6 +60,6 @@ export const updatePolicy = async (id: string, policy: Partial<Omit<PolicyOrMemb
 };
 
 export const deletePolicy = async (id: string): Promise<void> => {
-    const policyDoc = doc(db, 'policies', id);
+    const policyDoc = doc(getPoliciesCollection(), id);
     await deleteDoc(policyDoc);
 };

@@ -1,16 +1,19 @@
 
-import { db } from '@/lib/firebase';
+import { getFirebase } from '@/lib/firebase';
 import { collection, doc, getDoc, setDoc, onSnapshot, updateDoc } from 'firebase/firestore';
 import type { AppSetting, CostSetting, CostSettingHistoryEntry } from '@/lib/types';
 
-const settingsCollection = collection(db, 'settings');
+const getSettingsCollection = () => {
+    const { db } = getFirebase();
+    return collection(db, 'settings');
+};
 
 export const getSetting = async (id: string): Promise<AppSetting | null> => {
     if (!id || typeof id !== 'string') {
         console.error("getSetting called with invalid ID:", id);
         return null;
     }
-    const docRef = doc(db, 'settings', id);
+    const docRef = doc(getSettingsCollection(), id);
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
         return { id: docSnap.id, ...docSnap.data() } as AppSetting;
@@ -24,7 +27,7 @@ export const onSettingUpdate = (id: string, callback: (setting: AppSetting | nul
         callback(null);
         return () => {}; // Return a no-op unsubscribe function
     }
-    const docRef = doc(db, 'settings', id);
+    const docRef = doc(getSettingsCollection(), id);
     return onSnapshot(docRef, 
         (docSnap) => {
             if (docSnap.exists()) {
@@ -43,12 +46,12 @@ export const onSettingUpdate = (id: string, callback: (setting: AppSetting | nul
 
 export const setSetting = async (id: string, value: any): Promise<void> => {
     if (!id) return;
-    const docRef = doc(db, 'settings', id);
+    const docRef = doc(getSettingsCollection(), id);
     await setDoc(docRef, { value });
 };
 
 export const updateCostSettings = async (newCosts: Partial<CostSetting>, updatedBy: string): Promise<void> => {
-    const docRef = doc(db, 'settings', 'costing');
+    const docRef = doc(getSettingsCollection(), 'costing');
     const docSnap = await getDoc(docRef);
     const now = new Date().toISOString();
 

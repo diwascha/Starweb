@@ -1,5 +1,5 @@
 
-import { db } from '@/lib/firebase';
+import { getFirebase } from '@/lib/firebase';
 import { collection, doc, writeBatch, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, query, where, limit, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import type { AttendanceRecord, RawAttendanceRow, Payroll, Employee } from '@/lib/types';
 import NepaliDate from 'nepali-date-converter';
@@ -7,8 +7,16 @@ import { format } from 'date-fns';
 import { processAttendanceImport } from '@/lib/attendance';
 import { addEmployee, getEmployees } from './employee-service';
 
+const getAttendanceCollection = () => {
+    const { db } = getFirebase();
+    return collection(db, 'attendance');
+};
 
-const attendanceCollection = collection(db, 'attendance');
+const getPayrollCollection = () => {
+    const { db } = getFirebase();
+    return collection(db, 'payroll');
+}
+
 
 const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): AttendanceRecord => {
     const data = snapshot.data();
@@ -33,7 +41,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Attendanc
 };
 
 export const getAttendance = async (): Promise<AttendanceRecord[]> => {
-    const snapshot = await getDocs(attendanceCollection);
+    const snapshot = await getDocs(getAttendanceCollection());
     return snapshot.docs.map(fromFirestore);
 };
 
@@ -46,6 +54,7 @@ export const addAttendanceRecords = async (
     sourceSheetName: string,
     onProgress: (progress: number) => void
 ): Promise<{ attendanceCount: number, newEmployees: string[], skippedCount: number }> => {
+    const { db } = getFirebase();
     const CHUNK_SIZE = 400;
     
     const headerRow = jsonData[0];
@@ -113,7 +122,7 @@ export const addAttendanceRecords = async (
         const chunk = newAttendanceRecords.slice(i, i + CHUNK_SIZE);
         const batch = writeBatch(db);
         chunk.forEach(record => {
-            const docRef = doc(attendanceCollection);
+            const docRef = doc(getAttendanceCollection());
             batch.set(docRef, record);
         });
         await batch.commit();
@@ -126,17 +135,20 @@ export const addAttendanceRecords = async (
 
 
 export const updateAttendanceRecord = async (id: string, record: Partial<AttendanceRecord>): Promise<void> => {
-    const recordDoc = doc(db, 'attendance', id);
+    const recordDoc = doc(getAttendanceCollection(), id);
     await updateDoc(recordDoc, record);
 };
 
 export const deleteAttendanceRecord = async (id: string): Promise<void> => {
-    const recordDoc = doc(db, 'attendance', id);
+    const recordDoc = doc(getAttendanceCollection(), id);
     await deleteDoc(recordDoc);
 };
 
 export const deleteAttendanceForMonth = async (bsYear: number, bsMonth: number): Promise<void> => {
-    const payrollCollection = collection(db, 'payroll');
+    const { db } = getFirebase();
+    const payrollCollection = getPayrollCollection();
+    const attendanceCollection = getAttendanceCollection();
+
     const qPayroll = query(payrollCollection, where("bsYear", "==", bsYear), where("bsMonth", "==", bsMonth));
     const payrollSnapshot = await getDocs(qPayroll);
 
@@ -172,8 +184,9 @@ export const deleteAttendanceForMonth = async (bsYear: number, bsMonth: number):
 };
 
 export const deleteAllAttendance = async (): Promise<void> => {
-    const attendanceSnapshot = await getDocs(attendanceCollection);
-    const payrollSnapshot = await getDocs(collection(db, 'payroll'));
+    const { db } = getFirebase();
+    const attendanceSnapshot = await getDocs(getAttendanceCollection());
+    const payrollSnapshot = await getDocs(getPayrollCollection());
 
     const allDocsToDelete = [...attendanceSnapshot.docs, ...payrollSnapshot.docs];
 
@@ -195,7 +208,7 @@ export const deleteAllAttendance = async (): Promise<void> => {
 
 
 export const onAttendanceUpdate = (callback: (records: AttendanceRecord[]) => void): () => void => {
-    return onSnapshot(attendanceCollection, 
+    return onSnapshot(getAttendanceCollection(), 
         (snapshot) => {
             callback(snapshot.docs.map(fromFirestore));
         },

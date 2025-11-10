@@ -5,7 +5,9 @@ import { useState, useEffect, createContext, useContext, ReactNode, useCallback 
 import { useRouter, usePathname } from 'next/navigation';
 import type { User, Permissions, Module, Action } from '@/lib/types';
 import { modules } from '@/lib/types';
-import { getAdminCredentials } from '@/services/user-service';
+import { getAdminCredentials, getUsers } from '@/services/user-service';
+import { useAuthService } from '@/lib/firebase/provider';
+import { onAuthStateChanged } from 'firebase/auth';
 
 
 interface UserSession {
@@ -131,22 +133,34 @@ const AuthRedirect = ({ children }: { children: (user: UserSession) => ReactNode
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<UserSession | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isClient, setIsClient] = useState(false);
+  const auth = useAuthService();
 
   useEffect(() => {
-    setIsClient(true);
-    try {
-      const storedUser = localStorage.getItem(USER_SESSION_KEY);
-      if (storedUser) {
-        setUser(JSON.parse(storedUser));
-      }
-    } catch (error) {
-      console.error("Failed to parse user from local storage", error);
-    } finally {
-      // Add a small delay to ensure rendering happens after initial state is set
-      setTimeout(() => setLoading(false), 50);
-    }
-  }, []);
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+        if (firebaseUser) {
+            // This is where you would fetch your custom user data from Firestore/RTDB
+            // For now, we'll rely on the local storage session data.
+            const storedUserJson = localStorage.getItem(USER_SESSION_KEY);
+            if (storedUserJson) {
+                try {
+                    const storedUser = JSON.parse(storedUserJson);
+                    // Optional: You could verify that firebaseUser.email matches your stored user
+                    setUser(storedUser);
+                } catch {
+                    // Invalid JSON in storage, treat as logged out
+                    setUser(null);
+                    localStorage.removeItem(USER_SESSION_KEY);
+                }
+            }
+        } else {
+            setUser(null);
+            localStorage.removeItem(USER_SESSION_KEY);
+        }
+        setLoading(false);
+    });
+
+    return () => unsubscribe();
+}, [auth]);
   
   const hasPermission = useCallback((module: Module, action: Action): boolean => {
     if (!user) return false;
@@ -165,7 +179,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [user]);
 
   const login = useCallback(async (userToLogin: User) => {
-    setLoading(true);
+    // The actual Firebase sign-in happens on the login page.
+    // This function's job is now to set the local session state.
     let sessionToStore: UserSession;
     const isAdmin = userToLogin.username === 'Administrator';
 
@@ -188,19 +203,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     
     localStorage.setItem(USER_SESSION_KEY, JSON.stringify(sessionToStore));
     setUser(sessionToStore);
-    setLoading(false);
   }, []);
 
   const logout = useCallback(async () => {
-    setLoading(true);
+    await auth.signOut();
     localStorage.removeItem(USER_SESSION_KEY);
     setUser(null);
-    setLoading(false);
-  }, []);
+  }, [auth]);
   
-  if (!isClient) {
-    return null;
-  }
   
   return (
     <AuthContext.Provider value={{ user, loading, login, logout, hasPermission }}>

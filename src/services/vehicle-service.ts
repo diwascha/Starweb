@@ -1,9 +1,12 @@
 
-import { db } from '@/lib/firebase';
+import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import type { Vehicle } from '@/lib/types';
 
-const vehiclesCollection = collection(db, 'vehicles');
+const getVehiclesCollection = () => {
+    const { db } = getFirebase();
+    return collection(db, 'vehicles');
+};
 
 const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Vehicle => {
     const data = snapshot.data();
@@ -23,13 +26,21 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Vehicle =
     };
 }
 
-export const getVehicles = async (): Promise<Vehicle[]> => {
-    const snapshot = await getDocs(vehiclesCollection);
-    return snapshot.docs.map(fromFirestore);
+export const getVehicles = async (useCache = false): Promise<Vehicle[]> => {
+    if (useCache && typeof window !== 'undefined') {
+        const cached = sessionStorage.getItem('vehicles');
+        if (cached) return JSON.parse(cached);
+    }
+    const snapshot = await getDocs(getVehiclesCollection());
+    const vehicles = snapshot.docs.map(fromFirestore);
+    if (typeof window !== 'undefined') {
+        sessionStorage.setItem('vehicles', JSON.stringify(vehicles));
+    }
+    return vehicles;
 };
 
 export const addVehicle = async (vehicle: Omit<Vehicle, 'id'>): Promise<string> => {
-    const docRef = await addDoc(vehiclesCollection, {
+    const docRef = await addDoc(getVehiclesCollection(), {
         ...vehicle,
         createdAt: new Date().toISOString(),
     });
@@ -37,9 +48,13 @@ export const addVehicle = async (vehicle: Omit<Vehicle, 'id'>): Promise<string> 
 };
 
 export const onVehiclesUpdate = (callback: (vehicles: Vehicle[]) => void): () => void => {
-    return onSnapshot(vehiclesCollection, 
+    return onSnapshot(getVehiclesCollection(), 
         (snapshot) => {
-            callback(snapshot.docs.map(fromFirestore));
+            const vehicles = snapshot.docs.map(fromFirestore);
+             if (typeof window !== 'undefined') {
+                sessionStorage.setItem('vehicles', JSON.stringify(vehicles));
+            }
+            callback(vehicles);
         },
         (error) => {
             console.error("FIREBASE FAIL MESSAGE (Vehicles):", error.message, error);
@@ -49,7 +64,7 @@ export const onVehiclesUpdate = (callback: (vehicles: Vehicle[]) => void): () =>
 
 export const updateVehicle = async (id: string, vehicle: Partial<Omit<Vehicle, 'id'>>): Promise<void> => {
     if (!id) return;
-    const vehicleDoc = doc(db, 'vehicles', id);
+    const vehicleDoc = doc(getVehiclesCollection(), id);
     await updateDoc(vehicleDoc, {
         ...vehicle,
         lastModifiedAt: new Date().toISOString(),
@@ -58,6 +73,6 @@ export const updateVehicle = async (id: string, vehicle: Partial<Omit<Vehicle, '
 
 export const deleteVehicle = async (id: string): Promise<void> => {
     if (!id) return;
-    const vehicleDoc = doc(db, 'vehicles', id);
+    const vehicleDoc = doc(getVehiclesCollection(), id);
     await deleteDoc(vehicleDoc);
 };

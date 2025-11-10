@@ -1,13 +1,11 @@
 
 import type {Metadata} from 'next';
 import './globals.css';
-import {SidebarProvider, SidebarInset, SidebarTrigger} from '@/components/ui/sidebar';
-import {AppSidebar} from '@/components/app-sidebar';
 import {Toaster} from '@/components/ui/toaster';
 import { AuthProvider } from '@/hooks/use-auth';
 import AuthAwareLayout from '@/components/auth-aware-layout';
 import { Inter } from 'next/font/google';
-import { ConnectionStatusProvider } from '@/hooks/use-connection-status';
+import { FirebaseClientProvider } from '@/lib/firebase/client-provider';
 
 
 export const metadata: Metadata = {
@@ -29,13 +27,13 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className={inter.variable}>
       <body className="font-body antialiased bg-background" suppressHydrationWarning>
-        <ConnectionStatusProvider>
+        <FirebaseClientProvider>
           <AuthProvider>
               <AuthAwareLayout>
                   {children}
               </AuthAwareLayout>
           </AuthProvider>
-        </ConnectionStatusProvider>
+        </FirebaseClientProvider>
         <Toaster />
       </body>
     </html>

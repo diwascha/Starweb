@@ -1,10 +1,13 @@
 
-import { db } from '@/lib/firebase';
+import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, orderBy, query, writeBatch } from 'firebase/firestore';
 import type { NoteItem } from '@/lib/types';
 import { subDays } from 'date-fns';
 
-const notesCollection = collection(db, 'notes');
+const getNotesCollection = () => {
+    const { db } = getFirebase();
+    return collection(db, 'notes');
+}
 
 const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): NoteItem => {
     const data = snapshot.data();
@@ -24,13 +27,13 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): NoteItem 
 }
 
 export const getNoteItems = async (): Promise<NoteItem[]> => {
-    const q = query(notesCollection, orderBy('createdAt', 'desc'));
+    const q = query(getNotesCollection(), orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(fromFirestore);
 };
 
 export const addNoteItem = async (item: Omit<NoteItem, 'id' | 'createdAt'>): Promise<string> => {
-    const docRef = await addDoc(notesCollection, {
+    const docRef = await addDoc(getNotesCollection(), {
         ...item,
         createdAt: new Date().toISOString(),
     });
@@ -38,7 +41,7 @@ export const addNoteItem = async (item: Omit<NoteItem, 'id' | 'createdAt'>): Pro
 };
 
 export const onNoteItemsUpdate = (callback: (items: NoteItem[]) => void): () => void => {
-    const q = query(notesCollection, orderBy('createdAt', 'desc'));
+    const q = query(getNotesCollection(), orderBy('createdAt', 'desc'));
     return onSnapshot(q, 
         (snapshot) => {
             callback(snapshot.docs.map(fromFirestore));
@@ -50,7 +53,7 @@ export const onNoteItemsUpdate = (callback: (items: NoteItem[]) => void): () => 
 };
 
 export const updateNoteItem = async (id: string, item: Partial<Omit<NoteItem, 'id'>>): Promise<void> => {
-    const itemDoc = doc(db, 'notes', id);
+    const itemDoc = doc(getNotesCollection(), id);
     await updateDoc(itemDoc, {
         ...item,
         lastModifiedAt: new Date().toISOString(),
@@ -58,15 +61,16 @@ export const updateNoteItem = async (id: string, item: Partial<Omit<NoteItem, 'i
 };
 
 export const deleteNoteItem = async (id: string): Promise<void> => {
-    const itemDoc = doc(db, 'notes', id);
+    const itemDoc = doc(getNotesCollection(), id);
     await deleteDoc(itemDoc);
 };
 
 export const cleanupOldItems = async (): Promise<number> => {
+    const { db } = getFirebase();
     const fourteenDaysAgo = subDays(new Date(), 14).toISOString();
     const now = new Date();
 
-    const snapshot = await getDocs(notesCollection);
+    const snapshot = await getDocs(getNotesCollection());
     const allItems = snapshot.docs.map(fromFirestore);
 
     const itemsToDelete = allItems.filter(item => {

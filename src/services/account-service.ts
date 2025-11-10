@@ -1,9 +1,12 @@
 
-import { db } from '@/lib/firebase';
+import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import type { Account } from '@/lib/types';
 
-const accountsCollection = collection(db, 'accounts');
+const getAccountsCollection = () => {
+    const { db } = getFirebase();
+    return collection(db, 'accounts');
+}
 
 const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Account => {
     const data = snapshot.data();
@@ -21,13 +24,23 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Account =
     };
 }
 
-export const getAccounts = async (): Promise<Account[]> => {
-    const snapshot = await getDocs(accountsCollection);
-    return snapshot.docs.map(fromFirestore);
+export const getAccounts = async (useCache = false): Promise<Account[]> => {
+    // Note: Simple caching strategy. For more complex scenarios, consider libraries like TanStack Query.
+    if (useCache && typeof window !== 'undefined') {
+        const cached = sessionStorage.getItem('accounts');
+        if (cached) return JSON.parse(cached);
+    }
+    const snapshot = await getDocs(getAccountsCollection());
+    const accounts = snapshot.docs.map(fromFirestore);
+    if (typeof window !== 'undefined') {
+        sessionStorage.setItem('accounts', JSON.stringify(accounts));
+    }
+    return accounts;
 };
 
 export const addAccount = async (account: Omit<Account, 'id'>): Promise<string> => {
-    const docRef = await addDoc(accountsCollection, {
+    const { db } = getFirebase();
+    const docRef = await addDoc(collection(db, 'accounts'), {
         ...account,
         createdAt: new Date().toISOString(),
     });
@@ -35,6 +48,7 @@ export const addAccount = async (account: Omit<Account, 'id'>): Promise<string> 
 };
 
 export const updateAccount = async (id: string, account: Partial<Omit<Account, 'id'>>): Promise<void> => {
+    const { db } = getFirebase();
     const accountDoc = doc(db, 'accounts', id);
     await updateDoc(accountDoc, {
         ...account,
@@ -43,14 +57,19 @@ export const updateAccount = async (id: string, account: Partial<Omit<Account, '
 };
 
 export const deleteAccount = async (id: string): Promise<void> => {
+    const { db } = getFirebase();
     const accountDoc = doc(db, 'accounts', id);
     await deleteDoc(accountDoc);
 };
 
 export const onAccountsUpdate = (callback: (accounts: Account[]) => void): () => void => {
-    return onSnapshot(accountsCollection, 
+    return onSnapshot(getAccountsCollection(), 
         (snapshot) => {
-            callback(snapshot.docs.map(fromFirestore));
+            const accounts = snapshot.docs.map(fromFirestore);
+            if (typeof window !== 'undefined') {
+                sessionStorage.setItem('accounts', JSON.stringify(accounts));
+            }
+            callback(accounts);
         },
         (error) => {
             console.error("FIREBASE FAIL MESSAGE (Accounts):", error.message, error);

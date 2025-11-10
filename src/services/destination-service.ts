@@ -1,9 +1,12 @@
 
-import { db } from '@/lib/firebase';
+import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import type { Destination } from '@/lib/types';
 
-const destinationsCollection = collection(db, 'destinations');
+const getDestinationsCollection = () => {
+    const { db } = getFirebase();
+    return collection(db, 'destinations');
+};
 
 const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Destination => {
     const data = snapshot.data();
@@ -18,12 +21,12 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Destinati
 }
 
 export const getDestinations = async (): Promise<Destination[]> => {
-    const snapshot = await getDocs(destinationsCollection);
+    const snapshot = await getDocs(getDestinationsCollection());
     return snapshot.docs.map(fromFirestore);
 }
 
 export const addDestination = async (destination: Omit<Destination, 'id'>): Promise<string> => {
-    const docRef = await addDoc(destinationsCollection, {
+    const docRef = await addDoc(getDestinationsCollection(), {
         ...destination,
         createdAt: new Date().toISOString(),
     });
@@ -31,7 +34,7 @@ export const addDestination = async (destination: Omit<Destination, 'id'>): Prom
 };
 
 export const onDestinationsUpdate = (callback: (destinations: Destination[]) => void): () => void => {
-    return onSnapshot(destinationsCollection, 
+    return onSnapshot(getDestinationsCollection(), 
         (snapshot) => {
             callback(snapshot.docs.map(fromFirestore));
         },
@@ -42,7 +45,7 @@ export const onDestinationsUpdate = (callback: (destinations: Destination[]) => 
 };
 
 export const updateDestination = async (id: string, destination: Partial<Omit<Destination, 'id'>>): Promise<void> => {
-    const destDoc = doc(db, 'destinations', id);
+    const destDoc = doc(getDestinationsCollection(), id);
     await updateDoc(destDoc, {
         ...destination,
         lastModifiedAt: new Date().toISOString(),
@@ -50,6 +53,6 @@ export const updateDestination = async (id: string, destination: Partial<Omit<De
 };
 
 export const deleteDestination = async (id: string): Promise<void> => {
-    const destDoc = doc(db, 'destinations', id);
+    const destDoc = doc(getDestinationsCollection(), id);
     await deleteDoc(destDoc);
 };

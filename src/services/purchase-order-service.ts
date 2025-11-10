@@ -1,9 +1,12 @@
 
-import { db } from '@/lib/firebase';
+import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDoc } from 'firebase/firestore';
 import type { PurchaseOrder } from '@/lib/types';
 
-const purchaseOrdersCollection = collection(db, 'purchaseOrders');
+const getPurchaseOrdersCollection = () => {
+    const { db } = getFirebase();
+    return collection(db, 'purchaseOrders');
+}
 
 const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentData): PurchaseOrder => {
     const data = snapshot.data();
@@ -25,12 +28,12 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
 }
 
 export const getPurchaseOrders = async (): Promise<PurchaseOrder[]> => {
-    const snapshot = await getDocs(purchaseOrdersCollection);
+    const snapshot = await getDocs(getPurchaseOrdersCollection());
     return snapshot.docs.map(fromFirestore);
 };
 
 export const addPurchaseOrder = async (po: Omit<PurchaseOrder, 'id'>): Promise<string> => {
-    const docRef = await addDoc(purchaseOrdersCollection, {
+    const docRef = await addDoc(getPurchaseOrdersCollection(), {
         ...po,
         createdAt: new Date().toISOString(),
     });
@@ -38,7 +41,7 @@ export const addPurchaseOrder = async (po: Omit<PurchaseOrder, 'id'>): Promise<s
 };
 
 export const onPurchaseOrdersUpdate = (callback: (purchaseOrders: PurchaseOrder[]) => void): () => void => {
-    return onSnapshot(purchaseOrdersCollection, 
+    return onSnapshot(getPurchaseOrdersCollection(), 
         (snapshot) => {
             callback(snapshot.docs.map(fromFirestore));
         },
@@ -53,7 +56,7 @@ export const getPurchaseOrder = async (id: string): Promise<PurchaseOrder | null
         console.error("getPurchaseOrder called with an invalid ID:", id);
         return null;
     }
-    const poDoc = doc(db, 'purchaseOrders', id);
+    const poDoc = doc(getPurchaseOrdersCollection(), id);
     const docSnap = await getDoc(poDoc);
     if (docSnap.exists()) {
         return fromFirestore(docSnap);
@@ -65,12 +68,12 @@ export const getPurchaseOrder = async (id: string): Promise<PurchaseOrder | null
 
 export const updatePurchaseOrder = async (id: string, po: Partial<Omit<PurchaseOrder, 'id'>>): Promise<void> => {
     if (!id) return;
-    const poDoc = doc(db, 'purchaseOrders', id);
+    const poDoc = doc(getPurchaseOrdersCollection(), id);
     await updateDoc(poDoc, po);
 };
 
 export const deletePurchaseOrder = async (id: string): Promise<void> => {
     if (!id) return;
-    const poDoc = doc(db, 'purchaseOrders', id);
+    const poDoc = doc(getPurchaseOrdersCollection(), id);
     await deleteDoc(poDoc);
 };

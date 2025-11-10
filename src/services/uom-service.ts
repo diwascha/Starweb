@@ -1,9 +1,12 @@
 
-import { db } from '@/lib/firebase';
+import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import type { UnitOfMeasurement } from '@/lib/types';
 
-const uomCollection = collection(db, 'uom');
+const getUomCollection = () => {
+    const { db } = getFirebase();
+    return collection(db, 'uom');
+}
 
 const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): UnitOfMeasurement => {
     const data = snapshot.data();
@@ -19,12 +22,12 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): UnitOfMea
 }
 
 export const getUoms = async (): Promise<UnitOfMeasurement[]> => {
-    const snapshot = await getDocs(uomCollection);
+    const snapshot = await getDocs(getUomCollection());
     return snapshot.docs.map(fromFirestore);
 };
 
 export const addUom = async (uom: Omit<UnitOfMeasurement, 'id'>): Promise<string> => {
-    const docRef = await addDoc(uomCollection, {
+    const docRef = await addDoc(getUomCollection(), {
         ...uom,
         createdAt: new Date().toISOString(),
     });
@@ -32,7 +35,7 @@ export const addUom = async (uom: Omit<UnitOfMeasurement, 'id'>): Promise<string
 };
 
 export const onUomsUpdate = (callback: (uoms: UnitOfMeasurement[]) => void): () => void => {
-    return onSnapshot(uomCollection, 
+    return onSnapshot(getUomCollection(), 
         (snapshot) => {
             callback(snapshot.docs.map(fromFirestore));
         },
@@ -44,7 +47,7 @@ export const onUomsUpdate = (callback: (uoms: UnitOfMeasurement[]) => void): () 
 
 export const updateUom = async (id: string, uom: Partial<Omit<UnitOfMeasurement, 'id'>>): Promise<void> => {
     if (!id) return;
-    const uomDoc = doc(db, 'uom', id);
+    const uomDoc = doc(getUomCollection(), id);
     await updateDoc(uomDoc, {
         ...uom,
         lastModifiedAt: new Date().toISOString(),
@@ -53,6 +56,6 @@ export const updateUom = async (id: string, uom: Partial<Omit<UnitOfMeasurement,
 
 export const deleteUom = async (id: string): Promise<void> => {
     if (!id) return;
-    const uomDoc = doc(db, 'uom', id);
+    const uomDoc = doc(getUomCollection(), id);
     await deleteDoc(uomDoc);
 };

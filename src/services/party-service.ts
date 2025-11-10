@@ -1,9 +1,13 @@
 
-import { db } from '@/lib/firebase';
+import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDoc, getDocs, query, where, limit } from 'firebase/firestore';
 import type { Party } from '@/lib/types';
 
-const partiesCollection = collection(db, 'parties');
+const getPartiesCollection = () => {
+    const { db } = getFirebase();
+    return collection(db, 'parties');
+};
+
 
 const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentData): Party => {
     const data = snapshot.data();
@@ -20,14 +24,22 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
     };
 }
 
-export const getParties = async (): Promise<Party[]> => {
-    const snapshot = await getDocs(partiesCollection);
-    return snapshot.docs.map(fromFirestore);
+export const getParties = async (useCache = false): Promise<Party[]> => {
+    if (useCache && typeof window !== 'undefined') {
+        const cached = sessionStorage.getItem('parties');
+        if (cached) return JSON.parse(cached);
+    }
+    const snapshot = await getDocs(getPartiesCollection());
+    const parties = snapshot.docs.map(fromFirestore);
+     if (typeof window !== 'undefined') {
+        sessionStorage.setItem('parties', JSON.stringify(parties));
+    }
+    return parties;
 };
 
 export const getParty = async (id: string): Promise<Party | null> => {
     if (!id || typeof id !== 'string') return null;
-    const docRef = doc(db, 'parties', id);
+    const docRef = doc(getPartiesCollection(), id);
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
         return fromFirestore(docSnap);
@@ -37,7 +49,7 @@ export const getParty = async (id: string): Promise<Party | null> => {
 
 export const getPartyByName = async (name: string): Promise<Party | null> => {
     if (!name || typeof name !== 'string') return null;
-    const q = query(partiesCollection, where("name", "==", name), limit(1));
+    const q = query(getPartiesCollection(), where("name", "==", name), limit(1));
     const querySnapshot = await getDocs(q);
     if (!querySnapshot.empty) {
         return fromFirestore(querySnapshot.docs[0]);
@@ -47,7 +59,7 @@ export const getPartyByName = async (name: string): Promise<Party | null> => {
 
 
 export const addParty = async (party: Omit<Party, 'id'>): Promise<string> => {
-    const docRef = await addDoc(partiesCollection, {
+    const docRef = await addDoc(getPartiesCollection(), {
         ...party,
         createdAt: new Date().toISOString(),
     });
@@ -55,9 +67,13 @@ export const addParty = async (party: Omit<Party, 'id'>): Promise<string> => {
 };
 
 export const onPartiesUpdate = (callback: (parties: Party[]) => void): () => void => {
-    return onSnapshot(partiesCollection, 
+    return onSnapshot(getPartiesCollection(), 
         (snapshot) => {
-            callback(snapshot.docs.map(fromFirestore));
+            const parties = snapshot.docs.map(fromFirestore);
+            if (typeof window !== 'undefined') {
+                sessionStorage.setItem('parties', JSON.stringify(parties));
+            }
+            callback(parties);
         },
         (error) => {
             console.error("FIREBASE FAIL MESSAGE (Parties):", error.message, error);
@@ -67,7 +83,7 @@ export const onPartiesUpdate = (callback: (parties: Party[]) => void): () => voi
 
 export const updateParty = async (id: string, party: Partial<Omit<Party, 'id'>>): Promise<void> => {
     if (!id) return;
-    const partyDoc = doc(db, 'parties', id);
+    const partyDoc = doc(getPartiesCollection(), id);
     await updateDoc(partyDoc, {
         ...party,
         lastModifiedAt: new Date().toISOString(),
@@ -76,6 +92,6 @@ export const updateParty = async (id: string, party: Partial<Omit<Party, 'id'>>)
 
 export const deleteParty = async (id: string): Promise<void> => {
     if (!id) return;
-    const partyDoc = doc(db, 'parties', id);
+    const partyDoc = doc(getPartiesCollection(), id);
     await deleteDoc(partyDoc);
 };

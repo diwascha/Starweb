@@ -1,11 +1,13 @@
 
-import { db } from '@/lib/firebase';
+import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import type { Driver } from '@/lib/types';
 import { deleteFile } from './storage-service';
 
-
-const driversCollection = collection(db, 'drivers');
+const getDriversCollection = () => {
+    const { db } = getFirebase();
+    return collection(db, 'drivers');
+};
 
 const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Driver => {
     const data = snapshot.data();
@@ -25,12 +27,12 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Driver =>
 }
 
 export const getDrivers = async (): Promise<Driver[]> => {
-    const snapshot = await getDocs(driversCollection);
+    const snapshot = await getDocs(getDriversCollection());
     return snapshot.docs.map(fromFirestore);
 };
 
 export const addDriver = async (driver: Omit<Driver, 'id'>): Promise<string> => {
-    const docRef = await addDoc(driversCollection, {
+    const docRef = await addDoc(getDriversCollection(), {
         ...driver,
         createdAt: new Date().toISOString(),
     });
@@ -38,7 +40,7 @@ export const addDriver = async (driver: Omit<Driver, 'id'>): Promise<string> => 
 };
 
 export const onDriversUpdate = (callback: (drivers: Driver[]) => void): () => void => {
-    return onSnapshot(driversCollection, 
+    return onSnapshot(getDriversCollection(), 
         (snapshot) => {
             callback(snapshot.docs.map(fromFirestore));
         },
@@ -49,7 +51,7 @@ export const onDriversUpdate = (callback: (drivers: Driver[]) => void): () => vo
 };
 
 export const updateDriver = async (id: string, driver: Partial<Omit<Driver, 'id'>>): Promise<void> => {
-    const driverDoc = doc(db, 'drivers', id);
+    const driverDoc = doc(getDriversCollection(), id);
     await updateDoc(driverDoc, {
         ...driver,
         lastModifiedAt: new Date().toISOString(),
@@ -64,6 +66,6 @@ export const deleteDriver = async (id: string, photoURL?: string): Promise<void>
             console.error("Failed to delete driver photo from storage:", error);
         }
     }
-    const driverDoc = doc(db, 'drivers', id);
+    const driverDoc = doc(getDriversCollection(), id);
     await deleteDoc(driverDoc);
 };

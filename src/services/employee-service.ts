@@ -1,10 +1,13 @@
 
-import { db } from '@/lib/firebase';
+import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDoc } from 'firebase/firestore';
 import type { Employee } from '@/lib/types';
 import { deleteFile } from './storage-service';
 
-const employeesCollection = collection(db, 'employees');
+const getEmployeesCollection = () => {
+    const { db } = getFirebase();
+    return collection(db, 'employees');
+}
 
 const isValidEmployeeName = (name: string): boolean => {
     if (!name || typeof name !== 'string') return false;
@@ -50,13 +53,13 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
 }
 
 export const getEmployees = async (): Promise<Employee[]> => {
-    const snapshot = await getDocs(employeesCollection);
+    const snapshot = await getDocs(getEmployeesCollection());
     return snapshot.docs.map(fromFirestore).filter(emp => isValidEmployeeName(emp.name));
 };
 
 export const getEmployee = async (id: string): Promise<Employee | null> => {
     if (!id || typeof id !== 'string') return null;
-    const employeeDoc = doc(db, 'employees', id);
+    const employeeDoc = doc(getEmployeesCollection(), id);
     const docSnap = await getDoc(employeeDoc);
     if (docSnap.exists()) {
         const employee = fromFirestore(docSnap);
@@ -67,7 +70,7 @@ export const getEmployee = async (id: string): Promise<Employee | null> => {
 
 
 export const addEmployee = async (employee: Omit<Employee, 'id'>): Promise<string> => {
-    const docRef = await addDoc(employeesCollection, {
+    const docRef = await addDoc(getEmployeesCollection(), {
         ...employee,
         createdAt: new Date().toISOString(),
     });
@@ -75,7 +78,7 @@ export const addEmployee = async (employee: Omit<Employee, 'id'>): Promise<strin
 };
 
 export const onEmployeesUpdate = (callback: (employees: Employee[]) => void): () => void => {
-    return onSnapshot(employeesCollection, 
+    return onSnapshot(getEmployeesCollection(), 
         (snapshot) => {
             const validEmployees = snapshot.docs.map(fromFirestore).filter(emp => isValidEmployeeName(emp.name));
             callback(validEmployees);
@@ -87,7 +90,7 @@ export const onEmployeesUpdate = (callback: (employees: Employee[]) => void): ()
 };
 
 export const updateEmployee = async (id: string, employee: Partial<Omit<Employee, 'id'>>): Promise<void> => {
-    const employeeDoc = doc(db, 'employees', id);
+    const employeeDoc = doc(getEmployeesCollection(), id);
     await updateDoc(employeeDoc, {
         ...employee,
         lastModifiedAt: new Date().toISOString(),
@@ -103,6 +106,6 @@ export const deleteEmployee = async (id: string, photoURL?: string): Promise<voi
             // Don't block employee deletion if photo deletion fails
         }
     }
-    const employeeDoc = doc(db, 'employees', id);
+    const employeeDoc = doc(getEmployeesCollection(), id);
     await deleteDoc(employeeDoc);
 };

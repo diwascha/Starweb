@@ -17,6 +17,8 @@ import { getUsers, getAdminCredentials } from '@/services/user-service';
 import { Progress } from '@/components/ui/progress';
 import { exportData } from '@/services/backup-service';
 import { format } from 'date-fns';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { useAuthService } from '@/lib/firebase/provider';
 
 
 const loginSchema = z.object({
@@ -42,6 +44,7 @@ export default function LoginPage() {
   const [progress, setProgress] = useState(0);
   const [loadingText, setLoadingText] = useState('Authenticating...');
   const { login, loading: authLoading, user } = useAuth();
+  const auth = useAuthService();
 
   const {
     register,
@@ -61,23 +64,21 @@ export default function LoginPage() {
           if (currentStepIndex !== -1) {
             const currentStep = loadingSteps[currentStepIndex];
             setLoadingText(currentStep.text);
-            // Increment progress more smoothly towards the next step's value
             return Math.min(prevProgress + 10, currentStep.progress);
           }
           return 100;
         });
-      }, 500); // Slower interval for a more deliberate feel
+      }, 500);
     }
     return () => clearInterval(interval);
   }, [showProgress]);
 
   // Effect for redirecting after successful login and loading
   useEffect(() => {
-    // Redirect only when the user object is available, auth is no longer loading, and progress is complete.
     if (user && !authLoading && progress >= 100) {
       setTimeout(() => {
         router.replace('/dashboard');
-      }, 300); // A small delay for the 100% to be visible
+      }, 300);
     }
   }, [user, authLoading, progress, router]);
 
@@ -117,39 +118,30 @@ export default function LoginPage() {
 
   const onSubmit = async (data: LoginFormValues) => {
     setIsSubmitting(true);
+    const email = `${data.username.toLowerCase()}@starweb.com`;
+
     try {
-      let loggedInUser: User | undefined;
-      // Check for Administrator
-      if (data.username === 'Administrator') {
-        const adminCreds = getAdminCredentials();
-        const defaultAdminPassword = 'Admin@123'; // Hardcoded fallback
-        
-        if (data.password === adminCreds.password || data.password === defaultAdminPassword) {
-            loggedInUser = { id: 'admin', username: 'Administrator', permissions: {} };
-        }
+      // This performs a real Firebase Auth sign-in
+      const userCredential = await signInWithEmailAndPassword(auth, email, data.password);
+
+      if (userCredential.user) {
+          if (data.username === 'Administrator') {
+            await login({ id: 'admin', username: 'Administrator', permissions: {} });
+          } else {
+            const localUser = getUsers().find(u => u.username.toLowerCase() === data.username.toLowerCase());
+            if (localUser) {
+                await login(localUser);
+            } else {
+                throw new Error("Local user profile not found after successful login.");
+            }
+          }
+
+          toast({ title: 'Success', description: 'Logged in successfully.' });
+          await handleDailyBackup();
+          setShowProgress(true);
       } else {
-        const allUsers = getUsers();
-        loggedInUser = allUsers.find(
-          (user) => user.username === data.username && user.password === data.password
-        );
+         throw new Error("Firebase authentication failed.");
       }
-
-      if (loggedInUser) {
-        await login(loggedInUser);
-        toast({
-          title: 'Success',
-          description: 'Logged in successfully.',
-        });
-
-        // Trigger backup after successful login
-        await handleDailyBackup();
-
-        setShowProgress(true);
-        setIsSubmitting(false);
-        return;
-      }
-
-      throw new Error('Invalid username or password.');
 
     } catch (error: any) {
       toast({
@@ -157,7 +149,8 @@ export default function LoginPage() {
         description: error.message,
         variant: 'destructive',
       });
-      setIsSubmitting(false);
+    } finally {
+        setIsSubmitting(false);
     }
   };
 

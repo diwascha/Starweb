@@ -1,10 +1,13 @@
 
-import { db } from '@/lib/firebase';
+import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, deleteDoc, getDocs } from 'firebase/firestore';
 import type { TdsCalculation, DocumentPrefixes } from '@/lib/types';
 import { getSetting } from './settings-service';
 
-const tdsCollection = collection(db, 'tdsCalculations');
+const getTdsCollection = () => {
+    const { db } = getFirebase();
+    return collection(db, 'tdsCalculations');
+};
 
 const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): TdsCalculation => {
     const data = snapshot.data();
@@ -30,7 +33,7 @@ export const getTdsPrefix = async (): Promise<string> => {
 }
 
 export const addTdsCalculation = async (calculation: Omit<TdsCalculation, 'id' | 'createdAt'>): Promise<string> => {
-    const docRef = await addDoc(tdsCollection, {
+    const docRef = await addDoc(getTdsCollection(), {
         ...calculation,
         createdAt: new Date().toISOString(),
     });
@@ -38,12 +41,12 @@ export const addTdsCalculation = async (calculation: Omit<TdsCalculation, 'id' |
 };
 
 export const getTdsCalculations = async (): Promise<TdsCalculation[]> => {
-    const snapshot = await getDocs(tdsCollection);
+    const snapshot = await getDocs(getTdsCollection());
     return snapshot.docs.map(fromFirestore);
 }
 
 export const onTdsCalculationsUpdate = (callback: (calculations: TdsCalculation[]) => void): () => void => {
-    return onSnapshot(tdsCollection, 
+    return onSnapshot(getTdsCollection(), 
         (snapshot) => {
             callback(snapshot.docs.map(fromFirestore));
         },
@@ -54,6 +57,6 @@ export const onTdsCalculationsUpdate = (callback: (calculations: TdsCalculation[
 };
 
 export const deleteTdsCalculation = async (id: string): Promise<void> => {
-    const calcDoc = doc(db, 'tdsCalculations', id);
+    const calcDoc = doc(getTdsCollection(), id);
     await deleteDoc(calcDoc);
 };

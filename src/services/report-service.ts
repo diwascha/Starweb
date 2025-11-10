@@ -1,9 +1,12 @@
 
-import { db } from '@/lib/firebase';
+import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDoc, query, where } from 'firebase/firestore';
 import type { Report } from '@/lib/types';
 
-const reportsCollection = collection(db, 'reports');
+const getReportsCollection = () => {
+    const { db } = getFirebase();
+    return collection(db, 'reports');
+}
 
 const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Report => {
     const data = snapshot.data();
@@ -44,17 +47,17 @@ const fromDocSnapshot = (docSnap: DocumentData): Report => {
 };
 
 export const getReports = async (): Promise<Report[]> => {
-    const snapshot = await getDocs(reportsCollection);
+    const snapshot = await getDocs(getReportsCollection());
     return snapshot.docs.map(fromFirestore);
 };
 
 export const addReport = async (report: Omit<Report, 'id'>): Promise<string> => {
-    const docRef = await addDoc(reportsCollection, report);
+    const docRef = await addDoc(getReportsCollection(), report);
     return docRef.id;
 };
 
 export const onReportsUpdate = (callback: (reports: Report[]) => void): () => void => {
-    return onSnapshot(reportsCollection, 
+    return onSnapshot(getReportsCollection(), 
         (snapshot) => {
             callback(snapshot.docs.map(fromFirestore));
         },
@@ -69,7 +72,7 @@ export const getReport = async (id: string): Promise<Report | null> => {
         console.error("getReport called with an invalid ID:", id);
         return null;
     }
-    const reportDoc = doc(db, 'reports', id);
+    const reportDoc = doc(getReportsCollection(), id);
     const docSnap = await getDoc(reportDoc);
     if (docSnap.exists()) {
         return fromDocSnapshot(docSnap);
@@ -80,20 +83,20 @@ export const getReport = async (id: string): Promise<Report | null> => {
 
 export const getReportsByProductId = async (productId: string): Promise<Report[]> => {
     if (!productId) return [];
-    const q = query(reportsCollection, where("product.id", "==", productId));
+    const q = query(getReportsCollection(), where("product.id", "==", productId));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(fromFirestore);
 }
 
 export const getReportsForSerial = async (): Promise<Pick<Report, 'serialNumber'>[]> => {
-    const snapshot = await getDocs(reportsCollection);
+    const snapshot = await getDocs(getReportsCollection());
     return snapshot.docs.map(doc => ({ serialNumber: doc.data().serialNumber }));
 };
 
 
 export const updateReport = async (id: string, report: Partial<Omit<Report, 'id' | 'serialNumber' | 'date' | 'createdAt' | 'createdBy'>>): Promise<void> => {
     if (!id) return;
-    const reportDoc = doc(db, 'reports', id);
+    const reportDoc = doc(getReportsCollection(), id);
     await updateDoc(reportDoc, {
         ...report,
         lastModifiedAt: new Date().toISOString(),
@@ -102,6 +105,6 @@ export const updateReport = async (id: string, report: Partial<Omit<Report, 'id'
 
 export const deleteReport = async (id: string): Promise<void> => {
     if (!id) return;
-    const reportDoc = doc(db, 'reports', id);
+    const reportDoc = doc(getReportsCollection(), id);
     await deleteDoc(reportDoc);
 };

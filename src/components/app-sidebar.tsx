@@ -13,7 +13,7 @@ import {
   SidebarContent,
   useSidebar,
 } from '@/components/ui/sidebar';
-import { FileText, LayoutDashboard, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users, Calendar, Award, Wallet, Building2, PlusCircle, Truck, ShieldCheck, CreditCard, ArrowRightLeft, TrendingUp, BarChart2, Notebook, Download, Calculator, PanelLeft, PanelRight, Receipt, Briefcase, Wifi, WifiOff } from 'lucide-react';
+import { FileText, LayoutDashboard, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users, Calendar, Award, Wallet, Building2, PlusCircle, Truck, ShieldCheck, CreditCard, ArrowRightLeft, TrendingUp, BarChart2, Notebook, Download, Calculator, PanelLeft, PanelRight, Receipt, Briefcase } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
@@ -21,29 +21,7 @@ import { Button } from './ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { exportData } from '@/services/backup-service';
 import { Loader2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useConnectionStatus } from '@/hooks/use-connection-status';
-
-function ConnectionStatus() {
-    const isConnected = useConnectionStatus();
-
-    return (
-        <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground p-2">
-            {isConnected ? (
-                <>
-                    <Wifi className="h-4 w-4 text-green-500" />
-                    <span>Online</span>
-                </>
-            ) : (
-                <>
-                    <WifiOff className="h-4 w-4 text-red-500" />
-                    <span>Offline</span>
-                </>
-            )}
-        </div>
-    );
-}
-
+import { ConnectionStatusIndicator } from '@/hooks/use-connection-status';
 
 function SidebarCollapseButton() {
     const { state, toggleSidebar } = useSidebar();
@@ -63,14 +41,9 @@ function SidebarCollapseButton() {
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const [isClient, setIsClient] = useState(false);
   const { user, logout, hasPermission } = useAuth();
   const { toast } = useToast();
   const [isExporting, setIsExporting] = useState(false);
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
   
   const handleExportData = async () => {
     setIsExporting(true);
@@ -100,7 +73,6 @@ export function AppSidebar() {
   };
 
   const getIsActive = (path: string, exact: boolean = false) => {
-    if (!isClient) return false;
     if (exact) return pathname === path;
     return pathname.startsWith(path) && (pathname[path.length] === '/' || pathname.length === path.length);
   };
@@ -338,7 +310,7 @@ export function AppSidebar() {
         <SidebarSeparator />
          <div className="flex flex-col gap-2 p-2 text-sm">
             <p className="font-medium text-sidebar-foreground truncate">{user.username}</p>
-            <ConnectionStatus />
+            <ConnectionStatusIndicator />
          </div>
         <SidebarMenuItem>
             <Button variant="ghost" className="w-full justify-start gap-2" onClick={handleSignOut}>

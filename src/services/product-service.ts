@@ -1,9 +1,12 @@
 
-import { db } from '@/lib/firebase';
+import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDoc } from 'firebase/firestore';
 import type { Product, RateHistoryEntry } from '@/lib/types';
 
-const productsCollection = collection(db, 'products');
+const getProductsCollection = () => {
+    const { db } = getFirebase();
+    return collection(db, 'products');
+};
 
 const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Product => {
     const data = snapshot.data();
@@ -26,17 +29,17 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Product =
 }
 
 export const getProducts = async (): Promise<Product[]> => {
-    const snapshot = await getDocs(productsCollection);
+    const snapshot = await getDocs(getProductsCollection());
     return snapshot.docs.map(fromFirestore);
 };
 
 export const addProduct = async (product: Omit<Product, 'id'>): Promise<string> => {
-    const docRef = await addDoc(productsCollection, product);
+    const docRef = await addDoc(getProductsCollection(), product);
     return docRef.id;
 };
 
 export const onProductsUpdate = (callback: (products: Product[]) => void): () => void => {
-    return onSnapshot(productsCollection, 
+    return onSnapshot(getProductsCollection(), 
         (snapshot) => {
             callback(snapshot.docs.map(fromFirestore));
         },
@@ -47,7 +50,7 @@ export const onProductsUpdate = (callback: (products: Product[]) => void): () =>
 };
 
 export const updateProduct = async (id: string, productUpdate: Partial<Omit<Product, 'id'>>): Promise<void> => {
-    const productDocRef = doc(db, 'products', id);
+    const productDocRef = doc(getProductsCollection(), id);
     const productDoc = await getDoc(productDocRef);
     if (!productDoc.exists()) {
         throw new Error("Product not found");
@@ -74,6 +77,6 @@ export const updateProduct = async (id: string, productUpdate: Partial<Omit<Prod
 
 
 export const deleteProduct = async (id: string): Promise<void> => {
-    const productDoc = doc(db, 'products', id);
+    const productDoc = doc(getProductsCollection(), id);
     await deleteDoc(productDoc);
 };

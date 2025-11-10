@@ -1,11 +1,17 @@
 
-import { db } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, doc, updateDoc, deleteDoc, getDoc, writeBatch } from 'firebase/firestore';
+import { getFirebase } from '@/lib/firebase';
+import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, doc, updateDoc, deleteDoc, getDoc, writeBatch, query, where } from 'firebase/firestore';
 import type { Trip, Transaction } from '@/lib/types';
 import { differenceInDays } from 'date-fns';
 
-const tripsCollection = collection(db, 'trips');
-const transactionsCollection = collection(db, 'transactions');
+const getTripsCollection = () => {
+    const { db } = getFirebase();
+    return collection(db, 'trips');
+}
+const getTransactionsCollection = () => {
+    const { db } = getFirebase();
+    return collection(db, 'transactions');
+}
 
 const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentData): Trip => {
     const data = snapshot.data();
@@ -37,7 +43,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
 }
 
 export const getTrips = async (): Promise<Trip[]> => {
-    const snapshot = await getDocs(tripsCollection);
+    const snapshot = await getDocs(getTripsCollection());
     return snapshot.docs.map(fromFirestore);
 };
 
@@ -63,12 +69,14 @@ const calculateNetPay = (trip: Omit<Trip, 'id' | 'salesTransactionId' | 'created
 const BATCH_LIMIT = 499; // Firestore batch limit is 500
 
 const commitBatch = async (batch: ReturnType<typeof writeBatch>) => {
+    const { db } = getFirebase();
     await batch.commit();
     return writeBatch(db); // Return a new batch
 };
 
 
 export const addTrip = async (trip: Omit<Trip, 'id' | 'createdAt' | 'salesTransactionId'>): Promise<string> => {
+    const { db } = getFirebase();
     let batch = writeBatch(db);
     let writeCount = 0;
     const now = new Date().toISOString();
@@ -141,7 +149,7 @@ export const addTrip = async (trip: Omit<Trip, 'id' | 'createdAt' | 'salesTransa
 };
 
 export const onTripsUpdate = (callback: (trips: Trip[]) => void): () => void => {
-    return onSnapshot(tripsCollection, 
+    return onSnapshot(getTripsCollection(), 
         (snapshot) => {
             callback(snapshot.docs.map(fromFirestore));
         },
@@ -153,7 +161,7 @@ export const onTripsUpdate = (callback: (trips: Trip[]) => void): () => void => 
 
 export const getTrip = async (id: string): Promise<Trip | null> => {
     if (!id || typeof id !== 'string') return null;
-    const tripDoc = doc(db, 'trips', id);
+    const tripDoc = doc(getTripsCollection(), id);
     const docSnap = await getDoc(tripDoc);
     if (docSnap.exists()) {
         return fromFirestore(docSnap);
@@ -164,6 +172,7 @@ export const getTrip = async (id: string): Promise<Trip | null> => {
 
 export const updateTrip = async (id: string, tripUpdate: Partial<Omit<Trip, 'id' | 'createdAt'>>): Promise<void> => {
     if (!id) return;
+    const { db } = getFirebase();
     let batch = writeBatch(db);
     let writeCount = 0;
     const tripRef = doc(db, 'trips', id);
@@ -273,6 +282,7 @@ export const updateTrip = async (id: string, tripUpdate: Partial<Omit<Trip, 'id'
 
 export const deleteTrip = async (id: string): Promise<void> => {
     if (!id) return;
+    const { db } = getFirebase();
     let batch = writeBatch(db);
     let writeCount = 0;
 
