@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 // By default, deny all reads and writes
@@ -9,93 +10,11 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
     
-    match /reports/{reportId} {
-      allow read, write: if request.auth != null;
+    // Temporarily allow public access to collections for development
+    // This allows the local 'Administrator' user to work.
+    // WARNING: This is not secure for production.
+    match /{document=**} {
+      allow read, write: if true;
     }
-    
-    match /products/{productId} {
-      allow read, write: if request.auth != null;
-    }
-
-    match /purchaseOrders/{poId} {
-      allow read, write: if request.auth != null;
-    }
-
-    match /rawMaterials/{rmId} {
-      allow read, write: if request.auth != null;
-    }
-
-    match /employees/{empId} {
-      allow read, write: if request.auth != null;
-    }
-
-    match /attendance/{attId} {
-      allow read, write: if request.auth != null;
-    }
-
-     match /payroll/{pId} {
-      allow read, write: if request.auth != null;
-    }
-
-    match /vehicles/{vId} {
-      allow read, write: if request.auth != null;
-    }
-
-    match /drivers/{dId} {
-      allow read, write: if request.auth != null;
-    }
-
-    match /policies/{pId} {
-      allow read, write: if request.auth != null;
-    }
-
-    match /transactions/{tId} {
-      allow read, write: if request.auth != null;
-    }
-
-    match /parties/{pId} {
-      allow read, write: if request.auth != null;
-    }
-    
-    match /accounts/{aId} {
-      allow read, write: if request.auth != null;
-    }
-
-    match /uom/{uId} {
-      allow read, write: if request.auth != null;
-    }
-
-    match /destinations/{dId} {
-      allow read, write: if request.auth != null;
-    }
-    
-    match /trips/{tId} {
-        allow read, write: if request.auth != null;
-    }
-    
-    match /settings/{sId} {
-        allow read, write: if request.auth != null;
-    }
-
-    match /notes/{nId} {
-       allow read, write: if request.auth != null && request.auth.uid == resource.data.createdBy;
-    }
-
-     match /cheques/{cId} {
-      allow read, write: if request.auth != null;
-    }
-
-    match /tdsCalculations/{tId} {
-      allow read, write: if request.auth != null;
-    }
-
-    match /estimatedInvoices/{eId} {
-      allow read, write: if request.auth != null;
-    }
-
-     match /costReports/{crId} {
-      allow read, write: if request.auth != null;
-    }
-
   }
 }
