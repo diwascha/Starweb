@@ -151,7 +151,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
 
   const watchedItems = form.watch("items");
   const quantityTotalsByUnit = useMemo(() => {
-    return watchedItems.reduce((acc, item) => {
+    return (watchedItems || []).reduce((acc, item) => {
       const quantity = parseFloat(item.quantity);
       const unit = item.unit;
       if (!isNaN(quantity) && unit) {
@@ -696,10 +696,17 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                 {form.formState.errors.items?.root?.message && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.items.root.message}</p>}
             </CardContent>
           </Card>
-          <Button type="submit" disabled={isSubmitting}>
-             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isSubmitting ? 'Saving...' : buttonText}
-          </Button>
+          <div className="flex justify-end gap-2">
+             {poToEdit && (
+                <Button type="button" variant="outline" onClick={() => router.back()}>
+                    Cancel Edit
+                </Button>
+            )}
+            <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isSubmitting ? 'Saving...' : buttonText}
+            </Button>
+          </div>
         </form>
       </Form>
       
