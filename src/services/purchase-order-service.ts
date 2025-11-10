@@ -1,4 +1,5 @@
 
+
 import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDoc } from 'firebase/firestore';
 import type { PurchaseOrder } from '@/lib/types';
@@ -21,6 +22,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
         items: data.items,
         amendments: data.amendments,
         status: data.status,
+        isDraft: data.isDraft ?? false, // Default to false if not present
         deliveryDate: data.deliveryDate,
         createdBy: data.createdBy,
         lastModifiedBy: data.lastModifiedBy,

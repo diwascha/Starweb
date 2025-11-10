@@ -1,3 +1,4 @@
+
 'use client';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -419,7 +420,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     if (!quickAddForm.units.includes(unit)) {
         setQuickAddForm(prev => ({...prev, units: [...prev.units, unit]}));
     }
-    setQuickAddUnitInput('');
+    setUnitInputValue('');
   };
 
   const handleQuickAddUnitRemove = (unit: string) => {
@@ -433,7 +434,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         if (newUnit && !quickAddForm.units.find(u => u.toLowerCase() === newUnit.toLowerCase())) {
             setQuickAddForm(prev => ({...prev, units: [...prev.units, newUnit]}));
         }
-        setQuickAddUnitInput('');
+        setUnitInputValue('');
     }
   };
 
@@ -908,7 +909,3 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     </div>
   );
 }
-
-    
-
-    
