@@ -128,16 +128,14 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   
   const watchedItems = form.watch("items");
   
-  const quantityTotalsByUnit = useMemo(() => {
-    return (watchedItems || []).reduce((acc, item) => {
-        const quantity = parseFloat(item.quantity);
-        const unit = item.unit;
-        if (!isNaN(quantity) && unit) {
-            acc[unit] = (acc[unit] || 0) + quantity;
-        }
-        return acc;
-    }, {} as Record<string, number>);
-  }, [watchedItems]);
+  const quantityTotalsByUnit = (watchedItems || []).reduce((acc, item) => {
+      const quantity = parseFloat(item.quantity);
+      const unit = item.unit;
+      if (!isNaN(quantity) && unit) {
+          acc[unit] = (acc[unit] || 0) + quantity;
+      }
+      return acc;
+  }, {} as Record<string, number>);
 
 
   useEffect(() => {
@@ -260,10 +258,10 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     }
     setIsSubmitting(true);
     try {
-      if (poToEdit) { // This is an edit
+      if (poToEdit) {
         let updatedPOForFirestore: Partial<Omit<PurchaseOrder, 'id'>>;
   
-        if (poToEdit.isDraft) { // Editing a draft
+        if (poToEdit.isDraft) {
           updatedPOForFirestore = {
             ...values,
             poDate: values.poDate.toISOString(),
@@ -272,18 +270,10 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
             lastModifiedBy: user.username,
             updatedAt: new Date().toISOString(),
           };
-          await updatePurchaseOrder(poToEdit.id, updatedPOForFirestore);
-          if (finalize) {
-            toast({ title: 'Success', description: 'Purchase Order has been finalized.' });
-            router.push(`/purchase-orders/${poToEdit.id}`);
-          } else {
-            toast({ title: 'Success', description: 'Draft saved.' });
-            router.push('/purchase-orders/list');
-          }
-        } else { // Editing a finalized order
+        } else {
           const newAmendment: Amendment = {
             date: new Date().toISOString(),
-            remarks: 'Order amended after finalization.', // A generic remark for now
+            remarks: 'Order amended after finalization.',
             amendedBy: user.username,
           };
           updatedPOForFirestore = {
@@ -294,11 +284,12 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
             lastModifiedBy: user.username,
             amendments: [...(poToEdit.amendments || []), newAmendment],
           };
-          await updatePurchaseOrder(poToEdit.id, updatedPOForFirestore);
-          toast({ title: 'Success', description: 'Purchase Order updated.' });
-          router.push(`/purchase-orders/${poToEdit.id}`);
         }
-      } else { // Creating new PO
+        await updatePurchaseOrder(poToEdit.id, updatedPOForFirestore);
+        toast({ title: 'Success', description: 'Purchase Order updated.' });
+        router.push(finalize ? `/purchase-orders/${poToEdit.id}` : '/purchase-orders/list');
+
+      } else {
         const now = new Date().toISOString();
         const newPO: Omit<PurchaseOrder, 'id'> = {
           ...values,
@@ -326,7 +317,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     }
   }
 
-  const title = poToEdit ? (poToEdit.isDraft ? 'Edit Draft Purchase Order' : 'Edit Purchase Order') : 'Create New Purchase Order';
+  const title = poToEdit ? (poToEdit.isDraft ? 'Edit Draft Purchase Order' : 'Edit Finalized Purchase Order') : 'Create New Purchase Order';
   const showPaperColumns = itemFilterType === 'All' || paperTypes.includes(itemFilterType);
 
   const [quickAddForm, setQuickAddForm] = useState({
@@ -750,7 +741,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                  <>
                     <Button type="button" variant="secondary" onClick={form.handleSubmit(v => onSubmit(v, false))} disabled={isSubmitting}>
                         {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        Save {poToEdit ? 'Draft' : 'as Draft'}
+                        Save Draft
                     </Button>
                     <Button type="button" onClick={form.handleSubmit(v => onSubmit(v, true))} disabled={isSubmitting}>
                         {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
