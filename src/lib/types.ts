@@ -134,7 +134,7 @@ export interface Amendment {
   amendedBy: string;
 }
 
-export type PurchaseOrderStatus = 'Ordered' | 'Amended' | 'Delivered' | 'Canceled';
+export type PurchaseOrderStatus = 'Draft' | 'Ordered' | 'Amended' | 'Delivered' | 'Canceled';
 
 export interface PurchaseOrder {
   id: string;
@@ -147,6 +147,7 @@ export interface PurchaseOrder {
   items: PurchaseOrderItem[];
   amendments?: Amendment[];
   status: PurchaseOrderStatus;
+  isDraft: boolean;
   deliveryDate?: string; // ISO string
   createdBy: string;
   lastModifiedBy?: string;

@@ -1,4 +1,3 @@
-
 'use client';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -203,9 +202,6 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
       return;
     }
 
-    // This part requires updating all relevant POs in Firestore.
-    // This is a complex operation and might be better handled with a backend function for larger datasets.
-    // For now, we update them one by one.
     const updates = purchaseOrders
       .filter(po => po.companyName === oldName)
       .map(po => updatePurchaseOrder(po.id, { companyName: newName, companyAddress: newAddress }));
@@ -225,44 +221,74 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     append({ rawMaterialId: '', rawMaterialName: '', rawMaterialType: '', size: '', gsm: '', bf: '', quantity: '', unit: '' });
   };
 
-  async function onSubmit(values: PurchaseOrderFormValues) {
+  async function onSubmit(values: PurchaseOrderFormValues, finalize: boolean = false) {
     if (!user) {
-        toast({ title: 'Error', description: 'You must be logged in to perform this action.', variant: 'destructive' });
-        return;
+      toast({ title: 'Error', description: 'You must be logged in to perform this action.', variant: 'destructive' });
+      return;
     }
     setIsSubmitting(true);
     try {
       if (poToEdit) {
-        const updatedPODataForAI: PurchaseOrder = {
-          ...poToEdit,
-          ...values,
-          poDate: values.poDate.toISOString(),
-          updatedAt: new Date().toISOString(),
-          status: 'Amended',
-          lastModifiedBy: user.username,
-        };
+        let updatedPOForFirestore: Partial<Omit<PurchaseOrder, 'id'>>;
 
-        const { summary } = await summarizePurchaseOrderChanges(poToEdit, updatedPODataForAI);
-        
-        const newAmendment: Amendment = {
-          date: new Date().toISOString(),
-          remarks: summary || 'No specific changes were identified.',
-          amendedBy: user.username,
-        };
-        
-        const updatedPOForFirestore: Partial<Omit<PurchaseOrder, 'id'>> = {
+        if (poToEdit.isDraft && finalize) {
+          // Finalizing a draft
+          updatedPOForFirestore = {
             ...values,
             poDate: values.poDate.toISOString(),
-            updatedAt: new Date().toISOString(),
-            status: 'Amended',
+            isDraft: false,
+            status: 'Ordered',
             lastModifiedBy: user.username,
-            amendments: [...(poToEdit.amendments || []), newAmendment],
-        };
+            updatedAt: new Date().toISOString(),
+          };
+          await updatePurchaseOrder(poToEdit.id, updatedPOForFirestore);
+          toast({ title: 'Success', description: 'Purchase Order has been finalized.' });
+          router.push(`/purchase-orders/${poToEdit.id}`);
+        } else if (poToEdit.isDraft && !finalize) {
+           // Saving a draft
+           updatedPOForFirestore = {
+            ...values,
+            poDate: values.poDate.toISOString(),
+            lastModifiedBy: user.username,
+            updatedAt: new Date().toISOString(),
+           };
+           await updatePurchaseOrder(poToEdit.id, updatedPOForFirestore);
+           toast({ title: 'Success', description: 'Draft saved.' });
+           router.push('/purchase-orders/list');
+        } else {
+            // Amending a final PO
+            const updatedPODataForAI: PurchaseOrder = {
+              ...poToEdit,
+              ...values,
+              poDate: values.poDate.toISOString(),
+              updatedAt: new Date().toISOString(),
+              status: 'Amended',
+              lastModifiedBy: user.username,
+              isDraft: false, // Ensure it's not a draft
+            };
 
-        await updatePurchaseOrder(poToEdit.id, updatedPOForFirestore);
-        toast({ title: 'Success', description: 'Purchase Order updated.' });
-        router.push(`/purchase-orders/${poToEdit.id}`);
-      } else {
+            const { summary } = await summarizePurchaseOrderChanges(poToEdit, updatedPODataForAI);
+            
+            const newAmendment: Amendment = {
+              date: new Date().toISOString(),
+              remarks: summary || 'No specific changes were identified.',
+              amendedBy: user.username,
+            };
+            
+            updatedPOForFirestore = {
+                ...values,
+                poDate: values.poDate.toISOString(),
+                updatedAt: new Date().toISOString(),
+                status: 'Amended',
+                lastModifiedBy: user.username,
+                amendments: [...(poToEdit.amendments || []), newAmendment],
+            };
+
+            await updatePurchaseOrder(poToEdit.id, updatedPOForFirestore);
+            toast({ title: 'Success', description: 'Purchase Order updated.' });
+            router.push(`/purchase-orders/${poToEdit.id}`);
+        }
+      } else { // Creating new PO
         const now = new Date().toISOString();
         const newPO: Omit<PurchaseOrder, 'id'> = {
           ...values,
@@ -270,12 +296,13 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
           createdAt: now,
           updatedAt: now,
           amendments: [],
-          status: 'Ordered',
+          status: finalize ? 'Ordered' : 'Draft',
+          isDraft: !finalize,
           createdBy: user.username,
         };
         const newPOId = await addPurchaseOrder(newPO);
-        toast({ title: 'Success', description: 'New Purchase Order created.' });
-        router.push(`/purchase-orders/${newPOId}`);
+        toast({ title: 'Success', description: `Purchase Order ${finalize ? 'created' : 'saved as draft'}.` });
+        router.push(finalize ? `/purchase-orders/${newPOId}` : '/purchase-orders/list');
       }
     } catch (error) {
       console.error('Failed to save purchase order:', error);
@@ -290,7 +317,6 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   }
 
   const title = poToEdit ? 'Edit Purchase Order' : 'Create New Purchase Order';
-  const buttonText = poToEdit ? 'Save Changes' : 'Create Purchase Order';
   const showPaperColumns = itemFilterType === 'All' || paperTypes.includes(itemFilterType);
 
   const [quickAddForm, setQuickAddForm] = useState({
@@ -347,15 +373,14 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         return;
     }
     
-    // Add any new units to the central UoM collection
     for (const unitAbbr of units) {
       const exists = uoms.some(u => u.abbreviation.toLowerCase() === unitAbbr.toLowerCase());
       if (!exists) {
         await addUom({
-          name: unitAbbr, // Or prompt for a full name
+          name: unitAbbr,
           abbreviation: unitAbbr,
           createdBy: user.username,
-          createdAt: new Date().toISOString(),
+          createdAt: new Date().toISOString()
         });
       }
     }
@@ -415,7 +440,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
       </div>
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+        <form className="space-y-8">
           <Card>
             <CardHeader>
               <CardTitle>PO Details</CardTitle>
@@ -700,9 +725,21 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
             <Button type="button" variant="outline" onClick={() => router.back()}>
                 Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isSubmitting ? 'Saving...' : buttonText}
+            {poToEdit && poToEdit.isDraft && (
+                <Button type="button" onClick={form.handleSubmit(v => onSubmit(v, false))} disabled={isSubmitting}>
+                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Save Draft
+                </Button>
+            )}
+            {!poToEdit && (
+                <Button type="button" variant="secondary" onClick={form.handleSubmit(v => onSubmit(v, false))} disabled={isSubmitting}>
+                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Save as Draft
+                </Button>
+            )}
+            <Button type="button" onClick={form.handleSubmit(v => onSubmit(v, true))} disabled={isSubmitting}>
+                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                {poToEdit && !poToEdit.isDraft ? 'Save Changes' : 'Finalize Purchase Order'}
             </Button>
           </div>
         </form>
@@ -856,5 +893,3 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     </div>
   );
 }
-
-    

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -180,6 +179,8 @@ export default function PurchaseOrdersListPage() {
         return 'outline';
       case 'Canceled':
         return 'destructive';
+      case 'Draft':
+        return 'secondary';
       default:
         return 'default';
     }
@@ -281,11 +282,7 @@ export default function PurchaseOrdersListPage() {
                     </TableCell>
                     <TableCell className="text-right">
                     <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                        </DropdownMenuTrigger>
+                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                         {hasPermission('purchaseOrders', 'view') && (
                             <DropdownMenuItem onSelect={() => router.push(`/purchase-orders/view?id=${po.id}`)}>
