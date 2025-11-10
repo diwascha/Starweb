@@ -84,8 +84,9 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   const [isQuickAddMaterialDialogOpen, setIsQuickAddMaterialDialogOpen] = useState(false);
   const [quickAddMaterialSearch, setQuickAddMaterialSearch] = useState('');
   
-  const [isQuickAddUnitPopoverOpen, setIsQuickAddUnitPopoverOpen] = useState(false);
   const [unitInputValue, setUnitInputValue] = useState('');
+  const [isQuickAddUnitPopoverOpen, setIsQuickAddUnitPopoverOpen] = useState(false);
+  const [quickAddUnitInput, setQuickAddUnitInput] = useState('');
 
 
   const defaultValues = useMemo(() => {
@@ -116,14 +117,14 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   
   const watchedItems = form.watch("items");
 
-  const quantityTotalsByUnit = useMemo(() => (watchedItems || []).reduce((acc, item) => {
+  const quantityTotalsByUnit = (watchedItems || []).reduce((acc, item) => {
     const quantity = parseFloat(item.quantity);
     const unit = item.unit;
     if (!isNaN(quantity) && unit) {
         acc[unit] = (acc[unit] || 0) + quantity;
     }
     return acc;
-  }, {} as Record<string, number>), [watchedItems]);
+  }, {} as Record<string, number>);
 
 
   useEffect(() => {
@@ -246,11 +247,11 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     }
     setIsSubmitting(true);
     try {
+      const summary = "Purchase order updated.";
       if (poToEdit) {
         let updatedPOForFirestore: Partial<Omit<PurchaseOrder, 'id'>>;
 
         if (poToEdit.isDraft && finalize) {
-          // Finalizing a draft
           updatedPOForFirestore = {
             ...values,
             poDate: values.poDate.toISOString(),
@@ -263,7 +264,6 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
           toast({ title: 'Success', description: 'Purchase Order has been finalized.' });
           router.push(`/purchase-orders/${poToEdit.id}`);
         } else if (poToEdit.isDraft && !finalize) {
-           // Saving a draft
            updatedPOForFirestore = {
             ...values,
             poDate: values.poDate.toISOString(),
@@ -274,31 +274,6 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
            toast({ title: 'Success', description: 'Draft saved.' });
            router.push('/purchase-orders/list');
         } else {
-            // Amending a final PO
-            const updatedPODataForAPI: PurchaseOrder = {
-              ...poToEdit,
-              ...values,
-              poDate: values.poDate.toISOString(),
-              updatedAt: new Date().toISOString(),
-              status: 'Amended',
-              lastModifiedBy: user.username,
-              isDraft: false, // Ensure it's not a draft
-            };
-
-            const response = await fetch('/api/summarize-po', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ originalPO: poToEdit, updatedPO: updatedPODataForAPI }),
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                console.error("API Error:", errorData);
-                throw new Error(errorData.error || 'AI summarization failed');
-            }
-
-            const { summary } = await response.json();
-            
             const newAmendment: Amendment = {
               date: new Date().toISOString(),
               remarks: summary || 'No specific changes were identified.',
@@ -890,8 +865,8 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                 <Command>
                                     <CommandInput 
                                         placeholder="Search or add unit..."
-                                        value={unitInputValue}
-                                        onValueChange={setUnitInputValue}
+                                        value={quickAddUnitInput}
+                                        onValueChange={setQuickAddUnitInput}
                                         onKeyDown={(e) => {
                                              if (e.key === ' ' && e.currentTarget.value.endsWith(' ')) {
                                                 e.preventDefault();
@@ -936,4 +911,5 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     
 
     
+
 
