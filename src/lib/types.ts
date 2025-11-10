@@ -141,8 +141,10 @@ export interface PurchaseOrder {
   poDate: string; // ISO string
   createdAt: string; // ISO string
   updatedAt: string; // ISO string
+  partyId: string;
   companyName: string;
   companyAddress: string;
+  panNumber?: string;
   items: PurchaseOrderItem[];
   amendments?: Amendment[];
   status: PurchaseOrderStatus;

@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState, Fragment } from 'react';
-import type { PurchaseOrder, PurchaseOrderStatus } from '@/lib/types';
+import type { PurchaseOrder, PurchaseOrderStatus, Party } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -20,7 +20,7 @@ import { Switch } from '@/components/ui/switch';
 
 const paperTypes = ['Kraft Paper', 'Virgin Paper'];
 
-export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { initialPurchaseOrder: PurchaseOrder | null, poId?: string }) {
+export default function PurchaseOrderView({ initialPurchaseOrder, party, poId }: { initialPurchaseOrder: PurchaseOrder | null, party: Party | null, poId?: string }) {
   const [purchaseOrder, setPurchaseOrder] = useState<PurchaseOrder | null>(initialPurchaseOrder);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isGeneratingJpg, setIsGeneratingJpg] = useState(false);
@@ -185,7 +185,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
         </div>
         <div className="space-y-2">
             <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => router.push(`/purchase-orders/edit/${purchaseOrder.id}`)}>Edit</Button>
+                <Button variant="outline" onClick={() => router.push(`/purchase-orders/edit?id=${purchaseOrder.id}`)}>Edit</Button>
                 <Button variant="outline" onClick={() => handleExport('jpg')} disabled={isGeneratingJpg}>
                     {isGeneratingJpg ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImageIcon className="mr-2 h-4 w-4" />}
                     {isGeneratingJpg ? 'Saving...' : 'Save as JPG'}
@@ -243,8 +243,9 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
 
         <Card className="shadow-none border-gray-300">
           <CardHeader className="p-2">
-            <CardTitle className="text-base">To: {purchaseOrder.partyName}</CardTitle>
-            <p className="text-sm">{purchaseOrder.partyAddress}</p>
+            <CardTitle className="text-base">To: {party?.name || purchaseOrder.companyName}</CardTitle>
+            <p className="text-sm">{party?.address || purchaseOrder.companyAddress}</p>
+            {party?.panNumber && <p className="text-sm">PAN: {party.panNumber}</p>}
           </CardHeader>
           <CardContent className="space-y-4 p-2">
             <section className="space-y-2">

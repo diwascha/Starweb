@@ -45,8 +45,10 @@ const poItemSchema = z.object({
 const purchaseOrderSchema = z.object({
   poNumber: z.string().min(1, 'PO Number is required.'),
   poDate: z.date({ required_error: 'A PO date is required.' }),
+  partyId: z.string().min(1, 'Company name is required.'),
   companyName: z.string().min(1, 'Company name is required.'),
   companyAddress: z.string().min(1, 'Company address is required.'),
+  panNumber: z.string().optional(),
   items: z.array(poItemSchema).min(1, 'At least one item is required.'),
 });
 
@@ -110,8 +112,10 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     return {
       poNumber: '',
       poDate: new Date(),
+      partyId: '',
       companyName: '',
       companyAddress: '',
+      panNumber: '',
       items: [],
     };
   }, [poToEdit]);
@@ -184,13 +188,13 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     return rawMaterials.filter(m => m.type === itemFilterType);
   }, [rawMaterials, itemFilterType]);
 
-  const handleCompanySelect = (companyName: string) => {
-    form.setValue('companyName', companyName);
-    const existingCompany = companies.find(c => c.name.toLowerCase() === companyName.toLowerCase());
-    if (existingCompany) {
-      form.setValue('companyAddress', existingCompany.address || '');
-    } else {
-      form.setValue('companyAddress', '');
+  const handleCompanySelect = (partyId: string) => {
+    const party = companies.find(c => c.id === partyId);
+    if (party) {
+        form.setValue('partyId', party.id);
+        form.setValue('companyName', party.name);
+        form.setValue('companyAddress', party.address || '');
+        form.setValue('panNumber', party.panNumber || '');
     }
     setIsCompanyPopoverOpen(false);
   };
@@ -216,14 +220,19 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     try {
         if (editingParty) {
             await updateParty(editingParty.id, { ...partyForm, lastModifiedBy: user.username });
-            form.setValue('companyName', partyForm.name);
-            form.setValue('companyAddress', partyForm.address || '');
+            const party = { ...editingParty, ...partyForm };
+            form.setValue('partyId', party.id);
+            form.setValue('companyName', party.name);
+            form.setValue('companyAddress', party.address || '');
+            form.setValue('panNumber', party.panNumber || '');
             toast({title: 'Success', description: 'Party updated.'});
         } else {
             const newPartyId = await addParty({...partyForm, createdBy: user.username});
             const newParty = {id: newPartyId, ...partyForm};
+            form.setValue('partyId', newParty.id);
             form.setValue('companyName', newParty.name);
             form.setValue('companyAddress', newParty.address || '');
+            form.setValue('panNumber', newParty.panNumber || '');
             toast({title: 'Success', description: 'New party added.'});
         }
         setIsPartyDialogOpen(false);
@@ -274,7 +283,11 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
           };
            await updatePurchaseOrder(poToEdit.id, updatedPOForFirestore);
            toast({ title: 'Success', description: `Purchase Order ${finalize ? 'finalized' : 'draft saved'}.` });
-           router.push(finalize ? `/purchase-orders/view?id=${poToEdit.id}` : '/purchase-orders/list');
+           if (finalize) {
+               router.push(`/purchase-orders/view?id=${poToEdit.id}`);
+           } else {
+               router.push('/purchase-orders/list');
+           }
         } else { // Is not a draft, so it's a finalized order being amended
           const newAmendment: Amendment = {
             date: new Date().toISOString(),
@@ -307,7 +320,11 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         };
         const newPOId = await addPurchaseOrder(newPO);
         toast({ title: 'Success', description: `Purchase Order ${finalize ? 'created' : 'saved as draft'}.` });
-        router.push(finalize ? `/purchase-orders/view?id=${newPOId}` : '/purchase-orders/list');
+        if (finalize) {
+            router.push(`/purchase-orders/view?id=${newPOId}`);
+        } else {
+            router.push('/purchase-orders/list');
+        }
       }
     } catch (error) {
       console.error('Failed to save purchase order:', error);
@@ -482,7 +499,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
               />
               <FormField
                 control={form.control}
-                name="companyName"
+                name="partyId"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Supplier Company</FormLabel>
@@ -490,7 +507,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                         <PopoverTrigger asChild>
                             <FormControl>
                             <Button variant="outline" role="combobox" className="w-full justify-between">
-                                {field.value || "Select or type a company..."}
+                                {field.value ? companies.find(c => c.id === field.value)?.name : "Select or type a company..."}
                                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                             </Button>
                             </FormControl>
@@ -518,11 +535,11 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                     <CommandGroup>
                                         {companies.map((company) => (
                                             <CommandItem key={company.id} value={company.name} onSelect={() => {
-                                              handleCompanySelect(company.name);
+                                              handleCompanySelect(company.id);
                                               setCompanySearch('');
                                             }} className="flex justify-between items-center">
                                                 <div className="flex items-center">
-                                                    <Check className={cn("mr-2 h-4 w-4", field.value?.toLowerCase() === company.name.toLowerCase() ? "opacity-100" : "opacity-0")} />
+                                                    <Check className={cn("mr-2 h-4 w-4", field.value === company.id ? "opacity-100" : "opacity-0")} />
                                                     {company.name}
                                                 </div>
                                                 <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleOpenPartyDialog(company); }}>
@@ -546,6 +563,17 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                         <FormItem>
                             <FormLabel>Supplier Address</FormLabel>
                             <FormControl><Textarea {...field} /></FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                 <FormField
+                    control={form.control}
+                    name="panNumber"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>PAN Number</FormLabel>
+                            <FormControl><Input {...field} /></FormControl>
                             <FormMessage />
                         </FormItem>
                     )}
@@ -904,3 +932,4 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     </div>
   );
 }
+
