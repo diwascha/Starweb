@@ -10,6 +10,7 @@ import { onAuthStateChanged, signOut, Auth } from 'firebase/auth';
 import { useAuthService } from '@/firebase';
 
 interface UserSession {
+  id: string; // Firebase UID
   username: string;
   is_admin: boolean;
   permissions: Permissions;
@@ -19,7 +20,6 @@ interface UserSession {
 interface AuthContextType {
   user: UserSession | null;
   loading: boolean;
-  login: (user: User) => Promise<void>;
   logout: () => Promise<void>;
   hasPermission: (module: Module, action: Action) => boolean;
 }
@@ -27,12 +27,9 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
-  login: async () => {},
   logout: async () => {},
   hasPermission: () => false,
 });
-
-const USER_SESSION_KEY = 'user_session';
 
 const pageOrder: Module[] = ['dashboard', 'reports', 'products', 'purchaseOrders', 'rawMaterials', 'settings', 'hr', 'fleet', 'crm', 'finance'];
 
@@ -66,7 +63,7 @@ const moduleToPath = (module: Module): string => {
     return `/${kebab}`;
 }
 
-const AuthRedirect = ({ children }: { children: (user: UserSession) => ReactNode }) => {
+const AuthRedirect = ({ children }: { children: ReactNode }) => {
     const { user, loading, hasPermission } = useAuth();
     const router = useRouter();
     const pathname = usePathname();
@@ -116,16 +113,21 @@ const AuthRedirect = ({ children }: { children: (user: UserSession) => ReactNode
             </div>
         );
     }
-    
-    if (!user && pathname === '/login') {
-        return <>{children(null as any)}</>; 
-    }
-    
-    if (user) {
-         return <>{children(user)}</>;
+
+    // This check ensures children of AuthRedirect are only rendered when appropriate
+    if (user && !loading && pathname !== '/login') {
+         return <>{children}</>;
     }
 
-    return null;
+    if (!user && !loading && pathname === '/login') {
+        return <>{children}</>;
+    }
+    
+    return (
+        <div className="flex h-screen items-center justify-center">
+            <p>Loading application...</p>
+        </div>
+    );
 };
 
 
@@ -137,30 +139,51 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
         if (firebaseUser) {
-            const storedUserJson = localStorage.getItem(USER_SESSION_KEY);
-            if (storedUserJson) {
-                try {
-                    const storedUser = JSON.parse(storedUserJson);
-                    setUser(storedUser);
-                } catch {
+            // User is signed in to Firebase. Now, construct our local user session.
+            const username = firebaseUser.email?.split('@')[0] || '';
+            
+            if (username === 'administrator') {
+                 const adminCreds = getAdminCredentials();
+                 setUser({
+                    id: firebaseUser.uid,
+                    username: 'Administrator',
+                    is_admin: true,
+                    permissions: {},
+                    passwordLastUpdated: adminCreds.passwordLastUpdated
+                 });
+            } else {
+                const localUsers = getUsers();
+                const localUser = localUsers.find(u => u.username.toLowerCase() === username.toLowerCase());
+                if (localUser) {
+                    setUser({
+                        id: firebaseUser.uid,
+                        username: localUser.username,
+                        is_admin: false,
+                        permissions: localUser.permissions,
+                        passwordLastUpdated: localUser.passwordLastUpdated
+                    });
+                } else {
+                    // This case can happen if a user was deleted from local storage but not firebase
+                    signOut(auth);
                     setUser(null);
-                    localStorage.removeItem(USER_SESSION_KEY);
                 }
             }
+
         } else {
+            // User is signed out.
             setUser(null);
-            localStorage.removeItem(USER_SESSION_KEY);
         }
         setLoading(false);
     });
 
     return () => unsubscribe();
-}, [auth]);
+  }, [auth]);
   
   const hasPermission = useCallback((module: Module, action: Action): boolean => {
     if (!user) return false;
     if (user.is_admin) return true;
     
+    // Grant CRM view if Finance view is present
     if (module === 'crm' && action === 'view') {
         const financePerms = user.permissions['finance'];
         if (financePerms && financePerms.includes('view')) {
@@ -171,41 +194,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const modulePermissions = user.permissions[module];
     return !!modulePermissions?.includes(action);
   }, [user]);
-
-  const login = useCallback(async (userToLogin: User) => {
-    let sessionToStore: UserSession;
-    const isAdmin = userToLogin.username === 'Administrator';
-
-    if (isAdmin) {
-        const adminCreds = getAdminCredentials();
-        sessionToStore = {
-            username: userToLogin.username,
-            is_admin: true,
-            permissions: {},
-            passwordLastUpdated: adminCreds.passwordLastUpdated,
-        };
-    } else {
-        sessionToStore = {
-            username: userToLogin.username,
-            is_admin: false,
-            permissions: userToLogin.permissions,
-            passwordLastUpdated: userToLogin.passwordLastUpdated,
-        };
-    }
-    
-    localStorage.setItem(USER_SESSION_KEY, JSON.stringify(sessionToStore));
-    setUser(sessionToStore);
-  }, []);
-
+  
   const logout = useCallback(async () => {
     await signOut(auth);
-    localStorage.removeItem(USER_SESSION_KEY);
-    setUser(null);
   }, [auth]);
   
   
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, hasPermission }}>
+    <AuthContext.Provider value={{ user, loading, logout, hasPermission }}>
       {children}
     </AuthContext.Provider>
   );
