@@ -520,13 +520,19 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                 />
                                 <CommandList>
                                     <CommandEmpty>
-                                        <CommandItem onSelect={() => handleOpenPartyDialog(null, companySearch)}>
+                                        <CommandItem onSelect={() => {
+                                          handleOpenPartyDialog(null, companySearch);
+                                          setCompanySearch('');
+                                        }}>
                                             <PlusCircle className="mr-2 h-4 w-4"/> Add "{companySearch}"
                                         </CommandItem>
                                     </CommandEmpty>
                                     <CommandGroup>
                                         {companies.map((company) => (
-                                            <CommandItem key={company.id} value={company.name} onSelect={() => handleCompanySelect(company.name)} className="flex justify-between items-center">
+                                            <CommandItem key={company.id} value={company.name} onSelect={() => {
+                                              handleCompanySelect(company.name);
+                                              setCompanySearch('');
+                                            }} className="flex justify-between items-center">
                                                 <div className="flex items-center">
                                                     <Check className={cn("mr-2 h-4 w-4", field.value?.toLowerCase() === company.name.toLowerCase() ? "opacity-100" : "opacity-0")} />
                                                     {company.name}
