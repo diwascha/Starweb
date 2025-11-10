@@ -1,7 +1,7 @@
 
 'use client';
 import { Suspense, useEffect, useState } from 'react';
-import PurchaseViewClient from './_components/PurchaseViewClient';
+import PurchaseViewClient from './PurchaseViewClient';
 import { getTransaction, onTransactionsUpdate } from '@/services/transaction-service';
 import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onPartiesUpdate } from '@/services/party-service';
