@@ -3,11 +3,7 @@ import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
   /* config options here */
-  experimental: {
-    serverActions: {
-      bodySizeLimit: '4mb',
-    },
-  },
+  output: 'export',
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -15,7 +11,7 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   images: {
-    unoptimized: false,
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: 'https',
