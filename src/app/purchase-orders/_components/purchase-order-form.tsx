@@ -273,7 +273,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
            router.push('/purchase-orders/list');
         } else {
             // Amending a final PO
-            const updatedPODataForAI: PurchaseOrder = {
+            const updatedPODataForAPI: PurchaseOrder = {
               ...poToEdit,
               ...values,
               poDate: values.poDate.toISOString(),
@@ -286,11 +286,13 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
             const response = await fetch('/api/summarize-po', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ originalPO: poToEdit, updatedPO: updatedPODataForAI }),
+                body: JSON.stringify({ originalPO: poToEdit, updatedPO: updatedPODataForAPI }),
             });
 
             if (!response.ok) {
-                throw new Error('AI summarization failed');
+                const errorData = await response.json();
+                console.error("API Error:", errorData);
+                throw new Error(errorData.error || 'AI summarization failed');
             }
 
             const { summary } = await response.json();
@@ -747,7 +749,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                         </TableBody>
                         <TableFooter>
                             <TableRow>
-                                <TableCell colSpan={showPaperColumns ? 5 : 2} className="text-right font-bold">Total</TableCell>
+                                <TableCell colSpan={showPaperColumns ? 5 : (itemFilterType === 'All' ? 2 : 1)} className="text-right font-bold">Total</TableCell>
                                 <TableCell className="font-bold">
                                     {Object.entries(quantityTotalsByUnit).map(([unit, total]) => (
                                         <span key={unit} className="mr-4">{total.toLocaleString()} {unit}</span>
@@ -880,7 +882,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                 <input
                                     placeholder={quickAddForm.units.length === 0 ? "e.g. Kg, Ton..." : ""}
                                     value={quickAddUnitInput}
-                                    onChange={e => setUnitInputValue(e.target.value)}
+                                    onChange={e => setQuickAddUnitInput(e.target.value)}
                                     onKeyDown={handleQuickAddUnitKeyDown}
                                     className="bg-transparent outline-none flex-1 placeholder:text-muted-foreground text-sm"
                                 />
@@ -891,7 +893,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                     <CommandInput 
                                         placeholder="Search or add unit..."
                                         value={quickAddUnitInput}
-                                        onValueChange={setUnitInputValue}
+                                        onValueChange={setQuickAddUnitInput}
                                         onKeyDown={(e) => {
                                              if (e.key === ' ' && e.currentTarget.value.endsWith(' ')) {
                                                 e.preventDefault();
@@ -932,3 +934,5 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     </div>
   );
 }
+
+    
