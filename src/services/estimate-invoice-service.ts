@@ -1,10 +1,9 @@
 
-import { getFirebase } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs, query, orderBy, getDoc } from 'firebase/firestore';
 import type { EstimatedInvoice } from '@/lib/types';
 
 const getInvoicesCollection = () => {
-    const { db } = getFirebase();
     return collection(db, 'estimatedInvoices');
 };
 

@@ -21,7 +21,7 @@ import { Button } from './ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { exportData } from '@/services/backup-service';
 import { Loader2 } from 'lucide-react';
-import { ConnectionStatusIndicator } from '@/hooks/use-connection-status';
+import { useConnectionStatus } from '@/hooks/use-connection-status';
 
 function SidebarCollapseButton() {
     const { state, toggleSidebar } = useSidebar();

@@ -5,7 +5,6 @@ import {Toaster} from '@/components/ui/toaster';
 import { AuthProvider } from '@/hooks/use-auth';
 import AuthAwareLayout from '@/components/auth-aware-layout';
 import { Inter } from 'next/font/google';
-import { FirebaseClientProvider } from '@/lib/firebase/client-provider';
 
 
 export const metadata: Metadata = {
@@ -27,13 +26,11 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className={inter.variable}>
       <body className="font-body antialiased bg-background" suppressHydrationWarning>
-        <FirebaseClientProvider>
           <AuthProvider>
               <AuthAwareLayout>
                   {children}
               </AuthAwareLayout>
           </AuthProvider>
-        </FirebaseClientProvider>
         <Toaster />
       </body>
     </html>

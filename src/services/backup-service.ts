@@ -1,5 +1,5 @@
 
-import { getFirebase } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import { collection, getDocs, writeBatch, doc } from 'firebase/firestore';
 
 const collectionsToBackup = [
@@ -23,7 +23,6 @@ const collectionsToBackup = [
 ];
 
 export const exportData = async (): Promise<Record<string, any[]>> => {
-    const { db } = getFirebase();
     const data: Record<string, any[]> = {};
 
     for (const collectionName of collectionsToBackup) {
@@ -39,7 +38,6 @@ export const exportData = async (): Promise<Record<string, any[]>> => {
 };
 
 export const importData = async (data: Record<string, any[]>): Promise<void> => {
-    const { db } = getFirebase();
     // First, delete all existing data in the collections
     for (const collectionName of collectionsToBackup) {
         try {

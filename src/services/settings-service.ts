@@ -1,10 +1,9 @@
 
-import { getFirebase } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import { collection, doc, getDoc, setDoc, onSnapshot, updateDoc } from 'firebase/firestore';
 import type { AppSetting, CostSetting, CostSettingHistoryEntry } from '@/lib/types';
 
 const getSettingsCollection = () => {
-    const { db } = getFirebase();
     return collection(db, 'settings');
 };
 

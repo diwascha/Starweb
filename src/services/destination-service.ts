@@ -1,10 +1,9 @@
 
-import { getFirebase } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import type { Destination } from '@/lib/types';
 
 const getDestinationsCollection = () => {
-    const { db } = getFirebase();
     return collection(db, 'destinations');
 };
 

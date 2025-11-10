@@ -1,10 +1,9 @@
 
-import { getFirebase } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import type { Account } from '@/lib/types';
 
 const getAccountsCollection = () => {
-    const { db } = getFirebase();
     return collection(db, 'accounts');
 }
 
@@ -39,7 +38,6 @@ export const getAccounts = async (useCache = false): Promise<Account[]> => {
 };
 
 export const addAccount = async (account: Omit<Account, 'id'>): Promise<string> => {
-    const { db } = getFirebase();
     const docRef = await addDoc(collection(db, 'accounts'), {
         ...account,
         createdAt: new Date().toISOString(),
@@ -48,7 +46,6 @@ export const addAccount = async (account: Omit<Account, 'id'>): Promise<string> 
 };
 
 export const updateAccount = async (id: string, account: Partial<Omit<Account, 'id'>>): Promise<void> => {
-    const { db } = getFirebase();
     const accountDoc = doc(db, 'accounts', id);
     await updateDoc(accountDoc, {
         ...account,
@@ -57,7 +54,6 @@ export const updateAccount = async (id: string, account: Partial<Omit<Account, '
 };
 
 export const deleteAccount = async (id: string): Promise<void> => {
-    const { db } = getFirebase();
     const accountDoc = doc(db, 'accounts', id);
     await deleteDoc(accountDoc);
 };

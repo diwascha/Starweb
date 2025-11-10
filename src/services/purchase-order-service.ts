@@ -1,10 +1,9 @@
 
-import { getFirebase } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDoc } from 'firebase/firestore';
 import type { PurchaseOrder } from '@/lib/types';
 
 const getPurchaseOrdersCollection = () => {
-    const { db } = getFirebase();
     return collection(db, 'purchaseOrders');
 }
 

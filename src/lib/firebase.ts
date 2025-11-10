@@ -6,19 +6,21 @@ import { getAuth, Auth } from 'firebase/auth';
 import { getDatabase, Database } from 'firebase/database';
 import { firebaseConfig } from "./firebase/config";
 
-// This function ensures Firebase is initialized only once.
-export const getFirebase = () => {
-    let app: FirebaseApp;
-    if (getApps().length === 0) {
-      app = initializeApp(firebaseConfig);
-    } else {
-      app = getApp();
-    }
+let app: FirebaseApp;
+let auth: Auth;
+let db: Firestore;
+let storage: FirebaseStorage;
+let rtdb: Database;
 
-    const db: Firestore = getFirestore(app);
-    const storage: FirebaseStorage = getStorage(app);
-    const auth: Auth = getAuth(app);
-    const rtdb: Database = getDatabase(app);
+if (getApps().length === 0) {
+  app = initializeApp(firebaseConfig);
+} else {
+  app = getApp();
+}
 
-    return { app, db, storage, auth, rtdb };
-};
+auth = getAuth(app);
+db = getFirestore(app);
+storage = getStorage(app);
+rtdb = getDatabase(app);
+
+export { app, db, storage, auth, rtdb };

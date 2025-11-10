@@ -1,10 +1,9 @@
 
-import { getFirebase } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDoc, getDocs, query, where, limit } from 'firebase/firestore';
 import type { Party } from '@/lib/types';
 
 const getPartiesCollection = () => {
-    const { db } = getFirebase();
     return collection(db, 'parties');
 };
 

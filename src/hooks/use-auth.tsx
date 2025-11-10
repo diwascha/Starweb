@@ -6,7 +6,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import type { User, Permissions, Module, Action } from '@/lib/types';
 import { modules } from '@/lib/types';
 import { getAdminCredentials, getUsers } from '@/services/user-service';
-import { useAuthService } from '@/lib/firebase/provider';
+import { auth } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 
 
@@ -133,21 +133,16 @@ const AuthRedirect = ({ children }: { children: (user: UserSession) => ReactNode
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<UserSession | null>(null);
   const [loading, setLoading] = useState(true);
-  const auth = useAuthService();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
         if (firebaseUser) {
-            // This is where you would fetch your custom user data from Firestore/RTDB
-            // For now, we'll rely on the local storage session data.
             const storedUserJson = localStorage.getItem(USER_SESSION_KEY);
             if (storedUserJson) {
                 try {
                     const storedUser = JSON.parse(storedUserJson);
-                    // Optional: You could verify that firebaseUser.email matches your stored user
                     setUser(storedUser);
                 } catch {
-                    // Invalid JSON in storage, treat as logged out
                     setUser(null);
                     localStorage.removeItem(USER_SESSION_KEY);
                 }
@@ -160,13 +155,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     return () => unsubscribe();
-}, [auth]);
+}, []);
   
   const hasPermission = useCallback((module: Module, action: Action): boolean => {
     if (!user) return false;
-    if (user.is_admin) return true; // Explicitly check for admin first
+    if (user.is_admin) return true;
     
-    // Fallback for new modules not explicitly in default perms
     if (module === 'crm' && action === 'view') {
         const financePerms = user.permissions['finance'];
         if (financePerms && financePerms.includes('view')) {
@@ -179,8 +173,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [user]);
 
   const login = useCallback(async (userToLogin: User) => {
-    // The actual Firebase sign-in happens on the login page.
-    // This function's job is now to set the local session state.
     let sessionToStore: UserSession;
     const isAdmin = userToLogin.username === 'Administrator';
 
@@ -209,7 +201,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await auth.signOut();
     localStorage.removeItem(USER_SESSION_KEY);
     setUser(null);
-  }, [auth]);
+  }, []);
   
   
   return (

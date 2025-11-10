@@ -1,17 +1,30 @@
 
 "use client";
 
-import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
-import { useDatabaseService } from '@/lib/firebase/provider';
+import { useState, useEffect } from 'react';
+import { rtdb } from '@/lib/firebase';
 import { ref, onValue, off } from 'firebase/database';
 
-
-const ConnectionStatusContext = createContext<boolean>(true);
-
-// This component is now a simple display component.
-// The logic has been moved to FirebaseProvider.
 export function ConnectionStatusIndicator() {
-  const isConnected = useConnectionStatus();
+  const [isConnected, setIsConnected] = useState(true);
+
+  useEffect(() => {
+    if (!rtdb) return;
+
+    const connectedRef = ref(rtdb, '.info/connected');
+
+    const listener = onValue(connectedRef, (snap) => {
+        const connected = snap.val() === true;
+        setIsConnected(connected);
+    }, (error) => {
+        console.error("Connection status listener error:", error);
+        setIsConnected(false);
+    });
+
+    return () => {
+        off(connectedRef, 'value', listener);
+    };
+  }, []);
 
   return (
     <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
@@ -34,11 +47,3 @@ export function ConnectionStatusIndicator() {
     </div>
   );
 }
-
-
-export function useConnectionStatus() {
-  return useContext(ConnectionStatusContext);
-}
-
-// The provider logic is now inside FirebaseProvider
-export { ConnectionStatusContext };
