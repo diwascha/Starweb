@@ -361,7 +361,7 @@ export default function PayrollClientPage() {
                                             <TableCell className="font-bold">{p.netPayment?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00'}</TableCell>
                                             <TableCell>{p.remark}</TableCell>
                                             <TableCell className="print:hidden">
-                                                <Button variant="ghost" size="sm" onClick={() => router.push(`/hr/payslip/${p.employeeId}?year=${selectedBsYear}&month=${selectedBsMonth}`)}>
+                                                <Button variant="ghost" size="sm" onClick={() => router.push(`/hr/payslip?employeeId=${p.employeeId}&year=${selectedBsYear}&month=${selectedBsMonth}`)}>
                                                     <View className="h-4 w-4" />
                                                 </Button>
                                             </TableCell>

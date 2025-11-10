@@ -78,7 +78,7 @@ export default function ReportsListPage() {
       await updateReport(report.id, { printLog: updatedPrintLog });
       
       setTimeout(() => {
-          const printWindow = window.open(`/report/${report.id}`, '_blank');
+          const printWindow = window.open(`/report?id=${report.id}`, '_blank');
           if (printWindow) {
               printWindow.onload = () => {
                   setTimeout(() => printWindow.print(), 500);
@@ -275,7 +275,7 @@ export default function ReportsListPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                         {hasPermission('reports', 'view') && (
-                           <DropdownMenuItem onSelect={() => router.push(`/report/${report.id}`)}>
+                           <DropdownMenuItem onSelect={() => router.push(`/report?id=${report.id}`)}>
                                 <View className="mr-2 h-4 w-4" /> View
                             </DropdownMenuItem>
                         )}

@@ -1,19 +1,22 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import type { Payroll } from '@/lib/types';
+import { useState, useEffect, useMemo, Suspense } from 'react';
+import type { Payroll, Employee } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { Printer, FileDown, View, Search, MoreHorizontal } from 'lucide-react';
-import { onPayrollUpdate } from '@/services/payroll-service';
+import { onPayrollUpdate, getPayrollForEmployee } from '@/services/payroll-service';
+import { onEmployeesUpdate, getEmployee } from '@/services/employee-service';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import NepaliDate from 'nepali-date-converter';
+import PayslipView from './_components/payslip-view';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const nepaliMonths = [
     { value: 0, name: "Baishakh" }, { value: 1, name: "Jestha" }, { value: 2, name: "Ashadh" },
@@ -22,7 +25,39 @@ const nepaliMonths = [
     { value: 9, name: "Magh" }, { value: 10, name: "Falgun" }, { value: 11, name: "Chaitra" }
 ];
 
-export default function PayslipPage() {
+function PayslipDisplay() {
+    const searchParams = useSearchParams();
+    const employeeId = searchParams.get('employeeId');
+    const year = searchParams.get('year');
+    const month = searchParams.get('month');
+
+    const [employee, setEmployee] = useState<Employee | null>(null);
+    const [payrollData, setPayrollData] = useState<Payroll | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (employeeId && year && month) {
+            setLoading(true);
+            Promise.all([
+                getEmployee(employeeId),
+                getPayrollForEmployee(employeeId, parseInt(year), parseInt(month))
+            ]).then(([emp, payroll]) => {
+                setEmployee(emp);
+                setPayrollData(payroll);
+                setLoading(false);
+            });
+        }
+    }, [employeeId, year, month]);
+
+    if (!employeeId || !year || !month) return null; // Don't render if no params
+
+    if (loading) return <div className="p-8">Loading payslip...</div>;
+    if (!employee || !payrollData) return <div className="p-8">Payslip data not found for the selected period.</div>;
+
+    return <PayslipView employee={employee} payroll={payrollData} bsYear={parseInt(year)} bsMonthName={nepaliMonths[parseInt(month)]?.name || ''} />;
+}
+
+function PayslipList() {
     const [allPayroll, setAllPayroll] = useState<Payroll[]>([]);
     const [bsYears, setBsYears] = useState<number[]>([]);
     const [selectedBsYear, setSelectedBsYear] = useState<string>('');
@@ -68,7 +103,7 @@ export default function PayslipPage() {
 
     const openPrintWindow = (employeeId?: string) => {
         if (!selectedBsYear || !selectedBsMonth) return;
-        const url = `/hr/payslip/${employeeId}?year=${selectedBsYear}&month=${selectedBsMonth}`;
+        const url = `/hr/payslip?employeeId=${employeeId}&year=${selectedBsYear}&month=${selectedBsMonth}`;
         const printWindow = window.open(url, '_blank');
         if (printWindow) {
             printWindow.onload = () => {
@@ -162,7 +197,7 @@ export default function PayslipPage() {
                                                     </Button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem onSelect={() => router.push(`/hr/payslip/${p.employeeId}?year=${selectedBsYear}&month=${selectedBsMonth}`)}>
+                                                    <DropdownMenuItem onSelect={() => router.push(`/hr/payslip?employeeId=${p.employeeId}&year=${selectedBsYear}&month=${selectedBsMonth}`)}>
                                                         <View className="mr-2 h-4 w-4" /> View
                                                     </DropdownMenuItem>
                                                     <DropdownMenuItem onSelect={() => openPrintWindow(p.employeeId)}>
@@ -182,5 +217,21 @@ export default function PayslipPage() {
                 </Card>
             )}
         </div>
+    );
+}
+
+export default function PayslipPage() {
+    const searchParams = useSearchParams();
+    const hasId = searchParams.has('employeeId');
+
+    return (
+        <Suspense fallback={
+            <div className="space-y-4">
+                <Skeleton className="h-10 w-1/4" />
+                <Skeleton className="h-[400px] w-full" />
+            </div>
+        }>
+            {hasId ? <PayslipDisplay /> : <PayslipList />}
+        </Suspense>
     );
 }

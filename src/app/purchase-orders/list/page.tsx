@@ -115,7 +115,7 @@ export default function PurchaseOrdersListPage() {
   };
   
   const handlePrint = (poId: string) => {
-    const printWindow = window.open(`/purchase-orders/${poId}`, '_blank');
+    const printWindow = window.open(`/purchase-orders/view?id=${poId}`, '_blank');
     if (printWindow) {
         printWindow.onload = () => {
             setTimeout(() => printWindow.print(), 500); // Give it a moment to render
@@ -288,7 +288,7 @@ export default function PurchaseOrdersListPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                         {hasPermission('purchaseOrders', 'view') && (
-                            <DropdownMenuItem onSelect={() => router.push(`/purchase-orders/${po.id}`)}>
+                            <DropdownMenuItem onSelect={() => router.push(`/purchase-orders/view?id=${po.id}`)}>
                                 <View className="mr-2 h-4 w-4" /> View
                             </DropdownMenuItem>
                         )}
