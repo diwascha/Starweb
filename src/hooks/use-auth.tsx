@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, createContext, useContext, ReactNode, useCallback } from 'react';
@@ -146,10 +147,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const session = JSON.parse(sessionJson);
         setUser(session);
       } catch {
-        // Invalid session, clear it
         localStorage.removeItem(USER_SESSION_KEY);
       }
     }
+    setLoading(false); // End initial loading from local storage
 
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
@@ -168,23 +169,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           localStorage.setItem(USER_SESSION_KEY, JSON.stringify(session));
           setUser(session);
         } else {
-          // This case can happen if a user was deleted from local storage but not firebase
           signOut(auth);
           localStorage.removeItem(USER_SESSION_KEY);
           setUser(null);
         }
       } else {
-        // Only clear non-admin users on auth state change
-        if (user && !user.is_admin) {
-            localStorage.removeItem(USER_SESSION_KEY);
-            setUser(null);
+        const currentSessionJson = localStorage.getItem(USER_SESSION_KEY);
+        if (currentSessionJson) {
+            const currentSession = JSON.parse(currentSessionJson);
+            // Only clear the session if it's not the local admin
+            if (!currentSession.is_admin) {
+                localStorage.removeItem(USER_SESSION_KEY);
+                setUser(null);
+            }
         }
       }
-      setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [auth, user]); // Added user to dependencies
+  }, [auth]);
   
   const login = useCallback(async (userToLogin: User, isLocalAdmin: boolean = false) => {
     if (isLocalAdmin) {
@@ -199,7 +202,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         localStorage.setItem(USER_SESSION_KEY, JSON.stringify(session));
         setUser(session);
     }
-    // Firebase users are handled by onAuthStateChanged
+    // Firebase regular user login is handled by onAuthStateChanged, which will set the session.
   }, []);
 
   const hasPermission = useCallback((module: Module, action: Action): boolean => {
