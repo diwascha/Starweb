@@ -1,10 +1,11 @@
 
-import { db } from '@/lib/firebase';
+import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, orderBy, query, writeBatch } from 'firebase/firestore';
 import type { NoteItem } from '@/lib/types';
 import { subDays } from 'date-fns';
 
 const getNotesCollection = () => {
+    const { db } = getFirebase();
     return collection(db, 'notes');
 }
 
@@ -65,6 +66,7 @@ export const deleteNoteItem = async (id: string): Promise<void> => {
 };
 
 export const cleanupOldItems = async (): Promise<number> => {
+    const { db } = getFirebase();
     const fourteenDaysAgo = subDays(new Date(), 14).toISOString();
     const now = new Date();
 

@@ -1,10 +1,10 @@
 
 import type {Metadata} from 'next';
 import './globals.css';
-import {Toaster} from '@/components/ui/toaster';
 import { AuthProvider } from '@/hooks/use-auth';
 import AuthAwareLayout from '@/components/auth-aware-layout';
 import { Inter } from 'next/font/google';
+import { FirebaseClientProvider } from '@/firebase/client-provider';
 
 
 export const metadata: Metadata = {
@@ -26,12 +26,13 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className={inter.variable}>
       <body className="font-body antialiased bg-background" suppressHydrationWarning>
-          <AuthProvider>
-              <AuthAwareLayout>
-                  {children}
-              </AuthAwareLayout>
-          </AuthProvider>
-        <Toaster />
+          <FirebaseClientProvider>
+            <AuthProvider>
+                <AuthAwareLayout>
+                    {children}
+                </AuthAwareLayout>
+            </AuthProvider>
+          </FirebaseClientProvider>
       </body>
     </html>
   );

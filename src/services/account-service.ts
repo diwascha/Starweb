@@ -1,9 +1,10 @@
 
-import { db } from '@/lib/firebase';
+import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import type { Account } from '@/lib/types';
 
 const getAccountsCollection = () => {
+    const { db } = getFirebase();
     return collection(db, 'accounts');
 }
 
@@ -38,7 +39,7 @@ export const getAccounts = async (useCache = false): Promise<Account[]> => {
 };
 
 export const addAccount = async (account: Omit<Account, 'id'>): Promise<string> => {
-    const docRef = await addDoc(collection(db, 'accounts'), {
+    const docRef = await addDoc(getAccountsCollection(), {
         ...account,
         createdAt: new Date().toISOString(),
     });
@@ -46,7 +47,7 @@ export const addAccount = async (account: Omit<Account, 'id'>): Promise<string> 
 };
 
 export const updateAccount = async (id: string, account: Partial<Omit<Account, 'id'>>): Promise<void> => {
-    const accountDoc = doc(db, 'accounts', id);
+    const accountDoc = doc(getAccountsCollection(), id);
     await updateDoc(accountDoc, {
         ...account,
         lastModifiedAt: new Date().toISOString(),
@@ -54,7 +55,7 @@ export const updateAccount = async (id: string, account: Partial<Omit<Account, '
 };
 
 export const deleteAccount = async (id: string): Promise<void> => {
-    const accountDoc = doc(db, 'accounts', id);
+    const accountDoc = doc(getAccountsCollection(), id);
     await deleteDoc(accountDoc);
 };
 

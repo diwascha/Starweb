@@ -1,9 +1,10 @@
 
-import { db } from '@/lib/firebase';
+import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import type { UnitOfMeasurement } from '@/lib/types';
 
 const getUomCollection = () => {
+    const { db } = getFirebase();
     return collection(db, 'uom');
 }
 

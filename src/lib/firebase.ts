@@ -4,23 +4,22 @@ import { getFirestore, Firestore } from "firebase/firestore";
 import { getStorage, FirebaseStorage } from "firebase/storage";
 import { getAuth, Auth } from 'firebase/auth';
 import { getDatabase, Database } from 'firebase/database';
-import { firebaseConfig } from "./firebase/config";
+import { firebaseConfig } from "@/firebase/config";
 
-let app: FirebaseApp;
-let auth: Auth;
-let db: Firestore;
-let storage: FirebaseStorage;
-let rtdb: Database;
+// This function ensures Firebase is initialized only once.
+export const getFirebase = () => {
+  let app: FirebaseApp;
 
-if (getApps().length === 0) {
-  app = initializeApp(firebaseConfig);
-} else {
-  app = getApp();
-}
+  if (getApps().length === 0) {
+    app = initializeApp(firebaseConfig);
+  } else {
+    app = getApp();
+  }
 
-auth = getAuth(app);
-db = getFirestore(app);
-storage = getStorage(app);
-rtdb = getDatabase(app);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  const storage = getStorage(app);
+  const rtdb = getDatabase(app);
 
-export { app, db, storage, auth, rtdb };
+  return { app, db, storage, auth, rtdb };
+};

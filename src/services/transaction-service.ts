@@ -1,9 +1,12 @@
 
-import { db } from '@/lib/firebase';
+import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, writeBatch, query, where, getDoc } from 'firebase/firestore';
 import type { Transaction } from '@/lib/types';
 
-const transactionsCollection = collection(db, 'transactions');
+const transactionsCollection = () => {
+    const { db } = getFirebase();
+    return collection(db, 'transactions');
+};
 
 const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentData): Transaction => {
     const data = snapshot.data();
@@ -36,14 +39,14 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
 
 export const getTransactionsForParty = async (partyId: string): Promise<Transaction[]> => {
     if (!partyId) return [];
-    const q = query(transactionsCollection, where("partyId", "==", partyId));
+    const q = query(transactionsCollection(), where("partyId", "==", partyId));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(fromFirestore);
 };
 
 
 export const addTransaction = async (transaction: Omit<Transaction, 'id' | 'createdAt' | 'lastModifiedAt'>): Promise<string> => {
-    const docRef = await addDoc(transactionsCollection, {
+    const docRef = await addDoc(transactionsCollection(), {
         ...transaction,
         createdAt: new Date().toISOString(),
     });
@@ -51,7 +54,7 @@ export const addTransaction = async (transaction: Omit<Transaction, 'id' | 'crea
 };
 
 export const updateTransaction = async (id: string, transaction: Partial<Omit<Transaction, 'id'>>): Promise<void> => {
-    const transactionDoc = doc(db, 'transactions', id);
+    const transactionDoc = doc(transactionsCollection(), id);
     await updateDoc(transactionDoc, {
         ...transaction,
         lastModifiedAt: new Date().toISOString(),
@@ -60,6 +63,7 @@ export const updateTransaction = async (id: string, transaction: Partial<Omit<Tr
 
 
 export const saveVoucher = async (voucherData: any, createdBy: string) => {
+    const { db } = getFirebase();
     let batch = writeBatch(db);
     let writeCount = 0;
     const BATCH_LIMIT = 499;
@@ -87,7 +91,7 @@ export const saveVoucher = async (voucherData: any, createdBy: string) => {
         }
 
         if (type && amount > 0) {
-            const transactionRef = doc(transactionsCollection);
+            const transactionRef = doc(transactionsCollection());
             const newTransaction: Omit<Transaction, 'id'> = {
                 date: voucherData.date.toISOString(),
                 type: type,
@@ -124,7 +128,7 @@ export const saveVoucher = async (voucherData: any, createdBy: string) => {
 
 
 export const onTransactionsUpdate = (callback: (transactions: Transaction[]) => void): () => void => {
-    return onSnapshot(transactionsCollection, 
+    return onSnapshot(transactionsCollection(), 
         (snapshot) => {
             callback(snapshot.docs.map(fromFirestore));
         },
@@ -136,7 +140,7 @@ export const onTransactionsUpdate = (callback: (transactions: Transaction[]) => 
 
 export const getTransaction = async (id: string): Promise<Transaction | null> => {
     if (!id || typeof id !== 'string') return null;
-    const transactionDoc = doc(db, 'transactions', id);
+    const transactionDoc = doc(transactionsCollection(), id);
     const docSnap = await getDoc(transactionDoc);
     if (docSnap.exists()) {
         return fromFirestore(docSnap);
@@ -146,20 +150,21 @@ export const getTransaction = async (id: string): Promise<Transaction | null> =>
 };
 
 export const getTransactions = async (): Promise<Transaction[]> => {
-    const snapshot = await getDocs(transactionsCollection);
+    const snapshot = await getDocs(transactionsCollection());
     return snapshot.docs.map(fromFirestore);
 };
 
 
 export const getVoucherTransactions = async (voucherId: string): Promise<Transaction[]> => {
     if (!voucherId || typeof voucherId !== 'string') return [];
-    const q = query(transactionsCollection, where("voucherId", "==", voucherId));
+    const q = query(transactionsCollection(), where("voucherId", "==", voucherId));
     const querySnapshot = await getDocs(q);
     if (!querySnapshot.empty) {
         return querySnapshot.docs.map(fromFirestore);
     }
     
     // Fallback for legacy vouchers without a voucherId
+    const { db } = getFirebase();
     const legacyId = voucherId.replace('legacy-', '');
     const docSnap = await getDoc(doc(db, 'transactions', legacyId));
     if (docSnap.exists()) {
@@ -171,7 +176,7 @@ export const getVoucherTransactions = async (voucherId: string): Promise<Transac
 
 
 export const onVoucherTransactionsUpdate = (voucherId: string, callback: (transactions: Transaction[]) => void): () => void => {
-    const q = query(transactionsCollection, where("voucherId", "==", voucherId));
+    const q = query(transactionsCollection(), where("voucherId", "==", voucherId));
     return onSnapshot(q, 
         (snapshot) => {
             callback(snapshot.docs.map(fromFirestore));
@@ -184,6 +189,7 @@ export const onVoucherTransactionsUpdate = (voucherId: string, callback: (transa
 
 
 export const updateVoucher = async (voucherId: string, voucherData: any, modifiedBy: string) => {
+    const { db } = getFirebase();
     let batch = writeBatch(db);
     let writeCount = 0;
     const BATCH_LIMIT = 499;
@@ -229,7 +235,7 @@ export const updateVoucher = async (voucherId: string, voucherData: any, modifie
         }
 
         if (type && amount > 0) {
-            const transactionRef = doc(transactionsCollection);
+            const transactionRef = doc(transactionsCollection());
             const newTransaction: Omit<Transaction, 'id'|'createdAt'|'createdBy'> = {
                 date: voucherData.date.toISOString(),
                 type: type,
@@ -267,11 +273,12 @@ export const updateVoucher = async (voucherId: string, voucherData: any, modifie
 
 export const deleteTransaction = async (id: string): Promise<void> => {
     if (!id) return;
-    const transactionDoc = doc(db, 'transactions', id);
+    const transactionDoc = doc(transactionsCollection(), id);
     await deleteDoc(transactionDoc);
 };
 
 export const deleteVoucher = async (voucherId: string): Promise<void> => {
+    const { db } = getFirebase();
     const BATCH_LIMIT = 499;
     
     if (voucherId.startsWith('legacy-')) {
@@ -279,7 +286,7 @@ export const deleteVoucher = async (voucherId: string): Promise<void> => {
         const docRef = doc(db, 'transactions', docId);
         await deleteDoc(docRef);
     } else {
-        const q = query(transactionsCollection, where("voucherId", "==", voucherId));
+        const q = query(transactionsCollection(), where("voucherId", "==", voucherId));
         const querySnapshot = await getDocs(q);
 
         if (querySnapshot.empty) return;

@@ -17,8 +17,8 @@ import { getUsers, getAdminCredentials } from '@/services/user-service';
 import { Progress } from '@/components/ui/progress';
 import { exportData } from '@/services/backup-service';
 import { format } from 'date-fns';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { signInWithEmailAndPassword, Auth } from 'firebase/auth';
+import { useAuthService } from '@/lib/firebase/provider';
 
 
 const loginSchema = z.object({
@@ -44,6 +44,7 @@ export default function LoginPage() {
   const [progress, setProgress] = useState(0);
   const [loadingText, setLoadingText] = useState('Authenticating...');
   const { login, loading: authLoading, user } = useAuth();
+  const auth = useAuthService();
 
   const {
     register,

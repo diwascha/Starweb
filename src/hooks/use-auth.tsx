@@ -6,9 +6,8 @@ import { useRouter, usePathname } from 'next/navigation';
 import type { User, Permissions, Module, Action } from '@/lib/types';
 import { modules } from '@/lib/types';
 import { getAdminCredentials, getUsers } from '@/services/user-service';
-import { auth } from '@/lib/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
-
+import { onAuthStateChanged, signOut, Auth } from 'firebase/auth';
+import { useAuthService } from '@/firebase';
 
 interface UserSession {
   username: string;
@@ -133,6 +132,7 @@ const AuthRedirect = ({ children }: { children: (user: UserSession) => ReactNode
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<UserSession | null>(null);
   const [loading, setLoading] = useState(true);
+  const auth = useAuthService();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
@@ -155,7 +155,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     return () => unsubscribe();
-}, []);
+}, [auth]);
   
   const hasPermission = useCallback((module: Module, action: Action): boolean => {
     if (!user) return false;
@@ -198,10 +198,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const logout = useCallback(async () => {
-    await auth.signOut();
+    await signOut(auth);
     localStorage.removeItem(USER_SESSION_KEY);
     setUser(null);
-  }, []);
+  }, [auth]);
   
   
   return (

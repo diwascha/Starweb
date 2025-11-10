@@ -1,9 +1,10 @@
 
-import { db } from '@/lib/firebase';
+import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs } from 'firebase/firestore';
 import type { PolicyOrMembership } from '@/lib/types';
 
 const getPoliciesCollection = () => {
+    const { db } = getFirebase();
     return collection(db, 'policies');
 }
 

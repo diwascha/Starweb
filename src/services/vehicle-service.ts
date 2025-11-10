@@ -1,9 +1,10 @@
 
-import { db } from '@/lib/firebase';
+import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import type { Vehicle } from '@/lib/types';
 
 const getVehiclesCollection = () => {
+    const { db } = getFirebase();
     return collection(db, 'vehicles');
 };
 

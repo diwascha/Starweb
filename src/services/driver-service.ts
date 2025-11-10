@@ -1,10 +1,11 @@
 
-import { db } from '@/lib/firebase';
+import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import type { Driver } from '@/lib/types';
 import { deleteFile } from './storage-service';
 
 const getDriversCollection = () => {
+    const { db } = getFirebase();
     return collection(db, 'drivers');
 };
 

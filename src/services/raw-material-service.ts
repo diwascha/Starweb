@@ -1,10 +1,11 @@
 
-import { db } from '@/lib/firebase';
+import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import type { RawMaterial, UnitOfMeasurement } from '@/lib/types';
 import { getUoms, addUom } from './uom-service';
 
 const getRawMaterialsCollection = () => {
+    const { db } = getFirebase();
     return collection(db, 'rawMaterials');
 };
 

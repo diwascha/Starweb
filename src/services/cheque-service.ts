@@ -1,9 +1,10 @@
 
-import { db } from '@/lib/firebase';
+import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, deleteDoc, query, orderBy, updateDoc, getDocs } from 'firebase/firestore';
 import type { Cheque } from '@/lib/types';
 
 const getChequesCollection = () => {
+    const { db } = getFirebase();
     return collection(db, 'cheques');
 };
 
