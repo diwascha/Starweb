@@ -520,12 +520,12 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                 />
                                 <CommandList>
                                     <CommandEmpty>
-                                        <CommandItem onSelect={() => {
+                                        <Button variant="ghost" className="w-full justify-start" onClick={() => {
                                           handleOpenPartyDialog(null, companySearch);
                                           setCompanySearch('');
                                         }}>
                                             <PlusCircle className="mr-2 h-4 w-4"/> Add "{companySearch}"
-                                        </CommandItem>
+                                        </Button>
                                     </CommandEmpty>
                                     <CommandGroup>
                                         {companies.map((company) => (
@@ -637,13 +637,13 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                                                 />
                                                                 <CommandList>
                                                                     <CommandEmpty>
-                                                                        <button
-                                                                            type="button"
-                                                                            className="w-full text-left p-2 text-sm"
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            className="w-full justify-start"
                                                                             onClick={() => setIsQuickAddMaterialDialogOpen(true)}
                                                                         >
                                                                             Add "{quickAddMaterialSearch}"
-                                                                        </button>
+                                                                        </Button>
                                                                     </CommandEmpty>
                                                                     <CommandGroup>
                                                                         {isClient && filteredRawMaterials.map(p => (
@@ -745,9 +745,9 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
           </Card>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => router.back()}>
-                {poToEdit ? 'Cancel Edit' : 'Cancel'}
+                Cancel
             </Button>
-            {poToEdit && poToEdit.isDraft && (
+            {(poToEdit && poToEdit.isDraft) && (
                 <Button type="button" onClick={form.handleSubmit(v => onSubmit(v, false))} disabled={isSubmitting}>
                     {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                     Save Draft
@@ -858,7 +858,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                 <input
                                     placeholder={quickAddForm.units.length === 0 ? "e.g. Kg, Ton..." : ""}
                                     value={quickAddUnitInput}
-                                    onChange={e => setQuickAddUnitInput(e.target.value)}
+                                    onChange={e => setUnitInputValue(e.target.value)}
                                     onKeyDown={handleQuickAddUnitKeyDown}
                                     className="bg-transparent outline-none flex-1 placeholder:text-muted-foreground text-sm"
                                 />
@@ -869,7 +869,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                     <CommandInput 
                                         placeholder="Search or add unit..."
                                         value={quickAddUnitInput}
-                                        onValueChange={setQuickAddUnitInput}
+                                        onValueChange={setUnitInputValue}
                                         onKeyDown={(e) => {
                                              if (e.key === ' ' && e.currentTarget.value.endsWith(' ')) {
                                                 e.preventDefault();
