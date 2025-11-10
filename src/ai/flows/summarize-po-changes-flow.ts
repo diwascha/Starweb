@@ -1,4 +1,3 @@
-'use server';
 import "server-only";
 /**
  * @fileOverview An AI flow to summarize changes between two versions of a purchase order.
@@ -81,7 +80,7 @@ Original Purchase Order:
 
 Updated Purchase Order:
 - PO Number: {{{updatedPO.poNumber}}}
-- Date: {{{updatedPO.date}}}
+- Date: {{{updatedPO.poDate}}}
 - Company: {{{updatedPO.companyName}}}
 - Items:
   {{#each updatedPO.items}}
