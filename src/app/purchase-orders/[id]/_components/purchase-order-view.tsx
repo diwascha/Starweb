@@ -249,7 +249,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, party, poId }:
           </CardHeader>
           <CardContent className="space-y-4 p-2">
             <section className="space-y-2">
-              <h2 className="text-base font-semibold">Order Details</h2>
+              <h2 className="text-base font-semibold text-center">Order Details</h2>
                {Object.entries(groupedItems).map(([type, items]) => {
                   const isPaper = paperTypes.includes(type);
 
@@ -413,5 +413,3 @@ export default function PurchaseOrderView({ initialPurchaseOrder, party, poId }:
     </>
   );
 }
-
-    
