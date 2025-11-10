@@ -1,6 +1,3 @@
-
-'use client';
-
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Calculator, FileText, Receipt } from 'lucide-react';
@@ -59,5 +56,3 @@ export default function FinanceDashboardPage() {
     </div>
   );
 }
-
-    

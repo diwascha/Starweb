@@ -1,5 +1,3 @@
-'use client';
-
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Truck, Users, ShieldCheck, CreditCard, ArrowRight, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';

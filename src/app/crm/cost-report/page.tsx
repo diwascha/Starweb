@@ -1,7 +1,4 @@
-
-'use client';
-
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { Product, Party, PartyType, CostReport, CostReportItem, ProductSpecification, CostSetting, Accessory as ProductAccessory, Product as ProductType } from '@/lib/types';
 import { onProductsUpdate, addProduct as addProductService, updateProduct as updateProductService, deleteProduct as deleteProductService } from '@/services/product-service';
 import { onPartiesUpdate, addParty, updateParty } from '@/services/party-service';

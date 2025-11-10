@@ -1,6 +1,3 @@
-
-'use client';
-
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Calculator, FileText } from 'lucide-react';

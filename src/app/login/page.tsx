@@ -1,6 +1,3 @@
-
-'use client';
-
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
@@ -18,7 +15,7 @@ import { Progress } from '@/components/ui/progress';
 import { exportData } from '@/services/backup-service';
 import { format } from 'date-fns';
 import { signInWithEmailAndPassword, Auth } from 'firebase/auth';
-import { useAuthService } from '@/lib/firebase/provider';
+import { useAuthService } from '@/firebase';
 
 
 const loginSchema = z.object({

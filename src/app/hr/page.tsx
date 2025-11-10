@@ -1,5 +1,3 @@
-
-'use client';
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
