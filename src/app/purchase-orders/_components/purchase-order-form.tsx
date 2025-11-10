@@ -84,6 +84,8 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   const [isQuickAddMaterialDialogOpen, setIsQuickAddMaterialDialogOpen] = useState(false);
   const [quickAddMaterialSearch, setQuickAddMaterialSearch] = useState('');
   const [quickAddUnitInput, setQuickAddUnitInput] = useState('');
+  const [unitInputValue, setUnitInputValue] = useState('');
+
 
   const defaultValues = useMemo(() => {
     if (poToEdit) {
@@ -113,14 +115,14 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   
   const watchedItems = form.watch("items");
 
-  const quantityTotalsByUnit = (watchedItems || []).reduce((acc, item) => {
+  const quantityTotalsByUnit = useMemo(() => (watchedItems || []).reduce((acc, item) => {
     const quantity = parseFloat(item.quantity);
     const unit = item.unit;
     if (!isNaN(quantity) && unit) {
         acc[unit] = (acc[unit] || 0) + quantity;
     }
     return acc;
-  }, {} as Record<string, number>);
+  }, {} as Record<string, number>), [watchedItems]);
 
 
   useEffect(() => {
@@ -449,7 +451,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     if (!quickAddForm.units.includes(unit)) {
         setQuickAddForm(prev => ({...prev, units: [...prev.units, unit]}));
     }
-    setQuickAddUnitInput('');
+    setUnitInputValue('');
   };
 
   const handleQuickAddUnitRemove = (unit: string) => {
@@ -463,7 +465,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         if (newUnit && !quickAddForm.units.find(u => u.toLowerCase() === newUnit.toLowerCase())) {
             setQuickAddForm(prev => ({...prev, units: [...prev.units, newUnit]}));
         }
-        setQuickAddUnitInput('');
+        setUnitInputValue('');
     }
   };
 
@@ -538,12 +540,16 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                 />
                                 <CommandList>
                                     <CommandEmpty>
-                                        <CommandItem onSelect={() => {
-                                          handleOpenPartyDialog(null, companySearch);
-                                          setCompanySearch('');
-                                        }}>
+                                        <Button
+                                            variant="ghost"
+                                            className="w-full justify-start"
+                                            onClick={() => {
+                                                handleOpenPartyDialog(null, companySearch);
+                                                setCompanySearch('');
+                                            }}
+                                        >
                                             <PlusCircle className="mr-2 h-4 w-4"/> Add "{companySearch}"
-                                        </CommandItem>
+                                        </Button>
                                     </CommandEmpty>
                                     <CommandGroup>
                                         {companies.map((company) => (
@@ -879,8 +885,8 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                 ))}
                                 <input
                                     placeholder={quickAddForm.units.length === 0 ? "e.g. Kg, Ton..." : ""}
-                                    value={quickAddUnitInput}
-                                    onChange={e => setQuickAddUnitInput(e.target.value)}
+                                    value={unitInputValue}
+                                    onChange={e => setUnitInputValue(e.target.value)}
                                     onKeyDown={handleQuickAddUnitKeyDown}
                                     className="bg-transparent outline-none flex-1 placeholder:text-muted-foreground text-sm"
                                 />
@@ -890,8 +896,8 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                 <Command>
                                     <CommandInput 
                                         placeholder="Search or add unit..."
-                                        value={quickAddUnitInput}
-                                        onValueChange={setQuickAddUnitInput}
+                                        value={unitInputValue}
+                                        onValueChange={setUnitInputValue}
                                         onKeyDown={(e) => {
                                              if (e.key === ' ' && e.currentTarget.value.endsWith(' ')) {
                                                 e.preventDefault();
