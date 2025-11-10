@@ -1,16 +1,15 @@
 {
   "name": "starweb",
   "version": "0.1.0",
-  "description": "StarWeb desktop app for HRMS/Payroll/CRM/Finance",
+  "description": "A web application for HRMS, Payroll, CRM, and Finance.",
   "author": "Diwas Chaulagain",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack -p 9002",
+    "dev": "next dev",
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
     "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
-    "clean": "rimraf .next node_modules/.cache",
-    "build": "cross-env NODE_OPTIONS=--max-old-space-size=8192 NEXT_CPU_COUNT=1 next build",
-    "start": "next start -p 9002",
+    "build": "next build",
+    "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"
   },
