@@ -27,7 +27,14 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
 export const getParties = async (useCache = false): Promise<Party[]> => {
     if (useCache && typeof window !== 'undefined') {
         const cached = sessionStorage.getItem('parties');
-        if (cached) return JSON.parse(cached);
+        if (cached) {
+            try {
+                return JSON.parse(cached);
+            } catch (e) {
+                console.error("Failed to parse cached parties:", e);
+                sessionStorage.removeItem('parties');
+            }
+        }
     }
     const snapshot = await getDocs(getPartiesCollection());
     const parties = snapshot.docs.map(fromFirestore);

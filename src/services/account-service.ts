@@ -25,10 +25,16 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Account =
 }
 
 export const getAccounts = async (useCache = false): Promise<Account[]> => {
-    // Note: Simple caching strategy. For more complex scenarios, consider libraries like TanStack Query.
     if (useCache && typeof window !== 'undefined') {
         const cached = sessionStorage.getItem('accounts');
-        if (cached) return JSON.parse(cached);
+        if (cached) {
+            try {
+                return JSON.parse(cached);
+            } catch (e) {
+                console.error("Failed to parse cached accounts:", e);
+                sessionStorage.removeItem('accounts');
+            }
+        }
     }
     const snapshot = await getDocs(getAccountsCollection());
     const accounts = snapshot.docs.map(fromFirestore);

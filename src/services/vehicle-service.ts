@@ -29,7 +29,14 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Vehicle =
 export const getVehicles = async (useCache = false): Promise<Vehicle[]> => {
     if (useCache && typeof window !== 'undefined') {
         const cached = sessionStorage.getItem('vehicles');
-        if (cached) return JSON.parse(cached);
+        if (cached) {
+             try {
+                return JSON.parse(cached);
+            } catch (e) {
+                console.error("Failed to parse cached vehicles:", e);
+                sessionStorage.removeItem('vehicles');
+            }
+        }
     }
     const snapshot = await getDocs(getVehiclesCollection());
     const vehicles = snapshot.docs.map(fromFirestore);
