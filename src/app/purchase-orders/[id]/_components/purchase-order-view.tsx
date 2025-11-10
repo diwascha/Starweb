@@ -243,9 +243,9 @@ export default function PurchaseOrderView({ initialPurchaseOrder, party, poId }:
 
         <Card className="shadow-none border-gray-300">
           <CardHeader className="p-2">
-            <CardTitle className="text-base">To: {party?.name || purchaseOrder.companyName}</CardTitle>
-            <p className="text-sm">{party?.address || purchaseOrder.companyAddress}</p>
-            {(party?.panNumber || purchaseOrder.panNumber) && <p className="text-sm">PAN: {party?.panNumber || purchaseOrder.panNumber}</p>}
+            <CardTitle className="text-base">To: {purchaseOrder.companyName}</CardTitle>
+            <p className="text-sm">{purchaseOrder.companyAddress}</p>
+            {purchaseOrder.panNumber && <p className="text-sm">PAN: {purchaseOrder.panNumber}</p>}
           </CardHeader>
           <CardContent className="space-y-4 p-2">
             <section className="space-y-2">

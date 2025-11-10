@@ -221,18 +221,11 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         if (editingParty) {
             await updateParty(editingParty.id, { ...partyForm, lastModifiedBy: user.username });
             const party = { ...editingParty, ...partyForm };
-            form.setValue('partyId', party.id);
-            form.setValue('companyName', party.name);
-            form.setValue('companyAddress', party.address || '');
-            form.setValue('panNumber', party.panNumber || '');
+            handleCompanySelect(party.id);
             toast({title: 'Success', description: 'Party updated.'});
         } else {
             const newPartyId = await addParty({...partyForm, createdBy: user.username});
-            const newParty = {id: newPartyId, ...partyForm};
-            form.setValue('partyId', newParty.id);
-            form.setValue('companyName', newParty.name);
-            form.setValue('companyAddress', newParty.address || '');
-            form.setValue('panNumber', newParty.panNumber || '');
+            handleCompanySelect(newPartyId);
             toast({title: 'Success', description: 'New party added.'});
         }
         setIsPartyDialogOpen(false);
@@ -269,61 +262,44 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     }
     setIsSubmitting(true);
     try {
+      const isCurrentlyDraft = poToEdit ? poToEdit.isDraft : true;
+      const now = new Date().toISOString();
+
+      let poData: Omit<PurchaseOrder, 'id'> = {
+        ...values,
+        poDate: values.poDate.toISOString(),
+        status: 'Draft',
+        isDraft: true,
+        amendments: poToEdit?.amendments || [],
+        createdAt: poToEdit?.createdAt || now,
+        createdBy: poToEdit?.createdBy || user.username,
+        updatedAt: now,
+        lastModifiedBy: user.username,
+      };
+
+      if (finalize) {
+        poData.status = 'Ordered';
+        poData.isDraft = false;
+      }
+
       if (poToEdit) {
-        const isCurrentlyDraft = poToEdit.isDraft;
-        let updatedPOForFirestore: Partial<Omit<PurchaseOrder, 'id'>>;
-  
-        if (isCurrentlyDraft) {
-          updatedPOForFirestore = {
-            ...values,
-            poDate: values.poDate.toISOString(),
-            isDraft: !finalize,
-            status: finalize ? 'Ordered' : 'Draft',
-            lastModifiedBy: user.username,
-            updatedAt: new Date().toISOString(),
-          };
-        } else { // Is not a draft, so it's a finalized order being amended
+        if (!isCurrentlyDraft) { // It's a finalized order being amended
           const newAmendment: Amendment = {
-            date: new Date().toISOString(),
+            date: now,
             remarks: 'Order amended after finalization.',
             amendedBy: user.username,
           };
-          updatedPOForFirestore = {
-            ...values,
-            poDate: values.poDate.toISOString(),
-            updatedAt: new Date().toISOString(),
-            status: 'Amended',
-            lastModifiedBy: user.username,
-            amendments: [...(poToEdit.amendments || []), newAmendment],
-          };
+          poData.status = 'Amended';
+          poData.amendments = [...(poToEdit.amendments || []), newAmendment];
         }
-        await updatePurchaseOrder(poToEdit.id, updatedPOForFirestore);
+        await updatePurchaseOrder(poToEdit.id, poData);
         toast({ title: 'Success', description: `Purchase Order ${isCurrentlyDraft && finalize ? 'finalized' : 'updated'}.` });
-        if (finalize || !isCurrentlyDraft) {
-            router.push(`/purchase-orders/view?id=${poToEdit.id}`);
-        } else {
-            router.push('/purchase-orders/list');
-        }
+        router.push(finalize || !isCurrentlyDraft ? `/purchase-orders/view?id=${poToEdit.id}` : '/purchase-orders/list');
 
       } else { // creating new
-        const now = new Date().toISOString();
-        const newPO: Omit<PurchaseOrder, 'id'> = {
-          ...values,
-          poDate: values.poDate.toISOString(),
-          createdAt: now,
-          updatedAt: now,
-          amendments: [],
-          status: finalize ? 'Ordered' : 'Draft',
-          isDraft: !finalize,
-          createdBy: user.username,
-        };
-        const newPOId = await addPurchaseOrder(newPO);
+        const newPOId = await addPurchaseOrder(poData);
         toast({ title: 'Success', description: `Purchase Order ${finalize ? 'created' : 'saved as draft'}.` });
-        if (finalize) {
-            router.push(`/purchase-orders/view?id=${newPOId}`);
-        } else {
-            router.push('/purchase-orders/list');
-        }
+        router.push(finalize ? `/purchase-orders/view?id=${newPOId}` : '/purchase-orders/list');
       }
     } catch (error) {
       console.error('Failed to save purchase order:', error);
