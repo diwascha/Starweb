@@ -83,6 +83,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isQuickAddMaterialDialogOpen, setIsQuickAddMaterialDialogOpen] = useState(false);
   const [quickAddMaterialSearch, setQuickAddMaterialSearch] = useState('');
+  const [quickAddUnitInput, setQuickAddUnitInput] = useState('');
 
   const defaultValues = useMemo(() => {
     if (poToEdit) {
@@ -112,16 +113,14 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   
   const watchedItems = form.watch("items");
 
-  const quantityTotalsByUnit = useMemo(() => {
-    return (watchedItems || []).reduce((acc, item) => {
-        const quantity = parseFloat(item.quantity);
-        const unit = item.unit;
-        if (!isNaN(quantity) && unit) {
-            acc[unit] = (acc[unit] || 0) + quantity;
-        }
-        return acc;
-    }, {} as Record<string, number>);
-  }, [watchedItems]);
+  const quantityTotalsByUnit = (watchedItems || []).reduce((acc, item) => {
+    const quantity = parseFloat(item.quantity);
+    const unit = item.unit;
+    if (!isNaN(quantity) && unit) {
+        acc[unit] = (acc[unit] || 0) + quantity;
+    }
+    return acc;
+  }, {} as Record<string, number>);
 
 
   useEffect(() => {
@@ -350,7 +349,6 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   const [quickAddForm, setQuickAddForm] = useState({
       type: '', name: '', size: '', gsm: '', bf: '', units: [] as string[]
   });
-  const [quickAddUnitInput, setQuickAddUnitInput] = useState('');
   const [isQuickAddUnitPopoverOpen, setIsQuickAddUnitPopoverOpen] = useState(false);
   
   useEffect(() => {
@@ -934,5 +932,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     </div>
   );
 }
+
+    
 
     
