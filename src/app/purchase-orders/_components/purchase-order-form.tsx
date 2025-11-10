@@ -270,9 +270,10 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     setIsSubmitting(true);
     try {
       if (poToEdit) {
+        const isCurrentlyDraft = poToEdit.isDraft;
         let updatedPOForFirestore: Partial<Omit<PurchaseOrder, 'id'>>;
   
-        if (poToEdit.isDraft) {
+        if (isCurrentlyDraft) {
           updatedPOForFirestore = {
             ...values,
             poDate: values.poDate.toISOString(),
@@ -281,13 +282,6 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
             lastModifiedBy: user.username,
             updatedAt: new Date().toISOString(),
           };
-           await updatePurchaseOrder(poToEdit.id, updatedPOForFirestore);
-           toast({ title: 'Success', description: `Purchase Order ${finalize ? 'finalized' : 'draft saved'}.` });
-           if (finalize) {
-               router.push(`/purchase-orders/view?id=${poToEdit.id}`);
-           } else {
-               router.push('/purchase-orders/list');
-           }
         } else { // Is not a draft, so it's a finalized order being amended
           const newAmendment: Amendment = {
             date: new Date().toISOString(),
@@ -302,10 +296,15 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
             lastModifiedBy: user.username,
             amendments: [...(poToEdit.amendments || []), newAmendment],
           };
-          await updatePurchaseOrder(poToEdit.id, updatedPOForFirestore);
-          toast({ title: 'Success', description: 'Purchase Order updated.' });
-          router.push(`/purchase-orders/view?id=${poToEdit.id}`);
         }
+        await updatePurchaseOrder(poToEdit.id, updatedPOForFirestore);
+        toast({ title: 'Success', description: `Purchase Order ${isCurrentlyDraft && finalize ? 'finalized' : 'updated'}.` });
+        if (finalize || !isCurrentlyDraft) {
+            router.push(`/purchase-orders/view?id=${poToEdit.id}`);
+        } else {
+            router.push('/purchase-orders/list');
+        }
+
       } else { // creating new
         const now = new Date().toISOString();
         const newPO: Omit<PurchaseOrder, 'id'> = {
@@ -773,7 +772,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                  <>
                     <Button type="button" variant="secondary" onClick={form.handleSubmit(v => onSubmit(v, false))} disabled={isSubmitting}>
                         {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        Save Draft
+                        {poToEdit ? 'Save Draft' : 'Save as Draft'}
                     </Button>
                     <Button type="button" onClick={form.handleSubmit(v => onSubmit(v, true))} disabled={isSubmitting}>
                         {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -933,3 +932,4 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   );
 }
 
+    
