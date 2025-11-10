@@ -1,3 +1,4 @@
+
 // main.js
 
 const { app, BrowserWindow } = require('electron');
@@ -5,7 +6,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 const http = require('http');
 
-let nextProcess;
+let serverProc;
 let win;
 const port = '9002';
 const startUrl = `http://localhost:${port}`;
@@ -34,6 +35,14 @@ function waitForHttp(url, timeoutMs = 30000, intervalMs = 300) {
     });
 }
 
+function startNextProdServer() {
+  const serverPath = path.join(process.resourcesPath, 'app/.next/standalone/server.js');
+  serverProc = spawn(process.execPath, [serverPath, '-p', port], {
+    stdio: 'ignore',
+    windowsHide: true,
+    detached: true,
+  });
+}
 
 function createWindow() {
   // Create the browser window.
@@ -41,14 +50,13 @@ function createWindow() {
     width: 1200,
     height: 800,
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false, // Be cautious with this in production
+      nodeIntegration: false,
+      contextIsolation: true, 
     },
   });
 
 
   if (isDev) {
-    // In development, Next.js server is started by npm script, so we just wait for it
     const waitOn = require('wait-on');
     const waitOnOpts = {
       resources: [startUrl],
@@ -61,16 +69,7 @@ function createWindow() {
         console.error('Error waiting for Next.js dev server:', err);
     });
   } else {
-    // In production, we need to spawn the Next.js server
-    const serverPath = path.join(app.getAppPath(), 'node_modules/.bin/next');
-    nextProcess = spawn(serverPath, ['start', '-p', port], {
-      cwd: app.getAppPath(),
-      // The `detached: true` option is important for ensuring the child process
-      // doesn't stay alive when the parent Electron app exits.
-      detached: true, 
-      stdio: 'ignore' 
-    });
-
+    startNextProdServer();
     waitForHttp(startUrl, 30000, 300)
     .then(() => {
         win.loadURL(startUrl);
@@ -80,32 +79,25 @@ function createWindow() {
   }
 }
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
 app.whenReady().then(createWindow);
 
-// Quit when all windows are closed, except on macOS.
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
-    // If there's a Next.js server process, kill it.
-    if (nextProcess) {
-      // Use the detached PID to kill the process group. This is more reliable.
-      process.kill(-nextProcess.pid);
+    if (serverProc && !serverProc.killed) {
+       try { process.kill(serverProc.pid); } catch { /* ignore */ }
     }
     app.quit();
   }
 });
 
 app.on('activate', () => {
-  // On macOS it's common to re-create a window in the app when the
-  // dock icon is clicked and there are no other windows open.
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
   }
 });
 
 app.on('before-quit', () => {
-  if (nextProcess) {
-    process.kill(-nextProcess.pid);
+  if (serverProc && !serverProc.killed) {
+    try { process.kill(serverProc.pid); } catch { /* ignore */ }
   }
 });

@@ -87,9 +87,10 @@
     "appId": "com.starweb.app",
     "productName": "STARWEB",
     "files": [
-      ".next/**/*",
-      "node_modules/**/*",
       "electron/**/*",
+      ".next/standalone/**/*",
+      ".next/static/**/*",
+      "public/**/*",
       "package.json"
     ],
     "directories": {
