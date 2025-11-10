@@ -95,6 +95,16 @@
     "directories": {
       "buildResources": "assets",
       "output": "dist"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": true,
+      "allowElevation": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "STARWEB",
+      "installerIcon": "assets/icon.ico"
     }
   }
 }
