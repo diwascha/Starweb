@@ -268,8 +268,8 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
       let poData: Omit<PurchaseOrder, 'id'> = {
         ...values,
         poDate: values.poDate.toISOString(),
-        status: 'Draft',
-        isDraft: true,
+        status: finalize ? 'Ordered' : 'Draft',
+        isDraft: !finalize,
         amendments: poToEdit?.amendments || [],
         createdAt: poToEdit?.createdAt || now,
         createdBy: poToEdit?.createdBy || user.username,
@@ -277,23 +277,26 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         lastModifiedBy: user.username,
       };
 
-      if (finalize) {
-        poData.status = 'Ordered';
-        poData.isDraft = false;
-      }
-
       if (poToEdit) {
-        if (!isCurrentlyDraft) { // It's a finalized order being amended
+        // If it's a finalized order being saved, it's an amendment.
+        // If it's a draft being saved (not finalized), it's just an update, not an amendment.
+        if (!isCurrentlyDraft && !finalize) {
           const newAmendment: Amendment = {
             date: now,
-            remarks: 'Order amended after finalization.',
+            remarks: 'Order details updated after finalization.',
             amendedBy: user.username,
           };
           poData.status = 'Amended';
           poData.amendments = [...(poToEdit.amendments || []), newAmendment];
+        } else if (isCurrentlyDraft && finalize) {
+           poData.status = 'Ordered';
+        } else if (isCurrentlyDraft && !finalize) {
+           poData.status = 'Draft';
         }
+
+
         await updatePurchaseOrder(poToEdit.id, poData);
-        toast({ title: 'Success', description: `Purchase Order ${isCurrentlyDraft && finalize ? 'finalized' : 'updated'}.` });
+        toast({ title: 'Success', description: `Purchase Order ${poData.status.toLowerCase()}.` });
         router.push(finalize || !isCurrentlyDraft ? `/purchase-orders/view?id=${poToEdit.id}` : '/purchase-orders/list');
 
       } else { // creating new
@@ -907,5 +910,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     </div>
   );
 }
+
+    
 
     

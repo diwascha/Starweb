@@ -2,9 +2,8 @@
 'use client';
 import PurchaseOrderView from '../[id]/_components/purchase-order-view';
 import { getPurchaseOrder } from '@/services/purchase-order-service';
-import { getParty } from '@/services/party-service';
 import { useEffect, useState, Suspense } from 'react';
-import type { PurchaseOrder, Party } from '@/lib/types';
+import type { PurchaseOrder } from '@/lib/types';
 import { useSearchParams } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -13,21 +12,13 @@ function PurchaseOrderViewComponent() {
   const searchParams = useSearchParams();
   const id = searchParams.get('id');
   const [initialPurchaseOrder, setInitialPurchaseOrder] = useState<PurchaseOrder | null>(null);
-  const [party, setParty] = useState<Party | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (id) {
       getPurchaseOrder(id).then(poData => {
         setInitialPurchaseOrder(poData);
-        if (poData?.partyId) {
-          getParty(poData.partyId).then(partyData => {
-            setParty(partyData);
-            setLoading(false);
-          });
-        } else {
-          setLoading(false);
-        }
+        setLoading(false);
       });
     } else {
         setLoading(false);
@@ -47,7 +38,7 @@ function PurchaseOrderViewComponent() {
       return <div>Purchase Order not found.</div>;
   }
 
-  return <PurchaseOrderView initialPurchaseOrder={initialPurchaseOrder} party={party} poId={id} />;
+  return <PurchaseOrderView initialPurchaseOrder={initialPurchaseOrder} poId={id} />;
 }
 
 export default function PurchaseOrderPage() {
@@ -64,3 +55,5 @@ export default function PurchaseOrderPage() {
 }
 
 
+
+    

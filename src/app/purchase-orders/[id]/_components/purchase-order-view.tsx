@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState, Fragment } from 'react';
-import type { PurchaseOrder, PurchaseOrderStatus, Party } from '@/lib/types';
+import type { PurchaseOrder, PurchaseOrderStatus } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -20,7 +20,7 @@ import { Switch } from '@/components/ui/switch';
 
 const paperTypes = ['Kraft Paper', 'Virgin Paper'];
 
-export default function PurchaseOrderView({ initialPurchaseOrder, party, poId }: { initialPurchaseOrder: PurchaseOrder | null, party: Party | null, poId?: string }) {
+export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { initialPurchaseOrder: PurchaseOrder | null, poId?: string }) {
   const [purchaseOrder, setPurchaseOrder] = useState<PurchaseOrder | null>(initialPurchaseOrder);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isGeneratingJpg, setIsGeneratingJpg] = useState(false);
@@ -413,3 +413,5 @@ export default function PurchaseOrderView({ initialPurchaseOrder, party, poId }:
     </>
   );
 }
+
+    
