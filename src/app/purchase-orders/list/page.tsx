@@ -102,7 +102,7 @@ export default function PurchaseOrdersListPage() {
 
   const handleOpenDeliveryDialog = (po: PurchaseOrder) => {
     setPoToUpdate(po);
-    setDeliveryDate(new Date());
+    setDeliveryDate(po.deliveryDate ? new Date(po.deliveryDate) : new Date());
     setDeliveryDialogOpen(true);
   };
   
@@ -308,9 +308,15 @@ export default function PurchaseOrdersListPage() {
 
                         {hasPermission('purchaseOrders', 'edit') && (
                             <>
-                                <DropdownMenuItem onSelect={() => handleOpenDeliveryDialog(po)} disabled={po.status === 'Delivered' || po.status === 'Canceled'}>
-                                    <PackageCheck className="mr-2 h-4 w-4" /> Mark as Delivered
-                                </DropdownMenuItem>
+                                {po.status !== 'Delivered' ? (
+                                    <DropdownMenuItem onSelect={() => handleOpenDeliveryDialog(po)} disabled={po.status === 'Delivered' || po.status === 'Canceled'}>
+                                        <PackageCheck className="mr-2 h-4 w-4" /> Mark as Delivered
+                                    </DropdownMenuItem>
+                                ) : (
+                                    <DropdownMenuItem onSelect={() => handleOpenDeliveryDialog(po)}>
+                                        <CalendarIcon className="mr-2 h-4 w-4" /> Change Delivery Date
+                                    </DropdownMenuItem>
+                                )}
                                 <DropdownMenuItem onSelect={() => updatePoStatus(po.id, 'Canceled')} disabled={po.status === 'Delivered' || po.status === 'Canceled'}>
                                     <Ban className="mr-2 h-4 w-4" /> Cancel Order
                                 </DropdownMenuItem>
