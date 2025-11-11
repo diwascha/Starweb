@@ -254,7 +254,7 @@ export default function PurchaseOrdersListPage() {
                 {filteredAndSortedPOs.map(po => (
                 <TableRow key={po.id}>
                     <TableCell className="font-medium">{po.poNumber}</TableCell>
-                    <TableCell>{new Date(po.poDate).toLocaleDateString()}</TableCell>
+                    <TableCell>{toNepaliDate(po.poDate)}</TableCell>
                     <TableCell>{po.companyName}</TableCell>
                     <TableCell>
                         <Badge variant={getStatusBadgeVariant(po.status)}>{po.status}</Badge>
