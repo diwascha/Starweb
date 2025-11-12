@@ -394,7 +394,7 @@ function SavedTdsRecords({ onEdit }: { onEdit: (calculation: TdsCalculation) => 
 }
 
 
-function CalculatorTab({ calculationToEdit, onSaveSuccess }: { calculationToEdit: TdsCalculation | null, onSaveSuccess: () => void }) {
+function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit }: { calculationToEdit: TdsCalculation | null, onSaveSuccess: () => void, onCancelEdit: () => void }) {
   const [amount, setAmount] = useState<number | ''>('');
   const [selectedRateValue, setSelectedRateValue] = useState<string>('1.5');
   const [date, setDate] = useState<Date>(new Date());
@@ -686,6 +686,9 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess }: { calculationToEdit
                     <Button onClick={handlePrint} disabled={!calculationData}>
                         <Printer className="mr-2 h-4 w-4" /> Print / Export
                     </Button>
+                    {calculationToEdit && (
+                        <Button variant="outline" onClick={onCancelEdit}>Cancel Edit</Button>
+                    )}
                 </div>
             </header>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -1003,6 +1006,12 @@ export default function TdsCalculatorPage() {
         setCalculationToEdit(null);
         setActiveTab("history");
     };
+    
+    const handleCancelEdit = () => {
+        setCalculationToEdit(null);
+        // Optionally, switch back to the history tab
+        setActiveTab("history");
+    };
 
     return (
         <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -1011,7 +1020,11 @@ export default function TdsCalculatorPage() {
                 <TabsTrigger value="history">Saved Records</TabsTrigger>
             </TabsList>
             <TabsContent value="calculator">
-                <CalculatorTab calculationToEdit={calculationToEdit} onSaveSuccess={handleSaveSuccess} />
+                <CalculatorTab 
+                    calculationToEdit={calculationToEdit} 
+                    onSaveSuccess={handleSaveSuccess}
+                    onCancelEdit={handleCancelEdit}
+                />
             </TabsContent>
             <TabsContent value="history">
                 <SavedTdsRecords onEdit={handleEdit} />
