@@ -413,12 +413,12 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess }: { calculationToEdit
   const [partySearch, setPartySearch] = useState('');
   const [isPartyPopoverOpen, setIsPartyPopoverOpen] = useState(false);
 
-
-  const [isExporting, setIsExporting] = useState(false);
-  const printRef = useRef<HTMLDivElement>(null);
-  
   const { toast } = useToast();
   const { user } = useAuth();
+  
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const printRef = useRef<HTMLDivElement>(null);
+  const [isExporting, setIsExporting] = useState(false);
   
   useEffect(() => {
     const setNextVoucher = async () => {
@@ -459,23 +459,36 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess }: { calculationToEdit
   
   const selectedRateInfo = tdsRates.find(r => r.value === selectedRateValue);
 
-  const calculateTDS = () => {
+  const { tds, netAmount, vat, totalWithVat, calculationData } = useMemo(() => {
     if (amount === '' || amount <= 0) {
-      return { tds: 0, netAmount: 0, vat: 0, totalWithVat: 0 };
+      return { tds: 0, netAmount: 0, vat: 0, totalWithVat: 0, calculationData: null };
     }
     const rate = parseFloat(selectedRateValue) / 100;
     const vatRate = 0.13;
     
     const taxableAmount = amount;
-    const vat = includeVat ? taxableAmount * vatRate : 0;
-    const totalWithVat = taxableAmount + vat;
-    const tds = taxableAmount * rate;
-    const netAmount = totalWithVat - tds;
+    const vatCalc = includeVat ? taxableAmount * vatRate : 0;
+    const totalWithVatCalc = taxableAmount + vatCalc;
+    const tdsCalc = taxableAmount * rate;
+    const netAmountCalc = totalWithVatCalc - tdsCalc;
+    
+    const data: TdsCalculation = {
+        id: calculationToEdit?.id || '',
+        voucherNo: voucherNo,
+        date: date.toISOString(),
+        partyName: partyName,
+        taxableAmount: taxableAmount,
+        tdsRate: parseFloat(selectedRateValue),
+        tdsAmount: tdsCalc,
+        vatAmount: vatCalc,
+        netPayable: netAmountCalc,
+        createdBy: user?.username || '',
+        createdAt: calculationToEdit?.createdAt || new Date().toISOString(),
+    }
 
-    return { tds, netAmount, vat, totalWithVat };
-  };
+    return { tds: tdsCalc, netAmount: netAmountCalc, vat: vatCalc, totalWithVat: totalWithVatCalc, calculationData: data };
+  }, [amount, selectedRateValue, includeVat, voucherNo, date, partyName, calculationToEdit, user]);
 
-  const { tds, netAmount, vat, totalWithVat } = calculateTDS();
   
   const handleOpenRateDialog = (rate: TdsRate | null = null) => {
     if (rate) {
@@ -508,29 +521,85 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess }: { calculationToEdit
   };
 
   const handlePrint = () => {
-    window.print();
+    setIsPreviewOpen(true);
+  };
+
+  const doActualPrint = () => {
+    const printableArea = printRef.current;
+    if (!printableArea) return;
+    
+    const printWindow = window.open('', '', 'height=800,width=800');
+    printWindow?.document.write('<html><head><title>Print Voucher</title>');
+    printWindow?.document.write('<style>@media print{@page{size: A5;margin:0;}body{margin: 1cm;}}</style>');
+    printWindow?.document.write('</head><body>');
+    printWindow?.document.write(printableArea.innerHTML);
+    printWindow?.document.write('</body></html>');
+    printWindow?.document.close();
+    printWindow?.focus();
+    setTimeout(() => {
+        printWindow?.print();
+        printWindow?.close();
+    }, 250);
   };
 
   const handleExport = async (format: 'pdf' | 'jpg') => {
-      if (!printRef.current) return;
+      if (!calculationData) return;
       setIsExporting(true);
 
-      const canvas = await html2canvas(printRef.current, { scale: 2 });
-      
       if (format === 'pdf') {
-          const pdf = new jsPDF('p', 'mm', 'a4');
-          const imgData = canvas.toDataURL('image/png');
-          const pdfWidth = pdf.internal.pageSize.getWidth();
-          const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-          pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-          pdf.save(`TDS-Calculation-${voucherNo}.pdf`);
-      } else {
-          const link = document.createElement('a');
-          link.download = `TDS-Calculation-${voucherNo}.jpg`;
-          link.href = canvas.toDataURL('image/jpeg');
-          link.click();
+          try {
+            const doc = new jsPDF('p', 'mm', 'a5');
+            const { voucherNo, date, partyName, taxableAmount, vatAmount, tdsRate, tdsAmount, netPayable } = calculationData;
+            
+            doc.setFont('Helvetica', 'bold'); doc.setFontSize(12);
+            doc.text('SHIVAM PACKAGING INDUSTRIES PVT LTD.', doc.internal.pageSize.getWidth() / 2, 10, { align: 'center' });
+            doc.setFont('Helvetica', 'normal'); doc.setFontSize(8);
+            doc.text('HETAUDA 08, BAGMATI PROVIENCE, NEPAL', doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
+            doc.setFont('Helvetica', 'bold'); doc.setFontSize(10);
+            doc.text('TDS ESTIMATE VOUCHER', doc.internal.pageSize.getWidth() / 2, 22, { align: 'center' });
+            doc.setFontSize(8); doc.setFont('Helvetica', 'normal');
+            doc.text(`Voucher No: ${voucherNo}`, 10, 30);
+            doc.text(`Date: ${toNepaliDate(date)} (${format(new Date(date), 'yyyy-MM-dd')})`, doc.internal.pageSize.getWidth() - 10, 30, { align: 'right' });
+            doc.text(`Party Name: ${partyName}`, 10, 35);
+            doc.line(10, 38, doc.internal.pageSize.getWidth() - 10, 38);
+
+            let y = 45;
+            const line = (label: string, value: string, style: 'normal' | 'bold' | 'destructive' = 'normal') => {
+                if (style === 'bold') doc.setFont('Helvetica', 'bold');
+                if (style === 'destructive') doc.setTextColor(220, 53, 69);
+                doc.text(label, 15, y); doc.text(value, doc.internal.pageSize.getWidth() - 15, y, { align: 'right' });
+                y += 7;
+                doc.setFont('Helvetica', 'normal'); doc.setTextColor(0, 0, 0);
+            };
+            line('Taxable Amount', taxableAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 }));
+            if (vatAmount > 0) line('VAT (13%)', `+ ${vatAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`);
+            doc.line(15, y - 4, doc.internal.pageSize.getWidth() - 15, y - 4);
+            line('Total with VAT', (taxableAmount + vatAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 }), 'bold');
+            line(`TDS (${tdsRate}%)`, `- ${tdsAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 'destructive');
+            doc.line(15, y - 4, doc.internal.pageSize.getWidth() - 15, y - 4); y += 2;
+            doc.setFontSize(10);
+            line('Net Payable Amount', `NPR ${netPayable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 'bold');
+            doc.setFontSize(8); y += 5;
+            doc.text(`In Words: ${toWords(netPayable)}`, 10, y);
+            y = doc.internal.pageSize.getHeight() - 20;
+            doc.setFontSize(7); doc.setFont('Helvetica', 'bold');
+            doc.text('Disclaimer:', doc.internal.pageSize.getWidth() / 2, y, { align: 'center' });
+            doc.setFont('Helvetica', 'normal'); y += 4;
+            doc.text('This is a computer-generated voucher and does not require a signature.', doc.internal.pageSize.getWidth() / 2, y, { align: 'center' });
+            doc.save(`TDS-Voucher-${voucherNo}.pdf`);
+          } catch (error) { toast({ title: 'Error', description: 'Failed to export PDF.', variant: 'destructive' }); } 
+          finally { setIsExporting(false); }
+      } else { // JPG
+          if (!printRef.current) { setIsExporting(false); return; }
+           try {
+            const canvas = await html2canvas(printRef.current, { scale: 3, useCORS: true });
+            const link = document.createElement('a');
+            link.download = `TDS-Voucher-${voucherNo}.jpg`;
+            link.href = canvas.toDataURL('image/jpeg', 0.9);
+            link.click();
+        } catch (error) { toast({ title: 'Export Failed', description: `Could not export voucher as JPG.`, variant: 'destructive' }); }
+        finally { setIsExporting(false); }
       }
-      setIsExporting(false);
   };
   
   const resetForm = async () => {
@@ -611,22 +680,14 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess }: { calculationToEdit
                         <Save className="mr-2 h-4 w-4"/>
                         {calculationToEdit ? 'Update Record' : 'Save Record'}
                     </Button>
-                    <Button variant="outline" onClick={() => handleExport('pdf')} disabled={isExporting}>
-                        {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
-                        Save as PDF
-                    </Button>
-                    <Button variant="outline" onClick={() => handleExport('jpg')} disabled={isExporting}>
-                        {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ImageIcon className="mr-2 h-4 w-4"/>}
-                        Save as Image
-                    </Button>
-                    <Button onClick={handlePrint}>
-                        <Printer className="mr-2 h-4 w-4"/> Print
+                    <Button onClick={handlePrint} disabled={!calculationData}>
+                        <Printer className="mr-2 h-4 w-4" /> Print / Export
                     </Button>
                 </div>
             </header>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2">
-                    <Card className="printable-area" ref={printRef}>
+                    <Card>
                         <CardHeader>
                             <CardTitle>Calculate TDS</CardTitle>
                             <CardDescription>
@@ -898,25 +959,28 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess }: { calculationToEdit
                 </DialogContent>
             </Dialog>
 
-            <style jsx global>{`
-                @media print {
-                    body * {
-                        visibility: hidden;
-                    }
-                    .printable-area, .printable-area * {
-                        visibility: visible;
-                    }
-                    .printable-area {
-                        position: absolute;
-                        left: 0;
-                        top: 0;
-                        width: 100%;
-                    }
-                    .print\\:hidden {
-                        display: none;
-                    }
-                }
-            `}</style>
+            <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+                <DialogContent className="max-w-xl">
+                    <DialogHeader>
+                        <DialogTitle>Voucher Preview</DialogTitle>
+                    </DialogHeader>
+                    <div ref={printRef} className="bg-gray-100 p-4">
+                        {calculationData && <TdsVoucherView calculation={calculationData} />}
+                    </div>
+                    <DialogFooter className="sm:justify-end gap-2">
+                        <Button variant="outline" onClick={() => setIsPreviewOpen(false)}>Cancel</Button>
+                        <Button variant="outline" onClick={() => handleExport('jpg')} disabled={isExporting}>
+                            {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ImageIcon className="mr-2 h-4 w-4"/>}
+                             Export as JPG
+                        </Button>
+                        <Button variant="outline" onClick={() => handleExport('pdf')} disabled={isExporting}>
+                            {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
+                            Export as PDF
+                        </Button>
+                        <Button onClick={doActualPrint}><Printer className="mr-2 h-4 w-4" /> Print</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
