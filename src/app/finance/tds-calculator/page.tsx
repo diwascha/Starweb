@@ -45,6 +45,7 @@ import { onPartiesUpdate, addParty } from '@/services/party-service';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 
 
 const initialTdsRates: TdsRate[] = [
@@ -193,6 +194,7 @@ function CalculatorTab() {
   const [date, setDate] = useState<Date>(new Date());
   const [partyName, setPartyName] = useState('');
   const [voucherNo, setVoucherNo] = useState('');
+  const [includeVat, setIncludeVat] = useState(true);
   
   const [parties, setParties] = useState<Party[]>([]);
   const [tdsRates, setTdsRates] = useState<TdsRate[]>(initialTdsRates);
@@ -250,7 +252,7 @@ function CalculatorTab() {
     const vatRate = 0.13;
     
     const taxableAmount = amount;
-    const vat = taxableAmount * vatRate;
+    const vat = includeVat ? taxableAmount * vatRate : 0;
     const totalWithVat = taxableAmount + vat;
     const tds = taxableAmount * rate;
     const netAmount = totalWithVat - tds;
@@ -475,31 +477,35 @@ function CalculatorTab() {
                                     </Popover>
                                 </div>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="amount">Taxable Amount (NPR)</Label>
-                                <Input
-                                id="amount"
-                                type="number"
-                                placeholder="e.g., 50000"
-                                value={amount}
-                                onChange={handleAmountChange}
-                                className="text-base"
-                                />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                                <div className="space-y-2">
+                                    <Label htmlFor="amount">Taxable Amount (NPR)</Label>
+                                    <Input
+                                    id="amount"
+                                    type="number"
+                                    placeholder="e.g., 50000"
+                                    value={amount}
+                                    onChange={handleAmountChange}
+                                    className="text-base"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="payment-nature">Nature of Payment</Label>
+                                    <Select value={selectedRateValue} onValueChange={setSelectedRateValue}>
+                                        <SelectTrigger id="payment-nature">
+                                        <SelectValue placeholder="Select payment type..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                        {tdsRates.map(rate => (
+                                            <SelectItem key={rate.value} value={rate.value}>{rate.label} ({rate.value}%)</SelectItem>
+                                        ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="payment-nature">Nature of Payment</Label>
-                                <Select value={selectedRateValue} onValueChange={setSelectedRateValue}>
-                                    <SelectTrigger id="payment-nature">
-                                    <SelectValue placeholder="Select payment type..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                    {tdsRates.map(rate => (
-                                        <SelectItem key={rate.value} value={rate.value}>{rate.label} ({rate.value}%)</SelectItem>
-                                    ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
+                            <div className="flex items-center space-x-2">
+                                <Switch id="include-vat" checked={includeVat} onCheckedChange={setIncludeVat} />
+                                <Label htmlFor="include-vat">Include VAT (13%) in Calculation</Label>
                             </div>
                             
                             <div className="space-y-4 rounded-lg border bg-muted/50 p-4">
@@ -512,15 +518,17 @@ function CalculatorTab() {
                                     })}
                                 </span>
                                 </div>
-                                <div className="flex justify-between items-center text-sm">
-                                <span className="text-muted-foreground">VAT (13%)</span>
-                                <span className="font-medium">
-                                    + {vat.toLocaleString('en-IN', {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2,
-                                    })}
-                                </span>
-                                </div>
+                                {includeVat && (
+                                    <div className="flex justify-between items-center text-sm">
+                                        <span className="text-muted-foreground">VAT (13%)</span>
+                                        <span className="font-medium">
+                                            + {vat.toLocaleString('en-IN', {
+                                            minimumFractionDigits: 2,
+                                            maximumFractionDigits: 2,
+                                            })}
+                                        </span>
+                                    </div>
+                                )}
                                 <Separator />
                                 <div className="flex justify-between items-center font-semibold">
                                 <span className="text-muted-foreground">Total with VAT</span>
