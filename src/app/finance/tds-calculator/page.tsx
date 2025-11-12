@@ -96,6 +96,10 @@ function TdsVoucherView({ calculation }: { calculation: TdsCalculation }) {
                 <div className="text-center"><div className="border-t border-black w-36 mx-auto"></div><p className="font-semibold mt-1">Prepared By</p></div>
                 <div className="text-center"><div className="border-t border-black w-36 mx-auto"></div><p className="font-semibold mt-1">Approved By</p></div>
             </div>
+             <div className="mt-8 text-center text-xs text-gray-500">
+                <p className="font-bold">Disclaimer:</p>
+                <p>This is a computer-generated voucher and does not require a signature.</p>
+            </div>
         </div>
     );
 }
