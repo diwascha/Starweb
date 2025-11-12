@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, PlusCircle, Edit, Trash2, Printer, Save, Image as ImageIcon, Loader2, Search, ArrowUpDown, ChevronsUpDown, Check, Plus } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Edit, Trash2, Printer, Save, Image as ImageIcon, Loader2, Search, ArrowUpDown, ChevronsUpDown, Check, Plus, MoreHorizontal } from 'lucide-react';
 import { toNepaliDate, toWords, generateNextVoucherNumber } from '@/lib/utils';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { format } from 'date-fns';
@@ -37,7 +37,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
-import { onTdsCalculationsUpdate, addTdsCalculation, getTdsPrefix, deleteTdsCalculation } from '@/services/tds-service';
+import { onTdsCalculationsUpdate, addTdsCalculation, getTdsPrefix, deleteTdsCalculation, updateTdsCalculation } from '@/services/tds-service';
 import type { TdsCalculation, TdsRate, Party, PartyType } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -46,6 +46,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 
 
 const initialTdsRates: TdsRate[] = [
@@ -60,11 +61,54 @@ type SortKey = 'date' | 'voucherNo' | 'partyName' | 'taxableAmount' | 'netPayabl
 type SortDirection = 'asc' | 'desc';
 
 
-function SavedTdsRecords() {
+function TdsVoucherView({ calculation }: { calculation: TdsCalculation }) {
+    const totalWithVat = calculation.taxableAmount + calculation.vatAmount;
+    return (
+        <div className="printable-area space-y-4 p-4 border rounded-lg bg-white text-black">
+            <header className="text-center space-y-1 mb-4">
+              <h1 className="text-xl font-bold">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
+              <p className="text-sm">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
+              <h2 className="text-lg font-semibold underline mt-1">TDS VOUCHER</h2>
+            </header>
+            <div className="grid grid-cols-2 text-xs mb-2 gap-x-4">
+                <div><span className="font-semibold">Voucher No:</span> {calculation.voucherNo}</div>
+                <div className="text-right"><span className="font-semibold">Date:</span> {toNepaliDate(calculation.date)} ({format(new Date(calculation.date), 'yyyy-MM-dd')})</div>
+                <div><span className="font-semibold">Party Name:</span> {calculation.partyName}</div>
+            </div>
+            <Separator className="my-2 bg-gray-300"/>
+            <div className="space-y-2 text-sm p-4">
+                <div className="flex justify-between items-center text-sm">
+                    <span>Taxable Amount</span><span className="font-medium">{calculation.taxableAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                </div>
+                {calculation.vatAmount > 0 && (
+                    <div className="flex justify-between items-center text-sm"><span>VAT (13%)</span><span>+ {calculation.vatAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></div>
+                )}
+                <Separator />
+                <div className="flex justify-between items-center font-semibold"><span>Total with VAT</span><span>{totalWithVat.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></div>
+                <div className="flex justify-between items-center text-destructive"><span>TDS ({calculation.tdsRate}%)</span><span>- {calculation.tdsAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></div>
+                <Separator />
+                <div className="flex justify-between items-center text-lg font-bold"><span>Net Payable Amount</span><span>{calculation.netPayable.toLocaleString('en-IN', { style: 'currency', currency: 'NPR' })}</span></div>
+            </div>
+             <div className="text-sm">
+                <span className="font-semibold">In Words:</span> {toWords(calculation.netPayable)}
+            </div>
+             <div className="mt-8 grid grid-cols-2 gap-8 pt-16 text-xs">
+                <div className="text-center"><div className="border-t border-black w-36 mx-auto"></div><p className="font-semibold mt-1">Prepared By</p></div>
+                <div className="text-center"><div className="border-t border-black w-36 mx-auto"></div><p className="font-semibold mt-1">Approved By</p></div>
+            </div>
+        </div>
+    );
+}
+
+
+function SavedTdsRecords({ onEdit }: { onEdit: (calculation: TdsCalculation) => void }) {
     const [savedCalculations, setSavedCalculations] = useState<TdsCalculation[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
     const { toast } = useToast();
+    
+    const [isVoucherViewOpen, setIsVoucherViewOpen] = useState(false);
+    const [selectedRecordForView, setSelectedRecordForView] = useState<TdsCalculation | null>(null);
 
     useEffect(() => {
         const unsub = onTdsCalculationsUpdate(setSavedCalculations);
@@ -110,7 +154,13 @@ function SavedTdsRecords() {
         }
     };
     
+    const openVoucherView = (record: TdsCalculation) => {
+        setSelectedRecordForView(record);
+        setIsVoucherViewOpen(true);
+    };
+
     return (
+        <>
         <Card>
            <CardHeader>
              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -153,23 +203,36 @@ function SavedTdsRecords() {
                        <TableCell>{calc.tdsAmount.toLocaleString()}</TableCell>
                        <TableCell>{calc.netPayable.toLocaleString()}</TableCell>
                        <TableCell className="text-right">
-                         <AlertDialog>
-                           <AlertDialogTrigger asChild>
-                             <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
-                               <Trash2 className="h-4 w-4" />
-                             </Button>
-                           </AlertDialogTrigger>
-                           <AlertDialogContent>
-                             <AlertDialogHeader>
-                               <AlertDialogTitle>Delete this record?</AlertDialogTitle>
-                               <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
-                             </AlertDialogHeader>
-                             <AlertDialogFooter>
-                               <AlertDialogCancel>Cancel</AlertDialogCancel>
-                               <AlertDialogAction onClick={() => handleDeleteCalculation(calc.id)}>Delete</AlertDialogAction>
-                             </AlertDialogFooter>
-                           </AlertDialogContent>
-                         </AlertDialog>
+                         <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4"/></Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                                <DropdownMenuItem onSelect={() => openVoucherView(calc)}>
+                                    <Printer className="mr-2 h-4 w-4" /> Print / Export
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => onEdit(calc)}>
+                                    <Edit className="mr-2 h-4 w-4" /> Edit
+                                </DropdownMenuItem>
+                                <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">
+                                        <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                    </DropdownMenuItem>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                        <AlertDialogDescription>This will permanently delete the record.</AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleDeleteCalculation(calc.id)}>Delete</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                                </AlertDialog>
+                            </DropdownMenuContent>
+                         </DropdownMenu>
                        </TableCell>
                      </TableRow>
                    ))
@@ -184,11 +247,21 @@ function SavedTdsRecords() {
              </Table>
            </CardContent>
          </Card>
+          <Dialog open={isVoucherViewOpen} onOpenChange={setIsVoucherViewOpen}>
+            <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle>Voucher Preview</DialogTitle>
+                    <DialogDescription>Review, print, or export the TDS voucher.</DialogDescription>
+                </DialogHeader>
+                {selectedRecordForView && <TdsVoucherView calculation={selectedRecordForView} />}
+            </DialogContent>
+         </Dialog>
+        </>
     );
 }
 
 
-function CalculatorTab() {
+function CalculatorTab({ calculationToEdit, onSaveSuccess }: { calculationToEdit: TdsCalculation | null, onSaveSuccess: () => void }) {
   const [amount, setAmount] = useState<number | ''>('');
   const [selectedRateValue, setSelectedRateValue] = useState<string>('1.5');
   const [date, setDate] = useState<Date>(new Date());
@@ -220,7 +293,7 @@ function CalculatorTab() {
     const setNextVoucher = async () => {
         const prefix = await getTdsPrefix();
         const unsub = onTdsCalculationsUpdate(async (calcs) => {
-             if (!partyName && amount === '') {
+             if (!calculationToEdit) {
                 const nextNumber = await generateNextVoucherNumber(calcs, prefix);
                 setVoucherNo(nextNumber);
              }
@@ -234,7 +307,18 @@ function CalculatorTab() {
         };
     };
     setNextVoucher();
-  }, [partyName, amount]);
+  }, [calculationToEdit]);
+
+  useEffect(() => {
+    if (calculationToEdit) {
+        setVoucherNo(calculationToEdit.voucherNo);
+        setDate(new Date(calculationToEdit.date));
+        setPartyName(calculationToEdit.partyName || '');
+        setAmount(calculationToEdit.taxableAmount);
+        setSelectedRateValue(String(calculationToEdit.tdsRate));
+        setIncludeVat(calculationToEdit.vatAmount > 0);
+    }
+  }, [calculationToEdit]);
 
   const sortedParties = useMemo(() => parties.sort((a, b) => a.name.localeCompare(b.name)), [parties]);
 
@@ -323,6 +407,11 @@ function CalculatorTab() {
     setPartyName('');
     setDate(new Date());
     setSelectedRateValue('1.5');
+    const prefix = await getTdsPrefix();
+    onTdsCalculationsUpdate(async (calcs) => {
+        const nextNumber = await generateNextVoucherNumber(calcs, prefix);
+        setVoucherNo(nextNumber);
+    })();
   };
 
   const handleSave = async () => {
@@ -335,7 +424,7 @@ function CalculatorTab() {
         return;
     }
 
-    const calculation: Omit<TdsCalculation, 'id' | 'createdAt'> = {
+    const calculation = {
         voucherNo: voucherNo,
         date: date.toISOString(),
         partyName: partyName,
@@ -344,13 +433,18 @@ function CalculatorTab() {
         tdsAmount: tds,
         vatAmount: vat,
         netPayable: netAmount,
-        createdBy: user.username,
     };
     
     try {
-        await addTdsCalculation(calculation);
-        toast({ title: "Saved!", description: "TDS calculation has been saved." });
+        if (calculationToEdit) {
+            await updateTdsCalculation(calculationToEdit.id, { ...calculation, lastModifiedBy: user.username });
+            toast({ title: "Updated!", description: "TDS calculation has been updated." });
+        } else {
+            await addTdsCalculation({ ...calculation, createdBy: user.username });
+            toast({ title: "Saved!", description: "TDS calculation has been saved." });
+        }
         resetForm();
+        onSaveSuccess();
     } catch (error) {
         toast({ title: "Error", description: "Failed to save calculation.", variant: "destructive" });
     }
@@ -384,7 +478,7 @@ function CalculatorTab() {
                 <div className="flex flex-wrap gap-2">
                     <Button onClick={handleSave}>
                         <Save className="mr-2 h-4 w-4"/>
-                        Save
+                        {calculationToEdit ? 'Update Record' : 'Save Record'}
                     </Button>
                     <Button variant="outline" onClick={() => handleExport('pdf')} disabled={isExporting}>
                         {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
@@ -400,8 +494,8 @@ function CalculatorTab() {
                 </div>
             </header>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2" ref={printRef}>
-                    <Card className="printable-area">
+                <div className="lg:col-span-2">
+                    <Card className="printable-area" ref={printRef}>
                         <CardHeader>
                             <CardTitle>Calculate TDS</CardTitle>
                             <CardDescription>
@@ -697,18 +791,32 @@ function CalculatorTab() {
 }
 
 export default function TdsCalculatorPage() {
+    const [activeTab, setActiveTab] = useState("calculator");
+    const [calculationToEdit, setCalculationToEdit] = useState<TdsCalculation | null>(null);
+
+    const handleEdit = (calculation: TdsCalculation) => {
+        setCalculationToEdit(calculation);
+        setActiveTab("calculator");
+    };
+    
+    const handleSaveSuccess = () => {
+        setCalculationToEdit(null);
+        setActiveTab("history");
+    };
+
     return (
-        <Tabs defaultValue="calculator">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-4">
                 <TabsTrigger value="calculator">TDS Calculator</TabsTrigger>
                 <TabsTrigger value="history">Saved Records</TabsTrigger>
             </TabsList>
             <TabsContent value="calculator">
-                <CalculatorTab />
+                <CalculatorTab calculationToEdit={calculationToEdit} onSaveSuccess={handleSaveSuccess} />
             </TabsContent>
             <TabsContent value="history">
-                <SavedTdsRecords />
+                <SavedTdsRecords onEdit={handleEdit} />
             </TabsContent>
         </Tabs>
     );
 }
+
