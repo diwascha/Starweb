@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { CalendarIcon, PlusCircle, Edit, Trash2, Printer, Save, Image as ImageIcon, Loader2, Search, ArrowUpDown, ChevronsUpDown, Check, Plus, MoreHorizontal } from 'lucide-react';
 import { toNepaliDate, toWords, generateNextVoucherNumber } from '@/lib/utils';
 import { DualCalendar } from '@/components/ui/dual-calendar';
-import { format } from 'date-fns';
+import { format as formatDate, format } from 'date-fns';
 import {
   Dialog,
   DialogContent,
@@ -545,11 +545,11 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit }: { cal
     }, 250);
   };
 
-  const handleExport = async (format: 'pdf' | 'jpg') => {
+  const handleExport = async (formatType: 'pdf' | 'jpg') => {
       if (!calculationData) return;
       setIsExporting(true);
 
-      if (format === 'pdf') {
+      if (formatType === 'pdf') {
           try {
             const doc = new jsPDF('p', 'mm', 'a5');
             const { voucherNo, date, partyName, taxableAmount, vatAmount, tdsRate, tdsAmount, netPayable } = calculationData;
@@ -597,7 +597,7 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit }: { cal
            try {
             const canvas = await html2canvas(printRef.current, { scale: 3, useCORS: true, backgroundColor: '#ffffff' });
             const link = document.createElement('a');
-            link.download = `TDS-Voucher-${voucherNo}.jpg`;
+            link.download = `TDS-Voucher-${calculationData.voucherNo}.jpg`;
             link.href = canvas.toDataURL('image/jpeg', 0.9);
             link.click();
         } catch (error) { console.error('JPG export failed:', error); toast({ title: 'Export Failed', description: `Could not export voucher as JPG.`, variant: 'destructive' }); }
@@ -1009,7 +1009,8 @@ export default function TdsCalculatorPage() {
     
     const handleCancelEdit = () => {
         setCalculationToEdit(null);
-        setActiveTab("history");
+        // Optionally, switch back to history tab
+        // setActiveTab("history");
     };
 
     return (
@@ -1031,5 +1032,5 @@ export default function TdsCalculatorPage() {
         </Tabs>
     );
 }
-
+    
     
