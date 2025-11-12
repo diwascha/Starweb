@@ -182,20 +182,77 @@ function SavedTdsRecords({ onEdit }: { onEdit: (calculation: TdsCalculation) => 
     };
 
     const handleExportPdf = async () => {
-        if (!printRef.current || !selectedRecordForView) return;
+        if (!selectedRecordForView) return;
         setIsExporting(true);
-
         try {
-            const canvas = await html2canvas(printRef.current, { scale: 3, useCORS: true });
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF('p', 'mm', 'a5');
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-            pdf.save(`TDS-Voucher-${selectedRecordForView.voucherNo}.pdf`);
+            const doc = new jsPDF('p', 'mm', 'a5');
+            const { voucherNo, date, partyName, taxableAmount, vatAmount, tdsRate, tdsAmount, netPayable } = selectedRecordForView;
+            
+            // Header
+            doc.setFont('Helvetica', 'bold');
+            doc.setFontSize(12);
+            doc.text('SHIVAM PACKAGING INDUSTRIES PVT LTD.', doc.internal.pageSize.getWidth() / 2, 10, { align: 'center' });
+            
+            doc.setFont('Helvetica', 'normal');
+            doc.setFontSize(8);
+            doc.text('HETAUDA 08, BAGMATI PROVIENCE, NEPAL', doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
+            
+            doc.setFont('Helvetica', 'bold');
+            doc.setFontSize(10);
+            doc.text('TDS ESTIMATE VOUCHER', doc.internal.pageSize.getWidth() / 2, 22, { align: 'center' });
+            
+            // Info
+            doc.setFontSize(8);
+            doc.setFont('Helvetica', 'normal');
+            doc.text(`Voucher No: ${voucherNo}`, 10, 30);
+            doc.text(`Date: ${toNepaliDate(date)} (${format(new Date(date), 'yyyy-MM-dd')})`, doc.internal.pageSize.getWidth() - 10, 30, { align: 'right' });
+            doc.text(`Party Name: ${partyName}`, 10, 35);
+            doc.line(10, 38, doc.internal.pageSize.getWidth() - 10, 38);
+
+            // Body
+            let y = 45;
+            const line = (label: string, value: string, style: 'normal' | 'bold' | 'destructive' = 'normal') => {
+                if (style === 'bold') doc.setFont('Helvetica', 'bold');
+                if (style === 'destructive') doc.setTextColor(220, 53, 69);
+                
+                doc.text(label, 15, y);
+                doc.text(value, doc.internal.pageSize.getWidth() - 15, y, { align: 'right' });
+                y += 7;
+
+                // Reset styles
+                doc.setFont('Helvetica', 'normal');
+                doc.setTextColor(0, 0, 0);
+            };
+            
+            line('Taxable Amount', taxableAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 }));
+            if (vatAmount > 0) line('VAT (13%)', `+ ${vatAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`);
+            
+            doc.line(15, y - 4, doc.internal.pageSize.getWidth() - 15, y - 4);
+            
+            line('Total with VAT', (taxableAmount + vatAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 }), 'bold');
+            line(`TDS (${tdsRate}%)`, `- ${tdsAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 'destructive');
+            
+            doc.line(15, y - 4, doc.internal.pageSize.getWidth() - 15, y - 4);
+            y += 2;
+            doc.setFontSize(10);
+            line('Net Payable Amount', `NPR ${netPayable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 'bold');
+            doc.setFontSize(8);
+            y += 5;
+            doc.text(`In Words: ${toWords(netPayable)}`, 10, y);
+            
+            // Footer
+            y = doc.internal.pageSize.getHeight() - 20;
+            doc.setFontSize(7);
+            doc.setFont('Helvetica', 'bold');
+            doc.text('Disclaimer:', doc.internal.pageSize.getWidth() / 2, y, { align: 'center' });
+            doc.setFont('Helvetica', 'normal');
+            y += 4;
+            doc.text('This is a computer-generated voucher and does not require a signature.', doc.internal.pageSize.getWidth() / 2, y, { align: 'center' });
+
+            doc.save(`TDS-Voucher-${selectedRecordForView.voucherNo}.pdf`);
         } catch (error) {
-            console.error('Failed to export PDF', error);
-            toast({ title: 'Export Failed', description: 'Could not export voucher as PDF.', variant: 'destructive' });
+            console.error('PDF export failed:', error);
+            toast({ title: 'Error', description: 'Failed to export PDF.', variant: 'destructive' });
         } finally {
             setIsExporting(false);
         }
