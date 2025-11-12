@@ -164,14 +164,13 @@ function SavedTdsRecords({ onEdit }: { onEdit: (calculation: TdsCalculation) => 
     };
 
     const handlePrint = () => {
-        const printableArea = printRef.current;
-        if (!printableArea) return;
+        if (!printRef.current) return;
         
         const printWindow = window.open('', '', 'height=800,width=800');
         printWindow?.document.write('<html><head><title>Print Voucher</title>');
         printWindow?.document.write('<style>@media print{@page{size: A5;margin:0;}body{margin: 1cm;}}</style>');
         printWindow?.document.write('</head><body>');
-        printWindow?.document.write(printableArea.innerHTML);
+        printWindow?.document.write(printRef.current.innerHTML);
         printWindow?.document.write('</body></html>');
         printWindow?.document.close();
         printWindow?.focus();
@@ -263,7 +262,7 @@ function SavedTdsRecords({ onEdit }: { onEdit: (calculation: TdsCalculation) => 
         setIsExporting(true);
 
         try {
-            const canvas = await html2canvas(printRef.current, { scale: 3, useCORS: true });
+            const canvas = await html2canvas(printRef.current, { scale: 3, useCORS: true, backgroundColor: '#ffffff' });
             const link = document.createElement('a');
             link.download = `TDS-Voucher-${selectedRecordForView.voucherNo}.jpg`;
             link.href = canvas.toDataURL('image/jpeg', 0.9);
@@ -275,6 +274,7 @@ function SavedTdsRecords({ onEdit }: { onEdit: (calculation: TdsCalculation) => 
             setIsExporting(false);
         }
     };
+
 
     return (
         <>
@@ -370,8 +370,10 @@ function SavedTdsRecords({ onEdit }: { onEdit: (calculation: TdsCalculation) => 
                     <DialogTitle>Voucher Preview</DialogTitle>
                     <DialogDescription>Review, print, or export the TDS voucher.</DialogDescription>
                 </DialogHeader>
-                <div ref={printRef} className="bg-gray-100 p-4">
-                    {selectedRecordForView && <TdsVoucherView calculation={selectedRecordForView} />}
+                <div className="bg-gray-100 p-4">
+                    <div ref={printRef}>
+                      {selectedRecordForView && <TdsVoucherView calculation={selectedRecordForView} />}
+                    </div>
                 </div>
                  <DialogFooter className="sm:justify-end gap-2">
                     <Button variant="outline" onClick={() => setIsVoucherViewOpen(false)}>Cancel</Button>
@@ -521,18 +523,19 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess }: { calculationToEdit
   };
 
   const handlePrint = () => {
-    setIsPreviewOpen(true);
+    if (calculationData) {
+      setIsPreviewOpen(true);
+    }
   };
 
   const doActualPrint = () => {
-    const printableArea = printRef.current;
-    if (!printableArea) return;
+    if (!printRef.current) return;
     
     const printWindow = window.open('', '', 'height=800,width=800');
     printWindow?.document.write('<html><head><title>Print Voucher</title>');
     printWindow?.document.write('<style>@media print{@page{size: A5;margin:0;}body{margin: 1cm;}}</style>');
     printWindow?.document.write('</head><body>');
-    printWindow?.document.write(printableArea.innerHTML);
+    printWindow?.document.write(printRef.current.innerHTML);
     printWindow?.document.write('</body></html>');
     printWindow?.document.close();
     printWindow?.focus();
@@ -592,7 +595,7 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess }: { calculationToEdit
       } else { // JPG
           if (!printRef.current) { setIsExporting(false); return; }
            try {
-            const canvas = await html2canvas(printRef.current, { scale: 3, useCORS: true });
+            const canvas = await html2canvas(printRef.current, { scale: 3, useCORS: true, backgroundColor: '#ffffff' });
             const link = document.createElement('a');
             link.download = `TDS-Voucher-${voucherNo}.jpg`;
             link.href = canvas.toDataURL('image/jpeg', 0.9);
@@ -964,8 +967,10 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess }: { calculationToEdit
                     <DialogHeader>
                         <DialogTitle>Voucher Preview</DialogTitle>
                     </DialogHeader>
-                    <div ref={printRef} className="bg-gray-100 p-4">
+                    <div className="bg-gray-100 p-4">
+                      <div ref={printRef}>
                         {calculationData && <TdsVoucherView calculation={calculationData} />}
+                      </div>
                     </div>
                     <DialogFooter className="sm:justify-end gap-2">
                         <Button variant="outline" onClick={() => setIsPreviewOpen(false)}>Cancel</Button>
