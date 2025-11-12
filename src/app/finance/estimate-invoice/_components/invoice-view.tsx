@@ -47,8 +47,8 @@ export function InvoiceView({
                 <div>
                     <p><span className="font-semibold">Invoice No:</span> {invoiceNumber}</p>
                     <p><span className="font-semibold">Party Name:</span> {party?.name}</p>
-                    <p><span className="font-semibold">Address:</span> {party?.address}</p>
-                    <p><span className="font-semibold">PAN/VAT No:</span> {party?.panNumber}</p>
+                    {party?.address && <p><span className="font-semibold">Address:</span> {party?.address}</p>}
+                    {party?.panNumber && <p><span className="font-semibold">PAN/VAT No:</span> {party?.panNumber}</p>}
                 </div>
                 <div className="text-right">
                     <p><span className="font-semibold">Date:</span> {nepaliDate} BS ({adDate})</p>
@@ -61,7 +61,7 @@ export function InvoiceView({
                 <TableRow className="border-y border-black">
                     <TableHead className="text-black font-semibold h-8 px-2">S.N.</TableHead>
                     <TableHead className="text-black font-semibold h-8 px-2">Particulars</TableHead>
-                    <TableHead className="text-black font-semibold h-8 px-2">Quantity</TableHead>
+                    <TableHead className="text-black font-semibold h-8 px-2 text-right">Quantity</TableHead>
                     <TableHead className="text-black font-semibold h-8 px-2 text-right">Rate</TableHead>
                     <TableHead className="text-black font-semibold h-8 px-2 text-right">Amount</TableHead>
                 </TableRow>
@@ -71,7 +71,7 @@ export function InvoiceView({
                     <TableRow key={item.id} className="border-b border-gray-400">
                         <TableCell className="px-2 py-1">{index + 1}</TableCell>
                         <TableCell className="px-2 py-1">{item.productName}</TableCell>
-                        <TableCell className="px-2 py-1">{item.quantity}</TableCell>
+                        <TableCell className="px-2 py-1 text-right">{item.quantity}</TableCell>
                         <TableCell className="px-2 py-1 text-right">{item.rate.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
                         <TableCell className="px-2 py-1 text-right">{item.gross.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
                     </TableRow>
@@ -80,7 +80,7 @@ export function InvoiceView({
             <TableFooter>
                 <TableRow>
                     <TableCell colSpan={2} className="text-right font-bold">Total Quantity</TableCell>
-                    <TableCell className="font-bold">{totalQuantity.toLocaleString()}</TableCell>
+                    <TableCell className="font-bold text-right">{totalQuantity.toLocaleString()}</TableCell>
                     <TableCell className="text-right font-bold">Gross Total</TableCell>
                     <TableCell className="text-right font-bold">{grossTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
                 </TableRow>

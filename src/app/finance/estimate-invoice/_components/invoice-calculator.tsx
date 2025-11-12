@@ -286,28 +286,28 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
 
             doc.setFont('Helvetica', 'normal');
             doc.setFontSize(10);
-            doc.text('HETAUDA 08, BAGMATI PROVIENCE, NEPAL', doc.internal.pageSize.getWidth() / 2, 28, { align: 'center' });
+            doc.text('HETAUDA 08, BAGMATI PROVIENCE, NEPAL', doc.internal.pageSize.getWidth() / 2, 22, { align: 'center' });
 
             doc.setFont('Helvetica', 'bold');
             doc.setFontSize(14);
-            doc.text('ESTIMATE INVOICE', doc.internal.pageSize.getWidth() / 2, 36, { align: 'center' });
+            doc.text('ESTIMATE INVOICE', doc.internal.pageSize.getWidth() / 2, 32, { align: 'center' });
 
             // Info
             doc.setFontSize(10);
             doc.setFont('Helvetica', 'normal');
-            doc.text(`Invoice No: ${invoiceNumber}`, 14, 48);
-            doc.text(`Party Name: ${party.name}`, 14, 53);
-            if (party.address) doc.text(`Address: ${party.address}`, 14, 58);
-            if (party.panNumber) doc.text(`PAN/VAT No: ${party.panNumber}`, 14, 63);
+            doc.text(`Invoice No: ${invoiceNumber}`, 14, 42);
+            doc.text(`Party Name: ${party.name}`, 14, 47);
+            if (party.address) doc.text(`Address: ${party.address}`, 14, 52);
+            if (party.panNumber) doc.text(`PAN/VAT No: ${party.panNumber}`, 14, 57);
 
             const nepaliDate = toNepaliDate(date);
             const adDate = format(new Date(date), 'yyyy-MM-dd');
-            doc.text(`Date: ${nepaliDate} BS (${adDate})`, doc.internal.pageSize.getWidth() - 14, 48, { align: 'right' });
+            doc.text(`Date: ${nepaliDate} BS (${adDate})`, doc.internal.pageSize.getWidth() - 14, 42, { align: 'right' });
 
 
             // Table
             (doc as any).autoTable({
-                startY: 70,
+                startY: 65,
                 head: [['S.N.', 'Particulars', 'Quantity', 'Rate', 'Amount']],
                 body: items.map((item, index) => [
                     index + 1,
