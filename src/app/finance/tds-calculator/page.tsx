@@ -68,7 +68,7 @@ function TdsVoucherView({ calculation }: { calculation: TdsCalculation }) {
             <header className="text-center space-y-1 mb-4">
               <h1 className="text-xl font-bold">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
               <p className="text-sm">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
-              <h2 className="text-lg font-semibold underline mt-1">TDS VOUCHER</h2>
+              <h2 className="text-lg font-semibold underline mt-1">TDS ESTIMATE VOUCHER</h2>
             </header>
             <div className="grid grid-cols-2 text-xs mb-2 gap-x-4">
                 <div><span className="font-semibold">Voucher No:</span> {calculation.voucherNo}</div>
@@ -92,11 +92,7 @@ function TdsVoucherView({ calculation }: { calculation: TdsCalculation }) {
              <div className="text-sm">
                 <span className="font-semibold">In Words:</span> {toWords(calculation.netPayable)}
             </div>
-             <div className="mt-8 grid grid-cols-2 gap-8 pt-16 text-xs">
-                <div className="text-center"><div className="border-t border-black w-36 mx-auto"></div><p className="font-semibold mt-1">Prepared By</p></div>
-                <div className="text-center"><div className="border-t border-black w-36 mx-auto"></div><p className="font-semibold mt-1">Approved By</p></div>
-            </div>
-             <div className="mt-8 text-center text-xs text-gray-500">
+             <div className="mt-16 text-center text-xs text-gray-500">
                 <p className="font-bold">Disclaimer:</p>
                 <p>This is a computer-generated voucher and does not require a signature.</p>
             </div>
@@ -823,4 +819,3 @@ export default function TdsCalculatorPage() {
         </Tabs>
     );
 }
-
