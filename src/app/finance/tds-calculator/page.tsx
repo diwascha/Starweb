@@ -203,9 +203,9 @@ function SavedTdsRecords({ onEdit }: { onEdit: (calculation: TdsCalculation) => 
             // Info
             doc.setFontSize(8);
             doc.setFont('Helvetica', 'normal');
-            doc.text(`Voucher No: ${voucherNo}`, 10, 30);
+            doc.text(`Voucher No: ${voucherNo || 'N/A'}`, 10, 30);
             doc.text(`Date: ${toNepaliDate(date)} (${format(new Date(date), 'yyyy-MM-dd')})`, doc.internal.pageSize.getWidth() - 10, 30, { align: 'right' });
-            doc.text(`Party Name: ${partyName}`, 10, 35);
+            doc.text(`Party Name: ${partyName || 'N/A'}`, 10, 35);
             doc.line(10, 38, doc.internal.pageSize.getWidth() - 10, 38);
 
             // Body
@@ -561,9 +561,9 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit }: { cal
             doc.setFont('Helvetica', 'bold'); doc.setFontSize(10);
             doc.text('TDS ESTIMATE VOUCHER', doc.internal.pageSize.getWidth() / 2, 22, { align: 'center' });
             doc.setFontSize(8); doc.setFont('Helvetica', 'normal');
-            doc.text(`Voucher No: ${voucherNo}`, 10, 30);
+            doc.text(`Voucher No: ${voucherNo || 'N/A'}`, 10, 30);
             doc.text(`Date: ${toNepaliDate(date)} (${format(new Date(date), 'yyyy-MM-dd')})`, doc.internal.pageSize.getWidth() - 10, 30, { align: 'right' });
-            doc.text(`Party Name: ${partyName}`, 10, 35);
+            doc.text(`Party Name: ${partyName || 'N/A'}`, 10, 35);
             doc.line(10, 38, doc.internal.pageSize.getWidth() - 10, 38);
 
             let y = 45;
@@ -590,7 +590,7 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit }: { cal
             doc.setFont('Helvetica', 'normal'); y += 4;
             doc.text('This is a computer-generated voucher and does not require a signature.', doc.internal.pageSize.getWidth() / 2, y, { align: 'center' });
             doc.save(`TDS-Voucher-${voucherNo}.pdf`);
-          } catch (error) { toast({ title: 'Error', description: 'Failed to export PDF.', variant: 'destructive' }); } 
+          } catch (error) { console.error('PDF export failed:', error); toast({ title: 'Error', description: 'Failed to export PDF.', variant: 'destructive' }); } 
           finally { setIsExporting(false); }
       } else { // JPG
           if (!printRef.current) { setIsExporting(false); return; }
@@ -600,7 +600,7 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit }: { cal
             link.download = `TDS-Voucher-${voucherNo}.jpg`;
             link.href = canvas.toDataURL('image/jpeg', 0.9);
             link.click();
-        } catch (error) { toast({ title: 'Export Failed', description: `Could not export voucher as JPG.`, variant: 'destructive' }); }
+        } catch (error) { console.error('JPG export failed:', error); toast({ title: 'Export Failed', description: `Could not export voucher as JPG.`, variant: 'destructive' }); }
         finally { setIsExporting(false); }
       }
   };
@@ -1009,7 +1009,6 @@ export default function TdsCalculatorPage() {
     
     const handleCancelEdit = () => {
         setCalculationToEdit(null);
-        // Optionally, switch back to the history tab
         setActiveTab("history");
     };
 
@@ -1032,3 +1031,5 @@ export default function TdsCalculatorPage() {
         </Tabs>
     );
 }
+
+    
