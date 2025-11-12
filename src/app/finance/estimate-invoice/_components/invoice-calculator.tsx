@@ -11,7 +11,7 @@ import { cn, toWords, toNepaliDate, generateNextEstimateInvoiceNumber } from '@/
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { onPartiesUpdate, addParty, updateParty, getPartyByName } from '@/services/party-service';
-import { onProductsUpdate, updateProduct } from '@/services/product-service';
+import { onProductsUpdate, addProduct, updateProduct } from '@/services/product-service';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { useAuth } from '@/hooks/use-auth';
@@ -33,6 +33,12 @@ interface InvoiceCalculatorProps {
   onSaveSuccess: () => void;
 }
 
+interface AddProductDialogState {
+    isOpen: boolean;
+    rowIndex: number | null;
+    searchQuery: string;
+}
+
 
 export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalculatorProps) {
     const [date, setDate] = useState<Date>(new Date());
@@ -41,8 +47,8 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
     const [items, setItems] = useState<EstimateInvoiceItem[]>([]);
     
     const [allInvoices, setAllInvoices] = useState<EstimatedInvoice[]>([]);
-    const [parties, setParties] = useState<Party[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
+    const [parties, setParties] = useState<Party[]>([]);
 
     const { toast } = useToast();
     const { user } = useAuth();
@@ -58,6 +64,9 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
     const printRef = React.useRef<HTMLDivElement>(null);
     const [isExporting, setIsExporting] = useState(false);
+    
+    const [addProductDialog, setAddProductDialog] = useState<AddProductDialogState>({ isOpen: false, rowIndex: null, searchQuery: '' });
+    const [newProductForm, setNewProductForm] = useState({ name: '', materialCode: '', rate: '' });
 
 
     useEffect(() => {
@@ -366,6 +375,61 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
             setIsExporting(false);
         }
     };
+    
+    const handleOpenAddProductDialog = (rowIndex: number, currentSearch: string) => {
+        setNewProductForm({ name: currentSearch, materialCode: '', rate: '' });
+        setAddProductDialog({ isOpen: true, rowIndex, searchQuery: currentSearch });
+    };
+
+    const handleAddNewProduct = async () => {
+        if (!user || !party) {
+            toast({ title: 'Error', description: 'A party must be selected to add a new product.' });
+            return;
+        }
+
+        const { name, rate } = newProductForm;
+        if (!name.trim() || !rate.trim()) {
+            toast({ title: 'Validation Error', description: 'Product Name and Rate are required.', variant: 'destructive' });
+            return;
+        }
+
+        let materialCode = newProductForm.materialCode.trim();
+        if (!materialCode) {
+            const partyPrefix = party.name.substring(0, 3).toUpperCase();
+            const randomNum = Math.floor(100 + Math.random() * 900);
+            materialCode = `${partyPrefix}${randomNum}`;
+        }
+        
+        try {
+            const newProductData: Omit<Product, 'id'> = {
+                name: name.trim(),
+                materialCode,
+                partyId: party.id,
+                partyName: party.name,
+                rate: parseFloat(rate),
+                specification: {},
+                createdBy: user.username,
+                createdAt: new Date().toISOString(),
+            };
+
+            const newProductId = await addProduct(newProductData);
+            const newProduct = { ...newProductData, id: newProductId };
+            setProducts(prev => [...prev, newProduct]); // Manually update local state
+            
+            toast({ title: 'Success', description: 'New product added.' });
+
+            if (addProductDialog.rowIndex !== null) {
+                handleItemChange(addProductDialog.rowIndex, 'productName', newProduct.name);
+                handleItemChange(addProductDialog.rowIndex, 'rate', newProduct.rate || 0);
+            }
+            
+            setAddProductDialog({ isOpen: false, rowIndex: null, searchQuery: '' });
+
+        } catch (error) {
+            toast({ title: 'Error', description: 'Failed to add new product.', variant: 'destructive' });
+        }
+    };
+
 
 
     return (
@@ -469,9 +533,16 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
                                         </PopoverTrigger>
                                         <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
                                             <Command>
-                                                <CommandInput placeholder="Search product..." />
+                                                <CommandInput 
+                                                    placeholder="Search product..."
+                                                    onValueChange={(search) => setAddProductDialog(prev => ({ ...prev, searchQuery: search }))}
+                                                />
                                                 <CommandList>
-                                                    <CommandEmpty>No products found.</CommandEmpty>
+                                                    <CommandEmpty>
+                                                        <Button variant="ghost" className="w-full justify-start" onClick={() => handleOpenAddProductDialog(index, addProductDialog.searchQuery)}>
+                                                            <PlusCircle className="mr-2 h-4 w-4" /> Add "{addProductDialog.searchQuery}"
+                                                        </Button>
+                                                    </CommandEmpty>
                                                     <CommandGroup>
                                                         {products.map(p => (
                                                             <CommandItem key={p.id} value={p.name} onSelect={() => handleItemChange(index, 'productName', p.name)}>
@@ -571,6 +642,35 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsPartyDialogOpen(false)}>Cancel</Button>
                         <Button onClick={handleSubmitParty}>{editingParty ? 'Save Changes' : 'Add Party'}</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+             <Dialog open={addProductDialog.isOpen} onOpenChange={(isOpen) => setAddProductDialog(prev => ({ ...prev, isOpen }))}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Add New Product</DialogTitle>
+                         <DialogDescription>
+                            Quickly add a new product that is not in the list.
+                        </DialogDescription>
+                    </DialogHeader>
+                     <div className="grid gap-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="new-product-name">Product Name</Label>
+                            <Input id="new-product-name" value={newProductForm.name} onChange={e => setNewProductForm(p => ({...p, name: e.target.value}))} />
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="new-material-code">Material Code (Optional)</Label>
+                            <Input id="new-material-code" value={newProductForm.materialCode} onChange={e => setNewProductForm(p => ({...p, materialCode: e.target.value}))} placeholder="Auto-generated if blank" />
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="new-product-rate">Rate</Label>
+                            <Input id="new-product-rate" type="number" value={newProductForm.rate} onChange={e => setNewProductForm(p => ({...p, rate: e.target.value}))} />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setAddProductDialog({ isOpen: false, rowIndex: null, searchQuery: '' })}>Cancel</Button>
+                        <Button onClick={handleAddNewProduct}>Add Product</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
