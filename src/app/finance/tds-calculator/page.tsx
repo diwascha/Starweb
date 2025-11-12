@@ -110,6 +110,10 @@ function SavedTdsRecords({ onEdit }: { onEdit: (calculation: TdsCalculation) => 
     const [isVoucherViewOpen, setIsVoucherViewOpen] = useState(false);
     const [selectedRecordForView, setSelectedRecordForView] = useState<TdsCalculation | null>(null);
 
+    const [isExporting, setIsExporting] = useState(false);
+    const printRef = useRef<HTMLDivElement>(null);
+
+
     useEffect(() => {
         const unsub = onTdsCalculationsUpdate(setSavedCalculations);
         return () => unsub();
@@ -157,6 +161,62 @@ function SavedTdsRecords({ onEdit }: { onEdit: (calculation: TdsCalculation) => 
     const openVoucherView = (record: TdsCalculation) => {
         setSelectedRecordForView(record);
         setIsVoucherViewOpen(true);
+    };
+
+    const handlePrint = () => {
+        const printableArea = printRef.current;
+        if (!printableArea) return;
+        
+        const printWindow = window.open('', '', 'height=800,width=800');
+        printWindow?.document.write('<html><head><title>Print Voucher</title>');
+        printWindow?.document.write('<style>@media print{@page{size: A5;margin:0;}body{margin: 1cm;}}</style>');
+        printWindow?.document.write('</head><body>');
+        printWindow?.document.write(printableArea.innerHTML);
+        printWindow?.document.write('</body></html>');
+        printWindow?.document.close();
+        printWindow?.focus();
+        setTimeout(() => {
+            printWindow?.print();
+            printWindow?.close();
+        }, 250);
+    };
+
+    const handleExportPdf = async () => {
+        if (!printRef.current || !selectedRecordForView) return;
+        setIsExporting(true);
+
+        try {
+            const canvas = await html2canvas(printRef.current, { scale: 3, useCORS: true });
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF('p', 'mm', 'a5');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            pdf.save(`TDS-Voucher-${selectedRecordForView.voucherNo}.pdf`);
+        } catch (error) {
+            console.error('Failed to export PDF', error);
+            toast({ title: 'Export Failed', description: 'Could not export voucher as PDF.', variant: 'destructive' });
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+    const handleExportJpg = async () => {
+        if (!printRef.current || !selectedRecordForView) return;
+        setIsExporting(true);
+
+        try {
+            const canvas = await html2canvas(printRef.current, { scale: 3, useCORS: true });
+            const link = document.createElement('a');
+            link.download = `TDS-Voucher-${selectedRecordForView.voucherNo}.jpg`;
+            link.href = canvas.toDataURL('image/jpeg', 0.9);
+            link.click();
+        } catch (error) {
+            console.error(`Failed to export as JPG`, error);
+            toast({ title: 'Export Failed', description: `Could not export voucher as JPG.`, variant: 'destructive' });
+        } finally {
+            setIsExporting(false);
+        }
     };
 
     return (
@@ -248,12 +308,26 @@ function SavedTdsRecords({ onEdit }: { onEdit: (calculation: TdsCalculation) => 
            </CardContent>
          </Card>
           <Dialog open={isVoucherViewOpen} onOpenChange={setIsVoucherViewOpen}>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-xl">
                 <DialogHeader>
                     <DialogTitle>Voucher Preview</DialogTitle>
                     <DialogDescription>Review, print, or export the TDS voucher.</DialogDescription>
                 </DialogHeader>
-                {selectedRecordForView && <TdsVoucherView calculation={selectedRecordForView} />}
+                <div ref={printRef} className="bg-gray-100 p-4">
+                    {selectedRecordForView && <TdsVoucherView calculation={selectedRecordForView} />}
+                </div>
+                 <DialogFooter className="sm:justify-end gap-2">
+                    <Button variant="outline" onClick={() => setIsVoucherViewOpen(false)}>Cancel</Button>
+                    <Button variant="outline" onClick={handleExportJpg} disabled={isExporting}>
+                        {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ImageIcon className="mr-2 h-4 w-4"/>}
+                         Export as JPG
+                    </Button>
+                    <Button variant="outline" onClick={handleExportPdf} disabled={isExporting}>
+                        {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
+                        Export as PDF
+                    </Button>
+                    <Button onClick={handlePrint}><Printer className="mr-2 h-4 w-4" /> Print</Button>
+                </DialogFooter>
             </DialogContent>
          </Dialog>
         </>
