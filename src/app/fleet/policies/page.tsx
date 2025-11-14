@@ -265,65 +265,65 @@ export default function PoliciesPage() {
 
 
     const handleSubmit = async () => {
-      if (!user) return;
+        if (!user) return;
 
-      if (!formState.type || !formState.provider || !formState.policyNumber || !formState.memberId) {
-        toast({
-          title: 'Error',
-          description: 'Type, Provider, Policy Number, and associated Vehicle/Driver are required.',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      const nowIso = new Date().toISOString();
-
-      try {
-        if (editingPolicy && !isRenewal) {
-          // Normal edit of an existing record
-          const updatedData: Partial<Omit<PolicyOrMembership, 'id'>> = {
-            ...formState,
-            lastModifiedBy: user.username,
-            lastModifiedAt: nowIso,
-          };
-          await updatePolicy(editingPolicy.id, updatedData);
-          toast({ title: 'Success', description: 'Record updated.' });
-        } else {
-          // New record (either fresh add OR renewal)
-          const newData: Omit<PolicyOrMembership, 'id' | 'createdAt' | 'lastModifiedAt'> = {
-            ...formState,
-            status: 'Active',
-            createdBy: user.username,
-          };
-
-          const newPolicyId = await addPolicy(newData);
-
-          // If renewing, mark the old policy as Renewed and point it to this one
-          if (isRenewal && formState.renewedFromId) {
-            await updatePolicy(formState.renewedFromId, {
-              status: 'Renewed',
-              renewedToId: newPolicyId,
-              lastModifiedBy: user.username,
-              lastModifiedAt: nowIso,
+        if (!formState.type || !formState.provider || !formState.policyNumber || !formState.memberId) {
+            toast({
+            title: 'Error',
+            description: 'Type, Provider, Policy Number, and associated Vehicle/Driver are required.',
+            variant: 'destructive',
             });
-          }
-
-          toast({
-            title: 'Success',
-            description: `New record ${isRenewal ? 'for renewal ' : ''}added.`,
-          });
+            return;
         }
 
-        setIsDialogOpen(false);
-        resetForm();
-      } catch (error) {
-        console.error(error);
-        toast({
-          title: 'Error',
-          description: 'Failed to save record.',
-          variant: 'destructive',
-        });
-      }
+        const nowIso = new Date().toISOString();
+
+        try {
+            if (editingPolicy && !isRenewal) {
+            // Normal edit of an existing record
+            const updatedData: Partial<Omit<PolicyOrMembership, 'id'>> = {
+                ...formState,
+                lastModifiedBy: user.username,
+                lastModifiedAt: nowIso,
+            };
+            await updatePolicy(editingPolicy.id, updatedData);
+            toast({ title: 'Success', description: 'Record updated.' });
+            } else {
+            // New record (either fresh add OR renewal)
+            const newData: Omit<PolicyOrMembership, 'id' | 'createdAt' | 'lastModifiedAt'> = {
+                ...formState,
+                status: 'Active',
+                createdBy: user.username,
+            };
+
+            const newPolicyId = await addPolicy(newData);
+
+            // If renewing, mark the old policy as Renewed and point it to this one
+            if (isRenewal && formState.renewedFromId) {
+                await updatePolicy(formState.renewedFromId, {
+                status: 'Renewed',
+                renewedToId: newPolicyId,
+                lastModifiedBy: user.username,
+                lastModifiedAt: nowIso,
+                });
+            }
+
+            toast({
+                title: 'Success',
+                description: `New record ${isRenewal ? 'for renewal ' : ''}added.`,
+            });
+            }
+
+            setIsDialogOpen(false);
+            resetForm();
+        } catch (error) {
+            console.error(error);
+            toast({
+            title: 'Error',
+            description: 'Failed to save record.',
+            variant: 'destructive',
+            });
+        }
     };
 
     const handleDelete = async (id: string) => {
@@ -550,7 +550,7 @@ export default function PoliciesPage() {
                                                 <DropdownMenuItem onSelect={() => handleOpenDialog(policy)}>
                                                     <Edit className="mr-2 h-4 w-4" /> Edit
                                                 </DropdownMenuItem>
-                                                 {(policy.status === 'Active' || !policy.status) && (
+                                                {(policy.status === 'Active' || !policy.status) && (
                                                     <DropdownMenuItem onSelect={() => handleArchive(policy)}>
                                                         <Archive className="mr-2 h-4 w-4" /> Move to History
                                                     </DropdownMenuItem>
