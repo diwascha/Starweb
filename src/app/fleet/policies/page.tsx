@@ -43,7 +43,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { onPoliciesUpdate, addPolicy, updatePolicy, deletePolicy } from '@/services/policy-service';
 import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onDriversUpdate } from '@/services/driver-service';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 
 
@@ -82,7 +81,6 @@ export default function PoliciesPage() {
     
     const [filterMemberType, setFilterMemberType] = useState<'All' | 'Vehicle' | 'Driver'>('All');
     const [filterMemberId, setFilterMemberId] = useState<string>('All');
-    const [activeTab, setActiveTab] = useState('current');
 
 
     const { toast } = useToast();
@@ -267,62 +265,52 @@ export default function PoliciesPage() {
 
     const handleSubmit = async () => {
         if (!user) return;
-
         if (!formState.type || !formState.provider || !formState.policyNumber || !formState.memberId) {
             toast({
-            title: 'Error',
-            description: 'Type, Provider, Policy Number, and associated Vehicle/Driver are required.',
-            variant: 'destructive',
+                title: 'Error',
+                description: 'Type, Provider, Policy Number, and associated Vehicle/Driver are required.',
+                variant: 'destructive',
             });
             return;
         }
-
         const nowIso = new Date().toISOString();
-
         try {
             if (editingPolicy && !isRenewal) {
-            // ✅ Normal edit of an existing record
-            const updatedData: Partial<Omit<PolicyOrMembership, 'id'>> = {
-                ...formState,
-                lastModifiedBy: user.username,
-                lastModifiedAt: nowIso,
-            };
-            await updatePolicy(editingPolicy.id, updatedData);
-            toast({ title: 'Success', description: 'Record updated.' });
+                const updatedData: Partial<Omit<PolicyOrMembership, 'id'>> = {
+                    ...formState,
+                    lastModifiedBy: user.username,
+                    lastModifiedAt: nowIso,
+                };
+                await updatePolicy(editingPolicy.id, updatedData);
+                toast({ title: 'Success', description: 'Record updated.' });
             } else {
-            // ✅ New record (either fresh add OR renewal)
-            const newData: Omit<PolicyOrMembership, 'id' | 'createdAt' | 'lastModifiedAt' | 'renewedToId'> = {
-                ...formState,
-                status: 'Active',
-                createdBy: user.username,
-            };
-
-            const newPolicyId = await addPolicy(newData);
-
-            // If renewing, mark the old policy as Renewed and point it to this one
-            if (isRenewal && formState.renewedFromId) {
-                await updatePolicy(formState.renewedFromId, {
-                status: 'Renewed',
-                renewedToId: newPolicyId,
-                lastModifiedBy: user.username,
-                lastModifiedAt: nowIso,
+                const newData: Omit<PolicyOrMembership, 'id' | 'createdAt' | 'lastModifiedAt'|'renewedToId'> = {
+                    ...formState,
+                    status: 'Active',
+                    createdBy: user.username,
+                };
+                const newPolicyId = await addPolicy(newData);
+                if (isRenewal && formState.renewedFromId) {
+                    await updatePolicy(formState.renewedFromId, {
+                        status: 'Renewed',
+                        renewedToId: newPolicyId,
+                        lastModifiedBy: user.username,
+                        lastModifiedAt: nowIso,
+                    });
+                }
+                toast({
+                    title: 'Success',
+                    description: `New record ${isRenewal ? 'for renewal ' : ''}added.`,
                 });
             }
-
-            toast({
-                title: 'Success',
-                description: `New record ${isRenewal ? 'for renewal ' : ''}added.`,
-            });
-            }
-
             setIsDialogOpen(false);
             resetForm();
         } catch (error) {
             console.error(error);
             toast({
-            title: 'Error',
-            description: 'Failed to save record.',
-            variant: 'destructive',
+                title: 'Error',
+                description: 'Failed to save record.',
+                variant: 'destructive',
             });
         }
     };
@@ -339,7 +327,7 @@ export default function PoliciesPage() {
         } catch (error) {
           toast({ title: 'Error', description: 'Failed to archive policy.', variant: 'destructive' });
         }
-      };
+    };
       
 
     const handleDelete = async (id: string) => {
@@ -360,13 +348,16 @@ export default function PoliciesPage() {
     };
 
     const sortedAndFilteredPolicies = useMemo(() => {
-        const today = startOfToday();
         let augmentedPolicies = policies.map(p => {
-            const daysRemaining = differenceInDays(new Date(p.endDate), today);
+            const daysRemaining = differenceInDays(new Date(p.endDate), startOfToday());
             
-            let derivedStatus: 'Active' | 'Expired' = 'Active';
-            if (p.status !== 'Renewed' && p.status !== 'Archived' && isPast(new Date(p.endDate))) {
+            let derivedStatus: 'Active' | 'Expired';
+            if (p.status === 'Renewed' || p.status === 'Archived') {
+                derivedStatus = 'Expired'; // Treat them as non-active
+            } else if (isPast(new Date(p.endDate))) {
                 derivedStatus = 'Expired';
+            } else {
+                derivedStatus = 'Active';
             }
 
             return {
@@ -393,24 +384,6 @@ export default function PoliciesPage() {
                 augmentedPolicies = augmentedPolicies.filter(p => p.memberId === filterMemberId);
             }
         }
-        
-        if (activeTab === 'history') {
-          // 🕓 History: anything that’s clearly not the latest
-          augmentedPolicies = augmentedPolicies.filter(
-            p =>
-              p.status === 'Renewed' ||
-              p.status === 'Archived' ||
-              !!p.renewedToId // if it points forward, it's definitely an old version
-          );
-        } else {
-          // ✅ Current: only policies that are not superseded
-          augmentedPolicies = augmentedPolicies.filter(
-            p =>
-              (p.status === 'Active' || p.status === undefined || p.status === null) &&
-              !p.renewedToId
-          );
-        }
-          
 
         augmentedPolicies.sort((a, b) => {
             if (sortConfig.key === 'authorship') {
@@ -429,7 +402,7 @@ export default function PoliciesPage() {
             return 0;
         });
         return augmentedPolicies;
-    }, [policies, searchQuery, filterMemberType, filterMemberId, activeTab, sortConfig, membersById]);
+    }, [policies, searchQuery, filterMemberType, filterMemberId, sortConfig, membersById]);
 
     const getStatusBadgeVariant = (status: 'Active' | 'Expired') => {
         switch (status) {
@@ -525,11 +498,6 @@ export default function PoliciesPage() {
                                                 <DropdownMenuItem onSelect={() => handleOpenDialog(policy)}>
                                                     <Edit className="mr-2 h-4 w-4" /> Edit
                                                 </DropdownMenuItem>
-                                                {(policy.status === 'Active' || !policy.status) && !policy.renewedToId && (
-                                                    <DropdownMenuItem onSelect={() => handleArchive(policy)}>
-                                                        <Archive className="mr-2 h-4 w-4" /> Move to History
-                                                    </DropdownMenuItem>
-                                                )}
                                                 </>
                                             )}
                                             {hasPermission('fleet', 'delete') && hasPermission('fleet', 'edit') && <DropdownMenuSeparator />}
@@ -573,57 +541,43 @@ export default function PoliciesPage() {
                         </div>
                     </header>
                     
-                    <Tabs value={activeTab} onValueChange={setActiveTab}>
-                        <TabsList>
-                            <TabsTrigger value="current">Current Policies</TabsTrigger>
-                            <TabsTrigger value="history">Renewal History</TabsTrigger>
-                        </TabsList>
-                        
-                         {policies.length > 0 && (
-                            <div className="flex flex-col md:flex-row gap-2 mt-4">
-                                <div className="relative flex-1">
-                                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                        type="search"
-                                        placeholder="Search records..."
-                                        className="pl-8 w-full"
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                    />
-                                </div>
-                                <div className="flex gap-2">
-                                    <Select value={filterMemberType} onValueChange={(value: 'All' | 'Vehicle' | 'Driver') => setFilterMemberType(value)}>
-                                        <SelectTrigger className="w-full md:w-[150px]">
-                                            <SelectValue placeholder="Filter by type..." />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="All">All Types</SelectItem>
-                                            <SelectItem value="Vehicle">Vehicles</SelectItem>
-                                            <SelectItem value="Driver">Drivers</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    <Select value={filterMemberId} onValueChange={setFilterMemberId} disabled={filterMemberType === 'All'}>
-                                        <SelectTrigger className="w-full md:w-[200px]">
-                                            <SelectValue placeholder={`Filter ${filterMemberType}...`} />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="All">All {filterMemberType}s</SelectItem>
-                                            {filterMemberType === 'Vehicle' && vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
-                                            {filterMemberType === 'Driver' && drivers.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
+                     {policies.length > 0 && (
+                        <div className="flex flex-col md:flex-row gap-2">
+                            <div className="relative flex-1">
+                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    type="search"
+                                    placeholder="Search records..."
+                                    className="pl-8 w-full"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
                             </div>
-                        )}
-
-                        <TabsContent value="current" className="mt-4">
-                            {renderContent()}
-                        </TabsContent>
-                        <TabsContent value="history" className="mt-4">
-                            {renderContent()}
-                        </TabsContent>
-                    </Tabs>
-
+                            <div className="flex gap-2">
+                                <Select value={filterMemberType} onValueChange={(value: 'All' | 'Vehicle' | 'Driver') => setFilterMemberType(value)}>
+                                    <SelectTrigger className="w-full md:w-[150px]">
+                                        <SelectValue placeholder="Filter by type..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="All">All Types</SelectItem>
+                                        <SelectItem value="Vehicle">Vehicles</SelectItem>
+                                        <SelectItem value="Driver">Drivers</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <Select value={filterMemberId} onValueChange={setFilterMemberId} disabled={filterMemberType === 'All'}>
+                                    <SelectTrigger className="w-full md:w-[200px]">
+                                        <SelectValue placeholder={`Filter ${filterMemberType}...`} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="All">All {filterMemberType}s</SelectItem>
+                                        {filterMemberType === 'Vehicle' && vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
+                                        {filterMemberType === 'Driver' && drivers.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                    )}
+                    {renderContent()}
                 </div>
                 <DialogContent className="sm:max-w-xl">
                     <DialogHeader>
@@ -834,7 +788,3 @@ export default function PoliciesPage() {
         </>
     );
 }
-
-    
-
-  
