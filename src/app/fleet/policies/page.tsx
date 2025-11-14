@@ -1,12 +1,13 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import type { PolicyOrMembership, Vehicle, Driver } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, CalendarIcon, Check, ChevronsUpDown, User } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, CalendarIcon, Check, ChevronsUpDown, User, RefreshCcw, History } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Card } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -35,13 +36,15 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/use-auth';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { format, differenceInDays, startOfToday } from 'date-fns';
+import { format, differenceInDays, startOfToday, addDays } from 'date-fns';
 import { cn, toNepaliDate } from '@/lib/utils';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { onPoliciesUpdate, addPolicy, updatePolicy, deletePolicy } from '@/services/policy-service';
 import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onDriversUpdate } from '@/services/driver-service';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
 
 type PolicySortKey = 'type' | 'provider' | 'policyNumber' | 'endDate' | 'memberName' | 'authorship';
 type SortDirection = 'asc' | 'desc';
@@ -54,6 +57,7 @@ export default function PoliciesPage() {
     
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingPolicy, setEditingPolicy] = useState<PolicyOrMembership | null>(null);
+    const [isRenewal, setIsRenewal] = useState(false);
     const [formState, setFormState] = useState<Omit<PolicyOrMembership, 'id' | 'createdBy' | 'lastModifiedBy' | 'createdAt' | 'lastModifiedAt'>>({
         type: 'Insurance',
         provider: '',
@@ -63,6 +67,7 @@ export default function PoliciesPage() {
         cost: 0,
         memberId: '',
         memberType: 'Vehicle',
+        renewedFromId: undefined,
     });
     
     const [searchQuery, setSearchQuery] = useState('');
@@ -75,14 +80,16 @@ export default function PoliciesPage() {
     
     const [filterMemberType, setFilterMemberType] = useState<'All' | 'Vehicle' | 'Driver'>('All');
     const [filterMemberId, setFilterMemberId] = useState<string>('All');
+    const [activeTab, setActiveTab] = useState('current');
+
 
     const { toast } = useToast();
     const { hasPermission, user } = useAuth();
     
     const membersById = useMemo(() => {
-        const map = new Map<string, string>();
-        vehicles.forEach(v => map.set(`Vehicle-${v.id}`, v.name));
-        drivers.forEach(d => map.set(`Driver-${d.id}`, d.name));
+        const map = new Map<string, { name: string, type: 'Vehicle' | 'Driver' }>();
+        vehicles.forEach(v => map.set(v.id, { name: v.name, type: 'Vehicle' }));
+        drivers.forEach(d => map.set(d.id, { name: d.name, type: 'Driver' }));
         return map;
     }, [vehicles, drivers]);
 
@@ -107,9 +114,9 @@ export default function PoliciesPage() {
     const providers = useMemo(() => Array.from(new Set(policies.map(p => p.provider))).sort(), [policies]);
     const policyTypes = useMemo(() => Array.from(new Set(policies.map(p => p.type))).sort(), [policies]);
 
-
     const resetForm = () => {
         setEditingPolicy(null);
+        setIsRenewal(false);
         setFormState({
             type: 'Insurance',
             provider: '',
@@ -122,10 +129,24 @@ export default function PoliciesPage() {
         });
     };
 
-    const handleOpenDialog = (policy: PolicyOrMembership | null = null) => {
+    const handleOpenDialog = (policy: PolicyOrMembership | null = null, renew = false) => {
         if (policy) {
-            setEditingPolicy(policy);
-            setFormState(policy);
+            setEditingPolicy(renew ? null : policy);
+            setIsRenewal(renew);
+            const startDate = renew ? addDays(new Date(policy.endDate), 1).toISOString() : policy.startDate;
+            const endDate = renew ? addDays(new Date(startDate), 365).toISOString() : policy.endDate;
+
+            setFormState({
+                type: policy.type,
+                provider: policy.provider,
+                policyNumber: renew ? '' : policy.policyNumber,
+                startDate,
+                endDate,
+                cost: renew ? 0 : policy.cost,
+                memberId: policy.memberId,
+                memberType: policy.memberType,
+                renewedFromId: renew ? policy.id : policy.renewedFromId,
+            });
         } else {
             resetForm();
         }
@@ -137,10 +158,10 @@ export default function PoliciesPage() {
         setFormState(prev => ({ ...prev, [name]: name === 'cost' ? parseFloat(value) || 0 : value }));
     };
     
-    const handleSelectChange = (name: keyof Omit<PolicyOrMembership, 'id'>, value: string) => {
+    const handleSelectChange = (name: keyof typeof formState, value: string) => {
         setFormState(prev => ({ ...prev, [name]: value }));
         if (name === 'memberType') {
-            setFormState(prev => ({ ...prev, memberId: '' })); // Reset member when type changes
+            setFormState(prev => ({ ...prev, memberId: '' }));
         }
     };
 
@@ -227,14 +248,14 @@ export default function PoliciesPage() {
         }
 
         try {
-            if (editingPolicy) {
+            if (editingPolicy && !isRenewal) {
                 const updatedData: Partial<Omit<PolicyOrMembership, 'id'>> = { ...formState, lastModifiedBy: user.username };
                 await updatePolicy(editingPolicy.id, updatedData);
                 toast({ title: 'Success', description: 'Record updated.' });
             } else {
                 const newData: Omit<PolicyOrMembership, 'id' | 'createdAt' | 'lastModifiedAt'> = { ...formState, createdBy: user.username };
                 await addPolicy(newData);
-                toast({ title: 'Success', description: 'New record added.' });
+                toast({ title: 'Success', description: `New record ${isRenewal ? 'for renewal ' : ''}added.` });
             }
             setIsDialogOpen(false);
             resetForm();
@@ -281,7 +302,7 @@ export default function PoliciesPage() {
     const sortedAndFilteredPolicies = useMemo(() => {
         let augmentedPolicies = policies.map(p => ({
             ...p,
-            memberName: membersById.get(`${p.memberType}-${p.memberId}`) || 'N/A',
+            memberName: membersById.get(`${p.memberType}-${p.memberId}`)?.name || 'N/A',
             expiryStatus: getExpiryStatus(p.endDate)
         }));
 
@@ -300,6 +321,12 @@ export default function PoliciesPage() {
              if (filterMemberId !== 'All') {
                 augmentedPolicies = augmentedPolicies.filter(p => p.memberId === filterMemberId);
             }
+        }
+        
+        if (activeTab === 'history') {
+             augmentedPolicies = augmentedPolicies.filter(p => p.renewedFromId);
+        } else {
+             augmentedPolicies = augmentedPolicies.filter(p => !p.renewedFromId);
         }
 
         augmentedPolicies.sort((a, b) => {
@@ -328,7 +355,7 @@ export default function PoliciesPage() {
             return 0;
         });
         return augmentedPolicies;
-    }, [policies, searchQuery, sortConfig, membersById, filterMemberType, filterMemberId]);
+    }, [policies, searchQuery, sortConfig, membersById, filterMemberType, filterMemberId, activeTab]);
 
 
     const renderContent = () => {
@@ -422,7 +449,16 @@ export default function PoliciesPage() {
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
-                                            {hasPermission('fleet', 'edit') && <DropdownMenuItem onSelect={() => handleOpenDialog(policy)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>}
+                                            {hasPermission('fleet', 'edit') && (
+                                                <>
+                                                 <DropdownMenuItem onSelect={() => handleOpenDialog(policy, true)}>
+                                                    <RefreshCcw className="mr-2 h-4 w-4" /> Renew
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onSelect={() => handleOpenDialog(policy)}>
+                                                    <Edit className="mr-2 h-4 w-4" /> Edit
+                                                </DropdownMenuItem>
+                                                </>
+                                            )}
                                             {hasPermission('fleet', 'delete') && <DropdownMenuSeparator />}
                                             {hasPermission('fleet', 'delete') && (
                                                 <AlertDialog>
@@ -463,48 +499,63 @@ export default function PoliciesPage() {
                             )}
                         </div>
                     </header>
-                     {policies.length > 0 && (
-                        <div className="flex flex-col md:flex-row gap-2">
-                            <div className="relative flex-1">
-                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    type="search"
-                                    placeholder="Search records..."
-                                    className="pl-8 w-full"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                />
+                    
+                    <Tabs value={activeTab} onValueChange={setActiveTab}>
+                        <TabsList>
+                            <TabsTrigger value="current">Current Policies</TabsTrigger>
+                            <TabsTrigger value="history">Renewal History</TabsTrigger>
+                        </TabsList>
+                        
+                         {policies.length > 0 && (
+                            <div className="flex flex-col md:flex-row gap-2 mt-4">
+                                <div className="relative flex-1">
+                                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        type="search"
+                                        placeholder="Search records..."
+                                        className="pl-8 w-full"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                    />
+                                </div>
+                                <div className="flex gap-2">
+                                    <Select value={filterMemberType} onValueChange={(value: 'All' | 'Vehicle' | 'Driver') => setFilterMemberType(value)}>
+                                        <SelectTrigger className="w-full md:w-[150px]">
+                                            <SelectValue placeholder="Filter by type..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="All">All Types</SelectItem>
+                                            <SelectItem value="Vehicle">Vehicles</SelectItem>
+                                            <SelectItem value="Driver">Drivers</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <Select value={filterMemberId} onValueChange={setFilterMemberId} disabled={filterMemberType === 'All'}>
+                                        <SelectTrigger className="w-full md:w-[200px]">
+                                            <SelectValue placeholder={`Filter ${filterMemberType}...`} />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="All">All {filterMemberType}s</SelectItem>
+                                            {filterMemberType === 'Vehicle' && vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
+                                            {filterMemberType === 'Driver' && drivers.map(d => <SelectItem key={d.id} value={v.id}>{d.name}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                             </div>
-                            <div className="flex gap-2">
-                                <Select value={filterMemberType} onValueChange={(value: 'All' | 'Vehicle' | 'Driver') => setFilterMemberType(value)}>
-                                    <SelectTrigger className="w-full md:w-[150px]">
-                                        <SelectValue placeholder="Filter by type..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="All">All Types</SelectItem>
-                                        <SelectItem value="Vehicle">Vehicles</SelectItem>
-                                        <SelectItem value="Driver">Drivers</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                <Select value={filterMemberId} onValueChange={setFilterMemberId} disabled={filterMemberType === 'All'}>
-                                    <SelectTrigger className="w-full md:w-[200px]">
-                                        <SelectValue placeholder={`Filter ${filterMemberType}...`} />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="All">All {filterMemberType}s</SelectItem>
-                                        {filterMemberType === 'Vehicle' && vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
-                                        {filterMemberType === 'Driver' && drivers.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                    )}
-                    {renderContent()}
+                        )}
+
+                        <TabsContent value="current" className="mt-4">
+                            {renderContent()}
+                        </TabsContent>
+                        <TabsContent value="history" className="mt-4">
+                            {renderContent()}
+                        </TabsContent>
+                    </Tabs>
+
                 </div>
                 <DialogContent className="sm:max-w-xl">
                     <DialogHeader>
-                        <DialogTitle>{editingPolicy ? 'Edit Record' : 'Add New Record'}</DialogTitle>
-                        <DialogDescription>{editingPolicy ? 'Update the details for this record.' : 'Enter the details for the new policy or membership.'}</DialogDescription>
+                        <DialogTitle>{editingPolicy ? (isRenewal ? 'Renew Record' : 'Edit Record') : 'Add New Record'}</DialogTitle>
+                        <DialogDescription>{editingPolicy ? (isRenewal ? 'Enter the details for the renewal.' : 'Update the details for this record.') : 'Enter the details for the new policy or membership.'}</DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-6 py-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -596,7 +647,7 @@ export default function PoliciesPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="memberType">For</Label>
-                                <Select value={formState.memberType} onValueChange={(value: 'Vehicle' | 'Driver') => handleSelectChange('memberType' as any, value)}>
+                                <Select value={formState.memberType} onValueChange={(value: 'Vehicle' | 'Driver') => handleSelectChange('memberType', value)}>
                                     <SelectTrigger id="memberType"><SelectValue placeholder="Select one" /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="Vehicle">Vehicle</SelectItem>
@@ -606,7 +657,7 @@ export default function PoliciesPage() {
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="memberId">{formState.memberType}</Label>
-                                <Select value={formState.memberId} onValueChange={(value) => handleSelectChange('memberId' as any, value)} disabled={!formState.memberType}>
+                                <Select value={formState.memberId} onValueChange={(value) => handleSelectChange('memberId', value)} disabled={!formState.memberType}>
                                     <SelectTrigger id="memberId"><SelectValue placeholder={`Select a ${formState.memberType.toLowerCase()}`} /></SelectTrigger>
                                     <SelectContent>
                                         {formState.memberType === 'Vehicle' ? (
@@ -655,7 +706,7 @@ export default function PoliciesPage() {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-                        <Button onClick={handleSubmit}>{editingPolicy ? 'Save Changes' : 'Add Record'}</Button>
+                        <Button onClick={handleSubmit}>{editingPolicy && !isRenewal ? 'Save Changes' : (isRenewal ? 'Renew Record' : 'Add Record')}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

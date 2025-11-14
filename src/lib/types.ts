@@ -340,6 +340,7 @@ export interface PolicyOrMembership {
     createdAt: string; // ISO string
     lastModifiedBy?: string;
     lastModifiedAt?: string; // ISO string
+    renewedFromId?: string;
 }
 
 export const transactionTypes = ['Purchase', 'Sales', 'Payment', 'Receipt'] as const;
@@ -468,7 +469,7 @@ export interface Trip {
     detentionEndDate?: string; // ISO string
     numberOfParties?: number;
     dropOffChargeRate?: number;
-    detentionChargeRate?: number;
+    detentionChargeRate?: string;
     salesTransactionId?: string; // Link to the main sales transaction
     createdBy: string;
     createdAt: string; // ISO string
