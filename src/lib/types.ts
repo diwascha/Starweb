@@ -1,6 +1,5 @@
 
 
-
 export interface RateHistoryEntry {
   rate: number;
   date: string; // ISO string when the rate was set
@@ -343,8 +342,9 @@ export interface PolicyOrMembership {
     createdAt: string; // ISO string
     lastModifiedBy?: string;
     lastModifiedAt?: string; // ISO string
-    renewedFromId?: string;
-    status: PolicyStatus;
+    renewedFromId?: string | null;
+    renewedToId?: string | null;
+    status?: PolicyStatus;
 }
 
 export const transactionTypes = ['Purchase', 'Sales', 'Payment', 'Receipt'] as const;
@@ -735,4 +735,3 @@ export interface CostSetting {
     lastModifiedBy?: string;
     lastModifiedAt?: string; // ISO
 }
-    

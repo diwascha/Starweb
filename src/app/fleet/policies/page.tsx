@@ -94,6 +94,12 @@ export default function PoliciesPage() {
         return map;
     }, [vehicles, drivers]);
 
+    const policiesById = useMemo(() => {
+        const map = new Map<string, PolicyOrMembership>();
+        policies.forEach(p => map.set(p.id, p));
+        return map;
+    }, [policies]);
+
     useEffect(() => {
         setIsLoading(true);
         const unsubPolicies = onPoliciesUpdate(setPolicies);
@@ -259,32 +265,65 @@ export default function PoliciesPage() {
 
 
     const handleSubmit = async () => {
-        if (!user) return;
-        if (!formState.type || !formState.provider || !formState.policyNumber || !formState.memberId) {
-            toast({ title: 'Error', description: 'Type, Provider, Policy Number, and associated Vehicle/Driver are required.', variant: 'destructive' });
-            return;
-        }
-        
-        try {
-            if (editingPolicy) {
-                const updatedData: Partial<Omit<PolicyOrMembership, 'id'>> = { ...formState, lastModifiedBy: user.username };
-                await updatePolicy(editingPolicy.id, updatedData);
-                toast({ title: 'Success', description: 'Record updated.' });
-            } else {
-                const newData: Omit<PolicyOrMembership, 'id' | 'createdAt' | 'lastModifiedAt'> = { ...formState, createdBy: user.username };
-                const newPolicyId = await addPolicy(newData);
-                
-                if (isRenewal && formState.renewedFromId) {
-                    await updatePolicy(formState.renewedFromId, { status: 'Renewed', lastModifiedBy: user.username });
-                }
+      if (!user) return;
 
-                toast({ title: 'Success', description: `New record ${isRenewal ? 'for renewal ' : ''}added.` });
-            }
-            setIsDialogOpen(false);
-            resetForm();
-        } catch (error) {
-            toast({ title: 'Error', description: 'Failed to save record.', variant: 'destructive' });
+      if (!formState.type || !formState.provider || !formState.policyNumber || !formState.memberId) {
+        toast({
+          title: 'Error',
+          description: 'Type, Provider, Policy Number, and associated Vehicle/Driver are required.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const nowIso = new Date().toISOString();
+
+      try {
+        if (editingPolicy && !isRenewal) {
+          // Normal edit of an existing record
+          const updatedData: Partial<Omit<PolicyOrMembership, 'id'>> = {
+            ...formState,
+            lastModifiedBy: user.username,
+            lastModifiedAt: nowIso,
+          };
+          await updatePolicy(editingPolicy.id, updatedData);
+          toast({ title: 'Success', description: 'Record updated.' });
+        } else {
+          // New record (either fresh add OR renewal)
+          const newData: Omit<PolicyOrMembership, 'id' | 'createdAt' | 'lastModifiedAt'> = {
+            ...formState,
+            status: 'Active',
+            createdBy: user.username,
+          };
+
+          const newPolicyId = await addPolicy(newData);
+
+          // If renewing, mark the old policy as Renewed and point it to this one
+          if (isRenewal && formState.renewedFromId) {
+            await updatePolicy(formState.renewedFromId, {
+              status: 'Renewed',
+              renewedToId: newPolicyId,
+              lastModifiedBy: user.username,
+              lastModifiedAt: nowIso,
+            });
+          }
+
+          toast({
+            title: 'Success',
+            description: `New record ${isRenewal ? 'for renewal ' : ''}added.`,
+          });
         }
+
+        setIsDialogOpen(false);
+        resetForm();
+      } catch (error) {
+        console.error(error);
+        toast({
+          title: 'Error',
+          description: 'Failed to save record.',
+          variant: 'destructive',
+        });
+      }
     };
 
     const handleDelete = async (id: string) => {
@@ -299,7 +338,11 @@ export default function PoliciesPage() {
     const handleArchive = async (policy: PolicyOrMembership) => {
         if (!user) return;
         try {
-            await updatePolicy(policy.id, { status: 'Archived', lastModifiedBy: user.username });
+            await updatePolicy(policy.id, { 
+                status: 'Archived', 
+                lastModifiedBy: user.username,
+                lastModifiedAt: new Date().toISOString(),
+            });
             toast({ title: 'Success', description: 'Policy moved to history.' });
         } catch (error) {
             toast({ title: 'Error', description: 'Failed to archive policy.', variant: 'destructive' });
@@ -355,10 +398,21 @@ export default function PoliciesPage() {
             }
         }
         
-        if (activeTab === 'current') {
-            augmentedPolicies = augmentedPolicies.filter(p => p.status === 'Active' || p.status === null || p.status === undefined);
-        } else { // history tab
-            augmentedPolicies = augmentedPolicies.filter(p => p.status === 'Renewed' || p.status === 'Archived');
+        if (activeTab === 'history') {
+            // History: anything that’s clearly not the latest
+            augmentedPolicies = augmentedPolicies.filter(
+                p =>
+                p.status === 'Renewed' ||
+                p.status === 'Archived' ||
+                !!p.renewedToId // if it points forward, it's definitely an old version
+            );
+        } else {
+            // Current: only policies that are not superseded
+            augmentedPolicies = augmentedPolicies.filter(
+                p =>
+                (p.status === 'Active' || p.status === undefined || p.status === null) &&
+                !p.renewedToId
+            );
         }
 
         augmentedPolicies.sort((a, b) => {
@@ -438,19 +492,27 @@ export default function PoliciesPage() {
                                 <TableCell>{policy.memberName}</TableCell>
                                 <TableCell>{toNepaliDate(policy.endDate)}</TableCell>
                                 <TableCell>
-                                     <TooltipProvider>
+                                    <TooltipProvider>
                                         <Tooltip>
-                                            <TooltipTrigger>
+                                        <TooltipTrigger>
+                                            <div className="flex flex-col gap-1">
                                                 <div className="flex items-center gap-2">
-                                                    <span className={cn("h-2 w-2 rounded-full", policy.expiryStatus.days < 0 && 'bg-red-500', policy.expiryStatus.days >= 0 && policy.expiryStatus.days <= 30 && 'bg-yellow-500', policy.expiryStatus.days > 30 && 'bg-green-500' )}></span>
+                                                    <span className={cn('h-2 w-2 rounded-full', policy.expiryStatus.days < 0 && 'bg-red-500', policy.expiryStatus.days >= 0 && policy.expiryStatus.days <= 30 && 'bg-yellow-500', policy.expiryStatus.days > 30 && 'bg-green-500')}/>
                                                     <span>{policy.expiryStatus.text}</span>
                                                 </div>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>Expires on {format(new Date(policy.endDate), "PPP")}</p>
-                                            </TooltipContent>
+                                                {activeTab === 'history' && policy.status === 'Renewed' && policy.renewedToId && (
+                                                    <span className="text-xs text-muted-foreground">
+                                                    Renewed to:{' '}
+                                                    {policiesById.get(policy.renewedToId)?.policyNumber ?? policiesById.get(policy.renewedToId)?.id ?? 'New record'}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>Expires on {format(new Date(policy.endDate), 'PPP')}</p>
+                                        </TooltipContent>
                                         </Tooltip>
-                                     </TooltipProvider>
+                                    </TooltipProvider>
                                 </TableCell>
                                 <TableCell>
                                     <TooltipProvider>
@@ -488,7 +550,7 @@ export default function PoliciesPage() {
                                                 <DropdownMenuItem onSelect={() => handleOpenDialog(policy)}>
                                                     <Edit className="mr-2 h-4 w-4" /> Edit
                                                 </DropdownMenuItem>
-                                                 {policy.status !== 'Renewed' && policy.status !== 'Archived' && (
+                                                 {(policy.status === 'Active' || !policy.status) && (
                                                     <DropdownMenuItem onSelect={() => handleArchive(policy)}>
                                                         <Archive className="mr-2 h-4 w-4" /> Move to History
                                                     </DropdownMenuItem>
