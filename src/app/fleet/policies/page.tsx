@@ -363,23 +363,17 @@ export default function PoliciesPage() {
         const today = startOfToday();
         let augmentedPolicies = policies.map(p => {
             const daysRemaining = differenceInDays(new Date(p.endDate), today);
-            let expiryStatusText = '';
-            if (daysRemaining < 0) {
-                expiryStatusText = `Expired ${-daysRemaining} days ago`;
-            } else {
-                expiryStatusText = `Expires in ${daysRemaining} days`;
-            }
-
-            let statusText: 'Active' | 'Expired' = 'Active';
+            
+            let derivedStatus: 'Active' | 'Expired' = 'Active';
             if (p.status !== 'Renewed' && p.status !== 'Archived' && isPast(new Date(p.endDate))) {
-                statusText = 'Expired';
+                derivedStatus = 'Expired';
             }
 
             return {
                 ...p,
                 memberName: membersById.get(p.memberId)?.name || 'N/A',
-                derivedStatus: statusText,
-                expiryStatusText,
+                derivedStatus: derivedStatus,
+                daysRemaining,
             }
         });
 
@@ -491,7 +485,7 @@ export default function PoliciesPage() {
                                 <TableCell>{policy.type}</TableCell>
                                 <TableCell>{policy.policyNumber}</TableCell>
                                 <TableCell>{policy.memberName}</TableCell>
-                                <TableCell>{toNepaliDate(policy.endDate)}, {policy.expiryStatusText}</TableCell>
+                                <TableCell>{toNepaliDate(policy.endDate)}, {policy.daysRemaining < 0 ? `Expired ${-policy.daysRemaining} days ago` : `Expires in ${policy.daysRemaining} days`}</TableCell>
                                 <TableCell>
                                     <Badge variant={getStatusBadgeVariant(policy.derivedStatus)}>{policy.derivedStatus}</Badge>
                                 </TableCell>
@@ -531,7 +525,7 @@ export default function PoliciesPage() {
                                                 <DropdownMenuItem onSelect={() => handleOpenDialog(policy)}>
                                                     <Edit className="mr-2 h-4 w-4" /> Edit
                                                 </DropdownMenuItem>
-                                                {(policy.status === 'Active' || !policy.status) && (
+                                                {(policy.status === 'Active' || !policy.status) && !policy.renewedToId && (
                                                     <DropdownMenuItem onSelect={() => handleArchive(policy)}>
                                                         <Archive className="mr-2 h-4 w-4" /> Move to History
                                                     </DropdownMenuItem>
@@ -842,3 +836,5 @@ export default function PoliciesPage() {
 }
 
     
+
+  
