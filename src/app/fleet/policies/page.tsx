@@ -1,11 +1,12 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import type { PolicyOrMembership, Vehicle, Driver, PartyType } from '@/lib/types';
+import type { PolicyOrMembership, Vehicle, Driver, PartyType, PolicyStatus } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, CalendarIcon, Check, ChevronsUpDown, User, RefreshCcw, History } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, CalendarIcon, Check, ChevronsUpDown, User, RefreshCcw, History, Archive } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -68,6 +69,7 @@ export default function PoliciesPage() {
         memberId: '',
         memberType: 'Vehicle',
         renewedFromId: undefined,
+        status: 'Active',
     });
     
     const [searchQuery, setSearchQuery] = useState('');
@@ -126,6 +128,7 @@ export default function PoliciesPage() {
             cost: 0,
             memberId: '',
             memberType: 'Vehicle',
+            status: 'Active',
         });
     };
 
@@ -147,6 +150,7 @@ export default function PoliciesPage() {
                     memberId: policy.memberId,
                     memberType: policy.memberType,
                     renewedFromId: policy.id,
+                    status: 'Active',
                 });
             } else {
                 setEditingPolicy(policy);
@@ -160,6 +164,7 @@ export default function PoliciesPage() {
                     memberId: policy.memberId,
                     memberType: policy.memberType,
                     renewedFromId: policy.renewedFromId,
+                    status: policy.status || 'Active',
                 });
             }
         } else {
@@ -263,11 +268,19 @@ export default function PoliciesPage() {
         }
 
         try {
+            if (isRenewal && !editingPolicy) {
+                // This is a renewal, so we need to mark the old policy as 'Renewed' and create a new one.
+                const oldPolicyId = formState.renewedFromId;
+                if (oldPolicyId) {
+                    await updatePolicy(oldPolicyId, { status: 'Renewed', lastModifiedBy: user.username });
+                }
+            }
+
             if (editingPolicy) {
                 const updatedData: Partial<Omit<PolicyOrMembership, 'id'>> = { ...formState, lastModifiedBy: user.username };
                 await updatePolicy(editingPolicy.id, updatedData);
                 toast({ title: 'Success', description: 'Record updated.' });
-            } else { // This handles both new records and renewals
+            } else {
                 const newData: Omit<PolicyOrMembership, 'id' | 'createdAt' | 'lastModifiedAt'> = { ...formState, createdBy: user.username };
                 await addPolicy(newData);
                 toast({ title: 'Success', description: `New record ${isRenewal ? 'for renewal ' : ''}added.` });
@@ -285,6 +298,16 @@ export default function PoliciesPage() {
             toast({ title: 'Success', description: 'Record deleted.' });
         } catch (error) {
             toast({ title: 'Error', description: 'Failed to delete record.', variant: 'destructive' });
+        }
+    };
+
+    const handleArchive = async (policy: PolicyOrMembership) => {
+        if (!user) return;
+        try {
+            await updatePolicy(policy.id, { status: 'Archived', lastModifiedBy: user.username });
+            toast({ title: 'Success', description: 'Policy moved to history.' });
+        } catch (error) {
+            toast({ title: 'Error', description: 'Failed to archive policy.', variant: 'destructive' });
         }
     };
     
@@ -315,13 +338,10 @@ export default function PoliciesPage() {
 
 
     const sortedAndFilteredPolicies = useMemo(() => {
-        const renewedIds = new Set(policies.map(p => p.renewedFromId).filter(Boolean));
-
         let augmentedPolicies = policies.map(p => ({
             ...p,
             memberName: membersById.get(p.memberId)?.name || 'N/A',
             expiryStatus: getExpiryStatus(p.endDate),
-            isRenewed: renewedIds.has(p.id)
         }));
 
         if (searchQuery) {
@@ -342,9 +362,9 @@ export default function PoliciesPage() {
         }
         
         if (activeTab === 'history') {
-            augmentedPolicies = augmentedPolicies.filter(p => p.isRenewed);
+            augmentedPolicies = augmentedPolicies.filter(p => p.status === 'Renewed' || p.status === 'Archived');
         } else { // 'current' tab
-            augmentedPolicies = augmentedPolicies.filter(p => !p.isRenewed);
+            augmentedPolicies = augmentedPolicies.filter(p => p.status !== 'Renewed' && p.status !== 'Archived');
         }
 
         augmentedPolicies.sort((a, b) => {
@@ -428,7 +448,7 @@ export default function PoliciesPage() {
                                         <Tooltip>
                                             <TooltipTrigger>
                                                 <div className="flex items-center gap-2">
-                                                    <span className={cn("h-2 w-2 rounded-full", policy.expiryStatus.color)}></span>
+                                                    <span className={cn("h-2 w-2 rounded-full", policy.expiryStatus.days < 0 && 'bg-red-500', policy.expiryStatus.days >= 0 && policy.expiryStatus.days <= 30 && 'bg-yellow-500', policy.expiryStatus.days > 30 && 'bg-green-500' )}></span>
                                                     <span>{policy.expiryStatus.text}</span>
                                                 </div>
                                             </TooltipTrigger>
@@ -474,6 +494,11 @@ export default function PoliciesPage() {
                                                 <DropdownMenuItem onSelect={() => handleOpenDialog(policy)}>
                                                     <Edit className="mr-2 h-4 w-4" /> Edit
                                                 </DropdownMenuItem>
+                                                {policy.expiryStatus.days < 0 && (
+                                                    <DropdownMenuItem onSelect={() => handleArchive(policy)}>
+                                                        <Archive className="mr-2 h-4 w-4" /> Move to History
+                                                    </DropdownMenuItem>
+                                                )}
                                                 </>
                                             )}
                                             {hasPermission('fleet', 'delete') && <DropdownMenuSeparator />}

@@ -1,5 +1,6 @@
 
 
+
 export interface RateHistoryEntry {
   rate: number;
   date: string; // ISO string when the rate was set
@@ -326,6 +327,8 @@ export interface Driver {
     lastModifiedAt?: string; // ISO string
 }
 
+export type PolicyStatus = 'Active' | 'Renewed' | 'Archived';
+
 export interface PolicyOrMembership {
     id: string;
     type: string;
@@ -341,6 +344,7 @@ export interface PolicyOrMembership {
     lastModifiedBy?: string;
     lastModifiedAt?: string; // ISO string
     renewedFromId?: string;
+    status: PolicyStatus;
 }
 
 export const transactionTypes = ['Purchase', 'Sales', 'Payment', 'Receipt'] as const;
