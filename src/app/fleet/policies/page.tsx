@@ -302,7 +302,7 @@ export default function PoliciesPage() {
     const sortedAndFilteredPolicies = useMemo(() => {
         let augmentedPolicies = policies.map(p => ({
             ...p,
-            memberName: membersById.get(`${p.memberType}-${p.memberId}`)?.name || 'N/A',
+            memberName: membersById.get(p.memberId)?.name || 'N/A',
             expiryStatus: getExpiryStatus(p.endDate)
         }));
 
@@ -536,7 +536,7 @@ export default function PoliciesPage() {
                                         <SelectContent>
                                             <SelectItem value="All">All {filterMemberType}s</SelectItem>
                                             {filterMemberType === 'Vehicle' && vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
-                                            {filterMemberType === 'Driver' && drivers.map(d => <SelectItem key={d.id} value={v.id}>{d.name}</SelectItem>)}
+                                            {filterMemberType === 'Driver' && drivers.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
                                         </SelectContent>
                                     </Select>
                                 </div>
