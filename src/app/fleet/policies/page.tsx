@@ -31,7 +31,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/use-auth';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -300,6 +299,8 @@ export default function PoliciesPage() {
 
 
     const sortedAndFilteredPolicies = useMemo(() => {
+        const renewedPolicyIds = new Set(policies.map(p => p.renewedFromId).filter(Boolean));
+
         let augmentedPolicies = policies.map(p => ({
             ...p,
             memberName: membersById.get(p.memberId)?.name || 'N/A',
@@ -324,9 +325,11 @@ export default function PoliciesPage() {
         }
         
         if (activeTab === 'history') {
-             augmentedPolicies = augmentedPolicies.filter(p => p.renewedFromId);
-        } else {
-             augmentedPolicies = augmentedPolicies.filter(p => !p.renewedFromId);
+            // Show only policies that have been renewed
+            augmentedPolicies = augmentedPolicies.filter(p => renewedPolicyIds.has(p.id));
+        } else { // 'current' tab
+            // Show only policies that have NOT been renewed
+            augmentedPolicies = augmentedPolicies.filter(p => !renewedPolicyIds.has(p.id));
         }
 
         augmentedPolicies.sort((a, b) => {
