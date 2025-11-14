@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -133,9 +132,8 @@ export default function PoliciesPage() {
     };
 
     const handleOpenDialog = (policy: PolicyOrMembership | null = null, renew = false) => {
+        setIsRenewal(renew);
         if (policy) {
-            setIsRenewal(renew);
-            
             if (renew) {
                 setEditingPolicy(null); // It's a new record, not editing the old one
                  const startDate = addDays(new Date(policy.endDate), 1).toISOString();
@@ -337,10 +335,13 @@ export default function PoliciesPage() {
 
 
     const sortedAndFilteredPolicies = useMemo(() => {
+        const renewedPolicyIds = new Set(policies.map(p => p.renewedFromId).filter(Boolean));
+
         let augmentedPolicies = policies.map(p => ({
             ...p,
             memberName: membersById.get(p.memberId)?.name || 'N/A',
             expiryStatus: getExpiryStatus(p.endDate),
+            isRenewed: renewedPolicyIds.has(p.id)
         }));
 
         if (searchQuery) {
@@ -493,7 +494,7 @@ export default function PoliciesPage() {
                                                 <DropdownMenuItem onSelect={() => handleOpenDialog(policy)}>
                                                     <Edit className="mr-2 h-4 w-4" /> Edit
                                                 </DropdownMenuItem>
-                                                {policy.expiryStatus.days < 0 && policy.status === 'Active' && (
+                                                {policy.status === 'Active' && (
                                                     <DropdownMenuItem onSelect={() => handleArchive(policy)}>
                                                         <Archive className="mr-2 h-4 w-4" /> Move to History
                                                     </DropdownMenuItem>
@@ -802,3 +803,4 @@ export default function PoliciesPage() {
         </>
     );
 }
+
