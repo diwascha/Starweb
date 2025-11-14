@@ -325,11 +325,9 @@ export default function PoliciesPage() {
         }
         
         if (activeTab === 'history') {
-            // Show only policies that have been renewed
             augmentedPolicies = augmentedPolicies.filter(p => renewedFromIds.has(p.id));
         } else { // 'current' tab
-            // Show only policies that have NOT been renewed
-            augmentedPolicies = augmentedPolicies.filter(p => !p.renewedFromId && !renewedFromIds.has(p.id));
+            augmentedPolicies = augmentedPolicies.filter(p => !renewedFromIds.has(p.id));
         }
 
         augmentedPolicies.sort((a, b) => {
@@ -343,7 +341,6 @@ export default function PoliciesPage() {
             }
 
             if (sortConfig.key === 'endDate') {
-                // Special sorting for expiryStatus
                 const aDays = a.expiryStatus.days;
                 const bDays = b.expiryStatus.days;
                 if (aDays < bDays) return sortConfig.direction === 'asc' ? -1 : 1;
@@ -764,4 +761,3 @@ export default function PoliciesPage() {
         </>
     );
 }
-
