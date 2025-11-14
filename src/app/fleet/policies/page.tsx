@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -335,7 +336,7 @@ export default function PoliciesPage() {
 
 
     const sortedAndFilteredPolicies = useMemo(() => {
-        const renewedPolicyIds = new Set(policies.map(p => p.renewedFromId).filter(Boolean));
+        const renewedPolicyIds = new Set(policies.filter(p => p.renewedFromId).map(p => p.renewedFromId));
 
         let augmentedPolicies = policies.map(p => ({
             ...p,
@@ -804,3 +805,6 @@ export default function PoliciesPage() {
     );
 }
 
+
+
+    
