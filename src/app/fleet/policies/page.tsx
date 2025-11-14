@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import type { PolicyOrMembership, Vehicle, Driver, PartyType, PolicyStatus } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, CalendarIcon, Check, ChevronsUpDown, User, RefreshCcw, History, Archive } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, CalendarIcon, Check, ChevronsUpDown, User, RefreshCcw, Archive } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -100,6 +100,7 @@ export default function PoliciesPage() {
         policies.forEach(p => map.set(p.id, p));
         return map;
     }, [policies]);
+
 
     useEffect(() => {
         setIsLoading(true);
@@ -267,62 +268,80 @@ export default function PoliciesPage() {
 
     const handleSubmit = async () => {
         if (!user) return;
-
+      
         if (!formState.type || !formState.provider || !formState.policyNumber || !formState.memberId) {
-            toast({
+          toast({
             title: 'Error',
             description: 'Type, Provider, Policy Number, and associated Vehicle/Driver are required.',
             variant: 'destructive',
-            });
-            return;
+          });
+          return;
         }
-
+      
         const nowIso = new Date().toISOString();
-
+      
         try {
-            if (editingPolicy && !isRenewal) {
+          if (editingPolicy && !isRenewal) {
+            // ✅ Normal edit of an existing record
             const updatedData: Partial<Omit<PolicyOrMembership, 'id'>> = {
-                ...formState,
-                lastModifiedBy: user.username,
-                lastModifiedAt: nowIso,
+              ...formState,
+              lastModifiedBy: user.username,
+              lastModifiedAt: nowIso,
             };
             await updatePolicy(editingPolicy.id, updatedData);
             toast({ title: 'Success', description: 'Record updated.' });
-            } else {
+          } else {
+            // ✅ New record (either fresh add OR renewal)
             const newData: Omit<PolicyOrMembership, 'id' | 'createdAt' | 'lastModifiedAt'> = {
-                ...formState,
-                status: 'Active',
-                createdBy: user.username,
+              ...formState,
+              status: 'Active',
+              createdBy: user.username,
             };
-
+      
             const newPolicyId = await addPolicy(newData);
-
+      
+            // If renewing, mark the old policy as Renewed and point it to this one
             if (isRenewal && formState.renewedFromId) {
-                await updatePolicy(formState.renewedFromId, {
+              await updatePolicy(formState.renewedFromId, {
                 status: 'Renewed',
                 renewedToId: newPolicyId,
                 lastModifiedBy: user.username,
                 lastModifiedAt: nowIso,
-                });
+              });
             }
-
+      
             toast({
-                title: 'Success',
-                description: `New record ${isRenewal ? 'for renewal ' : ''}added.`,
+              title: 'Success',
+              description: `New record ${isRenewal ? 'for renewal ' : ''}added.`,
             });
-            }
-
-            setIsDialogOpen(false);
-            resetForm();
+          }
+      
+          setIsDialogOpen(false);
+          resetForm();
         } catch (error) {
-            console.error(error);
-            toast({
+          console.error(error);
+          toast({
             title: 'Error',
             description: 'Failed to save record.',
             variant: 'destructive',
-            });
+          });
         }
-    };
+      };
+      
+      const handleArchive = async (policy: PolicyOrMembership) => {
+        if (!user) return;
+        try {
+          await updatePolicy(policy.id, {
+            status: 'Archived',
+            lastModifiedBy: user.username,
+            lastModifiedAt: new Date().toISOString(),
+          });
+          toast({ title: 'Success', description: 'Policy moved to history.' });
+        } catch (error) {
+          toast({ title: 'Error', description: 'Failed to archive policy.', variant: 'destructive' });
+        }
+      };
+      
 
     const handleDelete = async (id: string) => {
         try {
@@ -330,20 +349,6 @@ export default function PoliciesPage() {
             toast({ title: 'Success', description: 'Record deleted.' });
         } catch (error) {
             toast({ title: 'Error', description: 'Failed to delete record.', variant: 'destructive' });
-        }
-    };
-
-    const handleArchive = async (policy: PolicyOrMembership) => {
-        if (!user) return;
-        try {
-            await updatePolicy(policy.id, { 
-                status: 'Archived', 
-                lastModifiedBy: user.username,
-                lastModifiedAt: new Date().toISOString(),
-            });
-            toast({ title: 'Success', description: 'Policy moved to history.' });
-        } catch (error) {
-            toast({ title: 'Error', description: 'Failed to archive policy.', variant: 'destructive' });
         }
     };
     
@@ -374,18 +379,12 @@ export default function PoliciesPage() {
 
     const sortedAndFilteredPolicies = useMemo(() => {
         let augmentedPolicies = policies.map(p => {
-            const isNew = differenceInDays(new Date(), new Date(p.createdAt)) <= 7;
             const isExpired = isPast(new Date(p.endDate));
-
-            let statusText: 'New' | 'Expired' | 'Renewed' | 'Active' = 'Active';
-            if (p.status === 'Renewed') {
-                statusText = 'Renewed';
-            } else if (isExpired) {
+            let statusText: 'Active' | 'Expired' = 'Active';
+            if (p.status !== 'Renewed' && p.status !== 'Archived' && isExpired) {
                 statusText = 'Expired';
-            } else if (isNew && p.status !== 'Renewed' && p.status !== 'Archived') {
-                statusText = 'New';
             }
-            
+
             return {
                 ...p,
                 memberName: membersById.get(p.memberId)?.name || 'N/A',
@@ -413,13 +412,19 @@ export default function PoliciesPage() {
         
         if (activeTab === 'history') {
             augmentedPolicies = augmentedPolicies.filter(
-                p => p.status === 'Renewed' || p.status === 'Archived' || !!p.renewedToId
+              p =>
+                p.status === 'Renewed' ||
+                p.status === 'Archived' ||
+                !!p.renewedToId
             );
-        } else {
+          } else {
             augmentedPolicies = augmentedPolicies.filter(
-                p => (p.status === 'Active' || p.status === undefined || p.status === null) && !p.renewedToId
+              p =>
+                (p.status === 'Active' || p.status === undefined || p.status === null) &&
+                !p.renewedToId
             );
-        }
+          }
+          
 
         augmentedPolicies.sort((a, b) => {
             if (sortConfig.key === 'authorship') {
@@ -448,12 +453,10 @@ export default function PoliciesPage() {
         return augmentedPolicies;
     }, [policies, searchQuery, filterMemberType, filterMemberId, activeTab, sortConfig, membersById]);
 
-    const getStatusBadgeVariant = (status: 'New' | 'Expired' | 'Renewed' | 'Active') => {
+    const getStatusBadgeVariant = (status: 'Active' | 'Expired') => {
         switch (status) {
-            case 'New': return 'default';
+            case 'Active': return 'default';
             case 'Expired': return 'destructive';
-            case 'Renewed': return 'secondary';
-            case 'Active': return 'outline';
             default: return 'secondary';
         }
     };
@@ -492,7 +495,7 @@ export default function PoliciesPage() {
                             <TableHead><Button variant="ghost" onClick={() => requestSort('type')}>Type <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('policyNumber')}>Policy/ID Number <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('memberName')}>For <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('endDate')}>Expiry <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('endDate')}>Expiry Date</Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('status')}>Status <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                              <TableHead><Button variant="ghost" onClick={() => requestSort('authorship')}>Authorship <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead className="text-right">Actions</TableHead>
@@ -521,12 +524,6 @@ export default function PoliciesPage() {
                                 </TableCell>
                                 <TableCell>
                                     <Badge variant={getStatusBadgeVariant(policy.derivedStatus)}>{policy.derivedStatus}</Badge>
-                                    {activeTab === 'history' && policy.status === 'Renewed' && policy.renewedToId && (
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                      Renewed to:{' '}
-                                      {policiesById.get(policy.renewedToId)?.policyNumber ?? policiesById.get(policy.renewedToId)?.id ?? 'New record'}
-                                    </p>
-                                  )}
                                 </TableCell>
                                 <TableCell>
                                     <TooltipProvider>
@@ -873,4 +870,3 @@ export default function PoliciesPage() {
         </>
     );
 }
-
