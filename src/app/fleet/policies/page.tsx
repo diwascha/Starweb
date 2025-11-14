@@ -143,7 +143,7 @@ export default function PoliciesPage() {
                     policyNumber: '', // Clear policy number for new entry
                     startDate,
                     endDate,
-                    cost: 0,
+                    cost: policy.cost,
                     memberId: policy.memberId,
                     memberType: policy.memberType,
                     renewedFromId: policy.id,
