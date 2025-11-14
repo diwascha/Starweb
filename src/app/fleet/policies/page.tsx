@@ -36,7 +36,7 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/use-auth';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { format, differenceInDays, startOfToday, addDays } from 'date-fns';
+import { format, differenceInDays, startOfToday, addDays, isPast } from 'date-fns';
 import { cn, toNepaliDate } from '@/lib/utils';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -44,9 +44,10 @@ import { onPoliciesUpdate, addPolicy, updatePolicy, deletePolicy } from '@/servi
 import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onDriversUpdate } from '@/services/driver-service';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
 
 
-type PolicySortKey = 'type' | 'provider' | 'policyNumber' | 'endDate' | 'memberName' | 'authorship';
+type PolicySortKey = 'type' | 'provider' | 'policyNumber' | 'endDate' | 'memberName' | 'authorship' | 'status';
 type SortDirection = 'asc' | 'desc';
 
 export default function PoliciesPage() {
@@ -280,7 +281,6 @@ export default function PoliciesPage() {
 
         try {
             if (editingPolicy && !isRenewal) {
-            // Normal edit of an existing record
             const updatedData: Partial<Omit<PolicyOrMembership, 'id'>> = {
                 ...formState,
                 lastModifiedBy: user.username,
@@ -289,7 +289,6 @@ export default function PoliciesPage() {
             await updatePolicy(editingPolicy.id, updatedData);
             toast({ title: 'Success', description: 'Record updated.' });
             } else {
-            // New record (either fresh add OR renewal)
             const newData: Omit<PolicyOrMembership, 'id' | 'createdAt' | 'lastModifiedAt'> = {
                 ...formState,
                 status: 'Active',
@@ -298,7 +297,6 @@ export default function PoliciesPage() {
 
             const newPolicyId = await addPolicy(newData);
 
-            // If renewing, mark the old policy as Renewed and point it to this one
             if (isRenewal && formState.renewedFromId) {
                 await updatePolicy(formState.renewedFromId, {
                 status: 'Renewed',
@@ -375,11 +373,26 @@ export default function PoliciesPage() {
     };
 
     const sortedAndFilteredPolicies = useMemo(() => {
-        let augmentedPolicies = policies.map(p => ({
-            ...p,
-            memberName: membersById.get(p.memberId)?.name || 'N/A',
-            expiryStatus: getExpiryStatus(p.endDate)
-        }));
+        let augmentedPolicies = policies.map(p => {
+            const isNew = differenceInDays(new Date(), new Date(p.createdAt)) <= 7;
+            const isExpired = isPast(new Date(p.endDate));
+
+            let statusText: 'New' | 'Expired' | 'Renewed' | 'Active' = 'Active';
+            if (p.status === 'Renewed') {
+                statusText = 'Renewed';
+            } else if (isExpired) {
+                statusText = 'Expired';
+            } else if (isNew && p.status !== 'Renewed' && p.status !== 'Archived') {
+                statusText = 'New';
+            }
+            
+            return {
+                ...p,
+                memberName: membersById.get(p.memberId)?.name || 'N/A',
+                expiryStatus: getExpiryStatus(p.endDate),
+                derivedStatus: statusText,
+            }
+        });
 
         if (searchQuery) {
             const lowercasedQuery = searchQuery.toLowerCase();
@@ -399,19 +412,12 @@ export default function PoliciesPage() {
         }
         
         if (activeTab === 'history') {
-            // History: anything that’s clearly not the latest
             augmentedPolicies = augmentedPolicies.filter(
-                p =>
-                p.status === 'Renewed' ||
-                p.status === 'Archived' ||
-                !!p.renewedToId // if it points forward, it's definitely an old version
+                p => p.status === 'Renewed' || p.status === 'Archived' || !!p.renewedToId
             );
         } else {
-            // Current: only policies that are not superseded
             augmentedPolicies = augmentedPolicies.filter(
-                p =>
-                (p.status === 'Active' || p.status === undefined || p.status === null) &&
-                !p.renewedToId
+                p => (p.status === 'Active' || p.status === undefined || p.status === null) && !p.renewedToId
             );
         }
 
@@ -441,6 +447,16 @@ export default function PoliciesPage() {
         });
         return augmentedPolicies;
     }, [policies, searchQuery, filterMemberType, filterMemberId, activeTab, sortConfig, membersById]);
+
+    const getStatusBadgeVariant = (status: 'New' | 'Expired' | 'Renewed' | 'Active') => {
+        switch (status) {
+            case 'New': return 'default';
+            case 'Expired': return 'destructive';
+            case 'Renewed': return 'secondary';
+            case 'Active': return 'outline';
+            default: return 'secondary';
+        }
+    };
 
 
     const renderContent = () => {
@@ -474,11 +490,10 @@ export default function PoliciesPage() {
                     <TableHeader>
                         <TableRow>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('type')}>Type <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('provider')}>Provider <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('policyNumber')}>Policy/ID Number <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('memberName')}>For <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('endDate')}>Expiry Date (BS) <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                            <TableHead>Status</TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('endDate')}>Expiry <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('status')}>Status <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                              <TableHead><Button variant="ghost" onClick={() => requestSort('authorship')}>Authorship <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
@@ -487,25 +502,15 @@ export default function PoliciesPage() {
                         {sortedAndFilteredPolicies.map(policy => (
                             <TableRow key={policy.id}>
                                 <TableCell>{policy.type}</TableCell>
-                                <TableCell>{policy.provider}</TableCell>
                                 <TableCell>{policy.policyNumber}</TableCell>
                                 <TableCell>{policy.memberName}</TableCell>
-                                <TableCell>{toNepaliDate(policy.endDate)}</TableCell>
                                 <TableCell>
                                     <TooltipProvider>
                                         <Tooltip>
                                         <TooltipTrigger>
-                                            <div className="flex flex-col gap-1">
-                                                <div className="flex items-center gap-2">
-                                                    <span className={cn('h-2 w-2 rounded-full', policy.expiryStatus.days < 0 && 'bg-red-500', policy.expiryStatus.days >= 0 && policy.expiryStatus.days <= 30 && 'bg-yellow-500', policy.expiryStatus.days > 30 && 'bg-green-500')}/>
-                                                    <span>{policy.expiryStatus.text}</span>
-                                                </div>
-                                                {activeTab === 'history' && policy.status === 'Renewed' && policy.renewedToId && (
-                                                    <span className="text-xs text-muted-foreground">
-                                                    Renewed to:{' '}
-                                                    {policiesById.get(policy.renewedToId)?.policyNumber ?? policiesById.get(policy.renewedToId)?.id ?? 'New record'}
-                                                    </span>
-                                                )}
+                                            <div className="flex items-center gap-2">
+                                                <span className={cn('h-2 w-2 rounded-full', policy.expiryStatus.color)}/>
+                                                <span>{policy.expiryStatus.text}</span>
                                             </div>
                                         </TooltipTrigger>
                                         <TooltipContent>
@@ -513,6 +518,15 @@ export default function PoliciesPage() {
                                         </TooltipContent>
                                         </Tooltip>
                                     </TooltipProvider>
+                                </TableCell>
+                                <TableCell>
+                                    <Badge variant={getStatusBadgeVariant(policy.derivedStatus)}>{policy.derivedStatus}</Badge>
+                                    {activeTab === 'history' && policy.status === 'Renewed' && policy.renewedToId && (
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      Renewed to:{' '}
+                                      {policiesById.get(policy.renewedToId)?.policyNumber ?? policiesById.get(policy.renewedToId)?.id ?? 'New record'}
+                                    </p>
+                                  )}
                                 </TableCell>
                                 <TableCell>
                                     <TooltipProvider>
@@ -859,3 +873,4 @@ export default function PoliciesPage() {
         </>
     );
 }
+
