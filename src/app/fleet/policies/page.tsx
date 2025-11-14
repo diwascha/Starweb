@@ -268,7 +268,6 @@ export default function PoliciesPage() {
 
         try {
             if (isRenewal && !editingPolicy) {
-                // This is a renewal, so we need to mark the old policy as 'Renewed' and create a new one.
                 const oldPolicyId = formState.renewedFromId;
                 if (oldPolicyId) {
                     await updatePolicy(oldPolicyId, { status: 'Renewed', lastModifiedBy: user.username });
@@ -337,10 +336,13 @@ export default function PoliciesPage() {
 
 
     const sortedAndFilteredPolicies = useMemo(() => {
+        const renewedPolicyIds = new Set(policies.map(p => p.renewedFromId).filter(Boolean));
+
         let augmentedPolicies = policies.map(p => ({
             ...p,
             memberName: membersById.get(p.memberId)?.name || 'N/A',
             expiryStatus: getExpiryStatus(p.endDate),
+            isRenewed: renewedPolicyIds.has(p.id)
         }));
 
         if (searchQuery) {
@@ -361,9 +363,9 @@ export default function PoliciesPage() {
         }
         
         if (activeTab === 'history') {
-            augmentedPolicies = augmentedPolicies.filter(p => p.status === 'Renewed' || p.status === 'Archived');
+            augmentedPolicies = augmentedPolicies.filter(p => p.status === 'Renewed' || p.status === 'Archived' || p.isRenewed);
         } else { // 'current' tab
-            augmentedPolicies = augmentedPolicies.filter(p => p.status !== 'Renewed' && p.status !== 'Archived');
+            augmentedPolicies = augmentedPolicies.filter(p => p.status !== 'Renewed' && p.status !== 'Archived' && !p.isRenewed);
         }
 
         augmentedPolicies.sort((a, b) => {
