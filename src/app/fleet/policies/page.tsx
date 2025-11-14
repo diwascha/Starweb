@@ -265,70 +265,69 @@ export default function PoliciesPage() {
         }
     };
 
-
     const handleSubmit = async () => {
-      if (!user) return;
-    
-      if (!formState.type || !formState.provider || !formState.policyNumber || !formState.memberId) {
-        toast({
-          title: 'Error',
-          description: 'Type, Provider, Policy Number, and associated Vehicle/Driver are required.',
-          variant: 'destructive',
-        });
-        return;
-      }
-    
-      const nowIso = new Date().toISOString();
-    
-      try {
-        if (editingPolicy && !isRenewal) {
-          // ✅ Normal edit of an existing record
-          const updatedData: Partial<Omit<PolicyOrMembership, 'id'>> = {
-            ...formState,
-            lastModifiedBy: user.username,
-            lastModifiedAt: nowIso,
-          };
-          await updatePolicy(editingPolicy.id, updatedData);
-          toast({ title: 'Success', description: 'Record updated.' });
-        } else {
-          // ✅ New record (either fresh add OR renewal)
-          const newData: Omit<PolicyOrMembership, 'id' | 'createdAt' | 'lastModifiedAt' | 'renewedToId'> = {
-            ...formState,
-            status: 'Active',
-            createdBy: user.username,
-          };
-    
-          const newPolicyId = await addPolicy(newData);
-    
-          // If renewing, mark the old policy as Renewed and point it to this one
-          if (isRenewal && formState.renewedFromId) {
-            await updatePolicy(formState.renewedFromId, {
-              status: 'Renewed',
-              renewedToId: newPolicyId,
-              lastModifiedBy: user.username,
-              lastModifiedAt: nowIso,
+        if (!user) return;
+
+        if (!formState.type || !formState.provider || !formState.policyNumber || !formState.memberId) {
+            toast({
+            title: 'Error',
+            description: 'Type, Provider, Policy Number, and associated Vehicle/Driver are required.',
+            variant: 'destructive',
             });
-          }
-    
-          toast({
-            title: 'Success',
-            description: `New record ${isRenewal ? 'for renewal ' : ''}added.`,
-          });
+            return;
         }
-    
-        setIsDialogOpen(false);
-        resetForm();
-      } catch (error) {
-        console.error(error);
-        toast({
-          title: 'Error',
-          description: 'Failed to save record.',
-          variant: 'destructive',
-        });
-      }
+
+        const nowIso = new Date().toISOString();
+
+        try {
+            if (editingPolicy && !isRenewal) {
+            // ✅ Normal edit of an existing record
+            const updatedData: Partial<Omit<PolicyOrMembership, 'id'>> = {
+                ...formState,
+                lastModifiedBy: user.username,
+                lastModifiedAt: nowIso,
+            };
+            await updatePolicy(editingPolicy.id, updatedData);
+            toast({ title: 'Success', description: 'Record updated.' });
+            } else {
+            // ✅ New record (either fresh add OR renewal)
+            const newData: Omit<PolicyOrMembership, 'id' | 'createdAt' | 'lastModifiedAt' | 'renewedToId'> = {
+                ...formState,
+                status: 'Active',
+                createdBy: user.username,
+            };
+
+            const newPolicyId = await addPolicy(newData);
+
+            // If renewing, mark the old policy as Renewed and point it to this one
+            if (isRenewal && formState.renewedFromId) {
+                await updatePolicy(formState.renewedFromId, {
+                status: 'Renewed',
+                renewedToId: newPolicyId,
+                lastModifiedBy: user.username,
+                lastModifiedAt: nowIso,
+                });
+            }
+
+            toast({
+                title: 'Success',
+                description: `New record ${isRenewal ? 'for renewal ' : ''}added.`,
+            });
+            }
+
+            setIsDialogOpen(false);
+            resetForm();
+        } catch (error) {
+            console.error(error);
+            toast({
+            title: 'Error',
+            description: 'Failed to save record.',
+            variant: 'destructive',
+            });
+        }
     };
       
-      const handleArchive = async (policy: PolicyOrMembership) => {
+    const handleArchive = async (policy: PolicyOrMembership) => {
         if (!user) return;
         try {
           await updatePolicy(policy.id, {
@@ -361,10 +360,18 @@ export default function PoliciesPage() {
     };
 
     const sortedAndFilteredPolicies = useMemo(() => {
+        const today = startOfToday();
         let augmentedPolicies = policies.map(p => {
-            const isExpired = isPast(new Date(p.endDate));
+            const daysRemaining = differenceInDays(new Date(p.endDate), today);
+            let expiryStatusText = '';
+            if (daysRemaining < 0) {
+                expiryStatusText = `Expired ${-daysRemaining} days ago`;
+            } else {
+                expiryStatusText = `Expires in ${daysRemaining} days`;
+            }
+
             let statusText: 'Active' | 'Expired' = 'Active';
-            if (p.status !== 'Renewed' && p.status !== 'Archived' && isExpired) {
+            if (p.status !== 'Renewed' && p.status !== 'Archived' && isPast(new Date(p.endDate))) {
                 statusText = 'Expired';
             }
 
@@ -372,6 +379,7 @@ export default function PoliciesPage() {
                 ...p,
                 memberName: membersById.get(p.memberId)?.name || 'N/A',
                 derivedStatus: statusText,
+                expiryStatusText,
             }
         });
 
@@ -483,7 +491,7 @@ export default function PoliciesPage() {
                                 <TableCell>{policy.type}</TableCell>
                                 <TableCell>{policy.policyNumber}</TableCell>
                                 <TableCell>{policy.memberName}</TableCell>
-                                <TableCell>{toNepaliDate(policy.endDate)}</TableCell>
+                                <TableCell>{toNepaliDate(policy.endDate)}, {policy.expiryStatusText}</TableCell>
                                 <TableCell>
                                     <Badge variant={getStatusBadgeVariant(policy.derivedStatus)}>{policy.derivedStatus}</Badge>
                                 </TableCell>
@@ -832,3 +840,5 @@ export default function PoliciesPage() {
         </>
     );
 }
+
+    
