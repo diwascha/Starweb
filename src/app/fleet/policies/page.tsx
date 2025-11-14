@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -300,7 +299,7 @@ export default function PoliciesPage() {
 
 
     const sortedAndFilteredPolicies = useMemo(() => {
-        const renewedPolicyIds = new Set(policies.map(p => p.renewedFromId).filter(Boolean));
+        const renewedFromIds = new Set(policies.map(p => p.renewedFromId).filter(Boolean));
 
         let augmentedPolicies = policies.map(p => ({
             ...p,
@@ -327,10 +326,10 @@ export default function PoliciesPage() {
         
         if (activeTab === 'history') {
             // Show only policies that have been renewed
-            augmentedPolicies = augmentedPolicies.filter(p => renewedPolicyIds.has(p.id));
+            augmentedPolicies = augmentedPolicies.filter(p => renewedFromIds.has(p.id));
         } else { // 'current' tab
             // Show only policies that have NOT been renewed
-            augmentedPolicies = augmentedPolicies.filter(p => !renewedPolicyIds.has(p.id));
+            augmentedPolicies = augmentedPolicies.filter(p => !p.renewedFromId && !renewedFromIds.has(p.id));
         }
 
         augmentedPolicies.sort((a, b) => {
@@ -765,3 +764,4 @@ export default function PoliciesPage() {
         </>
     );
 }
+
