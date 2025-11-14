@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -266,13 +265,14 @@ export default function PoliciesPage() {
             return;
         }
 
-        try {
-            if (isRenewal && !editingPolicy) {
-                const oldPolicyId = formState.renewedFromId;
-                if (oldPolicyId) {
-                    await updatePolicy(oldPolicyId, { status: 'Renewed', lastModifiedBy: user.username });
-                }
+        if (isRenewal) {
+            const oldPolicyId = formState.renewedFromId;
+            if (oldPolicyId) {
+                await updatePolicy(oldPolicyId, { status: 'Renewed', lastModifiedBy: user.username });
             }
+        }
+
+        try {
 
             if (editingPolicy) {
                 const updatedData: Partial<Omit<PolicyOrMembership, 'id'>> = { ...formState, lastModifiedBy: user.username };
@@ -336,13 +336,10 @@ export default function PoliciesPage() {
 
 
     const sortedAndFilteredPolicies = useMemo(() => {
-        const renewedPolicyIds = new Set(policies.filter(p => p.renewedFromId).map(p => p.renewedFromId));
-
         let augmentedPolicies = policies.map(p => ({
             ...p,
             memberName: membersById.get(p.memberId)?.name || 'N/A',
-            expiryStatus: getExpiryStatus(p.endDate),
-            isRenewed: renewedPolicyIds.has(p.id)
+            expiryStatus: getExpiryStatus(p.endDate)
         }));
 
         if (searchQuery) {
@@ -495,7 +492,7 @@ export default function PoliciesPage() {
                                                 <DropdownMenuItem onSelect={() => handleOpenDialog(policy)}>
                                                     <Edit className="mr-2 h-4 w-4" /> Edit
                                                 </DropdownMenuItem>
-                                                {policy.status === 'Active' && (
+                                                {policy.status !== 'Renewed' && policy.status !== 'Archived' && (
                                                     <DropdownMenuItem onSelect={() => handleArchive(policy)}>
                                                         <Archive className="mr-2 h-4 w-4" /> Move to History
                                                     </DropdownMenuItem>
@@ -806,5 +803,7 @@ export default function PoliciesPage() {
 }
 
 
+
+    
 
     
