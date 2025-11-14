@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -332,7 +331,7 @@ export default function PoliciesPage() {
         return { text: `Expires in ${daysRemaining} days`, color: 'bg-green-500', days: daysRemaining };
     };
 
-    const sortedAndFilteredPolicies = (() => {
+    const sortedAndFilteredPolicies = useMemo(() => {
         let augmentedPolicies = policies.map(p => ({
             ...p,
             memberName: membersById.get(p.memberId)?.name || 'N/A',
@@ -359,7 +358,7 @@ export default function PoliciesPage() {
         if (activeTab === 'history') {
             augmentedPolicies = augmentedPolicies.filter(p => p.status === 'Renewed' || p.status === 'Archived');
         } else {
-            augmentedPolicies = augmentedPolicies.filter(p => p.status !== 'Renewed' && p.status !== 'Archived');
+            augmentedPolicies = augmentedPolicies.filter(p => p.status === 'Active' || p.status === undefined || p.status === null);
         }
 
         augmentedPolicies.sort((a, b) => {
@@ -387,7 +386,7 @@ export default function PoliciesPage() {
             return 0;
         });
         return augmentedPolicies;
-    })();
+    }, [policies, searchQuery, filterMemberType, filterMemberId, activeTab, sortConfig, membersById]);
 
 
     const renderContent = () => {
@@ -799,13 +798,6 @@ export default function PoliciesPage() {
     );
 }
 
-
-
     
-
-    
-
-
-
 
     
