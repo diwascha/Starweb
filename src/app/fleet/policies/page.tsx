@@ -2,7 +2,8 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import type { PolicyOrMembership, Vehicle, Driver } from '@/lib/types';
+import Link from 'next/link';
+import type { PolicyOrMembership, Vehicle, Driver, PartyType } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, CalendarIcon, Check, ChevronsUpDown, User, RefreshCcw, History } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -131,11 +132,11 @@ export default function PoliciesPage() {
     const handleOpenDialog = (policy: PolicyOrMembership | null = null, renew = false) => {
         if (policy) {
             setIsRenewal(renew);
-            const startDate = renew ? addDays(new Date(policy.endDate), 1).toISOString() : policy.startDate;
-            const endDate = renew ? addDays(new Date(startDate), 365).toISOString() : policy.endDate;
             
             if (renew) {
                 setEditingPolicy(null); // It's a new record, not editing the old one
+                 const startDate = addDays(new Date(policy.endDate), 1).toISOString();
+                 const endDate = addDays(new Date(startDate), 365).toISOString();
                 setFormState({
                     type: policy.type,
                     provider: policy.provider,
@@ -314,13 +315,13 @@ export default function PoliciesPage() {
 
 
     const sortedAndFilteredPolicies = useMemo(() => {
-        const renewedFromIds = new Set(policies.map(p => p.renewedFromId).filter(Boolean));
+        const renewedIds = new Set(policies.map(p => p.renewedFromId).filter(Boolean));
 
         let augmentedPolicies = policies.map(p => ({
             ...p,
             memberName: membersById.get(p.memberId)?.name || 'N/A',
             expiryStatus: getExpiryStatus(p.endDate),
-            isRenewed: renewedFromIds.has(p.id)
+            isRenewed: renewedIds.has(p.id)
         }));
 
         if (searchQuery) {
@@ -364,8 +365,8 @@ export default function PoliciesPage() {
                 return 0;
             }
 
-            const aVal = a[sortConfig.key as keyof typeof a];
-            const bVal = b[sortConfig.key as keyof typeof b];
+            const aVal = a[sortConfig.key as keyof typeof a] ?? '';
+            const bVal = b[sortConfig.key as keyof typeof b] ?? '';
             if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
             if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
             return 0;
