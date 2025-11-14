@@ -267,66 +267,66 @@ export default function PoliciesPage() {
 
 
     const handleSubmit = async () => {
-        if (!user) return;
-      
-        if (!formState.type || !formState.provider || !formState.policyNumber || !formState.memberId) {
-          toast({
-            title: 'Error',
-            description: 'Type, Provider, Policy Number, and associated Vehicle/Driver are required.',
-            variant: 'destructive',
-          });
-          return;
-        }
-      
-        const nowIso = new Date().toISOString();
-      
-        try {
-          if (editingPolicy && !isRenewal) {
-            // ✅ Normal edit of an existing record
-            const updatedData: Partial<Omit<PolicyOrMembership, 'id'>> = {
-              ...formState,
+      if (!user) return;
+    
+      if (!formState.type || !formState.provider || !formState.policyNumber || !formState.memberId) {
+        toast({
+          title: 'Error',
+          description: 'Type, Provider, Policy Number, and associated Vehicle/Driver are required.',
+          variant: 'destructive',
+        });
+        return;
+      }
+    
+      const nowIso = new Date().toISOString();
+    
+      try {
+        if (editingPolicy && !isRenewal) {
+          // ✅ Normal edit of an existing record
+          const updatedData: Partial<Omit<PolicyOrMembership, 'id'>> = {
+            ...formState,
+            lastModifiedBy: user.username,
+            lastModifiedAt: nowIso,
+          };
+          await updatePolicy(editingPolicy.id, updatedData);
+          toast({ title: 'Success', description: 'Record updated.' });
+        } else {
+          // ✅ New record (either fresh add OR renewal)
+          const newData: Omit<PolicyOrMembership, 'id' | 'createdAt' | 'lastModifiedAt' | 'renewedToId'> = {
+            ...formState,
+            status: 'Active',
+            createdBy: user.username,
+          };
+    
+          const newPolicyId = await addPolicy(newData);
+    
+          // If renewing, mark the old policy as Renewed and point it to this one
+          if (isRenewal && formState.renewedFromId) {
+            await updatePolicy(formState.renewedFromId, {
+              status: 'Renewed',
+              renewedToId: newPolicyId,
               lastModifiedBy: user.username,
               lastModifiedAt: nowIso,
-            };
-            await updatePolicy(editingPolicy.id, updatedData);
-            toast({ title: 'Success', description: 'Record updated.' });
-          } else {
-            // ✅ New record (either fresh add OR renewal)
-            const newData: Omit<PolicyOrMembership, 'id' | 'createdAt' | 'lastModifiedAt'> = {
-              ...formState,
-              status: 'Active',
-              createdBy: user.username,
-            };
-      
-            const newPolicyId = await addPolicy(newData);
-      
-            // If renewing, mark the old policy as Renewed and point it to this one
-            if (isRenewal && formState.renewedFromId) {
-              await updatePolicy(formState.renewedFromId, {
-                status: 'Renewed',
-                renewedToId: newPolicyId,
-                lastModifiedBy: user.username,
-                lastModifiedAt: nowIso,
-              });
-            }
-      
-            toast({
-              title: 'Success',
-              description: `New record ${isRenewal ? 'for renewal ' : ''}added.`,
             });
           }
-      
-          setIsDialogOpen(false);
-          resetForm();
-        } catch (error) {
-          console.error(error);
+    
           toast({
-            title: 'Error',
-            description: 'Failed to save record.',
-            variant: 'destructive',
+            title: 'Success',
+            description: `New record ${isRenewal ? 'for renewal ' : ''}added.`,
           });
         }
-      };
+    
+        setIsDialogOpen(false);
+        resetForm();
+      } catch (error) {
+        console.error(error);
+        toast({
+          title: 'Error',
+          description: 'Failed to save record.',
+          variant: 'destructive',
+        });
+      }
+    };
       
       const handleArchive = async (policy: PolicyOrMembership) => {
         if (!user) return;
@@ -359,23 +359,6 @@ export default function PoliciesPage() {
         }
         setSortConfig({ key, direction });
     };
-    
-    const getExpiryStatus = (endDate: string) => {
-        const today = startOfToday();
-        const expiryDate = new Date(endDate);
-        const daysRemaining = differenceInDays(expiryDate, today);
-
-        if (daysRemaining < 0) {
-            return { text: `Expired ${-daysRemaining} days ago`, color: 'bg-red-500', days: daysRemaining };
-        }
-        if (daysRemaining <= 7) {
-            return { text: `Expires in ${daysRemaining} days`, color: 'bg-orange-500', days: daysRemaining };
-        }
-        if (daysRemaining <= 30) {
-            return { text: `Expires in ${daysRemaining} days`, color: 'bg-yellow-500', days: daysRemaining };
-        }
-        return { text: `Expires in ${daysRemaining} days`, color: 'bg-green-500', days: daysRemaining };
-    };
 
     const sortedAndFilteredPolicies = useMemo(() => {
         let augmentedPolicies = policies.map(p => {
@@ -388,7 +371,6 @@ export default function PoliciesPage() {
             return {
                 ...p,
                 memberName: membersById.get(p.memberId)?.name || 'N/A',
-                expiryStatus: getExpiryStatus(p.endDate),
                 derivedStatus: statusText,
             }
         });
@@ -411,19 +393,21 @@ export default function PoliciesPage() {
         }
         
         if (activeTab === 'history') {
-            augmentedPolicies = augmentedPolicies.filter(
-              p =>
-                p.status === 'Renewed' ||
-                p.status === 'Archived' ||
-                !!p.renewedToId
-            );
-          } else {
-            augmentedPolicies = augmentedPolicies.filter(
-              p =>
-                (p.status === 'Active' || p.status === undefined || p.status === null) &&
-                !p.renewedToId
-            );
-          }
+          // 🕓 History: anything that’s clearly not the latest
+          augmentedPolicies = augmentedPolicies.filter(
+            p =>
+              p.status === 'Renewed' ||
+              p.status === 'Archived' ||
+              !!p.renewedToId // if it points forward, it's definitely an old version
+          );
+        } else {
+          // ✅ Current: only policies that are not superseded
+          augmentedPolicies = augmentedPolicies.filter(
+            p =>
+              (p.status === 'Active' || p.status === undefined || p.status === null) &&
+              !p.renewedToId
+          );
+        }
           
 
         augmentedPolicies.sort((a, b) => {
@@ -433,14 +417,6 @@ export default function PoliciesPage() {
                 if (!aDate || !bDate) return 0;
                 if (aDate < bDate) return sortConfig.direction === 'asc' ? -1 : 1;
                 if (aDate > bDate) return sortConfig.direction === 'asc' ? 1 : -1;
-                return 0;
-            }
-
-            if (sortConfig.key === 'endDate') {
-                const aDays = a.expiryStatus.days;
-                const bDays = b.expiryStatus.days;
-                if (aDays < bDays) return sortConfig.direction === 'asc' ? -1 : 1;
-                if (aDays > bDays) return sortConfig.direction === 'asc' ? 1 : -1;
                 return 0;
             }
 
@@ -507,21 +483,7 @@ export default function PoliciesPage() {
                                 <TableCell>{policy.type}</TableCell>
                                 <TableCell>{policy.policyNumber}</TableCell>
                                 <TableCell>{policy.memberName}</TableCell>
-                                <TableCell>
-                                    <TooltipProvider>
-                                        <Tooltip>
-                                        <TooltipTrigger>
-                                            <div className="flex items-center gap-2">
-                                                <span className={cn('h-2 w-2 rounded-full', policy.expiryStatus.color)}/>
-                                                <span>{policy.expiryStatus.text}</span>
-                                            </div>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>Expires on {format(new Date(policy.endDate), 'PPP')}</p>
-                                        </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
-                                </TableCell>
+                                <TableCell>{toNepaliDate(policy.endDate)}</TableCell>
                                 <TableCell>
                                     <Badge variant={getStatusBadgeVariant(policy.derivedStatus)}>{policy.derivedStatus}</Badge>
                                 </TableCell>
