@@ -265,23 +265,20 @@ export default function PoliciesPage() {
             toast({ title: 'Error', description: 'Type, Provider, Policy Number, and associated Vehicle/Driver are required.', variant: 'destructive' });
             return;
         }
-
-        if (isRenewal) {
-            const oldPolicyId = formState.renewedFromId;
-            if (oldPolicyId) {
-                await updatePolicy(oldPolicyId, { status: 'Renewed', lastModifiedBy: user.username });
-            }
-        }
-
+        
         try {
-
             if (editingPolicy) {
                 const updatedData: Partial<Omit<PolicyOrMembership, 'id'>> = { ...formState, lastModifiedBy: user.username };
                 await updatePolicy(editingPolicy.id, updatedData);
                 toast({ title: 'Success', description: 'Record updated.' });
             } else {
                 const newData: Omit<PolicyOrMembership, 'id' | 'createdAt' | 'lastModifiedAt'> = { ...formState, createdBy: user.username };
-                await addPolicy(newData);
+                const newPolicyId = await addPolicy(newData);
+                
+                if (isRenewal && formState.renewedFromId) {
+                    await updatePolicy(formState.renewedFromId, { status: 'Renewed', lastModifiedBy: user.username });
+                }
+
                 toast({ title: 'Success', description: `New record ${isRenewal ? 'for renewal ' : ''}added.` });
             }
             setIsDialogOpen(false);
@@ -335,7 +332,7 @@ export default function PoliciesPage() {
         return { text: `Expires in ${daysRemaining} days`, color: 'bg-green-500', days: daysRemaining };
     };
 
-    const getSortedAndFilteredPolicies = () => {
+    const sortedAndFilteredPolicies = (() => {
         let augmentedPolicies = policies.map(p => ({
             ...p,
             memberName: membersById.get(p.memberId)?.name || 'N/A',
@@ -390,9 +387,7 @@ export default function PoliciesPage() {
             return 0;
         });
         return augmentedPolicies;
-    };
-    
-    const sortedAndFilteredPolicies = getSortedAndFilteredPolicies();
+    })();
 
 
     const renderContent = () => {
@@ -494,7 +489,7 @@ export default function PoliciesPage() {
                                                 <DropdownMenuItem onSelect={() => handleOpenDialog(policy)}>
                                                     <Edit className="mr-2 h-4 w-4" /> Edit
                                                 </DropdownMenuItem>
-                                                {policy.status === 'Active' && (
+                                                {policy.status !== 'Renewed' && policy.status !== 'Archived' && (
                                                     <DropdownMenuItem onSelect={() => handleArchive(policy)}>
                                                         <Archive className="mr-2 h-4 w-4" /> Move to History
                                                     </DropdownMenuItem>
@@ -809,4 +804,5 @@ export default function PoliciesPage() {
     
 
     
+
 
