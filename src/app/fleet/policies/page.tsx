@@ -30,6 +30,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/use-auth';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -42,7 +43,6 @@ import { onPoliciesUpdate, addPolicy, updatePolicy, deletePolicy } from '@/servi
 import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onDriversUpdate } from '@/services/driver-service';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 
 
 type PolicySortKey = 'type' | 'provider' | 'policyNumber' | 'endDate' | 'memberName' | 'authorship';
@@ -130,22 +130,37 @@ export default function PoliciesPage() {
 
     const handleOpenDialog = (policy: PolicyOrMembership | null = null, renew = false) => {
         if (policy) {
-            setEditingPolicy(renew ? null : policy);
             setIsRenewal(renew);
             const startDate = renew ? addDays(new Date(policy.endDate), 1).toISOString() : policy.startDate;
             const endDate = renew ? addDays(new Date(startDate), 365).toISOString() : policy.endDate;
-
-            setFormState({
-                type: policy.type,
-                provider: policy.provider,
-                policyNumber: renew ? '' : policy.policyNumber,
-                startDate,
-                endDate,
-                cost: renew ? 0 : policy.cost,
-                memberId: policy.memberId,
-                memberType: policy.memberType,
-                renewedFromId: renew ? policy.id : policy.renewedFromId,
-            });
+            
+            if (renew) {
+                setEditingPolicy(null); // It's a new record, not editing the old one
+                setFormState({
+                    type: policy.type,
+                    provider: policy.provider,
+                    policyNumber: '', // Clear policy number for new entry
+                    startDate,
+                    endDate,
+                    cost: 0,
+                    memberId: policy.memberId,
+                    memberType: policy.memberType,
+                    renewedFromId: policy.id,
+                });
+            } else {
+                setEditingPolicy(policy);
+                setFormState({
+                    type: policy.type,
+                    provider: policy.provider,
+                    policyNumber: policy.policyNumber,
+                    startDate: policy.startDate,
+                    endDate: policy.endDate,
+                    cost: policy.cost,
+                    memberId: policy.memberId,
+                    memberType: policy.memberType,
+                    renewedFromId: policy.renewedFromId,
+                });
+            }
         } else {
             resetForm();
         }
@@ -247,11 +262,11 @@ export default function PoliciesPage() {
         }
 
         try {
-            if (editingPolicy && !isRenewal) {
+            if (editingPolicy) {
                 const updatedData: Partial<Omit<PolicyOrMembership, 'id'>> = { ...formState, lastModifiedBy: user.username };
                 await updatePolicy(editingPolicy.id, updatedData);
                 toast({ title: 'Success', description: 'Record updated.' });
-            } else {
+            } else { // This handles both new records and renewals
                 const newData: Omit<PolicyOrMembership, 'id' | 'createdAt' | 'lastModifiedAt'> = { ...formState, createdBy: user.username };
                 await addPolicy(newData);
                 toast({ title: 'Success', description: `New record ${isRenewal ? 'for renewal ' : ''}added.` });
@@ -304,7 +319,8 @@ export default function PoliciesPage() {
         let augmentedPolicies = policies.map(p => ({
             ...p,
             memberName: membersById.get(p.memberId)?.name || 'N/A',
-            expiryStatus: getExpiryStatus(p.endDate)
+            expiryStatus: getExpiryStatus(p.endDate),
+            isRenewed: renewedFromIds.has(p.id)
         }));
 
         if (searchQuery) {
@@ -325,9 +341,9 @@ export default function PoliciesPage() {
         }
         
         if (activeTab === 'history') {
-            augmentedPolicies = augmentedPolicies.filter(p => renewedFromIds.has(p.id));
+            augmentedPolicies = augmentedPolicies.filter(p => p.isRenewed);
         } else { // 'current' tab
-            augmentedPolicies = augmentedPolicies.filter(p => !renewedFromIds.has(p.id));
+            augmentedPolicies = augmentedPolicies.filter(p => !p.isRenewed);
         }
 
         augmentedPolicies.sort((a, b) => {
@@ -706,7 +722,7 @@ export default function PoliciesPage() {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-                        <Button onClick={handleSubmit}>{editingPolicy && !isRenewal ? 'Save Changes' : (isRenewal ? 'Renew Record' : 'Add Record')}</Button>
+                        <Button onClick={handleSubmit}>{editingPolicy ? 'Save Changes' : (isRenewal ? 'Renew Record' : 'Add Record')}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
