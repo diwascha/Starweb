@@ -355,10 +355,10 @@ export default function PoliciesPage() {
             }
         }
         
-        if (activeTab === 'history') {
+        if (activeTab === 'current') {
+            augmentedPolicies = augmentedPolicies.filter(p => p.status === 'Active' || p.status === null || p.status === undefined);
+        } else { // history tab
             augmentedPolicies = augmentedPolicies.filter(p => p.status === 'Renewed' || p.status === 'Archived');
-        } else {
-            augmentedPolicies = augmentedPolicies.filter(p => p.status === 'Active' || p.status === undefined || p.status === null);
         }
 
         augmentedPolicies.sort((a, b) => {
@@ -488,7 +488,7 @@ export default function PoliciesPage() {
                                                 <DropdownMenuItem onSelect={() => handleOpenDialog(policy)}>
                                                     <Edit className="mr-2 h-4 w-4" /> Edit
                                                 </DropdownMenuItem>
-                                                {policy.status !== 'Renewed' && policy.status !== 'Archived' && (
+                                                 {policy.status !== 'Renewed' && policy.status !== 'Archived' && (
                                                     <DropdownMenuItem onSelect={() => handleArchive(policy)}>
                                                         <Archive className="mr-2 h-4 w-4" /> Move to History
                                                     </DropdownMenuItem>
@@ -797,8 +797,3 @@ export default function PoliciesPage() {
         </>
     );
 }
-
-    
-
-    
-
