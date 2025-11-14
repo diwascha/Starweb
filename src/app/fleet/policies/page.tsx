@@ -136,13 +136,13 @@ export default function PoliciesPage() {
         setIsRenewal(renew);
         if (policy) {
             if (renew) {
-                setEditingPolicy(null); // It's a new record, not editing the old one
+                 setEditingPolicy(null);
                  const startDate = addDays(new Date(policy.endDate), 1).toISOString();
                  const endDate = addDays(new Date(startDate), 365).toISOString();
                 setFormState({
                     type: policy.type,
                     provider: policy.provider,
-                    policyNumber: '', // Clear policy number for new entry
+                    policyNumber: '',
                     startDate,
                     endDate,
                     cost: policy.cost,
@@ -335,8 +335,7 @@ export default function PoliciesPage() {
         return { text: `Expires in ${daysRemaining} days`, color: 'bg-green-500', days: daysRemaining };
     };
 
-
-    const sortedAndFilteredPolicies = useMemo(() => {
+    const getSortedAndFilteredPolicies = () => {
         let augmentedPolicies = policies.map(p => ({
             ...p,
             memberName: membersById.get(p.memberId)?.name || 'N/A',
@@ -362,7 +361,7 @@ export default function PoliciesPage() {
         
         if (activeTab === 'history') {
             augmentedPolicies = augmentedPolicies.filter(p => p.status === 'Renewed' || p.status === 'Archived');
-        } else { // 'current' tab
+        } else {
             augmentedPolicies = augmentedPolicies.filter(p => p.status !== 'Renewed' && p.status !== 'Archived');
         }
 
@@ -391,7 +390,9 @@ export default function PoliciesPage() {
             return 0;
         });
         return augmentedPolicies;
-    }, [policies, searchQuery, sortConfig, membersById, filterMemberType, filterMemberId, activeTab]);
+    };
+    
+    const sortedAndFilteredPolicies = getSortedAndFilteredPolicies();
 
 
     const renderContent = () => {
@@ -493,7 +494,7 @@ export default function PoliciesPage() {
                                                 <DropdownMenuItem onSelect={() => handleOpenDialog(policy)}>
                                                     <Edit className="mr-2 h-4 w-4" /> Edit
                                                 </DropdownMenuItem>
-                                                {policy.status !== 'Renewed' && policy.status !== 'Archived' && (
+                                                {policy.status === 'Active' && (
                                                     <DropdownMenuItem onSelect={() => handleArchive(policy)}>
                                                         <Archive className="mr-2 h-4 w-4" /> Move to History
                                                     </DropdownMenuItem>
@@ -808,3 +809,4 @@ export default function PoliciesPage() {
     
 
     
+
