@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -336,13 +337,10 @@ export default function PoliciesPage() {
 
 
     const sortedAndFilteredPolicies = useMemo(() => {
-        const renewedPolicyIds = new Set(policies.map(p => p.renewedFromId).filter(Boolean));
-
         let augmentedPolicies = policies.map(p => ({
             ...p,
             memberName: membersById.get(p.memberId)?.name || 'N/A',
             expiryStatus: getExpiryStatus(p.endDate),
-            isRenewed: renewedPolicyIds.has(p.id)
         }));
 
         if (searchQuery) {
@@ -363,9 +361,9 @@ export default function PoliciesPage() {
         }
         
         if (activeTab === 'history') {
-            augmentedPolicies = augmentedPolicies.filter(p => p.status === 'Renewed' || p.status === 'Archived' || p.isRenewed);
+            augmentedPolicies = augmentedPolicies.filter(p => p.status === 'Renewed' || p.status === 'Archived');
         } else { // 'current' tab
-            augmentedPolicies = augmentedPolicies.filter(p => p.status !== 'Renewed' && p.status !== 'Archived' && !p.isRenewed);
+            augmentedPolicies = augmentedPolicies.filter(p => p.status !== 'Renewed' && p.status !== 'Archived');
         }
 
         augmentedPolicies.sort((a, b) => {
@@ -502,7 +500,7 @@ export default function PoliciesPage() {
                                                 )}
                                                 </>
                                             )}
-                                            {hasPermission('fleet', 'delete') && <DropdownMenuSeparator />}
+                                            {hasPermission('fleet', 'delete') && hasPermission('fleet', 'edit') && <DropdownMenuSeparator />}
                                             {hasPermission('fleet', 'delete') && (
                                                 <AlertDialog>
                                                     <AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()}><Trash2 className="mr-2 h-4 w-4 text-destructive" /> <span className="text-destructive">Delete</span></DropdownMenuItem></AlertDialogTrigger>
