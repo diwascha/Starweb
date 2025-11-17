@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Search, ArrowUpDown, MoreHorizontal, Printer, Trash2, Edit, AlertTriangle, PlusCircle, History } from 'lucide-react';
+import { Search, ArrowUpDown, MoreHorizontal, Printer, Trash2, Edit, AlertTriangle, PlusCircle, History, Image as ImageIcon, Save, Loader2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { onChequesUpdate, deleteCheque, updateCheque } from '@/services/cheque-service';
@@ -32,6 +32,8 @@ import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Textarea } from '@/components/ui/textarea';
 import { onAccountsUpdate } from '@/services/account-service';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 
 function FormSkeleton() {
@@ -91,6 +93,8 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
     const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
     const [cancelReason, setCancelReason] = useState('');
     const [splitToCancel, setSplitToCancel] = useState<{cheque: Cheque, splitId: string} | null>(null);
+
+    const [isExporting, setIsExporting] = useState(false);
 
 
     useEffect(() => {
@@ -218,6 +222,44 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
         }, 250);
     };
     
+    const handleExportPdf = async () => {
+        if (!printRef.current || !chequeToPrint) return;
+        setIsExporting(true);
+        try {
+            const doc = new jsPDF('p', 'mm', 'a5');
+            const content = printRef.current;
+            await html2canvas(content, { scale: 2 }).then((canvas) => {
+                const imgData = canvas.toDataURL('image/png');
+                const pdfWidth = doc.internal.pageSize.getWidth();
+                const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+                doc.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                doc.save(`Voucher-${chequeToPrint.voucherNo}.pdf`);
+            });
+        } catch (error) {
+            console.error('PDF export failed:', error);
+            toast({ title: 'Error', description: 'Failed to export PDF.', variant: 'destructive' });
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+    const handleExportJpg = async () => {
+        if (!printRef.current || !chequeToPrint) return;
+        setIsExporting(true);
+        try {
+            const canvas = await html2canvas(printRef.current, { scale: 3, useCORS: true, backgroundColor: '#ffffff' });
+            const link = document.createElement('a');
+            link.download = `Voucher-${chequeToPrint.voucherNo}.jpg`;
+            link.href = canvas.toDataURL('image/jpeg', 0.9);
+            link.click();
+        } catch (error) {
+            console.error(`Failed to export as JPG`, error);
+            toast({ title: 'Export Failed', description: `Could not export as JPG.`, variant: 'destructive' });
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
     const getStatusBadge = (split: AugmentedChequeSplit) => {
         const { status, daysRemaining, isOverdue, cancellationReason } = split;
 
@@ -473,8 +515,8 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
              <Dialog open={isPrintPreviewOpen} onOpenChange={setIsPrintPreviewOpen}>
                 <DialogContent className="max-w-4xl">
                     <DialogHeader>
-                        <DialogTitle>Cheque Preview</DialogTitle>
-                        <DialogDescription>Review the cheques before printing.</DialogDescription>
+                        <DialogTitle>Voucher Preview</DialogTitle>
+                        <DialogDescription>Review the cheque voucher before printing or exporting.</DialogDescription>
                     </DialogHeader>
                      <div className="max-h-[70vh] overflow-auto p-4 bg-gray-100">
                          <div ref={printRef}>
@@ -492,8 +534,16 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                             )}
                          </div>
                     </div>
-                    <DialogFooter>
+                     <DialogFooter className="sm:justify-end gap-2">
                         <Button variant="outline" onClick={() => setIsPrintPreviewOpen(false)}>Cancel</Button>
+                        <Button variant="outline" onClick={handleExportJpg} disabled={isExporting}>
+                            {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ImageIcon className="mr-2 h-4 w-4"/>}
+                             Export as JPG
+                        </Button>
+                        <Button variant="outline" onClick={handleExportPdf} disabled={isExporting}>
+                            {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
+                            Export as PDF
+                        </Button>
                         <Button onClick={doActualPrint}><Printer className="mr-2 h-4 w-4" /> Print</Button>
                     </DialogFooter>
                 </DialogContent>
