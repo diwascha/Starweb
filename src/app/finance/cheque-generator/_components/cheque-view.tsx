@@ -40,9 +40,6 @@ export function ChequeView({ voucherNo, voucherDate, payeeName, account, splits 
             <div>
                 <p><span className="font-semibold">Voucher No:</span> {voucherNo}</p>
                 <p><span className="font-semibold">Payee:</span> {payeeName}</p>
-                {account && account.type === 'Bank' && (
-                  <p><span className="font-semibold">Bank:</span> {account.bankName} - A/C {account.accountNumber}</p>
-                )}
             </div>
             <div className="text-right">
                 <p><span className="font-semibold">Voucher Date:</span> {nepaliDate} BS ({adDate})</p>
@@ -52,6 +49,7 @@ export function ChequeView({ voucherNo, voucherDate, payeeName, account, splits 
         <Table>
             <TableHeader>
                 <TableRow>
+                    <TableHead className="text-black font-semibold">Bank Details</TableHead>
                     <TableHead className="text-black font-semibold">Cheque No.</TableHead>
                     <TableHead className="text-black font-semibold">Cheque Date</TableHead>
                     <TableHead className="text-black font-semibold text-right">Amount</TableHead>
@@ -64,6 +62,16 @@ export function ChequeView({ voucherNo, voucherDate, payeeName, account, splits 
                     const formattedAmount = (Number(split.amount) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 });
                     return (
                         <TableRow key={index}>
+                            <TableCell>
+                                {account && account.type === 'Bank' ? (
+                                    <>
+                                        <div className="font-medium">{account.bankName}</div>
+                                        <div className="text-xs text-gray-600">A/C: {account.accountNumber}</div>
+                                    </>
+                                ) : (
+                                    "Cash Payment"
+                                )}
+                            </TableCell>
                             <TableCell>{split.chequeNumber || 'N/A'}</TableCell>
                             <TableCell>{nepaliChequeDate} ({adChequeDate})</TableCell>
                             <TableCell className="text-right">{formattedAmount}</TableCell>
@@ -73,7 +81,7 @@ export function ChequeView({ voucherNo, voucherDate, payeeName, account, splits 
             </TableBody>
             <TableFooter>
                 <TableRow className="font-bold text-base">
-                    <TableCell colSpan={2} className="text-right">Total</TableCell>
+                    <TableCell colSpan={3} className="text-right">Total</TableCell>
                     <TableCell className="text-right">{formattedTotalAmount}</TableCell>
                 </TableRow>
             </TableFooter>
