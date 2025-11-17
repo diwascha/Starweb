@@ -1,4 +1,5 @@
 
+
 import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, deleteDoc, query, orderBy, updateDoc, getDocs } from 'firebase/firestore';
 import type { Cheque } from '@/lib/types';
@@ -20,6 +21,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Cheque =>
         payeeName: data.payeeName,
         amount: data.amount,
         amountInWords: data.amountInWords,
+        accountId: data.accountId,
         splits: (data.splits || []).map((split: any) => ({
             ...split,
             remarks: split.remarks || '', // Ensure remarks field exists

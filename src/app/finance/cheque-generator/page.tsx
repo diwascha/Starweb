@@ -12,7 +12,7 @@ import { Search, ArrowUpDown, MoreHorizontal, Printer, Trash2, Edit, AlertTriang
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { onChequesUpdate, deleteCheque, updateCheque } from '@/services/cheque-service';
-import type { Cheque, ChequeSplit, ChequeStatus, PartialPayment } from '@/lib/types';
+import type { Cheque, ChequeSplit, ChequeStatus, PartialPayment, Account } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -31,6 +31,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Textarea } from '@/components/ui/textarea';
+import { onAccountsUpdate } from '@/services/account-service';
 
 
 function FormSkeleton() {
@@ -70,6 +71,7 @@ interface AugmentedChequeSplit extends ChequeSplit {
 
 function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
     const [cheques, setCheques] = useState<Cheque[]>([]);
+    const [accounts, setAccounts] = useState<Account[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'chequeDate', direction: 'asc' });
     const [filterStatus, setFilterStatus] = useState<string>('All');
@@ -92,8 +94,12 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
 
 
     useEffect(() => {
-        const unsub = onChequesUpdate(setCheques);
-        return () => unsub();
+        const unsubCheques = onChequesUpdate(setCheques);
+        const unsubAccounts = onAccountsUpdate(setAccounts);
+        return () => {
+          unsubCheques();
+          unsubAccounts();
+        };
     }, []);
 
     const requestSort = (key: SortKey) => {
@@ -477,6 +483,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                                     voucherNo={chequeToPrint.voucherNo}
                                     voucherDate={new Date(chequeToPrint.createdAt)}
                                     payeeName={chequeToPrint.payeeName}
+                                    account={accounts.find(a => a.id === chequeToPrint.accountId)}
                                     splits={chequeToPrint.splits.map(s => ({
                                         ...s,
                                         chequeDate: new Date(s.chequeDate)

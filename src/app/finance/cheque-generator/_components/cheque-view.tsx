@@ -4,6 +4,7 @@
 import { toWords, toNepaliDate } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
+import type { Account } from '@/lib/types';
 
 interface SplitDetail {
   chequeDate: Date;
@@ -15,10 +16,11 @@ interface ChequeViewProps {
   voucherNo: string;
   voucherDate: Date;
   payeeName: string;
+  account?: Account | null;
   splits: SplitDetail[];
 }
 
-export function ChequeView({ voucherNo, voucherDate, payeeName, splits }: ChequeViewProps) {
+export function ChequeView({ voucherNo, voucherDate, payeeName, account, splits }: ChequeViewProps) {
   const nepaliDate = toNepaliDate(voucherDate.toISOString());
   const adDate = format(voucherDate, 'yyyy-MM-dd');
   
@@ -38,6 +40,9 @@ export function ChequeView({ voucherNo, voucherDate, payeeName, splits }: Cheque
             <div>
                 <p><span className="font-semibold">Voucher No:</span> {voucherNo}</p>
                 <p><span className="font-semibold">Payee:</span> {payeeName}</p>
+                {account && account.type === 'Bank' && (
+                  <p><span className="font-semibold">Bank:</span> {account.bankName} - A/C {account.accountNumber}</p>
+                )}
             </div>
             <div className="text-right">
                 <p><span className="font-semibold">Voucher Date:</span> {nepaliDate} BS ({adDate})</p>

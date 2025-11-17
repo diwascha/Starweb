@@ -12,7 +12,7 @@ import { cn, toWords, generateNextVoucherNumber, toNepaliDate } from '@/lib/util
 import { format, addDays, parseISO } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { onPartiesUpdate, addParty } from '@/services/party-service';
-import type { Party, PartyType, Cheque, ChequeSplit, ChequeStatus } from '@/lib/types';
+import type { Party, PartyType, Cheque, ChequeSplit, ChequeStatus, Account } from '@/lib/types';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { useAuth } from '@/hooks/use-auth';
@@ -29,6 +29,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { addCheque, onChequesUpdate, updateCheque } from '@/services/cheque-service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ChequeView } from './cheque-view';
+import { onAccountsUpdate } from '@/services/account-service';
 
 interface ChequeGeneratorFormProps {
     chequeToEdit?: Cheque | null;
@@ -57,6 +58,8 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
     }]);
 
     const [parties, setParties] = useState<Party[]>([]);
+    const [accounts, setAccounts] = useState<Account[]>([]);
+    const [selectedAccountId, setSelectedAccountId] = useState<string | undefined>();
     const [isSaving, setIsSaving] = useState(false);
     
     // Dialog States
@@ -77,9 +80,11 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
     useEffect(() => {
         const unsubParties = onPartiesUpdate(setParties);
         const unsubCheques = onChequesUpdate(setCheques);
+        const unsubAccounts = onAccountsUpdate(setAccounts);
         return () => {
           unsubParties();
           unsubCheques();
+          unsubAccounts();
         };
     }, []);
     
@@ -92,6 +97,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
             setPartyName(chequeToEdit.partyName);
             setInvoiceAmount(chequeToEdit.amount);
             setNumberOfSplits(chequeToEdit.splits.length);
+            setSelectedAccountId(chequeToEdit.accountId);
             setChequeSplits(chequeToEdit.splits.map(s => {
                 const splitDate = new Date(s.chequeDate);
                 const baseDate = chequeToEdit.invoiceDate ? new Date(chequeToEdit.invoiceDate) : new Date(chequeToEdit.paymentDate);
@@ -153,6 +159,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
 
 
     const allParties = useMemo(() => parties.sort((a, b) => a.name.localeCompare(b.name)), [parties]);
+    const bankAccounts = useMemo(() => accounts.filter(a => a.type === 'Bank'), [accounts]);
     
     const totalSplitAmount = useMemo(() => {
         return chequeSplits.reduce((sum, split) => sum + (Number(split.amount) || 0), 0);
@@ -198,6 +205,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
         setPartyName('');
         setInvoiceAmount('');
         setNumberOfSplits(1);
+        setSelectedAccountId(undefined);
         setChequeSplits([{ id: Date.now().toString(), chequeDate: new Date(), chequeNumber: '', amount: '', remarks: '', interval: 0, status: 'Due', partialPayments: [] }]);
         onSaveSuccess();
     };
@@ -222,6 +230,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                 payeeName: partyName,
                 amount: Number(invoiceAmount),
                 amountInWords,
+                accountId: selectedAccountId,
                 splits: chequeSplits.map(s => ({
                     id: s.id,
                     chequeDate: s.chequeDate.toISOString(),
@@ -379,6 +388,22 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                     <Label htmlFor="numberOfSplits">Number of Cheque Splits</Label>
                     <Input id="numberOfSplits" type="number" min="1" value={numberOfSplits} onChange={(e) => setNumberOfSplits(Math.max(1, parseInt(e.target.value, 10) || 1))} />
                  </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="bankAccount">Bank Account</Label>
+                    <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
+                        <SelectTrigger id="bankAccount">
+                            <SelectValue placeholder="Select a bank account" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="cash">Cash Payment</SelectItem>
+                            {bankAccounts.map(account => (
+                                <SelectItem key={account.id} value={account.id}>
+                                    {account.bankName} - {account.accountNumber}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                 </div>
             </div>
 
             <div className="border rounded-lg p-4 space-y-4">
@@ -515,6 +540,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                                 voucherNo={voucherNo}
                                 voucherDate={paymentDate}
                                 payeeName={partyName}
+                                account={accounts.find(a => a.id === selectedAccountId)}
                                 splits={chequeSplits}
                             />
                          </div>

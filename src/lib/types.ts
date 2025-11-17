@@ -343,7 +343,7 @@ export interface PolicyOrMembership {
   lastModifiedBy?: string;
   lastModifiedAt?: string; // ISO string
   renewedFromId?: string | null;
-  renewedToId?: string | null;
+  renewedToId?: string | null;   // 
   status?: PolicyStatus;
 }
 
@@ -600,6 +600,7 @@ export interface Cheque {
     payeeName: string;
     amount: number; // Total amount
     amountInWords: string;
+    accountId?: string;
     splits: {
         id: string;
         chequeDate: string; // ISO string
