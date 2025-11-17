@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -104,6 +105,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                     interval: interval >= 0 ? interval : 0,
                     status: s.status || 'Due',
                     partialPayments: s.partialPayments || [],
+                    cancellationReason: s.cancellationReason || '',
                 }
             }));
         } else {
@@ -228,6 +230,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                     remarks: s.remarks,
                     status: s.status,
                     partialPayments: s.partialPayments || [],
+                    cancellationReason: s.cancellationReason || '',
                 })),
                 createdBy: chequeToEdit?.createdBy || user.username,
             };

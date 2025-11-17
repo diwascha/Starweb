@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { Suspense, useState, useEffect, useMemo, useRef } from 'react';
@@ -28,6 +29,8 @@ import { DualCalendar } from '@/components/ui/dual-calendar';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Textarea } from '@/components/ui/textarea';
 
 
 function FormSkeleton() {
@@ -82,6 +85,10 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
     const [paymentForm, setPaymentForm] = useState<{ date: Date, amount: number, remarks?: string }>({ date: new Date(), amount: 0, remarks: '' });
     const [payingSplit, setPayingSplit] = useState<AugmentedChequeSplit | null>(null);
     const [editingPayment, setEditingPayment] = useState<PartialPayment | null>(null);
+
+    const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+    const [cancelReason, setCancelReason] = useState('');
+    const [splitToCancel, setSplitToCancel] = useState<{cheque: Cheque, splitId: string} | null>(null);
 
 
     useEffect(() => {
@@ -206,13 +213,22 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
     };
     
     const getStatusBadge = (split: AugmentedChequeSplit) => {
-        const { status, daysRemaining, isOverdue } = split;
+        const { status, daysRemaining, isOverdue, cancellationReason } = split;
 
         if (status === 'Paid') {
             return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Paid</Badge>;
         }
         if (status === 'Canceled') {
-            return <Badge variant="destructive">Canceled</Badge>;
+            return (
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                             <Badge variant="destructive">Canceled</Badge>
+                        </TooltipTrigger>
+                        {cancellationReason && <TooltipContent><p>{cancellationReason}</p></TooltipContent>}
+                    </Tooltip>
+                </TooltipProvider>
+            );
         }
         if (status === 'Partially Paid') {
             return <Badge variant="default" className="bg-blue-600 hover:bg-blue-700">Partially Paid</Badge>;
@@ -317,11 +333,15 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
     };
 
 
-    const handleStatusUpdate = async (cheque: Cheque, splitId: string, newStatus: ChequeStatus) => {
+    const handleStatusUpdate = async (cheque: Cheque, splitId: string, newStatus: ChequeStatus, reason?: string) => {
         if (!user) return;
-        const updatedSplits = cheque.splits.map(s => 
-            s.id === splitId ? { ...s, status: newStatus } : s
-        );
+        const updatedSplits = cheque.splits.map(s => {
+            if (s.id === splitId) {
+                const updatedSplit = { ...s, status: newStatus, cancellationReason: newStatus === 'Canceled' ? reason : undefined };
+                return updatedSplit;
+            }
+            return s;
+        });
         try {
             await updateCheque(cheque.id, { splits: updatedSplits, lastModifiedBy: user.username });
             toast({ title: 'Status Updated', description: `Cheque status set to ${newStatus}.` });
@@ -330,8 +350,17 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
         }
     };
 
+    const handleConfirmCancel = () => {
+        if (splitToCancel && cancelReason) {
+            handleStatusUpdate(splitToCancel.cheque, splitToCancel.splitId, 'Canceled', cancelReason);
+            setIsCancelDialogOpen(false);
+            setCancelReason('');
+            setSplitToCancel(null);
+        } else {
+            toast({ title: 'Reason Required', description: 'Please provide a reason for cancellation.', variant: 'destructive' });
+        }
+    };
 
-    
     return (
         <>
             <Card>
@@ -409,7 +438,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                                     <DropdownMenuItem onSelect={() => handlePrint(split.parentCheque)}><Printer className="mr-2 h-4 w-4"/> Print Voucher</DropdownMenuItem>
                                     <DropdownMenuSeparator />
                                      <DropdownMenuItem onSelect={() => handleStatusUpdate(split.parentCheque, split.id, 'Paid')}>Mark as Paid</DropdownMenuItem>
-                                     <DropdownMenuItem onSelect={() => handleStatusUpdate(split.parentCheque, split.id, 'Canceled')}>Mark as Canceled</DropdownMenuItem>
+                                     <DropdownMenuItem onSelect={() => {setSplitToCancel({cheque: split.parentCheque, splitId: split.id}); setIsCancelDialogOpen(true);}}>Mark as Canceled</DropdownMenuItem>
                                      <DropdownMenuItem onSelect={() => handleStatusUpdate(split.parentCheque, split.id, 'Due')}>Mark as Due</DropdownMenuItem>
                                     <DropdownMenuSeparator />
                                     <AlertDialog>
@@ -543,6 +572,27 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                             </div>
                         </div>
                     )}
+                </DialogContent>
+            </Dialog>
+            <Dialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Reason for Cancellation</DialogTitle>
+                        <DialogDescription>
+                            Please provide a reason for canceling cheque # {splitToCancel && splitToCancel.cheque.splits.find(s => s.id === splitToCancel.splitId)?.chequeNumber}.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <Textarea
+                            placeholder="Enter reason here..."
+                            value={cancelReason}
+                            onChange={(e) => setCancelReason(e.target.value)}
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsCancelDialogOpen(false)}>Cancel</Button>
+                        <Button variant="destructive" onClick={handleConfirmCancel}>Confirm Cancellation</Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
         </>

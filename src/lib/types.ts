@@ -329,23 +329,24 @@ export interface Driver {
 export type PolicyStatus = 'Active' | 'Renewed' | 'Archived';
 
 export interface PolicyOrMembership {
-    id: string;
-    type: string;
-    provider: string; // e.g., Insurance company or Membership organization
-    policyNumber: string; // Policy or Membership ID
-    startDate: string; // ISO string
-    endDate: string; // ISO string
-    cost: number; // Premium or Membership fee
-    memberId: string; // Can be vehicleId or driverId
-    memberType: 'Vehicle' | 'Driver';
-    createdBy: string;
-    createdAt: string; // ISO string
-    lastModifiedBy?: string;
-    lastModifiedAt?: string; // ISO string
-    renewedFromId?: string | null;
-    renewedToId?: string | null;
-    status?: PolicyStatus;
+  id: string;
+  type: string;
+  provider: string; // e.g., Insurance company or Membership organization
+  policyNumber: string; // Policy or Membership ID
+  startDate: string; // ISO string
+  endDate: string; // ISO string
+  cost: number; // Premium or Membership fee
+  memberId: string; // Can be vehicleId or driverId
+  memberType: 'Vehicle' | 'Driver';
+  createdBy: string;
+  createdAt: string; // ISO string
+  lastModifiedBy?: string;
+  lastModifiedAt?: string; // ISO string
+  renewedFromId?: string | null;
+  renewedToId?: string | null;
+  status?: PolicyStatus;
 }
+
 
 export const transactionTypes = ['Purchase', 'Sales', 'Payment', 'Receipt'] as const;
 export type TransactionType = typeof transactionTypes[number];
@@ -586,6 +587,7 @@ export interface ChequeSplit {
     interval: number;
     status: ChequeStatus;
     partialPayments?: PartialPayment[];
+    cancellationReason?: string;
 }
 
 export interface Cheque {
@@ -606,6 +608,7 @@ export interface Cheque {
         remarks: string;
         status: ChequeStatus;
         partialPayments?: PartialPayment[];
+        cancellationReason?: string;
     }[];
     createdBy: string;
     createdAt: string; // ISO string
