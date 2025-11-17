@@ -20,7 +20,7 @@ import { format, differenceInDays, startOfToday, parseISO } from 'date-fns';
 import { ChequeView } from './_components/cheque-view';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { cn, toNepaliDate } from '@/lib/utils';
+import { cn, toNepaliDate, toWords } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
@@ -33,6 +33,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Textarea } from '@/components/ui/textarea';
 import { onAccountsUpdate } from '@/services/account-service';
 import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import html2canvas from 'html2canvas';
 
 
@@ -223,18 +224,64 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
     };
     
     const handleExportPdf = async () => {
-        if (!printRef.current || !chequeToPrint) return;
+        if (!chequeToPrint) return;
         setIsExporting(true);
         try {
-            const doc = new jsPDF('p', 'mm', 'a5');
-            const content = printRef.current;
-            await html2canvas(content, { scale: 2 }).then((canvas) => {
-                const imgData = canvas.toDataURL('image/png');
-                const pdfWidth = doc.internal.pageSize.getWidth();
-                const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-                doc.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-                doc.save(`Voucher-${chequeToPrint.voucherNo}.pdf`);
+            const doc = new jsPDF('p', 'mm', 'a4');
+            const account = accounts.find(a => a.id === chequeToPrint.accountId);
+
+            // Header
+            doc.setFont('Helvetica', 'bold');
+            doc.setFontSize(16);
+            doc.text('SHIVAM PACKAGING INDUSTRIES PVT LTD.', doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
+            doc.setFont('Helvetica', 'normal');
+            doc.setFontSize(10);
+            doc.text('HETAUDA 08, BAGMATI PROVIENCE, NEPAL', doc.internal.pageSize.getWidth() / 2, 21, { align: 'center' });
+            doc.setFont('Helvetica', 'bold');
+            doc.setFontSize(14);
+            doc.text('PAYMENT VOUCHER', doc.internal.pageSize.getWidth() / 2, 30, { align: 'center' });
+
+            // Info
+            doc.setFontSize(10);
+            doc.text(`Voucher No: ${chequeToPrint.voucherNo}`, 14, 40);
+            doc.text(`Payee: ${chequeToPrint.partyName}`, 14, 45);
+            doc.text(`Date: ${toNepaliDate(chequeToPrint.paymentDate)} BS (${format(new Date(chequeToPrint.paymentDate), 'yyyy-MM-dd')})`, doc.internal.pageSize.getWidth() - 14, 40, { align: 'right' });
+
+            const body = chequeToPrint.splits.map((split, index) => {
+                const bankDetails = account && account.type === 'Bank' ? `${account.bankName}\nA/C: ${account.accountNumber}` : "Cash Payment";
+                const nepaliChequeDate = toNepaliDate(split.chequeDate);
+                const adChequeDate = format(new Date(split.chequeDate), 'yyyy-MM-dd');
+                return [
+                    bankDetails,
+                    split.chequeNumber || 'N/A',
+                    `${nepaliChequeDate} (${adChequeDate})`,
+                    (Number(split.amount) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })
+                ];
             });
+
+            autoTable(doc, {
+                startY: 55,
+                head: [['Bank Details', 'Cheque No.', 'Cheque Date', 'Amount']],
+                body: body,
+                theme: 'grid',
+                headStyles: { fillColor: [230, 230, 230], textColor: 20, fontStyle: 'bold' },
+                foot: [['Total', '', '', { content: chequeToPrint.amount.toLocaleString(undefined, { minimumFractionDigits: 2 }), styles: { halign: 'right' } }]],
+                footStyles: { fontStyle: 'bold', fontSize: 11 },
+                didDrawPage: (data) => {
+                    let finalY = data.cursor.y;
+                    doc.setFontSize(10);
+                    doc.text(`In Words: ${chequeToPrint.amountInWords}`, 14, finalY + 10);
+                    
+                    const signatureY = Math.max(finalY + 40, doc.internal.pageSize.getHeight() - 40);
+                    doc.line(20, signatureY, 70, signatureY);
+                    doc.text("Receiver's Signature", 45, signatureY + 5, { align: 'center' });
+                    doc.line(doc.internal.pageSize.getWidth() - 70, signatureY, doc.internal.pageSize.getWidth() - 20, signatureY);
+                    doc.text("Authorized Signature", doc.internal.pageSize.getWidth() - 45, signatureY + 5, { align: 'center' });
+                }
+            });
+
+            doc.save(`Voucher-${chequeToPrint.voucherNo}.pdf`);
+
         } catch (error) {
             console.error('PDF export failed:', error);
             toast({ title: 'Error', description: 'Failed to export PDF.', variant: 'destructive' });
@@ -242,6 +289,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
             setIsExporting(false);
         }
     };
+
 
     const handleExportJpg = async () => {
         if (!printRef.current || !chequeToPrint) return;
