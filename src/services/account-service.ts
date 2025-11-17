@@ -1,4 +1,5 @@
 
+
 import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import type { Account } from '@/lib/types';
@@ -17,6 +18,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Account =
         accountNumber: data.accountNumber,
         bankName: data.bankName,
         branch: data.branch,
+        bankAccountType: data.bankAccountType,
         createdBy: data.createdBy,
         createdAt: data.createdAt,
         lastModifiedBy: data.lastModifiedBy,

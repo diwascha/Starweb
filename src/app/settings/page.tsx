@@ -1,8 +1,9 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import type { Party, Account, PartyType, AccountType, UnitOfMeasurement, AppSetting, User, Permissions, Module, Action, DocumentPrefixes } from '@/lib/types';
+import type { Party, Account, PartyType, AccountType, UnitOfMeasurement, AppSetting, User, Permissions, Module, Action, DocumentPrefixes, BankAccountType } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -94,7 +95,7 @@ export default function SettingsPage() {
   // Account Dialog State
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
-  const [accountForm, setAccountForm] = useState({ name: '', type: 'Cash' as AccountType, accountNumber: '', bankName: '', branch: '' });
+  const [accountForm, setAccountForm] = useState({ name: '', type: 'Cash' as AccountType, accountNumber: '', bankName: '', branch: '', bankAccountType: 'Saving' as BankAccountType | undefined});
   
   // UoM Dialog State
   const [isUomDialogOpen, setIsUomDialogOpen] = useState(false);
@@ -284,10 +285,10 @@ export default function SettingsPage() {
   const openAccountDialog = (account: Account | null = null) => {
     if (account) {
         setEditingAccount(account);
-        setAccountForm({ name: account.name, type: account.type, accountNumber: account.accountNumber || '', bankName: account.bankName || '', branch: account.branch || '' });
+        setAccountForm({ name: account.name, type: account.type, accountNumber: account.accountNumber || '', bankName: account.bankName || '', branch: account.branch || '', bankAccountType: account.bankAccountType || 'Saving' });
     } else {
         setEditingAccount(null);
-        setAccountForm({ name: '', type: 'Cash', accountNumber: '', bankName: '', branch: '' });
+        setAccountForm({ name: '', type: 'Cash', accountNumber: '', bankName: '', branch: '', bankAccountType: 'Saving' });
     }
     setIsAccountDialogOpen(true);
   };
@@ -678,11 +679,11 @@ export default function SettingsPage() {
                     </CardHeader>
                     <CardContent>
                          <Table><TableHeader><TableRow>
-                            <TableHead>Name</TableHead><TableHead>Type</TableHead><TableHead>Bank</TableHead><TableHead>Account Number</TableHead><TableHead className="text-right">Actions</TableHead>
+                            <TableHead>Name</TableHead><TableHead>Type</TableHead><TableHead>Bank</TableHead><TableHead>Account Number</TableHead><TableHead>Account Type</TableHead><TableHead className="text-right">Actions</TableHead>
                         </TableRow></TableHeader><TableBody>
                         {filteredAccounts.map(acc => (
                             <TableRow key={acc.id}>
-                                <TableCell>{acc.name}</TableCell><TableCell>{acc.type}</TableCell><TableCell>{acc.bankName || 'N/A'}</TableCell><TableCell>{acc.accountNumber || 'N/A'}</TableCell>
+                                <TableCell>{acc.name}</TableCell><TableCell>{acc.type}</TableCell><TableCell>{acc.bankName || 'N/A'}</TableCell><TableCell>{acc.accountNumber || 'N/A'}</TableCell><TableCell>{acc.bankAccountType || 'N/A'}</TableCell>
                                 <TableCell className="text-right">
                                      <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
@@ -861,6 +862,17 @@ export default function SettingsPage() {
                             <div className="space-y-2">
                                 <Label htmlFor="branch">Branch</Label>
                                 <Input id="branch" value={accountForm.branch} onChange={e => setAccountForm(p => ({...p, branch: e.target.value}))} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="bankAccountType">Account Type</Label>
+                                <Select value={accountForm.bankAccountType} onValueChange={(v: BankAccountType) => setAccountForm(p => ({ ...p, bankAccountType: v }))}>
+                                    <SelectTrigger id="bankAccountType"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Saving">Saving</SelectItem>
+                                        <SelectItem value="Current">Current</SelectItem>
+                                        <SelectItem value="Over Draft">Over Draft</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </>
                     )}

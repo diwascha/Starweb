@@ -366,6 +366,8 @@ export interface Party {
 }
 
 export type AccountType = 'Cash' | 'Bank';
+export type BankAccountType = 'Saving' | 'Current' | 'Over Draft';
+
 
 export interface Account {
     id: string;
@@ -374,6 +376,7 @@ export interface Account {
     accountNumber?: string;
     bankName?: string;
     branch?: string;
+    bankAccountType?: BankAccountType;
     createdBy: string;
     createdAt: string; // ISO string
     lastModifiedBy?: string;

@@ -7,12 +7,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, ChevronsUpDown, Check, PlusCircle, Printer, Save, Loader2, Trash2 } from 'lucide-react';
+import { CalendarIcon, ChevronsUpDown, Check, PlusCircle, Printer, Save, Loader2, Trash2, Plus } from 'lucide-react';
 import { cn, toWords, generateNextVoucherNumber, toNepaliDate } from '@/lib/utils';
 import { format, addDays, parseISO } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { onPartiesUpdate, addParty } from '@/services/party-service';
-import type { Party, PartyType, Cheque, ChequeSplit, ChequeStatus, Account } from '@/lib/types';
+import type { Party, PartyType, Cheque, ChequeSplit, ChequeStatus, Account, BankAccountType } from '@/lib/types';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { useAuth } from '@/hooks/use-auth';
@@ -29,7 +29,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { addCheque, onChequesUpdate, updateCheque } from '@/services/cheque-service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ChequeView } from './cheque-view';
-import { onAccountsUpdate } from '@/services/account-service';
+import { onAccountsUpdate, addAccount as addAccountService } from '@/services/account-service';
 
 interface ChequeGeneratorFormProps {
     chequeToEdit?: Cheque | null;
@@ -64,7 +64,9 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
     
     // Dialog States
     const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
+    const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
     const [partyForm, setPartyForm] = useState<{ name: string, type: PartyType, address?: string; panNumber?: string; }>({ name: '', type: 'Vendor', address: '', panNumber: '' });
+    const [accountForm, setAccountForm] = useState({ name: '', type: 'Bank' as 'Cash' | 'Bank', accountNumber: '', bankName: '', branch: '', bankAccountType: 'Saving' as BankAccountType });
     const [partySearch, setPartySearch] = useState('');
     const [isPartyPopoverOpen, setIsPartyPopoverOpen] = useState(false);
 
@@ -198,6 +200,31 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
         }
     };
     
+    const handleAccountSubmit = async () => {
+        if (!user) return;
+        if (!accountForm.name || !accountForm.bankName || !accountForm.accountNumber) {
+            toast({ title: 'Error', description: 'All bank account fields are required.', variant: 'destructive' });
+            return;
+        }
+        try {
+            const newAccountId = await addAccountService({
+                name: accountForm.name,
+                type: 'Bank',
+                bankName: accountForm.bankName,
+                accountNumber: accountForm.accountNumber,
+                branch: accountForm.branch,
+                bankAccountType: accountForm.bankAccountType,
+                createdBy: user.username,
+            });
+            setSelectedAccountId(newAccountId);
+            toast({ title: 'Success', description: 'New bank account added.' });
+            setIsAccountDialogOpen(false);
+        } catch {
+            toast({ title: 'Error', description: 'Failed to add bank account.', variant: 'destructive' });
+        }
+    };
+
+
     const resetForm = () => {
         setPaymentDate(new Date());
         setInvoiceDate(undefined);
@@ -390,19 +417,24 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                  </div>
                  <div className="space-y-2">
                     <Label htmlFor="bankAccount">Bank Account</Label>
-                    <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
-                        <SelectTrigger id="bankAccount">
-                            <SelectValue placeholder="Select a bank account" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="cash">Cash Payment</SelectItem>
-                            {bankAccounts.map(account => (
-                                <SelectItem key={account.id} value={account.id}>
-                                    {account.bankName} - {account.accountNumber}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <div className="flex gap-2">
+                        <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
+                            <SelectTrigger id="bankAccount">
+                                <SelectValue placeholder="Select a bank account" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="cash">Cash Payment</SelectItem>
+                                {bankAccounts.map(account => (
+                                    <SelectItem key={account.id} value={account.id}>
+                                        {account.bankName} - {account.accountNumber}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <Button type="button" variant="outline" size="icon" onClick={() => setIsAccountDialogOpen(true)}>
+                            <Plus className="h-4 w-4" />
+                        </Button>
+                    </div>
                  </div>
             </div>
 
@@ -527,6 +559,46 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <Dialog open={isAccountDialogOpen} onOpenChange={setIsAccountDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                <DialogHeader><DialogTitle>Add New Bank Account</DialogTitle></DialogHeader>
+                <div className="grid gap-4 py-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="account-holder-name">Account Holder Name</Label>
+                        <Input id="account-holder-name" value={accountForm.name} onChange={e => setAccountForm(p => ({...p, name: e.target.value}))} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="bank-name">Bank Name</Label>
+                        <Input id="bank-name" value={accountForm.bankName} onChange={e => setAccountForm(p => ({...p, bankName: e.target.value}))} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="account-number">Account Number</Label>
+                        <Input id="account-number" value={accountForm.accountNumber} onChange={e => setAccountForm(p => ({...p, accountNumber: e.target.value}))} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="branch">Branch</Label>
+                        <Input id="branch" value={accountForm.branch} onChange={e => setAccountForm(p => ({...p, branch: e.target.value}))} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="bankAccountType">Account Type</Label>
+                        <Select value={accountForm.bankAccountType} onValueChange={(v: BankAccountType) => setAccountForm(p => ({ ...p, bankAccountType: v }))}>
+                            <SelectTrigger id="bankAccountType"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Saving">Saving</SelectItem>
+                                <SelectItem value="Current">Current</SelectItem>
+                                <SelectItem value="Over Draft">Over Draft</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsAccountDialogOpen(false)}>Cancel</Button>
+                    <Button onClick={handleAccountSubmit}>Add Account</Button>
+                </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
 
             <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
                 <DialogContent className="max-w-4xl">
