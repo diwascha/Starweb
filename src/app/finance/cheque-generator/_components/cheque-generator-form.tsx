@@ -301,19 +301,32 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
     const doActualPrint = () => {
         const printableArea = printRef.current;
         if (!printableArea) return;
-        
-        const printWindow = window.open('', '', 'height=800,width=800');
-        printWindow?.document.write('<html><head><title>Print Cheques</title>');
-        printWindow?.document.write('<style>@media print{@page{size: auto;margin: 5mm;}body{margin: 0;}.cheque-container{border:1px solid #ccc; padding: 10px; margin-bottom: 20px; page-break-inside: avoid;}}</style>');
-        printWindow?.document.write('</head><body>');
-        printWindow?.document.write(printableArea.innerHTML);
-        printWindow?.document.write('</body></html>');
-        printWindow?.document.close();
-        printWindow?.focus();
+
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'absolute';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = '0';
+        document.body.appendChild(iframe);
+
+        const doc = iframe.contentWindow?.document;
+        if (!doc) return;
+
+        doc.open();
+        doc.write('<html><head><title>Print Cheques</title>');
+        // Link to the main app's stylesheet to preserve styles
+        const styles = Array.from(document.styleSheets).map(s => s.href ? `<link rel="stylesheet" href="${s.href}">` : '').join('');
+        doc.write(styles);
+        doc.write('</head><body style="margin: 0;">');
+        doc.write(printableArea.innerHTML);
+        doc.write('</body></html>');
+        doc.close();
+
+        iframe.contentWindow?.focus();
         setTimeout(() => {
-            printWindow?.print();
-            printWindow?.close();
-        }, 250);
+            iframe.contentWindow?.print();
+            document.body.removeChild(iframe);
+        }, 500); // Give styles time to load
     };
     
     const handleExportPdf = async () => {
