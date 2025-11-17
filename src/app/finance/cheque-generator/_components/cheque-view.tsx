@@ -36,10 +36,10 @@ export function ChequeView({ voucherNo, voucherDate, payeeName, splits }: Cheque
 
         <div className="flex justify-between text-xs">
             <div>
-                <span className="font-semibold">Payee:</span> {payeeName}
+                <p><span className="font-semibold">Voucher No:</span> {voucherNo}</p>
+                <p><span className="font-semibold">Payee:</span> {payeeName}</p>
             </div>
             <div className="text-right">
-                <p><span className="font-semibold">Voucher No:</span> {voucherNo}</p>
                 <p><span className="font-semibold">Voucher Date:</span> {nepaliDate} BS ({adDate})</p>
             </div>
         </div>
