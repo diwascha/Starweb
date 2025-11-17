@@ -474,6 +474,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                          <div ref={printRef}>
                             {chequeToPrint && (
                                 <ChequeView
+                                    voucherNo={chequeToPrint.voucherNo}
                                     voucherDate={new Date(chequeToPrint.createdAt)}
                                     payeeName={chequeToPrint.payeeName}
                                     splits={chequeToPrint.splits.map(s => ({

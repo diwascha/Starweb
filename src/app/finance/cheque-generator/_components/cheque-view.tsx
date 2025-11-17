@@ -12,12 +12,13 @@ interface SplitDetail {
 }
 
 interface ChequeViewProps {
+  voucherNo: string;
   voucherDate: Date;
   payeeName: string;
   splits: SplitDetail[];
 }
 
-export function ChequeView({ voucherDate, payeeName, splits }: ChequeViewProps) {
+export function ChequeView({ voucherNo, voucherDate, payeeName, splits }: ChequeViewProps) {
   const nepaliDate = toNepaliDate(voucherDate.toISOString());
   const adDate = format(voucherDate, 'yyyy-MM-dd');
   
@@ -37,8 +38,9 @@ export function ChequeView({ voucherDate, payeeName, splits }: ChequeViewProps) 
             <div>
                 <span className="font-semibold">Payee:</span> {payeeName}
             </div>
-            <div>
-                <span className="font-semibold">Voucher Date:</span> {nepaliDate} BS ({adDate})
+            <div className="text-right">
+                <p><span className="font-semibold">Voucher No:</span> {voucherNo}</p>
+                <p><span className="font-semibold">Voucher Date:</span> {nepaliDate} BS ({adDate})</p>
             </div>
         </div>
 

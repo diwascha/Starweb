@@ -512,6 +512,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                      <div className="max-h-[70vh] overflow-auto p-4 bg-gray-100">
                          <div ref={printRef}>
                             <ChequeView
+                                voucherNo={voucherNo}
                                 voucherDate={paymentDate}
                                 payeeName={partyName}
                                 splits={chequeSplits}
