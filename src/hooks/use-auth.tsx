@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, createContext, useContext, ReactNode, useCallback } from 'react';
+import { useState, useEffect, createContext, useContext, ReactNode, useCallback, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import type { User, Permissions, Module, Action } from '@/lib/types';
 import { modules } from '@/lib/types';
@@ -134,11 +134,49 @@ const AuthRedirect = ({ children }: { children: ReactNode }) => {
     );
 };
 
+const useInactivityLogout = (logout: () => void, timeout = 1800000) => {
+    const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+    const resetTimer = useCallback(() => {
+        if (timerRef.current) {
+            clearTimeout(timerRef.current);
+        }
+        timerRef.current = setTimeout(logout, timeout);
+    }, [logout, timeout]);
+
+    useEffect(() => {
+        const events = ['mousemove', 'keydown', 'click', 'scroll'];
+
+        const handleActivity = () => {
+            resetTimer();
+        };
+
+        events.forEach(event => window.addEventListener(event, handleActivity));
+        resetTimer(); // Start the timer on mount
+
+        return () => {
+            if (timerRef.current) {
+                clearTimeout(timerRef.current);
+            }
+            events.forEach(event => window.removeEventListener(event, handleActivity));
+        };
+    }, [resetTimer]);
+};
+
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<UserSession | null>(null);
   const [loading, setLoading] = useState(true);
   const auth = useAuthService();
+
+  const logout = useCallback(async () => {
+    await signOut(auth);
+    localStorage.removeItem(USER_SESSION_KEY);
+    setUser(null);
+  }, [auth]);
+
+  useInactivityLogout(logout, 30 * 60 * 1000); // 30 minutes
+
 
   useEffect(() => {
     const sessionJson = localStorage.getItem(USER_SESSION_KEY);
@@ -220,12 +258,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const modulePermissions = user.permissions[module];
     return !!modulePermissions?.includes(action);
   }, [user]);
-  
-  const logout = useCallback(async () => {
-    await signOut(auth);
-    localStorage.removeItem(USER_SESSION_KEY);
-    setUser(null);
-  }, [auth]);
   
   
   return (
