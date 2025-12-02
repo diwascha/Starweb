@@ -129,20 +129,19 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
     }, [chequeToEdit, cheques]);
 
     useEffect(() => {
-        if (chequeToEdit) return;
-
-        const totalAmount = Number(invoiceAmount) || 0;
-        const numSplits = Math.max(1, numberOfSplits || 1);
-        const baseDate = invoiceDate || paymentDate;
+        if (chequeToEdit) return; // Don't auto-calculate for existing cheques being edited.
 
         setChequeSplits(currentSplits => {
+            const totalAmount = Number(invoiceAmount) || 0;
+            const numSplits = Math.max(1, numberOfSplits || 1);
+            const baseDate = invoiceDate || paymentDate;
+
             const newSplits = Array.from({ length: numSplits }, (_, i) => {
-                const existingSplit = currentSplits[i] || {};
-                const splitAmount = Math.floor(totalAmount / numSplits);
-                const remainder = totalAmount % numSplits;
-                
+                const splitAmount = totalAmount > 0 ? Math.floor(totalAmount / numSplits) : '';
+                const remainder = totalAmount > 0 ? totalAmount % numSplits : 0;
                 const currentAmount = totalAmount > 0 ? splitAmount + (i < remainder ? 1 : 0) : '';
-                
+
+                const existingSplit = currentSplits[i] || {};
                 const intervalDays = existingSplit.interval || 0;
                 const chequeDate = addDays(baseDate, intervalDays);
 
@@ -735,6 +734,8 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
         </div>
     );
 }
+
+    
 
     
 
