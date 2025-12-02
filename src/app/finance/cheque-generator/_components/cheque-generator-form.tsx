@@ -129,21 +129,18 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
     }, [chequeToEdit, cheques]);
 
     useEffect(() => {
-        if (chequeToEdit) return; // Don't auto-split when editing
+        if (chequeToEdit) return;
 
         const totalAmount = Number(invoiceAmount) || 0;
         const numSplits = Math.max(1, numberOfSplits || 1);
         const baseDate = invoiceDate || paymentDate;
         
-        const newSplits: ChequeSplit[] = Array.from({ length: numSplits }, (_, i) => {
+        const newSplits = Array.from({ length: numSplits }, (_, i) => {
             const existingSplit = chequeSplits[i];
             const splitAmount = Math.floor(totalAmount / numSplits);
             const remainder = totalAmount % numSplits;
             
-            let currentAmount: number | '' = '';
-            if (totalAmount > 0) {
-                currentAmount = splitAmount + (i < remainder ? 1 : 0);
-            }
+            const currentAmount = totalAmount > 0 ? splitAmount + (i < remainder ? 1 : 0) : '';
             
             const intervalDays = existingSplit?.interval || 0;
             const chequeDate = addDays(baseDate, intervalDays);
@@ -155,12 +152,13 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                 amount: currentAmount,
                 remarks: existingSplit?.remarks || '',
                 interval: intervalDays,
-                status: 'Due',
+                status: 'Due' as ChequeStatus,
                 partialPayments: [],
             };
         });
 
         setChequeSplits(newSplits);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [numberOfSplits, invoiceAmount, paymentDate, invoiceDate, chequeToEdit]);
 
 
@@ -737,3 +735,5 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
         </div>
     );
 }
+
+    
