@@ -417,9 +417,9 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     const ply = parseInt(item.ply, 10) || 0;
     
     const getFluteFactor = (fluteChar: string) => {
-        if (fluteChar === 'A') return 1.5;
-        if (fluteChar === 'B') return 1.38;
-        return 1.38; // Default to 'B'
+        if (fluteChar === 'A') return 1.55;
+        if (fluteChar === 'B') return 1.35;
+        return 1.35; // Default to 'B'
     };
 
     const fluteTypes = (item.fluteType || 'B').split('/');
@@ -1560,9 +1560,9 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
         
         const ply = parseInt(item.ply, 10) || 0;
         const getFluteFactor = (fluteChar: string) => {
-            if (fluteChar === 'A') return 1.5;
-            if (fluteChar === 'B') return 1.38;
-            return 1.38; // Default to 'B'
+            if (fluteChar === 'A') return 1.55;
+            if (fluteChar === 'B') return 1.35;
+            return 1.35; // Default to 'B'
         };
 
         const fluteTypes = (item.fluteType || 'B').split('/');
