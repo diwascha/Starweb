@@ -50,7 +50,7 @@
     "jspdf-autotable": "^3.8.2",
     "lucide-react": "^0.417.0",
     "nepali-date-converter": "^3.3.2",
-    "next": "15.6.0-canary.58",
+    "next": "15.6.0-canary.60",
     "react": "19.2.1",
     "react-day-picker": "^8.10.1",
     "react-dom": "19.2.1",
