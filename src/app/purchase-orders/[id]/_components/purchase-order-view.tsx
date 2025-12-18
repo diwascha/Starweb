@@ -80,11 +80,11 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
             doc.setFontSize(14);
             doc.text('PURCHASE ORDER', doc.internal.pageSize.getWidth() / 2, 30, { align: 'center' });
             
-            if (purchaseOrder.amendments && purchaseOrder.amendments.length > 0 && purchaseOrder.updatedAt) {
-                const amendedDate = new Date(purchaseOrder.updatedAt);
+            if (purchaseOrder.amendments && purchaseOrder.amendments.length > 0 && purchaseOrder.amendments[purchaseOrder.amendments.length - 1]) {
+                const lastAmendmentDate = new Date(purchaseOrder.amendments[purchaseOrder.amendments.length - 1].date);
                 doc.setFontSize(8);
                 doc.setFont('Helvetica', 'italic');
-                doc.text(`(AMENDED PO-LAST RELEASED-${amendedDate.toLocaleDateString('en-CA')})`, doc.internal.pageSize.getWidth() / 2, 35, { align: 'center' });
+                doc.text(`(AMENDED PO-LAST RELEASED-${lastAmendmentDate.toLocaleDateString('en-CA')})`, doc.internal.pageSize.getWidth() / 2, 35, { align: 'center' });
             }
 
             // Info
@@ -191,7 +191,8 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
   const nepaliPoDateString = nepaliPoDate.format('YYYY/MM/DD');
   
   const showAmendedDate = purchaseOrder.amendments && purchaseOrder.amendments.length > 0;
-  const amendedDate = showAmendedDate && purchaseOrder.updatedAt ? new Date(purchaseOrder.updatedAt) : null;
+  const lastAmendment = showAmendedDate ? purchaseOrder.amendments[purchaseOrder.amendments.length - 1] : null;
+  const amendedDate = lastAmendment ? new Date(lastAmendment.date) : null;
   const nepaliAmendedDateString = amendedDate ? new NepaliDate(amendedDate).format('YYYY/MM/DD') : '';
 
   
@@ -433,7 +434,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
                 </Table>
              </CardContent>
            </Card>
-        )}
+      )}
       <style jsx global>{`
         @media print {
           @page {
@@ -462,7 +463,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
             border: none;
             font-size: 10px; /* Smaller base font size for print */
           }
-           .print\:hidden {
+           .print\\:hidden {
               display: none !important;
            }
         }
