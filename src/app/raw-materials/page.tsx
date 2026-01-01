@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -47,6 +48,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { onRawMaterialsUpdate, addRawMaterial, updateRawMaterial, deleteRawMaterial } from '@/services/raw-material-service';
 import { format } from 'date-fns';
+import { ChevronsUpDown } from 'lucide-react';
 
 
 const materialTypes = [
@@ -553,22 +555,25 @@ export default function RawMaterialsPage() {
                                 <Label htmlFor="material-units">Units of Measurement</Label>
                                  <Popover open={isUnitPopoverOpen} onOpenChange={setIsUnitPopoverOpen}>
                                     <PopoverTrigger asChild>
-                                        <div className="flex min-h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm flex-wrap gap-1">
-                                        {newMaterialUnits.map(unit => (
-                                            <Badge key={unit} variant="secondary" className="gap-1">
-                                                {unit}
-                                                <button type="button" onClick={() => handleUnitRemove(unit)} className="rounded-full hover:bg-background/50">
-                                                    <X className="h-3 w-3" />
-                                                </button>
-                                            </Badge>
-                                        ))}
-                                        <input
-                                            placeholder={newMaterialUnits.length === 0 ? "e.g. Kg, Ton..." : ""}
-                                            value={unitInputValue}
-                                            onChange={e => setUnitInputValue(e.target.value)}
-                                            onKeyDown={handleUnitKeyDown}
-                                            className="bg-transparent outline-none flex-1 placeholder:text-muted-foreground text-sm"
-                                        />
+                                        <div className="flex min-h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm">
+                                            <div className="flex flex-wrap gap-1 flex-1">
+                                                {newMaterialUnits.map(unit => (
+                                                    <Badge key={unit} variant="secondary" className="gap-1">
+                                                        {unit}
+                                                        <button type="button" onClick={() => handleUnitRemove(unit)} className="rounded-full hover:bg-background/50">
+                                                            <X className="h-3 w-3" />
+                                                        </button>
+                                                    </Badge>
+                                                ))}
+                                                <input
+                                                    placeholder={newMaterialUnits.length === 0 ? "e.g. Kg, Ton..." : ""}
+                                                    value={unitInputValue}
+                                                    onChange={e => setUnitInputValue(e.target.value)}
+                                                    onKeyDown={handleUnitKeyDown}
+                                                    className="bg-transparent outline-none flex-1 placeholder:text-muted-foreground text-sm min-w-[80px]"
+                                                />
+                                            </div>
+                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                         </div>
                                     </PopoverTrigger>
                                     <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
@@ -578,7 +583,7 @@ export default function RawMaterialsPage() {
                                                 value={unitInputValue}
                                                 onValueChange={setUnitInputValue}
                                                 onKeyDown={(e) => {
-                                                    if (e.key === ' ' && e.currentTarget.value.endsWith(' ')) {
+                                                     if (e.key === ' ' && e.currentTarget.value.endsWith(' ')) {
                                                         e.preventDefault();
                                                         const newUnit = e.currentTarget.value.trim();
                                                         if (newUnit) {
