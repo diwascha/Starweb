@@ -1016,8 +1016,8 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                 </div>
             </CardHeader>
             <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <div className="space-y-4 rounded-lg border p-4 sm:col-span-2 lg:col-span-1">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="space-y-4 rounded-lg border p-4">
                         <Label>Kraft Paper Costs</Label>
                         {bfOptions.map(bf => (
                              <div key={bf} className="flex items-center justify-between">
@@ -1026,7 +1026,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                             </div>
                         ))}
                     </div>
-                    <div className="space-y-4">
+                    <div className="space-y-4 md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <div className="space-y-2">
                             <Label htmlFor="virginPaperCost">Virgin Paper Cost</Label>
                             <Input id="virginPaperCost" type="number" placeholder="Enter cost" value={virginPaperCost} onChange={e => handleCostChange('virgin', e.target.value)} />
