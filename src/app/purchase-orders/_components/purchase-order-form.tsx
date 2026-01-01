@@ -428,6 +428,14 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         setUnitInputValue('');
     }
   };
+  
+  const sizeInMM = useMemo(() => {
+      const inches = parseFloat(quickAddForm.size);
+      if (!isNaN(inches)) {
+          return (inches * 25.4).toFixed(2);
+      }
+      return null;
+  }, [quickAddForm.size]);
 
 
   return (
@@ -552,7 +560,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>PAN Number</FormLabel>
-                            <FormControl><Input {...field} /></FormControl>
+                            <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
                             <FormMessage />
                         </FormItem>
                     )}
@@ -848,8 +856,11 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                  {isQuickAddPaper && (
                      <>
                         <div className="space-y-2">
-                          <Label htmlFor="quick-add-size">Size (Inch)</Label>
-                          <Input id="quick-add-size" value={quickAddForm.size} onChange={e => setQuickAddForm(prev => ({...prev, size: e.target.value}))} placeholder="e.g. 42.5" />
+                            <Label htmlFor="quick-add-size">Size (Inch)</Label>
+                            <div className="flex items-center gap-2">
+                                <Input id="quick-add-size" value={quickAddForm.size} onChange={e => setQuickAddForm(prev => ({...prev, size: e.target.value}))} placeholder="e.g. 42.5" />
+                                {sizeInMM && <span className="text-sm text-muted-foreground whitespace-nowrap">({sizeInMM} mm)</span>}
+                            </div>
                         </div>
                          <div className="space-y-2">
                           <Label htmlFor="quick-add-gsm">GSM</Label>
@@ -942,7 +953,3 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     </div>
   );
 }
-
-    
-
-    
