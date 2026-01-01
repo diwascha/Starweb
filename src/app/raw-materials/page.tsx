@@ -56,6 +56,7 @@ const materialTypes = [
 ];
 
 const paperTypes = ['Kraft Paper', 'Virgin Paper'];
+const bfOptions = ['16 BF', '18 BF', '20 BF', '22 BF'];
 
 type RawMaterialSortKey = 'name' | 'type' | 'authorship';
 type SortDirection = 'asc' | 'desc';
@@ -539,15 +540,19 @@ export default function RawMaterialsPage() {
                                     placeholder="e.g. 150"
                                   />
                                </div>
-                                <div className="space-y-2">
-                                 <Label htmlFor="material-bf">BF</Label>
-                                 <Input
-                                    id="material-bf"
-                                    value={newMaterialBf}
-                                    onChange={e => setNewMaterialBf(e.target.value)}
-                                    placeholder="e.g. 20"
-                                  />
-                               </div>
+                                 <div className="space-y-2">
+                                    <Label htmlFor="material-bf">BF</Label>
+                                    <Select value={newMaterialBf} onValueChange={setNewMaterialBf}>
+                                        <SelectTrigger id="material-bf">
+                                            <SelectValue placeholder="Select BF" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {bfOptions.map(option => (
+                                                <SelectItem key={option} value={option}>{option}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                             </>
                         )}
                          {newMaterialType && (
