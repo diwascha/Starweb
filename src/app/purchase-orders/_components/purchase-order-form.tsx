@@ -63,6 +63,7 @@ const materialTypesForAdd = [
 ];
 
 const paperTypes = ['Kraft Paper', 'Virgin Paper'];
+const bfOptions = ['16 BF', '18 BF', '20 BF', '22 BF'];
 
 const generateMaterialName = (type: string, size: string, gsm: string, bf: string) => {
     if (paperTypes.includes(type)) {
@@ -668,7 +669,26 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                         <>
                                             <TableCell>{item.size || '-'}</TableCell>
                                             <TableCell>{item.gsm || '-'}</TableCell>
-                                            <TableCell>{item.bf || '-'}</TableCell>
+                                            <TableCell>
+                                                <FormField
+                                                    control={form.control}
+                                                    name={`items.${index}.bf`}
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <Select onValueChange={field.onChange} value={field.value} disabled={!paperTypes.includes(item.rawMaterialType)}>
+                                                                <FormControl>
+                                                                    <SelectTrigger>
+                                                                        <SelectValue placeholder="BF" />
+                                                                    </SelectTrigger>
+                                                                </FormControl>
+                                                                <SelectContent>
+                                                                    {bfOptions.map(option => <SelectItem key={option} value={option}>{option}</SelectItem>)}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                            </TableCell>
                                         </>
                                     )}
                                     <TableCell>
@@ -836,8 +856,17 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                           <Input id="quick-add-gsm" value={quickAddForm.gsm} onChange={e => setQuickAddForm(prev => ({...prev, gsm: e.target.value}))} placeholder="e.g. 150" />
                         </div>
                          <div className="space-y-2">
-                          <Label htmlFor="quick-add-bf">BF</Label>
-                          <Input id="quick-add-bf" value={quickAddForm.bf} onChange={e => setQuickAddForm(prev => ({...prev, bf: e.target.value}))} placeholder="e.g. 20" />
+                            <Label htmlFor="quick-add-bf">BF</Label>
+                            <Select value={quickAddForm.bf} onValueChange={value => setQuickAddForm(prev => ({...prev, bf: value}))}>
+                                <SelectTrigger id="quick-add-bf">
+                                    <SelectValue placeholder="Select BF" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {bfOptions.map(option => (
+                                        <SelectItem key={option} value={option}>{option}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
                      </>
                  )}
@@ -846,22 +875,25 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                         <Label htmlFor="material-units">Units of Measurement</Label>
                          <Popover open={isQuickAddUnitPopoverOpen} onOpenChange={setIsQuickAddUnitPopoverOpen}>
                             <PopoverTrigger asChild>
-                                <div className="flex min-h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm flex-wrap gap-1">
-                                {quickAddForm.units.map(unit => (
-                                    <Badge key={unit} variant="secondary" className="gap-1">
-                                        {unit}
-                                        <button type="button" onClick={() => handleQuickAddUnitRemove(unit)} className="rounded-full hover:bg-background/50">
-                                            <X className="h-3 w-3" />
-                                        </button>
-                                    </Badge>
-                                ))}
-                                <input
-                                    placeholder={quickAddForm.units.length === 0 ? "e.g. Kg, Ton..." : ""}
-                                    value={unitInputValue}
-                                    onChange={e => setUnitInputValue(e.target.value)}
-                                    onKeyDown={handleQuickAddUnitKeyDown}
-                                    className="bg-transparent outline-none flex-1 placeholder:text-muted-foreground text-sm"
-                                />
+                                <div className="flex min-h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm">
+                                    <div className="flex flex-wrap gap-1 flex-1">
+                                        {quickAddForm.units.map(unit => (
+                                            <Badge key={unit} variant="secondary" className="gap-1">
+                                                {unit}
+                                                <button type="button" onClick={() => handleQuickAddUnitRemove(unit)} className="rounded-full hover:bg-background/50">
+                                                    <X className="h-3 w-3" />
+                                                </button>
+                                            </Badge>
+                                        ))}
+                                        <input
+                                            placeholder={quickAddForm.units.length === 0 ? "e.g. Kg, Ton..." : ""}
+                                            value={unitInputValue}
+                                            onChange={e => setUnitInputValue(e.target.value)}
+                                            onKeyDown={handleQuickAddUnitKeyDown}
+                                            className="bg-transparent outline-none flex-1 placeholder:text-muted-foreground text-sm min-w-[80px]"
+                                        />
+                                    </div>
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                 </div>
                             </PopoverTrigger>
                             <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
@@ -882,7 +914,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                     />
                                     <CommandList>
                                         <CommandEmpty>
-                                           <div className="p-2 text-sm text-center">
+                                            <div className="p-2 text-sm text-center">
                                                 No results. Type and press space twice to add.
                                             </div>
                                         </CommandEmpty>
