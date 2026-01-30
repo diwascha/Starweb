@@ -1,6 +1,7 @@
 
+
 import { getFirebase } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDoc, getDocs, query, where, limit } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDoc, getDocs, query, where, writeBatch, limit } from 'firebase/firestore';
 import type { Party } from '@/lib/types';
 
 const getPartiesCollection = () => {
@@ -101,4 +102,62 @@ export const deleteParty = async (id: string): Promise<void> => {
     if (!id) return;
     const partyDoc = doc(getPartiesCollection(), id);
     await deleteDoc(partyDoc);
+};
+
+
+export const mergeParties = async (sourceId: string, destinationId: string): Promise<void> => {
+    const { db } = getFirebase();
+    if (sourceId === destinationId) {
+        throw new Error("Cannot merge a party into itself.");
+    }
+
+    const destinationDocRef = doc(db, 'parties', destinationId);
+    const destinationSnap = await getDoc(destinationDocRef);
+    if (!destinationSnap.exists()) {
+        throw new Error("The party to merge into could not be found.");
+    }
+    const destinationParty = fromFirestore(destinationSnap);
+
+    const sourceDocRef = doc(db, 'parties', sourceId);
+    const sourceSnap = await getDoc(sourceDocRef);
+    if (!sourceSnap.exists()) {
+        throw new Error("The party to merge from could not be found.");
+    }
+    const sourceParty = fromFirestore(sourceSnap);
+
+    const collectionsToUpdateById = [
+        { name: 'purchaseOrders', field: 'partyId', payload: { partyId: destinationParty.id, companyName: destinationParty.name, companyAddress: destinationParty.address, panNumber: destinationParty.panNumber } },
+        { name: 'products', field: 'partyId', payload: { partyId: destinationParty.id, partyName: destinationParty.name, partyAddress: destinationParty.address } },
+        { name: 'costReports', field: 'partyId', payload: { partyId: destinationParty.id, partyName: destinationParty.name } },
+        { name: 'trips', field: 'partyId', payload: { partyId: destinationParty.id } },
+        { name: 'transactions', field: 'partyId', payload: { partyId: destinationParty.id } },
+    ];
+    
+    const collectionsToUpdateByName = [
+        { name: 'estimatedInvoices', field: 'partyName', payload: { partyName: destinationParty.name, panNumber: destinationParty.panNumber } },
+        { name: 'cheques', field: 'partyName', payload: { partyName: destinationParty.name, payeeName: destinationParty.name } },
+    ];
+
+    const batch = writeBatch(db);
+
+    for (const coll of collectionsToUpdateById) {
+        const q = query(collection(db, coll.name), where(coll.field, "==", sourceId));
+        const snapshot = await getDocs(q);
+        snapshot.forEach(docToUpdate => {
+            batch.update(docToUpdate.ref, coll.payload);
+        });
+    }
+
+    for (const coll of collectionsToUpdateByName) {
+        const q = query(collection(db, coll.name), where(coll.field, "==", sourceParty.name));
+        const snapshot = await getDocs(q);
+        snapshot.forEach(docToUpdate => {
+            batch.update(docToUpdate.ref, coll.payload);
+        });
+    }
+
+    // After updating all references, delete the source party
+    batch.delete(sourceDocRef);
+
+    await batch.commit();
 };

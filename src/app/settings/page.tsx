@@ -25,7 +25,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, MoreHorizontal, Search, Save, KeyRound, Download, Upload, View, ChevronDown, Lock, Unlock } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, Search, Save, KeyRound, Download, Upload, View, ChevronDown, Lock, Unlock, GitMerge, ChevronsUpDown, Check } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
@@ -34,7 +34,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { onPartiesUpdate, addParty, updateParty, deleteParty } from '@/services/party-service';
+import { onPartiesUpdate, addParty, updateParty, deleteParty, mergeParties } from '@/services/party-service';
 import { onAccountsUpdate, addAccount, updateAccount, deleteAccount } from '@/services/account-service';
 import { onUomsUpdate, addUom, updateUom, deleteUom } from '@/services/uom-service';
 import { onSettingUpdate, setSetting, getSetting } from '@/services/settings-service';
@@ -55,6 +55,86 @@ const nepaliMonths = [
     { value: 6, name: "Kartik" }, { value: 7, name: "Mangsir" }, { value: 8, "name": "Poush" },
     { value: 9, name: "Magh" }, { value: 10, name: "Falgun" }, { value: 11, name: "Chaitra" }
 ];
+
+
+function MergePartiesDialog({ open, onOpenChange, parties, onMerge }: { open: boolean, onOpenChange: (open: boolean) => void, parties: Party[], onMerge: (sourceId: string, destinationId: string) => void }) {
+    const [sourceId, setSourceId] = useState<string>('');
+    const [destinationId, setDestinationId] = useState<string>('');
+    const [isMerging, setIsMerging] = useState(false);
+    
+    const sourceParty = parties.find(p => p.id === sourceId);
+    const destinationParty = parties.find(p => p.id === destinationId);
+
+    const handleMergeClick = async () => {
+        setIsMerging(true);
+        await onMerge(sourceId, destinationId);
+        setIsMerging(false);
+        onOpenChange(false);
+        setSourceId('');
+        setDestinationId('');
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Merge Duplicate Parties</DialogTitle>
+                    <DialogDescription>
+                        Select a party to merge and a party to merge into. The first party will be deleted, and all its associated records will be reassigned to the second party. This action cannot be undone.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-4 space-y-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="source-party">Merge this party...</Label>
+                        <Select value={sourceId} onValueChange={setSourceId}>
+                            <SelectTrigger id="source-party"><SelectValue placeholder="Select party to remove..." /></SelectTrigger>
+                            <SelectContent>
+                                {parties.filter(p => p.id !== destinationId).map(p => (
+                                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="destination-party">...into this party</Label>
+                         <Select value={destinationId} onValueChange={setDestinationId}>
+                            <SelectTrigger id="destination-party"><SelectValue placeholder="Select party to keep..." /></SelectTrigger>
+                            <SelectContent>
+                                {parties.filter(p => p.id !== sourceId).map(p => (
+                                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="destructive" disabled={!sourceId || !destinationId || isMerging}>
+                                {isMerging && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Merge
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    You are about to merge <span className="font-bold">{sourceParty?.name}</span> into <span className="font-bold">{destinationParty?.name}</span>. All records associated with the first party will be transferred, and the first party will be permanently deleted.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleMergeClick}>Yes, merge them</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 
 
 export default function SettingsPage() {
@@ -89,6 +169,7 @@ export default function SettingsPage() {
 
   // Party Dialog State
   const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
+  const [isMergeDialogOpen, setIsMergeDialogOpen] = useState(false);
   const [editingParty, setEditingParty] = useState<Party | null>(null);
   const [partyForm, setPartyForm] = useState<{name: string, type: PartyType, address?: string, panNumber?: string}>({name: '', type: 'Vendor', address: '', panNumber: ''});
 
@@ -277,6 +358,22 @@ export default function SettingsPage() {
           toast({ title: 'Success', description: 'Party deleted.' });
       } catch {
           toast({ title: 'Error', description: 'Failed to delete party.', variant: 'destructive' });
+      }
+  };
+
+  const handleMergeParties = async (sourceId: string, destinationId: string) => {
+      try {
+          await mergeParties(sourceId, destinationId);
+          toast({
+              title: "Merge Successful",
+              description: "The duplicate party has been merged and its records reassigned."
+          });
+      } catch (error: any) {
+          toast({
+              title: "Merge Failed",
+              description: error.message || "An unexpected error occurred.",
+              variant: "destructive",
+          });
       }
   };
   
@@ -643,7 +740,10 @@ export default function SettingsPage() {
                             <CardTitle>Vendors & Suppliers</CardTitle>
                             <CardDescription>A list of all vendors and suppliers.</CardDescription>
                         </div>
-                        <Button onClick={() => openPartyDialog()}><Plus className="mr-2 h-4 w-4" /> Add Party</Button>
+                        <div className="flex items-center gap-2">
+                            <Button variant="outline" onClick={() => setIsMergeDialogOpen(true)}><GitMerge className="mr-2 h-4 w-4"/> Merge Duplicates</Button>
+                            <Button onClick={() => openPartyDialog()}><Plus className="mr-2 h-4 w-4" /> Add Party</Button>
+                        </div>
                     </CardHeader>
                     <CardContent>
                         <Table><TableHeader><TableRow>
@@ -833,6 +933,13 @@ export default function SettingsPage() {
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+
+        <MergePartiesDialog
+            open={isMergeDialogOpen}
+            onOpenChange={setIsMergeDialogOpen}
+            parties={parties}
+            onMerge={handleMergeParties}
+        />
         
         <Dialog open={isAccountDialogOpen} onOpenChange={setIsAccountDialogOpen}>
             <DialogContent className="sm:max-w-md">
