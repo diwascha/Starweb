@@ -80,8 +80,8 @@ export default function PurchaseOrdersListPage() {
   const [poToUpdate, setPoToUpdate] = useState<PurchaseOrder | null>(null);
   const [deliveryDate, setDeliveryDate] = useState<Date | undefined>(new Date());
   
-  const [selectedBsYear, setSelectedBsYear] = useState<string>('');
-  const [selectedBsMonth, setSelectedBsMonth] = useState<string>('');
+  const [selectedBsYear, setSelectedBsYear] = useState<string>('All');
+  const [selectedBsMonth, setSelectedBsMonth] = useState<string>('All');
   const [selectedCompany, setSelectedCompany] = useState<string>('All');
   const [selectedStatus, setSelectedStatus] = useState<string>('All');
 
@@ -179,7 +179,7 @@ export default function PurchaseOrdersListPage() {
   const filteredAndSortedPOs = useMemo(() => {
     let filtered = [...purchaseOrders];
 
-    if (selectedBsYear) {
+    if (selectedBsYear && selectedBsYear !== 'All') {
       filtered = filtered.filter(po => {
         try {
           return new NepaliDate(new Date(po.poDate)).getYear() === parseInt(selectedBsYear);
@@ -187,7 +187,7 @@ export default function PurchaseOrdersListPage() {
       });
     }
 
-    if (selectedBsMonth) {
+    if (selectedBsMonth && selectedBsMonth !== 'All') {
       filtered = filtered.filter(po => {
         try {
           return new NepaliDate(new Date(po.poDate)).getMonth() === parseInt(selectedBsMonth);
@@ -456,12 +456,15 @@ export default function PurchaseOrdersListPage() {
       <div className="flex flex-col sm:flex-row gap-2">
             <Select value={selectedBsYear} onValueChange={setSelectedBsYear} disabled={isLoading || availableYears.length === 0}>
                 <SelectTrigger className="w-full sm:w-[120px]"><SelectValue placeholder="Year (BS)" /></SelectTrigger>
-                <SelectContent>{availableYears.map(year => <SelectItem key={year} value={String(year)}>{year}</SelectItem>)}</SelectContent>
+                <SelectContent>
+                    <SelectItem value="All">All Years</SelectItem>
+                    {availableYears.map(year => <SelectItem key={year} value={String(year)}>{year}</SelectItem>)}
+                </SelectContent>
             </Select>
             <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth} disabled={isLoading || availableYears.length === 0}>
                 <SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Month (BS)" /></SelectTrigger>
                 <SelectContent>
-                    <SelectItem value="">All Months</SelectItem>
+                    <SelectItem value="All">All Months</SelectItem>
                     {nepaliMonths.map(month => <SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>)}
                 </SelectContent>
             </Select>
