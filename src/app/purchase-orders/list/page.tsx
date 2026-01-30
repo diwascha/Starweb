@@ -12,6 +12,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
   AlertDialog,
@@ -111,7 +112,7 @@ export default function PurchaseOrdersListPage() {
   }, [purchaseOrders]);
 
   useEffect(() => {
-      if (availableYears.length > 0 && !selectedBsYear) {
+      if (availableYears.length > 0 && selectedBsYear === 'All') {
           const currentNepaliDate = new NepaliDate();
           const currentYear = currentNepaliDate.getYear();
           if(availableYears.includes(currentYear)) {
