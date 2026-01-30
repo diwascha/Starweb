@@ -11,7 +11,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import {
@@ -46,10 +45,22 @@ import { format } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
 import { onPurchaseOrdersUpdate, deletePurchaseOrder, updatePurchaseOrder } from '@/services/purchase-order-service';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import NepaliDate from 'nepali-date-converter';
 
 
 type SortKey = 'poNumber' | 'poDate' | 'companyName' | 'status' | 'authorship';
 type SortDirection = 'asc' | 'desc';
+
+const nepaliMonths = [
+    { value: 0, name: "Baishakh" }, { value: 1, name: "Jestha" }, { value: 2, name: "Ashadh" },
+    { value: 3, name: "Shrawan" }, { value: 4, name: "Bhadra" }, { value: 5, name: "Ashwin" },
+    { value: 6, name: "Kartik" }, { value: 7, name: "Mangsir" }, { value: 8, "name": "Poush" },
+    { value: 9, name: "Magh" }, { value: 10, name: "Falgun" }, { value: 11, name: "Chaitra" }
+];
+
+const statuses: (PurchaseOrderStatus | 'All')[] = ['All', 'Draft', 'Ordered', 'Amended', 'Delivered', 'Canceled'];
+
 
 export default function PurchaseOrdersListPage() {
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
@@ -68,6 +79,11 @@ export default function PurchaseOrdersListPage() {
   const [deliveryDialogOpen, setDeliveryDialogOpen] = useState(false);
   const [poToUpdate, setPoToUpdate] = useState<PurchaseOrder | null>(null);
   const [deliveryDate, setDeliveryDate] = useState<Date | undefined>(new Date());
+  
+  const [selectedBsYear, setSelectedBsYear] = useState<string>('');
+  const [selectedBsMonth, setSelectedBsMonth] = useState<string>('');
+  const [selectedCompany, setSelectedCompany] = useState<string>('All');
+  const [selectedStatus, setSelectedStatus] = useState<string>('All');
 
 
   useEffect(() => {
@@ -78,6 +94,34 @@ export default function PurchaseOrdersListPage() {
     });
     return () => unsubscribe();
   }, []);
+
+  const { availableYears, availableCompanies } = useMemo(() => {
+    const years = new Set<number>();
+    const companies = new Set<string>();
+    purchaseOrders.forEach(po => {
+        try {
+            years.add(new NepaliDate(new Date(po.poDate)).getYear());
+            companies.add(po.companyName);
+        } catch {}
+    });
+    return {
+        availableYears: Array.from(years).sort((a, b) => b - a),
+        availableCompanies: ['All', ...Array.from(companies).sort()],
+    };
+  }, [purchaseOrders]);
+
+  useEffect(() => {
+      if (availableYears.length > 0 && !selectedBsYear) {
+          const currentNepaliDate = new NepaliDate();
+          const currentYear = currentNepaliDate.getYear();
+          if(availableYears.includes(currentYear)) {
+              setSelectedBsYear(String(currentYear));
+              setSelectedBsMonth(String(currentNepaliDate.getMonth()));
+          } else {
+              setSelectedBsYear(String(availableYears[0]));
+          }
+      }
+  }, [availableYears, selectedBsYear]);
   
   const handleDeletePurchaseOrder = async (id: string) => {
     try {
@@ -135,6 +179,30 @@ export default function PurchaseOrdersListPage() {
   const filteredAndSortedPOs = useMemo(() => {
     let filtered = [...purchaseOrders];
 
+    if (selectedBsYear) {
+      filtered = filtered.filter(po => {
+        try {
+          return new NepaliDate(new Date(po.poDate)).getYear() === parseInt(selectedBsYear);
+        } catch { return false; }
+      });
+    }
+
+    if (selectedBsMonth) {
+      filtered = filtered.filter(po => {
+        try {
+          return new NepaliDate(new Date(po.poDate)).getMonth() === parseInt(selectedBsMonth);
+        } catch { return false; }
+      });
+    }
+    
+    if (selectedCompany !== 'All') {
+        filtered = filtered.filter(po => po.companyName === selectedCompany);
+    }
+
+    if (selectedStatus !== 'All') {
+        filtered = filtered.filter(po => po.status === selectedStatus);
+    }
+
     if (searchQuery) {
         const lowercasedQuery = searchQuery.toLowerCase();
         filtered = filtered.filter(po =>
@@ -168,7 +236,7 @@ export default function PurchaseOrdersListPage() {
       });
     }
     return filtered;
-  }, [purchaseOrders, sortConfig, searchQuery]);
+  }, [purchaseOrders, sortConfig, searchQuery, selectedBsYear, selectedBsMonth, selectedCompany, selectedStatus]);
 
   const getStatusBadgeVariant = (status: PurchaseOrderStatus) => {
     switch (status) {
@@ -360,7 +428,7 @@ export default function PurchaseOrdersListPage() {
   
   return (
     <div className="flex flex-col gap-8">
-      <header className="flex items-center justify-between">
+      <header className="flex flex-col sm:flex-row items-center justify-between gap-4">
         <div>
             <h1 className="text-3xl font-bold tracking-tight">Purchase Orders</h1>
             <p className="text-muted-foreground">View and manage your purchase orders.</p>
@@ -371,20 +439,41 @@ export default function PurchaseOrdersListPage() {
                 <Input
                     type="search"
                     placeholder="Search POs..."
-                    className="pl-8 sm:w-[300px]"
+                    className="pl-8 sm:w-[250px]"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                 />
             </div>
-            {hasPermission('purchaseOrders', 'create') && (
-                <Button asChild>
-                    <Link href="/purchase-orders/new">
-                    <PlusCircle className="mr-2 h-4 w-4" /> New Purchase Order
-                    </Link>
-                </Button>
-            )}
+          {hasPermission('purchaseOrders', 'create') && (
+            <Button asChild>
+                <Link href="/purchase-orders/new">
+                <PlusCircle className="mr-2 h-4 w-4" /> New PO
+                </Link>
+            </Button>
+          )}
         </div>
       </header>
+      <div className="flex flex-col sm:flex-row gap-2">
+            <Select value={selectedBsYear} onValueChange={setSelectedBsYear} disabled={isLoading || availableYears.length === 0}>
+                <SelectTrigger className="w-full sm:w-[120px]"><SelectValue placeholder="Year (BS)" /></SelectTrigger>
+                <SelectContent>{availableYears.map(year => <SelectItem key={year} value={String(year)}>{year}</SelectItem>)}</SelectContent>
+            </Select>
+            <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth} disabled={isLoading || availableYears.length === 0}>
+                <SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Month (BS)" /></SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="">All Months</SelectItem>
+                    {nepaliMonths.map(month => <SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>)}
+                </SelectContent>
+            </Select>
+            <Select value={selectedCompany} onValueChange={setSelectedCompany}>
+                <SelectTrigger className="w-full sm:w-[200px]"><SelectValue placeholder="All Companies" /></SelectTrigger>
+                <SelectContent>{availableCompanies.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+            </Select>
+            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                <SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="All Statuses" /></SelectTrigger>
+                <SelectContent>{statuses.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+            </Select>
+        </div>
       {renderContent()}
        <Dialog open={deliveryDialogOpen} onOpenChange={setDeliveryDialogOpen}>
         <DialogContent>
