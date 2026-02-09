@@ -5,7 +5,7 @@ import type { PurchaseOrder, PurchaseOrderStatus, PurchaseOrderVersion } from '@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Printer, Loader2, Save, Image as ImageIcon, History, Eye, ArrowLeft } from 'lucide-react';
+import { Printer, Loader2, Save, Image as ImageIcon, History, Eye, ArrowLeft, Sparkles } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import NepaliDate from 'nepali-date-converter';
 import { useRouter } from 'next/navigation';
@@ -18,7 +18,7 @@ import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-
+import { useToast } from '@/hooks/use-toast';
 
 const paperTypes = ['Kraft Paper', 'Virgin Paper'];
 
@@ -29,7 +29,10 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
   const [includeAmendments, setIncludeAmendments] = useState(true);
   const [selectedVersion, setSelectedVersion] = useState<PurchaseOrderVersion | null>(null);
   const [isVersionDialogOpen, setIsVersionDialogOpen] = useState(false);
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [isSummarizing, setIsSummarizing] = useState(false);
   const router = useRouter();
+  const { toast } = useToast();
 
   useEffect(() => {
     if (initialPurchaseOrder) {
@@ -190,7 +193,51 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
 
   const handleViewVersion = (version: PurchaseOrderVersion) => {
       setSelectedVersion(version);
+      setAiSummary(null);
       setIsVersionDialogOpen(true);
+  };
+
+  const handleSummarizeChanges = async (version: PurchaseOrderVersion) => {
+    if (!purchaseOrder) return;
+    setIsSummarizing(true);
+    setAiSummary(null);
+    try {
+        const response = await fetch('/api/summarize-po', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                originalPO: {
+                    poNumber: version.data.poNumber || purchaseOrder.poNumber,
+                    poDate: version.data.poDate,
+                    companyName: version.data.companyName,
+                    items: version.data.items,
+                },
+                updatedPO: {
+                    poNumber: purchaseOrder.poNumber,
+                    poDate: purchaseOrder.poDate,
+                    companyName: purchaseOrder.companyName,
+                    items: purchaseOrder.items,
+                }
+            })
+        });
+        
+        if (!response.ok) throw new Error('Failed to summarize');
+        const result = await response.json();
+        setAiSummary(result.summary);
+        setSelectedVersion(version);
+        setIsVersionDialogOpen(true);
+    } catch (error) {
+        toast({ title: 'AI Summary Failed', description: 'Could not generate summary of changes.', variant: 'destructive' });
+    } finally {
+        setIsSummarizing(false);
+    }
+  };
+
+  const scrollToHistory = () => {
+    const element = document.getElementById('po-history-section');
+    if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
   if (!purchaseOrder) {
@@ -256,6 +303,10 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
         </div>
         <div className="space-y-2">
             <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={scrollToHistory}>
+                    <History className="mr-2 h-4 w-4"/>
+                    History
+                </Button>
                 <Button variant="outline" onClick={() => router.push(`/purchase-orders/edit?id=${purchaseOrder.id}`)}>Edit</Button>
                 <Button variant="outline" onClick={() => handleExport('jpg')} disabled={isGeneratingJpg}>
                     {isGeneratingJpg ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImageIcon className="mr-2 h-4 w-4" />}
@@ -421,66 +472,81 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
         </Card>
       </div>
 
-       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8 print:hidden">
-            {purchaseOrder.versions && purchaseOrder.versions.length > 0 && (
-                <Card>
-                    <CardHeader>
-                        <div className="flex items-center gap-2">
-                            <History className="h-5 w-5 text-muted-foreground"/>
-                            <CardTitle>Version Snapshots</CardTitle>
-                        </div>
-                        <CardDescription>A complete snapshot of the PO every time it was updated.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Snapshot Time</TableHead>
-                                    <TableHead>Modified By</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {[...(purchaseOrder.versions || [])].reverse().map((version) => (
-                                    <TableRow key={version.versionId}>
-                                        <TableCell>{new Date(version.replacedAt).toLocaleString()}</TableCell>
-                                        <TableCell>{version.replacedBy}</TableCell>
-                                        <TableCell className="text-right">
-                                            <Button variant="ghost" size="sm" onClick={() => handleViewVersion(version)}>
-                                                <Eye className="mr-2 h-4 w-4"/> View
-                                            </Button>
-                                        </TableCell>
+       <div id="po-history-section" className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8 print:hidden">
+            {(purchaseOrder.versions && purchaseOrder.versions.length > 0) || (purchaseOrder.amendments && purchaseOrder.amendments.length > 0) ? (
+                <>
+                {purchaseOrder.versions && purchaseOrder.versions.length > 0 && (
+                    <Card>
+                        <CardHeader>
+                            <div className="flex items-center gap-2">
+                                <History className="h-5 w-5 text-muted-foreground"/>
+                                <CardTitle>Version Snapshots</CardTitle>
+                            </div>
+                            <CardDescription>A complete snapshot of the PO every time it was updated.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Snapshot Time</TableHead>
+                                        <TableHead>Modified By</TableHead>
+                                        <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
-            )}
+                                </TableHeader>
+                                <TableBody>
+                                    {[...(purchaseOrder.versions || [])].reverse().map((version) => (
+                                        <TableRow key={version.versionId}>
+                                            <TableCell>{new Date(version.replacedAt).toLocaleString()}</TableCell>
+                                            <TableCell>{version.replacedBy}</TableCell>
+                                            <TableCell className="text-right space-x-2">
+                                                <Button variant="ghost" size="sm" onClick={() => handleSummarizeChanges(version)} disabled={isSummarizing}>
+                                                    {isSummarizing ? <Loader2 className="h-3 w-3 animate-spin"/> : <Sparkles className="mr-2 h-4 w-4 text-purple-600"/>}
+                                                    Compare (AI)
+                                                </Button>
+                                                <Button variant="ghost" size="sm" onClick={() => handleViewVersion(version)}>
+                                                    <Eye className="mr-2 h-4 w-4"/> View
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                )}
 
-            {purchaseOrder.amendments && purchaseOrder.amendments.length > 0 && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Amendment Logs</CardTitle>
-                        <CardDescription>Records of manual amendments and remarks.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Date & Time</TableHead>
-                                    <TableHead>Remarks</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {purchaseOrder.amendments.map((log, index) => (
-                                    <TableRow key={index}>
-                                        <TableCell className="whitespace-nowrap">{new Date(log.date).toLocaleString()}</TableCell>
-                                        <TableCell>{log.remarks}</TableCell>
+                {purchaseOrder.amendments && purchaseOrder.amendments.length > 0 && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Amendment Logs</CardTitle>
+                            <CardDescription>Records of manual amendments and remarks.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Date & Time</TableHead>
+                                        <TableHead>Remarks</TableHead>
                                     </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+                                </TableHeader>
+                                <TableBody>
+                                    {purchaseOrder.amendments.map((log, index) => (
+                                        <TableRow key={index}>
+                                            <TableCell className="whitespace-nowrap">{new Date(log.date).toLocaleString()}</TableCell>
+                                            <TableCell>{log.remarks}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                )}
+                </>
+            ) : (
+                <Card className="md:col-span-2">
+                    <CardContent className="py-12 text-center text-muted-foreground">
+                        <History className="h-12 w-12 mx-auto mb-4 opacity-20"/>
+                        <p>No history available for this purchase order yet.</p>
                     </CardContent>
                 </Card>
             )}
@@ -489,11 +555,26 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
        <Dialog open={isVersionDialogOpen} onOpenChange={setIsVersionDialogOpen}>
             <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
                 <DialogHeader>
-                    <DialogTitle>Historical Snapshot</DialogTitle>
+                    <DialogTitle>
+                        {aiSummary ? 'Summary of Changes (AI)' : 'Historical Snapshot'}
+                    </DialogTitle>
                     <DialogDescription>
-                        State of PO #{purchaseOrder.poNumber} as of {selectedVersion ? new Date(selectedVersion.replacedAt).toLocaleString() : ''}
+                        {aiSummary 
+                            ? `AI analysis of changes between the current PO and the version from ${selectedVersion ? new Date(selectedVersion.replacedAt).toLocaleString() : ''}`
+                            : `State of PO #${purchaseOrder.poNumber} as of ${selectedVersion ? new Date(selectedVersion.replacedAt).toLocaleString() : ''}`}
                     </DialogDescription>
                 </DialogHeader>
+                
+                {aiSummary && (
+                    <div className="bg-purple-50 border border-purple-100 p-4 rounded-lg mb-6">
+                        <div className="flex items-center gap-2 mb-2">
+                            <Sparkles className="h-4 w-4 text-purple-600"/>
+                            <span className="font-bold text-purple-900">AI Summary</span>
+                        </div>
+                        <p className="text-purple-800 whitespace-pre-wrap leading-relaxed">{aiSummary}</p>
+                    </div>
+                )}
+
                 {selectedVersion && (
                     <div className="space-y-6">
                         <div className="grid grid-cols-2 text-sm gap-4">
@@ -556,14 +637,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
           }
           .printable-area {
             position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: auto; 
-            margin: 0;
-            padding: 0;
-            border: none;
-            font-size: 10px; /* Smaller base font size for print */
+            left: 0; top: 0; width: 100%; height: auto; margin: 0; padding: 0; border: none; font-size: 10px;
           }
            .print\\:hidden {
               display: none !important;
