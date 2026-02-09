@@ -279,6 +279,16 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
     ? differenceInDays(new Date(purchaseOrder.deliveryDate), new Date(purchaseOrder.poDate))
     : null;
 
+  const groupedVersionItems = useMemo(() => {
+    if (!selectedVersion) return {};
+    return selectedVersion.data.items.reduce((acc, item) => {
+        const key = item.rawMaterialType || 'Other';
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(item);
+        return acc;
+    }, {} as Record<string, any>);
+  }, [selectedVersion]);
+
   return (
     <>
       <div className="flex justify-between items-center mb-8 print:hidden">
@@ -553,15 +563,15 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
        </div>
 
        <Dialog open={isVersionDialogOpen} onOpenChange={setIsVersionDialogOpen}>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
+            <DialogContent className="max-w-5xl max-h-[90vh] overflow-auto">
                 <DialogHeader>
                     <DialogTitle>
-                        {aiSummary ? 'Summary of Changes (AI)' : 'Historical Snapshot'}
+                        {aiSummary ? 'Summary of Changes (AI)' : 'Historical Snapshot View'}
                     </DialogTitle>
                     <DialogDescription>
                         {aiSummary 
                             ? `AI analysis of changes between the current PO and the version from ${selectedVersion ? new Date(selectedVersion.replacedAt).toLocaleString() : ''}`
-                            : `State of PO #${purchaseOrder.poNumber} as of ${selectedVersion ? new Date(selectedVersion.replacedAt).toLocaleString() : ''}`}
+                            : `Full PO state as of ${selectedVersion ? new Date(selectedVersion.replacedAt).toLocaleString() : ''}`}
                     </DialogDescription>
                 </DialogHeader>
                 
@@ -576,40 +586,93 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
                 )}
 
                 {selectedVersion && (
-                    <div className="space-y-6">
-                        <div className="grid grid-cols-2 text-sm gap-4">
-                            <div>
-                                <p><span className="font-semibold">Company:</span> {selectedVersion.data.companyName}</p>
-                                <p><span className="font-semibold">Address:</span> {selectedVersion.data.companyAddress}</p>
-                                {selectedVersion.data.panNumber && <p><span className="font-semibold">PAN:</span> {selectedVersion.data.panNumber}</p>}
-                            </div>
+                    <div className="space-y-4 p-6 border rounded-lg bg-white text-black text-xs">
+                        <header className="text-center space-y-1 mb-4">
+                            <h1 className="text-lg font-bold">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
+                            <p className="text-xs">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
+                            <h2 className="text-base font-semibold underline mt-1">PURCHASE ORDER</h2>
+                        </header>
+                        
+                        <div className="grid grid-cols-2 gap-x-4">
+                            <div><span className="font-semibold">PO No:</span> {selectedVersion.data.poNumber || purchaseOrder.poNumber}</div>
                             <div className="text-right">
-                                <p><span className="font-semibold">PO Date:</span> {new Date(selectedVersion.data.poDate).toLocaleDateString()}</p>
-                                <p><span className="font-semibold">Status at Time:</span> <Badge variant="outline">{selectedVersion.data.status}</Badge></p>
+                                <span className="font-semibold">Date:</span> {new NepaliDate(new Date(selectedVersion.data.poDate)).format('YYYY/MM/DD')} BS ({new Date(selectedVersion.data.poDate).toLocaleDateString('en-CA')})
                             </div>
                         </div>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Material</TableHead>
-                                    <TableHead>Specs</TableHead>
-                                    <TableHead className="text-right">Quantity</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {selectedVersion.data.items.map((item, i) => (
-                                    <TableRow key={i}>
-                                        <TableCell>{item.rawMaterialName}</TableCell>
-                                        <TableCell className="text-xs text-muted-foreground">
-                                            {item.size ? `${item.size}" ` : ''}
-                                            {item.gsm ? `${item.gsm}gsm ` : ''}
-                                            {item.bf ? `${item.bf}bf` : ''}
-                                        </TableCell>
-                                        <TableCell className="text-right">{item.quantity} {item.unit}</TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+                        
+                        <Separator className="my-2 bg-gray-300"/>
+
+                        <div className="space-y-1 mb-4">
+                            <p className="font-bold text-sm">To: {selectedVersion.data.companyName}</p>
+                            <p>{selectedVersion.data.companyAddress}</p>
+                            {selectedVersion.data.panNumber && <p>PAN: {selectedVersion.data.panNumber}</p>}
+                        </div>
+
+                        <div className="space-y-4">
+                            {Object.entries(groupedVersionItems).map(([type, items]: [string, any]) => {
+                                const isPaper = paperTypes.includes(type);
+                                const totals = items.reduce((acc: any, item: any) => {
+                                    const quantity = parseFloat(item.quantity);
+                                    if (!isNaN(quantity) && quantity > 0) {
+                                        acc[item.unit] = (acc[item.unit] || 0) + quantity;
+                                    }
+                                    return acc;
+                                }, {} as Record<string, number>);
+
+                                return (
+                                    <div key={type} className="border rounded-lg border-gray-300">
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow className="bg-gray-50">
+                                                    <TableCell colSpan={isPaper ? 6 : 4} className="font-bold h-6 px-2 text-xs">{type}</TableCell>
+                                                </TableRow>
+                                                <TableRow>
+                                                    <TableHead className="h-6 px-2 text-[10px]">S.N.</TableHead>
+                                                    <TableHead className="h-6 px-2 text-[10px]">Description</TableHead>
+                                                    {isPaper && (
+                                                        <>
+                                                            <TableHead className="h-6 px-2 text-[10px]">Size</TableHead>
+                                                            <TableHead className="h-6 px-2 text-[10px]">GSM</TableHead>
+                                                            <TableHead className="h-6 px-2 text-[10px]">BF</TableHead>
+                                                        </>
+                                                    )}
+                                                    <TableHead className="h-6 px-2 text-[10px] text-right">Quantity</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {items.map((item: any, index: number) => (
+                                                    <TableRow key={index} className="h-6">
+                                                        <TableCell className="px-2 py-0.5">{index + 1}</TableCell>
+                                                        <TableCell className="px-2 py-0.5">{item.rawMaterialName}</TableCell>
+                                                        {isPaper && (
+                                                            <>
+                                                                <TableCell className="px-2 py-0.5">{item.size || '-'}</TableCell>
+                                                                <TableCell className="px-2 py-0.5">{item.gsm || '-'}</TableCell>
+                                                                <TableCell className="px-2 py-0.5">{item.bf || '-'}</TableCell>
+                                                            </>
+                                                        )}
+                                                        <TableCell className="px-2 py-0.5 text-right">{item.quantity} {item.unit}</TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                            <TableFooter>
+                                                <TableRow className="font-bold">
+                                                    <TableCell colSpan={isPaper ? 5 : 3} className="text-right px-2 py-0.5">Total</TableCell>
+                                                    <TableCell className="text-right px-2 py-0.5">
+                                                        {Object.entries(totals).map(([unit, total]: [any, any]) => (
+                                                            <span key={unit}>{total.toLocaleString()} {unit}</span>
+                                                        ))}
+                                                    </TableCell>
+                                                </TableRow>
+                                            </TableFooter>
+                                        </Table>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <div className="mt-8 text-center text-[10px] text-gray-500">
+                            <p>Snapshot of version replaced by {selectedVersion.replacedBy} on {new Date(selectedVersion.replacedAt).toLocaleString()}</p>
+                        </div>
                     </div>
                 )}
                 <DialogFooter>

@@ -77,14 +77,12 @@ export const updatePurchaseOrder = async (id: string, poUpdate: Partial<Omit<Pur
     if (poSnap.exists()) {
         const currentData = poSnap.data() as PurchaseOrder;
         
-        // Don't version if it's currently a draft and stays a draft? 
-        // No, let's capture all meaningful updates.
-        
         const newVersion: PurchaseOrderVersion = {
             versionId: Date.now().toString(),
             replacedAt: new Date().toISOString(),
             replacedBy: poUpdate.lastModifiedBy || currentData.lastModifiedBy || 'System',
             data: {
+                poNumber: currentData.poNumber,
                 poDate: currentData.poDate,
                 items: currentData.items,
                 companyName: currentData.companyName,

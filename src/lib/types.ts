@@ -138,6 +138,7 @@ export interface PurchaseOrderVersion {
   replacedAt: string;
   replacedBy: string;
   data: {
+    poNumber?: string;
     poDate: string;
     items: PurchaseOrderItem[];
     companyName: string;
