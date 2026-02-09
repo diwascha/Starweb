@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -75,7 +74,7 @@ export default function PurchaseOrdersListPage() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
-  const { hasPermission } = useAuth();
+  const { hasPermission, user } = useAuth();
 
   const [deliveryDialogOpen, setDeliveryDialogOpen] = useState(false);
   const [poToUpdate, setPoToUpdate] = useState<PurchaseOrder | null>(null);
@@ -135,7 +134,11 @@ export default function PurchaseOrdersListPage() {
   
   const updatePoStatus = async (id: string, status: PurchaseOrderStatus, deliveryDate?: string) => {
     try {
-      await updatePurchaseOrder(id, { status, deliveryDate: deliveryDate || poToUpdate?.deliveryDate });
+      await updatePurchaseOrder(id, { 
+        status, 
+        deliveryDate: deliveryDate || poToUpdate?.deliveryDate,
+        lastModifiedBy: user?.username 
+      });
       toast({
         title: 'Status Updated',
         description: `Purchase Order status has been updated to ${status}.`,
@@ -512,5 +515,3 @@ export default function PurchaseOrdersListPage() {
     </div>
   );
 }
-
-    

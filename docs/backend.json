@@ -40,6 +40,41 @@
         }
       },
       "required": ["userId"]
+    },
+    "PurchaseOrderItem": {
+      "title": "Purchase Order Item",
+      "type": "object",
+      "properties": {
+        "rawMaterialId": { "type": "string" },
+        "rawMaterialName": { "type": "string" },
+        "rawMaterialType": { "type": "string" },
+        "size": { "type": "string" },
+        "gsm": { "type": "string" },
+        "bf": { "type": "string" },
+        "quantity": { "type": "string" },
+        "unit": { "type": "string" }
+      }
+    },
+    "PurchaseOrderVersion": {
+      "title": "Purchase Order Version",
+      "description": "Represents a snapshot of a purchase order before an edit.",
+      "type": "object",
+      "properties": {
+        "versionId": { "type": "string" },
+        "replacedAt": { "type": "string", "format": "date-time" },
+        "replacedBy": { "type": "string" },
+        "data": {
+          "type": "object",
+          "properties": {
+            "poDate": { "type": "string", "format": "date-time" },
+            "items": { "type": "array", "items": { "$ref": "#/entities/PurchaseOrderItem" } },
+            "companyName": { "type": "string" },
+            "companyAddress": { "type": "string" },
+            "panNumber": { "type": "string" },
+            "status": { "type": "string" }
+          }
+        }
+      }
     }
   },
   "auth": {
@@ -49,6 +84,15 @@
     "/users/{userId}": {
       "schema": { "$ref": "#/entities/UserProfile" },
       "description": "Stores public profiles for users."
+    },
+    "/purchaseOrders/{poId}": {
+      "schema": {
+        "type": "object",
+        "properties": {
+          "versions": { "type": "array", "items": { "$ref": "#/entities/PurchaseOrderVersion" } }
+        }
+      },
+      "description": "Stores purchase orders with version history snapshots."
     }
   }
 }

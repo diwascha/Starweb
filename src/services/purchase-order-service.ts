@@ -1,8 +1,6 @@
-
-
 import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDoc } from 'firebase/firestore';
-import type { PurchaseOrder } from '@/lib/types';
+import type { PurchaseOrder, PurchaseOrderVersion } from '@/lib/types';
 
 const getPurchaseOrdersCollection = () => {
     const { db } = getFirebase();
@@ -19,8 +17,10 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
         updatedAt: data.updatedAt,
         companyName: data.companyName,
         companyAddress: data.companyAddress,
+        panNumber: data.panNumber,
         items: data.items,
         amendments: data.amendments,
+        versions: data.versions || [],
         status: data.status,
         isDraft: data.isDraft ?? false, // Default to false if not present
         deliveryDate: data.deliveryDate,
@@ -68,10 +68,42 @@ export const getPurchaseOrder = async (id: string): Promise<PurchaseOrder | null
 };
 
 
-export const updatePurchaseOrder = async (id: string, po: Partial<Omit<PurchaseOrder, 'id'>>): Promise<void> => {
+export const updatePurchaseOrder = async (id: string, poUpdate: Partial<Omit<PurchaseOrder, 'id'>>): Promise<void> => {
     if (!id) return;
-    const poDoc = doc(getPurchaseOrdersCollection(), id);
-    await updateDoc(poDoc, po);
+    const poDocRef = doc(getPurchaseOrdersCollection(), id);
+    
+    // Snapshot current state for versioning
+    const poSnap = await getDoc(poDocRef);
+    if (poSnap.exists()) {
+        const currentData = poSnap.data() as PurchaseOrder;
+        
+        // Don't version if it's currently a draft and stays a draft? 
+        // No, let's capture all meaningful updates.
+        
+        const newVersion: PurchaseOrderVersion = {
+            versionId: Date.now().toString(),
+            replacedAt: new Date().toISOString(),
+            replacedBy: poUpdate.lastModifiedBy || currentData.lastModifiedBy || 'System',
+            data: {
+                poDate: currentData.poDate,
+                items: currentData.items,
+                companyName: currentData.companyName,
+                companyAddress: currentData.companyAddress,
+                panNumber: currentData.panNumber,
+                status: currentData.status,
+            }
+        };
+
+        const updatedVersions = [...(currentData.versions || []), newVersion];
+        
+        updateDoc(poDocRef, {
+            ...poUpdate,
+            versions: updatedVersions,
+            updatedAt: new Date().toISOString()
+        }).catch(err => {
+            console.error("Failed to update PO with version history:", err);
+        });
+    }
 };
 
 export const deletePurchaseOrder = async (id: string): Promise<void> => {

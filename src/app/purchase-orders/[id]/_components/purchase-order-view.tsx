@@ -1,12 +1,11 @@
-
 'use client';
 
-import { useEffect, useState, Fragment } from 'react';
-import type { PurchaseOrder, PurchaseOrderStatus } from '@/lib/types';
+import { useEffect, useState, useMemo } from 'react';
+import type { PurchaseOrder, PurchaseOrderStatus, PurchaseOrderVersion } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Printer, Loader2, Save, Image as ImageIcon } from 'lucide-react';
+import { Printer, Loader2, Save, Image as ImageIcon, History, Eye, ArrowLeft } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import NepaliDate from 'nepali-date-converter';
 import { useRouter } from 'next/navigation';
@@ -16,6 +15,7 @@ import { differenceInDays } from 'date-fns';
 import { getPurchaseOrder } from '@/services/purchase-order-service';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -27,6 +27,8 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isGeneratingJpg, setIsGeneratingJpg] = useState(false);
   const [includeAmendments, setIncludeAmendments] = useState(true);
+  const [selectedVersion, setSelectedVersion] = useState<PurchaseOrderVersion | null>(null);
+  const [isVersionDialogOpen, setIsVersionDialogOpen] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -102,6 +104,13 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
             doc.text(`Date: ${nepaliPoDate} BS`, doc.internal.pageSize.getWidth() - 14, 50, { align: 'right' });
             
             let finalY = 65;
+
+            const groupedItems = purchaseOrder.items.reduce((acc, item) => {
+                const key = item.rawMaterialType || 'Other';
+                if (!acc[key]) acc[key] = [];
+                acc[key].push(item);
+                return acc;
+            }, {} as Record<string, typeof purchaseOrder.items>);
 
             for (const [type, items] of Object.entries(groupedItems)) {
                 const isPaper = paperTypes.includes(type);
@@ -179,6 +188,11 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
     document.getElementById('print-style')?.remove();
   };
 
+  const handleViewVersion = (version: PurchaseOrderVersion) => {
+      setSelectedVersion(version);
+      setIsVersionDialogOpen(true);
+  };
+
   if (!purchaseOrder) {
     return (
       <div className="flex justify-center items-center h-full">
@@ -187,36 +201,30 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
     );
   }
 
-  const nepaliPoDate = new NepaliDate(new Date(purchaseOrder.poDate));
-  const nepaliPoDateString = nepaliPoDate.format('YYYY/MM/DD');
+  const nepaliPoDateString = new NepaliDate(new Date(purchaseOrder.poDate)).format('YYYY/MM/DD');
   
   const showAmendedDate = purchaseOrder.amendments && purchaseOrder.amendments.length > 0;
   const lastAmendment = showAmendedDate ? purchaseOrder.amendments[purchaseOrder.amendments.length - 1] : null;
   const amendedDate = lastAmendment ? new Date(lastAmendment.date) : null;
   const nepaliAmendedDateString = amendedDate ? new NepaliDate(amendedDate).format('YYYY/MM/DD') : '';
 
-  
-  const groupedItems = purchaseOrder.items.reduce((acc, item) => {
-    const key = item.rawMaterialType || 'Other';
-    if (!acc[key]) {
-      acc[key] = [];
-    }
-    acc[key].push(item);
-    return acc;
-  }, {} as Record<string, typeof purchaseOrder.items>);
+  const groupedItems = useMemo(() => {
+    return purchaseOrder.items.reduce((acc, item) => {
+        const key = item.rawMaterialType || 'Other';
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(item);
+        return acc;
+    }, {} as Record<string, typeof purchaseOrder.items>);
+  }, [purchaseOrder.items]);
 
   const getStatusBadgeVariant = (status: PurchaseOrderStatus) => {
     switch (status) {
-      case 'Ordered':
-        return 'default';
-      case 'Amended':
-        return 'secondary';
-      case 'Delivered':
-        return 'outline';
-      case 'Canceled':
-        return 'destructive';
-      default:
-        return 'default';
+      case 'Ordered': return 'default';
+      case 'Amended': return 'secondary';
+      case 'Delivered': return 'outline';
+      case 'Canceled': return 'destructive';
+      case 'Draft': return 'secondary';
+      default: return 'default';
     }
   };
   
@@ -228,8 +236,13 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
     <>
       <div className="flex justify-between items-center mb-8 print:hidden">
         <div>
-            <h1 className="text-3xl font-bold">Purchase Order</h1>
-            <div className="flex items-center gap-2 mt-2">
+            <div className="flex items-center gap-2">
+                <Button variant="ghost" size="icon" onClick={() => router.push('/purchase-orders/list')}>
+                    <ArrowLeft className="h-5 w-5"/>
+                </Button>
+                <h1 className="text-3xl font-bold">Purchase Order</h1>
+            </div>
+            <div className="flex items-center gap-2 mt-2 ml-10">
                 <Badge variant={getStatusBadgeVariant(purchaseOrder.status)} className="text-base">
                   {purchaseOrder.status}
                 </Badge>
@@ -333,7 +346,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
                   }, {} as Record<string, number>);
 
                   return (
-                    <div key={type} className="border rounded-lg border-gray-300">
+                    <div key={type} className="border rounded-lg border-gray-300 mb-4">
                         <Table>
                         <TableHeader>
                             <TableRow className="border-b-gray-300 bg-gray-100">
@@ -407,34 +420,123 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
           </CardContent>
         </Card>
       </div>
-       {purchaseOrder.amendments && purchaseOrder.amendments.length > 0 && (
-           <Card className="mt-8 print:hidden">
-             <CardHeader>
-               <CardTitle>Amendment History</CardTitle>
-               <CardDescription>This PO has been amended {purchaseOrder.amendments.length} time(s).</CardDescription>
-             </CardHeader>
-             <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Amendment #</TableHead>
-                            <TableHead>Date & Time</TableHead>
-                            <TableHead>Remarks</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {purchaseOrder.amendments.map((log, index) => (
-                            <TableRow key={index}>
-                                <TableCell>{index + 1}</TableCell>
-                                <TableCell>{new Date(log.date).toLocaleString()}</TableCell>
-                                <TableCell>{log.remarks}</TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-             </CardContent>
-           </Card>
-      )}
+
+       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8 print:hidden">
+            {purchaseOrder.versions && purchaseOrder.versions.length > 0 && (
+                <Card>
+                    <CardHeader>
+                        <div className="flex items-center gap-2">
+                            <History className="h-5 w-5 text-muted-foreground"/>
+                            <CardTitle>Version Snapshots</CardTitle>
+                        </div>
+                        <CardDescription>A complete snapshot of the PO every time it was updated.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Snapshot Time</TableHead>
+                                    <TableHead>Modified By</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {[...(purchaseOrder.versions || [])].reverse().map((version) => (
+                                    <TableRow key={version.versionId}>
+                                        <TableCell>{new Date(version.replacedAt).toLocaleString()}</TableCell>
+                                        <TableCell>{version.replacedBy}</TableCell>
+                                        <TableCell className="text-right">
+                                            <Button variant="ghost" size="sm" onClick={() => handleViewVersion(version)}>
+                                                <Eye className="mr-2 h-4 w-4"/> View
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            )}
+
+            {purchaseOrder.amendments && purchaseOrder.amendments.length > 0 && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Amendment Logs</CardTitle>
+                        <CardDescription>Records of manual amendments and remarks.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Date & Time</TableHead>
+                                    <TableHead>Remarks</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {purchaseOrder.amendments.map((log, index) => (
+                                    <TableRow key={index}>
+                                        <TableCell className="whitespace-nowrap">{new Date(log.date).toLocaleString()}</TableCell>
+                                        <TableCell>{log.remarks}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            )}
+       </div>
+
+       <Dialog open={isVersionDialogOpen} onOpenChange={setIsVersionDialogOpen}>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
+                <DialogHeader>
+                    <DialogTitle>Historical Snapshot</DialogTitle>
+                    <DialogDescription>
+                        State of PO #{purchaseOrder.poNumber} as of {selectedVersion ? new Date(selectedVersion.replacedAt).toLocaleString() : ''}
+                    </DialogDescription>
+                </DialogHeader>
+                {selectedVersion && (
+                    <div className="space-y-6">
+                        <div className="grid grid-cols-2 text-sm gap-4">
+                            <div>
+                                <p><span className="font-semibold">Company:</span> {selectedVersion.data.companyName}</p>
+                                <p><span className="font-semibold">Address:</span> {selectedVersion.data.companyAddress}</p>
+                                {selectedVersion.data.panNumber && <p><span className="font-semibold">PAN:</span> {selectedVersion.data.panNumber}</p>}
+                            </div>
+                            <div className="text-right">
+                                <p><span className="font-semibold">PO Date:</span> {new Date(selectedVersion.data.poDate).toLocaleDateString()}</p>
+                                <p><span className="font-semibold">Status at Time:</span> <Badge variant="outline">{selectedVersion.data.status}</Badge></p>
+                            </div>
+                        </div>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Material</TableHead>
+                                    <TableHead>Specs</TableHead>
+                                    <TableHead className="text-right">Quantity</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {selectedVersion.data.items.map((item, i) => (
+                                    <TableRow key={i}>
+                                        <TableCell>{item.rawMaterialName}</TableCell>
+                                        <TableCell className="text-xs text-muted-foreground">
+                                            {item.size ? `${item.size}" ` : ''}
+                                            {item.gsm ? `${item.gsm}gsm ` : ''}
+                                            {item.bf ? `${item.bf}bf` : ''}
+                                        </TableCell>
+                                        <TableCell className="text-right">{item.quantity} {item.unit}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                )}
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsVersionDialogOpen(false)}>Close</Button>
+                </DialogFooter>
+            </DialogContent>
+       </Dialog>
+
       <style jsx global>{`
         @media print {
           @page {

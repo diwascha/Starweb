@@ -1,5 +1,3 @@
-
-
 export interface RateHistoryEntry {
   rate: number;
   date: string; // ISO string when the rate was set
@@ -135,6 +133,20 @@ export interface Amendment {
 
 export type PurchaseOrderStatus = 'Draft' | 'Ordered' | 'Amended' | 'Delivered' | 'Canceled';
 
+export interface PurchaseOrderVersion {
+  versionId: string;
+  replacedAt: string;
+  replacedBy: string;
+  data: {
+    poDate: string;
+    items: PurchaseOrderItem[];
+    companyName: string;
+    companyAddress: string;
+    panNumber?: string;
+    status: PurchaseOrderStatus;
+  };
+}
+
 export interface PurchaseOrder {
   id: string;
   poNumber: string;
@@ -147,6 +159,7 @@ export interface PurchaseOrder {
   panNumber?: string;
   items: PurchaseOrderItem[];
   amendments?: Amendment[];
+  versions?: PurchaseOrderVersion[];
   status: PurchaseOrderStatus;
   isDraft: boolean;
   deliveryDate?: string; // ISO string
