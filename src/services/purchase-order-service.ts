@@ -22,7 +22,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
         amendments: data.amendments,
         versions: data.versions || [],
         status: data.status,
-        isDraft: data.isDraft ?? false, // Default to false if not present
+        isDraft: data.isDraft ?? false,
         deliveryDate: data.deliveryDate,
         createdBy: data.createdBy,
         lastModifiedBy: data.lastModifiedBy,
@@ -42,7 +42,7 @@ export const addPurchaseOrder = async (po: Omit<PurchaseOrder, 'id'>): Promise<s
     return docRef.id;
 };
 
-export const onPurchaseOrdersUpdate = (callback: (purchaseOrders: PurchaseOrder[]) => void): () => void => {
+export const onSnapshotPurchaseOrders = (callback: (purchaseOrders: PurchaseOrder[]) => void): () => void => {
     return onSnapshot(getPurchaseOrdersCollection(), 
         (snapshot) => {
             callback(snapshot.docs.map(fromFirestore));
@@ -52,6 +52,8 @@ export const onPurchaseOrdersUpdate = (callback: (purchaseOrders: PurchaseOrder[
         }
     );
 };
+
+export const onPurchaseOrdersUpdate = onSnapshotPurchaseOrders;
 
 export const getPurchaseOrder = async (id: string): Promise<PurchaseOrder | null> => {
     if (!id || typeof id !== 'string') {
@@ -72,11 +74,12 @@ export const updatePurchaseOrder = async (id: string, poUpdate: Partial<Omit<Pur
     if (!id) return;
     const poDocRef = doc(getPurchaseOrdersCollection(), id);
     
-    // Snapshot current state for versioning
+    // Snapshot current state for versioning BEFORE applying the update
     const poSnap = await getDoc(poDocRef);
     if (poSnap.exists()) {
         const currentData = poSnap.data() as PurchaseOrder;
         
+        // Ensure we capture a truly FULL snapshot of all meaningful data fields
         const newVersion: PurchaseOrderVersion = {
             versionId: Date.now().toString(),
             replacedAt: new Date().toISOString(),
@@ -87,19 +90,19 @@ export const updatePurchaseOrder = async (id: string, poUpdate: Partial<Omit<Pur
                 items: currentData.items,
                 companyName: currentData.companyName,
                 companyAddress: currentData.companyAddress,
-                panNumber: currentData.panNumber,
+                panNumber: currentData.panNumber || '',
                 status: currentData.status,
+                deliveryDate: currentData.deliveryDate || '',
+                amendments: currentData.amendments || [],
             }
         };
 
         const updatedVersions = [...(currentData.versions || []), newVersion];
         
-        updateDoc(poDocRef, {
+        await updateDoc(poDocRef, {
             ...poUpdate,
             versions: updatedVersions,
             updatedAt: new Date().toISOString()
-        }).catch(err => {
-            console.error("Failed to update PO with version history:", err);
         });
     }
 };

@@ -207,7 +207,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 originalPO: {
-                    poNumber: version.data.poNumber || purchaseOrder.poNumber,
+                    poNumber: version.data.poNumber,
                     poDate: version.data.poDate,
                     companyName: version.data.companyName,
                     items: version.data.items,
@@ -594,7 +594,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
                         </header>
                         
                         <div className="grid grid-cols-2 gap-x-4">
-                            <div><span className="font-semibold">PO No:</span> {selectedVersion.data.poNumber || purchaseOrder.poNumber}</div>
+                            <div><span className="font-semibold">PO No:</span> {selectedVersion.data.poNumber}</div>
                             <div className="text-right">
                                 <span className="font-semibold">Date:</span> {new NepaliDate(new Date(selectedVersion.data.poDate)).format('YYYY/MM/DD')} BS ({new Date(selectedVersion.data.poDate).toLocaleDateString('en-CA')})
                             </div>
