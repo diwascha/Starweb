@@ -1,4 +1,3 @@
-
 import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, query, orderBy, deleteDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
 import type { CostReport } from '@/lib/types';
@@ -19,6 +18,8 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
         kraftPaperCosts: data.kraftPaperCosts,
         virginPaperCost: data.virginPaperCost,
         conversionCost: data.conversionCost,
+        transportCost: data.transportCost,
+        transportCostType: data.transportCostType,
         items: data.items,
         totalCost: data.totalCost,
         createdBy: data.createdBy,

@@ -734,6 +734,8 @@ export interface CostReport {
   kraftPaperCosts: Record<string, number>;
   virginPaperCost: number;
   conversionCost: number;
+  transportCost?: number; // Added
+  transportCostType?: 'Per Piece' | 'Per Consignment'; // Added
   items: Omit<CostReportItem, 'calculated'>[]; // We only store the inputs, not the calculated values
   totalCost: number;
   createdBy: string;

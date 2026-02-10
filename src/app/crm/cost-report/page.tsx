@@ -44,9 +44,11 @@ interface QuotationPreviewDialogProps {
   party: Party | null | undefined;
   items: (CostReportItem & { totalItemCost: number })[];
   products: Product[];
+  transportCost?: number;
+  transportCostType?: 'Per Piece' | 'Per Consignment';
 }
 
-function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate, party, items, products }: QuotationPreviewDialogProps) {
+function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate, party, items, products, transportCost, transportCostType }: QuotationPreviewDialogProps) {
   const printRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
@@ -139,6 +141,15 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                 
                 return [mainRow, ...accessoriesRows];
             });
+
+            if (transportCost && transportCostType === 'Per Consignment') {
+                body.push([
+                    "",
+                    "Transport Cost (Consignment)",
+                    "", "", "", "", "",
+                    `Rs. ${transportCost.toFixed(2)}`
+                ]);
+            }
             
             autoTable(doc, {
                 startY: 65,
@@ -258,6 +269,12 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                              ))}
                            </React.Fragment>
                         ))}
+                        {transportCost && transportCostType === 'Per Consignment' && (
+                            <TableRow className="font-bold">
+                                <TableCell colSpan={7} className="text-right">Transport Cost (Lump Sum)</TableCell>
+                                <TableCell className="text-right">Rs. {transportCost.toFixed(2)}</TableCell>
+                            </TableRow>
+                        )}
                     </TableBody>
                 </Table>
                 <div className="mt-8">
@@ -336,6 +353,8 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
   const [kraftPaperCosts, setKraftPaperCosts] = useState<Record<string, number | ''>>(initialKraftCosts);
   const [virginPaperCost, setVirginPaperCost] = useState<number | ''>('');
   const [conversionCost, setConversionCost] = useState<number | ''>('');
+  const [transportCost, setTransportCost] = useState<number | ''>('');
+  const [transportCostType, setTransportCostType] = useState<'Per Piece' | 'Per Consignment'>('Per Consignment');
   const [isCostHistoryDialogOpen, setIsCostHistoryDialogOpen] = useState(false);
 
   const [isSaving, setIsSaving] = useState(false);
@@ -558,6 +577,8 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
       setKraftPaperCosts(filledKraftCosts);
       setVirginPaperCost(reportToEdit.virginPaperCost || (costSettings?.virginPaperCost ?? ''));
       setConversionCost(reportToEdit.conversionCost || (costSettings?.conversionCost ?? ''));
+      setTransportCost(reportToEdit.transportCost ?? '');
+      setTransportCostType(reportToEdit.transportCostType ?? 'Per Consignment');
       
       const kCostsForCalc = reportToEdit.kraftPaperCosts || {};
       const vCost = reportToEdit.virginPaperCost || 0;
@@ -581,6 +602,8 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
             setVirginPaperCost(costSettings.virginPaperCost || '');
             setConversionCost(costSettings.conversionCost || '');
         }
+        setTransportCost('');
+        setTransportCostType('Per Consignment');
         setItems([]);
         setSelectedForPrint(new Set());
     }
@@ -620,7 +643,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
             bottomGsm: spec.bottomGsm || '',
             liner2Gsm: spec.liner2Gsm || '',
             flute3Gsm: spec.flute3Gsm || '',
-            liner3Gsm: spec.flute3Gsm || '',
+            liner3Gsm: spec.liner3Gsm || '',
             flute4Gsm: spec.flute4Gsm || '',
             liner4Gsm: spec.liner4Gsm || '',
             accessories,
@@ -769,6 +792,13 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
              return sum + paperCost + accessoriesCost;
            }, 0);
 
+           let totalTransport = 0;
+           if (transportCost && transportCostType === 'Per Piece') {
+               totalTransport = items.reduce((sum, item) => sum + (parseInt(item.noOfPcs, 10) || 0) * Number(transportCost), 0);
+           } else if (transportCost && transportCostType === 'Per Consignment') {
+               totalTransport = Number(transportCost);
+           }
+
            const reportData: Omit<CostReport, 'id' | 'createdAt'> = {
               reportNumber,
               reportDate: reportDate.toISOString(),
@@ -777,11 +807,13 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
               kraftPaperCosts: kCosts,
               virginPaperCost: vCost,
               conversionCost: cCost,
+              transportCost: Number(transportCost) || 0,
+              transportCostType: transportCostType,
               items: items.map(({ calculated, accessories, ...item }) => ({
                 ...item,
                 accessories: (accessories || []).map(({ calculated: accCalculated, ...acc }) => acc),
             })),
-              totalCost: totalItemCost,
+              totalCost: totalItemCost + totalTransport,
               createdBy: user.username,
           };
           
@@ -837,12 +869,18 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
       .filter(item => selectedForPrint.has(item.id))
       .map(item => {
         const accessoriesCost = (item.accessories || []).reduce((sum, acc) => sum + (acc.calculated?.paperCost || 0), 0);
+        let itemTotal = (item.calculated?.paperCost || 0) + accessoriesCost;
+        
+        if (transportCost && transportCostType === 'Per Piece') {
+            itemTotal += (parseInt(item.noOfPcs, 10) || 0) * Number(transportCost);
+        }
+
         return {
           ...item,
-          totalItemCost: (item.calculated?.paperCost || 0) + accessoriesCost,
+          totalItemCost: itemTotal,
         };
       });
-  }, [items, selectedForPrint]);
+  }, [items, selectedForPrint, transportCost, transportCostType]);
 
   const selectedParty = parties.find(p => p.id === selectedPartyId);
   const [productSearch, setProductSearch] = useState('');
@@ -1035,6 +1073,20 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                             <Label htmlFor="conversionCost">Conversion Cost</Label>
                             <Input id="conversionCost" type="number" placeholder="Enter cost" value={conversionCost} onChange={e => handleCostChange('conversion', e.target.value)} />
                         </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="transportCost">Transport Cost</Label>
+                            <Input id="transportCost" type="number" placeholder="Amount" value={transportCost} onChange={e => setTransportCost(e.target.value === '' ? '' : parseFloat(e.target.value))} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="transportCostType">Transport Cost Basis</Label>
+                            <Select value={transportCostType} onValueChange={(v: 'Per Piece' | 'Per Consignment') => setTransportCostType(v)}>
+                                <SelectTrigger id="transportCostType"><SelectValue/></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Per Piece">Per Piece</SelectItem>
+                                    <SelectItem value="Per Consignment">Per Consignment (Lump Sum)</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
                 </div>
             </CardContent>
@@ -1103,7 +1155,12 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                         {items.map((item, index) => {
                              const ply = parseInt(item.ply, 10);
                              const accessoriesCost = (item.accessories || []).reduce((sum, acc) => sum + (acc.calculated?.paperCost || 0), 0);
-                             const totalItemCost = (item.calculated?.paperCost || 0) + accessoriesCost;
+                             let totalItemCost = (item.calculated?.paperCost || 0) + accessoriesCost;
+                             
+                             if (transportCost && transportCostType === 'Per Piece') {
+                                 totalItemCost += (parseInt(item.noOfPcs, 10) || 0) * Number(transportCost);
+                             }
+
                              const selectedProduct = products.find(p => p.id === item.productId);
                              return (
                                 <React.Fragment key={item.id}>
@@ -1393,6 +1450,8 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                 party={selectedParty}
                 items={itemsToPrint}
                 products={products}
+                transportCost={Number(transportCost) || 0}
+                transportCostType={transportCostType}
             />
         )}
       <Dialog open={isLoadProductsDialogOpen} onOpenChange={setIsLoadProductsDialogOpen}>
@@ -1647,11 +1706,17 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
                 };
             });
             const accessoriesCost = accessoriesWithCalc.reduce((sum, acc) => sum + (acc.calculated?.paperCost || 0), 0);
+            
+            let itemTotal = (calculateItemCost(item, reportToPrint).paperCost || 0) + accessoriesCost;
+            if (reportToPrint.transportCost && reportToPrint.transportCostType === 'Per Piece') {
+                itemTotal += (parseInt(item.noOfPcs, 10) || 0) * reportToPrint.transportCost;
+            }
+
             return {
                 ...item,
                 accessories: accessoriesWithCalc,
                 calculated: calculateItemCost(item, reportToPrint),
-                totalItemCost: (calculateItemCost(item, reportToPrint).paperCost || 0) + accessoriesCost
+                totalItemCost: itemTotal
             };
         });
     }, [reportToPrint, calculateItemCost, getFullAccessory]);
@@ -1732,6 +1797,8 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
                 party={parties.find(p => p.id === reportToPrint!.partyId)}
                 items={printableReportItems}
                 products={products}
+                transportCost={reportToPrint.transportCost}
+                transportCostType={reportToPrint.transportCostType}
             />
         )}
       </>
