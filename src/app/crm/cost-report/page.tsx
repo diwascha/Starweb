@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { Product, Party, PartyType, CostReport, CostReportItem, ProductSpecification, CostSetting, Accessory as ProductAccessory, Product as ProductType } from '@/lib/types';
@@ -320,10 +321,10 @@ const initialCalculatedState: CalculatedValues = {
     sheetSizeL: 0, sheetSizeB: 0, sheetArea: 0, totalGsm: 0, paperWeight: 0, totalBoxWeight: 0, paperRate: 0, paperCost: 0
 };
 
-const bfOptions = ['16 Bf', '18 Bf', '20 Bf', '22 Bf'];
+const bfOptions = ['16 BF', '18 BF', '20 BF', '22 BF'];
 const fluteOptions = ['A', 'B', 'A/B', 'B/A', 'A/A', 'B/B'];
 const initialKraftCosts: Record<string, number | ''> = {
-    '16 Bf': '', '18 Bf': '', '20 Bf': '', '22 Bf': ''
+    '16 BF': '', '18 BF': '', '20 BF': '', '22 BF': ''
 };
 
 interface Accessory extends ProductAccessory {
@@ -546,7 +547,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
         ply: acc.ply || '3',
         fluteType: acc.fluteType || 'B',
         paperType: acc.paperType || 'KRAFT',
-        paperBf: acc.paperBf || '18 Bf',
+        paperBf: acc.paperBf || '18 BF',
         paperShade: acc.paperShade || 'NS',
         boxType: acc.boxType || 'RSC',
         topGsm: acc.topGsm || '',
@@ -690,7 +691,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
             noOfPcs: '1',
             ply: spec.ply || '3',
             paperType: 'KRAFT',
-            paperBf: spec.paperBf || '18 Bf',
+            paperBf: spec.paperBf || '18 BF',
             paperShade: 'NS',
             boxType: 'RSC',
             fluteType: 'B',
@@ -717,7 +718,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [bf, Number(cost) || 0]));
     const vCost = Number(virginPaperCost) || 0;
     const cCost = Number(conversionCost) || 0;
-    const newItemBase = { id: Date.now().toString(), productId: '', l:'',b:'',h:'', noOfPcs:'1', ply:'3', fluteType: 'B', paperType: 'KRAFT', paperBf:'18 Bf', paperShade: 'NS', boxType: 'RSC', topGsm:'120',flute1Gsm:'100',middleGsm:'',flute2Gsm:'',bottomGsm:'120', liner2Gsm: '', flute3Gsm: '', liner3Gsm: '', flute4Gsm: '', liner4Gsm: '', wastagePercent:'3.5', accessories: [] };
+    const newItemBase = { id: Date.now().toString(), productId: '', l:'',b:'',h:'', noOfPcs:'1', ply:'3', fluteType: 'B', paperType: 'KRAFT', paperBf:'18 BF', paperShade: 'NS', boxType: 'RSC', topGsm:'120',flute1Gsm:'100',middleGsm:'',flute2Gsm:'',bottomGsm:'120', liner2Gsm: '', flute3Gsm: '', liner3Gsm: '', flute4Gsm: '', liner4Gsm: '', wastagePercent:'3.5', accessories: [] };
     const newItem = { ...newItemBase, calculated: calculateItemCost(newItemBase, kCosts, vCost, cCost) };
     setItems(prev => [...prev, newItem]);
     setSelectedForPrint(prev => new Set(prev).add(newItem.id));
@@ -909,7 +910,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     const cCost = Number(conversionCost) || 0;
     const newAccessoryBase = {
         id: Date.now().toString(), productId: '', l: '', b: '', h: '0', noOfPcs: '1', ply: '0',
-        fluteType: 'B', paperType: 'KRAFT', paperBf: '18 Bf', paperShade: 'NS', boxType: 'RSC',
+        fluteType: 'B', paperType: 'KRAFT', paperBf: '18 BF', paperShade: 'NS', boxType: 'RSC',
         topGsm: '120', flute1Gsm: '', middleGsm: '', flute2Gsm: '', bottomGsm: '',
         liner2Gsm: '', flute3Gsm: '', liner3Gsm: '', flute4Gsm: '', liner4Gsm: '', wastagePercent: '3.5', name: 'Accessory'
     };
@@ -1407,7 +1408,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
               <DialogHeader>
                   <DialogTitle>{editingParty ? 'Edit Party' : 'Add New Party'}</DialogTitle>
                    <DialogDescription>
-                      {editingParty ? 'Update the details for this party.' : 'Create a new customer/vendor record.'}
+                      {editingParty ? 'Update the details for this party.' : 'Create a new customer/vendor recordRecord.'}
                   </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
@@ -1678,7 +1679,7 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
             ply: acc.ply || '3',
             fluteType: acc.fluteType || 'B',
             paperType: acc.paperType || 'KRAFT',
-            paperBf: acc.paperBf || '18 Bf',
+            paperBf: acc.paperBf || '18 BF',
             paperShade: acc.paperShade || 'NS',
             boxType: acc.boxType || 'RSC',
             topGsm: acc.topGsm || '',
@@ -1872,7 +1873,7 @@ function ProductForm({ productToEdit, onSaveSuccess, onProductFormChange }: { pr
     const addAccessory = () => {
         const newAccessory: ProductAccessory = {
             id: Date.now().toString(), name: 'Accessory', l: '', b: '', h: '', noOfPcs: '1', ply: '0',
-            fluteType: 'B', paperType: 'KRAFT', paperBf: '18 Bf', paperShade: 'NS', boxType: 'RSC',
+            fluteType: 'B', paperType: 'KRAFT', paperBf: '18 BF', paperShade: 'NS', boxType: 'RSC',
             topGsm: '', flute1Gsm: '', middleGsm: '', flute2Gsm: '', bottomGsm: '',
             liner2Gsm: '', flute3Gsm: '', liner3Gsm: '', flute4Gsm: '', liner4Gsm: '', wastagePercent: '3.5'
         };
@@ -2039,7 +2040,7 @@ function ProductForm({ productToEdit, onSaveSuccess, onProductFormChange }: { pr
                             </Select>
                        </div>
                        <div className="space-y-2">
-                            <Label htmlFor={`spec-paperBf`}>Paper Bf</Label>
+                            <Label htmlFor={`spec-paperBf`}>Paper BF</Label>
                             <Input id={`spec-paperBf`} value={productForm.specification?.paperBf || ''} onChange={(e) => handleSpecChange('paperBf', e.target.value)} />
                        </div>
                        <div className="space-y-2">
@@ -2135,7 +2136,7 @@ function ProductForm({ productToEdit, onSaveSuccess, onProductFormChange }: { pr
                                         </Select>
                                      </div>
                                      <div className="space-y-2">
-                                         <Label>Paper Bf</Label>
+                                         <Label>Paper BF</Label>
                                          <Input value={acc.paperBf} onChange={e => handleAccessoryChange(index, 'paperBf', e.target.value)} />
                                      </div>
                                  </div>
@@ -2511,7 +2512,7 @@ export default function CostReportPage() {
             </Tabs>
              {/* This dialog is now managed by the main page but triggered from the calculator */}
              <Dialog open={isProductAddDialogOpen} onOpenChange={setIsProductAddDialogOpen}>
-                 <DialogContent className="max-w-xl">
+                 <DialogContent className="max-xl">
                     <DialogHeader>
                         <DialogTitle>Add New Product</DialogTitle>
                     </DialogHeader>

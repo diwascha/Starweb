@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useFieldArray } from 'react-hook-form';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import type { RawMaterial, PurchaseOrder, Amendment, UnitOfMeasurement, Party, PartyType } from '@/lib/types';
@@ -681,20 +681,29 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                                 <FormField
                                                     control={form.control}
                                                     name={`items.${index}.bf`}
-                                                    render={({ field }) => (
-                                                        <FormItem>
-                                                            <Select onValueChange={field.onChange} value={field.value} disabled={!paperTypes.includes(item.rawMaterialType)}>
-                                                                <FormControl>
-                                                                    <SelectTrigger>
-                                                                        <SelectValue placeholder="BF" />
-                                                                    </SelectTrigger>
-                                                                </FormControl>
-                                                                <SelectContent>
-                                                                    {bfOptions.map(option => <SelectItem key={option} value={option}>{option}</SelectItem>)}
-                                                                </SelectContent>
-                                                            </Select>
-                                                        </FormItem>
-                                                    )}
+                                                    render={({ field }) => {
+                                                        // Normalize value for the Select component
+                                                        const normalizedValue = bfOptions.find(opt => opt.toLowerCase() === field.value?.toLowerCase()) || field.value;
+                                                        
+                                                        return (
+                                                            <FormItem>
+                                                                <Select onValueChange={field.onChange} value={normalizedValue} disabled={!paperTypes.includes(item.rawMaterialType)}>
+                                                                    <FormControl>
+                                                                        <SelectTrigger>
+                                                                            <SelectValue placeholder="BF" />
+                                                                        </SelectTrigger>
+                                                                    </FormControl>
+                                                                    <SelectContent>
+                                                                        {bfOptions.map(option => <SelectItem key={option} value={option}>{option}</SelectItem>)}
+                                                                        {/* Fallback for pre-determined specs not in the standard list */}
+                                                                        {normalizedValue && !bfOptions.includes(normalizedValue) && (
+                                                                            <SelectItem value={normalizedValue}>{normalizedValue}</SelectItem>
+                                                                        )}
+                                                                    </SelectContent>
+                                                                </Select>
+                                                            </FormItem>
+                                                        );
+                                                    }}
                                                 />
                                             </TableCell>
                                         </>
