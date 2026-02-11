@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -58,6 +56,19 @@ const materialTypes = [
 const paperTypes = ['Kraft Paper', 'Virgin Paper'];
 const bfOptions = ['16 BF', '18 BF', '20 BF', '22 BF'];
 
+const normalizeBF = (val: any): string => {
+  if (val === undefined || val === null || val === '') return "";
+  const trimmed = String(val).trim();
+  if (/^\d+$/.test(trimmed)) {
+    return `${trimmed} BF`;
+  }
+  const match = trimmed.match(/^(\d+)\s*bf$/i);
+  if (match) {
+    return `${match[1]} BF`;
+  }
+  return trimmed;
+};
+
 type RawMaterialSortKey = 'name' | 'type' | 'authorship';
 type SortDirection = 'asc' | 'desc';
 
@@ -66,7 +77,7 @@ const generateMaterialName = (type: string, size: string, gsm: string, bf: strin
         const parts = [type];
         if (size) parts.push(`${size} inch`);
         if (gsm) parts.push(`${gsm} GSM`);
-        if (bf) parts.push(`${bf} BF`);
+        if (bf) parts.push(`${normalizeBF(bf)}`);
         return parts.join(' - ');
     }
     return '';
@@ -130,7 +141,7 @@ export default function RawMaterialsPage() {
     setNewMaterialName(material.name);
     setNewMaterialSize(material.size || '');
     setNewMaterialGsm(material.gsm || '');
-    setNewMaterialBf(material.bf || '');
+    setNewMaterialBf(normalizeBF(material.bf) || '');
     setNewMaterialUnits(Array.isArray(material.units) ? material.units : []);
     setIsMaterialDialogOpen(true);
   };
@@ -157,12 +168,13 @@ export default function RawMaterialsPage() {
       return;
     }
     
+    const finalBF = isPaper ? normalizeBF(newMaterialBf) : '';
     const finalName = isPaper 
         ? generateMaterialName(
             newMaterialType.trim(), 
             newMaterialSize.trim(), 
             newMaterialGsm.trim(), 
-            newMaterialBf.trim()
+            finalBF
           )
         : newMaterialName.trim();
     
@@ -173,7 +185,7 @@ export default function RawMaterialsPage() {
             name: finalName,
             size: isPaper ? newMaterialSize.trim() : '',
             gsm: isPaper ? newMaterialGsm.trim() : '',
-            bf: isPaper ? newMaterialBf.trim() : '',
+            bf: finalBF,
             units: newMaterialUnits,
             lastModifiedBy: user.username,
             lastModifiedAt: new Date().toISOString(),
@@ -187,7 +199,7 @@ export default function RawMaterialsPage() {
             name: finalName,
             size: isPaper ? newMaterialSize.trim() : '',
             gsm: isPaper ? newMaterialGsm.trim() : '',
-            bf: isPaper ? newMaterialBf.trim() : '',
+            bf: finalBF,
             units: newMaterialUnits,
             createdBy: user.username,
             createdAt: now,
@@ -380,7 +392,7 @@ export default function RawMaterialsPage() {
                              <>
                                 <TableCell>{material.size || '-'}</TableCell>
                                 <TableCell>{material.gsm || '-'}</TableCell>
-                                <TableCell>{material.bf || '-'}</TableCell>
+                                <TableCell>{normalizeBF(material.bf) || '-'}</TableCell>
                             </>
                         )}
                         <TableCell>{Array.isArray(material.units) ? material.units.join(', ') : ''}</TableCell>
@@ -542,7 +554,7 @@ export default function RawMaterialsPage() {
                                </div>
                                  <div className="space-y-2">
                                     <Label htmlFor="material-bf">BF</Label>
-                                    <Select value={newMaterialBf} onValueChange={setNewMaterialBf}>
+                                    <Select value={normalizeBF(newMaterialBf)} onValueChange={(val) => setNewMaterialBf(normalizeBF(val))}>
                                         <SelectTrigger id="material-bf">
                                             <SelectValue placeholder="Select BF" />
                                         </SelectTrigger>

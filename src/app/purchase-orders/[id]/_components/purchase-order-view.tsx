@@ -16,11 +16,24 @@ import { getPurchaseOrder } from '@/services/purchase-order-service';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import jsPDF from 'jspdf';
+import jsPDF from 'jsPDF';
 import autoTable from 'jspdf-autotable';
 import { useToast } from '@/hooks/use-toast';
 
 const paperTypes = ['Kraft Paper', 'Virgin Paper'];
+
+const normalizeBF = (val: any): string => {
+  if (val === undefined || val === null || val === '') return "";
+  const trimmed = String(val).trim();
+  if (/^\d+$/.test(trimmed)) {
+    return `${trimmed} BF`;
+  }
+  const match = trimmed.match(/^(\d+)\s*bf$/i);
+  if (match) {
+    return `${match[1]} BF`;
+  }
+  return trimmed;
+};
 
 /**
  * Reusable component to render the PO document structure
@@ -140,7 +153,7 @@ function PurchaseOrderDocument({
                                             <>
                                                 <TableCell className="px-3 py-2 text-xs text-center">{item.size || '-'}</TableCell>
                                                 <TableCell className="px-3 py-2 text-xs text-center">{item.gsm || '-'}</TableCell>
-                                                <TableCell className="px-3 py-2 text-xs text-center">{item.bf || '-'}</TableCell>
+                                                <TableCell className="px-3 py-2 text-xs text-center">{normalizeBF(item.bf) || '-'}</TableCell>
                                             </>
                                         )}
                                         <TableCell className="px-3 py-2 text-xs text-right font-medium">{item.quantity} {item.unit}</TableCell>
@@ -247,7 +260,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
             const isPaper = paperTypes.includes(type);
             const head = [['S.N.', 'Description', ...(isPaper ? ['Size', 'GSM', 'BF'] : []), 'Quantity']];
             const body = items.map((item: any, index: number) => [
-                index + 1, item.rawMaterialName, ...(isPaper ? [item.size || '-', item.gsm || '-', item.bf || '-'] : []), `${item.quantity} ${item.unit}`
+                index + 1, item.rawMaterialName, ...(isPaper ? [item.size || '-', item.gsm || '-', normalizeBF(item.bf) || '-'] : []), `${item.quantity} ${item.unit}`
             ]);
             autoTable(doc, {
                 startY: finalY,

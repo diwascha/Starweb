@@ -1,4 +1,3 @@
-
 'use client';
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { Product, Party, PartyType, CostReport, CostReportItem, ProductSpecification, CostSetting, Accessory as ProductAccessory, Product as ProductType } from '@/lib/types';
@@ -36,6 +35,21 @@ import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/comp
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import React from 'react';
 
+const bfOptions = ['16 BF', '18 BF', '20 BF', '22 BF'];
+
+const normalizeBF = (val: any): string => {
+  if (val === undefined || val === null || val === '') return "";
+  const trimmed = String(val).trim();
+  if (/^\d+$/.test(trimmed)) {
+    return `${trimmed} BF`;
+  }
+  const match = trimmed.match(/^(\d+)\s*bf$/i);
+  if (match) {
+    return `${match[1]} BF`;
+  }
+  return trimmed;
+};
+
 // Quotation Preview Component
 interface QuotationPreviewDialogProps {
   isOpen: boolean;
@@ -72,7 +86,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
     
     const printWindow = window.open('', '', 'height=800,width=800');
     printWindow?.document.write('<html><head><title>Print Quotation</title>');
-    printWindow?.document.write('<style>@media print{@page{size: A4;margin: 0;}body{margin: 1.6cm;}}</style>');
+    printWindow?.document.write('</style>');
     printWindow?.document.write('</head><body>');
     printWindow?.document.write(printableArea.innerHTML);
     printWindow?.document.write('</body></html>');
@@ -123,7 +137,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                     productName,
                     `${item.l}x${item.b}x${item.h}`,
                     `${item.ply} Ply, ${item.boxType}`,
-                    `${item.paperType} ${item.paperBf}`,
+                    `${item.paperType} ${normalizeBF(item.paperBf)}`,
                     `${item.topGsm}/${item.flute1Gsm}/${item.bottomGsm}`,
                      `${(item.calculated?.totalBoxWeight || 0).toFixed(2)}`,
                     `Rs. ${item.totalItemCost.toFixed(2)}`
@@ -134,7 +148,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                     `+ ${acc.name}`,
                     formatAccessoryDimension(acc as ProductAccessory),
                     `${acc.ply} Ply`,
-                    `${acc.paperType} ${acc.paperBf}`,
+                    `${acc.paperType} ${normalizeBF(acc.paperBf)}`,
                     `${acc.topGsm}`,
                     `${(acc.calculated?.totalBoxWeight || 0).toFixed(2)}`,
                     `(${(acc.calculated?.paperCost || 0).toFixed(2)})`
@@ -251,8 +265,8 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                                 <TableCell>{getProductDisplayName(item.productId)}</TableCell>
                                 <TableCell>{item.l}x{item.b}x{item.h}</TableCell>
                                 <TableCell>{item.ply} Ply, {item.boxType}</TableCell>
-                                <TableCell>{item.paperType} {item.paperBf}</TableCell>
-                                <TableCell>{item.topGsm}/{item.flute1Gsm}/{item.bottomGsm}</TableCell>
+                                <TableCell>{item.paperType} {normalizeBF(item.paperBf)}</TableCell>
+                                <TableCell>{item.topGsm}/{item.flute1Gsm}/${item.bottomGsm}</TableCell>
                                 <TableCell>{(item.calculated?.totalBoxWeight || 0).toFixed(2)}</TableCell>
                                 <TableCell className="text-right font-bold">Rs. {item.totalItemCost.toFixed(2)}</TableCell>
                              </TableRow>
@@ -262,7 +276,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                                      <TableCell className="pl-6">+ {acc.name}</TableCell>
                                      <TableCell>{formatAccessoryDimension(acc as ProductAccessory)}</TableCell>
                                      <TableCell>{acc.ply} Ply</TableCell>
-                                     <TableCell>{acc.paperType} {acc.paperBf}</TableCell>
+                                     <TableCell>{acc.paperType} {normalizeBF(acc.paperBf)}</TableCell>
                                      <TableCell>{acc.topGsm}</TableCell>
                                      <TableCell>{(acc.calculated.totalBoxWeight || 0).toFixed(2)}</TableCell>
                                      <TableCell className="text-right">({(acc.calculated.paperCost || 0).toFixed(2)})</TableCell>
@@ -293,7 +307,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
         </div>
         <DialogFooter className="sm:justify-end gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button variant="outline" onClick={handleExportJpg} disabled={isExporting}>
+            <Button variant="outline" onClick={handleExportJpg} disabled={setIsExporting}>
                 {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ImageIcon className="mr-2 h-4 w-4"/>}
                  Export as JPG
             </Button>
@@ -321,11 +335,11 @@ const initialCalculatedState: CalculatedValues = {
     sheetSizeL: 0, sheetSizeB: 0, sheetArea: 0, totalGsm: 0, paperWeight: 0, totalBoxWeight: 0, paperRate: 0, paperCost: 0
 };
 
-const bfOptions = ['16 BF', '18 BF', '20 BF', '22 BF'];
-const fluteOptions = ['A', 'B', 'A/B', 'B/A', 'A/A', 'B/B'];
 const initialKraftCosts: Record<string, number | ''> = {
     '16 BF': '', '18 BF': '', '20 BF': '', '22 BF': ''
 };
+
+const fluteOptions = ['A', 'B', 'A/B', 'B/A', 'A/A', 'B/B'];
 
 interface Accessory extends ProductAccessory {
   calculated: CalculatedValues;
@@ -482,7 +496,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     const totalBoxWeightInKg = totalBoxWeightInGrams / 1000;
 
     let paperRate = 0;
-    const kraftCost = globalKraftCosts[item.paperBf] || 0;
+    const kraftCost = globalKraftCosts[normalizeBF(item.paperBf)] || 0;
     
     if (item.paperType === 'VIRGIN' && globalVirginCost > 0) {
         paperRate = globalVirginCost;
@@ -507,14 +521,14 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
   const handleCostChange = (costType: 'kraft' | 'virgin' | 'conversion', value: string, bf?: string) => {
     const numericValue = value === '' ? '' : parseFloat(value);
     if (costType === 'kraft' && bf) {
-        setKraftPaperCosts(prev => ({...prev, [bf]: numericValue}));
+        setKraftPaperCosts(prev => ({...prev, [normalizeBF(bf)]: numericValue}));
     }
     else if (costType === 'virgin') setVirginPaperCost(numericValue);
     else if (costType === 'conversion') setConversionCost(numericValue);
   }
 
   useEffect(() => {
-    const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [bf, Number(cost) || 0]));
+    const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [normalizeBF(bf), Number(cost) || 0]));
     const vCost = Number(virginPaperCost) || 0;
     const cCost = Number(conversionCost) || 0;
     
@@ -547,7 +561,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
         ply: acc.ply || '3',
         fluteType: acc.fluteType || 'B',
         paperType: acc.paperType || 'KRAFT',
-        paperBf: acc.paperBf || '18 BF',
+        paperBf: normalizeBF(acc.paperBf) || '18 BF',
         paperShade: acc.paperShade || 'NS',
         boxType: acc.boxType || 'RSC',
         topGsm: acc.topGsm || '',
@@ -573,7 +587,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
       const kCostsFromReport = reportToEdit.kraftPaperCosts || {};
       const filledKraftCosts = { ...initialKraftCosts };
       for (const bf in filledKraftCosts) {
-          filledKraftCosts[bf] = kCostsFromReport[bf] || (costSettings?.kraftPaperCosts?.[bf] ?? '');
+          filledKraftCosts[normalizeBF(bf)] = kCostsFromReport[normalizeBF(bf)] || (costSettings?.kraftPaperCosts?.[normalizeBF(bf)] ?? '');
       }
       setKraftPaperCosts(filledKraftCosts);
       setVirginPaperCost(reportToEdit.virginPaperCost || (costSettings?.virginPaperCost ?? ''));
@@ -581,12 +595,12 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
       setTransportCost(reportToEdit.transportCost ?? '');
       setTransportCostType(reportToEdit.transportCostType ?? 'Per Consignment');
       
-      const kCostsForCalc = reportToEdit.kraftPaperCosts || {};
+      const kCostsForCalc = Object.fromEntries(Object.entries(reportToEdit.kraftPaperCosts || {}).map(([bf, cost]) => [normalizeBF(bf), cost]));
       const vCost = reportToEdit.virginPaperCost || 0;
       const cCost = reportToEdit.conversionCost || 0;
       
       setItems(reportToEdit.items.map(item => {
-          const fullItem = { ...item, calculated: calculateItemCost(item, kCostsForCalc, vCost, cCost) };
+          const fullItem = { ...item, paperBf: normalizeBF(item.paperBf), calculated: calculateItemCost(item, kCostsForCalc, vCost, cCost) };
           fullItem.accessories = (item.accessories || []).map(acc => {
               const fullAcc = getFullAccessory(acc);
               return { ...fullAcc, calculated: calculateItemCost(fullAcc, kCostsForCalc, vCost, cCost) };
@@ -618,7 +632,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     const spec = product.specification;
     const [l,b,h] = spec.dimension?.split('x') || ['','',''];
     
-    const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [bf, Number(cost) || 0]));
+    const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [normalizeBF(bf), Number(cost) || 0]));
     const vCost = Number(virginPaperCost) || 0;
     const cCost = Number(conversionCost) || 0;
     
@@ -635,7 +649,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
             productId: product.id,
             l: l || '', b: b || '', h: h || '',
             ply: spec.ply || '3',
-            paperBf: spec.paperBf || '',
+            paperBf: normalizeBF(spec.paperBf) || '',
             boxType: spec.boxType || 'RSC',
             topGsm: spec.topGsm || '',
             flute1Gsm: spec.flute1Gsm || '',
@@ -658,13 +672,14 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
   };
 
   const handleItemChange = (index: number, field: keyof Omit<CostReportItem, 'id' | 'calculated' | 'accessories'>, value: string) => {
-    const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [bf, Number(cost) || 0]));
+    const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [normalizeBF(bf), Number(cost) || 0]));
     const vCost = Number(virginPaperCost) || 0;
     const cCost = Number(conversionCost) || 0;
 
     setItems(prevItems => {
         const newItems = [...prevItems];
-        const currentItem = { ...newItems[index], [field]: value };
+        const finalValue = field === 'paperBf' ? normalizeBF(value) : value;
+        const currentItem = { ...newItems[index], [field]: finalValue };
         const newCalculated = calculateItemCost(currentItem, kCosts, vCost, cCost);
         newItems[index] = { ...currentItem, calculated: newCalculated };
         return newItems;
@@ -675,7 +690,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
         const spec = product.specification;
         const [l, b, h] = spec.dimension?.split('x') || ['', '', ''];
 
-        const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [bf, Number(cost) || 0]));
+        const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [normalizeBF(bf), Number(cost) || 0]));
         const vCost = Number(virginPaperCost) || 0;
         const cCost = Number(conversionCost) || 0;
 
@@ -691,7 +706,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
             noOfPcs: '1',
             ply: spec.ply || '3',
             paperType: 'KRAFT',
-            paperBf: spec.paperBf || '18 BF',
+            paperBf: normalizeBF(spec.paperBf) || '18 BF',
             paperShade: 'NS',
             boxType: 'RSC',
             fluteType: 'B',
@@ -715,7 +730,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     };
 
   const handleAddItem = () => {
-    const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [bf, Number(cost) || 0]));
+    const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [normalizeBF(bf), Number(cost) || 0]));
     const vCost = Number(virginPaperCost) || 0;
     const cCost = Number(conversionCost) || 0;
     const newItemBase = { id: Date.now().toString(), productId: '', l:'',b:'',h:'', noOfPcs:'1', ply:'3', fluteType: 'B', paperType: 'KRAFT', paperBf:'18 BF', paperShade: 'NS', boxType: 'RSC', topGsm:'120',flute1Gsm:'100',middleGsm:'',flute2Gsm:'',bottomGsm:'120', liner2Gsm: '', flute3Gsm: '', liner3Gsm: '', flute4Gsm: '', liner4Gsm: '', wastagePercent:'3.5', accessories: [] };
@@ -783,7 +798,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
       }
       setIsSaving(true);
       try {
-           const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [bf, Number(cost) || 0]));
+           const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [normalizeBF(bf), Number(cost) || 0]));
            const vCost = Number(virginPaperCost) || 0;
            const cCost = Number(conversionCost) || 0;
 
@@ -812,7 +827,8 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
               transportCostType: transportCostType,
               items: items.map(({ calculated, accessories, ...item }) => ({
                 ...item,
-                accessories: (accessories || []).map(({ calculated: accCalculated, ...acc }) => acc),
+                paperBf: normalizeBF(item.paperBf),
+                accessories: (accessories || []).map(({ calculated: accCalculated, ...acc }) => ({ ...acc, paperBf: normalizeBF(acc.paperBf) })),
             })),
               totalCost: totalItemCost + totalTransport,
               createdBy: user.username,
@@ -829,7 +845,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
             if (item.productId && item.accessories && item.accessories.length > 0) {
               const productToUpdate = products.find(p => p.id === item.productId);
               if (productToUpdate) {
-                const newAccessories = item.accessories.map(({ calculated, ...acc }) => acc as ProductAccessory);
+                const newAccessories = item.accessories.map(({ calculated, ...acc }) => ({ ...acc, paperBf: normalizeBF(acc.paperBf) }) as ProductAccessory);
                 await updateProductService(item.productId, { accessories: newAccessories });
               }
             }
@@ -887,14 +903,15 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
   const [productSearch, setProductSearch] = useState('');
   
   const handleAccessoryChange = (itemIndex: number, accIndex: number, field: keyof Omit<Accessory, 'id' | 'calculated'>, value: string) => {
-    const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [bf, Number(cost) || 0]));
+    const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [normalizeBF(bf), Number(cost) || 0]));
     const vCost = Number(virginPaperCost) || 0;
     const cCost = Number(conversionCost) || 0;
 
     setItems(prevItems => {
         const newItems = [...prevItems];
         const accessories = [...(newItems[itemIndex].accessories || [])];
-        const currentAccessory = { ...accessories[accIndex], [field]: value };
+        const finalValue = field === 'paperBf' ? normalizeBF(value) : value;
+        const currentAccessory = { ...accessories[accIndex], [field]: finalValue };
         
         const newCalculated = calculateItemCost(currentAccessory, kCosts, vCost, cCost);
         accessories[accIndex] = { ...currentAccessory, calculated: newCalculated };
@@ -905,7 +922,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
 
 
   const addAccessory = (itemIndex: number) => {
-    const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [bf, Number(cost) || 0]));
+    const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [normalizeBF(bf), Number(cost) || 0]));
     const vCost = Number(virginPaperCost) || 0;
     const cCost = Number(conversionCost) || 0;
     const newAccessoryBase = {
@@ -937,7 +954,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
   };
   
     const copyItem = (itemToCopy: CostReportItem) => {
-        const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [bf, Number(cost) || 0]));
+        const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [normalizeBF(bf), Number(cost) || 0]));
         const vCost = Number(virginPaperCost) || 0;
         const cCost = Number(conversionCost) || 0;
         
@@ -1061,7 +1078,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                         {bfOptions.map(bf => (
                              <div key={bf} className="flex items-center justify-between">
                                 <Label htmlFor={`kraftPaperCost-${bf}`} className="text-sm font-normal">{bf}</Label>
-                                <Input id={`kraftPaperCost-${bf}`} type="number" placeholder="Rate" className="w-24 h-8" value={kraftPaperCosts[bf] ?? ''} onChange={e => handleCostChange('kraft', e.target.value, bf)} />
+                                <Input id={`kraftPaperCost-${bf}`} type="number" placeholder="Rate" className="w-24 h-8" value={kraftPaperCosts[normalizeBF(bf)] ?? ''} onChange={e => handleCostChange('kraft', e.target.value, bf)} />
                             </div>
                         ))}
                     </div>
@@ -1262,7 +1279,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                         </Select>
                                       </TableCell>
                                       <TableCell>
-                                        <Select value={item.paperBf} onValueChange={(value) => handleItemChange(index, 'paperBf', value)}>
+                                        <Select value={normalizeBF(item.paperBf)} onValueChange={(value) => handleItemChange(index, 'paperBf', normalizeBF(value))}>
                                           <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
                                           <SelectContent>
                                             {bfOptions.map(bf => (
@@ -1347,7 +1364,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                                 </Select>
                                             </TableCell>
                                             <TableCell>
-                                                <Select value={acc.paperBf} onValueChange={(value) => handleAccessoryChange(index, accIndex, 'paperBf', value)}>
+                                                <Select value={normalizeBF(acc.paperBf)} onValueChange={(value) => handleAccessoryChange(index, accIndex, 'paperBf', normalizeBF(value))}>
                                                   <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
                                                   <SelectContent>
                                                     {bfOptions.map(bf => (
@@ -1656,7 +1673,7 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
         const totalBoxWeightInKg = totalBoxWeightInGrams / 1000;
         
         let paperRate = 0;
-        const kraftCost = (report.kraftPaperCosts || {})[item.paperBf] || 0;
+        const kraftCost = (report.kraftPaperCosts || {})[normalizeBF(item.paperBf)] || 0;
 
         if (item.paperType === 'VIRGIN' && report.virginPaperCost > 0) paperRate = report.virginPaperCost;
         else if (item.paperType === 'VIRGIN & KRAFT' && topGsm > 0 && report.virginPaperCost > 0) {
@@ -1679,7 +1696,7 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
             ply: acc.ply || '3',
             fluteType: acc.fluteType || 'B',
             paperType: acc.paperType || 'KRAFT',
-            paperBf: acc.paperBf || '18 BF',
+            paperBf: normalizeBF(acc.paperBf) || '18 BF',
             paperShade: acc.paperShade || 'NS',
             boxType: acc.boxType || 'RSC',
             topGsm: acc.topGsm || '',
@@ -1830,10 +1847,11 @@ function ProductForm({ productToEdit, onSaveSuccess, onProductFormChange }: { pr
             relevantSpecFields.forEach(field => {
                 spec[field] = productToEdit.specification?.[field] || '';
             });
+            if (spec.paperBf) spec.paperBf = normalizeBF(spec.paperBf);
             
             const [l, b, h] = productToEdit.specification?.dimension?.split('x') || ['', '', ''];
 
-            setProductForm({ ...productToEdit, specification: spec, l, b, h, accessories: productToEdit.accessories || [] });
+            setProductForm({ ...productToEdit, specification: spec, l, b, h, accessories: (productToEdit.accessories || []).map(acc => ({ ...acc, paperBf: normalizeBF(acc.paperBf) })) });
         } else {
             const spec: Partial<ProductSpecification> = {};
             relevantSpecFields.forEach(field => {
@@ -1857,7 +1875,7 @@ function ProductForm({ productToEdit, onSaveSuccess, onProductFormChange }: { pr
             ...productForm,
             specification: {
                 ...(productForm.specification as ProductSpecification),
-                [field]: value
+                [field]: field === 'paperBf' ? normalizeBF(value) : value
             },
         };
         setProductForm(updatedForm);
@@ -1866,7 +1884,8 @@ function ProductForm({ productToEdit, onSaveSuccess, onProductFormChange }: { pr
 
      const handleAccessoryChange = (index: number, field: keyof Omit<ProductAccessory, 'id'>, value: string) => {
         const updatedAccessories = [...(productForm.accessories || [])];
-        (updatedAccessories[index] as any)[field] = value;
+        const finalValue = field === 'paperBf' ? normalizeBF(value) : value;
+        (updatedAccessories[index] as any)[field] = finalValue;
         handleProductFormChange('accessories', updatedAccessories);
     };
     
@@ -1896,7 +1915,9 @@ function ProductForm({ productToEdit, onSaveSuccess, onProductFormChange }: { pr
 
         for(const key in restOfForm.specification) {
             if(relevantSpecFields.includes(key as keyof ProductSpecification)) {
-                finalSpec[key as keyof ProductSpecification] = restOfForm.specification[key as keyof ProductSpecification];
+                let val = restOfForm.specification[key as keyof ProductSpecification];
+                if (key === 'paperBf') val = normalizeBF(val);
+                finalSpec[key as keyof ProductSpecification] = val;
             }
         }
         
@@ -1910,7 +1931,7 @@ function ProductForm({ productToEdit, onSaveSuccess, onProductFormChange }: { pr
                     partyId: restOfForm.partyId,
                     partyName: party?.name || '',
                     specification: finalSpec,
-                    accessories: restOfForm.accessories,
+                    accessories: (restOfForm.accessories || []).map(acc => ({ ...acc, paperBf: normalizeBF(acc.paperBf) })),
                     lastModifiedBy: user.username,
                 });
                 toast({ title: 'Success', description: 'Product updated.' });
@@ -1921,7 +1942,7 @@ function ProductForm({ productToEdit, onSaveSuccess, onProductFormChange }: { pr
                     partyId: restOfForm.partyId,
                     partyName: party?.name || '',
                     specification: finalSpec,
-                    accessories: restOfForm.accessories,
+                    accessories: (restOfForm.accessories || []).map(acc => ({ ...acc, paperBf: normalizeBF(acc.paperBf) })),
                     createdBy: user.username,
                     createdAt: new Date().toISOString()
                 } as Omit<Product, 'id'>);
@@ -2041,7 +2062,7 @@ function ProductForm({ productToEdit, onSaveSuccess, onProductFormChange }: { pr
                        </div>
                        <div className="space-y-2">
                             <Label htmlFor={`spec-paperBf`}>Paper BF</Label>
-                            <Input id={`spec-paperBf`} value={productForm.specification?.paperBf || ''} onChange={(e) => handleSpecChange('paperBf', e.target.value)} />
+                            <Input id={`spec-paperBf`} value={normalizeBF(productForm.specification?.paperBf || '')} onChange={(e) => handleSpecChange('paperBf', e.target.value)} />
                        </div>
                        <div className="space-y-2">
                             <Label htmlFor={`spec-topGsm`}>Top Gsm</Label>
@@ -2137,7 +2158,7 @@ function ProductForm({ productToEdit, onSaveSuccess, onProductFormChange }: { pr
                                      </div>
                                      <div className="space-y-2">
                                          <Label>Paper BF</Label>
-                                         <Input value={acc.paperBf} onChange={e => handleAccessoryChange(index, 'paperBf', e.target.value)} />
+                                         <Input value={normalizeBF(acc.paperBf)} onChange={e => handleAccessoryChange(index, 'paperBf', e.target.value)} />
                                      </div>
                                  </div>
                              </div>
@@ -2303,7 +2324,7 @@ function SavedProductsList() {
                                 <TableCell>
                                   {getGsmDisplay(p.specification)}
                                 </TableCell>
-                                <TableCell>{p.specification?.paperBf || 'N/A'}</TableCell>
+                                <TableCell>{normalizeBF(p.specification?.paperBf) || 'N/A'}</TableCell>
                                 <TableCell className="text-right">
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger>
@@ -2374,7 +2395,7 @@ function CostingSettingsTab() {
   const handleSaveCosts = async () => {
     if (!user) return;
     try {
-        const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [bf, Number(cost) || 0]));
+        const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [normalizeBF(bf), Number(cost) || 0]));
         await updateCostSettings({
             kraftPaperCosts: kCosts,
             virginPaperCost: Number(virginPaperCost) || 0,
@@ -2399,7 +2420,7 @@ function CostingSettingsTab() {
                     {bfOptions.map(bf => (
                         <div key={bf} className="flex items-center justify-between">
                             <Label htmlFor={`globalKraftCost-${bf}`} className="text-sm font-normal">{bf}</Label>
-                            <Input id={`globalKraftCost-${bf}`} type="number" placeholder="Rate" className="w-24 h-8" value={kraftPaperCosts[bf] ?? ''} onChange={e => setKraftPaperCosts(prev => ({...prev, [bf]: e.target.value === '' ? '' : parseFloat(e.target.value)}))} />
+                            <Input id={`globalKraftCost-${bf}`} type="number" placeholder="Rate" className="w-24 h-8" value={kraftPaperCosts[normalizeBF(bf)] ?? ''} onChange={e => setKraftPaperCosts(prev => ({...prev, [normalizeBF(bf)]: e.target.value === '' ? '' : parseFloat(e.target.value)}))} />
                         </div>
                     ))}
                 </div>

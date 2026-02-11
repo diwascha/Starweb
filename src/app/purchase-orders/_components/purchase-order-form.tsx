@@ -1,4 +1,3 @@
-
 'use client';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -65,12 +64,25 @@ const materialTypesForAdd = [
 const paperTypes = ['Kraft Paper', 'Virgin Paper'];
 const bfOptions = ['16 BF', '18 BF', '20 BF', '22 BF'];
 
+const normalizeBF = (val: any): string => {
+  if (val === undefined || val === null || val === '') return "";
+  const trimmed = String(val).trim();
+  if (/^\d+$/.test(trimmed)) {
+    return `${trimmed} BF`;
+  }
+  const match = trimmed.match(/^(\d+)\s*bf$/i);
+  if (match) {
+    return `${match[1]} BF`;
+  }
+  return trimmed;
+};
+
 const generateMaterialName = (type: string, size: string, gsm: string, bf: string) => {
     if (paperTypes.includes(type)) {
         const parts = [type];
         if (size) parts.push(`${size} inch`);
         if (gsm) parts.push(`${gsm} GSM`);
-        if (bf) parts.push(`${bf} BF`);
+        if (bf) parts.push(`${normalizeBF(bf)}`);
         return parts.join(' - ');
     }
     return '';
@@ -245,7 +257,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         rawMaterialType: material.type,
         size: material.size,
         gsm: material.gsm,
-        bf: material.bf,
+        bf: normalizeBF(material.bf),
         quantity: '',
         unit: (material.units && material.units[0]) || '',
       });
@@ -387,7 +399,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
             name: finalName,
             size: isPaper ? size : '',
             gsm: isPaper ? gsm : '',
-            bf: isPaper ? bf : '',
+            bf: isPaper ? normalizeBF(bf) : '',
             units: units,
             createdBy: user.username,
             createdAt: new Date().toISOString(),
@@ -682,12 +694,15 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                                     control={form.control}
                                                     name={`items.${index}.bf`}
                                                     render={({ field }) => {
-                                                        // Normalize value for the Select component
-                                                        const normalizedValue = bfOptions.find(opt => opt.toLowerCase() === field.value?.toLowerCase()) || field.value;
+                                                        const normalizedValue = normalizeBF(field.value);
                                                         
                                                         return (
                                                             <FormItem>
-                                                                <Select onValueChange={field.onChange} value={normalizedValue} disabled={!paperTypes.includes(item.rawMaterialType)}>
+                                                                <Select 
+                                                                    onValueChange={(val) => field.onChange(normalizeBF(val))} 
+                                                                    value={normalizedValue} 
+                                                                    disabled={!paperTypes.includes(item.rawMaterialType)}
+                                                                >
                                                                     <FormControl>
                                                                         <SelectTrigger>
                                                                             <SelectValue placeholder="BF" />
