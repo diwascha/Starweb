@@ -695,16 +695,17 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                                     name={`items.${index}.bf`}
                                                     render={({ field }) => {
                                                         const normalizedValue = normalizeBF(field.value);
+                                                        const isPaper = paperTypes.includes(item.rawMaterialType);
                                                         
                                                         return (
                                                             <FormItem>
                                                                 <Select 
                                                                     onValueChange={(val) => field.onChange(normalizeBF(val))} 
                                                                     value={normalizedValue} 
-                                                                    disabled={!paperTypes.includes(item.rawMaterialType)}
+                                                                    disabled={isPaper}
                                                                 >
                                                                     <FormControl>
-                                                                        <SelectTrigger>
+                                                                        <SelectTrigger className={cn(isPaper && "bg-muted cursor-not-allowed opacity-100")}>
                                                                             <SelectValue placeholder="BF" />
                                                                         </SelectTrigger>
                                                                     </FormControl>
