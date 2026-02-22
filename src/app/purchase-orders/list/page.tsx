@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -116,9 +117,11 @@ export default function PurchaseOrdersListPage() {
           const currentYear = currentNepaliDate.getYear();
           if(availableYears.includes(currentYear)) {
               setSelectedBsYear(String(currentYear));
-              setSelectedBsMonth(String(currentNepaliDate.getMonth()));
+              // Changed: Default to 'All' months instead of current month to avoid empty lists
+              setSelectedBsMonth('All');
           } else {
               setSelectedBsYear(String(availableYears[0]));
+              setSelectedBsMonth('All');
           }
       }
   }, [availableYears, selectedBsYear]);
@@ -323,107 +326,115 @@ export default function PurchaseOrdersListPage() {
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {filteredAndSortedPOs.map(po => (
-                <TableRow key={po.id}>
-                    <TableCell className="font-medium">{po.poNumber}</TableCell>
-                    <TableCell>{toNepaliDate(po.poDate)}</TableCell>
-                    <TableCell>{po.companyName}</TableCell>
-                    <TableCell>
-                        <Badge variant={getStatusBadgeVariant(po.status)}>{po.status}</Badge>
-                    </TableCell>
-                    <TableCell>
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-default">
-                                    {po.lastModifiedBy ? <Edit className="h-4 w-4" /> : <User className="h-4 w-4" />}
-                                    <span>{po.lastModifiedBy || po.createdBy}</span>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <p>
-                                        Created by: {po.createdBy}
-                                        {po.createdAt ? ` on ${format(new Date(po.createdAt), "PP")}` : ''}
-                                    </p>
-                                    {po.lastModifiedBy && (
-                                      <p>
-                                        Modified by: {po.lastModifiedBy}
-                                        {po.updatedAt ? ` on ${format(new Date(po.updatedAt), "PP")}` : ''}
-                                      </p>
-                                    )}
-                                </TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
-                    </TableCell>
-                    <TableCell className="text-right">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                        {hasPermission('purchaseOrders', 'view') && (
-                            <DropdownMenuItem onSelect={() => router.push(`/purchase-orders/view?id=${po.id}`)}>
-                                <View className="mr-2 h-4 w-4" /> View
-                            </DropdownMenuItem>
-                        )}
-                        {hasPermission('purchaseOrders', 'edit') && (
-                            <DropdownMenuItem onClick={() => router.push(`/purchase-orders/edit?id=${po.id}`)} disabled={po.status === 'Delivered' || po.status === 'Canceled'}>
-                                <Edit className="mr-2 h-4 w-4" /> Edit
-                            </DropdownMenuItem>
-                        )}
-                         {hasPermission('purchaseOrders', 'view') && (
-                            <DropdownMenuItem onSelect={() => handlePrint(po.id)}>
-                                <Printer className="mr-2 h-4 w-4" /> Print
-                            </DropdownMenuItem>
-                        )}
-                        
-                        {(hasPermission('purchaseOrders', 'view') || hasPermission('purchaseOrders', 'edit')) &&
-                         (hasPermission('purchaseOrders', 'delete') || hasPermission('purchaseOrders', 'edit')) &&
-                         <DropdownMenuSeparator />
-                        }
+                {filteredAndSortedPOs.length > 0 ? (
+                    filteredAndSortedPOs.map(po => (
+                    <TableRow key={po.id}>
+                        <TableCell className="font-medium">{po.poNumber}</TableCell>
+                        <TableCell>{toNepaliDate(po.poDate)}</TableCell>
+                        <TableCell>{po.companyName}</TableCell>
+                        <TableCell>
+                            <Badge variant={getStatusBadgeVariant(po.status)}>{po.status}</Badge>
+                        </TableCell>
+                        <TableCell>
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-default">
+                                        {po.lastModifiedBy ? <Edit className="h-4 w-4" /> : <User className="h-4 w-4" />}
+                                        <span>{po.lastModifiedBy || po.createdBy}</span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>
+                                            Created by: {po.createdBy}
+                                            {po.createdAt ? ` on ${format(new Date(po.createdAt), "PP")}` : ''}
+                                        </p>
+                                        {po.lastModifiedBy && (
+                                          <p>
+                                            Modified by: {po.lastModifiedBy}
+                                            {po.updatedAt ? ` on ${format(new Date(po.updatedAt), "PP")}` : ''}
+                                          </p>
+                                        )}
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        </TableCell>
+                        <TableCell className="text-right">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                            {hasPermission('purchaseOrders', 'view') && (
+                                <DropdownMenuItem onSelect={() => router.push(`/purchase-orders/view?id=${po.id}`)}>
+                                    <View className="mr-2 h-4 w-4" /> View
+                                </DropdownMenuItem>
+                            )}
+                            {hasPermission('purchaseOrders', 'edit') && (
+                                <DropdownMenuItem onClick={() => router.push(`/purchase-orders/edit?id=${po.id}`)} disabled={po.status === 'Delivered' || po.status === 'Canceled'}>
+                                    <Edit className="mr-2 h-4 w-4" /> Edit
+                                </DropdownMenuItem>
+                            )}
+                             {hasPermission('purchaseOrders', 'view') && (
+                                <DropdownMenuItem onSelect={() => handlePrint(po.id)}>
+                                    <Printer className="mr-2 h-4 w-4" /> Print
+                                </DropdownMenuItem>
+                            )}
+                            
+                            {(hasPermission('purchaseOrders', 'view') || hasPermission('purchaseOrders', 'edit')) &&
+                             (hasPermission('purchaseOrders', 'delete') || hasPermission('purchaseOrders', 'edit')) &&
+                             <DropdownMenuSeparator />
+                            }
 
-                        {hasPermission('purchaseOrders', 'edit') && (
-                            <>
-                                {po.status !== 'Delivered' ? (
-                                    <DropdownMenuItem onSelect={() => handleOpenDeliveryDialog(po)} disabled={po.status === 'Delivered' || po.status === 'Canceled'}>
-                                        <PackageCheck className="mr-2 h-4 w-4" /> Mark as Delivered
+                            {hasPermission('purchaseOrders', 'edit') && (
+                                <>
+                                    {po.status !== 'Delivered' ? (
+                                        <DropdownMenuItem onSelect={() => handleOpenDeliveryDialog(po)} disabled={po.status === 'Delivered' || po.status === 'Canceled'}>
+                                            <PackageCheck className="mr-2 h-4 w-4" /> Mark as Delivered
+                                        </DropdownMenuItem>
+                                    ) : (
+                                        <DropdownMenuItem onSelect={() => handleOpenDeliveryDialog(po)}>
+                                            <CalendarIcon className="mr-2 h-4 w-4" /> Change Delivery Date
+                                        </DropdownMenuItem>
+                                    )}
+                                    <DropdownMenuItem onSelect={() => updatePoStatus(po.id, 'Canceled')} disabled={po.status === 'Delivered' || po.status === 'Canceled'}>
+                                        <Ban className="mr-2 h-4 w-4" /> Cancel Order
                                     </DropdownMenuItem>
-                                ) : (
-                                    <DropdownMenuItem onSelect={() => handleOpenDeliveryDialog(po)}>
-                                        <CalendarIcon className="mr-2 h-4 w-4" /> Change Delivery Date
+                                </>
+                            )}
+                            
+                            {hasPermission('purchaseOrders', 'delete') && hasPermission('purchaseOrders', 'edit') && <DropdownMenuSeparator />}
+                            
+                            {hasPermission('purchaseOrders', 'delete') && (
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                    <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                                        <Trash2 className="mr-2 h-4 w-4 text-destructive" />
+                                        <span className="text-destructive">Delete</span>
                                     </DropdownMenuItem>
-                                )}
-                                <DropdownMenuItem onSelect={() => updatePoStatus(po.id, 'Canceled')} disabled={po.status === 'Delivered' || po.status === 'Canceled'}>
-                                    <Ban className="mr-2 h-4 w-4" /> Cancel Order
-                                </DropdownMenuItem>
-                            </>
-                        )}
-                        
-                        {hasPermission('purchaseOrders', 'delete') && hasPermission('purchaseOrders', 'edit') && <DropdownMenuSeparator />}
-                        
-                        {hasPermission('purchaseOrders', 'delete') && (
-                            <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                <DropdownMenuItem onSelect={e => e.preventDefault()}>
-                                    <Trash2 className="mr-2 h-4 w-4 text-destructive" />
-                                    <span className="text-destructive">Delete</span>
-                                </DropdownMenuItem>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                    This action cannot be undone. This will permanently delete the purchase order.
-                                    </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleDeletePurchaseOrder(po.id)}>Delete</AlertDialogAction>
-                                </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                        )}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                    </TableCell>
-                </TableRow>
-                ))}
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                        This action cannot be undone. This will permanently delete the purchase order.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleDeletePurchaseOrder(po.id)}>Delete</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            )}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                        </TableCell>
+                    </TableRow>
+                    ))
+                ) : (
+                    <TableRow>
+                        <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
+                            No orders found for the selected period and filters.
+                        </TableCell>
+                    </TableRow>
+                )}
             </TableBody>
             </Table>
         </Card>
