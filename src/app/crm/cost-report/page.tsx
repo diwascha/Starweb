@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Printer, Loader2, Plus, Trash2, ChevronsUpDown, Check, PlusCircle, Edit, Save, MoreHorizontal, Search, ArrowUpDown, History, Library, HistoryIcon, Paperclip, Clipboard, Copy, Image as ImageIcon } from 'lucide-react';
+import { Printer, Loader2, Plus, Trash2, ChevronsUpDown, Check, PlusCircle, Edit, Save, MoreHorizontal, Search, ArrowUpDown, History, Library, HistoryIcon, Paperclip, Clipboard, Copy, Image as ImageIcon, ChevronDown, ChevronUp } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon } from 'lucide-react';
@@ -391,6 +391,9 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
   const [productsToLoad, setProductsToLoad] = useState<Set<string>>(new Set());
   const [loadProductPartyFilter, setLoadProductPartyFilter] = useState('All');
   
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isCostsOpen, setIsCostsOpen] = useState(true);
+
   const uniquePartiesForLoad = useMemo(() => {
     const partyNames = new Set(products.map(p => p.partyName).filter(Boolean));
     return ['All', ...Array.from(partyNames).sort()];
@@ -979,7 +982,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
 
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-4">
         {reportToEdit && (
             <div className="flex justify-between items-center bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4" role="alert">
                 <p className="font-bold">Editing Report #{reportToEdit.reportNumber}</p>
@@ -987,132 +990,164 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
             </div>
         )}
       
-        <Card>
-            <CardHeader>
-                <CardTitle>Report Details</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                 <div className="space-y-2">
-                    <Label htmlFor="reportNumber">Report Number</Label>
-                    <Input id="reportNumber" value={reportNumber} readOnly className="bg-muted/50" />
-                 </div>
-                 <div className="space-y-2">
-                    <Label htmlFor="reportDate">Report Date</Label>
-                    <Popover>
-                        <PopoverTrigger asChild>
-                            <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !reportDate && "text-muted-foreground")}>
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {reportDate ? `${toNepaliDate(reportDate.toISOString())} BS (${format(reportDate, "PPP")})` : <span>Pick a date</span>}
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
-                            <DualCalendar selected={reportDate} onSelect={(d) => d && setReportDate(d)} />
-                        </PopoverContent>
-                    </Popover>
-                 </div>
-                 <div className="space-y-2">
-                    <Label htmlFor="party-select">Party Name</Label>
-                    <div className="flex gap-2">
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button variant="outline" role="combobox" className="w-full justify-between">
-                                    {selectedPartyId ? parties.find(p => p.id === selectedPartyId)?.name : "Select party..."}
-                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Collapsible open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+                <Card>
+                    <CardHeader className="py-3 px-6">
+                        <div className="flex items-center justify-between">
+                            <CollapsibleTrigger asChild>
+                                <Button variant="ghost" size="sm" className="p-0 h-auto hover:bg-transparent">
+                                    <CardTitle className="text-lg flex items-center gap-2 cursor-pointer">
+                                        {isDetailsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                        Report Details
+                                    </CardTitle>
                                 </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
-                                <Command>
-                                    <CommandInput 
-                                        placeholder="Search party..." 
-                                        value={partySearch}
-                                        onValueChange={setPartySearch}
-                                    />
-                                    <CommandList>
-                                        <CommandEmpty>
-                                            <Button variant="ghost" className="w-full justify-start" onClick={() => handleOpenPartyDialog(null, partySearch)}>
-                                                <PlusCircle className="mr-2 h-4 w-4" /> Add "{partySearch}"
-                                            </Button>
-                                        </CommandEmpty>
-                                        <CommandGroup>
-                                            {parties.map(p => (
-                                                <CommandItem key={p.id} value={p.name} onSelect={() => { setSelectedPartyId(p.id); setPartySearch(''); }} className="flex justify-between">
-                                                    <div className="flex items-center">
-                                                        <Check className={cn("mr-2 h-4 w-4", selectedPartyId === p.id ? "opacity-100" : "opacity-0")} />
-                                                        {p.name}
-                                                    </div>
-                                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => {e.stopPropagation(); handleOpenPartyDialog(p)}}><Edit className="h-3 w-3"/></Button>
-                                                </CommandItem>
-                                            ))}
-                                        </CommandGroup>
-                                    </CommandList>
-                                </Command>
-                            </PopoverContent>
-                        </Popover>
-                    </div>
-                 </div>
-            </CardContent>
-        </Card>
-
-        <Card>
-            <CardHeader>
-                <div className="flex items-center justify-between">
-                    <CardTitle>Additional Costs</CardTitle>
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button variant="ghost" size="icon" onClick={() => setIsCostHistoryDialogOpen(true)}>
-                                    <HistoryIcon className="h-5 w-5" />
-                                    <span className="sr-only">View Cost History</span>
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>View Costing History</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
-                </div>
-            </CardHeader>
-            <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="space-y-4 rounded-lg border p-4">
-                        <Label>Kraft Paper Costs</Label>
-                        {bfOptions.map(bf => (
-                             <div key={bf} className="flex items-center justify-between">
-                                <Label htmlFor={`kraftPaperCost-${bf}`} className="text-sm font-normal">{bf}</Label>
-                                <Input id={`kraftPaperCost-${bf}`} type="number" placeholder="Rate" className="w-24 h-8" value={kraftPaperCosts[normalizeBF(bf)] ?? ''} onChange={e => handleCostChange('kraft', e.target.value, bf)} />
+                            </CollapsibleTrigger>
+                        </div>
+                    </CardHeader>
+                    <CollapsibleContent>
+                        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-0 pb-4">
+                            <div className="space-y-1">
+                                <Label htmlFor="reportNumber" className="text-xs">Report Number</Label>
+                                <Input id="reportNumber" value={reportNumber} readOnly className="bg-muted/50 h-8 text-sm" />
                             </div>
-                        ))}
-                    </div>
-                    <div className="space-y-4 md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                            <Label htmlFor="virginPaperCost">Virgin Paper Cost</Label>
-                            <Input id="virginPaperCost" type="number" placeholder="Enter cost" value={virginPaperCost} onChange={e => handleCostChange('virgin', e.target.value)} />
+                            <div className="space-y-1">
+                                <Label htmlFor="reportDate" className="text-xs">Report Date</Label>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal h-8 text-sm", !reportDate && "text-muted-foreground")}>
+                                            <CalendarIcon className="mr-2 h-3 w-3" />
+                                            {reportDate ? `${toNepaliDate(reportDate.toISOString())} BS (${format(reportDate, "PPP")})` : <span>Pick a date</span>}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0">
+                                        <DualCalendar selected={reportDate} onSelect={(d) => d && setReportDate(d)} />
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+                            <div className="space-y-1 md:col-span-2">
+                                <Label htmlFor="party-select" className="text-xs">Party Name</Label>
+                                <div className="flex gap-2">
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button variant="outline" role="combobox" className="w-full justify-between h-8 text-sm">
+                                                {selectedPartyId ? parties.find(p => p.id === selectedPartyId)?.name : "Select party..."}
+                                                <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
+                                            <Command>
+                                                <CommandInput 
+                                                    placeholder="Search party..." 
+                                                    value={partySearch}
+                                                    onValueChange={setPartySearch}
+                                                />
+                                                <CommandList>
+                                                    <CommandEmpty>
+                                                        <Button variant="ghost" className="w-full justify-start" onClick={() => handleOpenPartyDialog(null, partySearch)}>
+                                                            <PlusCircle className="mr-2 h-4 w-4" /> Add "{partySearch}"
+                                                        </Button>
+                                                    </CommandEmpty>
+                                                    <CommandGroup>
+                                                        {parties.map(p => (
+                                                            <CommandItem key={p.id} value={p.name} onSelect={() => { setSelectedPartyId(p.id); setPartySearch(''); }} className="flex justify-between">
+                                                                <div className="flex items-center">
+                                                                    <Check className={cn("mr-2 h-4 w-4", selectedPartyId === p.id ? "opacity-100" : "opacity-0")} />
+                                                                    {p.name}
+                                                                </div>
+                                                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => {e.stopPropagation(); handleOpenPartyDialog(p)}}><Edit className="h-3 w-3"/></Button>
+                                                            </CommandItem>
+                                                        ))}
+                                                    </CommandGroup>
+                                                </CommandList>
+                                            </Command>
+                                        </PopoverContent>
+                                    </Popover>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </CollapsibleContent>
+                </Card>
+            </Collapsible>
+
+            <Collapsible open={isCostsOpen} onOpenChange={setIsCostsOpen}>
+                <Card>
+                    <CardHeader className="py-3 px-6">
+                        <div className="flex items-center justify-between">
+                            <CollapsibleTrigger asChild>
+                                <Button variant="ghost" size="sm" className="p-0 h-auto hover:bg-transparent">
+                                    <CardTitle className="text-lg flex items-center gap-2 cursor-pointer">
+                                        {isCostsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                        Additional Costs
+                                    </CardTitle>
+                                </Button>
+                            </CollapsibleTrigger>
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsCostHistoryDialogOpen(true)}>
+                                            <HistoryIcon className="h-4 w-4" />
+                                            <span className="sr-only">View Cost History</span>
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>View Costing History</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="conversionCost">Conversion Cost</Label>
-                            <Input id="conversionCost" type="number" placeholder="Enter cost" value={conversionCost} onChange={e => handleCostChange('conversion', e.target.value)} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="transportCost">Transport Cost</Label>
-                            <Input id="transportCost" type="number" placeholder="Amount" value={transportCost} onChange={e => setTransportCost(e.target.value === '' ? '' : parseFloat(e.target.value))} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="transportCostType">Transport Cost Basis</Label>
-                            <Select value={transportCostType} onValueChange={(v: 'Per Piece' | 'Per Consignment') => setTransportCostType(v)}>
-                                <SelectTrigger id="transportCostType"><SelectValue/></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Per Piece">Per Piece</SelectItem>
-                                    <SelectItem value="Per Consignment">Per Consignment (Lump Sum)</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-                </div>
-            </CardContent>
-        </Card>
+                    </CardHeader>
+                    <CollapsibleContent>
+                        <CardContent className="pt-0 pb-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2 p-3 border rounded-md bg-muted/20">
+                                    <Label className="text-xs font-bold uppercase tracking-wider">Kraft Paper Rates</Label>
+                                    <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                                        {bfOptions.map(bf => (
+                                            <div key={bf} className="flex items-center justify-between gap-2">
+                                                <Label htmlFor={`kraftPaperCost-${bf}`} className="text-[10px] font-medium whitespace-nowrap">{bf}</Label>
+                                                <Input id={`kraftPaperCost-${bf}`} type="number" className="w-16 h-7 text-xs px-2" value={kraftPaperCosts[normalizeBF(bf)] ?? ''} onChange={e => handleCostChange('kraft', e.target.value, bf)} />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="space-y-3">
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div className="space-y-1">
+                                            <Label htmlFor="virginPaperCost" className="text-[10px]">Virgin Rate</Label>
+                                            <Input id="virginPaperCost" type="number" className="h-7 text-xs" value={virginPaperCost} onChange={e => handleCostChange('virgin', e.target.value)} />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label htmlFor="conversionCost" className="text-[10px]">Conversion</Label>
+                                            <Input id="conversionCost" type="number" className="h-7 text-xs" value={conversionCost} onChange={e => handleCostChange('conversion', e.target.value)} />
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div className="space-y-1">
+                                            <Label htmlFor="transportCost" className="text-[10px]">Transport</Label>
+                                            <Input id="transportCost" type="number" className="h-7 text-xs" value={transportCost} onChange={e => setTransportCost(e.target.value === '' ? '' : parseFloat(e.target.value))} />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label htmlFor="transportCostType" className="text-[10px]">Basis</Label>
+                                            <Select value={transportCostType} onValueChange={(v: 'Per Piece' | 'Per Consignment') => setTransportCostType(v)}>
+                                                <SelectTrigger id="transportCostType" className="h-7 text-[10px]"><SelectValue/></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="Per Piece" className="text-xs">Per Piece</SelectItem>
+                                                    <SelectItem value="Per Consignment" className="text-xs">Per Consignment</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </CollapsibleContent>
+                </Card>
+            </Collapsible>
+        </div>
         
         <Card>
-            <CardHeader>
+            <CardHeader className="py-4">
                 <CardTitle>Product Cost Breakdown</CardTitle>
             </CardHeader>
             <CardContent>
