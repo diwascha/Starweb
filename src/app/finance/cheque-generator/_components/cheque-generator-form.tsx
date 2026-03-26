@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -76,7 +74,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
     const { toast } = useToast();
     const { user } = useAuth();
     
-    const [cheques, setCheques] = useState<Cheque[]>([]);
+    const [cheques, setCheques] = useState<Check[]>([]);
     const [voucherNo, setVoucherNo] = useState('');
 
     const printRef = useRef<HTMLDivElement>(null);
@@ -731,9 +729,3 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
         </div>
     );
 }
-
-    
-
-    
-
-    
