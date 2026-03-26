@@ -28,6 +28,7 @@ export interface ProductSpecification {
   liner3Gsm?: string;
   flute4Gsm?: string;
   liner4Gsm?: string;
+  wastagePercent?: string;
 }
 
 export interface ProductAccessory {

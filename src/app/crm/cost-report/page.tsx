@@ -661,6 +661,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
             liner3Gsm: spec.liner3Gsm || '',
             flute4Gsm: spec.flute4Gsm || '',
             liner4Gsm: spec.liner4Gsm || '',
+            wastagePercent: spec.wastagePercent || '3.5',
             accessories,
         };
         newItems[index] = {
@@ -720,7 +721,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
             liner3Gsm: spec.liner3Gsm || '',
             flute4Gsm: spec.flute4Gsm || '',
             liner4Gsm: spec.liner4Gsm || '',
-            wastagePercent: '3.5',
+            wastagePercent: spec.wastagePercent || '3.5',
             accessories,
         };
         
@@ -1148,7 +1149,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                 <TableHead rowSpan={2} className="align-bottom min-w-[100px]">R. Size (cm)</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom min-w-[100px]">C. Size (cm)</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom min-w-[100px]">Box Wt Grams</TableHead>
-                                <TableHead rowSpan={2} className="align-bottom min-w-[100px]">Waste 3.5%</TableHead>
+                                <TableHead rowSpan={2} className="align-bottom min-w-[80px]">Waste %</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom min-w-[100px]">Total Box Wt</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom min-w-[120px]">Paper Cost</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom min-w-[150px]">Accessories Cost</TableHead>
@@ -1301,7 +1302,19 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                       <TableCell>{(item.calculated.sheetSizeL / 10).toFixed(2)}</TableCell>
                                       <TableCell>{(item.calculated.sheetSizeB / 10).toFixed(2)}</TableCell>
                                       <TableCell>{item.calculated.paperWeight.toFixed(2)}</TableCell>
-                                      <TableCell>{((item.calculated.paperWeight * (parseFloat(item.wastagePercent) / 100 || 0))).toFixed(2)}</TableCell>
+                                      <TableCell>
+                                          <div className="flex flex-col gap-1">
+                                              <Input 
+                                                  type="number" 
+                                                  value={item.wastagePercent} 
+                                                  onChange={e => handleItemChange(index, 'wastagePercent', e.target.value)} 
+                                                  className="w-16 h-8 text-xs" 
+                                              />
+                                              <span className="text-[10px] text-muted-foreground text-center">
+                                                  {((item.calculated.paperWeight * (parseFloat(item.wastagePercent) / 100 || 0))).toFixed(2)}g
+                                              </span>
+                                          </div>
+                                      </TableCell>
                                       <TableCell>{(item.calculated.totalBoxWeight).toFixed(2)}</TableCell>
                                       <TableCell className="font-medium">
                                         {item.calculated.paperCost > 0 ? item.calculated.paperCost.toFixed(2) : '...'}
@@ -1386,16 +1399,30 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                             <TableCell>{(acc.calculated.sheetSizeL / 10).toFixed(2)}</TableCell>
                                             <TableCell>{(acc.calculated.sheetSizeB / 10).toFixed(2)}</TableCell>
                                             <TableCell>{acc.calculated.paperWeight.toFixed(2)}</TableCell>
-                                            <TableCell>{((acc.calculated.paperWeight * (parseFloat(acc.wastagePercent) / 100 || 0))).toFixed(2)}</TableCell>
+                                            <TableCell>
+                                                <div className="flex flex-col gap-1">
+                                                    <Input 
+                                                        type="number" 
+                                                        value={acc.wastagePercent} 
+                                                        onChange={e => handleAccessoryChange(index, accIndex, 'wastagePercent', e.target.value)} 
+                                                        className="w-16 h-8 text-xs" 
+                                                    />
+                                                    <span className="text-[10px] text-muted-foreground text-center">
+                                                        {((acc.calculated.paperWeight * (parseFloat(acc.wastagePercent) / 100 || 0))).toFixed(2)}g
+                                                    </span>
+                                                </div>
+                                            </TableCell>
                                             <TableCell>{(acc.calculated.totalBoxWeight).toFixed(2)}</TableCell>
                                             <TableCell className="font-medium">
                                               {acc.calculated.paperCost > 0 ? acc.calculated.paperCost.toFixed(2) : '...'}
                                             </TableCell>
                                             <TableCell></TableCell>
                                             <TableCell>
-                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeAccessory(index, acc.id)}>
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
+                                                <div className="flex items-center">
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeAccessory(index, acc.id)}>
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
                                             </TableCell>
                                         </TableRow>
                                     )})}
@@ -1778,7 +1805,7 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
                                              <AlertDialog>
                                                 <AlertDialogTrigger asChild>
                                                     <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">
-                                                         <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                                         <Trash2 className="mr-2 h-4 w-4 text-destructive" /> <span className="text-destructive">Delete</span>
                                                     </DropdownMenuItem>
                                                 </AlertDialogTrigger>
                                                 <AlertDialogContent>
@@ -1834,7 +1861,7 @@ function ProductForm({ productToEdit, onSaveSuccess, onProductFormChange }: { pr
     const { user } = useAuth();
     const { toast } = useToast();
     
-    const relevantSpecFields: (keyof ProductSpecification)[] = ['ply', 'paperBf', 'topGsm', 'flute1Gsm', 'middleGsm', 'flute2Gsm', 'liner2Gsm', 'flute3Gsm', 'liner3Gsm', 'flute4Gsm', 'liner4Gsm', 'bottomGsm', 'printing', 'paperShade', 'boxType'];
+    const relevantSpecFields: (keyof ProductSpecification)[] = ['ply', 'paperBf', 'topGsm', 'flute1Gsm', 'middleGsm', 'flute2Gsm', 'liner2Gsm', 'flute3Gsm', 'liner3Gsm', 'flute4Gsm', 'liner4Gsm', 'bottomGsm', 'printing', 'paperShade', 'boxType', 'wastagePercent'];
 
     useEffect(() => {
         const unsubParties = onPartiesUpdate(setParties);
@@ -1860,6 +1887,7 @@ function ProductForm({ productToEdit, onSaveSuccess, onProductFormChange }: { pr
             spec.ply = '3';
             spec.paperShade = 'NS';
             spec.boxType = 'RSC';
+            spec.wastagePercent = '3.5';
             setProductForm({ name: '', materialCode: '', partyId: '', partyName: '', specification: spec, l: '', b: '', h: '', accessories: [] });
         }
     }, [productToEdit]);
@@ -2122,6 +2150,10 @@ function ProductForm({ productToEdit, onSaveSuccess, onProductFormChange }: { pr
                             <Label htmlFor={`spec-printing`}>Printing</Label>
                             <Input id={`spec-printing`} value={productForm.specification?.printing || ''} onChange={(e) => handleSpecChange('printing', e.target.value)} />
                        </div>
+                       <div className="space-y-2">
+                            <Label htmlFor={`spec-wastagePercent`}>Default Waste %</Label>
+                            <Input id={`spec-wastagePercent`} type="number" value={productForm.specification?.wastagePercent || ''} onChange={(e) => handleSpecChange('wastagePercent', e.target.value)} />
+                       </div>
                     </div>
                     <Separator />
                     <h4 className="font-semibold">Default Accessories</h4>
@@ -2129,7 +2161,7 @@ function ProductForm({ productToEdit, onSaveSuccess, onProductFormChange }: { pr
                         {(productForm.accessories || []).map((acc, index) => (
                              <div key={acc.id} className="p-4 border rounded-md relative">
                                  <Button type="button" variant="ghost" size="icon" className="absolute top-1 right-1 h-7 w-7 text-destructive" onClick={() => removeAccessory(acc.id)}>
-                                     <Trash2 className="h-4 w-4"/>
+                                     <Trash2 className="h-4 w-4 text-destructive"/>
                                  </Button>
                                  <div className="grid grid-cols-2 gap-4">
                                      <div className="space-y-2">
@@ -2159,6 +2191,10 @@ function ProductForm({ productToEdit, onSaveSuccess, onProductFormChange }: { pr
                                      <div className="space-y-2">
                                          <Label>Paper BF</Label>
                                          <Input value={normalizeBF(acc.paperBf)} onChange={e => handleAccessoryChange(index, 'paperBf', e.target.value)} />
+                                     </div>
+                                     <div className="space-y-2">
+                                         <Label>Waste %</Label>
+                                         <Input type="number" value={acc.wastagePercent} onChange={e => handleAccessoryChange(index, 'wastagePercent', e.target.value)} />
                                      </div>
                                  </div>
                              </div>
@@ -2331,7 +2367,7 @@ function SavedProductsList() {
                                         <DropdownMenuContent>
                                             <DropdownMenuItem onSelect={() => handleOpenProductDialog(p)}><Edit className="mr-2 h-4 w-4"/>Edit</DropdownMenuItem>
                                             <AlertDialog>
-                                                <AlertDialogTrigger asChild><DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4"/>Delete</DropdownMenuItem></AlertDialogTrigger>
+                                                <AlertDialogTrigger asChild><DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4 text-destructive"/> <span className="text-destructive">Delete</span></DropdownMenuItem></AlertDialogTrigger>
                                                 <AlertDialogContent>
                                                     <AlertDialogHeader>
                                                         <AlertDialogTitle>Are you sure?</AlertDialogTitle>
@@ -2533,7 +2569,7 @@ export default function CostReportPage() {
             </Tabs>
              {/* This dialog is now managed by the main page but triggered from the calculator */}
              <Dialog open={isProductAddDialogOpen} onOpenChange={setIsProductAddDialogOpen}>
-                 <DialogContent className="max-xl">
+                 <DialogContent className="max-w-2xl">
                     <DialogHeader>
                         <DialogTitle>Add New Product</DialogTitle>
                     </DialogHeader>
