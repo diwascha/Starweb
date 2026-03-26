@@ -1191,12 +1191,12 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                 <TableHead rowSpan={2} className="align-bottom">Type of Flute</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom">Paper Type</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom">Paper BF</TableHead>
+                                <TableHead rowSpan={2} className="align-bottom min-w-[80px]">Waste %</TableHead>
                                 <TableHead colSpan={maxPly} className="text-center">GSM</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom min-w-[100px]">Total Gsm</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom min-w-[100px]">R. Size (cm)</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom min-w-[100px]">C. Size (cm)</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom min-w-[100px]">Box Wt Grams</TableHead>
-                                <TableHead rowSpan={2} className="align-bottom min-w-[80px]">Waste %</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom min-w-[100px]">Total Box Wt</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom min-w-[120px]">Paper Cost</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom min-w-[150px]">Accessories Cost</TableHead>
@@ -1336,19 +1336,6 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                           </SelectContent>
                                         </Select>
                                       </TableCell>
-                                      <TableCell><Input type="number" value={item.topGsm} onChange={e => handleItemChange(index, 'topGsm', e.target.value)} className="w-20" /></TableCell>
-                                      <TableCell><Input type="number" value={item.flute1Gsm} onChange={e => handleItemChange(index, 'flute1Gsm', e.target.value)} className="w-20" /></TableCell>
-                                      {maxPly >= 7 && <TableCell>{ply >= 7 ? <Input type="number" value={item.liner2Gsm} onChange={e => handleItemChange(index, 'liner2Gsm', e.target.value)} className="w-20" /> : null}</TableCell>}
-                                      {maxPly >= 5 && <TableCell>{ply >= 5 ? <Input type="number" value={item.flute2Gsm} onChange={e => handleItemChange(index, 'flute2Gsm', e.target.value)} className="w-20" /> : null}</TableCell>}
-                                      {maxPly >= 5 && <TableCell>{ply === 5 ? <Input type="number" value={item.middleGsm} onChange={e => handleItemChange(index, 'middleGsm', e.target.value)} className="w-20" /> : (ply >= 7 ? <Input type="number" value={item.liner3Gsm} onChange={e => handleItemChange(index, 'liner3Gsm', e.target.value)} className="w-20" /> : null)}</TableCell>}
-                                      {maxPly >= 7 && <TableCell>{ply >= 7 ? <Input type="number" value={item.flute3Gsm} onChange={e => handleItemChange(index, 'flute3Gsm', e.target.value)} className="w-20" /> : null}</TableCell>}
-                                      {maxPly >= 9 && <TableCell>{ply >= 9 ? <Input type="number" value={item.liner4Gsm} onChange={e => handleItemChange(index, 'liner4Gsm', e.target.value)} className="w-20" /> : null}</TableCell>}
-                                      {maxPly >= 9 && <TableCell>{ply >= 9 ? <Input type="number" value={item.flute4Gsm} onChange={e => handleItemChange(index, 'flute4Gsm', e.target.value)} className="w-20" /> : null}</TableCell>}
-                                      <TableCell><Input type="number" value={item.bottomGsm} onChange={e => handleItemChange(index, 'bottomGsm', e.target.value)} className="w-20" /></TableCell>
-                                      <TableCell>{item.calculated.totalGsm.toFixed(2)}</TableCell>
-                                      <TableCell>{(item.calculated.sheetSizeL / 10).toFixed(2)}</TableCell>
-                                      <TableCell>{(item.calculated.sheetSizeB / 10).toFixed(2)}</TableCell>
-                                      <TableCell>{item.calculated.paperWeight.toFixed(2)}</TableCell>
                                       <TableCell>
                                           <div className="flex flex-col gap-1">
                                               <Input 
@@ -1362,6 +1349,19 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                               </span>
                                           </div>
                                       </TableCell>
+                                      <TableCell><Input type="number" value={item.topGsm} onChange={e => handleItemChange(index, 'topGsm', e.target.value)} className="w-20" /></TableCell>
+                                      <TableCell><Input type="number" value={item.flute1Gsm} onChange={e => handleItemChange(index, 'flute1Gsm', e.target.value)} className="w-20" /></TableCell>
+                                      {maxPly >= 7 && <TableCell>{ply >= 7 ? <Input type="number" value={item.liner2Gsm} onChange={e => handleItemChange(index, 'liner2Gsm', e.target.value)} className="w-20" /> : null}</TableCell>}
+                                      {maxPly >= 5 && <TableCell>{ply >= 5 ? <Input type="number" value={item.flute2Gsm} onChange={e => handleItemChange(index, 'flute2Gsm', e.target.value)} className="w-20" /> : null}</TableCell>}
+                                      {maxPly >= 5 && <TableCell>{ply === 5 ? <Input type="number" value={item.middleGsm} onChange={e => handleItemChange(index, 'middleGsm', e.target.value)} className="w-20" /> : (ply >= 7 ? <Input type="number" value={item.liner3Gsm} onChange={e => handleItemChange(index, 'liner3Gsm', e.target.value)} className="w-20" /> : null)}</TableCell>}
+                                      {maxPly >= 7 && <TableCell>{ply >= 7 ? <Input type="number" value={item.status === 'Present' ? item.flute3Gsm : ''} onChange={e => handleItemChange(index, 'flute3Gsm', e.target.value)} className="w-20" /> : null}</TableCell>}
+                                      {maxPly >= 9 && <TableCell>{ply >= 9 ? <Input type="number" value={item.liner4Gsm} onChange={e => handleItemChange(index, 'liner4Gsm', e.target.value)} className="w-20" /> : null}</TableCell>}
+                                      {maxPly >= 9 && <TableCell>{ply >= 9 ? <Input type="number" value={item.flute4Gsm} onChange={e => handleItemChange(index, 'flute4Gsm', e.target.value)} className="w-20" /> : null}</TableCell>}
+                                      <TableCell><Input type="number" value={item.bottomGsm} onChange={e => handleItemChange(index, 'bottomGsm', e.target.value)} className="w-20" /></TableCell>
+                                      <TableCell>{item.calculated.totalGsm.toFixed(2)}</TableCell>
+                                      <TableCell>{(item.calculated.sheetSizeL / 10).toFixed(2)}</TableCell>
+                                      <TableCell>{(item.calculated.sheetSizeB / 10).toFixed(2)}</TableCell>
+                                      <TableCell>{item.calculated.paperWeight.toFixed(2)}</TableCell>
                                       <TableCell>{(item.calculated.totalBoxWeight).toFixed(2)}</TableCell>
                                       <TableCell className="font-medium">
                                         {item.calculated.paperCost > 0 ? item.calculated.paperCost.toFixed(2) : '...'}
@@ -1433,19 +1433,6 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                                   </SelectContent>
                                                 </Select>
                                             </TableCell>
-                                            <TableCell><Input type="number" value={acc.topGsm} onChange={e => handleAccessoryChange(index, accIndex, 'topGsm', e.target.value)} className="w-20" /></TableCell>
-                                            <TableCell><Input type="number" value={acc.flute1Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'flute1Gsm', e.target.value)} className="w-20" /></TableCell>
-                                            {maxPly >= 7 && <TableCell>{accPly >= 7 ? <Input type="number" value={acc.liner2Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'liner2Gsm', e.target.value)} className="w-20" /> : null}</TableCell>}
-                                            {maxPly >= 5 && <TableCell>{accPly >= 5 ? <Input type="number" value={acc.flute2Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'flute2Gsm', e.target.value)} className="w-20" /> : null}</TableCell>}
-                                            {maxPly >= 5 && <TableCell>{accPly === 5 ? <Input type="number" value={acc.middleGsm} onChange={e => handleAccessoryChange(index, accIndex, 'middleGsm', e.target.value)} className="w-20" /> : (accPly >= 7 ? <Input type="number" value={acc.liner3Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'liner3Gsm', e.target.value)} className="w-20" /> : null)}</TableCell>}
-                                            {maxPly >= 7 && <TableCell>{accPly >= 7 ? <Input type="number" value={acc.flute3Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'flute3Gsm', e.target.value)} className="w-20" /> : null}</TableCell>}
-                                            {maxPly >= 9 && <TableCell>{accPly >= 9 ? <Input type="number" value={acc.liner4Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'liner4Gsm', e.target.value)} className="w-20" /> : null}</TableCell>}
-                                            {maxPly >= 9 && <TableCell>{accPly >= 9 ? <Input type="number" value={acc.flute4Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'flute4Gsm', e.target.value)} className="w-20" /> : null}</TableCell>}
-                                            <TableCell><Input type="number" value={acc.bottomGsm} onChange={e => handleAccessoryChange(index, accIndex, 'bottomGsm', e.target.value)} className="w-20" /></TableCell>
-                                            <TableCell>{acc.calculated.totalGsm.toFixed(2)}</TableCell>
-                                            <TableCell>{(acc.calculated.sheetSizeL / 10).toFixed(2)}</TableCell>
-                                            <TableCell>{(acc.calculated.sheetSizeB / 10).toFixed(2)}</TableCell>
-                                            <TableCell>{acc.calculated.paperWeight.toFixed(2)}</TableCell>
                                             <TableCell>
                                                 <div className="flex flex-col gap-1">
                                                     <Input 
@@ -1459,6 +1446,19 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                                     </span>
                                                 </div>
                                             </TableCell>
+                                            <TableCell><Input type="number" value={acc.topGsm} onChange={e => handleAccessoryChange(index, accIndex, 'topGsm', e.target.value)} className="w-20" /></TableCell>
+                                            <TableCell><Input type="number" value={acc.flute1Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'flute1Gsm', e.target.value)} className="w-20" /></TableCell>
+                                            {maxPly >= 7 && <TableCell>{accPly >= 7 ? <Input type="number" value={acc.liner2Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'liner2Gsm', e.target.value)} className="w-20" /> : null}</TableCell>}
+                                            {maxPly >= 5 && <TableCell>{accPly >= 5 ? <Input type="number" value={acc.flute2Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'flute2Gsm', e.target.value)} className="w-20" /> : null}</TableCell>}
+                                            {maxPly >= 5 && <TableCell>{accPly === 5 ? <Input type="number" value={acc.middleGsm} onChange={e => handleAccessoryChange(index, accIndex, 'middleGsm', e.target.value)} className="w-20" /> : (accPly >= 7 ? <Input type="number" value={acc.liner3Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'liner3Gsm', e.target.value)} className="w-20" /> : null)}</TableCell>}
+                                            {maxPly >= 7 && <TableCell>{accPly >= 7 ? <Input type="number" value={acc.flute3Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'flute3Gsm', e.target.value)} className="w-20" /> : null}</TableCell>}
+                                            {maxPly >= 9 && <TableCell>{accPly >= 9 ? <Input type="number" value={acc.liner4Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'liner4Gsm', e.target.value)} className="w-20" /> : null}</TableCell>}
+                                            {maxPly >= 9 && <TableCell>{accPly >= 9 ? <Input type="number" value={acc.flute4Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'flute4Gsm', e.target.value)} className="w-20" /> : null}</TableCell>}
+                                            <TableCell><Input type="number" value={acc.bottomGsm} onChange={e => handleAccessoryChange(index, accIndex, 'bottomGsm', e.target.value)} className="w-20" /></TableCell>
+                                            <TableCell>{acc.calculated.totalGsm.toFixed(2)}</TableCell>
+                                            <TableCell>{(acc.calculated.sheetSizeL / 10).toFixed(2)}</TableCell>
+                                            <TableCell>{(acc.calculated.sheetSizeB / 10).toFixed(2)}</TableCell>
+                                            <TableCell>{acc.calculated.paperWeight.toFixed(2)}</TableCell>
                                             <TableCell>{(acc.calculated.totalBoxWeight).toFixed(2)}</TableCell>
                                             <TableCell className="font-medium">
                                               {acc.calculated.paperCost > 0 ? acc.calculated.paperCost.toFixed(2) : '...'}
