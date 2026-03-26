@@ -266,7 +266,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                                 <TableCell>{item.l}x{item.b}x{item.h}</TableCell>
                                 <TableCell>{item.ply} Ply, {item.boxType}</TableCell>
                                 <TableCell>{item.paperType} {normalizeBF(item.paperBf)}</TableCell>
-                                <TableCell>{item.topGsm}/{item.flute1Gsm}/${item.bottomGsm}</TableCell>
+                                <TableCell>{item.topGsm}/{item.flute1Gsm}/{item.bottomGsm}</TableCell>
                                 <TableCell>{(item.calculated?.totalBoxWeight || 0).toFixed(2)}</TableCell>
                                 <TableCell className="text-right font-bold">Rs. {item.totalItemCost.toFixed(2)}</TableCell>
                              </TableRow>
@@ -284,7 +284,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                              ))}
                            </React.Fragment>
                         ))}
-                        {transportCost && transportCostType === 'Per Consignment' && (
+                        {!!transportCost && transportCostType === 'Per Consignment' && (
                             <TableRow className="font-bold">
                                 <TableCell colSpan={7} className="text-right">Transport Cost (Lump Sum)</TableCell>
                                 <TableCell className="text-right">Rs. {transportCost.toFixed(2)}</TableCell>
@@ -2138,7 +2138,7 @@ function ProductForm({ productToEdit, onSaveSuccess, onProductFormChange }: { pr
                        </div>
                        <div className="space-y-2">
                             <Label htmlFor={`spec-flute1Gsm`}>Flute 1 Gsm</Label>
-                            <Input id={`spec-flute1Gsm`} value={productForm.specification?.flute1Gsm || ''} onChange={(e) => handleSpecChange('flute1Gsm', e.target.value)} />
+                            <Input id={`spec-flute1Gsm`} value={productForm.specification?.flute1Gsm || ''} onChange={(e) => handleSpecChange('topGsm', e.target.value)} />
                        </div>
                        {ply >= 5 && (
                            <div className="space-y-2">
