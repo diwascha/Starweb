@@ -1197,6 +1197,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                 <TableHead rowSpan={2} className="align-bottom min-w-[100px]">R. Size (cm)</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom min-w-[100px]">C. Size (cm)</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom min-w-[100px]">Box Wt Grams</TableHead>
+                                <TableHead rowSpan={2} className="align-bottom min-w-[100px]">Waste Wt (g)</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom min-w-[100px]">Total Box Wt</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom min-w-[120px]">Paper Cost</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom min-w-[150px]">Accessories Cost</TableHead>
@@ -1337,17 +1338,12 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                         </Select>
                                       </TableCell>
                                       <TableCell>
-                                          <div className="flex flex-col gap-1">
-                                              <Input 
-                                                  type="number" 
-                                                  value={item.wastagePercent} 
-                                                  onChange={e => handleItemChange(index, 'wastagePercent', e.target.value)} 
-                                                  className="w-16 h-8 text-xs" 
-                                              />
-                                              <span className="text-[10px] text-muted-foreground text-center">
-                                                  {((item.calculated.paperWeight * (parseFloat(item.wastagePercent) / 100 || 0))).toFixed(2)}g
-                                              </span>
-                                          </div>
+                                          <Input 
+                                              type="number" 
+                                              value={item.wastagePercent} 
+                                              onChange={e => handleItemChange(index, 'wastagePercent', e.target.value)} 
+                                              className="w-16 h-8 text-xs" 
+                                          />
                                       </TableCell>
                                       <TableCell><Input type="number" value={item.topGsm} onChange={e => handleItemChange(index, 'topGsm', e.target.value)} className="w-20" /></TableCell>
                                       <TableCell><Input type="number" value={item.flute1Gsm} onChange={e => handleItemChange(index, 'flute1Gsm', e.target.value)} className="w-20" /></TableCell>
@@ -1362,6 +1358,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                       <TableCell>{(item.calculated.sheetSizeL / 10).toFixed(2)}</TableCell>
                                       <TableCell>{(item.calculated.sheetSizeB / 10).toFixed(2)}</TableCell>
                                       <TableCell>{item.calculated.paperWeight.toFixed(2)}</TableCell>
+                                      <TableCell>{(item.calculated.totalBoxWeight - item.calculated.paperWeight).toFixed(2)}</TableCell>
                                       <TableCell>{(item.calculated.totalBoxWeight).toFixed(2)}</TableCell>
                                       <TableCell className="font-medium">
                                         {item.calculated.paperCost > 0 ? item.calculated.paperCost.toFixed(2) : '...'}
@@ -1434,17 +1431,12 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                                 </Select>
                                             </TableCell>
                                             <TableCell>
-                                                <div className="flex flex-col gap-1">
-                                                    <Input 
-                                                        type="number" 
-                                                        value={acc.wastagePercent} 
-                                                        onChange={e => handleAccessoryChange(index, accIndex, 'wastagePercent', e.target.value)} 
-                                                        className="w-16 h-8 text-xs" 
-                                                    />
-                                                    <span className="text-[10px] text-muted-foreground text-center">
-                                                        {((acc.calculated.paperWeight * (parseFloat(acc.wastagePercent) / 100 || 0))).toFixed(2)}g
-                                                    </span>
-                                                </div>
+                                                <Input 
+                                                    type="number" 
+                                                    value={acc.wastagePercent} 
+                                                    onChange={e => handleAccessoryChange(index, accIndex, 'wastagePercent', e.target.value)} 
+                                                    className="w-16 h-8 text-xs" 
+                                                />
                                             </TableCell>
                                             <TableCell><Input type="number" value={acc.topGsm} onChange={e => handleAccessoryChange(index, accIndex, 'topGsm', e.target.value)} className="w-20" /></TableCell>
                                             <TableCell><Input type="number" value={acc.flute1Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'flute1Gsm', e.target.value)} className="w-20" /></TableCell>
@@ -1459,6 +1451,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                             <TableCell>{(acc.calculated.sheetSizeL / 10).toFixed(2)}</TableCell>
                                             <TableCell>{(acc.calculated.sheetSizeB / 10).toFixed(2)}</TableCell>
                                             <TableCell>{acc.calculated.paperWeight.toFixed(2)}</TableCell>
+                                            <TableCell>{(acc.calculated.totalBoxWeight - acc.calculated.paperWeight).toFixed(2)}</TableCell>
                                             <TableCell>{(acc.calculated.totalBoxWeight).toFixed(2)}</TableCell>
                                             <TableCell className="font-medium">
                                               {acc.calculated.paperCost > 0 ? acc.calculated.paperCost.toFixed(2) : '...'}
