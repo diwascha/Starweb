@@ -51,6 +51,28 @@ const normalizeBF = (val: any): string => {
   return trimmed;
 };
 
+// Helper to get consistent GSM sequence display
+const getGsmDisplay = (item: any) => {
+    if (!item) return 'N/A';
+    const { ply, topGsm, flute1Gsm, bottomGsm, middleGsm, flute2Gsm, liner2Gsm, liner3Gsm, flute3Gsm, liner4Gsm, flute4Gsm } = item;
+    const p = parseInt(ply, 10);
+    
+    let layers: string[] = [];
+    if (p === 3) {
+        layers = [topGsm, flute1Gsm, bottomGsm];
+    } else if (p === 5) {
+        layers = [topGsm, flute1Gsm, middleGsm, flute2Gsm, bottomGsm];
+    } else if (p === 7) {
+        layers = [topGsm, flute1Gsm, liner2Gsm, flute2Gsm, liner3Gsm, flute3Gsm, bottomGsm];
+    } else if (p === 9) {
+        layers = [topGsm, flute1Gsm, liner2Gsm, flute2Gsm, liner3Gsm, flute3Gsm, liner4Gsm, flute4Gsm, bottomGsm];
+    } else {
+        layers = [topGsm, bottomGsm];
+    }
+    
+    return layers.filter(l => l !== undefined && l !== null && String(l).trim() !== '').join('/');
+};
+
 // Quotation Preview Component
 interface QuotationPreviewDialogProps {
   isOpen: boolean;
@@ -139,7 +161,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                     `${item.l}x${item.b}x${item.h}`,
                     `${item.ply} Ply, ${item.boxType}`,
                     `${item.paperType} ${normalizeBF(item.paperBf)}`,
-                    `${item.topGsm}/${item.flute1Gsm}/${item.bottomGsm}`,
+                    getGsmDisplay(item),
                      `${(item.calculated?.paperWeight || 0).toFixed(2)}`,
                     `Rs. ${item.totalItemCost.toFixed(2)}`
                 ];
@@ -150,7 +172,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                     formatAccessoryDimension(acc as ProductAccessory),
                     `${acc.ply} Ply`,
                     `${acc.paperType} ${normalizeBF(acc.paperBf)}`,
-                    `${acc.topGsm}`,
+                    getGsmDisplay(acc),
                     `${(acc.calculated?.paperWeight || 0).toFixed(2)}`,
                     `(${(acc.calculated?.paperCost || 0).toFixed(2)})`
                 ]);
@@ -267,7 +289,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                                 <TableCell>{item.l}x{item.b}x{item.h}</TableCell>
                                 <TableCell>{item.ply} Ply, {item.boxType}</TableCell>
                                 <TableCell>{item.paperType} {normalizeBF(item.paperBf)}</TableCell>
-                                <TableCell>{item.topGsm}/{item.flute1Gsm}/{item.bottomGsm}</TableCell>
+                                <TableCell>{getGsmDisplay(item)}</TableCell>
                                 <TableCell>{(item.calculated?.paperWeight || 0).toFixed(2)}</TableCell>
                                 <TableCell className="text-right font-bold">Rs. {item.totalItemCost.toFixed(2)}</TableCell>
                              </TableRow>
@@ -278,7 +300,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                                      <TableCell>{formatAccessoryDimension(acc as ProductAccessory)}</TableCell>
                                      <TableCell>{acc.ply} Ply</TableCell>
                                      <TableCell>{acc.paperType} {normalizeBF(acc.paperBf)}</TableCell>
-                                     <TableCell>{acc.topGsm}</TableCell>
+                                     <TableCell>{getGsmDisplay(acc)}</TableCell>
                                      <TableCell>{(acc.calculated.paperWeight || 0).toFixed(2)}</TableCell>
                                      <TableCell className="text-right">({(acc.calculated.paperCost || 0).toFixed(2)})</TableCell>
                                  </TableRow>
@@ -2337,24 +2359,6 @@ function SavedProductsList() {
     const handleOpenProductDialog = (product: ProductType | null = null) => {
         setProductToEdit(product);
         setIsProductDialogOpen(true);
-    };
-    
-    const getGsmDisplay = (spec: Partial<ProductSpecification> | undefined) => {
-        if (!spec) return 'N/A';
-        const { ply, topGsm, flute1Gsm, bottomGsm, middleGsm, flute2Gsm, liner2Gsm, liner3Gsm, flute3Gsm, liner4Gsm, flute4Gsm } = spec;
-        
-        switch (String(ply)) {
-            case '3':
-                return [topGsm, flute1Gsm, bottomGsm].filter(Boolean).join('/');
-            case '5':
-                return [topGsm, flute1Gsm, middleGsm, flute2Gsm, bottomGsm].filter(Boolean).join('/');
-            case '7':
-                return [topGsm, flute1Gsm, liner2Gsm, flute2Gsm, liner3Gsm, flute3Gsm, bottomGsm].filter(Boolean).join('/');
-            case '9':
-                 return [topGsm, flute1Gsm, liner2Gsm, flute2Gsm, liner3Gsm, flute3Gsm, liner4Gsm, flute4Gsm, bottomGsm].filter(Boolean).join('/');
-            default:
-                return [topGsm, bottomGsm].filter(Boolean).join('/');
-        }
     };
     
     return (
