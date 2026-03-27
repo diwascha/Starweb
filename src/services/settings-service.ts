@@ -1,4 +1,3 @@
-
 import { getFirebase } from '@/lib/firebase';
 import { collection, doc, getDoc, setDoc, onSnapshot, updateDoc } from 'firebase/firestore';
 import type { AppSetting, CostSetting, CostSettingHistoryEntry } from '@/lib/types';
@@ -80,6 +79,11 @@ export const updateCostSettings = async (newCosts: Partial<CostSetting>, updated
             changed = true;
         }
         
+        // Terms & Conditions don't need history for now as per user request focus
+        if (newCosts.termsAndConditions) {
+            changed = true;
+        }
+
         if (changed) {
             await updateDoc(docRef, {
                 value: {
@@ -108,6 +112,7 @@ export const updateCostSettings = async (newCosts: Partial<CostSetting>, updated
                 kraftPaperCosts: newCosts.kraftPaperCosts || {},
                 virginPaperCost: newCosts.virginPaperCost || 0,
                 conversionCost: newCosts.conversionCost || 0,
+                termsAndConditions: newCosts.termsAndConditions || [],
                 history: newHistory,
                 createdBy: updatedBy,
                 createdAt: now,

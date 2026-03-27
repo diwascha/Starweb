@@ -22,6 +22,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
         transportCostType: data.transportCostType,
         items: data.items,
         totalCost: data.totalCost,
+        termsAndConditions: data.termsAndConditions || [],
         createdBy: data.createdBy,
         createdAt: data.createdAt,
     };

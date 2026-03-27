@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Printer, Loader2, Plus, Trash2, ChevronsUpDown, Check, PlusCircle, Edit, Save, MoreHorizontal, Search, ArrowUpDown, History, Library, HistoryIcon, Paperclip, Clipboard, Copy, Image as ImageIcon, ChevronDown, ChevronUp } from 'lucide-react';
+import { Printer, Loader2, Plus, Trash2, ChevronsUpDown, Check, PlusCircle, Edit, Save, MoreHorizontal, Search, ArrowUpDown, History, Library, HistoryIcon, Paperclip, Clipboard, Copy, Image as ImageIcon, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon } from 'lucide-react';
@@ -84,9 +84,10 @@ interface QuotationPreviewDialogProps {
   products: Product[];
   transportCost?: number;
   transportCostType?: 'Per Piece' | 'Per Consignment';
+  termsAndConditions?: string[];
 }
 
-function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate, party, items, products, transportCost, transportCostType }: QuotationPreviewDialogProps) {
+function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate, party, items, products, transportCost, transportCostType, termsAndConditions = [] }: QuotationPreviewDialogProps) {
   const printRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
@@ -198,12 +199,14 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                 didDrawPage: (data: any) => {
                     let finalY = data.cursor.y;
                     doc.setFontSize(10);
-                    doc.text("Terms & Conditions:", 14, finalY + 10);
-                    doc.text("VAT 13% will be extra.", 14, finalY + 15);
-                    doc.text("Weight tolerance will be +/- 10%.", 14, finalY + 20);
-                    doc.text("The rates are valid for 7 days from the date of this quotation.", 14, finalY + 25);
+                    if (termsAndConditions.length > 0) {
+                        doc.text("Terms & Conditions:", 14, finalY + 10);
+                        termsAndConditions.forEach((term, idx) => {
+                            doc.text(`${idx + 1}. ${term}`, 14, finalY + 15 + (idx * 5));
+                        });
+                    }
                     
-                    doc.text("Authorized Signature", doc.internal.pageSize.getWidth() - 14, finalY + 40, { align: 'right' });
+                    doc.text("Authorized Signature", doc.internal.pageSize.getWidth() - 14, doc.internal.pageSize.getHeight() - 20, { align: 'right' });
                 }
             });
 
@@ -315,14 +318,16 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                         )}
                     </TableBody>
                 </Table>
-                <div className="mt-8">
-                    <h4 className="font-bold">Terms & Conditions:</h4>
-                    <ul className="list-disc list-inside text-sm">
-                        <li>VAT 13% will be extra.</li>
-                        <li>Weight tolerance will be +/- 10%.</li>
-                        <li>The rates are valid for 7 days from the date of this quotation.</li>
-                    </ul>
-                </div>
+                {termsAndConditions.length > 0 && (
+                    <div className="mt-8">
+                        <h4 className="font-bold">Terms & Conditions:</h4>
+                        <ul className="list-disc list-inside text-sm">
+                            {termsAndConditions.map((term, i) => (
+                                <li key={i}>{term}</li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
                  <div className="mt-16 text-right">
                     <p className="font-bold">Authorized Signature</p>
                 </div>
@@ -393,6 +398,9 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
   const [conversionCost, setConversionCost] = useState<number | ''>('');
   const [transportCost, setTransportCost] = useState<number | ''>('');
   const [transportCostType, setTransportCostType] = useState<'Per Piece' | 'Per Consignment'>('Per Consignment');
+  const [termsAndConditions, setTermsAndConditions] = useState<string[]>([]);
+  const [newTerm, setNewTerm] = useState('');
+  
   const [isCostHistoryDialogOpen, setIsCostHistoryDialogOpen] = useState(false);
 
   const [isSaving, setIsSaving] = useState(false);
@@ -416,6 +424,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
   
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isCostsOpen, setIsCostsOpen] = useState(true);
+  const [isTermsOpen, setIsTermsOpen] = useState(false);
 
   const uniquePartiesForLoad = useMemo(() => {
     const partyNames = new Set(products.map(p => p.partyName).filter(Boolean));
@@ -432,6 +441,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                 setKraftPaperCosts(settings.kraftPaperCosts || initialKraftCosts);
                 setVirginPaperCost(settings.virginPaperCost || '');
                 setConversionCost(settings.conversionCost || '');
+                setTermsAndConditions(settings.termsAndConditions || []);
             }
         }
     });
@@ -620,6 +630,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
       setConversionCost(reportToEdit.conversionCost || (costSettings?.conversionCost ?? ''));
       setTransportCost(reportToEdit.transportCost ?? '');
       setTransportCostType(reportToEdit.transportCostType ?? 'Per Consignment');
+      setTermsAndConditions(reportToEdit.termsAndConditions || []);
       
       const kCostsForCalc = Object.fromEntries(Object.entries(reportToEdit.kraftPaperCosts || {}).map(([bf, cost]) => [normalizeBF(bf), cost]));
       const vCost = reportToEdit.virginPaperCost || 0;
@@ -642,6 +653,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
             setKraftPaperCosts(costSettings.kraftPaperCosts || initialKraftCosts);
             setVirginPaperCost(costSettings.virginPaperCost || '');
             setConversionCost(costSettings.conversionCost || '');
+            setTermsAndConditions(costSettings.termsAndConditions || []);
         }
         setTransportCost('');
         setTransportCostType('Per Consignment');
@@ -852,6 +864,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
               conversionCost: cCost,
               transportCost: Number(transportCost) || 0,
               transportCostType: transportCostType,
+              termsAndConditions: termsAndConditions,
               items: items.map(({ calculated, accessories, ...item }) => ({
                 ...item,
                 paperBf: normalizeBF(item.paperBf),
@@ -1016,6 +1029,24 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     return max;
   }, [items]);
 
+  const handleAddTerm = () => {
+    if (newTerm.trim()) {
+        setTermsAndConditions([...termsAndConditions, newTerm.trim()]);
+        setNewTerm('');
+    }
+  };
+
+  const handleRemoveTerm = (index: number) => {
+    setTermsAndConditions(termsAndConditions.filter((_, i) => i !== index));
+  };
+
+  const handleEditTerm = (index: number, value: string) => {
+    const updated = [...termsAndConditions];
+    updated[index] = value;
+    setTermsAndConditions(updated);
+  };
+
+
   return (
     <div className="flex flex-col gap-4">
         {reportToEdit && (
@@ -1025,9 +1056,9 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
             </div>
         )}
       
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <Collapsible open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-                <Card>
+                <Card className="h-full">
                     <CardHeader className="py-3 px-6">
                         <div className="flex items-center justify-between">
                             <CollapsibleTrigger asChild>
@@ -1106,7 +1137,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
             </Collapsible>
 
             <Collapsible open={isCostsOpen} onOpenChange={setIsCostsOpen}>
-                <Card>
+                <Card className="h-full">
                     <CardHeader className="py-3 px-6">
                         <div className="flex items-center justify-between">
                             <CollapsibleTrigger asChild>
@@ -1174,6 +1205,53 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                         </div>
                                     </div>
                                 </div>
+                            </div>
+                        </CardContent>
+                    </CollapsibleContent>
+                </Card>
+            </Collapsible>
+
+            <Collapsible open={isTermsOpen} onOpenChange={setIsTermsOpen}>
+                <Card className="h-full">
+                    <CardHeader className="py-3 px-6">
+                        <CollapsibleTrigger asChild>
+                            <Button variant="ghost" size="sm" className="p-0 h-auto hover:bg-transparent">
+                                <CardTitle className="text-lg flex items-center gap-2 cursor-pointer">
+                                    {isTermsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                    Terms & Conditions
+                                </CardTitle>
+                            </Button>
+                        </CollapsibleTrigger>
+                    </CardHeader>
+                    <CollapsibleContent>
+                        <CardContent className="pt-0 pb-4 space-y-2">
+                            <ScrollArea className="h-24 pr-2">
+                                <div className="space-y-1">
+                                    {termsAndConditions.map((term, index) => (
+                                        <div key={index} className="flex items-center gap-2 group">
+                                            <Input 
+                                                value={term} 
+                                                onChange={(e) => handleEditTerm(index, e.target.value)} 
+                                                className="h-7 text-xs"
+                                            />
+                                            <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive opacity-0 group-hover:opacity-100" onClick={() => handleRemoveTerm(index)}>
+                                                <Trash2 className="h-3 w-3" />
+                                            </Button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </ScrollArea>
+                            <div className="flex gap-2">
+                                <Input 
+                                    placeholder="Add new term..." 
+                                    value={newTerm} 
+                                    onChange={(e) => setNewTerm(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleAddTerm()}
+                                    className="h-8 text-xs"
+                                />
+                                <Button size="icon" className="h-8 w-8 shrink-0" onClick={handleAddTerm}>
+                                    <Plus className="h-4 w-4" />
+                                </Button>
                             </div>
                         </CardContent>
                     </CollapsibleContent>
@@ -1560,6 +1638,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                 products={products}
                 transportCost={Number(transportCost) || 0}
                 transportCostType={transportCostType}
+                termsAndConditions={termsAndConditions}
             />
         )}
       <Dialog open={isLoadProductsDialogOpen} onOpenChange={setIsLoadProductsDialogOpen}>
@@ -1907,6 +1986,7 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
                 products={products}
                 transportCost={reportToPrint.transportCost}
                 transportCostType={reportToPrint.transportCostType}
+                termsAndConditions={reportToPrint.termsAndConditions}
             />
         )}
       </>
@@ -2457,6 +2537,9 @@ function CostingSettingsTab() {
   const [kraftPaperCosts, setKraftPaperCosts] = useState<Record<string, number | ''>>(initialKraftCosts);
   const [virginPaperCost, setVirginPaperCost] = useState<number | ''>('');
   const [conversionCost, setConversionCost] = useState<number | ''>('');
+  const [defaultTerms, setDefaultTerms] = useState<string[]>([]);
+  const [newDefaultTerm, setNewDefaultTerm] = useState('');
+  
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -2468,12 +2551,13 @@ function CostingSettingsTab() {
             setKraftPaperCosts(settings.kraftPaperCosts || initialKraftCosts);
             setVirginPaperCost(settings.virginPaperCost || '');
             setConversionCost(settings.conversionCost || '');
+            setDefaultTerms(settings.termsAndConditions || []);
         }
     });
     return () => unsubCostSettings();
   }, []);
 
-  const handleSaveCosts = async () => {
+  const handleSaveSettings = async () => {
     if (!user) return;
     try {
         const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [normalizeBF(bf), Number(cost) || 0]));
@@ -2481,6 +2565,7 @@ function CostingSettingsTab() {
             kraftPaperCosts: kCosts,
             virginPaperCost: Number(virginPaperCost) || 0,
             conversionCost: Number(conversionCost) || 0,
+            termsAndConditions: defaultTerms,
         }, user.username);
         toast({ title: "Success", description: "Cost settings saved." });
     } catch (e) {
@@ -2488,41 +2573,92 @@ function CostingSettingsTab() {
     }
   };
 
+  const handleAddDefaultTerm = () => {
+    if (newDefaultTerm.trim()) {
+        setDefaultTerms([...defaultTerms, newDefaultTerm.trim()]);
+        setNewDefaultTerm('');
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-1">
-            <CardHeader>
-                <CardTitle>Default Costs</CardTitle>
-                <CardDescription>These values will be used as defaults in new cost reports.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="space-y-4 rounded-lg border p-4">
-                    <Label>Kraft Paper Costs</Label>
-                    {bfOptions.map(bf => (
-                        <div key={bf} className="flex items-center justify-between">
-                            <Label htmlFor={`globalKraftCost-${bf}`} className="text-sm font-normal">{bf}</Label>
-                            <Input id={`globalKraftCost-${bf}`} type="number" placeholder="Rate" className="w-24 h-8" value={kraftPaperCosts[normalizeBF(bf)] ?? ''} onChange={e => setKraftPaperCosts(prev => ({...prev, [normalizeBF(bf)]: e.target.value === '' ? '' : parseFloat(e.target.value)}))} />
+        <div className="lg:col-span-1 space-y-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Default Costs</CardTitle>
+                    <CardDescription>These values will be used as defaults in new cost reports.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="space-y-4 rounded-lg border p-4">
+                        <Label>Kraft Paper Costs</Label>
+                        {bfOptions.map(bf => (
+                            <div key={bf} className="flex items-center justify-between">
+                                <Label htmlFor={`globalKraftCost-${bf}`} className="text-sm font-normal">{bf}</Label>
+                                <Input id={`globalKraftCost-${bf}`} type="number" placeholder="Rate" className="w-24 h-8" value={kraftPaperCosts[normalizeBF(bf)] ?? ''} onChange={e => setKraftPaperCosts(prev => ({...prev, [normalizeBF(bf)]: e.target.value === '' ? '' : parseFloat(e.target.value)}))} />
+                            </div>
+                        ))}
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="globalVirginCost">Virgin Paper Cost</Label>
+                        <Input id="globalVirginCost" type="number" placeholder="Enter cost" value={virginPaperCost} onChange={e => setVirginPaperCost(e.target.value === '' ? '' : parseFloat(e.target.value))} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="globalConversionCost">Conversion Cost</Label>
+                        <Input id="globalConversionCost" type="number" placeholder="Enter cost" value={conversionCost} onChange={e => setConversionCost(e.target.value === '' ? '' : parseFloat(e.target.value))} />
+                    </div>
+                </CardContent>
+            </Card>
+            
+            <Card>
+                <CardHeader>
+                    <CardTitle>Default Terms & Conditions</CardTitle>
+                    <CardDescription>Terms pre-filled for new cost reports.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <ScrollArea className="h-40 pr-2 border rounded-md p-2">
+                        <div className="space-y-2">
+                            {defaultTerms.map((term, i) => (
+                                <div key={i} className="flex items-center gap-2 group">
+                                    <Input 
+                                        value={term} 
+                                        onChange={(e) => {
+                                            const updated = [...defaultTerms];
+                                            updated[i] = e.target.value;
+                                            setDefaultTerms(updated);
+                                        }} 
+                                        className="h-8 text-xs"
+                                    />
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive shrink-0" onClick={() => setDefaultTerms(defaultTerms.filter((_, idx) => idx !== i))}>
+                                        <X className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            ))}
                         </div>
-                    ))}
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="globalVirginCost">Virgin Paper Cost</Label>
-                    <Input id="globalVirginCost" type="number" placeholder="Enter cost" value={virginPaperCost} onChange={e => setVirginPaperCost(e.target.value === '' ? '' : parseFloat(e.target.value))} />
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="globalConversionCost">Conversion Cost</Label>
-                    <Input id="globalConversionCost" type="number" placeholder="Enter cost" value={conversionCost} onChange={e => setConversionCost(e.target.value === '' ? '' : parseFloat(e.target.value))} />
-                </div>
-                <Button onClick={handleSaveCosts}>Save Default Costs</Button>
-            </CardContent>
-        </Card>
+                    </ScrollArea>
+                    <div className="flex gap-2">
+                        <Input 
+                            placeholder="New default term..." 
+                            value={newDefaultTerm} 
+                            onChange={(e) => setNewDefaultTerm(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleAddDefaultTerm()}
+                            className="h-9 text-sm"
+                        />
+                        <Button size="icon" className="h-9 w-9 shrink-0" onClick={handleAddDefaultTerm}>
+                            <Plus className="h-4 w-4" />
+                        </Button>
+                    </div>
+                    <Button className="w-full" onClick={handleSaveSettings}>Save Settings</Button>
+                </CardContent>
+            </Card>
+        </div>
+
         <Card className="lg:col-span-2">
              <CardHeader>
                 <CardTitle>Costing History</CardTitle>
                 <CardDescription>Review past changes to paper and conversion costs.</CardDescription>
             </CardHeader>
             <CardContent>
-                <ScrollArea className="h-96">
+                <ScrollArea className="h-[500px]">
                     {(costSettings?.history || []).length > 0 ? (
                     <div className="space-y-4">
                         {[...(costSettings?.history || [])].reverse().map((entry, index) => (
