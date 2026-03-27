@@ -87,7 +87,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
     
     const printWindow = window.open('', '', 'height=800,width=800');
     printWindow?.document.write('<html><head><title>Print Quotation</title>');
-    printWindow?.document.write('</style>');
+    printWindow?.document.write('<style>@media print{@page{size: A4;margin: 0;}body{margin: 1.6cm;}}body{font-family:sans-serif;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ddd;padding:8px;}.text-right{text-align:right;}.font-bold{font-weight:bold;}</style>');
     printWindow?.document.write('</head><body>');
     printWindow?.document.write(printableArea.innerHTML);
     printWindow?.document.write('</body></html>');
@@ -140,7 +140,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                     `${item.ply} Ply, ${item.boxType}`,
                     `${item.paperType} ${normalizeBF(item.paperBf)}`,
                     `${item.topGsm}/${item.flute1Gsm}/${item.bottomGsm}`,
-                     `${(item.calculated?.totalBoxWeight || 0).toFixed(2)}`,
+                     `${(item.calculated?.paperWeight || 0).toFixed(2)}`,
                     `Rs. ${item.totalItemCost.toFixed(2)}`
                 ];
 
@@ -151,7 +151,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                     `${acc.ply} Ply`,
                     `${acc.paperType} ${normalizeBF(acc.paperBf)}`,
                     `${acc.topGsm}`,
-                    `${(acc.calculated?.totalBoxWeight || 0).toFixed(2)}`,
+                    `${(acc.calculated?.paperWeight || 0).toFixed(2)}`,
                     `(${(acc.calculated?.paperCost || 0).toFixed(2)})`
                 ]);
                 
@@ -268,7 +268,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                                 <TableCell>{item.ply} Ply, {item.boxType}</TableCell>
                                 <TableCell>{item.paperType} {normalizeBF(item.paperBf)}</TableCell>
                                 <TableCell>{item.topGsm}/{item.flute1Gsm}/{item.bottomGsm}</TableCell>
-                                <TableCell>{(item.calculated?.totalBoxWeight || 0).toFixed(2)}</TableCell>
+                                <TableCell>{(item.calculated?.paperWeight || 0).toFixed(2)}</TableCell>
                                 <TableCell className="text-right font-bold">Rs. {item.totalItemCost.toFixed(2)}</TableCell>
                              </TableRow>
                              {(item.accessories || []).map((acc) => (
@@ -279,7 +279,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                                      <TableCell>{acc.ply} Ply</TableCell>
                                      <TableCell>{acc.paperType} {normalizeBF(acc.paperBf)}</TableCell>
                                      <TableCell>{acc.topGsm}</TableCell>
-                                     <TableCell>{(acc.calculated.totalBoxWeight || 0).toFixed(2)}</TableCell>
+                                     <TableCell>{(acc.calculated.paperWeight || 0).toFixed(2)}</TableCell>
                                      <TableCell className="text-right">({(acc.calculated.paperCost || 0).toFixed(2)})</TableCell>
                                  </TableRow>
                              ))}
