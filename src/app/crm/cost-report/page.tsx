@@ -73,6 +73,21 @@ const getGsmDisplay = (item: any) => {
     return layers.filter(l => l !== undefined && l !== null && String(l).trim() !== '').join('/');
 };
 
+// Compact GSM component for UI display
+const CompactGsmDisplay = ({ item }: { item: any }) => {
+    const display = getGsmDisplay(item);
+    if (!display || display === 'N/A') return <span>N/A</span>;
+    const parts = display.split('/');
+    if (parts.length <= 3) return <span>{display}</span>;
+    const mid = Math.ceil(parts.length / 2);
+    return (
+        <div className="flex flex-col leading-tight whitespace-nowrap">
+            <span>{parts.slice(0, mid).join('/')}</span>
+            <span>{parts.slice(mid).join('/')}</span>
+        </div>
+    );
+};
+
 // Quotation Preview Component
 interface QuotationPreviewDialogProps {
   isOpen: boolean;
@@ -156,13 +171,23 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
 
             const body = items.flatMap((item, index) => {
                 const productName = getProductDisplayName(item.productId);
+                
+                // Format GSM for PDF - use newline for split
+                const getGsmPdf = (it: any) => {
+                    const g = getGsmDisplay(it);
+                    const parts = g.split('/');
+                    if (parts.length <= 3) return g;
+                    const mid = Math.ceil(parts.length / 2);
+                    return parts.slice(0, mid).join('/') + '\n' + parts.slice(mid).join('/');
+                };
+
                 const mainRow = [
                     index + 1,
                     productName,
                     `${item.l}x${item.b}x${item.h}`,
                     `${item.ply} Ply, ${item.boxType}`,
                     `${item.paperType} ${normalizeBF(item.paperBf)}`,
-                    getGsmDisplay(item),
+                    getGsmPdf(item),
                      `${(item.calculated?.paperWeight || 0).toFixed(2)}`,
                     `Rs. ${item.totalItemCost.toFixed(2)}`
                 ];
@@ -173,7 +198,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                     formatAccessoryDimension(acc as ProductAccessory),
                     `${acc.ply} Ply`,
                     `${acc.paperType} ${normalizeBF(acc.paperBf)}`,
-                    getGsmDisplay(acc),
+                    getGsmPdf(acc),
                     `${(acc.calculated?.paperWeight || 0).toFixed(2)}`,
                     `(${(acc.calculated?.paperCost || 0).toFixed(2)})`
                 ]);
@@ -208,7 +233,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                     
                     doc.setFontSize(8);
                     doc.setTextColor(100);
-                    doc.text("This is a computer-generated document. No signature required.", doc.internal.pageSize.getWidth() / 2, doc.internal.pageSize.getHeight() - 15, { align: 'center' });
+                    doc.text("Disclaimer: This document is electronically generated and does not require a signature.", doc.internal.pageSize.getWidth() / 2, doc.internal.pageSize.getHeight() - 15, { align: 'center' });
                 }
             });
 
@@ -294,7 +319,9 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                                 <TableCell>{item.l}x{item.b}x{item.h}</TableCell>
                                 <TableCell>{item.ply} Ply, {item.boxType}</TableCell>
                                 <TableCell>{item.paperType} {normalizeBF(item.paperBf)}</TableCell>
-                                <TableCell>{getGsmDisplay(item)}</TableCell>
+                                <TableCell>
+                                    <CompactGsmDisplay item={item} />
+                                </TableCell>
                                 <TableCell>{(item.calculated?.paperWeight || 0).toFixed(2)}</TableCell>
                                 <TableCell className="text-right font-bold">Rs. {item.totalItemCost.toFixed(2)}</TableCell>
                              </TableRow>
@@ -305,7 +332,9 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                                      <TableCell>{formatAccessoryDimension(acc as ProductAccessory)}</TableCell>
                                      <TableCell>{acc.ply} Ply</TableCell>
                                      <TableCell>{acc.paperType} {normalizeBF(acc.paperBf)}</TableCell>
-                                     <TableCell>{getGsmDisplay(acc)}</TableCell>
+                                     <TableCell>
+                                         <CompactGsmDisplay item={acc} />
+                                     </TableCell>
                                      <TableCell>{(acc.calculated.paperWeight || 0).toFixed(2)}</TableCell>
                                      <TableCell className="text-right">({(acc.calculated.paperCost || 0).toFixed(2)})</TableCell>
                                  </TableRow>
@@ -331,7 +360,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                     </div>
                 )}
                  <div className="mt-16 text-center text-[10px] text-muted-foreground border-t pt-4">
-                    <p>This is a computer-generated document. No signature required.</p>
+                    <p>Disclaimer: This document is electronically generated and does not require a signature.</p>
                 </div>
             </div>
         </div>
@@ -1296,7 +1325,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                 <TableHead rowSpan={2} className="align-bottom px-1">Flute</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom px-1">Type</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom px-1">Paper BF</TableHead>
-                                <TableHead rowSpan={2} className="align-bottom px-1 min-w-[80px]">Waste %</TableHead>
+                                <TableHead rowSpan={2} className="align-bottom px-1 min-w-[60px]">Waste %</TableHead>
                                 <TableHead colSpan={maxPly} className="text-center px-1">GSM</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom px-1">T.GSM</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom px-1">R.Size</TableHead>
@@ -1396,9 +1425,9 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                           </Popover>
                                         </div>
                                       </TableCell>
-                                      <TableCell className="px-1"><Input type="number" value={item.l} onChange={e => handleItemChange(index, 'l', e.target.value)} className="w-20 h-7 px-1 text-[10px]" /></TableCell>
-                                      <TableCell className="px-1"><Input type="number" value={item.b} onChange={e => handleItemChange(index, 'b', e.target.value)} className="w-20 h-7 px-1 text-[10px]" /></TableCell>
-                                      <TableCell className="px-1"><Input type="number" value={item.h} onChange={e => handleItemChange(index, 'h', e.target.value)} className="w-20 h-7 px-1 text-[10px]" /></TableCell>
+                                      <TableCell className="px-1"><Input type="number" value={item.l} onChange={e => handleItemChange(index, 'l', e.target.value)} className="w-[45px] h-7 px-1 text-[10px]" /></TableCell>
+                                      <TableCell className="px-1"><Input type="number" value={item.b} onChange={e => handleItemChange(index, 'b', e.target.value)} className="w-[45px] h-7 px-1 text-[10px]" /></TableCell>
+                                      <TableCell className="px-1"><Input type="number" value={item.h} onChange={e => handleItemChange(index, 'h', e.target.value)} className="w-[45px] h-7 px-1 text-[10px]" /></TableCell>
                                       <TableCell className="px-1"><Input type="number" value={item.noOfPcs} onChange={e => handleItemChange(index, 'noOfPcs', e.target.value)} className="w-16 h-7 px-1 text-[10px]" /></TableCell>
                                       <TableCell className="px-1">
                                         <Select value={item.ply} onValueChange={(value) => handleItemChange(index, 'ply', value)}>
@@ -1437,7 +1466,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                           </SelectContent>
                                         </Select>
                                       </TableCell>
-                                      <TableCell className="px-1"><Input type="number" value={item.wastagePercent} onChange={e => handleItemChange(index, 'wastagePercent', e.target.value)} className="w-20 h-7 px-1 text-[10px]" /></TableCell>
+                                      <TableCell className="px-1"><Input type="number" value={item.wastagePercent} onChange={e => handleItemChange(index, 'wastagePercent', e.target.value)} className="w-[45px] h-7 px-1 text-[10px]" /></TableCell>
                                       <TableCell className="px-1"><Input type="number" value={item.topGsm} onChange={e => handleItemChange(index, 'topGsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /></TableCell>
                                       <TableCell className="px-1"><Input type="number" value={item.flute1Gsm} onChange={e => handleItemChange(index, 'flute1Gsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /></TableCell>
                                       {maxPly >= 7 && <TableCell className="px-1">{ply >= 7 ? <Input type="number" value={item.liner2Gsm} onChange={e => handleItemChange(index, 'liner2Gsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /> : null}</TableCell>}
@@ -1477,9 +1506,9 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                             <TableCell colSpan={2} className="px-1 pl-6">
                                                 <Input placeholder="Acc Name" value={acc.name} onChange={e => handleAccessoryChange(index, accIndex, 'name', e.target.value)} className="h-6 text-[10px]" />
                                             </TableCell>
-                                            <TableCell className="px-1"><Input type="number" placeholder="L" value={acc.l} onChange={e => handleAccessoryChange(index, accIndex, 'l', e.target.value)} className="w-20 h-6 px-1 text-[10px]"/></TableCell>
-                                            <TableCell className="px-1"><Input type="number" placeholder="B" value={acc.b} onChange={e => handleAccessoryChange(index, accIndex, 'b', e.target.value)} className="w-20 h-6 px-1 text-[10px]"/></TableCell>
-                                            <TableCell className="px-1"><Input type="number" placeholder="H" value={acc.h} onChange={e => handleAccessoryChange(index, accIndex, 'h', e.target.value)} className="w-20 h-6 px-1 text-[10px]"/></TableCell>
+                                            <TableCell className="px-1"><Input type="number" placeholder="L" value={acc.l} onChange={e => handleAccessoryChange(index, accIndex, 'l', e.target.value)} className="w-[45px] h-6 px-1 text-[10px]"/></TableCell>
+                                            <TableCell className="px-1"><Input type="number" placeholder="B" value={acc.b} onChange={e => handleAccessoryChange(index, accIndex, 'b', e.target.value)} className="w-[45px] h-6 px-1 text-[10px]"/></TableCell>
+                                            <TableCell className="px-1"><Input type="number" placeholder="H" value={acc.h} onChange={e => handleAccessoryChange(index, accIndex, 'h', e.target.value)} className="w-[45px] h-6 px-1 text-[10px]"/></TableCell>
                                             <TableCell className="px-1"><Input type="number" placeholder="Pcs" value={acc.noOfPcs} onChange={e => handleAccessoryChange(index, accIndex, 'noOfPcs', e.target.value)} className="w-16 h-6 px-1 text-[10px]"/></TableCell>
                                             <TableCell className="px-1">
                                                 <Select value={String(acc.ply)} onValueChange={(value) => handleAccessoryChange(index, accIndex, 'ply', value)}>
@@ -1518,7 +1547,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                                   </SelectContent>
                                                 </Select>
                                             </TableCell>
-                                            <TableCell className="px-1"><Input type="number" value={acc.wastagePercent} onChange={e => handleAccessoryChange(index, accIndex, 'wastagePercent', e.target.value)} className="w-20 h-6 px-1 text-[10px]" /></TableCell>
+                                            <TableCell className="px-1"><Input type="number" value={acc.wastagePercent} onChange={e => handleAccessoryChange(index, accIndex, 'wastagePercent', e.target.value)} className="w-[45px] h-6 px-1 text-[10px]" /></TableCell>
                                             <TableCell className="px-1"><Input type="number" value={acc.topGsm} onChange={e => handleAccessoryChange(index, accIndex, 'topGsm', e.target.value)} className="w-14 h-6 px-1 text-[10px]" /></TableCell>
                                             <TableCell className="px-1"><Input type="number" value={acc.flute1Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'flute1Gsm', e.target.value)} className="w-14 h-6 px-1 text-[10px]" /></TableCell>
                                             {maxPly >= 7 && <TableCell className="px-1">{accPly >= 7 ? <Input type="number" value={acc.liner2Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'liner2Gsm', e.target.value)} className="w-14 h-6 px-1 text-[10px]" /> : null}</TableCell>}
@@ -2459,7 +2488,7 @@ function SavedProductsList() {
                                 <TableCell>{p.specification?.dimension || 'N/A'}</TableCell>
                                 <TableCell>{p.specification?.ply || 'N/A'}</TableCell>
                                 <TableCell>
-                                  {getGsmDisplay(p)}
+                                  <CompactGsmDisplay item={p} />
                                 </TableCell>
                                 <TableCell>{normalizeBF(p.specification?.paperBf) || 'N/A'}</TableCell>
                                 <TableCell className="text-right">
