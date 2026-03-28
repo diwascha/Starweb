@@ -73,7 +73,7 @@ const getGsmDisplay = (item: any) => {
     return layers.filter(l => l !== undefined && l !== null && String(l).trim() !== '').join('/');
 };
 
-// Compact GSM component for UI display
+// Compact GSM component for UI display (splits into two rows for high-ply)
 const CompactGsmDisplay = ({ item }: { item: any }) => {
     const display = getGsmDisplay(item);
     if (!display || display === 'N/A') return <span>N/A</span>;
@@ -172,7 +172,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
             const body = items.flatMap((item, index) => {
                 const productName = getProductDisplayName(item.productId);
                 
-                // Format GSM for PDF - use newline for split
+                // Format GSM for PDF - use newline for split if high ply
                 const getGsmPdf = (it: any) => {
                     const g = getGsmDisplay(it);
                     const parts = g.split('/');
@@ -339,14 +339,14 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                                      <TableCell className="text-right">({(acc.calculated.paperCost || 0).toFixed(2)})</TableCell>
                                  </TableRow>
                              ))}
-                           </React.Fragment>
-                        ))}
                         {!!transportCost && transportCostType === 'Per Consignment' && (
                             <TableRow className="font-bold">
                                 <TableCell colSpan={7} className="text-right">Transport Cost (Lump Sum)</TableCell>
                                 <TableCell className="text-right">Rs. {transportCost.toFixed(2)}</TableCell>
                             </TableRow>
                         )}
+                           </React.Fragment>
+                        ))}
                     </TableBody>
                 </Table>
                 {termsAndConditions.length > 0 && (
@@ -468,16 +468,10 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
         if (setting?.value) {
             const settings = setting.value as CostSetting;
             setCostSettings(settings);
-            if (!reportToEdit) { // Only set from global if it's a new report
-                setKraftPaperCosts(settings.kraftPaperCosts || initialKraftCosts);
-                setVirginPaperCost(settings.virginPaperCost || '');
-                setConversionCost(settings.conversionCost || '');
-                setTermsAndConditions(settings.termsAndConditions || []);
-            }
         }
     });
     return () => unsubCostSettings();
-  }, [reportToEdit]);
+  }, []);
 
   const calculateItemCost = useCallback((item: Omit<CostReportItem, 'id' | 'calculated' | 'productId' | 'accessories'> | Omit<Accessory, 'id' | 'calculated' | 'productId'>, globalKraftCosts: Record<string, number>, globalVirginCost: number, globalConversionCost: number): CalculatedValues => {
     const l = parseFloat(item.l) || 0;
@@ -645,6 +639,8 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     };
   };
 
+  const initializedRef = useRef(false);
+
   useEffect(() => {
     if (reportToEdit) {
       setReportNumber(reportToEdit.reportNumber);
@@ -676,7 +672,8 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
           return fullItem;
       }));
       setSelectedForPrint(new Set(reportToEdit.items.map(i => i.id)));
-    } else {
+      initializedRef.current = true;
+    } else if (!initializedRef.current || selectedPartyId === '') {
         generateNextCostReportNumber(costReports).then(setReportNumber);
         setReportDate(new Date());
         setSelectedPartyId('');
@@ -690,8 +687,9 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
         setTransportCostType('Per Consignment');
         setItems([]);
         setSelectedForPrint(new Set());
+        initializedRef.current = true;
     }
-  }, [reportToEdit, costReports, calculateItemCost, costSettings]);
+  }, [reportToEdit, costReports, calculateItemCost, costSettings, selectedPartyId]);
 
 
   const handleProductSelect = (index: number, productId: string) => {
@@ -1182,7 +1180,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                         </CardHeader>
                         <CollapsibleContent>
                             <CardContent className="pt-0 pb-3 space-y-2">
-                                <ScrollArea className="h-20 pr-2">
+                                <ScrollArea className="h-24 pr-2">
                                     <div className="space-y-1">
                                         {termsAndConditions.map((term, index) => (
                                             <div key={index} className="flex items-center gap-2 group">
@@ -1325,13 +1323,13 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                 <TableHead rowSpan={2} className="align-bottom px-1">Flute</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom px-1">Type</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom px-1">Paper BF</TableHead>
-                                <TableHead rowSpan={2} className="align-bottom px-1 min-w-[60px]">Waste %</TableHead>
+                                <TableHead rowSpan={2} className="align-bottom px-1 w-[80px]">Waste %</TableHead>
                                 <TableHead colSpan={maxPly} className="text-center px-1">GSM</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom px-1">T.GSM</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom px-1">R.Size</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom px-1">C.Size</TableHead>
-                                <TableHead rowSpan={2} className="align-bottom px-1">Net Wt</TableHead>
-                                <TableHead rowSpan={2} className="align-bottom px-1">Waste Wt</TableHead>
+                                <TableHead rowSpan={2} className="align-bottom px-1">Box Wt (g)</TableHead>
+                                <TableHead rowSpan={2} className="align-bottom px-1">Waste Wt (g)</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom px-1 font-bold">Total Wt</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom px-1">Paper Rs</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom px-1">Acc. Rs</TableHead>
@@ -1425,9 +1423,15 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                           </Popover>
                                         </div>
                                       </TableCell>
-                                      <TableCell className="px-1"><Input type="number" value={item.l} onChange={e => handleItemChange(index, 'l', e.target.value)} className="w-[45px] h-7 px-1 text-[10px]" /></TableCell>
-                                      <TableCell className="px-1"><Input type="number" value={item.b} onChange={e => handleItemChange(index, 'b', e.target.value)} className="w-[45px] h-7 px-1 text-[10px]" /></TableCell>
-                                      <TableCell className="px-1"><Input type="number" value={item.h} onChange={e => handleItemChange(index, 'h', e.target.value)} className="w-[45px] h-7 px-1 text-[10px]" /></TableCell>
+                                      <TableCell className="px-1">
+                                          <div className="flex gap-1">
+                                              <Input type="number" value={item.l} onChange={e => handleItemChange(index, 'l', e.target.value)} className="w-12 h-7 px-1 text-[10px]" />
+                                              <Input type="number" value={item.b} onChange={e => handleItemChange(index, 'b', e.target.value)} className="w-12 h-7 px-1 text-[10px]" />
+                                              <Input type="number" value={item.h} onChange={e => handleItemChange(index, 'h', e.target.value)} className="w-12 h-7 px-1 text-[10px]" />
+                                          </div>
+                                      </TableCell>
+                                      <TableCell className="px-1"></TableCell>
+                                      <TableCell className="px-1"></TableCell>
                                       <TableCell className="px-1"><Input type="number" value={item.noOfPcs} onChange={e => handleItemChange(index, 'noOfPcs', e.target.value)} className="w-16 h-7 px-1 text-[10px]" /></TableCell>
                                       <TableCell className="px-1">
                                         <Select value={item.ply} onValueChange={(value) => handleItemChange(index, 'ply', value)}>
@@ -1466,7 +1470,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                           </SelectContent>
                                         </Select>
                                       </TableCell>
-                                      <TableCell className="px-1"><Input type="number" value={item.wastagePercent} onChange={e => handleItemChange(index, 'wastagePercent', e.target.value)} className="w-[45px] h-7 px-1 text-[10px]" /></TableCell>
+                                      <TableCell className="px-1"><Input type="number" value={item.wastagePercent} onChange={e => handleItemChange(index, 'wastagePercent', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /></TableCell>
                                       <TableCell className="px-1"><Input type="number" value={item.topGsm} onChange={e => handleItemChange(index, 'topGsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /></TableCell>
                                       <TableCell className="px-1"><Input type="number" value={item.flute1Gsm} onChange={e => handleItemChange(index, 'flute1Gsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /></TableCell>
                                       {maxPly >= 7 && <TableCell className="px-1">{ply >= 7 ? <Input type="number" value={item.liner2Gsm} onChange={e => handleItemChange(index, 'liner2Gsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /> : null}</TableCell>}
@@ -1479,7 +1483,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                       <TableCell className="px-1">{item.calculated.totalGsm.toFixed(1)}</TableCell>
                                       <TableCell className="px-1">{(item.calculated.sheetSizeL / 10).toFixed(1)}</TableCell>
                                       <TableCell className="px-1">{(item.calculated.sheetSizeB / 10).toFixed(1)}</TableCell>
-                                      <TableCell className="px-1">{item.calculated.paperWeight.toFixed(1)}</TableCell>
+                                      <TableCell className="px-1 font-bold">{item.calculated.paperWeight.toFixed(1)}</TableCell>
                                       <TableCell className="px-1">{wasteWt.toFixed(1)}</TableCell>
                                       <TableCell className="px-1 font-bold">{item.calculated.totalBoxWeight.toFixed(1)}</TableCell>
                                       <TableCell className="px-1 font-medium">{item.calculated.paperCost > 0 ? item.calculated.paperCost.toFixed(1) : '...'}</TableCell>
@@ -1506,9 +1510,15 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                             <TableCell colSpan={2} className="px-1 pl-6">
                                                 <Input placeholder="Acc Name" value={acc.name} onChange={e => handleAccessoryChange(index, accIndex, 'name', e.target.value)} className="h-6 text-[10px]" />
                                             </TableCell>
-                                            <TableCell className="px-1"><Input type="number" placeholder="L" value={acc.l} onChange={e => handleAccessoryChange(index, accIndex, 'l', e.target.value)} className="w-[45px] h-6 px-1 text-[10px]"/></TableCell>
-                                            <TableCell className="px-1"><Input type="number" placeholder="B" value={acc.b} onChange={e => handleAccessoryChange(index, accIndex, 'b', e.target.value)} className="w-[45px] h-6 px-1 text-[10px]"/></TableCell>
-                                            <TableCell className="px-1"><Input type="number" placeholder="H" value={acc.h} onChange={e => handleAccessoryChange(index, accIndex, 'h', e.target.value)} className="w-[45px] h-6 px-1 text-[10px]"/></TableCell>
+                                            <TableCell className="px-1">
+                                                <div className="flex gap-1">
+                                                    <Input type="number" placeholder="L" value={acc.l} onChange={e => handleAccessoryChange(index, accIndex, 'l', e.target.value)} className="w-12 h-6 px-1 text-[10px]"/>
+                                                    <Input type="number" placeholder="B" value={acc.b} onChange={e => handleAccessoryChange(index, accIndex, 'b', e.target.value)} className="w-12 h-6 px-1 text-[10px]"/>
+                                                    <Input type="number" placeholder="H" value={acc.h} onChange={e => handleAccessoryChange(index, accIndex, 'h', e.target.value)} className="w-12 h-6 px-1 text-[10px]"/>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="px-1"></TableCell>
+                                            <TableCell className="px-1"></TableCell>
                                             <TableCell className="px-1"><Input type="number" placeholder="Pcs" value={acc.noOfPcs} onChange={e => handleAccessoryChange(index, accIndex, 'noOfPcs', e.target.value)} className="w-16 h-6 px-1 text-[10px]"/></TableCell>
                                             <TableCell className="px-1">
                                                 <Select value={String(acc.ply)} onValueChange={(value) => handleAccessoryChange(index, accIndex, 'ply', value)}>
@@ -1547,7 +1557,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                                   </SelectContent>
                                                 </Select>
                                             </TableCell>
-                                            <TableCell className="px-1"><Input type="number" value={acc.wastagePercent} onChange={e => handleAccessoryChange(index, accIndex, 'wastagePercent', e.target.value)} className="w-[45px] h-6 px-1 text-[10px]" /></TableCell>
+                                            <TableCell className="px-1"><Input type="number" value={acc.wastagePercent} onChange={e => handleAccessoryChange(index, accIndex, 'wastagePercent', e.target.value)} className="w-14 h-6 px-1 text-[10px]" /></TableCell>
                                             <TableCell className="px-1"><Input type="number" value={acc.topGsm} onChange={e => handleAccessoryChange(index, accIndex, 'topGsm', e.target.value)} className="w-14 h-6 px-1 text-[10px]" /></TableCell>
                                             <TableCell className="px-1"><Input type="number" value={acc.flute1Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'flute1Gsm', e.target.value)} className="w-14 h-6 px-1 text-[10px]" /></TableCell>
                                             {maxPly >= 7 && <TableCell className="px-1">{accPly >= 7 ? <Input type="number" value={acc.liner2Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'liner2Gsm', e.target.value)} className="w-14 h-6 px-1 text-[10px]" /> : null}</TableCell>}
@@ -1560,7 +1570,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                             <TableCell className="px-1">{acc.calculated.totalGsm.toFixed(1)}</TableCell>
                                             <TableCell className="px-1">{(acc.calculated.sheetSizeL / 10).toFixed(1)}</TableCell>
                                             <TableCell className="px-1">{(acc.calculated.sheetSizeB / 10).toFixed(1)}</TableCell>
-                                            <TableCell className="px-1">{acc.calculated.paperWeight.toFixed(1)}</TableCell>
+                                            <TableCell className="px-1 font-bold">{acc.calculated.paperWeight.toFixed(1)}</TableCell>
                                             <TableCell className="px-1">{accWasteWt.toFixed(1)}</TableCell>
                                             <TableCell className="px-1 font-bold">{acc.calculated.totalBoxWeight.toFixed(1)}</TableCell>
                                             <TableCell className="px-1 font-medium">{acc.calculated.paperCost > 0 ? acc.calculated.paperCost.toFixed(1) : '...'}</TableCell>
@@ -2040,7 +2050,7 @@ function ProductForm({ productToEdit, onSaveSuccess, onProductFormChange }: { pr
         }
     }, [productToEdit]);
     
-    const handleProductFormChange = (field: keyof typeof productForm, value: any) => {
+    const handleProductFormChangeLocal = (field: keyof typeof productForm, value: any) => {
         const updatedForm = { ...productForm, [field]: value };
         setProductForm(updatedForm);
         onProductFormChange(updatedForm);
@@ -2062,7 +2072,7 @@ function ProductForm({ productToEdit, onSaveSuccess, onProductFormChange }: { pr
         const updatedAccessories = [...(productForm.accessories || [])];
         const finalValue = field === 'paperBf' ? normalizeBF(value) : value;
         (updatedAccessories[index] as any)[field] = finalValue;
-        handleProductFormChange('accessories', updatedAccessories);
+        handleProductFormChangeLocal('accessories', updatedAccessories);
     };
     
     const addAccessory = () => {
@@ -2072,12 +2082,12 @@ function ProductForm({ productToEdit, onSaveSuccess, onProductFormChange }: { pr
             topGsm: '', flute1Gsm: '', middleGsm: '', flute2Gsm: '', bottomGsm: '',
             liner2Gsm: '', flute3Gsm: '', liner3Gsm: '', flute4Gsm: '', liner4Gsm: '', wastagePercent: '3.5'
         };
-        handleProductFormChange('accessories', [...(productForm.accessories || []), newAccessory]);
+        handleProductFormChangeLocal('accessories', [...(productForm.accessories || []), newAccessory]);
     };
 
     const removeAccessory = (id: string) => {
         const updatedAccessories = (productForm.accessories || []).filter(acc => acc.id !== id);
-        handleProductFormChange('accessories', updatedAccessories);
+        handleProductFormChangeLocal('accessories', updatedAccessories);
     };
 
 
@@ -2171,11 +2181,11 @@ function ProductForm({ productToEdit, onSaveSuccess, onProductFormChange }: { pr
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="product-name">Product Name</Label>
-                            <Input id="product-name" value={productForm.name || ''} onChange={(e) => handleProductFormChange('name', e.target.value)} />
+                            <Input id="product-name" value={productForm.name || ''} onChange={(e) => handleProductFormChangeLocal('name', e.target.value)} />
                         </div>
                          <div className="space-y-2">
                             <Label htmlFor="material-code">Material Code</Label>
-                            <Input id="material-code" value={productForm.materialCode || ''} onChange={(e) => handleProductFormChange('materialCode', e.target.value)} />
+                            <Input id="material-code" value={productForm.materialCode || ''} onChange={(e) => handleProductFormChangeLocal('materialCode', e.target.value)} />
                         </div>
                     </div>
                     <div className="space-y-2">
@@ -2202,7 +2212,7 @@ function ProductForm({ productToEdit, onSaveSuccess, onProductFormChange }: { pr
                                         </CommandEmpty>
                                         <CommandGroup>
                                             {parties.map(p => (
-                                                <CommandItem key={p.id} value={p.name} onSelect={() => { handleProductFormChange('partyId', p.id); setPartySearch('');}}>
+                                                <CommandItem key={p.id} value={p.name} onSelect={() => { handleProductFormChangeLocal('partyId', p.id); setPartySearch('');}}>
                                                     <Check className={cn("mr-2 h-4 w-4", productForm.partyId === p.id ? "opacity-100" : "opacity-0")} />
                                                     {p.name}
                                                 </CommandItem>
@@ -2218,9 +2228,9 @@ function ProductForm({ productToEdit, onSaveSuccess, onProductFormChange }: { pr
                      <div className="space-y-2">
                         <Label>Dimension</Label>
                         <div className="flex gap-2">
-                            <Input placeholder="L" type="number" value={productForm.l || ''} onChange={e => handleProductFormChange('l', e.target.value)} />
-                            <Input placeholder="B" type="number" value={productForm.b || ''} onChange={e => handleProductFormChange('b', e.target.value)} />
-                            <Input placeholder="H" type="number" value={productForm.h || ''} onChange={e => handleProductFormChange('h', e.target.value)} />
+                            <Input placeholder="L" type="number" value={productForm.l || ''} onChange={e => handleProductFormChangeLocal('l', e.target.value)} />
+                            <Input placeholder="B" type="number" value={productForm.b || ''} onChange={e => handleProductFormChangeLocal('b', e.target.value)} />
+                            <Input placeholder="H" type="number" value={productForm.h || ''} onChange={e => handleProductFormChangeLocal('h', e.target.value)} />
                         </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
