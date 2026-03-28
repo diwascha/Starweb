@@ -54,20 +54,20 @@ const normalizeBF = (val: any): string => {
 // Helper to get consistent GSM sequence display
 const getGsmDisplay = (item: any) => {
     if (!item) return 'N/A';
-    const { ply, topGsm, flute1Gsm, bottomGsm, middleGsm, flute2Gsm, liner2Gsm, liner3Gsm, flute3Gsm, liner4Gsm, flute4Gsm } = item;
-    const p = parseInt(ply, 10);
+    const plyStr = item.ply || (item.specification ? item.specification.ply : '3');
+    const p = parseInt(plyStr, 10);
     
     let layers: string[] = [];
     if (p === 3) {
-        layers = [topGsm, flute1Gsm, bottomGsm];
+        layers = [item.topGsm, item.flute1Gsm, item.bottomGsm];
     } else if (p === 5) {
-        layers = [topGsm, flute1Gsm, middleGsm, flute2Gsm, bottomGsm];
+        layers = [item.topGsm, item.flute1Gsm, item.middleGsm, item.flute2Gsm, item.bottomGsm];
     } else if (p === 7) {
-        layers = [topGsm, flute1Gsm, liner2Gsm, flute2Gsm, liner3Gsm, flute3Gsm, bottomGsm];
+        layers = [item.topGsm, item.flute1Gsm, item.liner2Gsm, item.flute2Gsm, item.liner3Gsm, item.flute3Gsm, item.bottomGsm];
     } else if (p === 9) {
-        layers = [topGsm, flute1Gsm, liner2Gsm, flute2Gsm, liner3Gsm, flute3Gsm, liner4Gsm, flute4Gsm, bottomGsm];
+        layers = [item.topGsm, item.flute1Gsm, item.liner2Gsm, item.flute2Gsm, item.liner3Gsm, item.flute3Gsm, item.liner4Gsm, item.flute4Gsm, item.bottomGsm];
     } else {
-        layers = [topGsm, bottomGsm];
+        layers = [item.topGsm, item.bottomGsm];
     }
     
     return layers.filter(l => l !== undefined && l !== null && String(l).trim() !== '').join('/');
@@ -2457,7 +2457,7 @@ function SavedProductsList() {
                                 <TableCell>{p.specification?.dimension || 'N/A'}</TableCell>
                                 <TableCell>{p.specification?.ply || 'N/A'}</TableCell>
                                 <TableCell>
-                                  {getGsmDisplay(p.specification)}
+                                  {getGsmDisplay(p)}
                                 </TableCell>
                                 <TableCell>{normalizeBF(p.specification?.paperBf) || 'N/A'}</TableCell>
                                 <TableCell className="text-right">
@@ -2722,7 +2722,7 @@ export default function CostReportPage() {
                     <CostingSettingsTab />
                 </TabsContent>
             </Tabs>
-             {/* This dialog is now managed by the main page but triggered from the calculator */}
+             {/* This dialog is managed by the main page but triggered from the calculator */}
              <Dialog open={isProductAddDialogOpen} onOpenChange={setIsProductAddDialogOpen}>
                  <DialogContent className="max-w-2xl">
                     <DialogHeader>
@@ -2731,7 +2731,7 @@ export default function CostReportPage() {
                      <ProductForm 
                         productToEdit={null} 
                         onSaveSuccess={() => setIsProductAddDialogOpen(false)}
-                        onProductFormChange={onProductFormChange}
+                        onProductFormChange={(data) => setProductFormData(data)}
                     />
                 </DialogContent>
             </Dialog>
