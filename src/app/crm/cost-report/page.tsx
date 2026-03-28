@@ -206,7 +206,9 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                         });
                     }
                     
-                    doc.text("Authorized Signature", doc.internal.pageSize.getWidth() - 14, doc.internal.pageSize.getHeight() - 20, { align: 'right' });
+                    doc.setFontSize(8);
+                    doc.setTextColor(100);
+                    doc.text("This is a computer-generated document. No signature required.", doc.internal.pageSize.getWidth() / 2, doc.internal.pageSize.getHeight() - 15, { align: 'center' });
                 }
             });
 
@@ -328,8 +330,8 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                         </ul>
                     </div>
                 )}
-                 <div className="mt-16 text-right">
-                    <p className="font-bold">Authorized Signature</p>
+                 <div className="mt-16 text-center text-[10px] text-muted-foreground border-t pt-4">
+                    <p>This is a computer-generated document. No signature required.</p>
                 </div>
             </div>
         </div>
@@ -1294,7 +1296,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                 <TableHead rowSpan={2} className="align-bottom px-1">Flute</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom px-1">Type</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom px-1">Paper BF</TableHead>
-                                <TableHead rowSpan={2} className="align-bottom px-1 min-w-[60px]">Waste %</TableHead>
+                                <TableHead rowSpan={2} className="align-bottom px-1 min-w-[80px]">Waste %</TableHead>
                                 <TableHead colSpan={maxPly} className="text-center px-1">GSM</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom px-1">T.GSM</TableHead>
                                 <TableHead rowSpan={2} className="align-bottom px-1">R.Size</TableHead>
@@ -1394,9 +1396,9 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                           </Popover>
                                         </div>
                                       </TableCell>
-                                      <TableCell className="px-1"><Input type="number" value={item.l} onChange={e => handleItemChange(index, 'l', e.target.value)} className="w-16 h-7 px-1 text-[10px]" /></TableCell>
-                                      <TableCell className="px-1"><Input type="number" value={item.b} onChange={e => handleItemChange(index, 'b', e.target.value)} className="w-16 h-7 px-1 text-[10px]" /></TableCell>
-                                      <TableCell className="px-1"><Input type="number" value={item.h} onChange={e => handleItemChange(index, 'h', e.target.value)} className="w-16 h-7 px-1 text-[10px]" /></TableCell>
+                                      <TableCell className="px-1"><Input type="number" value={item.l} onChange={e => handleItemChange(index, 'l', e.target.value)} className="w-20 h-7 px-1 text-[10px]" /></TableCell>
+                                      <TableCell className="px-1"><Input type="number" value={item.b} onChange={e => handleItemChange(index, 'b', e.target.value)} className="w-20 h-7 px-1 text-[10px]" /></TableCell>
+                                      <TableCell className="px-1"><Input type="number" value={item.h} onChange={e => handleItemChange(index, 'h', e.target.value)} className="w-20 h-7 px-1 text-[10px]" /></TableCell>
                                       <TableCell className="px-1"><Input type="number" value={item.noOfPcs} onChange={e => handleItemChange(index, 'noOfPcs', e.target.value)} className="w-16 h-7 px-1 text-[10px]" /></TableCell>
                                       <TableCell className="px-1">
                                         <Select value={item.ply} onValueChange={(value) => handleItemChange(index, 'ply', value)}>
@@ -1435,13 +1437,13 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                           </SelectContent>
                                         </Select>
                                       </TableCell>
-                                      <TableCell className="px-1"><Input type="number" value={item.wastagePercent} onChange={e => handleItemChange(index, 'wastagePercent', e.target.value)} className="w-16 h-7 px-1 text-[10px]" /></TableCell>
+                                      <TableCell className="px-1"><Input type="number" value={item.wastagePercent} onChange={e => handleItemChange(index, 'wastagePercent', e.target.value)} className="w-20 h-7 px-1 text-[10px]" /></TableCell>
                                       <TableCell className="px-1"><Input type="number" value={item.topGsm} onChange={e => handleItemChange(index, 'topGsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /></TableCell>
                                       <TableCell className="px-1"><Input type="number" value={item.flute1Gsm} onChange={e => handleItemChange(index, 'flute1Gsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /></TableCell>
                                       {maxPly >= 7 && <TableCell className="px-1">{ply >= 7 ? <Input type="number" value={item.liner2Gsm} onChange={e => handleItemChange(index, 'liner2Gsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /> : null}</TableCell>}
                                       {maxPly >= 5 && <TableCell className="px-1">{ply >= 5 ? <Input type="number" value={item.flute2Gsm} onChange={e => handleItemChange(index, 'flute2Gsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /> : null}</TableCell>}
                                       {maxPly >= 5 && <TableCell className="px-1">{ply === 5 ? <Input type="number" value={item.middleGsm} onChange={e => handleItemChange(index, 'middleGsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /> : (ply >= 7 ? <Input type="number" value={item.liner3Gsm} onChange={e => handleItemChange(index, 'liner3Gsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /> : null)}</TableCell>}
-                                      {maxPly >= 7 && <TableCell className="px-1">{ply >= 7 ? <Input type="number" value={item.liner2Gsm} onChange={e => handleItemChange(index, 'liner2Gsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /> : null}</TableCell>}
+                                      {maxPly >= 7 && <TableCell className="px-1">{ply >= 7 ? <Input type="number" value={item.flute3Gsm} onChange={e => handleItemChange(index, 'flute3Gsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /> : null}</TableCell>}
                                       {maxPly >= 9 && <TableCell className="px-1">{ply >= 9 ? <Input type="number" value={item.liner4Gsm} onChange={e => handleItemChange(index, 'liner4Gsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /> : null}</TableCell>}
                                       {maxPly >= 9 && <TableCell className="px-1">{ply >= 9 ? <Input type="number" value={item.flute4Gsm} onChange={e => handleItemChange(index, 'flute4Gsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /> : null}</TableCell>}
                                       <TableCell className="px-1"><Input type="number" value={item.bottomGsm} onChange={e => handleItemChange(index, 'bottomGsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /></TableCell>
@@ -1475,9 +1477,9 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                             <TableCell colSpan={2} className="px-1 pl-6">
                                                 <Input placeholder="Acc Name" value={acc.name} onChange={e => handleAccessoryChange(index, accIndex, 'name', e.target.value)} className="h-6 text-[10px]" />
                                             </TableCell>
-                                            <TableCell className="px-1"><Input type="number" placeholder="L" value={acc.l} onChange={e => handleAccessoryChange(index, accIndex, 'l', e.target.value)} className="w-16 h-6 px-1 text-[10px]"/></TableCell>
-                                            <TableCell className="px-1"><Input type="number" placeholder="B" value={acc.b} onChange={e => handleAccessoryChange(index, accIndex, 'b', e.target.value)} className="w-16 h-6 px-1 text-[10px]"/></TableCell>
-                                            <TableCell className="px-1"><Input type="number" placeholder="H" value={acc.h} onChange={e => handleAccessoryChange(index, accIndex, 'h', e.target.value)} className="w-16 h-6 px-1 text-[10px]"/></TableCell>
+                                            <TableCell className="px-1"><Input type="number" placeholder="L" value={acc.l} onChange={e => handleAccessoryChange(index, accIndex, 'l', e.target.value)} className="w-20 h-6 px-1 text-[10px]"/></TableCell>
+                                            <TableCell className="px-1"><Input type="number" placeholder="B" value={acc.b} onChange={e => handleAccessoryChange(index, accIndex, 'b', e.target.value)} className="w-20 h-6 px-1 text-[10px]"/></TableCell>
+                                            <TableCell className="px-1"><Input type="number" placeholder="H" value={acc.h} onChange={e => handleAccessoryChange(index, accIndex, 'h', e.target.value)} className="w-20 h-6 px-1 text-[10px]"/></TableCell>
                                             <TableCell className="px-1"><Input type="number" placeholder="Pcs" value={acc.noOfPcs} onChange={e => handleAccessoryChange(index, accIndex, 'noOfPcs', e.target.value)} className="w-16 h-6 px-1 text-[10px]"/></TableCell>
                                             <TableCell className="px-1">
                                                 <Select value={String(acc.ply)} onValueChange={(value) => handleAccessoryChange(index, accIndex, 'ply', value)}>
@@ -1516,7 +1518,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                                   </SelectContent>
                                                 </Select>
                                             </TableCell>
-                                            <TableCell className="px-1"><Input type="number" value={acc.wastagePercent} onChange={e => handleAccessoryChange(index, accIndex, 'wastagePercent', e.target.value)} className="w-16 h-6 px-1 text-[10px]" /></TableCell>
+                                            <TableCell className="px-1"><Input type="number" value={acc.wastagePercent} onChange={e => handleAccessoryChange(index, accIndex, 'wastagePercent', e.target.value)} className="w-20 h-6 px-1 text-[10px]" /></TableCell>
                                             <TableCell className="px-1"><Input type="number" value={acc.topGsm} onChange={e => handleAccessoryChange(index, accIndex, 'topGsm', e.target.value)} className="w-14 h-6 px-1 text-[10px]" /></TableCell>
                                             <TableCell className="px-1"><Input type="number" value={acc.flute1Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'flute1Gsm', e.target.value)} className="w-14 h-6 px-1 text-[10px]" /></TableCell>
                                             {maxPly >= 7 && <TableCell className="px-1">{accPly >= 7 ? <Input type="number" value={acc.liner2Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'liner2Gsm', e.target.value)} className="w-14 h-6 px-1 text-[10px]" /> : null}</TableCell>}
