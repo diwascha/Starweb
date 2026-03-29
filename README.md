@@ -17,8 +17,9 @@ GitHub requires a **Personal Access Token (PAT)** for command-line operations. I
    - Copy the generated token.
 
 2. **Update your local remote:**
+   Run the following command, replacing `YOUR_TOKEN` with the actual token (do not include `< >` brackets):
    ```bash
-   git remote set-url origin https://<YOUR_TOKEN>@github.com/diwascha/Starweb.git
+   git remote set-url origin https://YOUR_TOKEN@github.com/diwascha/Starweb.git
    ```
 
 3. **Push your changes:**
