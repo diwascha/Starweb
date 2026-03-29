@@ -50,6 +50,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from '
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
+import { cn, toNepaliDate } from '@/lib/utils';
 
 
 const nepaliMonths = [
@@ -636,7 +637,7 @@ export default function SettingsPage() {
     return ['All', ...Array.from(years).sort((a, b) => b - a).map(String)];
   }, [pageVisits]);
 
-  const chartConfig: ChartConfig = {
+  const usageChartConfig: ChartConfig = {
     count: { label: 'Visits', color: 'hsl(var(--primary))' },
   };
 
@@ -982,7 +983,7 @@ export default function SettingsPage() {
                                 <CardTitle className="text-sm font-medium">Top 5 Most Visited</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <ChartContainer config={chartConfig} className="h-[100px] w-full">
+                                <ChartContainer config={usageChartConfig} className="h-[100px] w-full">
                                     <BarChart data={usageStats.top5} layout="vertical" margin={{ left: 40 }}>
                                         <XAxis type="number" hide />
                                         <YAxis dataKey="path" type="category" width={100} tick={{ fontSize: 9 }} />
