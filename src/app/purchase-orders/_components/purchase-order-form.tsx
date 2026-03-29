@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useFieldArray } from 'react-hook-form';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/form/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import type { RawMaterial, PurchaseOrder, Amendment, UnitOfMeasurement, Party, PartyType } from '@/lib/types';
@@ -59,7 +59,7 @@ interface PurchaseOrderFormProps {
 
 const materialTypesForAdd = [
     'Kraft Paper', 'Virgin Paper', 'Gum', 'Ink', 'Stitching Wire', 'Strapping', 'Machinery Spare Parts', 'Other'
-];
+].sort();
 
 const paperTypes = ['Kraft Paper', 'Virgin Paper'];
 const bfOptions = ['16 BF', '18 BF', '20 BF', '22 BF'];
