@@ -75,6 +75,15 @@
           }
         }
       }
+    },
+    "CostReportTerm": {
+      "title": "Cost Report Term",
+      "type": "object",
+      "properties": {
+        "text": { "type": "string" },
+        "isSelected": { "type": "boolean" }
+      },
+      "required": ["text", "isSelected"]
     }
   },
   "auth": {
@@ -93,6 +102,14 @@
         }
       },
       "description": "Stores purchase orders with version history snapshots."
+    },
+    "/costReports/{reportId}": {
+      "schema": {
+        "type": "object",
+        "properties": {
+          "termsAndConditions": { "type": "array", "items": { "$ref": "#/entities/CostReportTerm" } }
+        }
+      }
     }
   }
 }

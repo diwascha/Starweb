@@ -725,6 +725,10 @@ export interface CostReportItem {
   calculated: CalculatedValues;
 }
 
+export interface CostReportTerm {
+    text: string;
+    isSelected: boolean;
+}
 
 export interface CostReport {
   id: string;
@@ -739,7 +743,7 @@ export interface CostReport {
   transportCostType?: 'Per Piece' | 'Per Consignment'; // Added
   items: Omit<CostReportItem, 'calculated'>[]; // We only store the inputs, not the calculated values
   totalCost: number;
-  termsAndConditions?: string[];
+  termsAndConditions?: CostReportTerm[];
   createdBy: string;
   createdAt: string;
 }
@@ -756,7 +760,7 @@ export interface CostSetting {
     kraftPaperCosts: Record<string, number>;
     virginPaperCost: number;
     conversionCost: number;
-    termsAndConditions?: string[];
+    termsAndConditions?: CostReportTerm[];
     history: CostSettingHistoryEntry[];
     createdBy?: string;
     createdAt?: string; // ISO

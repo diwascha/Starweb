@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import type { Product, Party, PartyType, CostReport, CostReportItem, ProductSpecification, CostSetting, Accessory as ProductAccessory, Product as ProductType } from '@/lib/types';
+import type { Product, Party, PartyType, CostReport, CostReportItem, ProductSpecification, CostSetting, Accessory as ProductAccessory, Product as ProductType, CostReportTerm } from '@/lib/types';
 import { onProductsUpdate, addProduct as addProductService, updateProduct as updateProductService, deleteProduct as deleteProductService } from '@/services/product-service';
 import { onPartiesUpdate, addParty, updateParty } from '@/services/party-service';
 import { onCostReportsUpdate, addCostReport, deleteCostReport, generateNextCostReportNumber, getCostReport, updateCostReport } from '@/services/cost-report-service';
@@ -99,7 +99,7 @@ interface QuotationPreviewDialogProps {
   products: Product[];
   transportCost?: number;
   transportCostType?: 'Per Piece' | 'Per Consignment';
-  termsAndConditions?: string[];
+  termsAndConditions?: CostReportTerm[];
 }
 
 function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate, party, items, products, transportCost, transportCostType, termsAndConditions = [] }: QuotationPreviewDialogProps) {
@@ -107,6 +107,10 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
   const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
   
+  const selectedTerms = useMemo(() => {
+      return (termsAndConditions || []).filter(t => t.isSelected);
+  }, [termsAndConditions]);
+
   const formatAccessoryDimension = (acc: ProductAccessory) => {
     const dims = [acc.l, acc.b, acc.h].filter(d => d && parseFloat(d) > 0);
     return dims.join('x');
@@ -224,10 +228,10 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                 didDrawPage: (data: any) => {
                     let finalY = data.cursor.y;
                     doc.setFontSize(10);
-                    if (termsAndConditions.length > 0) {
+                    if (selectedTerms.length > 0) {
                         doc.text("Terms & Conditions:", 14, finalY + 10);
-                        termsAndConditions.forEach((term, idx) => {
-                            doc.text(`${idx + 1}. ${term}`, 14, finalY + 15 + (idx * 5));
+                        selectedTerms.forEach((term, idx) => {
+                            doc.text(`${idx + 1}. ${term.text}`, 14, finalY + 15 + (idx * 5));
                         });
                     }
                     
@@ -335,26 +339,26 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                                      <TableCell>
                                          <CompactGsmDisplay item={acc} />
                                      </TableCell>
-                                     <TableCell>{(acc.calculated.paperWeight || 0).toFixed(2)}</TableCell>
-                                     <TableCell className="text-right">({(acc.calculated.paperCost || 0).toFixed(2)})</TableCell>
+                                     <TableCell>{(acc.calculated?.paperWeight || 0).toFixed(2)}</TableCell>
+                                     <TableCell className="text-right">({(acc.calculated?.paperCost || 0).toFixed(2)})</TableCell>
                                  </TableRow>
                              ))}
+                           </React.Fragment>
+                        ))}
                         {!!transportCost && transportCostType === 'Per Consignment' && (
                             <TableRow className="font-bold">
                                 <TableCell colSpan={7} className="text-right">Transport Cost (Lump Sum)</TableCell>
                                 <TableCell className="text-right">Rs. {transportCost.toFixed(2)}</TableCell>
                             </TableRow>
                         )}
-                           </React.Fragment>
-                        ))}
                     </TableBody>
                 </Table>
-                {termsAndConditions.length > 0 && (
+                {selectedTerms.length > 0 && (
                     <div className="mt-8">
                         <h4 className="font-bold">Terms & Conditions:</h4>
                         <ul className="list-disc list-inside text-sm">
-                            {termsAndConditions.map((term, i) => (
-                                <li key={i}>{term}</li>
+                            {selectedTerms.map((term, i) => (
+                                <li key={i}>{term.text}</li>
                             ))}
                         </ul>
                     </div>
@@ -425,18 +429,18 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
   
   const [costSettings, setCostSettings] = useState<CostSetting | null>(null);
   const [kraftPaperCosts, setKraftPaperCosts] = useState<Record<string, number | ''>>(initialKraftCosts);
-  const [virginPaperCost, setVirginPaperCost] = useState<number | ''>('');
+  const [virginPaperCost, setVirginCost] = useState<number | ''>('');
   const [conversionCost, setConversionCost] = useState<number | ''>('');
   const [transportCost, setTransportCost] = useState<number | ''>('');
   const [transportCostType, setTransportCostType] = useState<'Per Piece' | 'Per Consignment'>('Per Consignment');
-  const [termsAndConditions, setTermsAndConditions] = useState<string[]>([]);
+  const [termsAndConditions, setTermsAndConditions] = useState<CostReportTerm[]>([]);
   const [newTerm, setNewTerm] = useState('');
   
   const [isCostHistoryDialogOpen, setIsCostHistoryDialogOpen] = useState(false);
 
   const [isSaving, setIsSaving] = useState(false);
   const [items, setItems] = useState<CostReportItem[]>([]);
-  const [selectedForPrint, setSelectedForPrint] = useState<Set<string>>(new Set());
+  const [selectedForPrint, setSelectedForPrint] = new Set<string>();
 
   const { toast } = useToast();
   const { user } = useAuth();
@@ -584,7 +588,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     if (costType === 'kraft' && bf) {
         setKraftPaperCosts(prev => ({...prev, [normalizeBF(bf)]: numericValue}));
     }
-    else if (costType === 'virgin') setVirginPaperCost(numericValue);
+    else if (costType === 'virgin') setVirginCost(numericValue);
     else if (costType === 'conversion') setConversionCost(numericValue);
   }
 
@@ -653,11 +657,13 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
           filledKraftCosts[normalizeBF(bf)] = kCostsFromReport[normalizeBF(bf)] || (costSettings?.kraftPaperCosts?.[normalizeBF(bf)] ?? '');
       }
       setKraftPaperCosts(filledKraftCosts);
-      setVirginPaperCost(reportToEdit.virginPaperCost || (costSettings?.virginPaperCost ?? ''));
+      setVirginCost(reportToEdit.virginPaperCost || (costSettings?.virginPaperCost ?? ''));
       setConversionCost(reportToEdit.conversionCost || (costSettings?.conversionCost ?? ''));
       setTransportCost(reportToEdit.transportCost ?? '');
       setTransportCostType(reportToEdit.transportCostType ?? 'Per Consignment');
-      setTermsAndConditions(reportToEdit.termsAndConditions || []);
+      
+      const normalizedTerms = (reportToEdit.termsAndConditions || []).map(t => typeof t === 'string' ? { text: t, isSelected: true } : t);
+      setTermsAndConditions(normalizedTerms);
       
       const kCostsForCalc = Object.fromEntries(Object.entries(reportToEdit.kraftPaperCosts || {}).map(([bf, cost]) => [normalizeBF(bf), cost]));
       const vCost = reportToEdit.virginPaperCost || 0;
@@ -671,7 +677,8 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
           });
           return fullItem;
       }));
-      setSelectedForPrint(new Set(reportToEdit.items.map(i => i.id)));
+      selectedForPrint.clear();
+      reportToEdit.items.map(i => i.id).forEach(id => selectedForPrint.add(id));
       initializedRef.current = true;
     } else if (!initializedRef.current || selectedPartyId === '') {
         generateNextCostReportNumber(costReports).then(setReportNumber);
@@ -679,14 +686,16 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
         setSelectedPartyId('');
         if (costSettings) {
             setKraftPaperCosts(costSettings.kraftPaperCosts || initialKraftCosts);
-            setVirginPaperCost(costSettings.virginPaperCost || '');
+            setVirginCost(costSettings.virginPaperCost || '');
             setConversionCost(costSettings.conversionCost || '');
-            setTermsAndConditions(costSettings.termsAndConditions || []);
+            
+            const normalizedDefaults = (costSettings.termsAndConditions || []).map(t => typeof t === 'string' ? { text: t, isSelected: true } : t);
+            setTermsAndConditions(normalizedDefaults);
         }
         setTransportCost('');
         setTransportCostType('Per Consignment');
         setItems([]);
-        setSelectedForPrint(new Set());
+        selectedForPrint.clear();
         initializedRef.current = true;
     }
   }, [reportToEdit, costReports, calculateItemCost, costSettings, selectedPartyId]);
@@ -804,7 +813,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     const newItemBase = { id: Date.now().toString(), productId: '', l:'',b:'',h:'', noOfPcs:'1', ply:'3', fluteType: 'B', paperType: 'KRAFT', paperBf:'18 BF', paperShade: 'NS', boxType: 'RSC', topGsm:'120',flute1Gsm:'100',middleGsm:'',flute2Gsm:'',bottomGsm:'120', liner2Gsm: '', flute3Gsm: '', liner3Gsm: '', flute4Gsm: '', liner4Gsm: '', wastagePercent:'3.5', accessories: [] };
     const newItem = { ...newItemBase, calculated: calculateItemCost(newItemBase, kCosts, vCost, cCost) };
     setItems(prev => [...prev, newItem]);
-    setSelectedForPrint(prev => new Set(prev).add(newItem.id));
+    selectedForPrint.add(newItem.id);
   };
   
     const handleLoadProducts = () => {
@@ -820,11 +829,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
 
   const handleRemoveItem = (id: string) => {
     setItems(prev => prev.filter(item => item.id !== id));
-    setSelectedForPrint(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(id);
-        return newSet;
-    });
+    selectedForPrint.delete(id);
   };
   
   const handleOpenPartyDialog = (partyToEdit: Party | null = null, searchName: string = '') => {
@@ -1041,7 +1046,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
         
         const newItem = { ...newItemBase, calculated: calculateItemCost(newItemBase, kCosts, vCost, cCost) };
         setItems(prev => [...prev, newItem]);
-        setSelectedForPrint(prev => new Set(prev).add(newItem.id));
+        selectedForPrint.add(newItem.id);
         toast({ title: "Item Copied", description: "A copy of the item has been added to the list." });
     };
 
@@ -1060,7 +1065,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
 
   const handleAddTerm = () => {
     if (newTerm.trim()) {
-        setTermsAndConditions([...termsAndConditions, newTerm.trim()]);
+        setTermsAndConditions([...termsAndConditions, { text: newTerm.trim(), isSelected: true }]);
         setNewTerm('');
     }
   };
@@ -1071,8 +1076,14 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
 
   const handleEditTerm = (index: number, value: string) => {
     const updated = [...termsAndConditions];
-    updated[index] = value;
+    updated[index] = { ...updated[index], text: value };
     setTermsAndConditions(updated);
+  };
+  
+  const handleToggleTerm = (index: number, isSelected: boolean) => {
+      const updated = [...termsAndConditions];
+      updated[index] = { ...updated[index], isSelected };
+      setTermsAndConditions(updated);
   };
 
 
@@ -1184,8 +1195,13 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                     <div className="space-y-1">
                                         {termsAndConditions.map((term, index) => (
                                             <div key={index} className="flex items-center gap-2 group">
+                                                <Checkbox 
+                                                    checked={term.isSelected} 
+                                                    onCheckedChange={(val) => handleToggleTerm(index, !!val)}
+                                                    className="h-3 w-3"
+                                                />
                                                 <Input 
-                                                    value={term} 
+                                                    value={term.text} 
                                                     onChange={(e) => handleEditTerm(index, e.target.value)} 
                                                     className="h-6 text-[10px]"
                                                 />
@@ -1412,7 +1428,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                                   <CommandGroup>
                                                     {products.map(p => (
                                                       <CommandItem key={p.id} className="text-xs" value={`${p.name} ${p.materialCode}`} onSelect={() => { handleProductSelect(index, p.id); setProductSearch(''); }}>
-                                                        <Check className={cn("mr-2 h-3 w-3", item.productId === p.id ? "opacity-100" : "opacity-0")} />
+                                                        <Check className={cn("mr-2 h-4 w-4", item.productId === p.id ? "opacity-100" : "opacity-0")} />
                                                         {p.name}
                                                       </CommandItem>
                                                     ))}
@@ -1425,9 +1441,9 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                       </TableCell>
                                       <TableCell className="px-1">
                                           <div className="flex gap-1">
-                                              <Input type="number" value={item.l} onChange={e => handleItemChange(index, 'l', e.target.value)} className="w-12 h-7 px-1 text-[10px]" />
-                                              <Input type="number" value={item.b} onChange={e => handleItemChange(index, 'b', e.target.value)} className="w-12 h-7 px-1 text-[10px]" />
-                                              <Input type="number" value={item.h} onChange={e => handleItemChange(index, 'h', e.target.value)} className="w-12 h-7 px-1 text-[10px]" />
+                                              <Input type="number" value={item.l} onChange={e => handleItemChange(index, 'l', e.target.value)} className="w-14 h-7 px-1 text-[10px]" />
+                                              <Input type="number" value={item.b} onChange={e => handleItemChange(index, 'b', e.target.value)} className="w-14 h-7 px-1 text-[10px]" />
+                                              <Input type="number" value={item.h} onChange={e => handleItemChange(index, 'h', e.target.value)} className="w-14 h-7 px-1 text-[10px]" />
                                           </div>
                                       </TableCell>
                                       <TableCell className="px-1"></TableCell>
@@ -1470,16 +1486,22 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                           </SelectContent>
                                         </Select>
                                       </TableCell>
-                                      <TableCell className="px-1"><Input type="number" value={item.wastagePercent} onChange={e => handleItemChange(index, 'wastagePercent', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /></TableCell>
-                                      <TableCell className="px-1"><Input type="number" value={item.topGsm} onChange={e => handleItemChange(index, 'topGsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /></TableCell>
-                                      <TableCell className="px-1"><Input type="number" value={item.flute1Gsm} onChange={e => handleItemChange(index, 'flute1Gsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /></TableCell>
+                                      <TableCell className="px-1"><Input type="number" value={item.wastagePercent} onChange={e => handleItemChange(index, 'wastagePercent', e.target.value)} className="w-16 h-7 px-1 text-[10px]" /></TableCell>
+                                      <TableCell className="px-1">
+                                          {ply >= 1 ? <Input type="number" value={item.topGsm} onChange={e => handleItemChange(index, 'topGsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /> : null}
+                                      </TableCell>
+                                      <TableCell className="px-1">
+                                          {ply >= 3 ? <Input type="number" value={item.flute1Gsm} onChange={e => handleItemChange(index, 'flute1Gsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /> : null}
+                                      </TableCell>
                                       {maxPly >= 7 && <TableCell className="px-1">{ply >= 7 ? <Input type="number" value={item.liner2Gsm} onChange={e => handleItemChange(index, 'liner2Gsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /> : null}</TableCell>}
                                       {maxPly >= 5 && <TableCell className="px-1">{ply >= 5 ? <Input type="number" value={item.flute2Gsm} onChange={e => handleItemChange(index, 'flute2Gsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /> : null}</TableCell>}
                                       {maxPly >= 5 && <TableCell className="px-1">{ply === 5 ? <Input type="number" value={item.middleGsm} onChange={e => handleItemChange(index, 'middleGsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /> : (ply >= 7 ? <Input type="number" value={item.liner3Gsm} onChange={e => handleItemChange(index, 'liner3Gsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /> : null)}</TableCell>}
                                       {maxPly >= 7 && <TableCell className="px-1">{ply >= 7 ? <Input type="number" value={item.flute3Gsm} onChange={e => handleItemChange(index, 'flute3Gsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /> : null}</TableCell>}
                                       {maxPly >= 9 && <TableCell className="px-1">{ply >= 9 ? <Input type="number" value={item.liner4Gsm} onChange={e => handleItemChange(index, 'liner4Gsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /> : null}</TableCell>}
                                       {maxPly >= 9 && <TableCell className="px-1">{ply >= 9 ? <Input type="number" value={item.flute4Gsm} onChange={e => handleItemChange(index, 'flute4Gsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /> : null}</TableCell>}
-                                      <TableCell className="px-1"><Input type="number" value={item.bottomGsm} onChange={e => handleItemChange(index, 'bottomGsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /></TableCell>
+                                      <TableCell className="px-1">
+                                          {ply >= 3 ? <Input type="number" value={item.bottomGsm} onChange={e => handleItemChange(index, 'bottomGsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /> : null}
+                                      </TableCell>
                                       <TableCell className="px-1">{item.calculated.totalGsm.toFixed(1)}</TableCell>
                                       <TableCell className="px-1">{(item.calculated.sheetSizeL / 10).toFixed(1)}</TableCell>
                                       <TableCell className="px-1">{(item.calculated.sheetSizeB / 10).toFixed(1)}</TableCell>
@@ -1512,9 +1534,9 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                             </TableCell>
                                             <TableCell className="px-1">
                                                 <div className="flex gap-1">
-                                                    <Input type="number" placeholder="L" value={acc.l} onChange={e => handleAccessoryChange(index, accIndex, 'l', e.target.value)} className="w-12 h-6 px-1 text-[10px]"/>
-                                                    <Input type="number" placeholder="B" value={acc.b} onChange={e => handleAccessoryChange(index, accIndex, 'b', e.target.value)} className="w-12 h-6 px-1 text-[10px]"/>
-                                                    <Input type="number" placeholder="H" value={acc.h} onChange={e => handleAccessoryChange(index, accIndex, 'h', e.target.value)} className="w-12 h-6 px-1 text-[10px]"/>
+                                                    <Input type="number" placeholder="L" value={acc.l} onChange={e => handleAccessoryChange(index, accIndex, 'l', e.target.value)} className="w-14 h-6 px-1 text-[10px]"/>
+                                                    <Input type="number" placeholder="B" value={acc.b} onChange={e => handleAccessoryChange(index, accIndex, 'b', e.target.value)} className="w-14 h-6 px-1 text-[10px]"/>
+                                                    <Input type="number" placeholder="H" value={acc.h} onChange={e => handleAccessoryChange(index, accIndex, 'h', e.target.value)} className="w-14 h-6 px-1 text-[10px]"/>
                                                 </div>
                                             </TableCell>
                                             <TableCell className="px-1"></TableCell>
@@ -1524,10 +1546,10 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                                 <Select value={String(acc.ply)} onValueChange={(value) => handleAccessoryChange(index, accIndex, 'ply', value)}>
                                                     <SelectTrigger className="w-14 h-6 px-1 text-[10px]"><SelectValue /></SelectTrigger>
                                                     <SelectContent>
-                                                        <SelectItem value="3" className="text-xs">3</SelectItem>
-                                                        <SelectItem value="5" className="text-xs">5</SelectItem>
-                                                        <SelectItem value="7" className="text-xs">7</SelectItem>
-                                                        <SelectItem value="9" className="text-xs">9</SelectItem>
+                                                        <SelectItem value="3">3</SelectItem>
+                                                        <SelectItem value="5">5</SelectItem>
+                                                        <SelectItem value="7">7</SelectItem>
+                                                        <SelectItem value="9">9</SelectItem>
                                                     </SelectContent>
                                                 </Select>
                                             </TableCell>
@@ -1557,7 +1579,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                                   </SelectContent>
                                                 </Select>
                                             </TableCell>
-                                            <TableCell className="px-1"><Input type="number" value={acc.wastagePercent} onChange={e => handleAccessoryChange(index, accIndex, 'wastagePercent', e.target.value)} className="w-14 h-6 px-1 text-[10px]" /></TableCell>
+                                            <TableCell className="px-1"><Input type="number" value={acc.wastagePercent} onChange={e => handleAccessoryChange(index, accIndex, 'wastagePercent', e.target.value)} className="w-16 h-6 px-1 text-[10px]" /></TableCell>
                                             <TableCell className="px-1"><Input type="number" value={acc.topGsm} onChange={e => handleAccessoryChange(index, accIndex, 'topGsm', e.target.value)} className="w-14 h-6 px-1 text-[10px]" /></TableCell>
                                             <TableCell className="px-1"><Input type="number" value={acc.flute1Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'flute1Gsm', e.target.value)} className="w-14 h-6 px-1 text-[10px]" /></TableCell>
                                             {maxPly >= 7 && <TableCell className="px-1">{accPly >= 7 ? <Input type="number" value={acc.liner2Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'liner2Gsm', e.target.value)} className="w-14 h-6 px-1 text-[10px]" /> : null}</TableCell>}
@@ -2550,9 +2572,9 @@ function SavedProductsList() {
 function CostingSettingsTab() {
   const [costSettings, setCostSettings] = useState<CostSetting | null>(null);
   const [kraftPaperCosts, setKraftPaperCosts] = useState<Record<string, number | ''>>(initialKraftCosts);
-  const [virginPaperCost, setVirginPaperCost] = useState<number | ''>('');
+  const [virginPaperCost, setVirginCost] = useState<number | ''>('');
   const [conversionCost, setConversionCost] = useState<number | ''>('');
-  const [defaultTerms, setDefaultTerms] = useState<string[]>([]);
+  const [defaultTerms, setDefaultTerms] = useState<CostReportTerm[]>([]);
   const [newDefaultTerm, setNewDefaultTerm] = useState('');
   
   const { user } = useAuth();
@@ -2564,9 +2586,11 @@ function CostingSettingsTab() {
             const settings = setting.value as CostSetting;
             setCostSettings(settings);
             setKraftPaperCosts(settings.kraftPaperCosts || initialKraftCosts);
-            setVirginPaperCost(settings.virginPaperCost || '');
+            setVirginCost(settings.virginPaperCost || '');
             setConversionCost(settings.conversionCost || '');
-            setDefaultTerms(settings.termsAndConditions || []);
+            
+            const normalizedTerms = (settings.termsAndConditions || []).map(t => typeof t === 'string' ? { text: t, isSelected: true } : t);
+            setDefaultTerms(normalizedTerms);
         }
     });
     return () => unsubCostSettings();
@@ -2590,9 +2614,15 @@ function CostingSettingsTab() {
 
   const handleAddDefaultTerm = () => {
     if (newDefaultTerm.trim()) {
-        setDefaultTerms([...defaultTerms, newDefaultTerm.trim()]);
+        setDefaultTerms([...defaultTerms, { text: newDefaultTerm.trim(), isSelected: true }]);
         setNewDefaultTerm('');
     }
+  };
+  
+  const handleToggleDefaultTerm = (index: number, isSelected: boolean) => {
+      const updated = [...defaultTerms];
+      updated[index] = { ...updated[index], isSelected };
+      setDefaultTerms(updated);
   };
 
   return (
@@ -2615,7 +2645,7 @@ function CostingSettingsTab() {
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="globalVirginCost">Virgin Paper Cost</Label>
-                        <Input id="globalVirginCost" type="number" placeholder="Enter cost" value={virginPaperCost} onChange={e => setVirginPaperCost(e.target.value === '' ? '' : parseFloat(e.target.value))} />
+                        <Input id="globalVirginCost" type="number" placeholder="Enter cost" value={virginPaperCost} onChange={e => setVirginCost(e.target.value === '' ? '' : parseFloat(e.target.value))} />
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="globalConversionCost">Conversion Cost</Label>
@@ -2634,11 +2664,16 @@ function CostingSettingsTab() {
                         <div className="space-y-2">
                             {defaultTerms.map((term, i) => (
                                 <div key={i} className="flex items-center gap-2 group">
+                                    <Checkbox 
+                                        checked={term.isSelected} 
+                                        onCheckedChange={(val) => handleToggleDefaultTerm(i, !!val)} 
+                                        className="h-3 w-3"
+                                    />
                                     <Input 
-                                        value={term} 
+                                        value={term.text} 
                                         onChange={(e) => {
                                             const updated = [...defaultTerms];
-                                            updated[i] = e.target.value;
+                                            updated[i] = { ...updated[i], text: e.target.value };
                                             setDefaultTerms(updated);
                                         }} 
                                         className="h-8 text-xs"
