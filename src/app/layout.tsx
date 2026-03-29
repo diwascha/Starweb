@@ -5,6 +5,7 @@ import { AuthProvider } from '@/hooks/use-auth';
 import AuthAwareLayout from '@/components/auth-aware-layout';
 import { Inter } from 'next/font/google';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
+import { UsageTracker } from '@/components/usage-tracker';
 
 
 export const metadata: Metadata = {
@@ -28,6 +29,7 @@ export default function RootLayout({
       <body className="font-body antialiased bg-background" suppressHydrationWarning>
           <FirebaseClientProvider>
             <AuthProvider>
+                <UsageTracker />
                 <AuthAwareLayout>
                     {children}
                 </AuthAwareLayout>

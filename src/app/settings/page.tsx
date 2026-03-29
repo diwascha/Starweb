@@ -1,9 +1,8 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import type { Party, Account, PartyType, AccountType, UnitOfMeasurement, AppSetting, User, Permissions, Module, Action, DocumentPrefixes, BankAccountType } from '@/lib/types';
+import type { Party, Account, PartyType, AccountType, UnitOfMeasurement, AppSetting, User, Permissions, Module, Action, DocumentPrefixes, BankAccountType, PageVisit } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -25,7 +24,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, MoreHorizontal, Search, Save, KeyRound, Download, Upload, View, ChevronDown, Lock, Unlock, GitMerge, ChevronsUpDown, Check } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, Search, Save, KeyRound, Download, Upload, View, ChevronDown, Lock, Unlock, GitMerge, ChevronsUpDown, Check, BarChart3, TrendingDown, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
@@ -38,6 +37,7 @@ import { onPartiesUpdate, addParty, updateParty, deleteParty, mergeParties } fro
 import { onAccountsUpdate, addAccount, updateAccount, deleteAccount } from '@/services/account-service';
 import { onUomsUpdate, addUom, updateUom, deleteUom } from '@/services/uom-service';
 import { onSettingUpdate, setSetting, getSetting } from '@/services/settings-service';
+import { onPageVisitsUpdate } from '@/services/usage-service';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuRadioGroup, DropdownMenuRadioItem } from '@/components/ui/dropdown-menu';
 import { getUsers, setUsers, validatePassword, setAdminPassword, updateUserPassword } from '@/services/user-service';
 import { modules, actions, documentTypes, getDocumentName } from '@/lib/types';
@@ -47,6 +47,8 @@ import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { getPayrollYears } from '@/services/payroll-service';
 import NepaliDate from 'nepali-date-converter';
+import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from '@/components/ui/chart';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 
 const nepaliMonths = [
@@ -154,6 +156,9 @@ export default function SettingsPage() {
   const importFileRef = useRef<HTMLInputElement>(null);
 
 
+  // Usage Analytics State
+  const [pageVisits, setPageVisits] = useState<PageVisit[]>([]);
+
   // Prefixes State
   const [prefixes, setPrefixes] = useState<DocumentPrefixes>({});
   const [isPrefixDialogOpen, setIsPrefixDialogOpen] = useState(false);
@@ -204,6 +209,7 @@ export default function SettingsPage() {
     const unsubUoms = onUomsUpdate(setUoms);
     const unsubPrefixes = onSettingUpdate('documentPrefixes', (setting) => setPrefixes(setting?.value || {}));
     const unsubPayrollLocks = onSettingUpdate('payrollLocks', (setting) => setPayrollLocks(setting?.value || {}));
+    const unsubUsage = onPageVisitsUpdate(setPageVisits);
     
     getPayrollYears().then(years => {
         const currentYear = new NepaliDate().getYear();
@@ -225,6 +231,7 @@ export default function SettingsPage() {
         unsubUoms();
         unsubPrefixes();
         unsubPayrollLocks();
+        unsubUsage();
         window.removeEventListener('storage', handleStorageChange);
     }
   }, []);
@@ -581,7 +588,21 @@ export default function SettingsPage() {
     { value: "uom", label: "Units of Measurement" },
     { value: "document-numbering", label: "Document Numbering" },
     { value: "payroll-settings", label: "Payroll Settings" },
+    { value: "usage-analytics", label: "System Usage" },
   ];
+
+  const usageStats = useMemo(() => {
+    const total = pageVisits.reduce((sum, v) => sum + v.count, 0);
+    const sorted = [...pageVisits].sort((a, b) => b.count - a.count);
+    const top5 = sorted.slice(0, 5);
+    const bottom5 = [...sorted].reverse().slice(0, 5);
+    
+    return { total, top5, bottom5 };
+  }, [pageVisits]);
+
+  const chartConfig: ChartConfig = {
+    count: { label: 'Visits', color: 'hsl(var(--chart-1))' },
+  };
 
   if (isLoading) {
     return (
@@ -900,6 +921,99 @@ export default function SettingsPage() {
                         </div>
                     </CardContent>
                 </Card>
+            </TabsContent>
+            <TabsContent value="usage-analytics">
+                <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <Card>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium">Total Page Visits</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold">{usageStats.total.toLocaleString()}</div>
+                                <p className="text-xs text-muted-foreground">Lifetime system interactions</p>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium">Core Engagement</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="flex items-center gap-2">
+                                    <TrendingUp className="h-4 w-4 text-green-500" />
+                                    <span className="text-2xl font-bold">{usageStats.top5[0]?.path || 'N/A'}</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground">Most active module</p>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium">Maintenance Needed</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="flex items-center gap-2">
+                                    <TrendingDown className="h-4 w-4 text-red-500" />
+                                    <span className="text-2xl font-bold">{usageStats.bottom5.length} Modules</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground">Pages with low visibility</p>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Top 5 Most Visited Pages</CardTitle>
+                                <CardDescription>High engagement features to prioritize.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <ChartContainer config={chartConfig} className="h-[300px] w-full">
+                                    <BarChart data={usageStats.top5} layout="vertical" margin={{ left: 40, right: 20 }}>
+                                        <CartesianGrid horizontal={false} />
+                                        <XAxis type="number" hide />
+                                        <YAxis dataKey="path" type="category" width={120} tick={{ fontSize: 10 }} />
+                                        <Tooltip content={<ChartTooltipContent />} />
+                                        <Bar dataKey="count" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                                    </BarChart>
+                                </ChartContainer>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Least Used Features</CardTitle>
+                                <CardDescription>Identify modules for redesign or removal.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Path</TableHead>
+                                            <TableHead className="text-right">Visits</TableHead>
+                                            <TableHead className="text-right">Status</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {usageStats.bottom5.map((v) => (
+                                            <TableRow key={v.id}>
+                                                <TableCell className="text-xs font-mono">{v.path}</TableCell>
+                                                <TableCell className="text-right">{v.count}</TableCell>
+                                                <TableCell className="text-right">
+                                                    <Badge variant="destructive" className="text-[10px]">Low Priority</Badge>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                        {usageStats.bottom5.length === 0 && (
+                                            <TableRow>
+                                                <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">No usage data yet.</TableCell>
+                                            </TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
             </TabsContent>
         </Tabs>
         

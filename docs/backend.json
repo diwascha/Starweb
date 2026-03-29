@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -81,9 +82,20 @@
       "type": "object",
       "properties": {
         "text": { "type": "string" },
-        "isSelected": { "type": "boolean" }
+        "isSelected": { "boolean": "boolean" }
       },
       "required": ["text", "isSelected"]
+    },
+    "PageVisit": {
+      "title": "Page Visit",
+      "description": "Tracks the number of visits to a specific page path.",
+      "type": "object",
+      "properties": {
+        "path": { "type": "string" },
+        "count": { "type": "number" },
+        "lastVisited": { "type": "string", "format": "date-time" }
+      },
+      "required": ["path", "count"]
     }
   },
   "auth": {
@@ -110,6 +122,10 @@
           "termsAndConditions": { "type": "array", "items": { "$ref": "#/entities/CostReportTerm" } }
         }
       }
+    },
+    "/pageVisits/{pathId}": {
+      "schema": { "$ref": "#/entities/PageVisit" },
+      "description": "Usage analytics for page traffic."
     }
   }
 }

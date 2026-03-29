@@ -1,3 +1,4 @@
+
 export interface RateHistoryEntry {
   rate: number;
   date: string; // ISO string when the rate was set
@@ -766,4 +767,11 @@ export interface CostSetting {
     createdAt?: string; // ISO
     lastModifiedBy?: string;
     lastModifiedAt?: string; // ISO
+}
+
+export interface PageVisit {
+  id: string;
+  path: string;
+  count: number;
+  lastVisited: string; // ISO
 }
