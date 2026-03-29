@@ -440,7 +440,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
 
   const [isSaving, setIsSaving] = useState(false);
   const [items, setItems] = useState<CostReportItem[]>([]);
-  const [selectedForPrint, setSelectedForPrint] = new Set<string>();
+  const [selectedForPrint, setSelectedForPrint] = useState<Set<string>>(new Set());
 
   const { toast } = useToast();
   const { user } = useAuth();
@@ -677,8 +677,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
           });
           return fullItem;
       }));
-      selectedForPrint.clear();
-      reportToEdit.items.map(i => i.id).forEach(id => selectedForPrint.add(id));
+      setSelectedForPrint(new Set(reportToEdit.items.map(i => i.id)));
       initializedRef.current = true;
     } else if (!initializedRef.current || selectedPartyId === '') {
         generateNextCostReportNumber(costReports).then(setReportNumber);
@@ -695,7 +694,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
         setTransportCost('');
         setTransportCostType('Per Consignment');
         setItems([]);
-        selectedForPrint.clear();
+        setSelectedForPrint(new Set());
         initializedRef.current = true;
     }
   }, [reportToEdit, costReports, calculateItemCost, costSettings, selectedPartyId]);
@@ -813,7 +812,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     const newItemBase = { id: Date.now().toString(), productId: '', l:'',b:'',h:'', noOfPcs:'1', ply:'3', fluteType: 'B', paperType: 'KRAFT', paperBf:'18 BF', paperShade: 'NS', boxType: 'RSC', topGsm:'120',flute1Gsm:'100',middleGsm:'',flute2Gsm:'',bottomGsm:'120', liner2Gsm: '', flute3Gsm: '', liner3Gsm: '', flute4Gsm: '', liner4Gsm: '', wastagePercent:'3.5', accessories: [] };
     const newItem = { ...newItemBase, calculated: calculateItemCost(newItemBase, kCosts, vCost, cCost) };
     setItems(prev => [...prev, newItem]);
-    selectedForPrint.add(newItem.id);
+    setSelectedForPrint(prev => new Set(prev).add(newItem.id));
   };
   
     const handleLoadProducts = () => {
@@ -829,7 +828,11 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
 
   const handleRemoveItem = (id: string) => {
     setItems(prev => prev.filter(item => item.id !== id));
-    selectedForPrint.delete(id);
+    setSelectedForPrint(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+    });
   };
   
   const handleOpenPartyDialog = (partyToEdit: Party | null = null, searchName: string = '') => {
@@ -1046,7 +1049,11 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
         
         const newItem = { ...newItemBase, calculated: calculateItemCost(newItemBase, kCosts, vCost, cCost) };
         setItems(prev => [...prev, newItem]);
-        selectedForPrint.add(newItem.id);
+        setSelectedForPrint(prev => {
+            const next = new Set(prev);
+            next.add(newItem.id);
+            return next;
+        });
         toast({ title: "Item Copied", description: "A copy of the item has been added to the list." });
     };
 
