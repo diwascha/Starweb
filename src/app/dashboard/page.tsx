@@ -122,80 +122,90 @@ export default function DashboardPage() {
 
       {/* Summary Widgets */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <Card className="border-l-4 border-l-blue-500">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground uppercase">Staff Presence</p>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-bold">{stats.presentToday}</span>
-                  <span className="text-sm text-muted-foreground">/ {stats.totalStaff} present</span>
+        <Link href="/hr/attendance" className="block">
+          <Card className="border-l-4 border-l-blue-500 hover:bg-accent transition-colors cursor-pointer h-full">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase">Staff Presence</p>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-bold">{stats.presentToday}</span>
+                    <span className="text-sm text-muted-foreground">/ {stats.totalStaff} present</span>
+                  </div>
                 </div>
+                <Users className="h-8 w-8 text-blue-500 opacity-20" />
               </div>
-              <Users className="h-8 w-8 text-blue-500 opacity-20" />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card className={cn("border-l-4", stats.criticalPolicies > 0 ? "border-l-destructive bg-destructive/5" : "border-l-green-500")}>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground uppercase">Fleet Alerts</p>
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl font-bold">{stats.criticalPolicies}</span>
-                  {stats.criticalPolicies > 0 && <Badge variant="destructive" className="animate-pulse">Renewals Due</Badge>}
-                  {stats.criticalPolicies === 0 && <span className="text-sm text-green-600 font-medium">All clear</span>}
+        <Link href="/fleet/policies" className="block">
+          <Card className={cn("border-l-4 hover:bg-accent transition-colors cursor-pointer h-full", stats.criticalPolicies > 0 ? "border-l-destructive bg-destructive/5" : "border-l-green-500")}>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase">Fleet Alerts</p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl font-bold">{stats.criticalPolicies}</span>
+                    {stats.criticalPolicies > 0 && <Badge variant="destructive" className="animate-pulse">Renewals Due</Badge>}
+                    {stats.criticalPolicies === 0 && <span className="text-sm text-green-600 font-medium">All clear</span>}
+                  </div>
                 </div>
+                <Truck className="h-8 w-8 text-muted-foreground opacity-20" />
               </div>
-              <Truck className="h-8 w-8 text-muted-foreground opacity-20" />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card className="border-l-4 border-l-amber-500">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground uppercase">Open Orders</p>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-bold">{stats.openPOs}</span>
-                  <span className="text-sm text-muted-foreground">Pending POs</span>
+        <Link href="/purchase-orders/list" className="block">
+          <Card className="border-l-4 border-l-amber-500 hover:bg-accent transition-colors cursor-pointer h-full">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase">Open Orders</p>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-bold">{stats.openPOs}</span>
+                    <span className="text-sm text-muted-foreground">Pending POs</span>
+                  </div>
                 </div>
+                <ShoppingCart className="h-8 w-8 text-amber-500 opacity-20" />
               </div>
-              <ShoppingCart className="h-8 w-8 text-amber-500 opacity-20" />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card className="border-l-4 border-l-green-600">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground uppercase">MTD Revenue Est.</p>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-xl font-bold">Rs.{stats.mtdRevenue.toLocaleString()}</span>
+        <Link href="/finance/estimate-invoice" className="block">
+          <Card className="border-l-4 border-l-green-600 hover:bg-accent transition-colors cursor-pointer h-full">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase">MTD Revenue Est.</p>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-xl font-bold">Rs.{stats.mtdRevenue.toLocaleString()}</span>
+                  </div>
                 </div>
+                <TrendingUp className="h-8 w-8 text-green-600 opacity-20" />
               </div>
-              <TrendingUp className="h-8 w-8 text-green-600 opacity-20" />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card className="border-l-4 border-l-purple-500">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground uppercase">System Traffic</p>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-bold">{stats.totalVisits.toLocaleString()}</span>
-                  <span className="text-sm text-muted-foreground">Visits</span>
+        <Link href="/settings" className="block">
+          <Card className="border-l-4 border-l-purple-500 hover:bg-accent transition-colors cursor-pointer h-full">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase">System Traffic</p>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-bold">{stats.totalVisits.toLocaleString()}</span>
+                    <span className="text-sm text-muted-foreground">Visits</span>
+                  </div>
                 </div>
+                <MousePointerClick className="h-8 w-8 text-purple-500 opacity-20" />
               </div>
-              <MousePointerClick className="h-8 w-8 text-purple-500 opacity-20" />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
