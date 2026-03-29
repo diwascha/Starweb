@@ -380,7 +380,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
             </Button>
             <Button onClick={handlePrint}><Printer className="mr-2 h-4 w-4" /> Print</Button>
         </DialogFooter>
-      </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
@@ -464,6 +464,14 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
   const uniquePartiesForLoad = useMemo(() => {
     const partyNames = new Set(products.map(p => p.partyName).filter(Boolean));
     return ['All', ...Array.from(partyNames).sort()];
+  }, [products]);
+
+  const sortedParties = useMemo(() => {
+    return [...parties].sort((a, b) => a.name.localeCompare(b.name));
+  }, [parties]);
+
+  const sortedProducts = useMemo(() => {
+    return [...products].sort((a, b) => a.name.localeCompare(b.name));
   }, [products]);
 
 
@@ -802,7 +810,11 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
         
         const newItem = { ...newItemBase, calculated: calculateItemCost(newItemBase, kCosts, vCost, cCost) };
         setItems(prev => [...prev, newItem]);
-        setSelectedForPrint(prev => new Set(prev).add(newItem.id));
+        setSelectedForPrint(prev => {
+            const next = new Set(prev);
+            next.add(newItem.id);
+            return next;
+        });
     };
 
   const handleAddItem = () => {
@@ -812,7 +824,11 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     const newItemBase = { id: Date.now().toString(), productId: '', l:'',b:'',h:'', noOfPcs:'1', ply:'3', fluteType: 'B', paperType: 'KRAFT', paperBf:'18 BF', paperShade: 'NS', boxType: 'RSC', topGsm:'120',flute1Gsm:'100',middleGsm:'',flute2Gsm:'',bottomGsm:'120', liner2Gsm: '', flute3Gsm: '', liner3Gsm: '', flute4Gsm: '', liner4Gsm: '', wastagePercent:'3.5', accessories: [] };
     const newItem = { ...newItemBase, calculated: calculateItemCost(newItemBase, kCosts, vCost, cCost) };
     setItems(prev => [...prev, newItem]);
-    setSelectedForPrint(prev => new Set(prev).add(newItem.id));
+    setSelectedForPrint(prev => {
+        const next = new Set(prev);
+        next.add(newItem.id);
+        return next;
+    });
   };
   
     const handleLoadProducts = () => {
@@ -1163,7 +1179,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                                             </Button>
                                                         </CommandEmpty>
                                                         <CommandGroup>
-                                                            {parties.map(p => (
+                                                            {sortedParties.map(p => (
                                                                 <CommandItem key={p.id} value={p.name} onSelect={() => { setSelectedPartyId(p.id); setPartySearch(''); }} className="flex justify-between">
                                                                     <div className="flex items-center">
                                                                         <Check className={cn("mr-2 h-4 w-4", selectedPartyId === p.id ? "opacity-100" : "opacity-0")} />
@@ -1433,7 +1449,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                                     </Button>
                                                   </CommandEmpty>
                                                   <CommandGroup>
-                                                    {products.map(p => (
+                                                    {sortedProducts.map(p => (
                                                       <CommandItem key={p.id} className="text-xs" value={`${p.name} ${p.materialCode}`} onSelect={() => { handleProductSelect(index, p.id); setProductSearch(''); }}>
                                                         <Check className={cn("mr-2 h-4 w-4", item.productId === p.id ? "opacity-100" : "opacity-0")} />
                                                         {p.name}
@@ -1828,6 +1844,7 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
             const deckle1 = (2 * l) + (2 * b) + 62;
             const area1 = cutOff1 * deckle1;
 
+            const MathAbs = Math.abs;
             const cutOff2 = l + h + 20;
             const deckle2 = (2 * b) + (2 * l) + 62;
             const area2 = cutOff2 * deckle2;

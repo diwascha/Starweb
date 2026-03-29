@@ -195,10 +195,10 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   }, [rawMaterials]);
 
   const filteredRawMaterials = useMemo(() => {
-    if (itemFilterType === 'All') {
-      return rawMaterials;
-    }
-    return rawMaterials.filter(m => m.type === itemFilterType);
+    let filtered = itemFilterType === 'All' 
+      ? [...rawMaterials] 
+      : rawMaterials.filter(m => m.type === itemFilterType);
+    return filtered.sort((a, b) => a.name.localeCompare(b.name));
   }, [rawMaterials, itemFilterType]);
 
   const handleCompanySelect = (partyId: string) => {
@@ -925,7 +925,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                             placeholder={quickAddForm.units.length === 0 ? "e.g. Kg, Ton..." : ""}
                                             value={unitInputValue}
                                             onChange={e => setUnitInputValue(e.target.value)}
-                                            onKeyDown={handleQuickAddUnitKeyDown}
+                                            onKeyDown={quickAddUnitKeyDown}
                                             className="bg-transparent outline-none flex-1 placeholder:text-muted-foreground text-sm min-w-[80px]"
                                         />
                                     </div>
