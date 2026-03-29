@@ -23,7 +23,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, MoreHorizontal, Search, Save, KeyRound, Download, Upload, View, ChevronDown, Lock, Unlock, GitMerge, ChevronsUpDown, Check, BarChart3, TrendingDown, TrendingUp } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, Search, Save, KeyRound, Download, Upload, View, ChevronDown, Lock, Unlock, GitMerge, ChevronsUpDown, Check, BarChart3, TrendingDown, TrendingUp, ArrowUpDown, CalendarIcon } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
@@ -49,6 +49,7 @@ import NepaliDate from 'nepali-date-converter';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Badge } from '@/components/ui/badge';
+import { format } from 'date-fns';
 
 
 const nepaliMonths = [
@@ -158,6 +159,10 @@ export default function SettingsPage() {
 
   // Usage Analytics State
   const [pageVisits, setPageVisits] = useState<PageVisit[]>([]);
+  const [usageSearch, setUsageSearch] = useState('');
+  const [usageSortConfig, setUsageSortConfig] = useState<{ key: 'count' | 'path' | 'lastVisited', dir: 'asc' | 'desc' }>({ key: 'count', dir: 'desc' });
+  const [usageFilterMonth, setUsageFilterMonth] = useState<string>('All');
+  const [usageFilterYear, setUsageFilterYear] = useState<string>('All');
 
   // Prefixes State
   const [prefixes, setPrefixes] = useState<DocumentPrefixes>({});
@@ -595,13 +600,51 @@ export default function SettingsPage() {
     const total = pageVisits.reduce((sum, v) => sum + v.count, 0);
     const sorted = [...pageVisits].sort((a, b) => b.count - a.count);
     const top5 = sorted.slice(0, 5);
-    const bottom5 = [...sorted].reverse().slice(0, 5);
     
-    return { total, top5, bottom5 };
+    return { total, top5 };
+  }, [pageVisits]);
+
+  const filteredDetailedUsage = useMemo(() => {
+    let filtered = [...pageVisits];
+    
+    if (usageSearch) {
+        const query = usageSearch.toLowerCase();
+        filtered = filtered.filter(v => v.path.toLowerCase().includes(query));
+    }
+    
+    if (usageFilterYear !== 'All') {
+        filtered = filtered.filter(v => new Date(v.lastVisited).getFullYear() === parseInt(usageFilterYear));
+    }
+    
+    if (usageFilterMonth !== 'All') {
+        filtered = filtered.filter(v => new Date(v.lastVisited).getMonth() === parseInt(usageFilterMonth));
+    }
+    
+    filtered.sort((a, b) => {
+        const aVal = a[usageSortConfig.key];
+        const bVal = b[usageSortConfig.key];
+        if (aVal < bVal) return usageSortConfig.dir === 'asc' ? -1 : 1;
+        if (aVal > bVal) return usageSortConfig.dir === 'asc' ? 1 : -1;
+        return 0;
+    });
+    
+    return filtered;
+  }, [pageVisits, usageSearch, usageSortConfig, usageFilterYear, usageFilterMonth]);
+
+  const usageYears = useMemo(() => {
+    const years = new Set(pageVisits.map(v => new Date(v.lastVisited).getFullYear()));
+    return ['All', ...Array.from(years).sort((a, b) => b - a).map(String)];
   }, [pageVisits]);
 
   const chartConfig: ChartConfig = {
-    count: { label: 'Visits', color: 'hsl(var(--chart-1))' },
+    count: { label: 'Visits', color: 'hsl(var(--primary))' },
+  };
+
+  const handleUsageSort = (key: 'count' | 'path' | 'lastVisited') => {
+    setUsageSortConfig(prev => ({
+        key,
+        dir: prev.key === key && prev.dir === 'desc' ? 'asc' : 'desc'
+    }));
   };
 
   if (isLoading) {
@@ -931,88 +974,113 @@ export default function SettingsPage() {
                             </CardHeader>
                             <CardContent>
                                 <div className="text-2xl font-bold">{usageStats.total.toLocaleString()}</div>
-                                <p className="text-xs text-muted-foreground">Lifetime system interactions</p>
+                                <p className="text-xs text-muted-foreground">Lifetime interactions</p>
                             </CardContent>
                         </Card>
-                        <Card>
+                        <Card className="md:col-span-2">
                             <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-medium">Core Engagement</CardTitle>
+                                <CardTitle className="text-sm font-medium">Top 5 Most Visited</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <div className="flex items-center gap-2">
-                                    <TrendingUp className="h-4 w-4 text-green-500" />
-                                    <span className="text-2xl font-bold">{usageStats.top5[0]?.path || 'N/A'}</span>
-                                </div>
-                                <p className="text-xs text-muted-foreground">Most active module</p>
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-medium">Maintenance Needed</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="flex items-center gap-2">
-                                    <TrendingDown className="h-4 w-4 text-red-500" />
-                                    <span className="text-2xl font-bold">{usageStats.bottom5.length} Modules</span>
-                                </div>
-                                <p className="text-xs text-muted-foreground">Pages with low visibility</p>
-                            </CardContent>
-                        </Card>
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Top 5 Most Visited Pages</CardTitle>
-                                <CardDescription>High engagement features to prioritize.</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <ChartContainer config={chartConfig} className="h-[300px] w-full">
-                                    <BarChart data={usageStats.top5} layout="vertical" margin={{ left: 40, right: 20 }}>
-                                        <CartesianGrid horizontal={false} />
+                                <ChartContainer config={chartConfig} className="h-[100px] w-full">
+                                    <BarChart data={usageStats.top5} layout="vertical" margin={{ left: 40 }}>
                                         <XAxis type="number" hide />
-                                        <YAxis dataKey="path" type="category" width={120} tick={{ fontSize: 10 }} />
+                                        <YAxis dataKey="path" type="category" width={100} tick={{ fontSize: 9 }} />
                                         <Tooltip content={<ChartTooltipContent />} />
-                                        <Bar dataKey="count" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                                        <Bar dataKey="count" fill="var(--color-count)" radius={[0, 4, 4, 0]} />
                                     </BarChart>
                                 </ChartContainer>
                             </CardContent>
                         </Card>
-
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Least Used Features</CardTitle>
-                                <CardDescription>Identify modules for redesign or removal.</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Path</TableHead>
-                                            <TableHead className="text-right">Visits</TableHead>
-                                            <TableHead className="text-right">Status</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {usageStats.bottom5.map((v) => (
-                                            <TableRow key={v.id}>
-                                                <TableCell className="text-xs font-mono">{v.path}</TableCell>
-                                                <TableCell className="text-right">{v.count}</TableCell>
-                                                <TableCell className="text-right">
-                                                    <Badge variant="destructive" className="text-[10px]">Low Priority</Badge>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                        {usageStats.bottom5.length === 0 && (
-                                            <TableRow>
-                                                <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">No usage data yet.</TableCell>
-                                            </TableRow>
-                                        )}
-                                    </TableBody>
-                                </Table>
-                            </CardContent>
-                        </Card>
                     </div>
+
+                    <Card>
+                        <CardHeader>
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                                <div>
+                                    <CardTitle>Detailed Usage Report</CardTitle>
+                                    <CardDescription>Full listing of all application paths and their engagement levels.</CardDescription>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <div className="relative">
+                                        <Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                                        <Input 
+                                            placeholder="Search path..." 
+                                            value={usageSearch}
+                                            onChange={e => setUsageSearch(e.target.value)}
+                                            className="pl-8 h-9 text-xs w-[180px]" 
+                                        />
+                                    </div>
+                                    <Select value={usageFilterYear} onValueChange={setUsageFilterYear}>
+                                        <SelectTrigger className="h-9 w-[100px] text-xs"><SelectValue placeholder="Year" /></SelectTrigger>
+                                        <SelectContent>
+                                            {usageYears.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                    <Select value={usageFilterMonth} onValueChange={setUsageFilterMonth}>
+                                        <SelectTrigger className="h-9 w-[120px] text-xs"><SelectValue placeholder="Month" /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="All">All Months</SelectItem>
+                                            {nepaliMonths.map(m => <SelectItem key={m.value} value={String(m.value)}>{m.name}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>
+                                            <Button variant="ghost" onClick={() => handleUsageSort('path')} className="h-8 text-xs px-2">
+                                                Path <ArrowUpDown className="ml-2 h-3 w-3" />
+                                            </Button>
+                                        </TableHead>
+                                        <TableHead>
+                                            <Button variant="ghost" onClick={() => handleUsageSort('count')} className="h-8 text-xs px-2">
+                                                Total Visits <ArrowUpDown className="ml-2 h-3 w-3" />
+                                            </Button>
+                                        </TableHead>
+                                        <TableHead>
+                                            <Button variant="ghost" onClick={() => handleUsageSort('lastVisited')} className="h-8 text-xs px-2">
+                                                Last Activity <ArrowUpDown className="ml-2 h-3 w-3" />
+                                            </Button>
+                                        </TableHead>
+                                        <TableHead className="text-right">Engagement</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {filteredDetailedUsage.map((v) => (
+                                        <TableRow key={v.id}>
+                                            <TableCell className="text-xs font-mono">{v.path}</TableCell>
+                                            <TableCell className="font-semibold">{v.count}</TableCell>
+                                            <TableCell className="text-xs text-muted-foreground">
+                                                {toNepaliDate(v.lastVisited)} ({format(new Date(v.lastVisited), 'PPp')})
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                {v.count < 10 ? (
+                                                    <Badge variant="destructive" className="text-[10px] gap-1">
+                                                        <TrendingDown className="h-3 w-3"/> Low Usage
+                                                    </Badge>
+                                                ) : (
+                                                    <Badge variant="outline" className="text-[10px] text-green-600 border-green-600 gap-1">
+                                                        <TrendingUp className="h-3 w-3"/> High Usage
+                                                    </Badge>
+                                                )}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                    {filteredDetailedUsage.length === 0 && (
+                                        <TableRow>
+                                            <TableCell colSpan={4} className="text-center py-12 text-muted-foreground">
+                                                No usage data matches your filters.
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
                 </div>
             </TabsContent>
         </Tabs>
