@@ -15,7 +15,8 @@ import {
   TrendingUp, 
   Package, 
   ArrowRight,
-  ClipboardList
+  ClipboardList,
+  MousePointerClick
 } from 'lucide-react';
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -29,7 +30,8 @@ import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onPoliciesUpdate } from '@/services/policy-service';
 import { onPurchaseOrdersUpdate } from '@/services/purchase-order-service';
 import { onEstimatedInvoicesUpdate } from '@/services/estimate-invoice-service';
-import type { Employee, AttendanceRecord, Vehicle, PolicyOrMembership, PurchaseOrder, EstimatedInvoice } from '@/lib/types';
+import { onPageVisitsUpdate } from '@/services/usage-service';
+import type { Employee, AttendanceRecord, Vehicle, PolicyOrMembership, PurchaseOrder, EstimatedInvoice, PageVisit } from '@/lib/types';
 import { isToday, differenceInDays, startOfToday, startOfMonth } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -40,6 +42,7 @@ export default function DashboardPage() {
   const [policies, setPolicies] = useState<PolicyOrMembership[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [invoices, setInvoices] = useState<EstimatedInvoice[]>([]);
+  const [pageVisits, setPageVisits] = useState<PageVisit[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -49,6 +52,7 @@ export default function DashboardPage() {
     const unsubPolicies = onPoliciesUpdate(setPolicies);
     const unsubPOs = onPurchaseOrdersUpdate(setPurchaseOrders);
     const unsubInvoices = onEstimatedInvoicesUpdate(setInvoices);
+    const unsubUsage = onPageVisitsUpdate(setPageVisits);
 
     setIsLoading(false);
     return () => {
@@ -57,6 +61,7 @@ export default function DashboardPage() {
       unsubPolicies();
       unsubPOs();
       unsubInvoices();
+      unsubUsage();
     };
   }, []);
 
@@ -82,8 +87,11 @@ export default function DashboardPage() {
       .filter(inv => new Date(inv.date) >= monthStart)
       .reduce((sum, inv) => sum + inv.netTotal, 0);
 
-    return { totalStaff, presentToday, criticalPolicies, openPOs, mtdRevenue };
-  }, [employees, attendance, policies, purchaseOrders, invoices]);
+    // Usage
+    const totalVisits = pageVisits.reduce((sum, v) => sum + v.count, 0);
+
+    return { totalStaff, presentToday, criticalPolicies, openPOs, mtdRevenue, totalVisits };
+  }, [employees, attendance, policies, purchaseOrders, invoices, pageVisits]);
 
   return (
     <div className="flex flex-col gap-8">
@@ -113,7 +121,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Summary Widgets */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card className="border-l-4 border-l-blue-500">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
@@ -170,6 +178,21 @@ export default function DashboardPage() {
                 </div>
               </div>
               <TrendingUp className="h-8 w-8 text-green-600 opacity-20" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-purple-500">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground uppercase">System Traffic</p>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-bold">{stats.totalVisits.toLocaleString()}</span>
+                  <span className="text-sm text-muted-foreground">Visits</span>
+                </div>
+              </div>
+              <MousePointerClick className="h-8 w-8 text-purple-500 opacity-20" />
             </div>
           </CardContent>
         </Card>
