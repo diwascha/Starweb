@@ -18,7 +18,7 @@ import { DualCalendar } from '@/components/ui/dual-calendar';
 import { cn, toNepaliDate } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/cmdk';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
@@ -87,7 +87,7 @@ const CompactGsmDisplay = ({ item }: { item: any }) => {
     );
 };
 
-// Quotation Preview Component
+// Quotation Preview Dialog Component
 interface QuotationPreviewDialogProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
@@ -1344,7 +1344,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                 <TableHead rowSpan={2} className="w-[40px] align-bottom px-1">
                                     <div className="flex items-center">
                                         <Checkbox
-                                            checked={selectedForPrint.size === items.length && items.length > 0}
+                                            checked={(selectedForPrint?.size || 0) === items.length && items.length > 0}
                                             onCheckedChange={(checked) => {
                                                 if (checked) {
                                                     setSelectedForPrint(new Set(items.map(i => i.id)));
@@ -1403,7 +1403,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                              }
 
                              const selectedProduct = products.find(p => p.id === item.productId);
-                             const wasteWt = item.calculated.totalBoxWeight - item.calculated.paperWeight;
+                             const wasteWt = (item.calculated?.totalBoxWeight || 0) - (item.calculated?.paperWeight || 0);
                              
                              return (
                                 <React.Fragment key={item.id}>
@@ -1528,13 +1528,13 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                       <TableCell className="px-1">
                                           {ply >= 3 ? <Input type="number" value={item.bottomGsm} onChange={e => handleItemChange(index, 'bottomGsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /> : null}
                                       </TableCell>
-                                      <TableCell className="px-1">{item.calculated.totalGsm.toFixed(1)}</TableCell>
-                                      <TableCell className="px-1">{item.calculated.sheetSizeL ? (item.calculated.sheetSizeL / 10).toFixed(1) : '-'}</TableCell>
-                                      <TableCell className="px-1">{item.calculated.sheetSizeB ? (item.calculated.sheetSizeB / 10).toFixed(1) : '-'}</TableCell>
-                                      <TableCell className="px-1 font-bold">{item.calculated.paperWeight.toFixed(1)}</TableCell>
+                                      <TableCell className="px-1">{item.calculated?.totalGsm.toFixed(1)}</TableCell>
+                                      <TableCell className="px-1">{item.calculated?.sheetSizeL ? (item.calculated.sheetSizeL / 10).toFixed(1) : '-'}</TableCell>
+                                      <TableCell className="px-1">{item.calculated?.sheetSizeB ? (item.calculated.sheetSizeB / 10).toFixed(1) : '-'}</TableCell>
+                                      <TableCell className="px-1 font-bold">{item.calculated?.paperWeight.toFixed(1)}</TableCell>
                                       <TableCell className="px-1">{wasteWt.toFixed(1)}</TableCell>
-                                      <TableCell className="px-1 font-bold">{item.calculated.totalBoxWeight.toFixed(1)}</TableCell>
-                                      <TableCell className="px-1 font-medium">{item.calculated.paperCost > 0 ? item.calculated.paperCost.toFixed(1) : '...'}</TableCell>
+                                      <TableCell className="px-1 font-bold">{item.calculated?.totalBoxWeight.toFixed(1)}</TableCell>
+                                      <TableCell className="px-1 font-medium">{item.calculated?.paperCost > 0 ? item.calculated.paperCost.toFixed(1) : '...'}</TableCell>
                                       <TableCell className="px-1">{accessoriesCost.toFixed(1)}</TableCell>
                                       <TableCell className="px-1">
                                         <div className="flex flex-col items-center">
@@ -1552,7 +1552,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                     </TableRow>
                                     {(item.accessories || []).map((acc, accIndex) => {
                                         const accPly = parseInt(acc.ply, 10);
-                                        const accWasteWt = acc.calculated.totalBoxWeight - acc.calculated.paperWeight;
+                                        const accWasteWt = (acc.calculated?.totalBoxWeight || 0) - (acc.calculated?.paperWeight || 0);
                                         return (
                                         <TableRow key={acc.id} className="h-9 bg-muted/20">
                                             <TableCell colSpan={2} className="px-1 pl-6">
@@ -1607,7 +1607,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                             </TableCell>
                                             <TableCell className="px-1"><Input type="number" value={acc.wastagePercent} onChange={e => handleAccessoryChange(index, accIndex, 'wastagePercent', e.target.value)} className="w-20 h-6 px-1 text-[10px]" /></TableCell>
                                             <TableCell className="px-1"><Input type="number" value={acc.topGsm} onChange={e => handleAccessoryChange(index, accIndex, 'topGsm', e.target.value)} className="w-14 h-6 px-1 text-[10px]" /></TableCell>
-                                            <TableCell className="px-1"><Input type="number" value={acc.flute1Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'flute1Gsm', e.target.value)} className="w-14 h-6 px-1 text-[10px]" /></TableCell>
+                                            <TableCell className="px-1"><Input type="number" value={acc.flute1Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'destination')} className="w-14 h-6 px-1 text-[10px]" /></TableCell>
                                             {maxPly >= 7 && <TableCell className="px-1">{accPly >= 7 ? <Input type="number" value={acc.liner2Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'liner2Gsm', e.target.value)} className="w-14 h-6 px-1 text-[10px]" /> : null}</TableCell>}
                                             {maxPly >= 5 && <TableCell className="px-1">{accPly >= 5 ? <Input type="number" value={acc.flute2Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'flute2Gsm', e.target.value)} className="w-14 h-6 px-1 text-[10px]" /> : null}</TableCell>}
                                             {maxPly >= 5 && <TableCell className="px-1">{accPly === 5 ? <Input type="number" value={acc.middleGsm} onChange={e => handleAccessoryChange(index, accIndex, 'middleGsm', e.target.value)} className="w-14 h-6 px-1 text-[10px]" /> : (accPly >= 7 ? <Input type="number" value={acc.liner3Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'liner3Gsm', e.target.value)} className="w-14 h-6 px-1 text-[10px]" /> : null)}</TableCell>}
@@ -1615,13 +1615,13 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                             {maxPly >= 9 && <TableCell className="px-1">{accPly >= 9 ? <Input type="number" value={acc.liner4Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'liner4Gsm', e.target.value)} className="w-14 h-6 px-1 text-[10px]" /> : null}</TableCell>}
                                             {maxPly >= 9 && <TableCell className="px-1">{accPly >= 9 ? <Input type="number" value={acc.flute4Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'flute4Gsm', e.target.value)} className="w-14 h-6 px-1 text-[10px]" /> : null}</TableCell>}
                                             <TableCell className="px-1"><Input type="number" value={acc.bottomGsm} onChange={e => handleAccessoryChange(index, accIndex, 'bottomGsm', e.target.value)} className="w-14 h-6 px-1 text-[10px]" /></TableCell>
-                                            <TableCell className="px-1">{acc.calculated.totalGsm.toFixed(1)}</TableCell>
-                                            <TableCell className="px-1">{acc.calculated.sheetSizeL ? (acc.calculated.sheetSizeL / 10).toFixed(1) : '-'}</TableCell>
-                                            <TableCell className="px-1">{acc.calculated.sheetSizeB ? (acc.calculated.sheetSizeB / 10).toFixed(1) : '-'}</TableCell>
-                                            <TableCell className="px-1 font-bold">{acc.calculated.paperWeight.toFixed(1)}</TableCell>
+                                            <TableCell className="px-1">{acc.calculated?.totalGsm.toFixed(1)}</TableCell>
+                                            <TableCell className="px-1">{acc.calculated?.sheetSizeL ? (acc.calculated.sheetSizeL / 10).toFixed(1) : '-'}</TableCell>
+                                            <TableCell className="px-1">{acc.calculated?.sheetSizeB ? (acc.calculated.sheetSizeB / 10).toFixed(1) : '-'}</TableCell>
+                                            <TableCell className="px-1 font-bold">{acc.calculated?.paperWeight.toFixed(1)}</TableCell>
                                             <TableCell className="px-1">{accWasteWt.toFixed(1)}</TableCell>
-                                            <TableCell className="px-1 font-bold">{acc.calculated.totalBoxWeight.toFixed(1)}</TableCell>
-                                            <TableCell className="px-1 font-medium">{acc.calculated.paperCost > 0 ? acc.calculated.paperCost.toFixed(1) : '...'}</TableCell>
+                                            <TableCell className="px-1 font-bold">{acc.calculated?.totalBoxWeight.toFixed(1)}</TableCell>
+                                            <TableCell className="px-1 font-medium">{acc.calculated?.paperCost > 0 ? acc.calculated.paperCost.toFixed(1) : '...'}</TableCell>
                                             <TableCell className="px-1"></TableCell>
                                             <TableCell className="px-1 text-right">
                                                 <Button variant="ghost" size="icon" className="h-5 w-5 text-destructive" onClick={() => removeAccessory(index, acc.id)}>
