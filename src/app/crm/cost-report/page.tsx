@@ -18,7 +18,7 @@ import { DualCalendar } from '@/components/ui/dual-calendar';
 import { cn, toNepaliDate } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/cmdk';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
@@ -1607,7 +1607,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                             </TableCell>
                                             <TableCell className="px-1"><Input type="number" value={acc.wastagePercent} onChange={e => handleAccessoryChange(index, accIndex, 'wastagePercent', e.target.value)} className="w-20 h-6 px-1 text-[10px]" /></TableCell>
                                             <TableCell className="px-1"><Input type="number" value={acc.topGsm} onChange={e => handleAccessoryChange(index, accIndex, 'topGsm', e.target.value)} className="w-14 h-6 px-1 text-[10px]" /></TableCell>
-                                            <TableCell className="px-1"><Input type="number" value={acc.flute1Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'destination')} className="w-14 h-6 px-1 text-[10px]" /></TableCell>
+                                            <TableCell className="px-1"><Input type="number" value={acc.flute1Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'flute1Gsm', e.target.value)} className="w-14 h-6 px-1 text-[10px]" /></TableCell>
                                             {maxPly >= 7 && <TableCell className="px-1">{accPly >= 7 ? <Input type="number" value={acc.liner2Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'liner2Gsm', e.target.value)} className="w-14 h-6 px-1 text-[10px]" /> : null}</TableCell>}
                                             {maxPly >= 5 && <TableCell className="px-1">{accPly >= 5 ? <Input type="number" value={acc.flute2Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'flute2Gsm', e.target.value)} className="w-14 h-6 px-1 text-[10px]" /> : null}</TableCell>}
                                             {maxPly >= 5 && <TableCell className="px-1">{accPly === 5 ? <Input type="number" value={acc.middleGsm} onChange={e => handleAccessoryChange(index, accIndex, 'middleGsm', e.target.value)} className="w-14 h-6 px-1 text-[10px]" /> : (accPly >= 7 ? <Input type="number" value={acc.liner3Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'liner3Gsm', e.target.value)} className="w-14 h-6 px-1 text-[10px]" /> : null)}</TableCell>}
@@ -1630,164 +1630,39 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                             </TableCell>
                                         </TableRow>
                                     )})}
-                                </React.Fragment>
-                        )})}
-                        </TableBody>
-                    </Table>
-                </div>
-                <div className="flex justify-start gap-2 mt-3">
-                    <Button variant="outline" size="sm" className="h-8 text-xs" onClick={handleAddItem}><Plus className="mr-1 h-3 w-3" />Add Product</Button>
-                    <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setIsLoadProductsDialogOpen(true)}><Library className="mr-1 h-3 w-3" /> Load Products</Button>
-                </div>
-            </CardContent>
-            
-        </Card>
-
-        <div className="flex justify-end gap-2 mt-4">
-            <Button variant="outline" className="h-9" onClick={handlePrintPreview}><Printer className="mr-2 h-4 w-4" /> Print Preview</Button>
-            <Button className="h-9" onClick={handleSaveReport} disabled={isSaving}>
-                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                {reportToEdit ? 'Save Changes' : 'Save Report'}
-            </Button>
-        </div>
-      
-       <Dialog open={isPartyDialogOpen} onOpenChange={setIsPartyDialogOpen}>
-          <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                  <DialogTitle>{editingParty ? 'Edit Party' : 'Add New Party'}</DialogTitle>
-                   <DialogDescription>
-                      {editingParty ? 'Update the details for this party.' : 'Create a new customer/vendor record.'}
-                  </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                  <div className="space-y-2">
-                      <Label htmlFor="party-name-dialog">Party Name</Label>
-                      <Input id="party-name-dialog" value={partyForm.name} onChange={e => setPartyForm(p => ({...p, name: e.target.value}))} />
-                  </div>
-                   <div className="space-y-2">
-                      <Label htmlFor="party-type-dialog">Party Type</Label>
-                      <Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm(p => ({...p, type: v}))}>
-                          <SelectTrigger id="party-type-dialog"><SelectValue/></SelectTrigger>
-                          <SelectContent>
-                              <SelectItem value="Vendor">Vendor</SelectItem>
-                              <SelectItem value="Customer">Customer</SelectItem>
-                              <SelectItem value="Both">Both</SelectItem>
-                          </SelectContent>
-                      </Select>
-                  </div>
-                  <div className="space-y-2">
-                      <Label htmlFor="party-pan-dialog">PAN Number</Label>
-                      <Input id="party-pan-dialog" value={partyForm.panNumber || ''} onChange={e => setPartyForm(p => ({...p, panNumber: e.target.value}))} />
-                  </div>
-                  <div className="space-y-2">
-                      <Label htmlFor="party-address-dialog">Address</Label>
-                      <Textarea id="party-address-dialog" value={partyForm.address || ''} onChange={e => setPartyForm(p => ({...p, address: e.target.value}))} />
-                  </div>
-              </div>
-              <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsPartyDialogOpen(false)}>Cancel</Button>
-                  <Button onClick={handleSubmitParty}>{editingParty ? 'Save Changes' : 'Add Party'}</Button>
-              </DialogFooter>
-          </DialogContent>
-      </Dialog>
-        {isPreviewOpen && (
-            <QuotationPreviewDialog
-                isOpen={isPreviewOpen}
-                onOpenChange={setIsPreviewOpen}
-                reportNumber={reportNumber}
-                reportDate={reportDate}
-                party={selectedParty}
-                items={itemsToPrint}
-                products={products}
-                transportCost={Number(transportCost) || 0}
-                transportCostType={transportCostType}
-                termsAndConditions={termsAndConditions}
-            />
-        )}
-      <Dialog open={isLoadProductsDialogOpen} onOpenChange={setIsLoadProductsDialogOpen}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>Load Products</DialogTitle>
-            <DialogDescription>Select products from the list to add them to the calculator.</DialogDescription>
-          </DialogHeader>
-            <div className="py-4 space-y-4">
-                <Select value={loadProductPartyFilter} onValueChange={setLoadProductPartyFilter}>
-                    <SelectTrigger className="w-full sm:w-1/2">
-                        <SelectValue placeholder="Filter by party..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {uniquePartiesForLoad.map(party => (
-                            <SelectItem key={party} value={party}>{party}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-                <ScrollArea className="h-80">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead className="w-10"></TableHead>
-                                <TableHead>Product Name</TableHead>
-                                {loadProductPartyFilter === 'All' && <TableHead>Party Name</TableHead>}
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {(loadProductPartyFilter === 'All' ? products : products.filter(p => p.partyName === loadProductPartyFilter)).map(p => (
-                                <TableRow key={p.id}>
-                                    <TableCell>
-                                        <Checkbox
-                                            checked={productsToLoad.has(p.id)}
-                                            onCheckedChange={checked => {
-                                                setProductsToLoad(prev => {
-                                                    const newSet = new Set(prev);
-                                                    if (checked) newSet.add(p.id);
-                                                    else newSet.delete(p.id);
-                                                    return newSet;
-                                                });
-                                            }}
-                                        />
-                                    </TableCell>
-                                    <TableCell>{p.name} {p.materialCode && `(${p.materialCode})`}</TableCell>
-                                    {loadProductPartyFilter === 'All' && <TableCell>{p.partyName}</TableCell>}
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </ScrollArea>
+                                </TableBody>
+                            </Table>
+                        </ScrollArea>
+                    </CardContent>
+                </Card>
             </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsLoadProductsDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleLoadProducts}>Add Selected Products</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-        <Dialog open={isCostHistoryDialogOpen} onOpenChange={setIsCostHistoryDialogOpen}>
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>Costing History</DialogTitle>
-                <DialogDescription>Review past changes to paper and conversion costs.</DialogDescription>
-            </DialogHeader>
-            <ScrollArea className="h-96">
-                {(costSettings?.history || []).length > 0 ? (
-                <div className="space-y-4 p-4">
-                    {[...(costSettings?.history || [])].reverse().map((entry, index) => (
-                    <div key={index} className="flex justify-between items-center text-sm">
-                        <div>
-                        <p className="font-medium capitalize">{entry.costType.replace('Cost', ' Cost')}</p>
-                        <p className="text-xs text-muted-foreground">{format(new Date(entry.date), "PPp")} by {entry.setBy}</p>
+            <DialogContent className="max-w-xl">
+                <DialogHeader>
+                    <DialogTitle>Costing History</DialogTitle>
+                    <DialogDescription>Review past changes to paper and conversion costs.</DialogDescription>
+                </DialogHeader>
+                <ScrollArea className="h-96">
+                    {(costSettings?.history || []).length > 0 ? (
+                    <div className="space-y-4 p-4">
+                        {[...(costSettings?.history || [])].reverse().map((entry, index) => (
+                        <div key={index} className="flex justify-between items-center text-sm">
+                            <div>
+                            <p className="font-medium capitalize">{entry.costType.replace('Cost', ' Cost')}</p>
+                            <p className="text-xs text-muted-foreground">{format(new Date(entry.date), "PPp")} by {entry.setBy}</p>
+                            </div>
+                            <div className="text-right">
+                            <p>{entry.newValue.toLocaleString()}</p>
+                            <p className="text-xs text-muted-foreground line-through">{entry.oldValue.toLocaleString()}</p>
+                            </div>
                         </div>
-                        <div className="text-right">
-                        <p>{entry.newValue.toLocaleString()}</p>
-                        <p className="text-xs text-muted-foreground line-through">{entry.oldValue.toLocaleString()}</p>
-                        </div>
+                        ))}
                     </div>
-                    ))}
-                </div>
-                ) : (
-                <div className="text-center text-muted-foreground p-8">No history found.</div>
-                )}
-            </ScrollArea>
-        </DialogContent>
-    </Dialog>
+                    ) : (
+                    <div className="text-center text-muted-foreground p-8">No history found.</div>
+                    )}
+                </ScrollArea>
+            </DialogContent>
+        </Dialog>
     </div>
   );
 }
@@ -2642,7 +2517,7 @@ function CostingSettingsTab() {
   const handleAddDefaultTerm = () => {
     if (newDefaultTerm.trim()) {
         setDefaultTerms([...defaultTerms, { text: newDefaultTerm.trim(), isSelected: true }]);
-        setNewDefaultTerm('');
+        setNewTerm('');
     }
   };
   
