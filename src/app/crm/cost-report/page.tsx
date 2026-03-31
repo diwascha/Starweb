@@ -50,7 +50,6 @@ const normalizeBF = (val: any): string => {
   return trimmed;
 };
 
-// Helper to get consistent GSM sequence display
 const getGsmDisplay = (item: any) => {
     if (!item) return 'N/A';
     const plyStr = item.ply || (item.specification ? item.specification.ply : '3');
@@ -72,7 +71,6 @@ const getGsmDisplay = (item: any) => {
     return layers.filter(l => l !== undefined && l !== null && String(l).trim() !== '').join('/');
 };
 
-// Compact GSM component for UI display (splits into two rows for high-ply)
 const CompactGsmDisplay = ({ item }: { item: any }) => {
     const display = getGsmDisplay(item);
     if (!display || display === 'N/A') return <span>N/A</span>;
@@ -87,7 +85,6 @@ const CompactGsmDisplay = ({ item }: { item: any }) => {
     );
 };
 
-// Quotation Preview Dialog Component
 interface QuotationPreviewDialogProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
@@ -106,9 +103,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
   const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
   
-  const selectedTerms = useMemo(() => {
-      return (termsAndConditions || []).filter(t => t.isSelected);
-  }, [termsAndConditions]);
+  const selectedTerms = useMemo(() => (termsAndConditions || []).filter(t => t.isSelected), [termsAndConditions]);
 
   const formatAccessoryDimension = (acc: ProductAccessory) => {
     const dims = [acc.l, acc.b, acc.h].filter(d => d && parseFloat(d) > 0);
@@ -121,11 +116,9 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
     return product.materialCode ? `${product.name} (${product.materialCode})` : product.name;
   };
 
-
   const handlePrint = () => {
     const printableArea = printRef.current;
     if (!printableArea) return;
-    
     const printWindow = window.open('', '', 'height=800,width=800');
     printWindow?.document.write('<html><head><title>Print Quotation</title>');
     printWindow?.document.write('</head><body>');
@@ -144,21 +137,15 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
         setIsExporting(true);
         try {
             const doc = new jsPDF();
-            
-            // Header
             doc.setFont("Helvetica", "bold");
             doc.setFontSize(16);
             doc.text("SHIVAM PACKAGING INDUSTRIES PVT LTD.", doc.internal.pageSize.getWidth() / 2, 20, { align: "center" });
-            
             doc.setFont("Helvetica", "normal");
             doc.setFontSize(10);
             doc.text("HETAUDA 08, BAGMATI PROVIENCE, NEPAL", doc.internal.pageSize.getWidth() / 2, 26, { align: "center" });
-
             doc.setFont("Helvetica", "bold");
             doc.setFontSize(14);
             doc.text("QUOTATION", doc.internal.pageSize.getWidth() / 2, 35, { align: "center" });
-            
-            // Info
             doc.setFontSize(10);
             doc.text(`To,`, 14, 45);
             doc.setFont("Helvetica", "bold");
@@ -166,15 +153,11 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
             doc.setFont("Helvetica", "normal");
             if (party.address) doc.text(party.address, 14, 55);
             if (party.panNumber) doc.text(`PAN: ${party.panNumber}`, 14, 60);
-
-            
             doc.text(`Ref No: ${reportNumber}`, doc.internal.pageSize.getWidth() - 14, 45, { align: 'right' });
             doc.text(`Date: ${toNepaliDate(reportDate.toISOString())} BS (${format(reportDate, "MMMM do, yyyy")})`, doc.internal.pageSize.getWidth() - 14, 50, { align: 'right' });
 
             const body = items.flatMap((item, index) => {
                 const productName = getProductDisplayName(item.productId);
-                
-                // Format GSM for PDF - use newline for split if high ply
                 const getGsmPdf = (it: any) => {
                     const g = getGsmDisplay(it);
                     const parts = g.split('/');
@@ -182,39 +165,21 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                     const mid = Math.ceil(parts.length / 2);
                     return parts.slice(0, mid).join('/') + '\n' + parts.slice(mid).join('/');
                 };
-
                 const mainRow = [
-                    index + 1,
-                    productName,
-                    `${item.l}x${item.b}x${item.h}`,
-                    `${item.ply} Ply, ${item.boxType}`,
-                    `${item.paperType} ${normalizeBF(item.paperBf)}`,
-                    getGsmPdf(item),
-                     `${(item.calculated?.paperWeight || 0).toFixed(2)}`,
-                    `Rs. ${item.totalItemCost.toFixed(2)}`
+                    index + 1, productName, `${item.l}x${item.b}x${item.h}`, `${item.ply} Ply, ${item.boxType}`,
+                    `${item.paperType} ${normalizeBF(item.paperBf)}`, getGsmPdf(item),
+                     `${(item.calculated?.paperWeight || 0).toFixed(2)}`, `Rs. ${item.totalItemCost.toFixed(2)}`
                 ];
-
                 const accessoriesRows = (item.accessories || []).map(acc => [
-                    "",
-                    `+ ${acc.name}`,
-                    formatAccessoryDimension(acc as ProductAccessory),
-                    `${acc.ply} Ply`,
-                    `${acc.paperType} ${normalizeBF(acc.paperBf)}`,
-                    getGsmPdf(acc),
-                    `${(acc.calculated?.paperWeight || 0).toFixed(2)}`,
-                    `(${(acc.calculated?.paperCost || 0).toFixed(2)})`
+                    "", `+ ${acc.name}`, formatAccessoryDimension(acc as ProductAccessory), `${acc.ply} Ply`,
+                    `${acc.paperType} ${normalizeBF(acc.paperBf)}`, getGsmPdf(acc),
+                    `${(acc.calculated?.paperWeight || 0).toFixed(2)}`, `(${(acc.calculated?.paperCost || 0).toFixed(2)})`
                 ]);
-                
                 return [mainRow, ...accessoriesRows];
             });
 
             if (transportCost && transportCostType === 'Per Consignment') {
-                body.push([
-                    "",
-                    "Transport Cost (Consignment)",
-                    "", "", "", "", "",
-                    `Rs. ${transportCost.toFixed(2)}`
-                ]);
+                body.push(["", "Transport Cost (Consignment)", "", "", "", "", "", `Rs. ${transportCost.toFixed(2)}`]);
             }
             
             autoTable(doc, {
@@ -232,46 +197,34 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                             doc.text(`${idx + 1}. ${term.text}`, 14, finalY + 15 + (idx * 5));
                         });
                     }
-                    
                     doc.setFontSize(8);
                     doc.setTextColor(100);
                     doc.text("Disclaimer: This document is electronically generated and does not require a signature.", doc.internal.pageSize.getWidth() / 2, doc.internal.pageSize.getHeight() - 15, { align: 'center' });
                 }
             });
-
             doc.save(`Quotation-${reportNumber}.pdf`);
-
         } catch (error) {
-            console.error('PDF export failed:', error);
             toast({ title: 'Error', description: 'Failed to export PDF.', variant: 'destructive' });
         } finally {
             setIsExporting(false);
         }
     };
 
-
     const handleExportJpg = async () => {
         if (!printRef.current) return;
         setIsExporting(true);
-
         try {
-            const canvas = await html2canvas(printRef.current, { 
-                scale: 3, 
-                useCORS: true,
-                backgroundColor: '#ffffff'
-            });
+            const canvas = await html2canvas(printRef.current, { scale: 3, useCORS: true, backgroundColor: '#ffffff' });
             const link = document.createElement('a');
             link.download = `Quotation-${reportNumber}.jpg`;
             link.href = canvas.toDataURL('image/jpeg', 0.9);
             link.click();
         } catch (error) {
-            console.error(`Failed to export as JPG`, error);
             toast({ title: 'Export Failed', description: `Could not export invoice as JPG.`, variant: 'destructive' });
         } finally {
             setIsExporting(false);
         }
     };
-
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -321,9 +274,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                                 <TableCell>{item.l}x{item.b}x{item.h}</TableCell>
                                 <TableCell>{item.ply} Ply, {item.boxType}</TableCell>
                                 <TableCell>{item.paperType} {normalizeBF(item.paperBf)}</TableCell>
-                                <TableCell>
-                                    <CompactGsmDisplay item={item} />
-                                </TableCell>
+                                <TableCell><CompactGsmDisplay item={item} /></TableCell>
                                 <TableCell>{(item.calculated?.paperWeight || 0).toFixed(2)}</TableCell>
                                 <TableCell className="text-right font-bold">Rs. {item.totalItemCost.toFixed(2)}</TableCell>
                              </TableRow>
@@ -334,9 +285,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                                      <TableCell>{formatAccessoryDimension(acc as ProductAccessory)}</TableCell>
                                      <TableCell>{acc.ply} Ply</TableCell>
                                      <TableCell>{acc.paperType} {normalizeBF(acc.paperBf)}</TableCell>
-                                     <TableCell>
-                                         <CompactGsmDisplay item={acc} />
-                                     </TableCell>
+                                     <TableCell><CompactGsmDisplay item={acc} /></TableCell>
                                      <TableCell>{(acc.calculated?.paperWeight || 0).toFixed(2)}</TableCell>
                                      <TableCell className="text-right">({(acc.calculated?.paperCost || 0).toFixed(2)})</TableCell>
                                  </TableRow>
@@ -355,9 +304,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                     <div className="mt-8">
                         <h4 className="font-bold">Terms & Conditions:</h4>
                         <ul className="list-disc list-inside text-sm">
-                            {selectedTerms.map((term, i) => (
-                                <li key={i}>{term.text}</li>
-                            ))}
+                            {selectedTerms.map((term, i) => <li key={i}>{term.text}</li>)}
                         </ul>
                     </div>
                 )}
@@ -369,27 +316,16 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
         <DialogFooter className="sm:justify-end gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
             <Button variant="outline" onClick={handleExportJpg} disabled={isExporting}>
-                {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ImageIcon className="mr-2 h-4 w-4"/>}
-                 Export as JPG
+                {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ImageIcon className="mr-2 h-4 w-4"/>} Export as JPG
             </Button>
             <Button variant="outline" onClick={handleExportPdf} disabled={isExporting}>
-                {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
-                Export as PDF
+                {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>} Export as PDF
             </Button>
             <Button onClick={handlePrint}><Printer className="mr-2 h-4 w-4" /> Print</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
-}
-
-
-interface CostReportCalculatorProps {
-  reportToEdit: CostReport | null;
-  onSaveSuccess: () => void;
-  onCancelEdit: () => void;
-  products: Product[];
-  onProductAdd: () => void;
 }
 
 const initialCalculatedState: CalculatedValues = {
@@ -417,6 +353,13 @@ interface CalculatedValues {
     paperCost: number;
 }
 
+interface CostReportCalculatorProps {
+  reportToEdit: CostReport | null;
+  onSaveSuccess: () => void;
+  onCancelEdit: () => void;
+  products: Product[];
+  onProductAdd: () => void;
+}
 
 function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, products, onProductAdd }: CostReportCalculatorProps) {
   const [parties, setParties] = useState<Party[]>([]);
@@ -424,8 +367,6 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
   const [selectedPartyId, setSelectedPartyId] = useState<string>('');
   const [reportNumber, setReportNumber] = useState('CR-001');
   const [reportDate, setReportDate] = useState<Date>(new Date());
-  
-  const [costSettings, setCostSettings] = useState<CostSetting | null>(null);
   const [kraftPaperCosts, setKraftPaperCosts] = useState<Record<string, number | ''>>(initialKraftCosts);
   const [virginPaperCost, setVirginCost] = useState<number | ''>('');
   const [conversionCost, setConversionCost] = useState<number | ''>('');
@@ -433,684 +374,192 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
   const [transportCostType, setTransportCostType] = useState<'Per Piece' | 'Per Consignment'>('Per Consignment');
   const [termsAndConditions, setTermsAndConditions] = useState<CostReportTerm[]>([]);
   const [newTerm, setNewTerm] = useState('');
-  
   const [isCostHistoryDialogOpen, setIsCostHistoryDialogOpen] = useState(false);
-
   const [isSaving, setIsSaving] = useState(false);
   const [items, setItems] = useState<CostReportItem[]>([]);
   const [selectedForPrint, setSelectedForPrint] = useState<Set<string>>(new Set());
-
   const { toast } = useToast();
   const { user } = useAuth();
-  
   const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
   const [partyForm, setPartyForm] = useState<{ name: string; type: PartyType; address?: string; panNumber?: string; }>({ name: '', type: 'Customer', address: '', panNumber: '' });
   const [editingParty, setEditingParty] = useState<Party | null>(null);
   const [partySearch, setPartySearch] = useState('');
-  
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-
-
-  const [isLoadProductsDialogOpen, setIsLoadProductsDialogOpen] = useState(false);
-  const [productsToLoad, setProductsToLoad] = useState<Set<string>>(new Set());
-  const [loadProductPartyFilter, setLoadProductPartyFilter] = useState('All');
-  
+  const [costSettings, setCostSettings] = useState<CostSetting | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isCostsOpen, setIsCostsOpen] = useState(true);
   const [isTermsOpen, setIsTermsOpen] = useState(true);
+  const [productSearch, setProductSearch] = useState('');
 
-  const uniquePartiesForLoad = useMemo(() => {
-    const partyNames = new Set(products.map(p => p.partyName).filter(Boolean));
-    return ['All', ...Array.from(partyNames).sort()];
-  }, [products]);
-
-  const sortedParties = useMemo(() => {
-    return [...parties].sort((a, b) => a.name.localeCompare(b.name));
-  }, [parties]);
-
-  const sortedProducts = useMemo(() => {
-    return [...products].sort((a, b) => a.name.localeCompare(b.name));
-  }, [products]);
-
+  const sortedParties = useMemo(() => [...parties].sort((a, b) => a.name.localeCompare(b.name)), [parties]);
+  const sortedProducts = useMemo(() => [...products].sort((a, b) => a.name.localeCompare(b.name)), [products]);
 
   useEffect(() => {
     const unsubCostSettings = onSettingUpdate('costing', (setting) => {
-        if (setting?.value) {
-            const settings = setting.value as CostSetting;
-            setCostSettings(settings);
-        }
+        if (setting?.value) setCostSettings(setting.value as CostSetting);
     });
     return () => unsubCostSettings();
   }, []);
 
-  const calculateItemCost = useCallback((item: Omit<CostReportItem, 'id' | 'calculated' | 'productId' | 'accessories'> | Omit<Accessory, 'id' | 'calculated' | 'productId'>, globalKraftCosts: Record<string, number>, globalVirginCost: number, globalConversionCost: number): CalculatedValues => {
+  const calculateItemCost = useCallback((item: any, globalKraftCosts: Record<string, number>, globalVirginCost: number, globalConversionCost: number): CalculatedValues => {
     const l = parseFloat(item.l) || 0;
     const b = parseFloat(item.b) || 0;
     const h = parseFloat(item.h) || 0;
-    const noOfPcs = parseInt(item.noOfPcs, 10) || 1; // Default to 1 for calculation
-    
-    // Check if it's a 3D box or a 2D sheet/pad
+    const noOfPcs = parseInt(item.noOfPcs, 10) || 1;
     const isBox = l > 0 && b > 0 && h > 0;
-    
     let sheetSizeL, sheetSizeB;
     if (isBox) {
-        // Calculate both orientations to find the most efficient one
         const cutOff1 = b + h + 20;
         const deckle1 = (2 * l) + (2 * b) + 62;
-        const area1 = cutOff1 * deckle1;
-
         const cutOff2 = l + h + 20;
         const deckle2 = (2 * b) + (2 * l) + 62;
-        const area2 = cutOff2 * deckle2;
-
-        if (area1 <= area2) {
-            sheetSizeL = cutOff1;
-            sheetSizeB = deckle1;
-        } else {
-            sheetSizeL = cutOff2;
-            sheetSizeB = deckle2;
-        }
+        if (cutOff1 * deckle1 <= cutOff2 * deckle2) { sheetSizeL = cutOff1; sheetSizeB = deckle1; }
+        else { sheetSizeL = cutOff2; sheetSizeB = deckle2; }
     } else {
         const dims = [l, b, h].filter(dim => dim > 0).sort((a, b) => b - a);
         if (dims.length < 2) return initialCalculatedState;
-        sheetSizeL = dims[0];
-        sheetSizeB = dims[1];
+        sheetSizeL = dims[0]; sheetSizeB = dims[1];
     }
-    
     if (sheetSizeL === 0 || sheetSizeB === 0) return initialCalculatedState;
-
     const ply = parseInt(item.ply, 10) || 0;
-    
-    const getFluteFactor = (fluteChar: string) => {
-        if (fluteChar === 'A') return 1.55;
-        if (fluteChar === 'B') return 1.35;
-        return 1.35; // Default to 'B'
-    };
-
+    const getFluteFactor = (f: string) => f === 'A' ? 1.55 : 1.35;
     const fluteTypes = (item.fluteType || 'B').split('/');
-    const fluteFactor1 = getFluteFactor(fluteTypes[0]);
-    const fluteFactor2 = getFluteFactor(fluteTypes[1] || fluteTypes[0]);
-    const fluteFactor3 = getFluteFactor(fluteTypes[2] || fluteTypes[1] || fluteTypes[0]);
-    const fluteFactor4 = getFluteFactor(fluteTypes[3] || fluteTypes[2] || fluteTypes[1] || fluteTypes[0]);
-
-
-    const topGsm = parseInt(item.topGsm, 10) || 0;
-    const flute1Gsm = parseInt(item.flute1Gsm, 10) || 0;
-    const middleGsm = parseInt(item.middleGsm, 10) || 0;
-    const flute2Gsm = parseInt(item.flute2Gsm, 10) || 0;
-    const bottomGsm = parseInt(item.bottomGsm, 10) || 0;
-    const liner2Gsm = parseInt(item.liner2Gsm, 10) || 0;
-    const flute3Gsm = parseInt(item.flute3Gsm, 10) || 0;
-    const liner3Gsm = parseInt(item.liner3Gsm, 10) || 0;
-    const flute4Gsm = parseInt(item.flute4Gsm, 10) || 0;
-    const liner4Gsm = parseInt(item.liner4Gsm, 10) || 0;
-    
+    const f1 = getFluteFactor(fluteTypes[0]);
+    const f2 = getFluteFactor(fluteTypes[1] || fluteTypes[0]);
+    const f3 = getFluteFactor(fluteTypes[2] || fluteTypes[1] || fluteTypes[0]);
+    const f4 = getFluteFactor(fluteTypes[3] || fluteTypes[2] || fluteTypes[1] || fluteTypes[0]);
+    const top = parseInt(item.topGsm, 10) || 0;
+    const fl1 = parseInt(item.flute1Gsm, 10) || 0;
+    const mid = parseInt(item.middleGsm, 10) || 0;
+    const fl2 = parseInt(item.flute2Gsm, 10) || 0;
+    const bot = parseInt(item.bottomGsm, 10) || 0;
+    const li2 = parseInt(item.liner2Gsm, 10) || 0;
+    const fl3 = parseInt(item.flute3Gsm, 10) || 0;
+    const li3 = parseInt(item.liner3Gsm, 10) || 0;
+    const fl4 = parseInt(item.flute4Gsm, 10) || 0;
+    const li4 = parseInt(item.liner4Gsm, 10) || 0;
     const sheetArea = (sheetSizeL * sheetSizeB) / 1000000;
-
-    let totalGsmForCalc = 0;
-    if (ply === 3) {
-        totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor1) + bottomGsm;
-    } else if (ply === 5) {
-        totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor1) + middleGsm + (flute2Gsm * fluteFactor2) + bottomGsm;
-    } else if (ply === 7) {
-        totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor1) + liner2Gsm + (flute2Gsm * fluteFactor2) + liner3Gsm + (flute3Gsm * fluteFactor3) + bottomGsm;
-    } else if (ply === 9) {
-        totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor1) + liner2Gsm + (flute2Gsm * fluteFactor2) + liner3Gsm + (flute3Gsm * fluteFactor3) + liner4Gsm + (flute4Gsm * fluteFactor4) + bottomGsm;
-    } else if (ply === 0 || ply === 1 || ply === 2) { // For Plates/Pads (2-ply is also a sheet)
-        totalGsmForCalc = topGsm + (ply === 2 ? (flute1Gsm * fluteFactor1) + bottomGsm : 0);
-    }
-
-    const paperWeightInGrams = (sheetArea * totalGsmForCalc) * noOfPcs;
-    
-    const wastage = parseFloat(item.wastagePercent) / 100 || 0;
-    const totalBoxWeightInGrams = paperWeightInGrams * (1 + wastage);
-    const totalBoxWeightInKg = totalBoxWeightInGrams / 1000;
-
-    let paperRate = 0;
+    let totalGsm = 0;
+    if (ply === 3) totalGsm = top + (fl1 * f1) + bot;
+    else if (ply === 5) totalGsm = top + (fl1 * f1) + mid + (fl2 * f2) + bot;
+    else if (ply === 7) totalGsm = top + (fl1 * f1) + li2 + (fl2 * f2) + li3 + (fl3 * f3) + bot;
+    else if (ply === 9) totalGsm = top + (fl1 * f1) + li2 + (fl2 * f2) + li3 + (fl3 * f3) + li4 + (fl4 * f4) + bot;
+    else if (ply <= 2) totalGsm = top + (ply === 2 ? (fl1 * f1) + bot : 0);
+    const paperWeight = (sheetArea * totalGsm) * noOfPcs;
+    const totalBoxWeight = paperWeight * (1 + (parseFloat(item.wastagePercent) / 100 || 0));
     const kraftCost = globalKraftCosts[normalizeBF(item.paperBf)] || 0;
-    
-    if (item.paperType === 'VIRGIN' && globalVirginCost > 0) {
-        paperRate = globalVirginCost;
-    } else if (item.paperType === 'VIRGIN & KRAFT' && topGsm > 0 && globalVirginCost > 0) {
-        const totalGsm = topGsm + (flute1Gsm * fluteFactor1) + (ply === 5 ? middleGsm + (flute2Gsm * fluteFactor2) : 0) + bottomGsm;
-        if (totalGsm > 0) {
-            paperRate = (topGsm * globalVirginCost + (totalGsm - topGsm) * kraftCost) / totalGsm;
-        } else {
-             paperRate = kraftCost;
-        }
-    } else { // Default to KRAFT
-        paperRate = kraftCost;
-    }
-    
-    const finalPaperRate = paperRate + globalConversionCost;
-    const paperCost = totalBoxWeightInKg * finalPaperRate;
-    
-    return { sheetSizeL, sheetSizeB, sheetArea, totalGsm: totalGsmForCalc, paperWeight: paperWeightInGrams, totalBoxWeight: totalBoxWeightInGrams, paperRate: finalPaperRate, paperCost };
+    let paperRate = 0;
+    if (item.paperType === 'VIRGIN') paperRate = globalVirginCost;
+    else if (item.paperType === 'VIRGIN & KRAFT' && top > 0) paperRate = (top * globalVirginCost + (totalGsm - top) * kraftCost) / totalGsm;
+    else paperRate = kraftCost;
+    const finalRate = paperRate + globalConversionCost;
+    return { sheetSizeL, sheetSizeB, sheetArea, totalGsm, paperWeight, totalBoxWeight, paperRate: finalRate, paperCost: (totalBoxWeight / 1000) * finalRate };
   }, []);
 
-
-  const handleCostChange = (costType: 'kraft' | 'virgin' | 'conversion', value: string, bf?: string) => {
-    const numericValue = value === '' ? '' : parseFloat(value);
-    if (costType === 'kraft' && bf) {
-        setKraftPaperCosts(prev => ({...prev, [normalizeBF(bf)]: numericValue}));
-    }
-    else if (costType === 'virgin') setVirginCost(numericValue);
-    else if (costType === 'conversion') setConversionCost(numericValue);
-  }
+  const handleCostChange = (type: string, val: string, bf?: string) => {
+    const n = val === '' ? '' : parseFloat(val);
+    if (type === 'kraft' && bf) setKraftPaperCosts(prev => ({...prev, [normalizeBF(bf)]: n}));
+    else if (type === 'virgin') setVirginCost(n);
+    else if (type === 'conversion') setConversionCost(n);
+  };
 
   useEffect(() => {
-    const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [normalizeBF(bf), Number(cost) || 0]));
-    const vCost = Number(virginPaperCost) || 0;
-    const cCost = Number(conversionCost) || 0;
-    
-    setItems(prevItems => prevItems.map(item => ({
-        ...item,
-        calculated: calculateItemCost(item, kCosts, vCost, cCost),
-        accessories: (item.accessories || []).map(acc => ({
-            ...acc,
-            calculated: calculateItemCost(acc, kCosts, vCost, cCost)
-        }))
-    })));
+    const k = Object.fromEntries(Object.entries(kraftPaperCosts).map(([b, c]) => [normalizeBF(b), Number(c) || 0]));
+    const v = Number(virginPaperCost) || 0;
+    const c = Number(conversionCost) || 0;
+    setItems(prev => prev.map(i => ({...i, calculated: calculateItemCost(i, k, v, c), accessories: (i.accessories || []).map(a => ({...a, calculated: calculateItemCost(a, k, v, c)}))})));
   }, [kraftPaperCosts, virginPaperCost, conversionCost, calculateItemCost]);
-
 
   useEffect(() => {
     const unsubParties = onPartiesUpdate(setParties);
     const unsubCostReports = onCostReportsUpdate(setCostReports);
-    return () => {
-        unsubParties();
-        unsubCostReports();
-    };
+    return () => { unsubParties(); unsubCostReports(); };
   }, []);
-  
-  const getFullAccessory = (acc: Partial<ProductAccessory>): Omit<Accessory, 'calculated' | 'productId'> => {
-    return {
-        id: acc.id || Date.now().toString() + Math.random(),
-        name: acc.name || 'Accessory',
-        l: acc.l || '', b: acc.b || '', h: acc.h || '',
-        noOfPcs: acc.noOfPcs || '1',
-        ply: acc.ply || '3',
-        fluteType: acc.fluteType || 'B',
-        paperType: acc.paperType || 'KRAFT',
-        paperBf: normalizeBF(acc.paperBf) || '18 BF',
-        paperShade: acc.paperShade || 'NS',
-        boxType: acc.boxType || 'RSC',
-        topGsm: acc.topGsm || '',
-        flute1Gsm: acc.flute1Gsm || '',
-        middleGsm: acc.middleGsm || '',
-        flute2Gsm: acc.flute2Gsm || '',
-        bottomGsm: acc.bottomGsm || '',
-        liner2Gsm: acc.liner2Gsm || '',
-        flute3Gsm: acc.flute3Gsm || '',
-        liner3Gsm: acc.liner3Gsm || '',
-        flute4Gsm: acc.flute4Gsm || '',
-        liner4Gsm: acc.liner4Gsm || '',
-        wastagePercent: acc.wastagePercent || '3.5',
-    };
-  };
 
   const initializedRef = useRef(false);
-
   useEffect(() => {
-    // Only perform comprehensive initialization once per report loading context
     if (initializedRef.current && !reportToEdit) return;
-
     if (reportToEdit) {
-      setReportNumber(reportToEdit.reportNumber);
-      setReportDate(new Date(reportToEdit.reportDate));
-      setSelectedPartyId(reportToEdit.partyId);
-
-      const kCostsFromReport = reportToEdit.kraftPaperCosts || {};
-      const filledKraftCosts = { ...initialKraftCosts };
-      for (const bf in filledKraftCosts) {
-          filledKraftCosts[normalizeBF(bf)] = kCostsFromReport[normalizeBF(bf)] || (costSettings?.kraftPaperCosts?.[normalizeBF(bf)] ?? '');
-      }
-      setKraftPaperCosts(filledKraftCosts);
-      setVirginCost(reportToEdit.virginPaperCost || (costSettings?.virginPaperCost ?? ''));
-      setConversionCost(reportToEdit.conversionCost || (costSettings?.conversionCost ?? ''));
-      setTransportCost(reportToEdit.transportCost ?? '');
-      setTransportCostType(reportToEdit.transportCostType ?? 'Per Consignment');
-      
-      const normalizedTerms = (reportToEdit.termsAndConditions || []).map(t => typeof t === 'string' ? { text: t, isSelected: true } : t);
-      setTermsAndConditions(normalizedTerms);
-      
-      const kCostsForCalc = Object.fromEntries(Object.entries(reportToEdit.kraftPaperCosts || {}).map(([bf, cost]) => [normalizeBF(bf), cost]));
-      const vCost = reportToEdit.virginPaperCost || 0;
-      const cCost = reportToEdit.conversionCost || 0;
-      
-      setItems(reportToEdit.items.map(item => {
-          const fullItem = { ...item, paperBf: normalizeBF(item.paperBf), calculated: calculateItemCost(item, kCostsForCalc, vCost, cCost) };
-          fullItem.accessories = (item.accessories || []).map(acc => {
-              const fullAcc = getFullAccessory(acc);
-              return { ...fullAcc, calculated: calculateItemCost(fullAcc, kCostsForCalc, vCost, cCost) };
-          });
-          return fullItem;
-      }));
-      setSelectedForPrint(new Set(reportToEdit.items.map(i => i.id)));
-      initializedRef.current = true;
+      setReportNumber(reportToEdit.reportNumber); setReportDate(new Date(reportToEdit.reportDate)); setSelectedPartyId(reportToEdit.partyId);
+      const k = { ...initialKraftCosts };
+      for (const b in k) k[normalizeBF(b)] = reportToEdit.kraftPaperCosts?.[normalizeBF(b)] || (costSettings?.kraftPaperCosts?.[normalizeBF(b)] ?? '');
+      setKraftPaperCosts(k); setVirginCost(reportToEdit.virginPaperCost || (costSettings?.virginPaperCost ?? '')); setConversionCost(reportToEdit.conversionCost || (costSettings?.conversionCost ?? ''));
+      setTransportCost(reportToEdit.transportCost ?? ''); setTransportCostType(reportToEdit.transportCostType ?? 'Per Consignment');
+      setTermsAndConditions((reportToEdit.termsAndConditions || []).map(t => typeof t === 'string' ? { text: t, isSelected: true } : t));
+      const kCalc = Object.fromEntries(Object.entries(reportToEdit.kraftPaperCosts || {}).map(([b, c]) => [normalizeBF(b), c]));
+      const vC = reportToEdit.virginPaperCost || 0; const cC = reportToEdit.conversionCost || 0;
+      setItems(reportToEdit.items.map(i => ({ ...i, paperBf: normalizeBF(i.paperBf), calculated: calculateItemCost(i, kCalc, vC, cC), accessories: (i.accessories || []).map(a => ({...a, paperBf: normalizeBF(a.paperBf), calculated: calculateItemCost(a, kCalc, vC, cC)}))})));
+      setSelectedForPrint(new Set(reportToEdit.items.map(i => i.id))); initializedRef.current = true;
     } else if (costSettings && !initializedRef.current) {
-        // Only run for brand new empty reports
-        generateNextCostReportNumber(costReports).then(setReportNumber);
-        setReportDate(new Date());
-        setSelectedPartyId('');
-        
-        setKraftPaperCosts(costSettings.kraftPaperCosts || initialKraftCosts);
-        setVirginCost(costSettings.virginPaperCost || '');
-        setConversionCost(costSettings.conversionCost || '');
-        
-        const normalizedDefaults = (costSettings.termsAndConditions || []).map(t => typeof t === 'string' ? { text: t, isSelected: true } : t);
-        setTermsAndConditions(normalizedDefaults);
-        
-        setTransportCost('');
-        setTransportCostType('Per Consignment');
-        setItems([]);
-        setSelectedForPrint(new Set());
-        initializedRef.current = true;
+        generateNextCostReportNumber(costReports).then(setReportNumber); setReportDate(new Date()); setSelectedPartyId('');
+        setKraftPaperCosts(costSettings.kraftPaperCosts || initialKraftCosts); setVirginCost(costSettings.virginPaperCost || ''); setConversionCost(costSettings.conversionCost || '');
+        setTermsAndConditions((costSettings.termsAndConditions || []).map(t => typeof t === 'string' ? { text: t, isSelected: true } : t));
+        setTransportCost(''); setTransportCostType('Per Consignment'); setItems([]); setSelectedForPrint(new Set()); initializedRef.current = true;
     }
   }, [reportToEdit, costReports, calculateItemCost, costSettings]);
 
-
-  const handleProductSelect = (index: number, productId: string) => {
-    const product = products.find(p => p.id === productId);
-    if (!product) return;
-    
-    const spec = product.specification;
-    const [l,b,h] = spec.dimension?.split('x') || ['','',''];
-    
-    const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [normalizeBF(bf), Number(cost) || 0]));
-    const vCost = Number(virginPaperCost) || 0;
-    const cCost = Number(conversionCost) || 0;
-    
-    const accessories = (product.accessories || []).map(acc => ({
-        ...getFullAccessory(acc),
-        calculated: calculateItemCost(getFullAccessory(acc), kCosts, vCost, cCost)
-    }));
-
-
-    setItems(prevItems => {
-        const newItems = [...prevItems];
-        const updatedItem = {
-            ...newItems[index],
-            productId: product.id,
-            l: l || '', b: b || '', h: h || '',
-            ply: spec.ply || '3',
-            paperBf: normalizeBF(spec.paperBf) || '',
-            boxType: spec.boxType || 'RSC',
-            topGsm: spec.topGsm || '',
-            flute1Gsm: spec.flute1Gsm || '',
-            middleGsm: spec.middleGsm || '',
-            flute2Gsm: spec.flute2Gsm || '',
-            bottomGsm: spec.bottomGsm || '',
-            liner2Gsm: spec.liner2Gsm || '',
-            flute3Gsm: spec.flute3Gsm || '',
-            liner3Gsm: spec.liner3Gsm || '',
-            flute4Gsm: spec.flute4Gsm || '',
-            liner4Gsm: spec.liner4Gsm || '',
-            wastagePercent: spec.wastagePercent || '3.5',
-            accessories,
-        };
-        newItems[index] = {
-            ...updatedItem,
-            calculated: calculateItemCost(updatedItem, kCosts, vCost, cCost)
-        };
-        return newItems;
+  const handleProductSelect = (idx: number, pId: string) => {
+    const p = products.find(prod => prod.id === pId);
+    if (!p) return;
+    const [l,b,h] = p.specification.dimension?.split('x') || ['','',''];
+    const k = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [normalizeBF(bf), Number(cost) || 0]));
+    const v = Number(virginPaperCost) || 0; const c = Number(conversionCost) || 0;
+    const accs = (p.accessories || []).map(a => ({...a, paperBf: normalizeBF(a.paperBf), calculated: calculateItemCost(a, k, v, c)}));
+    setItems(prev => {
+        const next = [...prev];
+        const up = { ...next[idx], productId: p.id, l: l || '', b: b || '', h: h || '', ply: p.specification.ply || '3', paperBf: normalizeBF(p.specification.paperBf) || '', wastagePercent: p.specification.wastagePercent || '3.5', accessories: accs };
+        next[idx] = { ...up, calculated: calculateItemCost(up, k, v, c) };
+        return next;
     });
   };
 
-  const handleItemChange = (index: number, field: keyof Omit<CostReportItem, 'id' | 'calculated' | 'accessories'>, value: string) => {
-    const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [normalizeBF(bf), Number(cost) || 0]));
-    const vCost = Number(virginPaperCost) || 0;
-    const cCost = Number(conversionCost) || 0;
-
-    setItems(prevItems => {
-        const newItems = [...prevItems];
-        const finalValue = field === 'paperBf' ? normalizeBF(value) : value;
-        const currentItem = { ...newItems[index], [field]: finalValue };
-        const newCalculated = calculateItemCost(currentItem, kCosts, vCost, cCost);
-        newItems[index] = { ...currentItem, calculated: newCalculated };
-        return newItems;
+  const handleItemChange = (idx: number, f: string, v: string) => {
+    const k = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [normalizeBF(bf), Number(cost) || 0]));
+    const vi = Number(virginPaperCost) || 0; const co = Number(conversionCost) || 0;
+    setItems(prev => {
+        const next = [...prev];
+        const item = { ...next[idx], [f]: f === 'paperBf' ? normalizeBF(v) : v };
+        next[idx] = { ...item, calculated: calculateItemCost(item, k, vi, co) };
+        return next;
     });
   };
-  
-    const addItemFromProduct = (product: Product) => {
-        const spec = product.specification;
-        const [l, b, h] = spec.dimension?.split('x') || ['', '', ''];
-
-        const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [normalizeBF(bf), Number(cost) || 0]));
-        const vCost = Number(virginPaperCost) || 0;
-        const cCost = Number(conversionCost) || 0;
-
-        const accessories = (product.accessories || []).map(acc => ({
-            ...getFullAccessory(acc),
-            calculated: calculateItemCost(getFullAccessory(acc), kCosts, vCost, cCost)
-        }));
-
-        const newItemBase = {
-            id: Date.now().toString() + product.id,
-            productId: product.id,
-            l: l || '', b: b || '', h: h || '',
-            noOfPcs: '1',
-            ply: spec.ply || '3',
-            paperType: 'KRAFT',
-            paperBf: normalizeBF(spec.paperBf) || '18 BF',
-            paperShade: 'NS',
-            boxType: 'RSC',
-            fluteType: 'B',
-            topGsm: spec.topGsm || '120',
-            flute1Gsm: spec.flute1Gsm || '100',
-            middleGsm: spec.middleGsm || '',
-            flute2Gsm: spec.flute2Gsm || '',
-            bottomGsm: spec.bottomGsm || '120',
-            liner2Gsm: spec.liner2Gsm || '',
-            flute3Gsm: spec.flute3Gsm || '',
-            liner3Gsm: spec.liner3Gsm || '',
-            flute4Gsm: spec.flute4Gsm || '',
-            liner4Gsm: spec.liner4Gsm || '',
-            wastagePercent: spec.wastagePercent || '3.5',
-            accessories,
-        };
-        
-        const newItem = { ...newItemBase, calculated: calculateItemCost(newItemBase, kCosts, vCost, cCost) };
-        setItems(prev => [...prev, newItem]);
-        setSelectedForPrint(prev => {
-            const next = new Set(prev);
-            next.add(newItem.id);
-            return next;
-        });
-    };
 
   const handleAddItem = () => {
-    const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [normalizeBF(bf), Number(cost) || 0]));
-    const vCost = Number(virginPaperCost) || 0;
-    const cCost = Number(conversionCost) || 0;
-    const newItemBase = { id: Date.now().toString(), productId: '', l:'',b:'',h:'', noOfPcs:'1', ply:'3', fluteType: 'B', paperType: 'KRAFT', paperBf:'18 BF', paperShade: 'NS', boxType: 'RSC', topGsm:'120',flute1Gsm:'100',middleGsm:'',flute2Gsm:'',bottomGsm:'120', liner2Gsm: '', flute3Gsm: '', liner3Gsm: '', flute4Gsm: '', liner4Gsm: '', wastagePercent:'3.5', accessories: [] };
-    const newItem = { ...newItemBase, calculated: calculateItemCost(newItemBase, kCosts, vCost, cCost) };
-    setItems(prev => [...prev, newItem]);
-    setSelectedForPrint(prev => {
-        const next = new Set(prev);
-        next.add(newItem.id);
-        return next;
-    });
-  };
-  
-    const handleLoadProducts = () => {
-        productsToLoad.forEach(productId => {
-            const product = products.find(p => p.id === productId);
-            if (product) {
-                addItemFromProduct(product);
-            }
-        });
-        setProductsToLoad(new Set());
-        setIsLoadProductsDialogOpen(false);
-    };
-
-  const handleRemoveItem = (id: string) => {
-    setItems(prev => prev.filter(item => item.id !== id));
-    setSelectedForPrint(prev => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-    });
-  };
-  
-  const handleOpenPartyDialog = (partyToEdit: Party | null = null, searchName: string = '') => {
-    if (partyToEdit) {
-        setEditingParty(partyToEdit);
-        setPartyForm({ name: partyToEdit.name, type: partyToEdit.type, address: partyToEdit.address || '', panNumber: partyToEdit.panNumber || '' });
-    } else {
-        setEditingParty(null);
-        setPartyForm({ name: searchName, type: 'Customer', address: '', panNumber: '' });
-    }
-    setIsPartyDialogOpen(true);
-  };
-  
-  const handleSubmitParty = async () => {
-    if (!user) return;
-    if (!partyForm.name) {
-        toast({ title: 'Error', description: 'Party name is required.', variant: 'destructive' });
-        return;
-    }
-    try {
-        if (editingParty) {
-            await updateParty(editingParty.id, { ...partyForm, lastModifiedBy: user.username });
-            toast({ title: 'Success', description: 'Party updated.' });
-        } else {
-            const newPartyId = await addParty({ ...partyForm, createdBy: user.username });
-            setSelectedPartyId(newPartyId);
-            toast({ title: 'Success', description: 'New party added.' });
-        }
-        setIsPartyDialogOpen(false);
-    } catch {
-        toast({ title: 'Error', description: 'Failed to save party.', variant: 'destructive' });
-    }
+    const k = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [normalizeBF(bf), Number(cost) || 0]));
+    const vi = Number(virginPaperCost) || 0; const co = Number(conversionCost) || 0;
+    const base = { id: Date.now().toString(), productId: '', l:'',b:'',h:'', noOfPcs:'1', ply:'3', fluteType: 'B', paperType: 'KRAFT', paperBf:'18 BF', paperShade: 'NS', boxType: 'RSC', topGsm:'120',flute1Gsm:'100',middleGsm:'',flute2Gsm:'',bottomGsm:'120', liner2Gsm: '', flute3Gsm: '', liner3Gsm: '', flute4Gsm: '', liner4Gsm: '', wastagePercent:'3.5', accessories: [] };
+    const item = { ...base, calculated: calculateItemCost(base, k, vi, co) };
+    setItems(prev => [...prev, item]); setSelectedForPrint(prev => new Set(prev).add(item.id));
   };
 
   const handleSaveReport = async () => {
-      if (!user || !selectedPartyId) {
-          toast({ title: "Error", description: "Please select a party before saving.", variant: "destructive" });
-          return;
-      }
+      if (!user || !selectedPartyId) { toast({ title: "Error", description: "Select a party.", variant: "destructive" }); return; }
       setIsSaving(true);
       try {
-           const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [normalizeBF(bf), Number(cost) || 0]));
-           const vCost = Number(virginPaperCost) || 0;
-           const cCost = Number(conversionCost) || 0;
-
-           const totalItemCost = items.reduce((sum, item) => {
-             const paperCost = item.calculated?.paperCost || 0;
-             const accessoriesCost = (item.accessories || []).reduce((accSum, acc) => accSum + (acc.calculated?.paperCost || 0), 0);
-             return sum + paperCost + accessoriesCost;
-           }, 0);
-
-           let totalTransport = 0;
-           if (transportCost && transportCostType === 'Per Piece') {
-               totalTransport = items.reduce((sum, item) => sum + (parseInt(item.noOfPcs, 10) || 0) * Number(transportCost), 0);
-           } else if (transportCost && transportCostType === 'Per Consignment') {
-               totalTransport = Number(transportCost);
-           }
-
-           const reportData: Omit<CostReport, 'id' | 'createdAt'> = {
-              reportNumber,
-              reportDate: reportDate.toISOString(),
-              partyId: selectedPartyId,
-              partyName: parties.find(p => p.id === selectedPartyId)?.name || '',
-              kraftPaperCosts: kCosts,
-              virginPaperCost: vCost,
-              conversionCost: cCost,
-              transportCost: Number(transportCost) || 0,
-              transportCostType: transportCostType,
-              termsAndConditions: termsAndConditions,
-              items: items.map(({ calculated, accessories, ...item }) => ({
-                ...item,
-                paperBf: normalizeBF(item.paperBf),
-                accessories: (accessories || []).map(({ calculated: accCalculated, ...acc }) => ({ ...acc, paperBf: normalizeBF(acc.paperBf) })),
-            })),
-              totalCost: totalItemCost + totalTransport,
-              createdBy: user.username,
-          };
-          
-          await updateCostSettings({
-            kraftPaperCosts: kCosts,
-            virginPaperCost: vCost,
-            conversionCost: cCost,
-          }, user.username);
-          
-          // Save accessories to products
-          for (const item of items) {
-            if (item.productId && item.accessories && item.accessories.length > 0) {
-              const productToUpdate = products.find(p => p.id === item.productId);
-              if (productToUpdate) {
-                const newAccessories = item.accessories.map(({ calculated, ...acc }) => ({ ...acc, paperBf: normalizeBF(acc.paperBf) }) as ProductAccessory);
-                await updateProductService(item.productId, { accessories: newAccessories });
-              }
-            }
-          }
-
-
-          if (reportToEdit) {
-              await updateCostReport(reportToEdit.id, {...reportData, lastModifiedBy: user.username});
-              toast({ title: "Success", description: "Cost report updated." });
-          } else {
-              await addCostReport(reportData);
-              toast({ title: "Success", description: "Cost report saved successfully." });
-          }
-          onSaveSuccess();
-      } catch (error) {
-          toast({ title: "Error", description: "Failed to save the report.", variant: "destructive" });
-      } finally {
-          setIsSaving(false);
-      }
+           const k = Object.fromEntries(Object.entries(kraftPaperCosts).map(([b, c]) => [normalizeBF(b), Number(c) || 0]));
+           const v = Number(virginPaperCost) || 0; const c = Number(conversionCost) || 0;
+           const itemCost = items.reduce((s, i) => s + (i.calculated?.paperCost || 0) + (i.accessories || []).reduce((as, a) => as + (a.calculated?.paperCost || 0), 0), 0);
+           const transport = transportCostType === 'Per Piece' ? items.reduce((s, i) => s + (parseInt(i.noOfPcs, 10) || 0) * Number(transportCost), 0) : Number(transportCost);
+           const data = { reportNumber, reportDate: reportDate.toISOString(), partyId: selectedPartyId, partyName: parties.find(p => p.id === selectedPartyId)?.name || '', kraftPaperCosts: k, virginPaperCost: v, conversionCost: c, transportCost: Number(transportCost) || 0, transportCostType, termsAndConditions, items: items.map(({ calculated, accessories, ...i }) => ({ ...i, paperBf: normalizeBF(i.paperBf), accessories: (accessories || []).map(({ calculated: ac, ...a }) => ({ ...a, paperBf: normalizeBF(a.paperBf) })) })), totalCost: itemCost + transport, createdBy: user.username };
+           await updateCostSettings({ kraftPaperCosts: k, virginPaperCost: v, conversionCost: c }, user.username);
+           if (reportToEdit) await updateCostReport(reportToEdit.id, {...data, lastModifiedBy: user.username});
+           else await addCostReport(data);
+           toast({ title: "Success", description: "Saved." }); onSaveSuccess();
+      } catch { toast({ title: "Error", description: "Failed.", variant: "destructive" }); } finally { setIsSaving(false); }
   };
-  
+
   const handlePrintPreview = () => {
-    const itemsToPrint = items.filter(item => selectedForPrint.has(item.id));
-    if (itemsToPrint.length === 0) {
-        toast({ title: "Cannot Print", description: "Please select at least one item to print.", variant: "destructive" });
-        return;
-    }
-    if (!selectedPartyId) {
-        toast({ title: "Cannot Print", description: "Please select a party before printing.", variant: "destructive" });
-        return;
-    }
+    if (!selectedPartyId || !items.some(i => selectedForPrint.has(i.id))) { toast({ title: "Error", description: "Select party and items.", variant: "destructive" }); return; }
     setIsPreviewOpen(true);
   };
-  
 
-  const itemsToPrint = useMemo(() => {
-    return items
-      .filter(item => selectedForPrint.has(item.id))
-      .map(item => {
-        const accessoriesCost = (item.accessories || []).reduce((sum, acc) => sum + (acc.calculated?.paperCost || 0), 0);
-        let itemTotal = (item.calculated?.paperCost || 0) + accessoriesCost;
-        
-        if (transportCost && transportCostType === 'Per Piece') {
-            itemTotal += (parseInt(item.noOfPcs, 10) || 0) * Number(transportCost);
-        }
+  const printableItems = useMemo(() => items.filter(i => selectedForPrint.has(i.id)).map(i => {
+    const accCost = (i.accessories || []).reduce((s, a) => s + (a.calculated?.paperCost || 0), 0);
+    const transport = transportCostType === 'Per Piece' ? (parseInt(i.noOfPcs, 10) || 0) * Number(transportCost) : 0;
+    return { ...i, totalItemCost: (i.calculated?.paperCost || 0) + accCost + transport };
+  }), [items, selectedForPrint, transportCost, transportCostType]);
 
-        return {
-          ...item,
-          totalItemCost: itemTotal,
-        };
-      });
-  }, [items, selectedForPrint, transportCost, transportCostType]);
-
-  const selectedParty = parties.find(p => p.id === selectedPartyId);
-  const [productSearch, setProductSearch] = useState('');
-  
-  const handleAccessoryChange = (itemIndex: number, accIndex: number, field: keyof Omit<Accessory, 'id' | 'calculated'>, value: string) => {
-    const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [normalizeBF(bf), Number(cost) || 0]));
-    const vCost = Number(virginPaperCost) || 0;
-    const cCost = Number(conversionCost) || 0;
-
-    setItems(prevItems => {
-        const newItems = [...prevItems];
-        const accessories = [...(newItems[itemIndex].accessories || [])];
-        const finalValue = field === 'paperBf' ? normalizeBF(value) : value;
-        const currentAccessory = { ...accessories[accIndex], [field]: finalValue };
-        
-        const newCalculated = calculateItemCost(currentAccessory, kCosts, vCost, cCost);
-        accessories[accIndex] = { ...currentAccessory, calculated: newCalculated };
-        newItems[itemIndex] = { ...newItems[itemIndex], accessories };
-        return newItems;
-    });
-  };
-
-
-  const addAccessory = (itemIndex: number) => {
-    const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [normalizeBF(bf), Number(cost) || 0]));
-    const vCost = Number(virginPaperCost) || 0;
-    const cCost = Number(conversionCost) || 0;
-    const newAccessoryBase = {
-        id: Date.now().toString(), productId: '', l: '', b: '', h: '0', noOfPcs: '1', ply: '0',
-        fluteType: 'B', paperType: 'KRAFT', paperBf: '18 BF', paperShade: 'NS', boxType: 'RSC',
-        topGsm: '120', flute1Gsm: '', middleGsm: '', flute2Gsm: '', bottomGsm: '',
-        liner2Gsm: '', flute3Gsm: '', liner3Gsm: '', flute4Gsm: '', liner4Gsm: '', wastagePercent: '3.5', name: 'Accessory'
-    };
-    const newAccessory = { ...newAccessoryBase, calculated: calculateItemCost(newAccessoryBase, kCosts, vCost, cCost) };
-    
-    setItems(prevItems => {
-        const newItems = [...prevItems];
-        const accessories = newItems[itemIndex].accessories || [];
-        newItems[itemIndex] = {
-            ...newItems[itemIndex],
-            accessories: [...accessories, newAccessory]
-        };
-        return newItems;
-    });
-  };
-
-  const removeAccessory = (itemIndex: number, accId: string) => {
-    setItems(prevItems => {
-        const newItems = [...prevItems];
-        const accessories = (newItems[itemIndex].accessories || []).filter(acc => acc.id !== accId);
-        newItems[itemIndex] = { ...newItems[itemIndex], accessories };
-        return newItems;
-    });
-  };
-  
-    const copyItem = (itemToCopy: CostReportItem) => {
-        const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [normalizeBF(bf), Number(cost) || 0]));
-        const vCost = Number(virginPaperCost) || 0;
-        const cCost = Number(conversionCost) || 0;
-        
-        const { id, accessories, ...restOfItem } = itemToCopy;
-        
-        const newItemBase = {
-            ...restOfItem,
-            id: Date.now().toString(),
-            accessories: (accessories || []).map(acc => {
-                const { id: accId, ...restOfAcc } = acc;
-                const newAccBase = { ...restOfAcc, id: Date.now().toString() + Math.random() };
-                return { ...newAccBase, calculated: calculateItemCost(newAccBase, kCosts, vCost, cCost) };
-            }),
-        };
-        
-        const newItem = { ...newItemBase, calculated: calculateItemCost(newItemBase, kCosts, vCost, cCost) };
-        setItems(prev => [...prev, newItem]);
-        setSelectedForPrint(prev => {
-            const next = new Set(prev);
-            next.add(newItem.id);
-            return next;
-        });
-        toast({ title: "Item Copied", description: "A copy of the item has been added to the list." });
-    };
-
-  const maxPly = useMemo(() => {
-    let max = 3;
-    items.forEach(item => {
-        const p = parseInt(item.ply, 10) || 0;
-        if (p > max) max = p;
-        (item.accessories || []).forEach(acc => {
-            const ap = parseInt(acc.ply, 10) || 0;
-            if (ap > max) max = ap;
-        });
-    });
-    return max;
-  }, [items]);
-
-  const handleAddTerm = () => {
-    if (newTerm.trim()) {
-        setTermsAndConditions([...termsAndConditions, { text: newTerm.trim(), isSelected: true }]);
-        setNewTerm('');
-    }
-  };
-
-  const handleRemoveTerm = (index: number) => {
-    setTermsAndConditions(termsAndConditions.filter((_, i) => i !== index));
-  };
-
-  const handleEditTerm = (index: number, value: string) => {
-    const updated = [...termsAndConditions];
-    updated[index] = { ...updated[index], text: value };
-    setTermsAndConditions(updated);
-  };
-  
-  const handleToggleTerm = (index: number, isSelected: boolean) => {
-      const updated = [...termsAndConditions];
-      updated[index] = { ...updated[index], isSelected };
-      setTermsAndConditions(updated);
-  };
-
+  const maxPly = useMemo(() => items.reduce((m, i) => Math.max(m, parseInt(i.ply, 10) || 0, (i.accessories || []).reduce((am, a) => Math.max(am, parseInt(a.ply, 10) || 0), 0)), 3), [items]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -1120,552 +569,24 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                 <Button variant="ghost" onClick={onCancelEdit}>Cancel Edit</Button>
             </div>
         )}
-      
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-4">
                 <Collapsible open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-                    <Card className="h-full">
-                        <CardHeader className="py-2 px-4">
-                            <div className="flex items-center justify-between">
-                                <CollapsibleTrigger asChild>
-                                    <Button variant="ghost" size="sm" className="p-0 h-auto hover:bg-transparent">
-                                        <CardTitle className="text-sm flex items-center gap-2 cursor-pointer">
-                                            {isDetailsOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                                            Report Details
-                                        </CardTitle>
-                                    </Button>
-                                </CollapsibleTrigger>
-                            </div>
-                        </CardHeader>
-                        <CollapsibleContent>
-                            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-0 pb-3">
-                                <div className="space-y-1">
-                                    <Label htmlFor="reportNumber" className="text-[10px]">Report Number</Label>
-                                    <Input id="reportNumber" value={reportNumber} readOnly className="bg-muted/50 h-7 text-xs" />
-                                </div>
-                                <div className="space-y-1">
-                                    <Label htmlFor="reportDate" className="text-[10px]">Report Date</Label>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal h-7 text-xs", !reportDate && "text-muted-foreground")}>
-                                                <CalendarIcon className="mr-2 h-3 w-3" />
-                                                {reportDate ? `${toNepaliDate(reportDate.toISOString())} BS` : <span>Pick a date</span>}
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0">
-                                            <DualCalendar selected={reportDate} onSelect={(d) => d && setReportDate(d)} />
-                                        </PopoverContent>
-                                    </Popover>
-                                </div>
-                                <div className="space-y-1 md:col-span-2">
-                                    <Label htmlFor="party-select" className="text-[10px]">Party Name</Label>
-                                    <div className="flex gap-2">
-                                        <Popover>
-                                            <PopoverTrigger asChild>
-                                                <Button variant="outline" role="combobox" className="w-full justify-between h-7 text-xs">
-                                                    {selectedPartyId ? parties.find(p => p.id === selectedPartyId)?.name : "Select party..."}
-                                                    <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
-                                                </Button>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
-                                                <Command>
-                                                    <CommandInput 
-                                                        placeholder="Search party..." 
-                                                        value={partySearch}
-                                                        onValueChange={(val) => setPartySearch(val)}
-                                                    />
-                                                    <CommandList>
-                                                        <CommandEmpty>
-                                                            <Button variant="ghost" className="w-full justify-start" onClick={() => handleOpenPartyDialog(null, partySearch)}>
-                                                                <PlusCircle className="mr-2 h-4 w-4" /> Add "{partySearch}"
-                                                            </Button>
-                                                        </CommandEmpty>
-                                                        <CommandGroup>
-                                                            {sortedParties.map(p => (
-                                                                <CommandItem key={p.id} value={p.name} onSelect={() => { setSelectedPartyId(p.id); setPartySearch(''); }} className="flex justify-between">
-                                                                    <div className="flex items-center">
-                                                                        <Check className={cn("mr-2 h-4 w-4", selectedPartyId === p.id ? "opacity-100" : "opacity-0")} />
-                                                                        {p.name}
-                                                                    </div>
-                                                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => {e.stopPropagation(); handleOpenPartyDialog(p)}}><Edit className="h-3 w-3"/></Button>
-                                                                </CommandItem>
-                                                            ))}
-                                                        </CommandGroup>
-                                                    </CommandList>
-                                                </Command>
-                                            </PopoverContent>
-                                        </Popover>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </CollapsibleContent>
-                    </Card>
-                </Collapsible>
-
-                <Collapsible open={isTermsOpen} onOpenChange={setIsTermsOpen}>
-                    <Card className="h-full">
-                        <CardHeader className="py-2 px-4">
-                            <CollapsibleTrigger asChild>
-                                <Button variant="ghost" size="sm" className="p-0 h-auto hover:bg-transparent">
-                                    <CardTitle className="text-sm flex items-center gap-2 cursor-pointer">
-                                        {isTermsOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                                        Terms & Conditions
-                                    </CardTitle>
-                                </Button>
-                            </CollapsibleTrigger>
-                        </CardHeader>
-                        <CollapsibleContent>
-                            <CardContent className="pt-0 pb-3 space-y-2">
-                                <ScrollArea className="h-24 pr-2">
-                                    <div className="space-y-1">
-                                        {termsAndConditions.map((term, index) => (
-                                            <div key={index} className="flex items-center gap-2 group">
-                                                <Checkbox 
-                                                    checked={term.isSelected} 
-                                                    onCheckedChange={(val) => handleToggleTerm(index, !!val)}
-                                                    className="h-3 w-3"
-                                                />
-                                                <Input 
-                                                    value={term.text} 
-                                                    onChange={(e) => handleEditTerm(index, e.target.value)} 
-                                                    className="h-6 text-[10px]"
-                                                />
-                                                <Button variant="ghost" size="icon" className="h-5 w-5 text-destructive opacity-0 group-hover:opacity-100" onClick={() => handleRemoveTerm(index)}>
-                                                    <Trash2 className="h-3 w-3" />
-                                                </Button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </ScrollArea>
-                                <div className="flex gap-2">
-                                    <Input 
-                                        placeholder="Add new term..." 
-                                        value={newTerm} 
-                                        onChange={(e) => setNewTerm(e.target.value)}
-                                        onKeyDown={(e) => e.key === 'Enter' && handleAddTerm()}
-                                        className="h-7 text-xs"
-                                    />
-                                    <Button size="icon" className="h-7 w-7 shrink-0" onClick={handleAddTerm}>
-                                        <Plus className="h-3 w-3" />
-                                    </Button>
-                                </div>
-                            </CardContent>
-                        </CollapsibleContent>
-                    </Card>
-                </Collapsible>
+                    <Card><CardHeader className="py-2 px-4"><CollapsibleTrigger asChild><Button variant="ghost" size="sm" className="p-0 h-auto hover:bg-transparent"><CardTitle className="text-sm flex items-center gap-2">{isDetailsOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />} Report Details</CardTitle></Button></CollapsibleTrigger></CardHeader>
+                        <CollapsibleContent><CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-0 pb-3">
+                            <div className="space-y-1"><Label className="text-[10px]">Report Number</Label><Input value={reportNumber} readOnly className="bg-muted/50 h-7 text-xs" /></div>
+                            <div className="space-y-1"><Label className="text-[10px]">Report Date</Label><Popover><PopoverTrigger asChild><Button variant="outline" className="w-full justify-start h-7 text-xs"><CalendarIcon className="mr-2 h-3 w-3" /> {toNepaliDate(reportDate.toISOString())} BS</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><DualCalendar selected={reportDate} onSelect={(d) => d && setReportDate(d)} /></PopoverContent></Popover></div>
+                            <div className="space-y-1 md:col-span-2"><Label className="text-[10px]">Party Name</Label><Popover><PopoverTrigger asChild><Button variant="outline" className="w-full justify-between h-7 text-xs">{selectedPartyId ? parties.find(p => p.id === selectedPartyId)?.name : "Select party..."}<ChevronsUpDown className="ml-2 h-3 w-3 opacity-50" /></Button></PopoverTrigger><PopoverContent className="p-0"><Command><CommandInput placeholder="Search..." onValueChange={setPartySearch}/><CommandList><CommandEmpty><Button variant="ghost" onClick={() => setIsPartyDialogOpen(true)}>Add Party</Button></CommandEmpty><CommandGroup>{sortedParties.map(p => (<CommandItem key={p.id} onSelect={() => setSelectedPartyId(p.id)}>{p.name}</CommandItem>))}</CommandGroup></CommandList></Command></PopoverContent></Popover></div>
+                        </CardContent></CollapsibleContent></Card></Collapsible>
+                <Collapsible open={isTermsOpen} onOpenChange={setIsTermsOpen}><Card><CardHeader className="py-2 px-4"><CollapsibleTrigger asChild><Button variant="ghost" size="sm" className="p-0 h-auto hover:bg-transparent"><CardTitle className="text-sm flex items-center gap-2">{isTermsOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />} Terms & Conditions</CardTitle></Button></CollapsibleTrigger></CardHeader>
+                        <CollapsibleContent><CardContent className="pt-0 pb-3 space-y-2"><ScrollArea className="h-24 pr-2">{termsAndConditions.map((t, i) => (<div key={i} className="flex items-center gap-2 group"><Checkbox checked={t.isSelected} onCheckedChange={(v) => { const next = [...termsAndConditions]; next[i].isSelected = !!v; setTermsAndConditions(next); }} /><Input value={t.text} onChange={(e) => { const next = [...termsAndConditions]; next[i].text = e.target.value; setTermsAndConditions(next); }} className="h-6 text-[10px]" /><Button variant="ghost" size="icon" className="h-5 w-5 opacity-0 group-hover:opacity-100" onClick={() => setTermsAndConditions(termsAndConditions.filter((_, idx) => idx !== i))}><Trash2 className="h-3 w-3" /></Button></div>))}</ScrollArea><div className="flex gap-2"><Input value={newTerm} onChange={e => setNewTerm(e.target.value)} className="h-7 text-xs" /><Button size="icon" className="h-7 w-7" onClick={() => { if(newTerm.trim()) { setTermsAndConditions([...termsAndConditions, { text: newTerm.trim(), isSelected: true }]); setNewTerm(''); } }}><Plus className="h-3 w-3" /></Button></div></CardContent></CollapsibleContent></Card></Collapsible>
             </div>
-
-            <Collapsible open={isCostsOpen} onOpenChange={setIsCostsOpen}>
-                <Card className="h-full">
-                    <CardHeader className="py-2 px-4">
-                        <div className="flex items-center justify-between">
-                            <CollapsibleTrigger asChild>
-                                <Button variant="ghost" size="sm" className="p-0 h-auto hover:bg-transparent">
-                                    <CardTitle className="text-sm flex items-center gap-2 cursor-pointer">
-                                        {isCostsOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                                        Additional Costs
-                                    </CardTitle>
-                                </Button>
-                            </CollapsibleTrigger>
-                            <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsCostHistoryDialogOpen(true)}>
-                                            <HistoryIcon className="h-3 w-3" />
-                                            <span className="sr-only">View Cost History</span>
-                                        </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p>View Costing History</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
-                        </div>
-                    </CardHeader>
-                    <CollapsibleContent>
-                        <CardContent className="pt-0 pb-3">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                <div className="space-y-1 p-2 border rounded-md bg-muted/20">
-                                    <Label className="text-[10px] font-bold uppercase tracking-wider">Kraft Rates</Label>
-                                    <div className="grid grid-cols-2 gap-x-2 gap-y-1">
-                                        {bfOptions.map(bf => (
-                                            <div key={bf} className="flex items-center justify-between gap-1">
-                                                <Label htmlFor={`kraftPaperCost-${bf}`} className="text-[9px] font-medium whitespace-nowrap">{bf}</Label>
-                                                <Input id={`kraftPaperCost-${bf}`} type="number" className="w-12 h-6 text-[10px] px-1" value={kraftPaperCosts[normalizeBF(bf)] ?? ''} onChange={e => handleCostChange('kraft', e.target.value, bf)} />
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <div className="space-y-1">
-                                            <Label htmlFor="virginPaperCost" className="text-[9px]">Virgin Rate</Label>
-                                            <Input id="virginPaperCost" type="number" className="h-6 text-[10px]" value={virginPaperCost} onChange={e => handleCostChange('virgin', e.target.value)} />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <Label htmlFor="conversionCost" className="text-[9px]">Conversion</Label>
-                                            <Input id="conversionCost" type="number" className="h-6 text-[10px]" value={conversionCost} onChange={e => handleCostChange('conversion', e.target.value)} />
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <div className="space-y-1">
-                                            <Label htmlFor="transportCost" className="text-[9px]">Transport</Label>
-                                            <Input id="transportCost" type="number" className="h-6 text-[10px]" value={transportCost} onChange={e => setTransportCost(e.target.value === '' ? '' : parseFloat(e.target.value))} />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <Label htmlFor="transportCostType" className="text-[9px]">Basis</Label>
-                                            <Select value={transportCostType} onValueChange={(v: 'Per Piece' | 'Per Consignment') => setTransportCostType(v)}>
-                                                <SelectTrigger id="transportCostType" className="h-6 text-[9px]"><SelectValue/></SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="Per Piece" className="text-xs">Per Piece</SelectItem>
-                                                    <SelectItem value="Per Consignment" className="text-xs">Per Consignment</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </CollapsibleContent>
-                </Card>
-            </Collapsible>
+            <Collapsible open={isCostsOpen} onOpenChange={setIsCostsOpen}><Card className="h-full"><CardHeader className="py-2 px-4"><div className="flex items-center justify-between"><CollapsibleTrigger asChild><Button variant="ghost" size="sm" className="p-0 h-auto hover:bg-transparent"><CardTitle className="text-sm flex items-center gap-2">{isCostsOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />} Additional Costs</CardTitle></Button></CollapsibleTrigger><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsCostHistoryDialogOpen(true)}><HistoryIcon className="h-3 w-3" /></Button></div></CardHeader>
+                    <CollapsibleContent><CardContent className="pt-0 pb-3"><div className="grid grid-cols-1 md:grid-cols-2 gap-3"><div className="space-y-1 p-2 border rounded-md bg-muted/20"><Label className="text-[10px] font-bold">Kraft Rates</Label><div className="grid grid-cols-2 gap-x-2 gap-y-1">{bfOptions.map(bf => (<div key={bf} className="flex items-center justify-between gap-1"><Label className="text-[9px]">{bf}</Label><Input type="number" className="w-12 h-6 text-[10px] px-1" value={kraftPaperCosts[normalizeBF(bf)] ?? ''} onChange={e => handleCostChange('kraft', e.target.value, bf)} /></div>))}</div></div><div className="space-y-2"><div className="grid grid-cols-2 gap-2"><div><Label className="text-[9px]">Virgin Rate</Label><Input type="number" className="h-6 text-[10px]" value={virginPaperCost} onChange={e => handleCostChange('virgin', e.target.value)} /></div><div><Label className="text-[9px]">Conversion</Label><Input type="number" className="h-6 text-[10px]" value={conversionCost} onChange={e => handleCostChange('conversion', e.target.value)} /></div></div><div className="grid grid-cols-2 gap-2"><div><Label className="text-[9px]">Transport</Label><Input type="number" className="h-6 text-[10px]" value={transportCost} onChange={e => setTransportCost(e.target.value === '' ? '' : parseFloat(e.target.value))} /></div><div><Label className="text-[9px]">Basis</Label><Select value={transportCostType} onValueChange={(v: any) => setTransportCostType(v)}><SelectTrigger className="h-6 text-[9px]"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Per Piece" className="text-xs">Per Piece</SelectItem><SelectItem value="Per Consignment" className="text-xs">Per Consignment</SelectItem></SelectContent></Select></div></div></div></div></CardContent></CollapsibleContent></Card></Collapsible>
         </div>
-        
-        <Card>
-            <CardHeader className="py-3 px-4">
-                <CardTitle className="text-sm">Product Cost Breakdown</CardTitle>
-            </CardHeader>
-            <CardContent className="px-2">
-                <ScrollArea className="h-[600px]">
-                    <Table className="text-[10px]">
-                        <TableHeader>
-                            <TableRow className="h-8">
-                                <TableHead rowSpan={2} className="w-[40px] align-bottom px-1">
-                                    <div className="flex items-center">
-                                        <Checkbox
-                                            checked={(selectedForPrint?.size || 0) === items.length && items.length > 0}
-                                            onCheckedChange={(checked) => {
-                                                if (checked) {
-                                                    setSelectedForPrint(new Set(items.map(i => i.id)));
-                                                } else {
-                                                    setSelectedForPrint(new Set());
-                                                }
-                                            }}
-                                            aria-label="Select all rows"
-                                            className="mr-1 h-3 w-3"
-                                        />
-                                        S.N.
-                                    </div>
-                                </TableHead>
-                                <TableHead rowSpan={2} className="min-w-[180px] align-bottom px-1">Item Name</TableHead>
-                                <TableHead colSpan={3} className="text-center px-1">Box Size (mm)</TableHead>
-                                <TableHead rowSpan={2} className="align-bottom px-1">Pcs</TableHead>
-                                <TableHead rowSpan={2} className="align-bottom px-1">Ply</TableHead>
-                                <TableHead rowSpan={2} className="align-bottom px-1">Flute</TableHead>
-                                <TableHead rowSpan={2} className="align-bottom px-1">Type</TableHead>
-                                <TableHead rowSpan={2} className="align-bottom px-1">Paper BF</TableHead>
-                                <TableHead rowSpan={2} className="align-bottom px-1 w-[80px]">Waste %</TableHead>
-                                <TableHead colSpan={maxPly} className="text-center px-1">GSM</TableHead>
-                                <TableHead rowSpan={2} className="align-bottom px-1">T.GSM</TableHead>
-                                <TableHead rowSpan={2} className="align-bottom px-1">R.Size</TableHead>
-                                <TableHead rowSpan={2} className="align-bottom px-1">C.Size</TableHead>
-                                <TableHead rowSpan={2} className="align-bottom px-1">Box Wt (g)</TableHead>
-                                <TableHead rowSpan={2} className="align-bottom px-1">Waste Wt (g)</TableHead>
-                                <TableHead rowSpan={2} className="align-bottom px-1 font-bold">Total Wt</TableHead>
-                                <TableHead rowSpan={2} className="align-bottom px-1">Paper Rs</TableHead>
-                                <TableHead rowSpan={2} className="align-bottom px-1">Acc. Rs</TableHead>
-                                <TableHead rowSpan={2} className="w-[40px] align-bottom px-1"></TableHead>
-                            </TableRow>
-                            <TableRow className="h-8">
-                                <TableHead className="px-1 text-center">L</TableHead>
-                                <TableHead className="px-1 text-center">B</TableHead>
-                                <TableHead className="px-1 text-center">H</TableHead>
-                                <TableHead className="px-1 text-center">T</TableHead>
-                                <TableHead className="px-1 text-center">F1</TableHead>
-                                {maxPly >= 7 && <TableHead className="px-1 text-center">L2</TableHead>}
-                                {maxPly >= 5 && <TableHead className="px-1 text-center">F2</TableHead>}
-                                {maxPly >= 5 && <TableHead className="px-1 text-center">{maxPly === 5 ? 'M' : 'L3'}</TableHead>}
-                                {maxPly >= 7 && <TableHead className="px-1 text-center">F3</TableHead>}
-                                {maxPly >= 9 && <TableHead className="px-1 text-center">L4</TableHead>}
-                                {maxPly >= 9 && <TableHead className="px-1 text-center">F4</TableHead>}
-                                <TableHead className="px-1 text-center">B</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                        {items.map((item, index) => {
-                             const ply = parseInt(item.ply, 10);
-                             const accessoriesCost = (item.accessories || []).reduce((sum, acc) => sum + (acc.calculated?.paperCost || 0), 0);
-                             let totalItemCost = (item.calculated?.paperCost || 0) + accessoriesCost;
-                             
-                             if (transportCost && transportCostType === 'Per Piece') {
-                                 totalItemCost += (parseInt(item.noOfPcs, 10) || 0) * Number(transportCost);
-                             }
-
-                             const selectedProduct = products.find(p => p.id === item.productId);
-                             const wasteWt = (item.calculated?.totalBoxWeight || 0) - (item.calculated?.paperWeight || 0);
-                             
-                             return (
-                                <React.Fragment key={item.id}>
-                                  <TableRow className="h-10 hover:bg-muted/30">
-                                      <TableCell className="px-1">
-                                        <div className="flex items-center">
-                                          <Checkbox
-                                            checked={selectedForPrint?.has?.(item.id) || false}
-                                            onCheckedChange={(checked) => {
-                                              setSelectedForPrint(prev => {
-                                                const newSet = new Set(prev);
-                                                if (checked) newSet.add(item.id);
-                                                else newSet.delete(item.id);
-                                                return newSet;
-                                              });
-                                            }}
-                                            className="mr-1 h-3 w-3"
-                                          />
-                                          {index + 1}
-                                        </div>
-                                      </TableCell>
-                                      <TableCell className="px-1">
-                                        <div className="flex items-center gap-1">
-                                          <Button variant="outline" size="icon" className="h-5 w-5 shrink-0" onClick={() => addAccessory(index)}>
-                                            <Plus className="h-3 w-3" />
-                                          </Button>
-                                          <Popover>
-                                            <PopoverTrigger asChild>
-                                              <Button variant="outline" role="combobox" className="w-full justify-between h-7 text-[10px] px-2 overflow-hidden">
-                                                <span className="truncate">{selectedProduct ? `${selectedProduct.name}` : "Select..."}</span>
-                                                <ChevronsUpDown className="ml-1 h-2 w-2 shrink-0 opacity-50" />
-                                              </Button>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
-                                              <Command>
-                                                <CommandInput
-                                                  placeholder="Search..."
-                                                  value={productSearch}
-                                                  onValueChange={setProductSearch}
-                                                  className="h-8 text-xs"
-                                                />
-                                                <CommandList>
-                                                  <CommandEmpty>
-                                                    <Button variant="ghost" className="w-full justify-start text-xs" onClick={() => onProductAdd()}>
-                                                      <PlusCircle className="mr-2 h-3 w-3" /> Add "{productSearch}"
-                                                    </Button>
-                                                  </CommandEmpty>
-                                                  <CommandGroup>
-                                                    {sortedProducts.map(p => (
-                                                      <CommandItem key={p.id} className="text-xs" value={`${p.name} ${p.materialCode}`} onSelect={() => { handleProductSelect(index, p.id); setProductSearch(''); }}>
-                                                        <Check className={cn("mr-2 h-4 w-4", item.productId === p.id ? "opacity-100" : "opacity-0")} />
-                                                        {p.name}
-                                                      </CommandItem>
-                                                    ))}
-                                                  </CommandGroup>
-                                                </CommandList>
-                                              </Command>
-                                            </PopoverContent>
-                                          </Popover>
-                                        </div>
-                                      </TableCell>
-                                      <TableCell className="px-1">
-                                          <div className="flex gap-1">
-                                              <Input type="number" value={item.l} onChange={e => handleItemChange(index, 'l', e.target.value)} className="w-16 h-7 px-1 text-[10px]" />
-                                              <Input type="number" value={item.b} onChange={e => handleItemChange(index, 'b', e.target.value)} className="w-16 h-7 px-1 text-[10px]" />
-                                              <Input type="number" value={item.h} onChange={e => handleItemChange(index, 'h', e.target.value)} className="w-16 h-7 px-1 text-[10px]" />
-                                          </div>
-                                      </TableCell>
-                                      <TableCell className="px-1"></TableCell>
-                                      <TableCell className="px-1"></TableCell>
-                                      <TableCell className="px-1"><Input type="number" value={item.noOfPcs} onChange={e => handleItemChange(index, 'noOfPcs', e.target.value)} className="w-16 h-7 px-1 text-[10px]" /></TableCell>
-                                      <TableCell className="px-1">
-                                        <Select value={item.ply} onValueChange={(value) => handleItemChange(index, 'ply', value)}>
-                                          <SelectTrigger className="w-14 h-7 px-1 text-[10px]"><SelectValue /></SelectTrigger>
-                                          <SelectContent>
-                                            <SelectItem value="3" className="text-xs">3</SelectItem>
-                                            <SelectItem value="5" className="text-xs">5</SelectItem>
-                                            <SelectItem value="7" className="text-xs">7</SelectItem>
-                                            <SelectItem value="9" className="text-xs">9</SelectItem>
-                                          </SelectContent>
-                                        </Select>
-                                      </TableCell>
-                                      <TableCell className="px-1">
-                                        <Select value={item.fluteType} onValueChange={(value) => handleItemChange(index, 'fluteType', value)}>
-                                            <SelectTrigger className="w-14 h-7 px-1 text-[10px]"><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                {fluteOptions.map(f => <SelectItem key={f} value={f} className="text-xs">{f}</SelectItem>)}
-                                            </SelectContent>
-                                        </Select>
-                                      </TableCell>
-                                      <TableCell className="px-1">
-                                        <Select value={item.paperType} onValueChange={(value) => handleItemChange(index, 'paperType', value)}>
-                                          <SelectTrigger className="w-20 h-7 px-1 text-[9px]"><SelectValue /></SelectTrigger>
-                                          <SelectContent>
-                                            <SelectItem value="KRAFT" className="text-xs">KRAFT</SelectItem>
-                                            <SelectItem value="VIRGIN" className="text-xs">VIRGIN</SelectItem>
-                                            <SelectItem value="VIRGIN & KRAFT" className="text-xs">MIXED</SelectItem>
-                                          </SelectContent>
-                                        </Select>
-                                      </TableCell>
-                                      <TableCell className="px-1">
-                                        <Select value={normalizeBF(item.paperBf)} onValueChange={(value) => handleItemChange(index, 'paperBf', normalizeBF(value))}>
-                                          <SelectTrigger className="w-16 h-7 px-1 text-[9px]"><SelectValue /></SelectTrigger>
-                                          <SelectContent>
-                                            {bfOptions.map(bf => (<SelectItem key={bf} value={bf} className="text-xs">{bf}</SelectItem>))}
-                                          </SelectContent>
-                                        </Select>
-                                      </TableCell>
-                                      <TableCell className="px-1"><Input type="number" value={item.wastagePercent} onChange={e => handleItemChange(index, 'wastagePercent', e.target.value)} className="w-20 h-7 px-1 text-[10px]" /></TableCell>
-                                      <TableCell className="px-1">
-                                          {ply >= 1 ? <Input type="number" value={item.topGsm} onChange={e => handleItemChange(index, 'topGsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /> : null}
-                                      </TableCell>
-                                      <TableCell className="px-1">
-                                          {ply >= 3 ? <Input type="number" value={item.flute1Gsm} onChange={e => handleItemChange(index, 'flute1Gsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /> : null}
-                                      </TableCell>
-                                      {maxPly >= 7 && <TableCell className="px-1">{ply >= 7 ? <Input type="number" value={item.liner2Gsm} onChange={e => handleItemChange(index, 'liner2Gsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /> : null}</TableCell>}
-                                      {maxPly >= 5 && <TableCell className="px-1">{ply >= 5 ? <Input type="number" value={item.flute2Gsm} onChange={e => handleItemChange(index, 'flute2Gsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /> : null}</TableCell>}
-                                      {maxPly >= 5 && <TableCell className="px-1">{ply === 5 ? <Input type="number" value={item.middleGsm} onChange={e => handleItemChange(index, 'middleGsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /> : (ply >= 7 ? <Input type="number" value={item.liner3Gsm} onChange={e => handleItemChange(index, 'liner3Gsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /> : null)}</TableCell>}
-                                      {maxPly >= 7 && <TableCell className="px-1">{ply >= 7 ? <Input type="number" value={item.flute3Gsm} onChange={e => handleItemChange(index, 'flute3Gsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /> : null}</TableCell>}
-                                      {maxPly >= 9 && <TableCell className="px-1">{ply >= 9 ? <Input type="number" value={item.liner4Gsm} onChange={e => handleItemChange(index, 'liner4Gsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /> : null}</TableCell>}
-                                      {maxPly >= 9 && <TableCell className="px-1">{ply >= 9 ? <Input type="number" value={item.flute4Gsm} onChange={e => handleItemChange(index, 'flute4Gsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /> : null}</TableCell>}
-                                      <TableCell className="px-1">
-                                          {ply >= 3 ? <Input type="number" value={item.bottomGsm} onChange={e => handleItemChange(index, 'bottomGsm', e.target.value)} className="w-14 h-7 px-1 text-[10px]" /> : null}
-                                      </TableCell>
-                                      <TableCell className="px-1">{item.calculated?.totalGsm.toFixed(1)}</TableCell>
-                                      <TableCell className="px-1">{item.calculated?.sheetSizeL ? (item.calculated.sheetSizeL / 10).toFixed(1) : '-'}</TableCell>
-                                      <TableCell className="px-1">{item.calculated?.sheetSizeB ? (item.calculated.sheetSizeB / 10).toFixed(1) : '-'}</TableCell>
-                                      <TableCell className="px-1 font-bold">{item.calculated?.paperWeight.toFixed(1)}</TableCell>
-                                      <TableCell className="px-1">{wasteWt.toFixed(1)}</TableCell>
-                                      <TableCell className="px-1 font-bold">{item.calculated?.totalBoxWeight.toFixed(1)}</TableCell>
-                                      <TableCell className="px-1 font-medium">{item.calculated?.paperCost > 0 ? item.calculated.paperCost.toFixed(1) : '...'}</TableCell>
-                                      <TableCell className="px-1">{accessoriesCost.toFixed(1)}</TableCell>
-                                      <TableCell className="px-1">
-                                        <div className="flex flex-col items-center">
-                                          <span className="font-bold text-xs">{totalItemCost.toFixed(1)}</span>
-                                            <div className="flex items-center">
-                                                <Button variant="ghost" size="icon" className="h-6 w-6 text-blue-600" onClick={() => copyItem(item)}>
-                                                    <Copy className="h-3 w-3" />
-                                                </Button>
-                                                <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleRemoveItem(item.id)}>
-                                                    <Trash2 className="h-3 w-3" />
-                                                </Button>
-                                            </div>
-                                        </div>
-                                      </TableCell>
-                                    </TableRow>
-                                    {(item.accessories || []).map((acc, accIndex) => {
-                                        const accPly = parseInt(acc.ply, 10);
-                                        const accWasteWt = (acc.calculated?.totalBoxWeight || 0) - (acc.calculated?.paperWeight || 0);
-                                        return (
-                                        <TableRow key={acc.id} className="h-9 bg-muted/20">
-                                            <TableCell colSpan={2} className="px-1 pl-6">
-                                                <Input placeholder="Acc Name" value={acc.name} onChange={e => handleAccessoryChange(index, accIndex, 'name', e.target.value)} className="h-6 text-[10px]" />
-                                            </TableCell>
-                                            <TableCell className="px-1">
-                                                <div className="flex gap-1">
-                                                    <Input type="number" placeholder="L" value={acc.l} onChange={e => handleAccessoryChange(index, accIndex, 'l', e.target.value)} className="w-16 h-6 px-1 text-[10px]"/>
-                                                    <Input type="number" placeholder="B" value={acc.b} onChange={e => handleAccessoryChange(index, accIndex, 'b', e.target.value)} className="w-16 h-6 px-1 text-[10px]"/>
-                                                    <Input type="number" placeholder="H" value={acc.h} onChange={e => handleAccessoryChange(index, accIndex, 'h', e.target.value)} className="w-16 h-6 px-1 text-[10px]"/>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="px-1"></TableCell>
-                                            <TableCell className="px-1"></TableCell>
-                                            <TableCell className="px-1"><Input type="number" placeholder="Pcs" value={acc.noOfPcs} onChange={e => handleAccessoryChange(index, accIndex, 'noOfPcs', e.target.value)} className="w-16 h-6 px-1 text-[10px]"/></TableCell>
-                                            <TableCell className="px-1">
-                                                <Select value={String(acc.ply)} onValueChange={(value) => handleAccessoryChange(index, accIndex, 'ply', value)}>
-                                                    <SelectTrigger className="w-14 h-6 px-1 text-[10px]"><SelectValue /></SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="3">3</SelectItem>
-                                                        <SelectItem value="5">5</SelectItem>
-                                                        <SelectItem value="7">7</SelectItem>
-                                                        <SelectItem value="9">9</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            </TableCell>
-                                            <TableCell className="px-1">
-                                                <Select value={acc.fluteType} onValueChange={(value) => handleAccessoryChange(index, accIndex, 'fluteType', value)}>
-                                                    <SelectTrigger className="w-14 h-6 px-1 text-[10px]"><SelectValue /></SelectTrigger>
-                                                    <SelectContent>
-                                                        {fluteOptions.map(f => <SelectItem key={f} value={f} className="text-xs">{f}</SelectItem>)}
-                                                    </SelectContent>
-                                                </Select>
-                                            </TableCell>
-                                            <TableCell className="px-1">
-                                                <Select value={acc.paperType} onValueChange={(value) => handleAccessoryChange(index, accIndex, 'paperType', value)}>
-                                                    <SelectTrigger className="w-20 h-6 px-1 text-[9px]"><SelectValue /></SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="KRAFT" className="text-xs">KRAFT</SelectItem>
-                                                        <SelectItem value="VIRGIN" className="text-xs">VIRGIN</SelectItem>
-                                                        <SelectItem value="VIRGIN & KRAFT" className="text-xs">MIXED</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            </TableCell>
-                                            <TableCell className="px-1">
-                                                <Select value={normalizeBF(acc.paperBf)} onValueChange={(value) => handleAccessoryChange(index, accIndex, 'paperBf', normalizeBF(value))}>
-                                                  <SelectTrigger className="w-16 h-6 px-1 text-[9px]"><SelectValue /></SelectTrigger>
-                                                  <SelectContent>
-                                                    {bfOptions.map(bf => (<SelectItem key={bf} value={bf} className="text-xs">{bf}</SelectItem>))}
-                                                  </SelectContent>
-                                                </Select>
-                                            </TableCell>
-                                            <TableCell className="px-1"><Input type="number" value={acc.wastagePercent} onChange={e => handleAccessoryChange(index, accIndex, 'wastagePercent', e.target.value)} className="w-20 h-6 px-1 text-[10px]" /></TableCell>
-                                            <TableCell className="px-1"><Input type="number" value={acc.topGsm} onChange={e => handleAccessoryChange(index, accIndex, 'topGsm', e.target.value)} className="w-14 h-6 px-1 text-[10px]" /></TableCell>
-                                            <TableCell className="px-1"><Input type="number" value={acc.flute1Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'flute1Gsm', e.target.value)} className="w-14 h-6 px-1 text-[10px]" /></TableCell>
-                                            {maxPly >= 7 && <TableCell className="px-1">{accPly >= 7 ? <Input type="number" value={acc.liner2Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'liner2Gsm', e.target.value)} className="w-14 h-6 px-1 text-[10px]" /> : null}</TableCell>}
-                                            {maxPly >= 5 && <TableCell className="px-1">{accPly >= 5 ? <Input type="number" value={acc.flute2Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'flute2Gsm', e.target.value)} className="w-14 h-6 px-1 text-[10px]" /> : null}</TableCell>}
-                                            {maxPly >= 5 && <TableCell className="px-1">{accPly === 5 ? <Input type="number" value={acc.middleGsm} onChange={e => handleAccessoryChange(index, accIndex, 'middleGsm', e.target.value)} className="w-14 h-6 px-1 text-[10px]" /> : (accPly >= 7 ? <Input type="number" value={acc.liner3Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'liner3Gsm', e.target.value)} className="w-14 h-6 px-1 text-[10px]" /> : null)}</TableCell>}
-                                            {maxPly >= 7 && <TableCell className="px-1">{accPly >= 7 ? <Input type="number" value={acc.flute3Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'flute3Gsm', e.target.value)} className="w-14 h-6 px-1 text-[10px]" /> : null}</TableCell>}
-                                            {maxPly >= 9 && <TableCell className="px-1">{accPly >= 9 ? <Input type="number" value={acc.liner4Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'liner4Gsm', e.target.value)} className="w-14 h-6 px-1 text-[10px]" /> : null}</TableCell>}
-                                            {maxPly >= 9 && <TableCell className="px-1">{accPly >= 9 ? <Input type="number" value={acc.flute4Gsm} onChange={e => handleAccessoryChange(index, accIndex, 'flute4Gsm', e.target.value)} className="w-14 h-6 px-1 text-[10px]" /> : null}</TableCell>}
-                                            <TableCell className="px-1"><Input type="number" value={acc.bottomGsm} onChange={e => handleAccessoryChange(index, accIndex, 'bottomGsm', e.target.value)} className="w-14 h-6 px-1 text-[10px]" /></TableCell>
-                                            <TableCell className="px-1">{acc.calculated?.totalGsm.toFixed(1)}</TableCell>
-                                            <TableCell className="px-1">{acc.calculated?.sheetSizeL ? (acc.calculated.sheetSizeL / 10).toFixed(1) : '-'}</TableCell>
-                                            <TableCell className="px-1">{acc.calculated?.sheetSizeB ? (acc.calculated.sheetSizeB / 10).toFixed(1) : '-'}</TableCell>
-                                            <TableCell className="px-1 font-bold">{acc.calculated?.paperWeight.toFixed(1)}</TableCell>
-                                            <TableCell className="px-1">{accWasteWt.toFixed(1)}</TableCell>
-                                            <TableCell className="px-1 font-bold">{acc.calculated?.totalBoxWeight.toFixed(1)}</TableCell>
-                                            <TableCell className="px-1 font-medium">{acc.calculated?.paperCost > 0 ? acc.calculated.paperCost.toFixed(1) : '...'}</TableCell>
-                                            <TableCell className="px-1"></TableCell>
-                                            <TableCell className="px-1 text-right">
-                                                <Button variant="ghost" size="icon" className="h-5 w-5 text-destructive" onClick={() => removeAccessory(index, acc.id)}>
-                                                    <Trash2 className="h-3 w-3" />
-                                                </Button>
-                                            </TableCell>
-                                        </TableRow>
-                                    )})}
-                                </React.Fragment>
-                             );
-                        })}
-                        </TableBody>
-                    </Table>
-                </ScrollArea>
-            </CardContent>
-        </Card>
-        
-        <Dialog open={isCostHistoryDialogOpen} onOpenChange={setIsCostHistoryDialogOpen}>
-            <DialogContent className="max-w-xl">
-                <DialogHeader>
-                    <DialogTitle>Costing History</DialogTitle>
-                    <DialogDescription>Review past changes to paper and conversion costs.</DialogDescription>
-                </DialogHeader>
-                <ScrollArea className="h-96">
-                    {(costSettings?.history || []).length > 0 ? (
-                    <div className="space-y-4 p-4">
-                        {[...(costSettings?.history || [])].reverse().map((entry, index) => (
-                        <div key={index} className="flex justify-between items-center text-sm">
-                            <div>
-                            <p className="font-medium capitalize">{entry.costType.replace('Cost', ' Cost')}</p>
-                            <p className="text-xs text-muted-foreground">{format(new Date(entry.date), "PPp")} by {entry.setBy}</p>
-                            </div>
-                            <div className="text-right">
-                            <p>{entry.newValue.toLocaleString()}</p>
-                            <p className="text-xs text-muted-foreground line-through">{entry.oldValue.toLocaleString()}</p>
-                            </div>
-                        </div>
-                        ))}
-                    </div>
-                    ) : (
-                    <div className="text-center text-muted-foreground p-8">No history found.</div>
-                    )}
-                </ScrollArea>
-            </DialogContent>
-        </Dialog>
+        <Card><CardHeader className="py-3 px-4 flex flex-row items-center justify-between"><CardTitle className="text-sm">Product Cost Breakdown</CardTitle><div className="flex gap-2"><Button size="sm" variant="outline" onClick={handleAddItem}>Add Manual Item</Button><Button size="sm" onClick={handlePrintPreview}>Preview Quotation</Button><Button size="sm" onClick={handleSaveReport} disabled={isSaving}>{isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Save Report</Button></div></CardHeader><CardContent className="px-2"><ScrollArea className="h-[600px]"><Table className="text-[10px]"><TableHeader><TableRow className="h-8"><TableHead rowSpan={2} className="px-1"><Checkbox checked={selectedForPrint.size === items.length && items.length > 0} onCheckedChange={v => setSelectedForPrint(v ? new Set(items.map(i => i.id)) : new Set())}/></TableHead><TableHead rowSpan={2}>Item Name</TableHead><TableHead colSpan={3} className="text-center">Box Size (mm)</TableHead><TableHead rowSpan={2}>Pcs</TableHead><TableHead rowSpan={2}>Ply</TableHead><TableHead rowSpan={2}>Type</TableHead><TableHead rowSpan={2}>Paper BF</TableHead><TableHead rowSpan={2} className="w-[60px]">Waste %</TableHead><TableHead colSpan={maxPly} className="text-center">GSM</TableHead><TableHead rowSpan={2}>T.GSM</TableHead><TableHead rowSpan={2}>Box Wt(g)</TableHead><TableHead rowSpan={2}>Total Wt</TableHead><TableHead rowSpan={2}>Paper Rs</TableHead><TableHead rowSpan={2}>Total</TableHead><TableHead rowSpan={2}></TableHead></TableRow><TableRow className="h-8"><TableHead className="px-1 text-center">L</TableHead><TableHead className="px-1 text-center">B</TableHead><TableHead className="px-1 text-center">H</TableHead><TableHead className="px-1 text-center">T</TableHead><TableHead className="px-1 text-center">F1</TableHead>{maxPly >= 5 && <TableHead className="px-1 text-center">F2</TableHead>}{maxPly >= 5 && <TableHead className="px-1 text-center">M</TableHead>}{maxPly >= 7 && <TableHead className="px-1 text-center">F3</TableHead>}<TableHead className="px-1 text-center">B</TableHead></TableRow></TableHeader><TableBody>{items.map((item, idx) => (<React.Fragment key={item.id}><TableRow><TableCell className="px-1"><Checkbox checked={selectedForPrint.has(item.id)} onCheckedChange={v => { const next = new Set(selectedForPrint); if(v) next.add(item.id); else next.delete(item.id); setSelectedForPrint(next); }}/></TableCell><TableCell className="px-1 min-w-[150px]"><div className="flex gap-1"><Button variant="outline" size="icon" className="h-5 w-5" onClick={() => { const k = Object.fromEntries(Object.entries(kraftPaperCosts).map(([b, c]) => [normalizeBF(b), Number(c) || 0])); const vi = Number(virginPaperCost) || 0; const co = Number(conversionCost) || 0; const acc = { id: Date.now().toString(), name: 'Acc', l:'',b:'',h:'0', noOfPcs:'1', ply:'0', fluteType:'B', paperType:'KRAFT', paperBf:'18 BF', wastagePercent:'3.5', topGsm:'120', flute1Gsm:'' }; setItems(prev => { const next = [...prev]; next[idx].accessories = [...(next[idx].accessories || []), { ...acc, calculated: calculateItemCost(acc, k, vi, co) }]; return next; }); }}><Plus className="h-3 w-3" /></Button><Popover><PopoverTrigger asChild><Button variant="outline" className="w-full h-7 text-[10px] truncate">{products.find(p => p.id === item.productId)?.name || "Select..."}</Button></PopoverTrigger><PopoverContent className="p-0"><Command><CommandInput placeholder="Search..." onValueChange={setProductSearch} /><CommandList><CommandGroup>{sortedProducts.map(p => (<CommandItem key={p.id} onSelect={() => handleProductSelect(idx, p.id)}>{p.name}</CommandItem>))}</CommandGroup></CommandList></Command></PopoverContent></Popover></div></TableCell><TableCell className="px-1"><div className="flex gap-1"><Input type="number" value={item.l} onChange={e => handleItemChange(idx, 'l', e.target.value)} className="w-10 h-7 px-1" /><Input type="number" value={item.b} onChange={e => handleItemChange(idx, 'b', e.target.value)} className="w-10 h-7 px-1" /><Input type="number" value={item.h} onChange={e => handleItemChange(idx, 'h', e.target.value)} className="w-10 h-7 px-1" /></div></TableCell><TableCell className="px-1"></TableCell><TableCell className="px-1"></TableCell><TableCell className="px-1"><Input type="number" value={item.noOfPcs} onChange={e => handleItemChange(idx, 'noOfPcs', e.target.value)} className="w-10 h-7 px-1" /></TableCell><TableCell className="px-1"><Select value={item.ply} onValueChange={v => handleItemChange(idx, 'ply', v)}><SelectTrigger className="w-12 h-7"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="3">3</SelectItem><SelectItem value="5">5</SelectItem><SelectItem value="7">7</SelectItem><SelectItem value="9">9</SelectItem></SelectContent></Select></TableCell><TableCell className="px-1"><Select value={item.paperType} onValueChange={v => handleItemChange(idx, 'paperType', v)}><SelectTrigger className="w-16 h-7"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="KRAFT">K</SelectItem><SelectItem value="VIRGIN">V</SelectItem><SelectItem value="VIRGIN & KRAFT">M</SelectItem></SelectContent></Select></TableCell><TableCell className="px-1"><Select value={normalizeBF(item.paperBf)} onValueChange={v => handleItemChange(idx, 'paperBf', v)}><SelectTrigger className="w-14 h-7"><SelectValue/></SelectTrigger><SelectContent>{bfOptions.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent></Select></TableCell><TableCell className="px-1"><Input type="number" value={item.wastagePercent} onChange={e => handleItemChange(idx, 'wastagePercent', e.target.value)} className="w-12 h-7 px-1" /></TableCell><TableCell className="px-1"><Input type="number" value={item.topGsm} onChange={e => handleItemChange(idx, 'topGsm', e.target.value)} className="w-10 h-7 px-1" /></TableCell><TableCell className="px-1"><Input type="number" value={item.flute1Gsm} onChange={e => handleItemChange(idx, 'flute1Gsm', e.target.value)} className="w-10 h-7 px-1" /></TableCell>{maxPly >= 5 && <TableCell className="px-1"><Input type="number" value={item.flute2Gsm} onChange={e => handleItemChange(idx, 'flute2Gsm', e.target.value)} className="w-10 h-7 px-1" /></TableCell>}{maxPly >= 5 && <TableCell className="px-1"><Input type="number" value={item.middleGsm} onChange={e => handleItemChange(idx, 'middleGsm', e.target.value)} className="w-10 h-7 px-1" /></TableCell>}<TableCell className="px-1"><Input type="number" value={item.bottomGsm} onChange={e => handleItemChange(idx, 'bottomGsm', e.target.value)} className="w-10 h-7 px-1" /></TableCell><TableCell className="px-1">{item.calculated?.totalGsm.toFixed(0)}</TableCell><TableCell className="px-1">{item.calculated?.paperWeight.toFixed(0)}</TableCell><TableCell className="px-1">{item.calculated?.totalBoxWeight.toFixed(0)}</TableCell><TableCell className="px-1">{item.calculated?.paperCost.toFixed(1)}</TableCell><TableCell className="px-1 font-bold">{(item.calculated?.paperCost + (item.accessories || []).reduce((s, a) => s + (a.calculated?.paperCost || 0), 0)).toFixed(1)}</TableCell><TableCell className="px-1"><div className="flex"><Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { const k = Object.fromEntries(Object.entries(kraftPaperCosts).map(([b, c]) => [normalizeBF(b), Number(c) || 0])); const vi = Number(virginPaperCost) || 0; const co = Number(conversionCost) || 0; const copy = { ...item, id: Date.now().toString(), accessories: (item.accessories || []).map(a => ({...a, id: Math.random().toString()})) }; setItems([...items, { ...copy, calculated: calculateItemCost(copy, k, vi, co) }]); }}><Copy className="h-3 w-3" /></Button><Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => setItems(items.filter(i => i.id !== item.id))}><Trash2 className="h-3 w-3" /></Button></div></TableCell></TableRow>{(item.accessories || []).map((acc, aIdx) => (<TableRow key={acc.id} className="bg-muted/20"><TableCell colSpan={2} className="pl-6"><Input value={acc.name} onChange={e => { const k = Object.fromEntries(Object.entries(kraftPaperCosts).map(([b, c]) => [normalizeBF(b), Number(c) || 0])); const vi = Number(virginPaperCost) || 0; const co = Number(conversionCost) || 0; const next = [...items]; next[idx].accessories![aIdx].name = e.target.value; setItems(next); }} className="h-6 text-[10px]" /></TableCell><TableCell className="px-1"><div className="flex gap-1"><Input type="number" value={acc.l} onChange={e => { const k = Object.fromEntries(Object.entries(kraftPaperCosts).map(([b, c]) => [normalizeBF(b), Number(c) || 0])); const vi = Number(virginPaperCost) || 0; const co = Number(conversionCost) || 0; const next = [...items]; const ac = { ...next[idx].accessories![aIdx], l: e.target.value }; ac.calculated = calculateItemCost(ac, k, vi, co); next[idx].accessories![aIdx] = ac; setItems(next); }} className="w-10 h-6 px-1" /></div></TableCell><TableCell colSpan={10}></TableCell><TableCell>{acc.calculated?.paperCost.toFixed(1)}</TableCell><TableCell colSpan={2}></TableCell></TableRow>))}</React.Fragment>))}</TableBody></Table></ScrollArea></CardContent></Card>
+        <Dialog open={isCostHistoryDialogOpen} onOpenChange={setIsCostHistoryDialogOpen}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Costing History</DialogTitle></DialogHeader><ScrollArea className="h-96">{(costSettings?.history || []).length > 0 ? (<div className="space-y-4 p-4">{[...(costSettings?.history || [])].reverse().map((e, i) => (<div key={i} className="flex justify-between items-center text-sm"><div><p className="font-medium capitalize">{e.costType.replace('Cost', ' Cost')}</p><p className="text-xs text-muted-foreground">{format(new Date(e.date), "PPp")} by {e.setBy}</p></div><div className="text-right"><p>{e.newValue.toLocaleString()}</p><p className="text-xs text-muted-foreground line-through">{e.oldValue.toLocaleString()}</p></div></div>))}</div>) : (<div className="text-center text-muted-foreground p-8">No history found.</div>)}</ScrollArea></DialogContent></Dialog>
+        <QuotationPreviewDialog isOpen={isPreviewOpen} onOpenChange={setIsPreviewOpen} reportNumber={reportNumber} reportDate={reportDate} party={parties.find(p => p.id === selectedPartyId)} items={printableItems} products={products} transportCost={Number(transportCost)} transportCostType={transportCostType} termsAndConditions={termsAndConditions} />
     </div>
   );
 }
@@ -1675,966 +596,148 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
     const { toast } = useToast();
     const [products, setProducts] = useState<Product[]>([]);
     const [parties, setParties] = useState<Party[]>([]);
-
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
     const [reportToPrint, setReportToPrint] = useState<CostReport | null>(null);
-
 
     useEffect(() => {
         const unsub = onCostReportsUpdate(setReports);
         const unsubProducts = onProductsUpdate(setProducts);
         const unsubParties = onPartiesUpdate(setParties);
-        return () => {
-            unsub();
-            unsubProducts();
-            unsubParties();
-        }
+        return () => { unsub(); unsubProducts(); unsubParties(); }
     }, []);
 
     const handleDelete = async (id: string) => {
-        try {
-            await deleteCostReport(id);
-            toast({ title: "Success", description: "Cost report deleted." });
-        } catch {
-            toast({ title: "Error", description: "Failed to delete report.", variant: "destructive" });
-        }
+        try { await deleteCostReport(id); toast({ title: "Success", description: "Deleted." }); }
+        catch { toast({ title: "Error", description: "Failed.", variant: "destructive" }); }
     };
     
-    const handlePrintFromSaved = async (reportId: string) => {
-        const report = await getCostReport(reportId);
-        if (!report) {
-            toast({ title: "Error", description: "Could not find report to print.", variant: "destructive" });
-            return;
-        }
-        setReportToPrint(report);
-        setIsPreviewOpen(true);
-    }
-    
-
-    const calculateItemCost = useCallback((item: Omit<CostReportItem, 'id' | 'calculated' | 'productId' | 'accessories'> | Omit<Accessory, 'id' | 'calculated' | 'productId'>, report: CostReport): CalculatedValues => {
-        const l = parseFloat(item.l) || 0;
-        const b = parseFloat(item.b) || 0;
-        const h = parseFloat(item.h) || 0;
-        const noOfPcs = parseInt(item.noOfPcs, 10) || 1;
-        
+    const calculateItemCost = useCallback((item: any, report: CostReport): CalculatedValues => {
+        const l = parseFloat(item.l) || 0; const b = parseFloat(item.b) || 0; const h = parseFloat(item.h) || 0; const noOfPcs = parseInt(item.noOfPcs, 10) || 1;
         const isBox = l > 0 && b > 0 && h > 0;
-        let sheetSizeL, sheetSizeB;
-
-        if (isBox) {
-            const cutOff1 = b + h + 20;
-            const deckle1 = (2 * l) + (2 * b) + 62;
-            const area1 = cutOff1 * deckle1;
-
-            const cutOff2 = l + h + 20;
-            const deckle2 = (2 * b) + (2 * l) + 62;
-            const area2 = cutOff2 * deckle2;
-
-            if (area1 <= area2) {
-                sheetSizeL = cutOff1;
-                sheetSizeB = deckle1;
-            } else {
-                sheetSizeL = cutOff2;
-                sheetSizeB = deckle2;
-            }
-        } else {
-            const dims = [l, b, h].filter(dim => dim > 0).sort((a, b) => b - a);
-            if (dims.length < 2) return initialCalculatedState;
-            sheetSizeL = dims[0];
-            sheetSizeB = dims[1];
-        }
-        
-        if (sheetSizeL === 0 || sheetSizeB === 0) return initialCalculatedState;
-        
+        let sL, sB;
+        if (isBox) { const c1 = b + h + 20; const d1 = (2 * l) + (2 * b) + 62; const c2 = l + h + 20; const d2 = (2 * b) + (2 * l) + 62; if (c1 * d1 <= c2 * d2) { sL = c1; sB = d1; } else { sL = c2; sB = d2; } }
+        else { const d = [l, b, h].filter(v => v > 0).sort((a, b) => b - a); if (d.length < 2) return initialCalculatedState; sL = d[0]; sB = d[1]; }
+        if (sL === 0 || sB === 0) return initialCalculatedState;
         const ply = parseInt(item.ply, 10) || 0;
-        const getFluteFactor = (fluteChar: string) => {
-            if (fluteChar === 'A') return 1.55;
-            if (fluteChar === 'B') return 1.35;
-            return 1.35; // Default to 'B'
-        };
-
-        const fluteTypes = (item.fluteType || 'B').split('/');
-        const fluteFactor1 = getFluteFactor(fluteTypes[0]);
-        const fluteFactor2 = getFluteFactor(fluteTypes[1] || fluteTypes[0]);
-        const fluteFactor3 = getFluteFactor(fluteTypes[2] || fluteTypes[1] || fluteTypes[0]);
-        const fluteFactor4 = getFluteFactor(fluteTypes[3] || fluteTypes[2] || fluteTypes[1] || fluteTypes[0]);
-
-        const topGsm = parseInt(item.topGsm, 10) || 0;
-        const flute1Gsm = parseInt(item.flute1Gsm, 10) || 0;
-        const middleGsm = parseInt(item.middleGsm, 10) || 0;
-        const flute2Gsm = parseInt(item.flute2Gsm, 10) || 0;
-        const bottomGsm = parseInt(item.bottomGsm, 10) || 0;
-        const liner2Gsm = parseInt(item.liner2Gsm, 10) || 0;
-        const flute3Gsm = parseInt(item.flute3Gsm, 10) || 0;
-        const liner3Gsm = parseInt(item.liner3Gsm, 10) || 0;
-        const flute4Gsm = parseInt(item.flute4Gsm, 10) || 0;
-        const liner4Gsm = parseInt(item.liner4Gsm, 10) || 0;
-        const sheetArea = (sheetSizeL * sheetSizeB) / 1000000;
-        let totalGsmForCalc = 0;
-        if (ply === 3) totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor1) + bottomGsm;
-        else if (ply === 5) totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor1) + middleGsm + (flute2Gsm * fluteFactor2) + bottomGsm;
-        else if (ply === 7) totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor1) + liner2Gsm + (flute2Gsm * fluteFactor2) + liner3Gsm + (flute3Gsm * fluteFactor3) + bottomGsm;
-        else if (ply === 9) totalGsmForCalc = topGsm + (flute1Gsm * fluteFactor1) + liner2Gsm + (flute2Gsm * fluteFactor2) + liner3Gsm + (flute3Gsm * fluteFactor3) + liner4Gsm + (flute4Gsm * fluteFactor4) + bottomGsm;
-        else if (ply === 0 || ply === 1 || ply === 2) totalGsmForCalc = topGsm + (ply === 2 ? (flute1Gsm * fluteFactor1) + bottomGsm : 0);
-
-
-        const paperWeightInGrams = (sheetArea * totalGsmForCalc) * noOfPcs;
-        const wastage = parseFloat(item.wastagePercent) / 100 || 0;
-        const totalBoxWeightInGrams = paperWeightInGrams * (1 + wastage);
-        const totalBoxWeightInKg = totalBoxWeightInGrams / 1000;
-        
-        let paperRate = 0;
-        const kraftCost = (report.kraftPaperCosts || {})[normalizeBF(item.paperBf)] || 0;
-
-        if (item.paperType === 'VIRGIN' && report.virginPaperCost > 0) paperRate = report.virginPaperCost;
-        else if (item.paperType === 'VIRGIN & KRAFT' && topGsm > 0 && report.virginPaperCost > 0) {
-            const totalGsm = topGsm + (flute1Gsm * fluteFactor1) + (ply === 5 ? middleGsm + (flute2Gsm * fluteFactor2) : 0) + bottomGsm;
-            if (totalGsm > 0) paperRate = (topGsm * report.virginPaperCost + (totalGsm - topGsm) * kraftCost) / totalGsm;
-            else paperRate = kraftCost;
-        } else paperRate = kraftCost;
-
-        const finalPaperRate = paperRate + (report.conversionCost || 0);
-        const paperCost = totalBoxWeightInKg * finalPaperRate;
-        return { sheetSizeL, sheetSizeB, sheetArea, totalGsm: totalGsmForCalc, paperWeight: paperWeightInGrams, totalBoxWeight: totalBoxWeightInGrams, paperRate: finalPaperRate, paperCost };
+        const getF = (f: string) => f === 'A' ? 1.55 : 1.35;
+        const fT = (item.fluteType || 'B').split('/');
+        const f1 = getF(fT[0]); const f2 = getF(fT[1] || fT[0]);
+        const top = parseInt(item.topGsm, 10) || 0; const fl1 = parseInt(item.flute1Gsm, 10) || 0; const bot = parseInt(item.bottomGsm, 10) || 0;
+        const sArea = (sL * sB) / 1000000;
+        let tGsm = 0;
+        if (ply === 3) tGsm = top + (fl1 * f1) + bot;
+        else if (ply === 5) tGsm = top + (fl1 * f1) + (parseInt(item.middleGsm, 10) || 0) + (parseInt(item.flute2Gsm, 10) || 0) * f2 + bot;
+        else tGsm = top + (ply === 2 ? (fl1 * f1) + bot : 0);
+        const pWt = (sArea * tGsm) * noOfPcs;
+        const tBWt = pWt * (1 + (parseFloat(item.wastagePercent) / 100 || 0));
+        const kC = (report.kraftPaperCosts || {})[normalizeBF(item.paperBf)] || 0;
+        let pR = 0;
+        if (item.paperType === 'VIRGIN') pR = report.virginPaperCost || 0;
+        else if (item.paperType === 'VIRGIN & KRAFT' && top > 0) pR = (top * (report.virginPaperCost || 0) + (tGsm - top) * kC) / tGsm;
+        else pR = kC;
+        const fR = pR + (report.conversionCost || 0);
+        return { sheetSizeL: sL, sheetSizeB: sB, sheetArea: sArea, totalGsm: tGsm, paperWeight: pWt, totalBoxWeight: tBWt, paperRate: fR, paperCost: (tBWt / 1000) * fR };
     }, []);
 
-    const getFullAccessory = (acc: Partial<ProductAccessory>): Omit<Accessory, 'calculated' | 'productId'> => {
-        return {
-            id: acc.id || Date.now().toString() + Math.random(),
-            name: acc.name || 'Accessory',
-            l: acc.l || '', b: acc.b || '', h: acc.h || '',
-            noOfPcs: acc.noOfPcs || '1',
-            ply: acc.ply || '3',
-            fluteType: acc.fluteType || 'B',
-            paperType: acc.paperType || 'KRAFT',
-            paperBf: normalizeBF(acc.paperBf) || '18 BF',
-            paperShade: acc.paperShade || 'NS',
-            boxType: acc.boxType || 'RSC',
-            topGsm: acc.topGsm || '',
-            flute1Gsm: acc.flute1Gsm || '',
-            middleGsm: acc.middleGsm || '',
-            flute2Gsm: acc.flute2Gsm || '',
-            bottomGsm: acc.bottomGsm || '',
-            liner2Gsm: acc.liner2Gsm || '',
-            flute3Gsm: acc.flute3Gsm || '',
-            liner3Gsm: acc.liner3Gsm || '',
-            flute4Gsm: acc.flute4Gsm || '',
-            liner4Gsm: acc.liner4Gsm || '',
-            wastagePercent: acc.wastagePercent || '3.5',
-        };
-    };
-
-    const printableReportItems = useMemo(() => {
+    const printableItems = useMemo(() => {
         if (!reportToPrint) return [];
-        return reportToPrint.items.map(item => {
-            const accessoriesWithCalc = (item.accessories || []).map(acc => {
-                const fullAcc = getFullAccessory(acc);
-                return {
-                    ...fullAcc,
-                    calculated: calculateItemCost(fullAcc, reportToPrint),
-                };
-            });
-            const accessoriesCost = accessoriesWithCalc.reduce((sum, acc) => sum + (acc.calculated?.paperCost || 0), 0);
-            
-            let itemTotal = (calculateItemCost(item, reportToPrint).paperCost || 0) + accessoriesCost;
-            if (reportToPrint.transportCost && reportToPrint.transportCostType === 'Per Piece') {
-                itemTotal += (parseInt(item.noOfPcs, 10) || 0) * reportToPrint.transportCost;
-            }
-
-            return {
-                ...item,
-                accessories: accessoriesWithCalc,
-                calculated: calculateItemCost(item, reportToPrint),
-                totalItemCost: itemTotal
-            };
+        return reportToPrint.items.map(i => {
+            const accs = (i.accessories || []).map(a => ({ ...a, calculated: calculateItemCost(a, reportToPrint) }));
+            const transport = reportToPrint.transportCostType === 'Per Piece' ? (parseInt(i.noOfPcs, 10) || 0) * (reportToPrint.transportCost || 0) : 0;
+            return { ...i, accessories: accs, calculated: calculateItemCost(i, reportToPrint), totalItemCost: calculateItemCost(i, reportToPrint).paperCost + accs.reduce((s, a) => s + (a.calculated?.paperCost || 0), 0) + transport };
         });
-    }, [reportToPrint, calculateItemCost, getFullAccessory]);
-    
+    }, [reportToPrint, calculateItemCost]);
 
     return (
-        <>
-        <Card>
-            <CardHeader>
-                <CardTitle>Saved Cost Reports</CardTitle>
-                <CardDescription>A log of all previously generated cost reports.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Report #</TableHead>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Party Name</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {reports.length > 0 ? reports.map(report => (
-                            <TableRow key={report.id}>
-                                <TableCell>{report.reportNumber}</TableCell>
-                                <TableCell>{toNepaliDate(report.reportDate)}</TableCell>
-                                <TableCell>{report.partyName}</TableCell>
-                                <TableCell className="text-right">
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent>
-                                            <DropdownMenuItem onSelect={() => onEdit(report)}>
-                                                <Edit className="mr-2 h-4 w-4" /> Edit
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onSelect={() => handlePrintFromSaved(report.id)}>
-                                                <Printer className="mr-2 h-4 w-4" /> Print
-                                            </DropdownMenuItem>
-                                             <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">
-                                                         <Trash2 className="mr-2 h-4 w-4 text-destructive" /> <span className="text-destructive">Delete</span>
-                                                    </DropdownMenuItem>
-                                                </AlertDialogTrigger>
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeader>
-                                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                        <AlertDialogDescription>This action cannot be undone and will permanently delete this cost report.</AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <AlertDialogFooter>
-                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={() => handleDelete(report.id)}>Delete</AlertDialogAction>
-                                                    </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </TableCell>
-                            </TableRow>
-                        )) : (
-                            <TableRow>
-                                <TableCell colSpan={4} className="text-center">No saved reports found.</TableCell>
-                            </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </CardContent>
-        </Card>
-        
-        {reportToPrint && isPreviewOpen && (
-            <QuotationPreviewDialog
-                isOpen={isPreviewOpen}
-                onOpenChange={setIsPreviewOpen}
-                reportNumber={reportToPrint.reportNumber}
-                reportDate={new Date(reportToPrint.reportDate)}
-                party={parties.find(p => p.id === reportToPrint!.partyId)}
-                items={printableReportItems}
-                products={products}
-                transportCost={reportToPrint.transportCost}
-                transportCostType={reportToPrint.transportCostType}
-                termsAndConditions={reportToPrint.termsAndConditions}
-            />
-        )}
-      </>
+        <><Card><CardHeader><CardTitle>Saved Cost Reports</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Report #</TableHead><TableHead>Date</TableHead><TableHead>Party Name</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{reports.map(r => (<TableRow key={r.id}><TableCell>{r.reportNumber}</TableCell><TableCell>{toNepaliDate(r.reportDate)}</TableCell><TableCell>{r.partyName}</TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent><DropdownMenuItem onSelect={() => onEdit(r)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem><DropdownMenuItem onSelect={() => { setReportToPrint(r); setIsPreviewOpen(true); }}><Printer className="mr-2 h-4 w-4" /> Print</DropdownMenuItem><AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(r.id)}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog></DropdownMenuContent></DropdownMenu></TableCell></TableRow>))}</TableBody></Table></CardContent></Card>{reportToPrint && <QuotationPreviewDialog isOpen={isPreviewOpen} onOpenChange={setIsPreviewOpen} reportNumber={reportToPrint.reportNumber} reportDate={new Date(reportToPrint.reportDate)} party={parties.find(p => p.id === reportToPrint.partyId)} items={printableItems} products={products} transportCost={reportToPrint.transportCost} transportCostType={reportToPrint.transportCostType} termsAndConditions={reportToPrint.termsAndConditions} />}</>
     );
 }
-
-function ProductForm({ productToEdit, onSaveSuccess, onProductFormChange }: { productToEdit: Product | null, onSaveSuccess: () => void, onProductFormChange: (product: Partial<Product>) => void }) {
-    const [productForm, setProductForm] = useState<Partial<Product> & { l?: string, b?: string, h?: string, accessories?: ProductAccessory[] }>({ specification: {}, accessories: [] });
-    const [parties, setParties] = useState<Party[]>([]);
-    const [partySearch, setPartySearch] = useState('');
-    const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
-    const [newPartyForm, setNewPartyForm] = useState<{ name: string; type: PartyType; address?: string; panNumber?: string; }>({ name: '', type: 'Customer', address: '', panNumber: '' });
-    const [editingParty, setEditingParty] = useState<Party | null>(null);
-
-    const { user } = useAuth();
-    const { toast } = useToast();
-    
-    const relevantSpecFields: (keyof ProductSpecification)[] = ['ply', 'paperBf', 'topGsm', 'flute1Gsm', 'middleGsm', 'flute2Gsm', 'liner2Gsm', 'flute3Gsm', 'liner3Gsm', 'flute4Gsm', 'liner4Gsm', 'bottomGsm', 'printing', 'paperShade', 'boxType', 'wastagePercent'];
-
-    useEffect(() => {
-        const unsubParties = onPartiesUpdate(setParties);
-        return () => unsubParties();
-    }, []);
-
-    useEffect(() => {
-        if (productToEdit) {
-            const spec: Partial<ProductSpecification> = {};
-            relevantSpecFields.forEach(field => {
-                spec[field] = productToEdit.specification?.[field] || '';
-            });
-            if (spec.paperBf) spec.paperBf = normalizeBF(spec.paperBf);
-            
-            const [l, b, h] = productToEdit.specification?.dimension?.split('x') || ['', '', ''];
-
-            setProductForm({ ...productToEdit, specification: spec, l, b, h, accessories: (productToEdit.accessories || []).map(acc => ({ ...acc, paperBf: normalizeBF(acc.paperBf) })) });
-        } else {
-            const spec: Partial<ProductSpecification> = {};
-            relevantSpecFields.forEach(field => {
-                spec[field] = '';
-            });
-            spec.ply = '3';
-            spec.paperShade = 'NS';
-            spec.boxType = 'RSC';
-            spec.wastagePercent = '3.5';
-            setProductForm({ name: '', materialCode: '', partyId: '', partyName: '', specification: spec, l: '', b: '', h: '', accessories: [] });
-        }
-    }, [productToEdit]);
-    
-    const handleProductFormChangeLocal = (field: keyof typeof productForm, value: any) => {
-        const updatedForm = { ...productForm, [field]: value };
-        setProductForm(updatedForm);
-        onProductFormChange(updatedForm);
-    };
-
-    const handleSpecChange = (field: keyof ProductSpecification, value: string) => {
-        const updatedForm = {
-            ...productForm,
-            specification: {
-                ...(productForm.specification as ProductSpecification),
-                [field]: field === 'paperBf' ? normalizeBF(value) : value
-            },
-        };
-        setProductForm(updatedForm);
-        onProductFormChange(updatedForm);
-    };
-
-     const handleAccessoryChange = (index: number, field: keyof Omit<ProductAccessory, 'id'>, value: string) => {
-        const updatedAccessories = [...(productForm.accessories || [])];
-        const finalValue = field === 'paperBf' ? normalizeBF(value) : value;
-        (updatedAccessories[index] as any)[field] = finalValue;
-        handleProductFormChangeLocal('accessories', updatedAccessories);
-    };
-    
-    const addAccessory = () => {
-        const newAccessory: ProductAccessory = {
-            id: Date.now().toString(), name: 'Accessory', l: '', b: '', h: '', noOfPcs: '1', ply: '0',
-            fluteType: 'B', paperType: 'KRAFT', paperBf: '18 BF', paperShade: 'NS', boxType: 'RSC',
-            topGsm: '', flute1Gsm: '', middleGsm: '', flute2Gsm: '', bottomGsm: '',
-            liner2Gsm: '', flute3Gsm: '', liner3Gsm: '', flute4Gsm: '', liner4Gsm: '', wastagePercent: '3.5'
-        };
-        handleProductFormChangeLocal('accessories', [...(productForm.accessories || []), newAccessory]);
-    };
-
-    const removeAccessory = (id: string) => {
-        const updatedAccessories = (productForm.accessories || []).filter(acc => acc.id !== id);
-        handleProductFormChangeLocal('accessories', updatedAccessories);
-    };
-
-
-    const handleSaveProduct = async () => {
-        if (!user) return;
-        
-        const { l, b, h, ...restOfForm } = productForm;
-        const dimension = (l || b || h) ? `${l || '0'}x${b || '0'}x${h || '0'}` : '';
-
-        const finalSpec: Partial<ProductSpecification> = { dimension };
-
-        for(const key in restOfForm.specification) {
-            if(relevantSpecFields.includes(key as keyof ProductSpecification)) {
-                let val = restOfForm.specification[key as keyof ProductSpecification];
-                if (key === 'paperBf') val = normalizeBF(val);
-                finalSpec[key as keyof ProductSpecification] = val;
-            }
-        }
-        
-        const party = parties.find(p => p.id === restOfForm.partyId);
-
-        try {
-            if (productToEdit) {
-                 await updateProductService(productToEdit.id, {
-                    name: restOfForm.name,
-                    materialCode: restOfForm.materialCode,
-                    partyId: restOfForm.partyId,
-                    partyName: party?.name || '',
-                    specification: finalSpec,
-                    accessories: (restOfForm.accessories || []).map(acc => ({ ...acc, paperBf: normalizeBF(acc.paperBf) })),
-                    lastModifiedBy: user.username,
-                });
-                toast({ title: 'Success', description: 'Product updated.' });
-            } else {
-                await addProductService({
-                    name: restOfForm.name,
-                    materialCode: restOfForm.materialCode,
-                    partyId: restOfForm.partyId,
-                    partyName: party?.name || '',
-                    specification: finalSpec,
-                    accessories: (restOfForm.accessories || []).map(acc => ({ ...acc, paperBf: normalizeBF(acc.paperBf) })),
-                    createdBy: user.username,
-                    createdAt: new Date().toISOString()
-                } as Omit<Product, 'id'>);
-                toast({ title: 'Success', description: 'New product added.' });
-            }
-            onSaveSuccess();
-        } catch (error) {
-            toast({ title: 'Error', description: 'Failed to save product.', variant: 'destructive' });
-        }
-    };
-    
-    const handleOpenPartyDialog = (partyToEdit: Party | null = null, searchName: string = '') => {
-        if (partyToEdit) {
-            setEditingParty(partyToEdit);
-            setNewPartyForm({ name: partyToEdit.name, type: partyToEdit.type, address: partyToEdit.address || '', panNumber: partyToEdit.panNumber || '' });
-        } else {
-            setEditingParty(null);
-            setNewPartyForm({ name: searchName, type: 'Customer', address: '', panNumber: '' });
-        }
-        setIsPartyDialogOpen(true);
-    };
-
-    const handleSubmitParty = async () => {
-        if (!user) return;
-        if (!newPartyForm.name) {
-            toast({ title: 'Error', description: 'Party name is required.', variant: 'destructive' });
-            return;
-        }
-        try {
-            if (editingParty) {
-                await updateParty(editingParty.id, { ...newPartyForm, lastModifiedBy: user.username });
-                toast({ title: 'Success', description: 'Party updated.' });
-            } else {
-                const newPartyId = await addParty({ ...newPartyForm, createdBy: user.username });
-                setProductForm(prev => ({...prev, partyId: newPartyId}));
-                toast({ title: 'Success', description: 'New party added.' });
-            }
-            setIsPartyDialogOpen(false);
-        } catch {
-            toast({ title: 'Error', description: 'Failed to save party.', variant: 'destructive' });
-        }
-    };
-    
-    const ply = parseInt(productForm.specification?.ply || '3', 10);
-    
-    return (
-        <>
-            <ScrollArea className="max-h-[70vh]">
-                <div className="py-4 px-6 space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="product-name">Product Name</Label>
-                            <Input id="product-name" value={productForm.name || ''} onChange={(e) => handleProductFormChangeLocal('name', e.target.value)} />
-                        </div>
-                         <div className="space-y-2">
-                            <Label htmlFor="material-code">Material Code</Label>
-                            <Input id="material-code" value={productForm.materialCode || ''} onChange={(e) => handleProductFormChangeLocal('materialCode', e.target.value)} />
-                        </div>
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="partyId">Party Name</Label>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button variant="outline" role="combobox" className="w-full justify-between">
-                                    {productForm.partyId ? parties.find(p => p.id === productForm.partyId)?.name : "Select party..."}
-                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
-                                <Command>
-                                    <CommandInput 
-                                        placeholder="Search party..." 
-                                        value={partySearch}
-                                        onValueChange={setPartySearch}
-                                    />
-                                    <CommandList>
-                                        <CommandEmpty>
-                                            <Button variant="ghost" className="w-full justify-start" onClick={() => handleOpenPartyDialog(null, partySearch)}>
-                                                <PlusCircle className="mr-2 h-4 w-4" /> Add "{partySearch}"
-                                            </Button>
-                                        </CommandEmpty>
-                                        <CommandGroup>
-                                            {parties.sort((a,b) => a.name.localeCompare(b.name)).map(p => (
-                                                <CommandItem key={p.id} value={p.name} onSelect={() => { handleProductFormChangeLocal('partyId', p.id); setPartySearch('');}}>
-                                                    <Check className={cn("mr-2 h-4 w-4", productForm.partyId === p.id ? "opacity-100" : "opacity-0")} />
-                                                    {p.name}
-                                                </CommandItem>
-                                            ))}
-                                        </CommandGroup>
-                                    </CommandList>
-                                </Command>
-                            </PopoverContent>
-                        </Popover>
-                    </div>
-                    <Separator />
-                    <h4 className="font-semibold">Main Product Specification</h4>
-                     <div className="space-y-2">
-                        <Label>Dimension</Label>
-                        <div className="flex gap-2">
-                            <Input placeholder="L" type="number" value={productForm.l || ''} onChange={e => handleProductFormChangeLocal('l', e.target.value)} />
-                            <Input placeholder="B" type="number" value={productForm.b || ''} onChange={e => handleProductFormChangeLocal('b', e.target.value)} />
-                            <Input placeholder="H" type="number" value={productForm.h || ''} onChange={e => handleProductFormChangeLocal('h', e.target.value)} />
-                        </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                       <div className="space-y-2">
-                            <Label htmlFor={`spec-ply`}>Ply</Label>
-                            <Select value={productForm.specification?.ply || '3'} onValueChange={(v) => handleSpecChange('ply', v)}>
-                                <SelectTrigger><SelectValue/></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="3">3 Ply</SelectItem>
-                                    <SelectItem value="5">5 Ply</SelectItem>
-                                    <SelectItem value="7">7 Ply</SelectItem>
-                                    <SelectItem value="9">9 Ply</SelectItem>
-                                </SelectContent>
-                            </Select>
-                       </div>
-                       <div className="space-y-2">
-                            <Label htmlFor={`spec-paperBf`}>Paper BF</Label>
-                            <Input id={`spec-paperBf`} value={normalizeBF(productForm.specification?.paperBf || '')} onChange={(e) => handleSpecChange('paperBf', e.target.value)} />
-                       </div>
-                       <div className="space-y-2">
-                            <Label htmlFor={`spec-topGsm`}>Top Gsm</Label>
-                            <Input id={`spec-topGsm`} value={productForm.specification?.topGsm || ''} onChange={(e) => handleSpecChange('topGsm', e.target.value)} />
-                       </div>
-                       <div className="space-y-2">
-                            <Label htmlFor={`spec-flute1Gsm`}>Flute 1 Gsm</Label>
-                            <Input id={`spec-flute1Gsm`} value={productForm.specification?.flute1Gsm || ''} onChange={(e) => handleSpecChange('flute1Gsm', e.target.value)} />
-                       </div>
-                       {ply >= 5 && (
-                           <div className="space-y-2">
-                                <Label htmlFor={`spec-middleGsm`}>Middle Gsm</Label>
-                                <Input id={`spec-middleGsm`} value={productForm.specification?.middleGsm || ''} onChange={(e) => handleSpecChange('middleGsm', e.target.value)} />
-                           </div>
-                       )}
-                       {ply >= 5 && (
-                           <div className="space-y-2">
-                                <Label htmlFor={`spec-flute2Gsm`}>Flute 2 Gsm</Label>
-                                <Input id={`spec-flute2Gsm`} value={productForm.specification?.flute2Gsm || ''} onChange={(e) => handleSpecChange('flute2Gsm', e.target.value)} />
-                           </div>
-                       )}
-                       {ply >= 7 && (
-                           <div className="space-y-2">
-                                <Label htmlFor={`spec-liner2Gsm`}>Liner 2 Gsm</Label>
-                                <Input id={`spec-liner2Gsm`} value={productForm.specification?.liner2Gsm || ''} onChange={(e) => handleSpecChange('liner2Gsm', e.target.value)} />
-                           </div>
-                       )}
-                       {ply >= 7 && (
-                           <div className="space-y-2">
-                                <Label htmlFor={`spec-flute3Gsm`}>Flute 3 Gsm</Label>
-                                <Input id={`spec-flute3Gsm`} value={productForm.specification?.flute3Gsm || ''} onChange={(e) => handleSpecChange('flute3Gsm', e.target.value)} />
-                           </div>
-                       )}
-                       {ply >= 7 && (
-                           <div className="space-y-2">
-                                <Label htmlFor={`spec-liner3Gsm`}>Liner 3 Gsm</Label>
-                                <Input id={`spec-liner3Gsm`} value={productForm.specification?.liner3Gsm || ''} onChange={(e) => handleSpecChange('liner3Gsm', e.target.value)} />
-                           </div>
-                       )}
-                       {ply >= 9 && (
-                           <div className="space-y-2">
-                                <Label htmlFor={`spec-flute4Gsm`}>Flute 4 Gsm</Label>
-                                <Input id={`spec-flute4Gsm`} value={productForm.specification?.flute4Gsm || ''} onChange={(e) => handleSpecChange('flute4Gsm', e.target.value)} />
-                           </div>
-                       )}
-                       {ply >= 9 && (
-                           <div className="space-y-2">
-                                <Label htmlFor={`spec-liner4Gsm`}>Liner 4 Gsm</Label>
-                                <Input id={`spec-liner4Gsm`} value={productForm.specification?.liner4Gsm || ''} onChange={(e) => handleSpecChange('liner4Gsm', e.target.value)} />
-                           </div>
-                       )}
-                       <div className="space-y-2">
-                            <Label htmlFor={`spec-bottomGsm`}>Bottom Gsm</Label>
-                            <Input id={`spec-bottomGsm`} value={productForm.specification?.bottomGsm || ''} onChange={(e) => handleSpecChange('bottomGsm', e.target.value)} />
-                       </div>
-                       <div className="space-y-2">
-                            <Label htmlFor={`spec-printing`}>Printing</Label>
-                            <Input id={`spec-printing`} value={productForm.specification?.printing || ''} onChange={(e) => handleSpecChange('printing', e.target.value)} />
-                       </div>
-                       <div className="space-y-2">
-                            <Label htmlFor={`spec-wastagePercent`}>Default Waste %</Label>
-                            <Input id={`spec-wastagePercent`} type="number" value={productForm.specification?.wastagePercent || ''} onChange={(e) => handleSpecChange('wastagePercent', e.target.value)} />
-                       </div>
-                    </div>
-                    <Separator />
-                    <h4 className="font-semibold">Default Accessories</h4>
-                    <div className="space-y-4">
-                        {(productForm.accessories || []).map((acc, index) => (
-                             <div key={acc.id} className="p-4 border rounded-md relative">
-                                 <Button type="button" variant="ghost" size="icon" className="absolute top-1 right-1 h-7 w-7 text-destructive" onClick={() => removeAccessory(acc.id)}>
-                                     <Trash2 className="h-4 w-4 text-destructive"/>
-                                 </Button>
-                                 <div className="grid grid-cols-2 gap-4">
-                                     <div className="space-y-2">
-                                         <Label>Accessory Name</Label>
-                                         <Input value={acc.name} onChange={e => handleAccessoryChange(index, 'name', e.target.value)}/>
-                                     </div>
-                                     <div className="space-y-2">
-                                         <Label>Dimensions (L/B/H)</Label>
-                                         <div className="flex gap-2">
-                                            <Input placeholder="L" type="number" value={acc.l} onChange={e => handleAccessoryChange(index, 'l', e.target.value)} />
-                                            <Input placeholder="B" type="number" value={acc.b} onChange={e => handleAccessoryChange(index, 'b', e.target.value)} />
-                                            <Input placeholder="H" type="number" value={acc.h} onChange={e => handleAccessoryChange(index, 'h', e.target.value)} />
-                                         </div>
-                                     </div>
-                                      <div className="space-y-2">
-                                        <Label>Ply</Label>
-                                        <Select value={acc.ply} onValueChange={(v) => handleAccessoryChange(index, 'ply', v)}>
-                                            <SelectTrigger><SelectValue/></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="3">3 Ply</SelectItem>
-                                                <SelectItem value="5">5 Ply</SelectItem>
-                                                <SelectItem value="7">7 Ply</SelectItem>
-                                                <SelectItem value="9">9 Ply</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                     </div>
-                                     <div className="space-y-2">
-                                         <Label>Paper BF</Label>
-                                         <Input value={normalizeBF(acc.paperBf)} onChange={e => handleAccessoryChange(index, 'paperBf', e.target.value)} />
-                                     </div>
-                                     <div className="space-y-2">
-                                         <Label>Waste %</Label>
-                                         <Input type="number" value={acc.wastagePercent} onChange={e => handleAccessoryChange(index, 'wastagePercent', e.target.value)} />
-                                     </div>
-                                 </div>
-                             </div>
-                        ))}
-                         <Button type="button" variant="outline" size="sm" onClick={addAccessory}>
-                            <PlusCircle className="mr-2 h-4 w-4" /> Add Accessory
-                        </Button>
-                    </div>
-                </div>
-            </ScrollArea>
-             <DialogFooter>
-                <Button variant="outline" onClick={onSaveSuccess}>Cancel</Button>
-                <Button onClick={handleSaveProduct}>{productToEdit ? 'Save Changes' : 'Add Product'}</Button>
-            </DialogFooter>
-            
-            <Dialog open={isPartyDialogOpen} onOpenChange={setIsPartyDialogOpen}>
-              <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                      <DialogTitle>{editingParty ? 'Edit Party' : 'Add New Party'}</DialogTitle>
-                       <DialogDescription>
-                          {editingParty ? 'Update the details for this party.' : 'Create a new customer/vendor record.'}
-                      </DialogDescription>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                      <div className="space-y-2">
-                          <Label htmlFor="party-name-dialog">Party Name</Label>
-                          <Input id="party-name-dialog" value={newPartyForm.name} onChange={e => setNewPartyForm(p => ({...p, name: e.target.value}))} />
-                      </div>
-                       <div className="space-y-2">
-                          <Label htmlFor="party-type-dialog">Party Type</Label>
-                          <Select value={newPartyForm.type} onValueChange={(v: PartyType) => setNewPartyForm(p => ({...p, type: v}))}>
-                              <SelectTrigger id="party-type-dialog"><SelectValue/></SelectTrigger>
-                              <SelectContent>
-                                  <SelectItem value="Vendor">Vendor</SelectItem>
-                                  <SelectItem value="Customer">Customer</SelectItem>
-                                  <SelectItem value="Both">Both</SelectItem>
-                              </SelectContent>
-                          </Select>
-                      </div>
-                      <div className="space-y-2">
-                          <Label htmlFor="party-pan-dialog">PAN Number</Label>
-                          <Input id="party-pan-dialog" value={newPartyForm.panNumber || ''} onChange={e => setNewPartyForm(p => ({...p, panNumber: e.target.value}))} />
-                      </div>
-                      <div className="space-y-2">
-                          <Label htmlFor="party-address-dialog">Address</Label>
-                          <Textarea id="party-address-dialog" value={newPartyForm.address || ''} onChange={e => setNewPartyForm(p => ({...p, address: e.target.value}))} />
-                      </div>
-                  </div>
-                  <DialogFooter>
-                      <Button variant="outline" onClick={() => setIsPartyDialogOpen(false)}>Cancel</Button>
-                      <Button onClick={handleSubmitParty}>{editingParty ? 'Save Changes' : 'Add Party'}</Button>
-                  </DialogFooter>
-              </DialogContent>
-          </Dialog>
-        </>
-    );
-}
-
 
 function SavedProductsList() {
     const [products, setProducts] = useState<ProductType[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
-    const [filterParty, setFilterParty] = useState('All');
     const {toast} = useToast();
-    
-    const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
-    const [productToEdit, setProductToEdit] = useState<ProductType | null>(null);
-
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [editingProduct, setEditingProduct] = useState<ProductType | null>(null);
 
     useEffect(() => {
-        const unsubProducts = onProductsUpdate(setProducts);
-        return () => {
-          unsubProducts();
-        }
+        const unsub = onProductsUpdate(setProducts);
+        return () => unsub();
     }, []);
     
-    const sortedProducts = useMemo(() => {
-        let filtered = products;
-        if(filterParty !== 'All') {
-            filtered = filtered.filter(p => p.partyName === filterParty);
-        }
-        if(searchQuery) {
-            filtered = filtered.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || (p.materialCode || '').toLowerCase().includes(searchQuery.toLowerCase()));
-        }
-        return filtered.sort((a,b) => a.name.localeCompare(b.name));
-    }, [products, searchQuery, filterParty]);
+    const sorted = useMemo(() => products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || (p.materialCode || '').toLowerCase().includes(searchQuery.toLowerCase())).sort((a,b) => a.name.localeCompare(b.name)), [products, searchQuery]);
 
-    const uniqueParties = useMemo(() => ['All', ...Array.from(new Set(products.map(p => p.partyName).filter(Boolean)))], [products]);
-    
-    const handleDeleteProduct = async (id: string) => {
-        try {
-            await deleteProductService(id);
-            toast({ title: 'Product Deleted' });
-        } catch {
-            toast({ title: 'Error', description: 'Failed to delete product', variant: 'destructive' });
-        }
-    };
-    
-    const handleOpenProductDialog = (product: ProductType | null = null) => {
-        setProductToEdit(product);
-        setIsProductDialogOpen(true);
-    };
-    
     return (
-      <>
-        <Card>
-            <CardHeader>
-                <div className="flex justify-between items-center">
-                    <div>
-                        <CardTitle>Products for Costing</CardTitle>
-                        <CardDescription>A list of products available in the cost calculator.</CardDescription>
-                    </div>
-                     <div className="flex items-center gap-2">
-                        <Input placeholder="Search products..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-64" />
-                        <Select value={filterParty} onValueChange={setFilterParty}>
-                            <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                {uniqueParties.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                        <Button onClick={() => handleOpenProductDialog()}><Plus className="mr-2 h-4 w-4" /> Add Product</Button>
-                    </div>
-                </div>
-            </CardHeader>
-            <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Product Name</TableHead>
-                            <TableHead>Party Name</TableHead>
-                            <TableHead>Dimension</TableHead>
-                            <TableHead>Ply</TableHead>
-                            <TableHead>GSM</TableHead>
-                            <TableHead>Paper BF</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {sortedProducts.map(p => (
-                            <TableRow key={p.id}>
-                                <TableCell>{p.name} {p.materialCode && `(${p.materialCode})`}</TableCell>
-                                <TableCell>{p.partyName || 'N/A'}</TableCell>
-                                <TableCell>{p.specification?.dimension || 'N/A'}</TableCell>
-                                <TableCell>{p.specification?.ply || 'N/A'}</TableCell>
-                                <TableCell>
-                                  <CompactGsmDisplay item={p} />
-                                </TableCell>
-                                <TableCell>{normalizeBF(p.specification?.paperBf) || 'N/A'}</TableCell>
-                                <TableCell className="text-right">
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger>
-                                        <DropdownMenuContent>
-                                            <DropdownMenuItem onSelect={() => handleOpenProductDialog(p)}><Edit className="mr-2 h-4 w-4"/>Edit</DropdownMenuItem>
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild><DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4 text-destructive"/> <span className="text-destructive">Delete</span></DropdownMenuItem></AlertDialogTrigger>
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeader>
-                                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                        <AlertDialogDescription>This will permanently delete this product.</AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <AlertDialogFooter>
-                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={() => handleDeleteProduct(p.id)}>Delete</AlertDialogAction>
-                                                    </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </CardContent>
-        </Card>
-        <Dialog open={isProductDialogOpen} onOpenChange={setIsProductDialogOpen}>
-            <DialogContent className="max-w-xl">
-                <DialogHeader>
-                    <DialogTitle>{productToEdit ? 'Edit Product' : 'Add New Product'}</DialogTitle>
-                </DialogHeader>
-                 <ProductForm 
-                    productToEdit={productToEdit} 
-                    onSaveSuccess={() => {
-                        setIsProductDialogOpen(false);
-                        setProductToEdit(null);
-                    }}
-                    onProductFormChange={() => {}}
-                />
-            </DialogContent>
-        </Dialog>
-      </>
+      <><Card><CardHeader><div className="flex justify-between items-center"><div><CardTitle>Products for Costing</CardTitle></div><div className="flex gap-2"><Input placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-64" /><Button onClick={() => { setEditingProduct(null); setIsDialogOpen(true); }}>Add Product</Button></div></div></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Product Name</TableHead><TableHead>Delivered To</TableHead><TableHead>Dimension</TableHead><TableHead>Ply</TableHead><TableHead>GSM</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{sorted.map(p => (<TableRow key={p.id}><TableCell>{p.name}</TableCell><TableCell>{p.partyName || 'N/A'}</TableCell><TableCell>{p.specification?.dimension || 'N/A'}</TableCell><TableCell>{p.specification?.ply || 'N/A'}</TableCell><TableCell><CompactGsmDisplay item={p} /></TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger><DropdownMenuContent><DropdownMenuItem onSelect={() => { setEditingProduct(p); setIsDialogOpen(true); }}>Edit</DropdownMenuItem><AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive">Delete</DropdownMenuItem></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => deleteProductService(p.id)}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog></DropdownMenuContent></DropdownMenu></TableCell></TableRow>))}</TableBody></Table></CardContent></Card><Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>{editingProduct ? 'Edit' : 'Add'} Product</DialogTitle></DialogHeader><ProductForm productToEdit={editingProduct} onSaveSuccess={() => setIsDialogOpen(false)} onProductFormChange={() => {}}/></DialogContent></Dialog></>
+    );
+}
+
+function ProductForm({ productToEdit, onSaveSuccess, onProductFormChange }: any) {
+    const [form, setForm] = useState<any>({ name: '', materialCode: '', partyId: '', specification: { ply: '3', wastagePercent: '3.5' }, accessories: [] });
+    const [parties, setParties] = useState<Party[]>([]);
+    const { user } = useAuth();
+    const { toast } = useToast();
+
+    useEffect(() => {
+        const unsub = onPartiesUpdate(setParties);
+        return () => unsub();
+    }, []);
+
+    useEffect(() => {
+        if (productToEdit) setForm({ ...productToEdit, specification: { ...productToEdit.specification } });
+        else setForm({ name: '', materialCode: '', partyId: '', specification: { ply: '3', wastagePercent: '3.5' }, accessories: [] });
+    }, [productToEdit]);
+
+    const handleSave = async () => {
+        if (!user || !form.name || !form.partyId) return;
+        try {
+            const p = parties.find(p => p.id === form.partyId);
+            const data = { ...form, partyName: p?.name || '', partyAddress: p?.address || '' };
+            if (productToEdit) await updateProductService(productToEdit.id, { ...data, lastModifiedBy: user.username });
+            else await addProductService({ ...data, createdBy: user.username, createdAt: new Date().toISOString() });
+            toast({ title: 'Success' }); onSaveSuccess();
+        } catch { toast({ title: 'Error', variant: 'destructive' }); }
+    };
+
+    return (
+        <ScrollArea className="max-h-[70vh]"><div className="p-6 space-y-4">
+            <div className="grid grid-cols-2 gap-4"><div><Label>Name</Label><Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} /></div><div><Label>Code</Label><Input value={form.materialCode} onChange={e => setForm({...form, materialCode: e.target.value})} /></div></div>
+            <div><Label>Party</Label><Select value={form.partyId} onValueChange={v => setForm({...form, partyId: v})}><SelectTrigger><SelectValue placeholder="Select party..." /></SelectTrigger><SelectContent>{parties.sort((a,b)=>a.name.localeCompare(b.name)).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select></div>
+            <div className="grid grid-cols-2 gap-4"><div><Label>Ply</Label><Select value={form.specification.ply} onValueChange={v => setForm({...form, specification: {...form.specification, ply: v}})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="3">3</SelectItem><SelectItem value="5">5</SelectItem></SelectContent></Select></div><div><Label>Waste %</Label><Input type="number" value={form.specification.wastagePercent} onChange={e => setForm({...form, specification: {...form.specification, wastagePercent: e.target.value}})} /></div></div>
+            <Button className="w-full" onClick={handleSave}>Save Product</Button>
+        </div></ScrollArea>
     );
 }
 
 function CostingSettingsTab() {
-  const [costSettings, setCostSettings] = useState<CostSetting | null>(null);
-  const [kraftPaperCosts, setKraftPaperCosts] = useState<Record<string, number | ''>>(initialKraftCosts);
-  const [virginPaperCost, setVirginCost] = useState<number | ''>('');
-  const [conversionCost, setConversionCost] = useState<number | ''>('');
-  const [defaultTerms, setDefaultTerms] = useState<CostReportTerm[]>([]);
-  const [newDefaultTerm, setNewDefaultTerm] = useState('');
-  
+  const [kCosts, setKCosts] = useState<any>(initialKraftCosts);
+  const [vCost, setVC] = useState<any>('');
+  const [cCost, setCC] = useState<any>('');
+  const [terms, setTerms] = useState<any[]>([]);
   const { user } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
-    const unsubCostSettings = onSettingUpdate('costing', (setting) => {
-        if (setting?.value) {
-            const settings = setting.value as CostSetting;
-            setCostSettings(settings);
-            setKraftPaperCosts(settings.kraftPaperCosts || initialKraftCosts);
-            setVirginCost(settings.virginPaperCost || '');
-            setConversionCost(settings.conversionCost || '');
-            
-            const normalizedTerms = (settings.termsAndConditions || []).map(t => typeof t === 'string' ? { text: t, isSelected: true } : t);
-            setDefaultTerms(normalizedTerms);
+    return onSettingUpdate('costing', (s) => {
+        if (s?.value) {
+            setKCosts(s.value.kraftPaperCosts || initialKraftCosts);
+            setVC(s.value.virginPaperCost || '');
+            setCC(s.value.conversionCost || '');
+            setTerms((s.value.termsAndConditions || []).map((t: any) => typeof t === 'string' ? { text: t, isSelected: true } : t));
         }
     });
-    return () => unsubCostSettings();
   }, []);
 
-  const handleSaveSettings = async () => {
+  const handleSave = async () => {
     if (!user) return;
     try {
-        const kCosts = Object.fromEntries(Object.entries(kraftPaperCosts).map(([bf, cost]) => [normalizeBF(bf), Number(cost) || 0]));
-        await updateCostSettings({
-            kraftPaperCosts: kCosts,
-            virginPaperCost: Number(virginPaperCost) || 0,
-            conversionCost: Number(conversionCost) || 0,
-            termsAndConditions: defaultTerms,
-        }, user.username);
-        toast({ title: "Success", description: "Cost settings saved." });
-    } catch (e) {
-        toast({ title: "Error", description: "Failed to save cost settings.", variant: 'destructive' });
-    }
-  };
-
-  const handleAddDefaultTerm = () => {
-    if (newDefaultTerm.trim()) {
-        setDefaultTerms([...defaultTerms, { text: newDefaultTerm.trim(), isSelected: true }]);
-        setNewDefaultTerm('');
-    }
-  };
-  
-  const handleToggleDefaultTerm = (index: number, isSelected: boolean) => {
-      const updated = [...defaultTerms];
-      updated[index] = { ...updated[index], isSelected };
-      setDefaultTerms(updated);
+        await updateCostSettings({ kraftPaperCosts: kCosts, virginPaperCost: Number(vCost) || 0, conversionCost: Number(cCost) || 0, termsAndConditions: terms }, user.username);
+        toast({ title: "Success" });
+    } catch { toast({ title: "Error", variant: 'destructive' }); }
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1 space-y-6">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Default Costs</CardTitle>
-                    <CardDescription>These values will be used as defaults in new cost reports.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="space-y-4 rounded-lg border p-4">
-                        <Label>Kraft Paper Costs</Label>
-                        {bfOptions.map(bf => (
-                            <div key={bf} className="flex items-center justify-between">
-                                <Label htmlFor={`globalKraftCost-${bf}`} className="text-sm font-normal">{bf}</Label>
-                                <Input id={`globalKraftCost-${bf}`} type="number" placeholder="Rate" className="w-24 h-8" value={kraftPaperCosts[normalizeBF(bf)] ?? ''} onChange={e => setKraftPaperCosts(prev => ({...prev, [normalizeBF(bf)]: e.target.value === '' ? '' : parseFloat(e.target.value)}))} />
-                            </div>
-                        ))}
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="globalVirginCost">Virgin Paper Cost</Label>
-                        <Input id="globalVirginCost" type="number" placeholder="Enter cost" value={virginPaperCost} onChange={e => setVirginCost(e.target.value === '' ? '' : parseFloat(e.target.value))} />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="globalConversionCost">Conversion Cost</Label>
-                        <Input id="globalConversionCost" type="number" placeholder="Enter cost" value={conversionCost} onChange={e => setConversionCost(e.target.value === '' ? '' : parseFloat(e.target.value))} />
-                    </div>
-                </CardContent>
-            </Card>
-            
-            <Card>
-                <CardHeader>
-                    <CardTitle>Default Terms & Conditions</CardTitle>
-                    <CardDescription>Terms pre-filled for new cost reports.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <ScrollArea className="h-40 pr-2 border rounded-md p-2">
-                        <div className="space-y-2">
-                            {defaultTerms.map((term, i) => (
-                                <div key={i} className="flex items-center gap-2 group">
-                                    <Checkbox 
-                                        checked={term.isSelected} 
-                                        onCheckedChange={(val) => handleToggleDefaultTerm(i, !!val)} 
-                                        className="h-3 w-3"
-                                    />
-                                    <Input 
-                                        value={term.text} 
-                                        onChange={(e) => {
-                                            const updated = [...defaultTerms];
-                                            updated[i] = { ...updated[i], text: e.target.value };
-                                            setDefaultTerms(updated);
-                                        }} 
-                                        className="h-8 text-xs"
-                                    />
-                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive shrink-0" onClick={() => setDefaultTerms(defaultTerms.filter((_, idx) => idx !== i))}>
-                                        <X className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            ))}
-                        </div>
-                    </ScrollArea>
-                    <div className="flex gap-2">
-                        <Input 
-                            placeholder="New default term..." 
-                            value={newDefaultTerm} 
-                            onChange={(e) => setNewDefaultTerm(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleAddDefaultTerm()}
-                            className="h-9 text-sm"
-                        />
-                        <Button size="icon" className="h-9 w-9 shrink-0" onClick={handleAddDefaultTerm}>
-                            <Plus className="h-4 w-4" />
-                        </Button>
-                    </div>
-                    <Button className="w-full" onClick={handleSaveSettings}>Save Settings</Button>
-                </CardContent>
-            </Card>
-        </div>
-
-        <Card className="lg:col-span-2">
-             <CardHeader>
-                <CardTitle>Costing History</CardTitle>
-                <CardDescription>Review past changes to paper and conversion costs.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <ScrollArea className="h-[500px]">
-                    {(costSettings?.history || []).length > 0 ? (
-                    <div className="space-y-4">
-                        {[...(costSettings?.history || [])].reverse().map((entry, index) => (
-                        <div key={index} className="flex justify-between items-center text-sm p-3 bg-muted/50 rounded-lg">
-                            <div>
-                            <p className="font-medium capitalize">{entry.costType.replace('Cost', ' Cost')}</p>
-                            <p className="text-xs text-muted-foreground">{format(new Date(entry.date), "PPp")} by {entry.setBy}</p>
-                            </div>
-                            <div className="text-right">
-                            <p>{entry.newValue.toLocaleString()}</p>
-                            <p className="text-xs text-muted-foreground line-through">{entry.oldValue.toLocaleString()}</p>
-                            </div>
-                        </div>
-                        ))}
-                    </div>
-                    ) : (
-                    <div className="text-center text-muted-foreground p-8">No history found.</div>
-                    )}
-                </ScrollArea>
-            </CardContent>
-        </Card>
-    </div>
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6"><div className="lg:col-span-1 space-y-6"><Card><CardHeader><CardTitle>Default Costs</CardTitle></CardHeader><CardContent className="space-y-4"><div className="space-y-4 rounded-lg border p-4"><Label>Kraft Paper Costs</Label>{bfOptions.map(bf => (<div key={bf} className="flex items-center justify-between"><Label className="text-sm">{bf}</Label><Input type="number" className="w-24 h-8" value={kCosts[normalizeBF(bf)] ?? ''} onChange={e => setKCosts({...kCosts, [normalizeBF(bf)]: e.target.value === '' ? '' : parseFloat(e.target.value)})} /></div>))}</div><div><Label>Virgin Rate</Label><Input type="number" value={vCost} onChange={e => setVC(e.target.value === '' ? '' : parseFloat(e.target.value))} /></div><div><Label>Conversion</Label><Input type="number" value={cCost} onChange={e => setCC(e.target.value === '' ? '' : parseFloat(e.target.value))} /></div><Button className="w-full" onClick={handleSave}>Save Settings</Button></CardContent></Card></div></div>
   )
 }
 
@@ -2642,83 +745,10 @@ export default function CostReportPage() {
     const [activeTab, setActiveTab] = useState("calculator");
     const [reportToEdit, setReportToEdit] = useState<CostReport | null>(null);
     const [products, setProducts] = useState<Product[]>([]);
-    const [searchQuery, setSearchQuery] = useState('');
     
-    const [isProductAddDialogOpen, setIsProductAddDialogOpen] = useState(false);
-    const [productFormData, setProductFormData] = useState<Partial<Product> | null>(null);
+    useEffect(() => { return onProductsUpdate(setProducts); }, []);
     
-    useEffect(() => {
-        const unsubProducts = onProductsUpdate(setProducts);
-        return () => unsubProducts();
-    }, []);
-    
-    const handleEditReport = (report: CostReport) => {
-        setReportToEdit(report);
-        setActiveTab("calculator");
-    };
-
-    const handleFinishEditing = () => {
-        setReportToEdit(null);
-        setActiveTab("saved");
-    };
-
-    const handleCancelEdit = () => {
-        setReportToEdit(null);
-    }
-    
-    const onProductAdd = () => {
-        setProductFormData(null);
-        setIsProductAddDialogOpen(true);
-    };
-
-    const handleProductFormChange = (product: Partial<Product>) => {
-        setProductFormData(product);
-    };
-
     return (
-        <div className="flex flex-col gap-8">
-            <header>
-                <h1 className="text-3xl font-bold tracking-tight">Cost Report Generator</h1>
-                <p className="text-muted-foreground">Calculate product costs based on multiple raw materials and specifications.</p>
-            </header>
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList>
-                    <TabsTrigger value="calculator">Calculator</TabsTrigger>
-                    <TabsTrigger value="saved">Saved Reports</TabsTrigger>
-                    <TabsTrigger value="products">Products</TabsTrigger>
-                    <TabsTrigger value="costingSettings">Costing Settings</TabsTrigger>
-                </TabsList>
-                <TabsContent value="calculator" className="pt-4">
-                    <CostReportCalculator 
-                        reportToEdit={reportToEdit} 
-                        onSaveSuccess={handleFinishEditing} 
-                        onCancelEdit={handleCancelEdit}
-                        products={products}
-                        onProductAdd={onProductAdd}
-                    />
-                </TabsContent>
-                <TabsContent value="saved" className="pt-4">
-                    <SavedReportsList onEdit={handleEditReport} />
-                </TabsContent>
-                <TabsContent value="products" className="pt-4">
-                    <SavedProductsList />
-                </TabsContent>
-                 <TabsContent value="costingSettings" className="pt-4">
-                    <CostingSettingsTab />
-                </TabsContent>
-            </Tabs>
-             <Dialog open={isProductAddDialogOpen} onOpenChange={setIsProductAddDialogOpen}>
-                 <DialogContent className="max-w-2xl">
-                    <DialogHeader>
-                        <DialogTitle>Add New Product</DialogTitle>
-                    </DialogHeader>
-                     <ProductForm 
-                        productToEdit={null} 
-                        onSaveSuccess={() => setIsProductAddDialogOpen(false)}
-                        onProductFormChange={handleProductFormChange}
-                    />
-                </DialogContent>
-            </Dialog>
-        </div>
+        <div className="flex flex-col gap-8"><header><h1 className="text-3xl font-bold">Cost Report Generator</h1></header><Tabs value={activeTab} onValueChange={setActiveTab}><TabsList><TabsTrigger value="calculator">Calculator</TabsTrigger><TabsTrigger value="saved">Saved Reports</TabsTrigger><TabsTrigger value="products">Products</TabsTrigger><TabsTrigger value="costingSettings">Settings</TabsTrigger></TabsList><TabsContent value="calculator" className="pt-4"><CostReportCalculator reportToEdit={reportToEdit} onSaveSuccess={() => { setReportToEdit(null); setActiveTab("saved"); }} onCancelEdit={() => setReportToEdit(null)} products={products} onProductAdd={() => {}}/></TabsContent><TabsContent value="saved" className="pt-4"><SavedReportsList onEdit={r => { setReportToEdit(r); setActiveTab("calculator"); }} /></TabsContent><TabsContent value="products" className="pt-4"><SavedProductsList /></TabsContent><TabsContent value="costingSettings" className="pt-4"><CostingSettingsTab /></TabsContent></Tabs></div>
     );
 }

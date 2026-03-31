@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import Link from 'next/link';
+import Link from 'next/navigation';
 import { 
   PlusCircle, 
   ShoppingCart, 
@@ -73,7 +73,6 @@ export default function DashboardPage() {
     
     // Fleet Alerts Breakdown
     const fleetStats = policies.reduce((acc, p) => {
-      // Exclude historical records
       if (p.status === 'Renewed' || p.status === 'Archived') return acc;
       
       const daysLeft = differenceInDays(new Date(p.endDate), today);
@@ -88,16 +87,13 @@ export default function DashboardPage() {
       return acc;
     }, { expired: 0, comingSoon: 0, ok: 0 });
 
-    // Procurement
     const openPOs = purchaseOrders.filter(po => po.status === 'Ordered' || po.status === 'Amended').length;
 
-    // Finance (MTD Estimate)
     const monthStart = startOfMonth(new Date());
     const mtdRevenue = invoices
       .filter(inv => new Date(inv.date) >= monthStart)
       .reduce((sum, inv) => sum + inv.netTotal, 0);
 
-    // Usage
     const totalVisits = pageVisits.reduce((sum, v) => sum + v.count, 0);
 
     return { totalStaff, presentToday, fleetStats, openPOs, mtdRevenue, totalVisits };
@@ -105,7 +101,6 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      {/* Welcome Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
@@ -115,24 +110,23 @@ export default function DashboardPage() {
         <div className="flex flex-wrap gap-2">
           {hasPermission('reports', 'create') && (
             <Button asChild size="sm">
-              <Link href="/report/new">
+              <a href="/report/new">
                 <PlusCircle className="mr-2 h-4 w-4" /> New QT Report
-              </Link>
+              </a>
             </Button>
           )}
           {hasPermission('purchaseOrders', 'create') && (
             <Button asChild variant="outline" size="sm">
-              <Link href="/purchase-orders/new">
+              <a href="/purchase-orders/new">
                 <ShoppingCart className="mr-2 h-4 w-4" /> New PO
-              </Link>
+              </a>
             </Button>
           )}
         </div>
       </div>
 
-      {/* Summary Widgets */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <Link href="/hr/attendance" className="block">
+        <a href="/hr/attendance" className="block">
           <Card className="border-l-4 border-l-blue-500 hover:bg-accent transition-colors cursor-pointer h-full">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
@@ -147,9 +141,9 @@ export default function DashboardPage() {
               </div>
             </CardContent>
           </Card>
-        </Link>
+        </a>
 
-        <Link href="/fleet/policies" className="block">
+        <a href="/fleet/policies" className="block">
           <Card className={cn(
             "border-l-4 hover:bg-accent transition-colors cursor-pointer h-full", 
             stats.fleetStats.expired > 0 ? "border-l-destructive bg-destructive/5" : (stats.fleetStats.comingSoon > 0 ? "border-l-amber-500 bg-amber-50/50" : "border-l-green-500")
@@ -177,9 +171,9 @@ export default function DashboardPage() {
               </div>
             </CardContent>
           </Card>
-        </Link>
+        </a>
 
-        <Link href="/purchase-orders/list" className="block">
+        <a href="/purchase-orders/list" className="block">
           <Card className="border-l-4 border-l-amber-500 hover:bg-accent transition-colors cursor-pointer h-full">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
@@ -194,9 +188,9 @@ export default function DashboardPage() {
               </div>
             </CardContent>
           </Card>
-        </Link>
+        </a>
 
-        <Link href="/finance/estimate-invoice" className="block">
+        <a href="/finance/estimate-invoice" className="block">
           <Card className="border-l-4 border-l-green-600 hover:bg-accent transition-colors cursor-pointer h-full">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
@@ -210,9 +204,9 @@ export default function DashboardPage() {
               </div>
             </CardContent>
           </Card>
-        </Link>
+        </a>
 
-        <Link href="/settings" className="block">
+        <a href="/settings" className="block">
           <Card className="border-l-4 border-l-purple-500 hover:bg-accent transition-colors cursor-pointer h-full">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
@@ -227,18 +221,17 @@ export default function DashboardPage() {
               </div>
             </CardContent>
           </Card>
-        </Link>
+        </a>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Quick Access Grid */}
         <div className="lg:col-span-2 space-y-6">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <ClipboardList className="h-5 w-5" />
             Quick Access Modules
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Link href="/crm/cost-report">
+            <a href="/crm/cost-report">
               <Card className="hover:bg-accent transition-colors cursor-pointer h-full border-dashed">
                 <CardHeader className="p-4">
                   <CardTitle className="text-base flex items-center gap-2">
@@ -248,8 +241,8 @@ export default function DashboardPage() {
                   <CardDescription className="text-xs">Advanced board & weight calculations</CardDescription>
                 </CardHeader>
               </Card>
-            </Link>
-            <Link href="/finance/estimate-invoice">
+            </a>
+            <a href="/finance/estimate-invoice">
               <Card className="hover:bg-accent transition-colors cursor-pointer h-full border-dashed">
                 <CardHeader className="p-4">
                   <CardTitle className="text-base flex items-center gap-2">
@@ -259,8 +252,8 @@ export default function DashboardPage() {
                   <CardDescription className="text-xs">Generate pro-forma VAT documents</CardDescription>
                 </CardHeader>
               </Card>
-            </Link>
-            <Link href="/finance/cheque-generator">
+            </a>
+            <a href="/finance/cheque-generator">
               <Card className="hover:bg-accent transition-colors cursor-pointer h-full border-dashed">
                 <CardHeader className="p-4">
                   <CardTitle className="text-base flex items-center gap-2">
@@ -270,8 +263,8 @@ export default function DashboardPage() {
                   <CardDescription className="text-xs">Track PDCs and payments</CardDescription>
                 </CardHeader>
               </Card>
-            </Link>
-            <Link href="/crm/pack-spec">
+            </a>
+            <a href="/crm/pack-spec">
               <Card className="hover:bg-accent transition-colors cursor-pointer h-full border-dashed">
                 <CardHeader className="p-4">
                   <CardTitle className="text-base flex items-center gap-2">
@@ -281,11 +274,10 @@ export default function DashboardPage() {
                   <CardDescription className="text-xs">Technical specification data sheets</CardDescription>
                 </CardHeader>
               </Card>
-            </Link>
+            </a>
           </div>
         </div>
 
-        {/* Sidebar Calendar Widget */}
         <div className="space-y-4">
           <Card className="overflow-hidden shadow-md">
             <CardHeader className="p-4 bg-muted/50 border-b">
