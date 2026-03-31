@@ -72,11 +72,22 @@ export default function DashboardPage() {
     const totalStaff = employees.filter(e => e.status === 'Working').length;
     const presentToday = attendance.filter(r => isToday(new Date(r.date)) && r.status === 'Present').length;
     
-    // Fleet Alerts
-    const criticalPolicies = policies.filter(p => {
+    // Fleet Alerts Breakdown
+    const fleetStats = policies.reduce((acc, p) => {
+      // Exclude historical records
+      if (p.status === 'Renewed' || p.status === 'Archived') return acc;
+      
       const daysLeft = differenceInDays(new Date(p.endDate), today);
-      return daysLeft >= 0 && daysLeft <= 7 && p.status !== 'Renewed' && p.status !== 'Archived';
-    }).length;
+      
+      if (daysLeft < 0) {
+        acc.expired++;
+      } else if (daysLeft <= 7) {
+        acc.comingSoon++;
+      } else {
+        acc.ok++;
+      }
+      return acc;
+    }, { expired: 0, comingSoon: 0, ok: 0 });
 
     // Procurement
     const openPOs = purchaseOrders.filter(po => po.status === 'Ordered' || po.status === 'Amended').length;
@@ -90,7 +101,7 @@ export default function DashboardPage() {
     // Usage
     const totalVisits = pageVisits.reduce((sum, v) => sum + v.count, 0);
 
-    return { totalStaff, presentToday, criticalPolicies, openPOs, mtdRevenue, totalVisits };
+    return { totalStaff, presentToday, fleetStats, openPOs, mtdRevenue, totalVisits };
   }, [employees, attendance, policies, purchaseOrders, invoices, pageVisits]);
 
   return (
@@ -140,15 +151,27 @@ export default function DashboardPage() {
         </Link>
 
         <Link href="/fleet/policies" className="block">
-          <Card className={cn("border-l-4 hover:bg-accent transition-colors cursor-pointer h-full", stats.criticalPolicies > 0 ? "border-l-destructive bg-destructive/5" : "border-l-green-500")}>
+          <Card className={cn(
+            "border-l-4 hover:bg-accent transition-colors cursor-pointer h-full", 
+            stats.fleetStats.expired > 0 ? "border-l-destructive bg-destructive/5" : (stats.fleetStats.comingSoon > 0 ? "border-l-amber-500 bg-amber-50/50" : "border-l-green-500")
+          )}>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
-                <div className="space-y-1">
+                <div className="space-y-1 w-full">
                   <p className="text-xs font-medium text-muted-foreground uppercase">Fleet Alerts</p>
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl font-bold">{stats.criticalPolicies}</span>
-                    {stats.criticalPolicies > 0 && <Badge variant="destructive" className="animate-pulse">Renewals Due</Badge>}
-                    {stats.criticalPolicies === 0 && <span className="text-sm text-green-600 font-medium">All clear</span>}
+                  <div className="grid grid-cols-3 gap-1 mt-2">
+                    <div className="flex flex-col">
+                        <span className={cn("text-lg font-bold", stats.fleetStats.expired > 0 ? "text-destructive" : "text-muted-foreground")}>{stats.fleetStats.expired}</span>
+                        <span className="text-[9px] text-muted-foreground uppercase leading-none">Expired</span>
+                    </div>
+                    <div className="flex flex-col border-x px-1">
+                        <span className={cn("text-lg font-bold", stats.fleetStats.comingSoon > 0 ? "text-amber-600" : "text-muted-foreground")}>{stats.fleetStats.comingSoon}</span>
+                        <span className="text-[9px] text-muted-foreground uppercase leading-none">Soon</span>
+                    </div>
+                    <div className="flex flex-col pl-1">
+                        <span className="text-lg font-bold text-green-600">{stats.fleetStats.ok}</span>
+                        <span className="text-[9px] text-muted-foreground uppercase leading-none">OK</span>
+                    </div>
                   </div>
                 </div>
                 <Truck className="h-8 w-8 text-muted-foreground opacity-20" />
@@ -247,8 +270,7 @@ export default function DashboardPage() {
                   </CardTitle>
                   <CardDescription className="text-xs">Track PDCs and payments</CardDescription>
                 </CardHeader>
-              </Card>
-            </Link>
+              </Link>
             <Link href="/crm/pack-spec">
               <Card className="hover:bg-accent transition-colors cursor-pointer h-full border-dashed">
                 <CardHeader className="p-4">
