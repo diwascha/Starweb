@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -117,7 +116,6 @@ export default function PurchaseOrdersListPage() {
           const currentYear = currentNepaliDate.getYear();
           if(availableYears.includes(currentYear)) {
               setSelectedBsYear(String(currentYear));
-              // Changed: Default to 'All' months instead of current month to avoid empty lists
               setSelectedBsMonth('All');
           } else {
               setSelectedBsYear(String(availableYears[0]));
@@ -135,18 +133,26 @@ export default function PurchaseOrdersListPage() {
     }
   };
   
-  const updatePoStatus = async (id: string, status: PurchaseOrderStatus, deliveryDate?: string) => {
+  const updatePoStatus = async (id: string, status: PurchaseOrderStatus, deliveryDateISO?: string) => {
     try {
-      await updatePurchaseOrder(id, { 
+      const updateData: any = { 
         status, 
-        deliveryDate: deliveryDate || poToUpdate?.deliveryDate,
         lastModifiedBy: user?.username 
-      });
+      };
+      
+      // Only include deliveryDate if it's explicitly provided (from the dialog)
+      // or if we are canceling and want to clear it (unlikely but safe)
+      if (deliveryDateISO) {
+          updateData.deliveryDate = deliveryDateISO;
+      }
+
+      await updatePurchaseOrder(id, updateData);
       toast({
         title: 'Status Updated',
         description: `Purchase Order status has been updated to ${status}.`,
       });
     } catch (error) {
+       console.error("Failed to update status:", error);
        toast({ title: 'Error', description: 'Failed to update status.', variant: 'destructive' });
     }
   };
@@ -169,7 +175,7 @@ export default function PurchaseOrdersListPage() {
     const printWindow = window.open(`/purchase-orders/view?id=${poId}`, '_blank');
     if (printWindow) {
         printWindow.onload = () => {
-            setTimeout(() => printWindow.print(), 500); // Give it a moment to render
+            setTimeout(() => printWindow.print(), 500);
         };
     }
   };

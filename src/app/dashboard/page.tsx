@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import Link from 'next/navigation';
+import Link from 'next/link';
 import { 
   PlusCircle, 
   ShoppingCart, 
@@ -110,23 +110,23 @@ export default function DashboardPage() {
         <div className="flex flex-wrap gap-2">
           {hasPermission('reports', 'create') && (
             <Button asChild size="sm">
-              <a href="/report/new">
+              <Link href="/report/new">
                 <PlusCircle className="mr-2 h-4 w-4" /> New QT Report
-              </a>
+              </Link>
             </Button>
           )}
           {hasPermission('purchaseOrders', 'create') && (
             <Button asChild variant="outline" size="sm">
-              <a href="/purchase-orders/new">
+              <Link href="/purchase-orders/new">
                 <ShoppingCart className="mr-2 h-4 w-4" /> New PO
-              </a>
+              </Link>
             </Button>
           )}
         </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <a href="/hr/attendance" className="block">
+        <Link href="/hr/attendance" className="block">
           <Card className="border-l-4 border-l-blue-500 hover:bg-accent transition-colors cursor-pointer h-full">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
@@ -141,9 +141,9 @@ export default function DashboardPage() {
               </div>
             </CardContent>
           </Card>
-        </a>
+        </Link>
 
-        <a href="/fleet/policies" className="block">
+        <Link href="/fleet/policies" className="block">
           <Card className={cn(
             "border-l-4 hover:bg-accent transition-colors cursor-pointer h-full", 
             stats.fleetStats.expired > 0 ? "border-l-destructive bg-destructive/5" : (stats.fleetStats.comingSoon > 0 ? "border-l-amber-500 bg-amber-50/50" : "border-l-green-500")
@@ -171,9 +171,9 @@ export default function DashboardPage() {
               </div>
             </CardContent>
           </Card>
-        </a>
+        </Link>
 
-        <a href="/purchase-orders/list" className="block">
+        <Link href="/purchase-orders/list" className="block">
           <Card className="border-l-4 border-l-amber-500 hover:bg-accent transition-colors cursor-pointer h-full">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
@@ -188,9 +188,9 @@ export default function DashboardPage() {
               </div>
             </CardContent>
           </Card>
-        </a>
+        </Link>
 
-        <a href="/finance/estimate-invoice" className="block">
+        <Link href="/finance/estimate-invoice" className="block">
           <Card className="border-l-4 border-l-green-600 hover:bg-accent transition-colors cursor-pointer h-full">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
@@ -204,9 +204,9 @@ export default function DashboardPage() {
               </div>
             </CardContent>
           </Card>
-        </a>
+        </Link>
 
-        <a href="/settings" className="block">
+        <Link href="/settings" className="block">
           <Card className="border-l-4 border-l-purple-500 hover:bg-accent transition-colors cursor-pointer h-full">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
@@ -221,7 +221,7 @@ export default function DashboardPage() {
               </div>
             </CardContent>
           </Card>
-        </a>
+        </Link>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -231,7 +231,7 @@ export default function DashboardPage() {
             Quick Access Modules
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <a href="/crm/cost-report">
+            <Link href="/crm/cost-report">
               <Card className="hover:bg-accent transition-colors cursor-pointer h-full border-dashed">
                 <CardHeader className="p-4">
                   <CardTitle className="text-base flex items-center gap-2">
@@ -241,8 +241,8 @@ export default function DashboardPage() {
                   <CardDescription className="text-xs">Advanced board & weight calculations</CardDescription>
                 </CardHeader>
               </Card>
-            </a>
-            <a href="/finance/estimate-invoice">
+            </Link>
+            <Link href="/finance/estimate-invoice">
               <Card className="hover:bg-accent transition-colors cursor-pointer h-full border-dashed">
                 <CardHeader className="p-4">
                   <CardTitle className="text-base flex items-center gap-2">
@@ -252,8 +252,8 @@ export default function DashboardPage() {
                   <CardDescription className="text-xs">Generate pro-forma VAT documents</CardDescription>
                 </CardHeader>
               </Card>
-            </a>
-            <a href="/finance/cheque-generator">
+            </Link>
+            <Link href="/finance/cheque-generator">
               <Card className="hover:bg-accent transition-colors cursor-pointer h-full border-dashed">
                 <CardHeader className="p-4">
                   <CardTitle className="text-base flex items-center gap-2">
@@ -263,8 +263,8 @@ export default function DashboardPage() {
                   <CardDescription className="text-xs">Track PDCs and payments</CardDescription>
                 </CardHeader>
               </Card>
-            </a>
-            <a href="/crm/pack-spec">
+            </Link>
+            <Link href="/crm/pack-spec">
               <Card className="hover:bg-accent transition-colors cursor-pointer h-full border-dashed">
                 <CardHeader className="p-4">
                   <CardTitle className="text-base flex items-center gap-2">
@@ -274,7 +274,7 @@ export default function DashboardPage() {
                   <CardDescription className="text-xs">Technical specification data sheets</CardDescription>
                 </CardHeader>
               </Card>
-            </a>
+            </Link>
           </div>
         </div>
 
