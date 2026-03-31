@@ -10,8 +10,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import {
   AlertDialog,
@@ -128,18 +128,18 @@ export default function PurchaseOrdersListPage() {
     }
   };
   
-  const updatePoStatus = async (id: string, status: PurchaseOrderStatus, deliveryDateISO?: string) => {
+  const updatePoStatus = (id: string, status: PurchaseOrderStatus, deliveryDateISO?: string) => {
     try {
       const updateData: any = { 
         status, 
-        lastModifiedBy: user?.username 
+        lastModifiedBy: user?.username || 'Administrator'
       };
       
       if (deliveryDateISO) {
           updateData.deliveryDate = deliveryDateISO;
       }
 
-      await updatePurchaseOrder(id, updateData);
+      updatePurchaseOrder(id, updateData);
       toast({
         title: 'Status Updated',
         description: `Purchase Order status has been updated to ${status}.`,
@@ -377,7 +377,7 @@ export default function PurchaseOrdersListPage() {
                                     )}
                                     <AlertDialog>
                                         <AlertDialogTrigger asChild>
-                                            <DropdownMenuItem onSelect={e => e.preventDefault()} disabled={po.status === 'Delivered' || po.status === 'Canceled'}>
+                                            <DropdownMenuItem onSelect={e => e.preventDefault()} disabled={po.status === 'Delivered' || po.status === 'Canceled'} className="text-destructive focus:text-destructive">
                                                 <Ban className="mr-2 h-4 w-4" /> Cancel Order
                                             </DropdownMenuItem>
                                         </AlertDialogTrigger>
@@ -385,12 +385,12 @@ export default function PurchaseOrdersListPage() {
                                             <AlertDialogHeader>
                                                 <AlertDialogTitle>Are you sure you want to cancel this order?</AlertDialogTitle>
                                                 <AlertDialogDescription>
-                                                    This action will mark PO #{po.poNumber} as Canceled. This cannot be undone.
+                                                    This action will mark PO #{po.poNumber} as Canceled. This action cannot be reversed.
                                                 </AlertDialogDescription>
                                             </AlertDialogHeader>
                                             <AlertDialogFooter>
                                                 <AlertDialogCancel>Go Back</AlertDialogCancel>
-                                                <AlertDialogAction onClick={() => updatePoStatus(po.id, 'Canceled')}>Confirm Cancellation</AlertDialogAction>
+                                                <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => updatePoStatus(po.id, 'Canceled')}>Confirm Cancellation</AlertDialogAction>
                                             </AlertDialogFooter>
                                         </AlertDialogContent>
                                     </AlertDialog>
