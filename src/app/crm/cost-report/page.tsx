@@ -128,7 +128,6 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
     
     const printWindow = window.open('', '', 'height=800,width=800');
     printWindow?.document.write('<html><head><title>Print Quotation</title>');
-    printWindow?.document.write('<style>@media print{@page{size: A4;margin: 0;}body{margin: 1.6cm;}}body{font-family:sans-serif;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ddd;padding:8px;}.text-right{text-align:right;}.font-bold{font-weight:bold;}</style>');
     printWindow?.document.write('</head><body>');
     printWindow?.document.write(printableArea.innerHTML);
     printWindow?.document.write('</body></html>');
@@ -1173,7 +1172,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                                     <CommandInput 
                                                         placeholder="Search party..." 
                                                         value={partySearch}
-                                                        onValueChange={setPartySearch}
+                                                        onValueChange={(val) => setPartySearch(val)}
                                                     />
                                                     <CommandList>
                                                         <CommandEmpty>
@@ -1337,7 +1336,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                 <CardTitle className="text-sm">Product Cost Breakdown</CardTitle>
             </CardHeader>
             <CardContent className="px-2">
-                <div className="overflow-x-auto">
+                <ScrollArea className="h-[600px]">
                     <Table className="text-[10px]">
                         <TableHeader>
                             <TableRow className="h-8">
@@ -1630,12 +1629,16 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                             </TableCell>
                                         </TableRow>
                                     )})}
-                                </TableBody>
-                            </Table>
-                        </ScrollArea>
-                    </CardContent>
-                </Card>
-            </div>
+                                </React.Fragment>
+                             );
+                        })}
+                        </TableBody>
+                    </Table>
+                </ScrollArea>
+            </CardContent>
+        </Card>
+        
+        <Dialog open={isCostHistoryDialogOpen} onOpenChange={setIsCostHistoryDialogOpen}>
             <DialogContent className="max-w-xl">
                 <DialogHeader>
                     <DialogTitle>Costing History</DialogTitle>
@@ -2180,7 +2183,7 @@ function ProductForm({ productToEdit, onSaveSuccess, onProductFormChange }: { pr
                        </div>
                        <div className="space-y-2">
                             <Label htmlFor={`spec-flute1Gsm`}>Flute 1 Gsm</Label>
-                            <Input id={`spec-flute1Gsm`} value={productForm.specification?.flute1Gsm || ''} onChange={(e) => handleSpecChange('topGsm', e.target.value)} />
+                            <Input id={`spec-flute1Gsm`} value={productForm.specification?.flute1Gsm || ''} onChange={(e) => handleSpecChange('flute1Gsm', e.target.value)} />
                        </div>
                        {ply >= 5 && (
                            <div className="space-y-2">
@@ -2517,7 +2520,7 @@ function CostingSettingsTab() {
   const handleAddDefaultTerm = () => {
     if (newDefaultTerm.trim()) {
         setDefaultTerms([...defaultTerms, { text: newDefaultTerm.trim(), isSelected: true }]);
-        setNewTerm('');
+        setNewDefaultTerm('');
     }
   };
   
@@ -2640,6 +2643,7 @@ export default function CostReportPage() {
     const [activeTab, setActiveTab] = useState("calculator");
     const [reportToEdit, setReportToEdit] = useState<CostReport | null>(null);
     const [products, setProducts] = useState<Product[]>([]);
+    const [searchQuery, setSearchQuery] = useState('');
     
     const [isProductAddDialogOpen, setIsProductAddDialogOpen] = useState(false);
     const [productFormData, setProductFormData] = useState<Partial<Product> | null>(null);
