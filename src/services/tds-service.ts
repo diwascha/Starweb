@@ -1,6 +1,6 @@
 
 import { getFirebase } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, deleteDoc, getDocs } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, deleteDoc, getDocs, updateDoc } from 'firebase/firestore';
 import type { TdsCalculation, DocumentPrefixes } from '@/lib/types';
 import { getSetting } from './settings-service';
 
@@ -38,6 +38,14 @@ export const addTdsCalculation = async (calculation: Omit<TdsCalculation, 'id' |
         createdAt: new Date().toISOString(),
     });
     return docRef.id;
+};
+
+export const updateTdsCalculation = async (id: string, calculation: Partial<Omit<TdsCalculation, 'id'>>): Promise<void> => {
+    const calcDoc = doc(getTdsCollection(), id);
+    await updateDoc(calcDoc, {
+        ...calculation,
+        lastModifiedAt: new Date().toISOString(),
+    });
 };
 
 export const getTdsCalculations = async (): Promise<TdsCalculation[]> => {
