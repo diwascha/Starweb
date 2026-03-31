@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { PlusCircle, MoreHorizontal, Edit, Trash2, View, ArrowUpDown, Search, PackageCheck, Ban, User, Printer } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Edit, Trash2, View, ArrowUpDown, Search, PackageCheck, Ban, User, Printer, CalendarIcon } from 'lucide-react';
 import type { PurchaseOrder, PurchaseOrderStatus } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -40,14 +40,12 @@ import { Badge } from '@/components/ui/badge';
 import { cn, toNepaliDate } from '@/lib/utils';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
 import { onPurchaseOrdersUpdate, deletePurchaseOrder, updatePurchaseOrder } from '@/services/purchase-order-service';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import NepaliDate from 'nepali-date-converter';
-
 
 type SortKey = 'poNumber' | 'poDate' | 'companyName' | 'status' | 'authorship';
 type SortDirection = 'asc' | 'desc';
@@ -61,11 +59,9 @@ const nepaliMonths = [
 
 const statuses: (PurchaseOrderStatus | 'All')[] = ['All', 'Draft', 'Ordered', 'Amended', 'Delivered', 'Canceled'];
 
-
 export default function PurchaseOrdersListPage() {
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({
     key: 'poDate',
     direction: 'desc',
@@ -84,7 +80,6 @@ export default function PurchaseOrdersListPage() {
   const [selectedBsMonth, setSelectedBsMonth] = useState<string>('All');
   const [selectedCompany, setSelectedCompany] = useState<string>('All');
   const [selectedStatus, setSelectedStatus] = useState<string>('All');
-
 
   useEffect(() => {
     setIsLoading(true);
@@ -140,8 +135,6 @@ export default function PurchaseOrdersListPage() {
         lastModifiedBy: user?.username 
       };
       
-      // Only include deliveryDate if it's explicitly provided (from the dialog)
-      // or if we are canceling and want to clear it (unlikely but safe)
       if (deliveryDateISO) {
           updateData.deliveryDate = deliveryDateISO;
       }
@@ -179,7 +172,6 @@ export default function PurchaseOrdersListPage() {
         };
     }
   };
-
 
   const requestSort = (key: SortKey) => {
     let direction: SortDirection = 'asc';
@@ -239,12 +231,8 @@ export default function PurchaseOrdersListPage() {
         const aValue = a[sortConfig.key];
         const bValue = b[sortConfig.key];
   
-        if (aValue < bValue) {
-          return sortConfig.direction === 'asc' ? -1 : 1;
-        }
-        if (aValue > bValue) {
-          return sortConfig.direction === 'asc' ? 1 : -1;
-        }
+        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
         return 0;
       });
     }
@@ -253,18 +241,12 @@ export default function PurchaseOrdersListPage() {
 
   const getStatusBadgeVariant = (status: PurchaseOrderStatus) => {
     switch (status) {
-      case 'Ordered':
-        return 'default';
-      case 'Amended':
-        return 'secondary';
-      case 'Delivered':
-        return 'outline';
-      case 'Canceled':
-        return 'destructive';
-      case 'Draft':
-        return 'secondary';
-      default:
-        return 'default';
+      case 'Ordered': return 'default';
+      case 'Amended': return 'secondary';
+      case 'Delivered': return 'outline';
+      case 'Canceled': return 'destructive';
+      case 'Draft': return 'secondary';
+      default: return 'default';
     }
   };
 
@@ -349,15 +331,9 @@ export default function PurchaseOrdersListPage() {
                                         <span>{po.lastModifiedBy || po.createdBy}</span>
                                     </TooltipTrigger>
                                     <TooltipContent>
-                                        <p>
-                                            Created by: {po.createdBy}
-                                            {po.createdAt ? ` on ${format(new Date(po.createdAt), "PP")}` : ''}
-                                        </p>
+                                        <p>Created by: {po.createdBy}{po.createdAt ? ` on ${format(new Date(po.createdAt), "PP")}` : ''}</p>
                                         {po.lastModifiedBy && (
-                                          <p>
-                                            Modified by: {po.lastModifiedBy}
-                                            {po.updatedAt ? ` on ${format(new Date(po.updatedAt), "PP")}` : ''}
-                                          </p>
+                                          <p>Modified by: {po.lastModifiedBy}{po.updatedAt ? ` on ${format(new Date(po.updatedAt), "PP")}` : ''}</p>
                                         )}
                                     </TooltipContent>
                                 </Tooltip>
@@ -399,9 +375,25 @@ export default function PurchaseOrdersListPage() {
                                             <CalendarIcon className="mr-2 h-4 w-4" /> Change Delivery Date
                                         </DropdownMenuItem>
                                     )}
-                                    <DropdownMenuItem onSelect={() => updatePoStatus(po.id, 'Canceled')} disabled={po.status === 'Delivered' || po.status === 'Canceled'}>
-                                        <Ban className="mr-2 h-4 w-4" /> Cancel Order
-                                    </DropdownMenuItem>
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <DropdownMenuItem onSelect={e => e.preventDefault()} disabled={po.status === 'Delivered' || po.status === 'Canceled'}>
+                                                <Ban className="mr-2 h-4 w-4" /> Cancel Order
+                                            </DropdownMenuItem>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Are you sure you want to cancel this order?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    This action will mark PO #{po.poNumber} as Canceled. This cannot be undone.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Go Back</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => updatePoStatus(po.id, 'Canceled')}>Confirm Cancellation</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
                                 </>
                             )}
                             

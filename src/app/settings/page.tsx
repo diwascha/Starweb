@@ -52,14 +52,12 @@ import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { cn, toNepaliDate } from '@/lib/utils';
 
-
 const nepaliMonths = [
     { value: 0, name: "Baishakh" }, { value: 1, name: "Jestha" }, { value: 2, name: "Ashadh" },
     { value: 3, name: "Shrawan" }, { value: 4, name: "Bhadra" }, { value: 5, name: "Ashwin" },
     { value: 6, name: "Kartik" }, { value: 7, name: "Mangsir" }, { value: 8, "name": "Poush" },
     { value: 9, name: "Magh" }, { value: 10, name: "Falgun" }, { value: 11, name: "Chaitra" }
 ];
-
 
 function MergePartiesDialog({ open, onOpenChange, parties, onMerge }: { open: boolean, onOpenChange: (open: boolean) => void, parties: Party[], onMerge: (sourceId: string, destinationId: string) => void }) {
     const [sourceId, setSourceId] = useState<string>('');
@@ -139,8 +137,6 @@ function MergePartiesDialog({ open, onOpenChange, parties, onMerge }: { open: bo
     );
 }
 
-
-
 export default function SettingsPage() {
   const { user, hasPermission, logout } = useAuth();
   const { toast } = useToast();
@@ -156,7 +152,6 @@ export default function SettingsPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const importFileRef = useRef<HTMLInputElement>(null);
-
 
   // Usage Analytics State
   const [pageVisits, setPageVisits] = useState<PageVisit[]>([]);
@@ -175,8 +170,6 @@ export default function SettingsPage() {
   const [payrollLockYears, setPayrollLockYears] = useState<number[]>([]);
   const [selectedLockYear, setSelectedLockYear] = useState<string>('');
   const [selectedLockMonth, setSelectedLockMonth] = useState<string>('');
-
-
 
   // Party Dialog State
   const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
@@ -207,7 +200,6 @@ export default function SettingsPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [changePasswordError, setChangePasswordError] = useState<string | null>(null);
 
-
   useEffect(() => {
     setIsLoading(true);
     const unsubParties = onPartiesUpdate(setParties);
@@ -224,7 +216,6 @@ export default function SettingsPage() {
         setSelectedLockYear(String(allYears[0]));
         setSelectedLockMonth(String(new NepaliDate().getMonth()));
     });
-
 
     const handleStorageChange = () => setUsers(getUsers());
     window.addEventListener('storage', handleStorageChange);
@@ -259,7 +250,6 @@ export default function SettingsPage() {
         toast({ title: 'Error', description: 'Failed to save prefix.', variant: 'destructive' });
     }
   };
-
 
   const handleExportData = async () => {
     setIsExporting(true);
@@ -297,7 +287,6 @@ export default function SettingsPage() {
                 description: 'Data has been restored from backup. The application will now reload.',
             });
 
-            // Reload the application to reflect the new state
             setTimeout(() => window.location.reload(), 2000);
 
         } catch (error) {
@@ -307,9 +296,8 @@ export default function SettingsPage() {
         }
     };
     reader.readAsText(file);
-    if(importFileRef.current) importFileRef.current.value = ''; // Reset file input
+    if(importFileRef.current) importFileRef.current.value = '';
 };
-
 
   const handleTogglePayrollLock = async () => {
     if (!selectedLockYear || !selectedLockMonth) {
@@ -332,7 +320,6 @@ export default function SettingsPage() {
       const lockKey = `${selectedLockYear}-${selectedLockMonth}`;
       return payrollLocks[lockKey] || false;
   }, [payrollLocks, selectedLockYear, selectedLockMonth]);
-
 
   const openPartyDialog = (party: Party | null = null) => {
     if (party) {
