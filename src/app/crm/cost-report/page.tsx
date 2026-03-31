@@ -1410,7 +1410,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                       <TableCell className="px-1">
                                         <div className="flex items-center">
                                           <Checkbox
-                                            checked={selectedForPrint.has(item.id)}
+                                            checked={selectedForPrint?.has?.(item.id) || false}
                                             onCheckedChange={(checked) => {
                                               setSelectedForPrint(prev => {
                                                 const newSet = new Set(prev);
@@ -1725,7 +1725,6 @@ function SavedReportsList({ onEdit }: { onEdit: (report: CostReport) => void }) 
             const deckle1 = (2 * l) + (2 * b) + 62;
             const area1 = cutOff1 * deckle1;
 
-            const MathAbs = Math.abs;
             const cutOff2 = l + h + 20;
             const deckle2 = (2 * b) + (2 * l) + 62;
             const area2 = cutOff2 * deckle2;
@@ -2138,7 +2137,7 @@ function ProductForm({ productToEdit, onSaveSuccess, onProductFormChange }: { pr
                                             </Button>
                                         </CommandEmpty>
                                         <CommandGroup>
-                                            {parties.map(p => (
+                                            {parties.sort((a,b) => a.name.localeCompare(b.name)).map(p => (
                                                 <CommandItem key={p.id} value={p.name} onSelect={() => { handleProductFormChangeLocal('partyId', p.id); setPartySearch('');}}>
                                                     <Check className={cn("mr-2 h-4 w-4", productForm.partyId === p.id ? "opacity-100" : "opacity-0")} />
                                                     {p.name}

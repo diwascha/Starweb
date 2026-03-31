@@ -390,7 +390,7 @@ export default function SettingsPage() {
       }
   };
   
-  const filteredParties = parties.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredParties = parties.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).sort((a, b) => a.name.localeCompare(b.name));
 
   const openAccountDialog = (account: Account | null = null) => {
     if (account) {
@@ -398,7 +398,7 @@ export default function SettingsPage() {
         setAccountForm({ name: account.name, type: account.type, accountNumber: account.accountNumber || '', bankName: account.bankName || '', branch: account.branch || '', bankAccountType: account.bankAccountType || 'Saving' });
     } else {
         setEditingAccount(null);
-        setAccountForm({ name: '', type: 'Cash', accountNumber: '', bankName: '', branch: '', bankAccountType: 'Saving' });
+        setAccountForm({ name: '', type: 'Cash' as AccountType, accountNumber: '', bankName: '', branch: '', bankAccountType: 'Saving' });
     }
     setIsAccountDialogOpen(true);
   };

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -160,15 +159,15 @@ export default function DashboardPage() {
                 <div className="space-y-1 w-full">
                   <p className="text-xs font-medium text-muted-foreground uppercase">Fleet Alerts</p>
                   <div className="grid grid-cols-3 gap-1 mt-2">
-                    <div className="flex flex-col">
+                    <div className="flex flex-col text-center">
                         <span className={cn("text-lg font-bold", stats.fleetStats.expired > 0 ? "text-destructive" : "text-muted-foreground")}>{stats.fleetStats.expired}</span>
                         <span className="text-[9px] text-muted-foreground uppercase leading-none">Expired</span>
                     </div>
-                    <div className="flex flex-col border-x px-1">
+                    <div className="flex flex-col text-center border-x px-1">
                         <span className={cn("text-lg font-bold", stats.fleetStats.comingSoon > 0 ? "text-amber-600" : "text-muted-foreground")}>{stats.fleetStats.comingSoon}</span>
                         <span className="text-[9px] text-muted-foreground uppercase leading-none">Soon</span>
                     </div>
-                    <div className="flex flex-col pl-1">
+                    <div className="flex flex-col text-center pl-1">
                         <span className="text-lg font-bold text-green-600">{stats.fleetStats.ok}</span>
                         <span className="text-[9px] text-muted-foreground uppercase leading-none">OK</span>
                     </div>
@@ -270,7 +269,8 @@ export default function DashboardPage() {
                   </CardTitle>
                   <CardDescription className="text-xs">Track PDCs and payments</CardDescription>
                 </CardHeader>
-              </Link>
+              </Card>
+            </Link>
             <Link href="/crm/pack-spec">
               <Card className="hover:bg-accent transition-colors cursor-pointer h-full border-dashed">
                 <CardHeader className="p-4">
