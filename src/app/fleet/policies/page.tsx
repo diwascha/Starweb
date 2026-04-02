@@ -464,7 +464,7 @@ export default function PoliciesPage() {
                                                 <DropdownMenuItem onSelect={() => handleOpenDialog(policy)}>
                                                     <Edit className="mr-2 h-4 w-4" /> Edit
                                                 </DropdownMenuItem>
-                                                {policy.status !== 'Archived' && (
+                                                {policy.status === 'Active' && (
                                                     <DropdownMenuItem onSelect={() => handleArchive(policy)}>
                                                         <Archive className="mr-2 h-4 w-4" /> Move to History
                                                     </DropdownMenuItem>
