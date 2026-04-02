@@ -43,6 +43,7 @@ import { onPoliciesUpdate, addPolicy, updatePolicy, deletePolicy } from '@/servi
 import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onDriversUpdate } from '@/services/driver-service';
 import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 
 type PolicySortKey = 'type' | 'provider' | 'policyNumber' | 'endDate' | 'memberName' | 'authorship' | 'status' | 'cost';
 type SortDirection = 'asc' | 'desc';
