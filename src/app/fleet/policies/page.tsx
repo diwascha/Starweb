@@ -1,11 +1,10 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import type { PolicyOrMembership, Vehicle, Driver, PartyType, PolicyStatus } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, CalendarIcon, Check, ChevronsUpDown, User, RefreshCcw, Archive } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, CalendarIcon, Check, ChevronsUpDown, User, RefreshCcw, Archive, AlertTriangle, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -45,9 +44,9 @@ import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onDriversUpdate } from '@/services/driver-service';
 import { Badge } from '@/components/ui/badge';
 
-
-type PolicySortKey = 'type' | 'provider' | 'policyNumber' | 'endDate' | 'memberName' | 'authorship' | 'status';
+type PolicySortKey = 'type' | 'provider' | 'policyNumber' | 'endDate' | 'memberName' | 'authorship' | 'status' | 'cost';
 type SortDirection = 'asc' | 'desc';
+type StatusFilter = 'All' | 'Active' | 'Expiring Soon' | 'Expired' | 'Archived';
 
 export default function PoliciesPage() {
     const [policies, setPolicies] = useState<PolicyOrMembership[]>([]);
@@ -75,12 +74,11 @@ export default function PoliciesPage() {
     const [sortConfig, setSortConfig] = useState<{ key: PolicySortKey; direction: SortDirection }>({ key: 'endDate', direction: 'asc' });
     
     const [isProviderPopoverOpen, setIsProviderPopoverOpen] = useState(false);
-    const [editingProvider, setEditingProvider] = useState<{ oldName: string; newName: string } | null>(null);
     const [isTypePopoverOpen, setIsTypePopoverOpen] = useState(false);
-    const [editingType, setEditingType] = useState<{ oldName: string; newName: string } | null>(null);
     
     const [filterMemberType, setFilterMemberType] = useState<'All' | 'Vehicle' | 'Driver'>('All');
     const [filterMemberId, setFilterMemberId] = useState<string>('All');
+    const [filterStatus, setFilterStatus] = useState<StatusFilter>('Active');
 
 
     const { toast } = useToast();
@@ -92,13 +90,6 @@ export default function PoliciesPage() {
         drivers.forEach(d => map.set(d.id, { name: d.name, type: 'Driver' }));
         return map;
     }, [vehicles, drivers]);
-
-    const policiesById = useMemo(() => {
-        const map = new Map<string, PolicyOrMembership>();
-        policies.forEach(p => map.set(p.id, p));
-        return map;
-    }, [policies]);
-
 
     useEffect(() => {
         setIsLoading(true);
@@ -167,7 +158,7 @@ export default function PoliciesPage() {
                     cost: policy.cost,
                     memberId: policy.memberId,
                     memberType: policy.memberType,
-                    renewedFromId: policy.renewedFromId,
+                    renewedFromId: policy.renewedFromId || null,
                     status: policy.status || 'Active',
                 });
             }
@@ -200,67 +191,9 @@ export default function PoliciesPage() {
         setIsProviderPopoverOpen(false);
     };
 
-    const handleEditProvider = (providerName: string) => {
-        setEditingProvider({ oldName: providerName, newName: providerName });
-    };
-
-    const handleUpdateProvider = async () => {
-        if (!editingProvider) return;
-        const { oldName, newName } = editingProvider;
-
-        if (!newName.trim()) {
-            toast({ title: 'Error', description: 'Provider name cannot be empty.', variant: 'destructive' });
-            return;
-        }
-        
-        const updates = policies
-            .filter(p => p.provider === oldName)
-            .map(p => updatePolicy(p.id, { provider: newName }));
-        
-        try {
-            await Promise.all(updates);
-            if (formState.provider === oldName) {
-                setFormState(prev => ({ ...prev, provider: newName }));
-            }
-            toast({ title: 'Success', description: `Provider "${oldName}" updated to "${newName}".` });
-            setEditingProvider(null);
-        } catch {
-            toast({ title: 'Error', description: 'Failed to update providers.', variant: 'destructive' });
-        }
-    };
-    
     const handleTypeSelect = (type: string) => {
         setFormState(prev => ({ ...prev, type }));
         setIsTypePopoverOpen(false);
-    };
-
-    const handleEditType = (typeName: string) => {
-        setEditingType({ oldName: typeName, newName: typeName });
-    };
-
-    const handleUpdateType = async () => {
-        if (!editingType) return;
-        const { oldName, newName } = editingType;
-
-        if (!newName.trim()) {
-            toast({ title: 'Error', description: 'Type name cannot be empty.', variant: 'destructive' });
-            return;
-        }
-
-        const updates = policies
-            .filter(p => p.type === oldName)
-            .map(p => updatePolicy(p.id, { type: newName }));
-        
-        try {
-            await Promise.all(updates);
-            if (formState.type === oldName) {
-                setFormState(prev => ({ ...prev, type: newName }));
-            }
-            toast({ title: 'Success', description: `Type "${oldName}" updated to "${newName}".` });
-            setEditingType(null);
-        } catch {
-             toast({ title: 'Error', description: 'Failed to update types.', variant: 'destructive' });
-        }
     };
 
     const handleSubmit = async () => {
@@ -348,26 +281,37 @@ export default function PoliciesPage() {
     };
 
     const sortedAndFilteredPolicies = useMemo(() => {
+        const today = startOfToday();
+        
         let augmentedPolicies = policies.map(p => {
-            const daysRemaining = differenceInDays(new Date(p.endDate), startOfToday());
+            const daysRemaining = differenceInDays(new Date(p.endDate), today);
             
-            let derivedStatus: 'Active' | 'Expired';
-            if (p.status === 'Renewed' || p.status === 'Archived') {
-                derivedStatus = 'Expired'; // Treat them as non-active
-            } else if (isPast(new Date(p.endDate))) {
-                derivedStatus = 'Expired';
-            } else {
-                derivedStatus = 'Active';
-            }
+            let displayStatus: 'Active' | 'Expired' | 'Renewed' | 'Archived';
+            if (p.status === 'Renewed') displayStatus = 'Renewed';
+            else if (p.status === 'Archived') displayStatus = 'Archived';
+            else if (isPast(new Date(p.endDate))) displayStatus = 'Expired';
+            else displayStatus = 'Active';
 
             return {
                 ...p,
                 memberName: membersById.get(p.memberId)?.name || 'N/A',
-                derivedStatus: derivedStatus,
+                displayStatus,
                 daysRemaining,
             }
         });
 
+        // 1. Filter by Status
+        if (filterStatus === 'Active') {
+            augmentedPolicies = augmentedPolicies.filter(p => p.displayStatus === 'Active');
+        } else if (filterStatus === 'Expiring Soon') {
+            augmentedPolicies = augmentedPolicies.filter(p => p.displayStatus === 'Active' && p.daysRemaining >= 0 && p.daysRemaining <= 15);
+        } else if (filterStatus === 'Expired') {
+            augmentedPolicies = augmentedPolicies.filter(p => p.displayStatus === 'Expired');
+        } else if (filterStatus === 'Archived') {
+            augmentedPolicies = augmentedPolicies.filter(p => p.displayStatus === 'Archived' || p.displayStatus === 'Renewed');
+        }
+
+        // 2. Filter by Search Query
         if (searchQuery) {
             const lowercasedQuery = searchQuery.toLowerCase();
             augmentedPolicies = augmentedPolicies.filter(p =>
@@ -378,6 +322,7 @@ export default function PoliciesPage() {
             );
         }
         
+        // 3. Filter by Member Type/Id
         if (filterMemberType !== 'All') {
             augmentedPolicies = augmentedPolicies.filter(p => p.memberType === filterMemberType);
              if (filterMemberId !== 'All') {
@@ -385,6 +330,7 @@ export default function PoliciesPage() {
             }
         }
 
+        // 4. Sort
         augmentedPolicies.sort((a, b) => {
             if (sortConfig.key === 'authorship') {
                 const aDate = a.lastModifiedAt || a.createdAt;
@@ -402,14 +348,19 @@ export default function PoliciesPage() {
             return 0;
         });
         return augmentedPolicies;
-    }, [policies, searchQuery, filterMemberType, filterMemberId, sortConfig, membersById]);
+    }, [policies, searchQuery, filterMemberType, filterMemberId, filterStatus, sortConfig, membersById]);
 
-    const getStatusBadgeVariant = (status: 'Active' | 'Expired') => {
-        switch (status) {
-            case 'Active': return 'default';
-            case 'Expired': return 'destructive';
-            default: return 'secondary';
-        }
+    const totalFilteredCost = useMemo(() => {
+        return sortedAndFilteredPolicies.reduce((sum, p) => sum + (p.cost || 0), 0);
+    }, [sortedAndFilteredPolicies]);
+
+    const getStatusBadge = (policy: any) => {
+        if (policy.status === 'Renewed') return <Badge variant="outline" className="text-muted-foreground border-muted-foreground">Renewed</Badge>;
+        if (policy.status === 'Archived') return <Badge variant="outline" className="text-muted-foreground border-muted-foreground">Archived</Badge>;
+        
+        if (policy.daysRemaining < 0) return <Badge variant="destructive">Expired</Badge>;
+        if (policy.daysRemaining <= 15) return <Badge variant="default" className="bg-amber-500 text-black hover:bg-amber-600">Soon</Badge>;
+        return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Active</Badge>;
     };
 
 
@@ -417,7 +368,7 @@ export default function PoliciesPage() {
         if (isLoading) {
             return (
                 <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
-                  <h3 className="text-2xl font-bold tracking-tight">Loading...</h3>
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
             );
         }
@@ -426,8 +377,8 @@ export default function PoliciesPage() {
             return (
                 <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
                   <div className="flex flex-col items-center gap-1 text-center">
-                    <h3 className="text-2xl font-bold tracking-tight">No policies or memberships found</h3>
-                    <p className="text-sm text-muted-foreground">Get started by adding a new record.</p>
+                    <h3 className="text-2xl font-bold tracking-tight">No records found</h3>
+                    <p className="text-sm text-muted-foreground">Start by adding your first insurance policy or membership.</p>
                     {hasPermission('fleet', 'create') && (
                         <Button className="mt-4" onClick={() => handleOpenDialog()}>
                             <Plus className="mr-2 h-4 w-4" /> Add Record
@@ -443,45 +394,54 @@ export default function PoliciesPage() {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('type')}>Type <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('policyNumber')}>Policy/ID Number <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('memberName')}>For <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('endDate')}>Expiry Date</Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('status')}>Status <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                             <TableHead><Button variant="ghost" onClick={() => requestSort('authorship')}>Authorship <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('type')} className="p-0">Type <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('policyNumber')} className="p-0">Policy # <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('memberName')} className="p-0">For <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('endDate')} className="p-0">Expiry Date <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('cost')} className="p-0 text-right w-full">Premium <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                            <TableHead>Status</TableHead>
+                             <TableHead><Button variant="ghost" onClick={() => requestSort('authorship')} className="p-0">Authorship <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {sortedAndFilteredPolicies.map(policy => (
-                            <TableRow key={policy.id}>
-                                <TableCell>{policy.type}</TableCell>
+                            <TableRow key={policy.id} className={cn(
+                                policy.displayStatus === 'Expired' && 'bg-red-50/50 hover:bg-red-100/50',
+                                (policy.displayStatus === 'Active' && policy.daysRemaining <= 15) && 'bg-amber-50/50 hover:bg-amber-100/50'
+                            )}>
+                                <TableCell className="font-medium">{policy.type}</TableCell>
                                 <TableCell>{policy.policyNumber}</TableCell>
                                 <TableCell>{policy.memberName}</TableCell>
-                                <TableCell>{toNepaliDate(policy.endDate)}, {policy.daysRemaining < 0 ? `Expired ${-policy.daysRemaining} days ago` : `Expires in ${policy.daysRemaining} days`}</TableCell>
                                 <TableCell>
-                                    <Badge variant={getStatusBadgeVariant(policy.derivedStatus)}>{policy.derivedStatus}</Badge>
+                                    <div className="flex flex-col">
+                                        <span className="text-sm">{toNepaliDate(policy.endDate)}</span>
+                                        <span className={cn(
+                                            "text-[10px] font-bold uppercase",
+                                            policy.daysRemaining < 0 ? 'text-destructive' : (policy.daysRemaining <= 15 ? 'text-amber-600' : 'text-muted-foreground')
+                                        )}>
+                                            {policy.daysRemaining < 0 ? `${-policy.daysRemaining} days ago` : `${policy.daysRemaining} days left`}
+                                        </span>
+                                    </div>
                                 </TableCell>
+                                <TableCell className="text-right tabular-nums">Rs. {policy.cost.toLocaleString()}</TableCell>
+                                <TableCell>{getStatusBadge(policy)}</TableCell>
                                 <TableCell>
                                     <TooltipProvider>
                                         <Tooltip>
-                                            <TooltipTrigger className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-default">
-                                                {policy.lastModifiedBy ? <Edit className="h-4 w-4" /> : <User className="h-4 w-4" />}
-                                                <span>{policy.lastModifiedBy || policy.createdBy}</span>
+                                            <TooltipTrigger asChild>
+                                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-help">
+                                                    <Info className="h-3 w-3" />
+                                                    <span>{policy.lastModifiedBy || policy.createdBy}</span>
+                                                </div>
                                             </TooltipTrigger>
                                             <TooltipContent>
-                                                {policy.createdBy && (
-                                                    <p>
-                                                    Created by: {policy.createdBy}
-                                                    {policy.createdAt ? ` on ${format(new Date(policy.createdAt), "PP")}` : ''}
-                                                    </p>
-                                                )}
-                                                {policy.lastModifiedBy && policy.lastModifiedAt && (
-                                                <p>
-                                                    Modified by: {policy.lastModifiedBy}
-                                                    {policy.lastModifiedAt ? ` on ${format(new Date(policy.lastModifiedAt), "PP")}` : ''}
-                                                </p>
-                                                )}
+                                                <div className="text-xs space-y-1">
+                                                    <p><span className="font-semibold">Created:</span> {policy.createdBy} ({format(new Date(policy.createdAt), "PPp")})</p>
+                                                    {policy.lastModifiedBy && (
+                                                        <p><span className="font-semibold">Modified:</span> {policy.lastModifiedBy} ({format(new Date(policy.lastModifiedAt || policy.createdAt), "PPp")})</p>
+                                                    )}
+                                                </div>
                                             </TooltipContent>
                                         </Tooltip>
                                     </TooltipProvider>
@@ -498,14 +458,19 @@ export default function PoliciesPage() {
                                                 <DropdownMenuItem onSelect={() => handleOpenDialog(policy)}>
                                                     <Edit className="mr-2 h-4 w-4" /> Edit
                                                 </DropdownMenuItem>
+                                                {policy.status !== 'Archived' && (
+                                                    <DropdownMenuItem onSelect={() => handleArchive(policy)}>
+                                                        <Archive className="mr-2 h-4 w-4" /> Move to History
+                                                    </DropdownMenuItem>
+                                                )}
                                                 </>
                                             )}
-                                            {hasPermission('fleet', 'delete') && hasPermission('fleet', 'edit') && <DropdownMenuSeparator />}
+                                            {hasPermission('fleet', 'delete') && <DropdownMenuSeparator />}
                                             {hasPermission('fleet', 'delete') && (
                                                 <AlertDialog>
-                                                    <AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()}><Trash2 className="mr-2 h-4 w-4 text-destructive" /> <span className="text-destructive">Delete</span></DropdownMenuItem></AlertDialogTrigger>
+                                                    <AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem></AlertDialogTrigger>
                                                     <AlertDialogContent>
-                                                        <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the record.</AlertDialogDescription></AlertDialogHeader>
+                                                        <AlertDialogHeader><AlertDialogTitle>Confirm Deletion</AlertDialogTitle><AlertDialogDescription>This will permanently remove this record from the database. This action cannot be reversed.</AlertDialogDescription></AlertDialogHeader>
                                                         <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(policy.id)}>Delete</AlertDialogAction></AlertDialogFooter>
                                                     </AlertDialogContent>
                                                 </AlertDialog>
@@ -522,63 +487,100 @@ export default function PoliciesPage() {
     };
 
     return (
-        <>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <div className="flex flex-col gap-8">
-                    <header className="flex items-center justify-between">
-                        <div>
-                            <h1 className="text-3xl font-bold tracking-tight">Policies & Memberships</h1>
-                            <p className="text-muted-foreground">Manage your vehicle insurance and fleet memberships.</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            {hasPermission('fleet', 'create') && (
-                                <DialogTrigger asChild>
-                                    <Button onClick={() => handleOpenDialog()}>
-                                        <Plus className="mr-2 h-4 w-4" /> Add Record
-                                    </Button>
-                                </DialogTrigger>
-                            )}
-                        </div>
-                    </header>
-                    
-                     {policies.length > 0 && (
-                        <div className="flex flex-col md:flex-row gap-2">
-                            <div className="relative flex-1">
-                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    type="search"
-                                    placeholder="Search records..."
-                                    className="pl-8 w-full"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                />
-                            </div>
-                            <div className="flex gap-2">
-                                <Select value={filterMemberType} onValueChange={(value: 'All' | 'Vehicle' | 'Driver') => setFilterMemberType(value)}>
-                                    <SelectTrigger className="w-full md:w-[150px]">
-                                        <SelectValue placeholder="Filter by type..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="All">All Types</SelectItem>
-                                        <SelectItem value="Vehicle">Vehicles</SelectItem>
-                                        <SelectItem value="Driver">Drivers</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                <Select value={filterMemberId} onValueChange={setFilterMemberId} disabled={filterMemberType === 'All'}>
-                                    <SelectTrigger className="w-full md:w-[200px]">
-                                        <SelectValue placeholder={`Filter ${filterMemberType}...`} />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="All">All {filterMemberType}s</SelectItem>
-                                        {filterMemberType === 'Vehicle' && vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
-                                        {filterMemberType === 'Driver' && drivers.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                    )}
-                    {renderContent()}
+        <div className="space-y-8">
+            <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight">Policies & Memberships</h1>
+                    <p className="text-muted-foreground">Tracking vehicle insurance, road tax, and fleet memberships.</p>
                 </div>
+                {hasPermission('fleet', 'create') && (
+                    <Button onClick={() => handleOpenDialog()}>
+                        <Plus className="mr-2 h-4 w-4" /> New Record
+                    </Button>
+                )}
+            </header>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium text-muted-foreground uppercase">Summary</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{sortedAndFilteredPolicies.length} Records</div>
+                        <p className="text-xs text-muted-foreground">Under current filters</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium text-muted-foreground uppercase">Total Cost</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">Rs. {totalFilteredCost.toLocaleString()}</div>
+                        <p className="text-xs text-muted-foreground">Premium / Membership Total</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium text-muted-foreground uppercase">Urgency</CardTitle>
+                    </CardHeader>
+                    <CardContent className="flex gap-2">
+                        <div className="flex flex-col">
+                            <span className="text-xl font-bold text-destructive">{policies.filter(p => p.status === 'Active' && isPast(new Date(p.endDate))).length}</span>
+                            <span className="text-[10px] uppercase text-muted-foreground">Expired</span>
+                        </div>
+                        <Separator orientation="vertical" className="h-10" />
+                        <div className="flex flex-col">
+                            <span className="text-xl font-bold text-amber-600">{policies.filter(p => p.status === 'Active' && !isPast(new Date(p.endDate)) && differenceInDays(new Date(p.endDate), startOfToday()) <= 15).length}</span>
+                            <span className="text-[10px] uppercase text-muted-foreground">Soon</span>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+            
+            <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
+                <div className="relative flex-1 w-full">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        type="search"
+                        placeholder="Search by provider, policy # or vehicle..."
+                        className="pl-8 w-full"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                </div>
+                <div className="flex flex-wrap gap-2 w-full md:w-auto">
+                    <Select value={filterStatus} onValueChange={(v: StatusFilter) => setFilterStatus(v)}>
+                        <SelectTrigger className="w-[140px] h-9"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="All">All Records</SelectItem>
+                            <SelectItem value="Active">Active Only</SelectItem>
+                            <SelectItem value="Expiring Soon">Expiring Soon</SelectItem>
+                            <SelectItem value="Expired">Expired</SelectItem>
+                            <SelectItem value="Archived">History</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <Select value={filterMemberType} onValueChange={(value: 'All' | 'Vehicle' | 'Driver') => setFilterMemberType(value)}>
+                        <SelectTrigger className="w-[120px] h-9"><SelectValue placeholder="For Type" /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="All">Vehicles & Drivers</SelectItem>
+                            <SelectItem value="Vehicle">Vehicles</SelectItem>
+                            <SelectItem value="Driver">Drivers</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <Select value={filterMemberId} onValueChange={setFilterMemberId} disabled={filterMemberType === 'All'}>
+                        <SelectTrigger className="w-[180px] h-9"><SelectValue placeholder="All Members" /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="All">All {filterMemberType}s</SelectItem>
+                            {filterMemberType === 'Vehicle' && vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
+                            {filterMemberType === 'Driver' && drivers.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                </div>
+            </div>
+
+            {renderContent()}
+
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogContent className="sm:max-w-xl">
                     <DialogHeader>
                         <DialogTitle>{editingPolicy ? (isRenewal ? 'Renew Record' : 'Edit Record') : 'Add New Record'}</DialogTitle>
@@ -610,14 +612,9 @@ export default function PoliciesPage() {
                                                 </CommandEmpty>
                                                 <CommandGroup>
                                                     {policyTypes.map((type) => (
-                                                        <CommandItem key={type} value={type} onSelect={() => handleTypeSelect(type)} className="flex justify-between items-center">
-                                                            <div className="flex items-center">
-                                                                <Check className={cn("mr-2 h-4 w-4", formState.type.toLowerCase() === type.toLowerCase() ? "opacity-100" : "opacity-0")} />
-                                                                {type}
-                                                            </div>
-                                                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleEditType(type); }}>
-                                                                <Edit className="h-4 w-4"/>
-                                                            </Button>
+                                                        <CommandItem key={type} value={type} onSelect={() => handleTypeSelect(type)}>
+                                                            <Check className={cn("mr-2 h-4 w-4", formState.type.toLowerCase() === type.toLowerCase() ? "opacity-100" : "opacity-0")} />
+                                                            {type}
                                                         </CommandItem>
                                                     ))}
                                                 </CommandGroup>
@@ -650,14 +647,9 @@ export default function PoliciesPage() {
                                                 </CommandEmpty>
                                                 <CommandGroup>
                                                     {providers.map((provider) => (
-                                                        <CommandItem key={provider} value={provider} onSelect={() => handleProviderSelect(provider)} className="flex justify-between items-center">
-                                                            <div className="flex items-center">
-                                                                <Check className={cn("mr-2 h-4 w-4", formState.provider.toLowerCase() === provider.toLowerCase() ? "opacity-100" : "opacity-0")} />
-                                                                {provider}
-                                                            </div>
-                                                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleEditProvider(provider); }}>
-                                                                <Edit className="h-4 w-4"/>
-                                                            </Button>
+                                                        <CommandItem key={provider} value={provider} onSelect={() => handleProviderSelect(provider)}>
+                                                            <Check className={cn("mr-2 h-4 w-4", formState.provider.toLowerCase() === provider.toLowerCase() ? "opacity-100" : "opacity-0")} />
+                                                            {provider}
                                                         </CommandItem>
                                                     ))}
                                                 </CommandGroup>
@@ -727,7 +719,7 @@ export default function PoliciesPage() {
                             </div>
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="cost">Cost / Premium</Label>
+                            <Label htmlFor="cost">Cost / Premium (NPR)</Label>
                             <Input id="cost" name="cost" type="number" value={formState.cost} onChange={handleFormChange} />
                         </div>
                     </div>
@@ -737,54 +729,6 @@ export default function PoliciesPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-
-            <Dialog open={!!editingProvider} onOpenChange={() => setEditingProvider(null)}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Edit Provider</DialogTitle>
-                    </DialogHeader>
-                    {editingProvider && (
-                        <div className="grid gap-4 py-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="provider-name-edit">Provider Name</Label>
-                                <Input
-                                    id="provider-name-edit"
-                                    value={editingProvider.newName}
-                                    onChange={(e) => setEditingProvider(prev => prev ? { ...prev, newName: e.target.value } : null)}
-                                />
-                            </div>
-                        </div>
-                    )}
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setEditingProvider(null)}>Cancel</Button>
-                        <Button onClick={handleUpdateProvider}>Save Changes</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-            
-            <Dialog open={!!editingType} onOpenChange={() => setEditingType(null)}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Edit Type</DialogTitle>
-                    </DialogHeader>
-                    {editingType && (
-                        <div className="grid gap-4 py-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="type-name-edit">Type Name</Label>
-                                <Input
-                                    id="type-name-edit"
-                                    value={editingType.newName}
-                                    onChange={(e) => setEditingType(prev => prev ? { ...prev, newName: e.target.value } : null)}
-                                />
-                            </div>
-                        </div>
-                    )}
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setEditingType(null)}>Cancel</Button>
-                        <Button onClick={handleUpdateType}>Save Changes</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-        </>
+        </div>
     );
 }
