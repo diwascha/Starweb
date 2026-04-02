@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import type { PolicyOrMembership, Vehicle, Driver, PartyType, PolicyStatus } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, CalendarIcon, Check, ChevronsUpDown, User, RefreshCcw, Archive, AlertTriangle, Info, Loader2 } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, CalendarIcon, Check, ChevronsUpDown, User, RefreshCcw, Archive, AlertTriangle, Info, Loader2, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -56,6 +56,8 @@ export default function PoliciesPage() {
     const [isLoading, setIsLoading] = useState(true);
     
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+    const [viewingPolicy, setViewingPolicy] = useState<any>(null);
     const [editingPolicy, setEditingPolicy] = useState<PolicyOrMembership | null>(null);
     const [isRenewal, setIsRenewal] = useState(false);
     const [formState, setFormState] = useState<Omit<PolicyOrMembership, 'id' | 'createdBy' | 'lastModifiedBy' | 'createdAt' | 'lastModifiedAt'>>({
@@ -451,6 +453,9 @@ export default function PoliciesPage() {
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onSelect={() => { setViewingPolicy(policy); setIsViewDialogOpen(true); }}>
+                                                <Eye className="mr-2 h-4 w-4" /> View Details
+                                            </DropdownMenuItem>
                                             {hasPermission('fleet', 'edit') && (
                                                 <>
                                                  <DropdownMenuItem onSelect={() => handleOpenDialog(policy, true)}>
@@ -727,6 +732,68 @@ export default function PoliciesPage() {
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
                         <Button onClick={handleSubmit}>{editingPolicy ? 'Save Changes' : (isRenewal ? 'Renew Record' : 'Add Record')}</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Policy Details</DialogTitle>
+                        <DialogDescription>Full record information.</DialogDescription>
+                    </DialogHeader>
+                    {viewingPolicy && (
+                        <div className="space-y-4 py-4">
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                    <Label className="text-muted-foreground">Type</Label>
+                                    <p className="font-medium">{viewingPolicy.type}</p>
+                                </div>
+                                <div>
+                                    <Label className="text-muted-foreground">Status</Label>
+                                    <div className="mt-1">{getStatusBadge(viewingPolicy)}</div>
+                                </div>
+                                <div>
+                                    <Label className="text-muted-foreground">Provider</Label>
+                                    <p className="font-medium">{viewingPolicy.provider}</p>
+                                </div>
+                                <div>
+                                    <Label className="text-muted-foreground">Policy Number</Label>
+                                    <p className="font-medium">{viewingPolicy.policyNumber}</p>
+                                </div>
+                                <div className="col-span-2">
+                                    <Separator />
+                                </div>
+                                <div>
+                                    <Label className="text-muted-foreground">Associated {viewingPolicy.memberType}</Label>
+                                    <p className="font-medium">{viewingPolicy.memberName}</p>
+                                </div>
+                                <div>
+                                    <Label className="text-muted-foreground">Premium / Cost</Label>
+                                    <p className="font-medium">Rs. {viewingPolicy.cost.toLocaleString()}</p>
+                                </div>
+                                <div>
+                                    <Label className="text-muted-foreground">Start Date (BS)</Label>
+                                    <p className="font-medium">{toNepaliDate(viewingPolicy.startDate)}</p>
+                                    <p className="text-xs text-muted-foreground">({format(new Date(viewingPolicy.startDate), "PPP")})</p>
+                                </div>
+                                <div>
+                                    <Label className="text-muted-foreground">End Date (BS)</Label>
+                                    <p className="font-medium">{toNepaliDate(viewingPolicy.endDate)}</p>
+                                    <p className="text-xs text-muted-foreground">({format(new Date(viewingPolicy.endDate), "PPP")})</p>
+                                </div>
+                            </div>
+                            <Separator />
+                            <div className="text-[10px] text-muted-foreground space-y-1">
+                                <p>Created by: {viewingPolicy.createdBy} on {format(new Date(viewingPolicy.createdAt), "PPp")}</p>
+                                {viewingPolicy.lastModifiedBy && (
+                                    <p>Last modified by: {viewingPolicy.lastModifiedBy} on {format(new Date(viewingPolicy.lastModifiedAt || viewingPolicy.createdAt), "PPp")}</p>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>Close</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
