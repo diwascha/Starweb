@@ -1,10 +1,14 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import Link from 'next/link';
-import type { PolicyOrMembership, Vehicle, Driver, PartyType, PolicyStatus } from '@/lib/types';
+import type { PolicyOrMembership, Vehicle, Driver, PolicyStatus } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, CalendarIcon, Check, ChevronsUpDown, User, RefreshCcw, Archive, AlertTriangle, Info, Loader2, Eye } from 'lucide-react';
+import { 
+  Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, 
+  CalendarIcon, Check, ChevronsUpDown, User, RefreshCcw, 
+  Archive, AlertTriangle, Info, Loader2, Eye 
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -17,7 +21,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -28,7 +31,6 @@ import {
   AlertDialogTitle,
   AlertDialogDescription,
   AlertDialogFooter,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Label } from '@/components/ui/label';
@@ -82,7 +84,6 @@ export default function PoliciesPage() {
     const [filterMemberType, setFilterMemberType] = useState<'All' | 'Vehicle' | 'Driver'>('All');
     const [filterMemberId, setFilterMemberId] = useState<string>('All');
     const [filterStatus, setFilterStatus] = useState<StatusFilter>('Active');
-
 
     const { toast } = useToast();
     const { hasPermission, user } = useAuth();
@@ -264,7 +265,6 @@ export default function PoliciesPage() {
           toast({ title: 'Error', description: 'Failed to archive policy.', variant: 'destructive' });
         }
     };
-      
 
     const handleDelete = async (id: string) => {
         try {
@@ -303,7 +303,6 @@ export default function PoliciesPage() {
             }
         });
 
-        // 1. Filter by Status
         if (filterStatus === 'Active') {
             augmentedPolicies = augmentedPolicies.filter(p => p.displayStatus === 'Active');
         } else if (filterStatus === 'Expiring Soon') {
@@ -314,7 +313,6 @@ export default function PoliciesPage() {
             augmentedPolicies = augmentedPolicies.filter(p => p.displayStatus === 'Archived' || p.displayStatus === 'Renewed');
         }
 
-        // 2. Filter by Search Query
         if (searchQuery) {
             const lowercasedQuery = searchQuery.toLowerCase();
             augmentedPolicies = augmentedPolicies.filter(p =>
@@ -325,7 +323,6 @@ export default function PoliciesPage() {
             );
         }
         
-        // 3. Filter by Member Type/Id
         if (filterMemberType !== 'All') {
             augmentedPolicies = augmentedPolicies.filter(p => p.memberType === filterMemberType);
              if (filterMemberId !== 'All') {
@@ -333,7 +330,6 @@ export default function PoliciesPage() {
             }
         }
 
-        // 4. Sort
         augmentedPolicies.sort((a, b) => {
             if (sortConfig.key === 'authorship') {
                 const aDate = a.lastModifiedAt || a.createdAt;
@@ -365,7 +361,6 @@ export default function PoliciesPage() {
         if (policy.daysRemaining <= 15) return <Badge variant="default" className="bg-amber-500 text-black hover:bg-amber-600">Soon</Badge>;
         return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Active</Badge>;
     };
-
 
     const renderContent = () => {
         if (isLoading) {
@@ -688,7 +683,8 @@ export default function PoliciesPage() {
                                         {formState.memberType === 'Vehicle' ? (
                                             vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)
                                         ) : (
-                                            drivers.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                                            drivers.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)
+                                        )}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -729,8 +725,8 @@ export default function PoliciesPage() {
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-                        <Button onClick={handleSubmit}>{editingPolicy ? 'Save Changes' : (isRenewal ? 'Renew Record' : 'Add Record')}</Button>
+                        <Button variant="outline" onClick={() => { setIsDialogOpen(false); resetForm(); }}>Cancel</Button>
+                        <Button onClick={handleSubmit}>{editingPolicy ? (isRenewal ? 'Renew Record' : 'Save Changes') : (isRenewal ? 'Renew Record' : 'Add Record')}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

@@ -24,6 +24,9 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): PolicyOrM
         createdAt: data.createdAt,
         lastModifiedBy: data.lastModifiedBy,
         lastModifiedAt: data.lastModifiedAt,
+        status: data.status,
+        renewedFromId: data.renewedFromId,
+        renewedToId: data.renewedToId,
     };
 }
 
