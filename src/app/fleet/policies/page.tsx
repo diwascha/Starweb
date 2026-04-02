@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -31,6 +30,7 @@ import {
   AlertDialogTitle,
   AlertDialogDescription,
   AlertDialogFooter,
+  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Label } from '@/components/ui/label';
@@ -71,7 +71,7 @@ export default function PoliciesPage() {
         cost: 0,
         memberId: '',
         memberType: 'Vehicle',
-        renewedFromId: undefined,
+        renewedFromId: null,
         status: 'Active',
     });
     
@@ -129,6 +129,7 @@ export default function PoliciesPage() {
             memberId: '',
             memberType: 'Vehicle',
             status: 'Active',
+            renewedFromId: null,
         });
     };
 
