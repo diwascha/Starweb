@@ -24,10 +24,10 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -401,7 +401,7 @@ export default function PoliciesPage() {
                             <TableHead><Button variant="ghost" onClick={() => requestSort('policyNumber')} className="p-0">Policy # <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('memberName')} className="p-0">For <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('endDate')} className="p-0">Expiry Date <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('cost')} className="p-0 text-right w-full">Premium <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                            <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('cost')} className="p-0 text-right w-full">Premium <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead>Status</TableHead>
                              <TableHead><Button variant="ghost" onClick={() => requestSort('authorship')} className="p-0">Authorship <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead className="text-right">Actions</TableHead>
@@ -464,7 +464,7 @@ export default function PoliciesPage() {
                                                 <DropdownMenuItem onSelect={() => handleOpenDialog(policy)}>
                                                     <Edit className="mr-2 h-4 w-4" /> Edit
                                                 </DropdownMenuItem>
-                                                {policy.status === 'Active' && (
+                                                {policy.status !== 'Archived' && policy.status !== 'Renewed' && (
                                                     <DropdownMenuItem onSelect={() => handleArchive(policy)}>
                                                         <Archive className="mr-2 h-4 w-4" /> Move to History
                                                     </DropdownMenuItem>
@@ -688,8 +688,7 @@ export default function PoliciesPage() {
                                         {formState.memberType === 'Vehicle' ? (
                                             vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)
                                         ) : (
-                                            drivers.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)
-                                        )}
+                                            drivers.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             </div>
