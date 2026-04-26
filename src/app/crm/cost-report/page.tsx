@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import type { Product, Party, PartyType, CostReport, CostReportItem, ProductSpecification, CostSetting, Accessory as ProductAccessory, Product as ProductType, CostReportTerm, CalculatedValues } from '@/lib/types';
+import type { Product, Party, PartyType, CostReport, CostReportItem, ProductSpecification, CostSetting, Accessory as ProductAccessory, CalculatedValues, CostReportTerm } from '@/lib/types';
 import { onProductsUpdate, addProduct as addProductService, updateProduct as updateProductService, deleteProduct as deleteProductService } from '@/services/product-service';
 import { onPartiesUpdate, addParty } from '@/services/party-service';
 import { onCostReportsUpdate, addCostReport, deleteCostReport, generateNextCostReportNumber, updateCostReport } from '@/services/cost-report-service';
@@ -25,12 +25,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import html2canvas from 'html2canvas';
-import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { onSettingUpdate, updateCostSettings } from '@/services/settings-service';
+import { onSettingUpdate } from '@/services/settings-service';
 import React from 'react';
 
 const bfOptions = ['16 BF', '18 BF', '20 BF', '22 BF'];
@@ -238,8 +235,8 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
   const [selectedForPrint, setSelectedForPrint] = useState(new Set<string>());
   const [isSaving, setIsSaving] = useState(false);
   const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
+  const [partyForm, setPartyForm] = useState<{ name: string, type: PartyType, address?: string, panNumber?: string }>({ name: '', type: 'Customer', address: '', panNumber: '' });
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
-  const [productFormForAdd, setProductFormForAdd] = useState<any>(null);
   const [pendingIdx, setPendingIdx] = useState<number | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [costSettings, setCostSettings] = useState<CostSetting | null>(null);
@@ -297,6 +294,23 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     const item = { ...next[idx], [f]: f === 'paperBf' ? normalizeBF(v) : v };
     next[idx] = { ...item, calculated: calculateItemCost(item, kraftPaperCosts, Number(virginPaperCost) || 0, Number(conversionCost) || 0) };
     setItems(next);
+  };
+
+  const handleSubmitParty = async () => {
+    if (!user) return;
+    if (!partyForm.name) {
+        toast({ title: 'Error', description: 'Party name is required.', variant: 'destructive' });
+        return;
+    }
+    try {
+        const newPartyId = await addParty({ ...partyForm, createdBy: user.username });
+        setSelectedPartyId(newPartyId);
+        toast({ title: 'Success', description: 'New party added.' });
+        setIsPartyDialogOpen(false);
+        setPartyForm({ name: '', type: 'Customer', address: '', panNumber: '' });
+    } catch {
+        toast({ title: 'Error', description: 'Failed to add party.', variant: 'destructive' });
+    }
   };
 
   return (
