@@ -321,7 +321,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
             </Button>
             <Button onClick={handlePrint}><Printer className="mr-2 h-4 w-4" /> Print</Button>
         </DialogFooter>
-      </Dialog>
+      </DialogContent>
     </Dialog>
   );
 }
@@ -664,7 +664,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                             {bfOptions.map(bf => (
                                 <div key={bf} className="flex items-center justify-between gap-2">
                                     <Label className="text-[10px] whitespace-nowrap">{bf}</Label>
-                                    <Input type="number" className="w-20 h-9 text-xs px-2" value={kraftPaperCosts[normalizeBF(bf)] ?? ''} onChange={e => handleCostChange('kraft', e.target.value, bf)} />
+                                    <Input type="number" className="w-24 h-9 text-xs px-2" value={kraftPaperCosts[normalizeBF(bf)] ?? ''} onChange={e => handleCostChange('kraft', e.target.value, bf)} />
                                 </div>
                             ))}
                         </div>
@@ -739,35 +739,35 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
             <CardContent className="p-0">
                 <ScrollArea className="w-full">
                     <div className="p-4">
-                        <Table className="text-xs min-w-[1600px]">
+                        <Table className="text-xs min-w-[1700px]">
                             <TableHeader>
                                 <TableRow className="h-10 bg-muted/30">
                                     <TableHead rowSpan={2} className="w-[40px] px-2"><Checkbox checked={selectedForPrint.size === items.length && items.length > 0} onCheckedChange={v => setSelectedForPrint(v ? new Set(items.map(i => i.id)) : new Set())}/></TableHead>
                                     <TableHead rowSpan={2} className="min-w-[220px]">Item Name</TableHead>
                                     <TableHead colSpan={3} className="text-center border-x">Box Size (mm)</TableHead>
-                                    <TableHead rowSpan={2} className="text-center w-[70px]">Pcs</TableHead>
-                                    <TableHead rowSpan={2} className="text-center w-[80px]">Ply</TableHead>
-                                    <TableHead rowSpan={2} className="text-center w-[100px]">Type (K/V/M)</TableHead>
-                                    <TableHead rowSpan={2} className="text-center w-[110px]">Paper BF</TableHead>
-                                    <TableHead rowSpan={2} className="text-center w-[80px]">Waste %</TableHead>
+                                    <TableHead rowSpan={2} className="text-center w-[100px]">Pcs</TableHead>
+                                    <TableHead rowSpan={2} className="text-center w-[100px]">Ply</TableHead>
+                                    <TableHead rowSpan={2} className="text-center w-[140px]">Type (K/V/M)</TableHead>
+                                    <TableHead rowSpan={2} className="text-center w-[120px]">Paper BF</TableHead>
+                                    <TableHead rowSpan={2} className="text-center w-[100px]">Waste %</TableHead>
                                     <TableHead colSpan={maxPly} className="text-center border-x">GSM Layers</TableHead>
-                                    <TableHead rowSpan={2} className="text-center w-[80px]">T.GSM</TableHead>
-                                    <TableHead rowSpan={2} className="text-center w-[80px]">Wt(g)</TableHead>
-                                    <TableHead rowSpan={2} className="text-center w-[80px]">Total Wt</TableHead>
-                                    <TableHead rowSpan={2} className="text-center w-[100px]">Paper Rs</TableHead>
-                                    <TableHead rowSpan={2} className="text-right w-[100px] pr-6">Total</TableHead>
+                                    <TableHead rowSpan={2} className="text-center w-[100px]">T.GSM</TableHead>
+                                    <TableHead rowSpan={2} className="text-center w-[100px]">Wt(g)</TableHead>
+                                    <TableHead rowSpan={2} className="text-center w-[120px]">Total Wt</TableHead>
+                                    <TableHead rowSpan={2} className="text-center w-[130px]">Paper Rs</TableHead>
+                                    <TableHead rowSpan={2} className="text-right w-[130px] pr-6">Total</TableHead>
                                     <TableHead rowSpan={2} className="w-[80px]"></TableHead>
                                 </TableRow>
                                 <TableRow className="h-10 bg-muted/10">
-                                    <TableHead className="text-center border-l w-[70px]">L</TableHead>
-                                    <TableHead className="text-center w-[70px]">B</TableHead>
-                                    <TableHead className="text-center border-r w-[70px]">H</TableHead>
-                                    <TableHead className="text-center border-l w-[70px]">T</TableHead>
-                                    <TableHead className="text-center w-[70px]">F1</TableHead>
-                                    {maxPly >= 5 && <TableHead className="text-center w-[70px]">F2</TableHead>}
-                                    {maxPly >= 5 && <TableHead className="text-center w-[70px]">M</TableHead>}
-                                    {maxPly >= 7 && <TableHead className="text-center w-[70px]">F3</TableHead>}
-                                    <TableHead className="text-center border-r w-[70px]">B</TableHead>
+                                    <TableHead className="text-center border-l w-[100px]">L</TableHead>
+                                    <TableHead className="text-center w-[100px]">B</TableHead>
+                                    <TableHead className="text-center border-r w-[100px]">H</TableHead>
+                                    <TableHead className="text-center border-l w-[100px]">T</TableHead>
+                                    <TableHead className="text-center w-[100px]">F1</TableHead>
+                                    {maxPly >= 5 && <TableHead className="text-center w-[100px]">F2</TableHead>}
+                                    {maxPly >= 5 && <TableHead className="text-center w-[100px]">M</TableHead>}
+                                    {maxPly >= 7 && <TableHead className="text-center w-[100px]">F3</TableHead>}
+                                    <TableHead className="text-center border-r w-[100px]">B</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -792,19 +792,19 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                                     </Popover>
                                                 </div>
                                             </TableCell>
-                                            <TableCell className="border-l"><Input type="number" value={item.l} onChange={e => handleItemChange(idx, 'l', e.target.value)} className="w-20 h-9 px-1 text-center" /></TableCell>
-                                            <TableCell><Input type="number" value={item.b} onChange={e => handleItemChange(idx, 'b', e.target.value)} className="w-20 h-9 px-1 text-center" /></TableCell>
-                                            <TableCell className="border-r"><Input type="number" value={item.h} onChange={e => handleItemChange(idx, 'h', e.target.value)} className="w-20 h-9 px-1 text-center" /></TableCell>
-                                            <TableCell><Input type="number" value={item.noOfPcs} onChange={e => handleItemChange(idx, 'noOfPcs', e.target.value)} className="w-16 h-9 px-1 text-center" /></TableCell>
+                                            <TableCell className="border-l"><Input type="number" value={item.l} onChange={e => handleItemChange(idx, 'l', e.target.value)} className="w-full h-9 px-2 text-center" /></TableCell>
+                                            <TableCell><Input type="number" value={item.b} onChange={e => handleItemChange(idx, 'b', e.target.value)} className="w-full h-9 px-2 text-center" /></TableCell>
+                                            <TableCell className="border-r"><Input type="number" value={item.h} onChange={e => handleItemChange(idx, 'h', e.target.value)} className="w-full h-9 px-2 text-center" /></TableCell>
+                                            <TableCell><Input type="number" value={item.noOfPcs} onChange={e => handleItemChange(idx, 'noOfPcs', e.target.value)} className="w-full h-9 px-2 text-center" /></TableCell>
                                             <TableCell>
                                                 <Select value={item.ply} onValueChange={v => handleItemChange(idx, 'ply', v)}>
-                                                    <SelectTrigger className="h-9"><SelectValue/></SelectTrigger>
+                                                    <SelectTrigger className="h-9 w-full"><SelectValue/></SelectTrigger>
                                                     <SelectContent><SelectItem value="3">3</SelectItem><SelectItem value="5">5</SelectItem><SelectItem value="7">7</SelectItem><SelectItem value="9">9</SelectItem></SelectContent>
                                                 </Select>
                                             </TableCell>
                                             <TableCell>
                                                 <Select value={item.paperType} onValueChange={v => handleItemChange(idx, 'paperType', v)}>
-                                                    <SelectTrigger className="h-9"><SelectValue/></SelectTrigger>
+                                                    <SelectTrigger className="h-9 w-full"><SelectValue/></SelectTrigger>
                                                     <SelectContent>
                                                         <SelectItem value="KRAFT">Kraft (K)</SelectItem>
                                                         <SelectItem value="VIRGIN">Virgin (V)</SelectItem>
@@ -814,16 +814,16 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                             </TableCell>
                                             <TableCell>
                                                 <Select value={normalizeBF(item.paperBf)} onValueChange={v => handleItemChange(idx, 'paperBf', v)}>
-                                                    <SelectTrigger className="h-9 w-24"><SelectValue/></SelectTrigger>
+                                                    <SelectTrigger className="h-9 w-full"><SelectValue/></SelectTrigger>
                                                     <SelectContent>{bfOptions.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
                                                 </Select>
                                             </TableCell>
-                                            <TableCell><Input type="number" value={item.wastagePercent} onChange={e => handleItemChange(idx, 'wastagePercent', e.target.value)} className="w-20 h-9 px-1 text-center" /></TableCell>
-                                            <TableCell className="border-l"><Input type="number" value={item.topGsm} onChange={e => handleItemChange(idx, 'topGsm', e.target.value)} className="w-20 h-9 px-1 text-center" /></TableCell>
-                                            <TableCell><Input type="number" value={item.flute1Gsm} onChange={e => handleItemChange(idx, 'flute1Gsm', e.target.value)} className="w-20 h-9 px-1 text-center" /></TableCell>
-                                            {maxPly >= 5 && <TableCell><Input type="number" value={item.flute2Gsm} onChange={e => handleItemChange(idx, 'flute2Gsm', e.target.value)} className="w-20 h-9 px-1 text-center" /></TableCell>}
-                                            {maxPly >= 5 && <TableCell><Input type="number" value={item.middleGsm} onChange={e => handleItemChange(idx, 'middleGsm', e.target.value)} className="w-20 h-9 px-1 text-center" /></TableCell>}
-                                            <TableCell className="border-r"><Input type="number" value={item.bottomGsm} onChange={e => handleItemChange(idx, 'bottomGsm', e.target.value)} className="w-20 h-9 px-1 text-center" /></TableCell>
+                                            <TableCell><Input type="number" value={item.wastagePercent} onChange={e => handleItemChange(idx, 'wastagePercent', e.target.value)} className="w-full h-9 px-2 text-center" /></TableCell>
+                                            <TableCell className="border-l"><Input type="number" value={item.topGsm} onChange={e => handleItemChange(idx, 'topGsm', e.target.value)} className="w-full h-9 px-2 text-center" /></TableCell>
+                                            <TableCell><Input type="number" value={item.flute1Gsm} onChange={e => handleItemChange(idx, 'flute1Gsm', e.target.value)} className="w-full h-9 px-2 text-center" /></TableCell>
+                                            {maxPly >= 5 && <TableCell><Input type="number" value={item.flute2Gsm} onChange={e => handleItemChange(idx, 'flute2Gsm', e.target.value)} className="w-full h-9 px-2 text-center" /></TableCell>}
+                                            {maxPly >= 5 && <TableCell><Input type="number" value={item.middleGsm} onChange={e => handleItemChange(idx, 'middleGsm', e.target.value)} className="w-full h-9 px-2 text-center" /></TableCell>}
+                                            <TableCell className="border-r"><Input type="number" value={item.bottomGsm} onChange={e => handleItemChange(idx, 'bottomGsm', e.target.value)} className="w-full h-9 px-2 text-center" /></TableCell>
                                             <TableCell className="text-center font-medium">{item.calculated?.totalGsm.toFixed(0)}</TableCell>
                                             <TableCell className="text-center font-medium">{item.calculated?.paperWeight.toFixed(0)}</TableCell>
                                             <TableCell className="text-center font-medium">{item.calculated?.totalBoxWeight.toFixed(0)}</TableCell>
@@ -844,7 +844,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                                         <Input value={acc.name} onChange={e => { const k = Object.fromEntries(Object.entries(kraftPaperCosts).map(([b, c]) => [normalizeBF(b), Number(c) || 0])); const vi = Number(virginPaperCost) || 0; const co = Number(conversionCost) || 0; const next = [...items]; next[idx].accessories![aIdx].name = e.target.value; setItems(next); }} className="h-8 text-xs w-48" />
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="border-l"><Input type="number" value={acc.l} onChange={e => { const k = Object.fromEntries(Object.entries(kraftPaperCosts).map(([b, c]) => [normalizeBF(b), Number(c) || 0])); const vi = Number(virginPaperCost) || 0; const co = Number(conversionCost) || 0; const next = [...items]; const ac = { ...next[idx].accessories![aIdx], l: e.target.value }; ac.calculated = calculateItemCost(ac, k, vi, co); next[idx].accessories![aIdx] = ac; setItems(next); }} className="w-20 h-8 px-1 text-center" /></TableCell>
+                                                <TableCell className="border-l"><Input type="number" value={acc.l} onChange={e => { const k = Object.fromEntries(Object.entries(kraftPaperCosts).map(([b, c]) => [normalizeBF(b), Number(c) || 0])); const vi = Number(virginPaperCost) || 0; const co = Number(conversionCost) || 0; const next = [...items]; const ac = { ...next[idx].accessories![aIdx], l: e.target.value }; ac.calculated = calculateItemCost(ac, k, vi, co); next[idx].accessories![aIdx] = ac; setItems(next); }} className="w-full h-8 px-2 text-center" /></TableCell>
                                                 <TableCell colSpan={11}></TableCell>
                                                 <TableCell className="text-center font-medium text-muted-foreground">{acc.calculated?.paperCost.toFixed(2)}</TableCell>
                                                 <TableCell colSpan={2}></TableCell>
@@ -880,9 +880,11 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
         </Dialog>
 
         <Dialog open={isProductDialogOpen} onOpenChange={setIsProductDialogOpen}>
-            <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
-                <DialogHeader><DialogTitle>Quick Add New Product</DialogTitle></DialogHeader>
-                <ScrollArea className="flex-1">
+            <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col p-0">
+                <DialogHeader className="p-6 pb-2">
+                    <DialogTitle>Quick Add New Product</DialogTitle>
+                </DialogHeader>
+                <ScrollArea className="flex-1 px-6 pb-6">
                     <ProductForm productToEdit={productFormForAdd} onSaveSuccess={handleQuickAddProduct} />
                 </ScrollArea>
             </DialogContent>
@@ -977,12 +979,12 @@ function SavedProductsList() {
     };
 
     return (
-      <><Card><CardHeader><div className="flex justify-between items-center"><div><CardTitle>Products for Costing</CardTitle></div><div className="flex gap-2"><Input placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-64" /><Button onClick={() => { setEditingProduct(null); setIsDialogOpen(true); }}>Add Product</Button></div></div></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Product Name</TableHead><TableHead>Delivered To</TableHead><TableHead>Dimension</TableHead><TableHead>Ply</TableHead><TableHead>GSM</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{sorted.map(p => (<TableRow key={p.id}><TableCell>{p.name}</TableCell><TableCell>{p.partyName || 'N/A'}</TableCell><TableCell>{p.specification?.dimension || 'N/A'}</TableCell><TableCell>{p.specification?.ply || 'N/A'}</TableCell><TableCell><CompactGsmDisplay item={p} /></TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger><DropdownMenuContent><DropdownMenuItem onSelect={() => { setEditingProduct(p); setIsDialogOpen(true); }}>Edit</DropdownMenuItem><AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive">Delete</DropdownMenuItem></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => deleteProductService(p.id)}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog></DropdownMenuContent></DropdownMenu></TableCell></TableRow>))}</TableBody></Table></CardContent></Card><Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}><DialogContent className="max-w-3xl"><DialogHeader><DialogTitle>{editingProduct ? 'Edit' : 'Add'} Product</DialogTitle></DialogHeader><ProductForm productToEdit={editingProduct} onSaveSuccess={handleProductSave}/></DialogContent></Dialog></>
+      <><Card><CardHeader><div className="flex justify-between items-center"><div><CardTitle>Products for Costing</CardTitle></div><div className="flex gap-2"><Input placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-64" /><Button onClick={() => { setEditingProduct(null); setIsDialogOpen(true); }}>Add Product</Button></div></div></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Product Name</TableHead><TableHead>Delivered To</TableHead><TableHead>Dimension</TableHead><TableHead>Ply</TableHead><TableHead>GSM</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{sorted.map(p => (<TableRow key={p.id}><TableCell>{p.name}</TableCell><TableCell>{p.partyName || 'N/A'}</TableCell><TableCell>{p.specification?.dimension || 'N/A'}</TableCell><TableCell>{p.specification?.ply || 'N/A'}</TableCell><TableCell><CompactGsmDisplay item={p} /></TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger><DropdownMenuContent><DropdownMenuItem onSelect={() => { setEditingProduct(p); setIsDialogOpen(true); }}>Edit</DropdownMenuItem><AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive">Delete</DropdownMenuItem></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => deleteProductService(p.id)}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog></DropdownMenuContent></DropdownMenu></TableCell></TableRow>))}</TableBody></Table></CardContent></Card><Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}><DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0"><DialogHeader className="p-6 pb-2"><DialogTitle>{editingProduct ? 'Edit' : 'Add'} Product</DialogTitle></DialogHeader><ScrollArea className="flex-1 px-6 pb-6"><ProductForm productToEdit={editingProduct} onSaveSuccess={handleProductSave}/></ScrollArea></DialogContent></Dialog></>
     );
 }
 
 function ProductForm({ productToEdit, onSaveSuccess }: any) {
-    const [form, setForm] = useState<any>({ name: '', materialCode: '', partyId: '', specification: { ply: '3', wastagePercent: '3.5', boxType: 'RSC', paperType: 'KRAFT', paperBf: '18 BF', topGsm: '120', flute1Gsm: '100', bottomGsm: '120' }, accessories: [] });
+    const [form, setForm] = useState<any>({ name: '', materialCode: '', partyId: '', specification: { ply: '3', wastagePercent: '3.5', boxType: 'RSC', paperType: 'KRAFT', paperBf: '18 BF', topGsm: '120', flute1Gsm: '100', middleGsm: '', flute2Gsm: '', bottomGsm: '120', liner2Gsm: '', flute3Gsm: '', liner3Gsm: '', flute4Gsm: '', liner4Gsm: '', weightOfBox: '', load: '', moisture: '', printing: '' }, accessories: [] });
     const [dim, setDim] = useState({ l: '', b: '', h: '' });
     const [parties, setParties] = useState<Party[]>([]);
     const { user } = useAuth();
@@ -997,10 +999,10 @@ function ProductForm({ productToEdit, onSaveSuccess }: any) {
         if (productToEdit) {
             const [l, b, h] = productToEdit.specification?.dimension?.split('x') || ['', '', ''];
             setDim({ l, b, h });
-            setForm({ ...productToEdit, specification: { ...productToEdit.specification } });
+            setForm({ ...productToEdit, specification: { ...form.specification, ...productToEdit.specification } });
         } else {
             setDim({ l: '', b: '', h: '' });
-            setForm({ name: '', materialCode: '', partyId: '', specification: { ply: '3', wastagePercent: '3.5', boxType: 'RSC', paperType: 'KRAFT', paperBf: '18 BF', topGsm: '120', flute1Gsm: '100', bottomGsm: '120' }, accessories: [] });
+            setForm({ name: '', materialCode: '', partyId: '', specification: { ply: '3', wastagePercent: '3.5', boxType: 'RSC', paperType: 'KRAFT', paperBf: '18 BF', topGsm: '120', flute1Gsm: '100', middleGsm: '', flute2Gsm: '', bottomGsm: '120', liner2Gsm: '', flute3Gsm: '', liner3Gsm: '', flute4Gsm: '', liner4Gsm: '', weightOfBox: '', load: '', moisture: '', printing: '' }, accessories: [] });
         }
     }, [productToEdit]);
 
@@ -1028,10 +1030,10 @@ function ProductForm({ productToEdit, onSaveSuccess }: any) {
     const ply = parseInt(form.specification.ply, 10);
 
     return (
-        <div className="p-6 space-y-6">
+        <div className="space-y-6 pt-2">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
-                    <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">General Info</h3>
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground border-b pb-1">General Info</h3>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1"><Label>Product Name</Label><Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="e.g. Apple Box" /></div>
                         <div className="space-y-1"><Label>Material Code</Label><Input value={form.materialCode} onChange={e => setForm({...form, materialCode: e.target.value})} placeholder="CODE-123" /></div>
@@ -1046,11 +1048,16 @@ function ProductForm({ productToEdit, onSaveSuccess }: any) {
                 </div>
 
                 <div className="space-y-4">
-                    <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Box Dimensions (mm)</h3>
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground border-b pb-1">Box Size (mm) & Physical Specs</h3>
                     <div className="grid grid-cols-3 gap-2">
                         <div className="space-y-1"><Label>Length</Label><Input type="number" value={dim.l} onChange={e => setDim({...dim, l: e.target.value})} /></div>
                         <div className="space-y-1"><Label>Breadth</Label><Input type="number" value={dim.b} onChange={e => setDim({...dim, b: e.target.value})} /></div>
                         <div className="space-y-1"><Label>Height</Label><Input type="number" value={dim.h} onChange={e => setDim({...dim, h: e.target.value})} /></div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                        <div className="space-y-1"><Label>Weight (G)</Label><Input value={form.specification.weightOfBox} onChange={e => updateSpec('weightOfBox', e.target.value)} /></div>
+                        <div className="space-y-1"><Label>Load (KGF)</Label><Input value={form.specification.load} onChange={e => updateSpec('load', e.target.value)} /></div>
+                        <div className="space-y-1"><Label>Moisture %</Label><Input value={form.specification.moisture} onChange={e => updateSpec('moisture', e.target.value)} /></div>
                     </div>
                 </div>
             </div>
@@ -1058,8 +1065,8 @@ function ProductForm({ productToEdit, onSaveSuccess }: any) {
             <Separator />
 
             <div className="space-y-4">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Board Specifications</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground border-b pb-1">Board & Manufacturing Specs</h3>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                     <div className="space-y-1">
                         <Label>Ply</Label>
                         <Select value={form.specification.ply} onValueChange={v => updateSpec('ply', v)}>
@@ -1085,15 +1092,46 @@ function ProductForm({ productToEdit, onSaveSuccess }: any) {
                             <SelectContent>{bfOptions.map(bf => <SelectItem key={bf} value={bf}>{bf}</SelectItem>)}</SelectContent>
                         </Select>
                     </div>
+                    <div className="space-y-1">
+                        <Label>Waste %</Label>
+                        <Input type="number" value={form.specification.wastagePercent} onChange={e => updateSpec('wastagePercent', e.target.value)} />
+                    </div>
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 pt-2">
-                    <div className="space-y-1"><Label>Top GSM</Label><Input type="number" value={form.specification.topGsm} onChange={e => updateSpec('topGsm', e.target.value)} /></div>
-                    <div className="space-y-1"><Label>Flute 1 GSM</Label><Input type="number" value={form.specification.flute1Gsm} onChange={e => updateSpec('flute1Gsm', e.target.value)} /></div>
-                    {ply >= 5 && <div className="space-y-1"><Label>Flute 2 GSM</Label><Input type="number" value={form.specification.flute2Gsm} onChange={e => updateSpec('flute2Gsm', e.target.value)} /></div>}
-                    {ply >= 5 && <div className="space-y-1"><Label>Middle GSM</Label><Input type="number" value={form.specification.middleGsm} onChange={e => updateSpec('middleGsm', e.target.value)} /></div>}
-                    <div className="space-y-1"><Label>Bottom GSM</Label><Input type="number" value={form.specification.bottomGsm} onChange={e => updateSpec('bottomGsm', e.target.value)} /></div>
-                    <div className="space-y-1"><Label>Waste %</Label><Input type="number" value={form.specification.wastagePercent} onChange={e => updateSpec('wastagePercent', e.target.value)} /></div>
+                <div className="space-y-2">
+                    <Label className="text-xs font-bold text-muted-foreground uppercase">Board Composition (GSM Layers)</Label>
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 bg-muted/20 p-4 rounded-md">
+                        <div className="space-y-1"><Label className="text-[10px]">Top GSM</Label><Input type="number" value={form.specification.topGsm} onChange={e => updateSpec('topGsm', e.target.value)} /></div>
+                        <div className="space-y-1"><Label className="text-[10px]">Flute 1 GSM</Label><Input type="number" value={form.specification.flute1Gsm} onChange={e => updateSpec('flute1Gsm', e.target.value)} /></div>
+                        
+                        {ply >= 5 && (
+                            <>
+                                <div className="space-y-1"><Label className="text-[10px]">Middle GSM</Label><Input type="number" value={form.specification.middleGsm} onChange={e => updateSpec('middleGsm', e.target.value)} /></div>
+                                <div className="space-y-1"><Label className="text-[10px]">Flute 2 GSM</Label><Input type="number" value={form.specification.flute2Gsm} onChange={e => updateSpec('flute2Gsm', e.target.value)} /></div>
+                            </>
+                        )}
+                        
+                        {ply >= 7 && (
+                            <>
+                                <div className="space-y-1"><Label className="text-[10px]">Liner 2 GSM</Label><Input type="number" value={form.specification.liner2Gsm} onChange={e => updateSpec('liner2Gsm', e.target.value)} /></div>
+                                <div className="space-y-1"><Label className="text-[10px]">Flute 3 GSM</Label><Input type="number" value={form.specification.flute3Gsm} onChange={e => updateSpec('flute3Gsm', e.target.value)} /></div>
+                            </>
+                        )}
+
+                        {ply >= 9 && (
+                            <>
+                                <div className="space-y-1"><Label className="text-[10px]">Liner 3 GSM</Label><Input type="number" value={form.specification.liner3Gsm} onChange={e => updateSpec('liner3Gsm', e.target.value)} /></div>
+                                <div className="space-y-1"><Label className="text-[10px]">Flute 4 GSM</Label><Input type="number" value={form.specification.flute4Gsm} onChange={e => updateSpec('flute4Gsm', e.target.value)} /></div>
+                            </>
+                        )}
+
+                        <div className="space-y-1"><Label className="text-[10px]">Bottom GSM</Label><Input type="number" value={form.specification.bottomGsm} onChange={e => updateSpec('bottomGsm', e.target.value)} /></div>
+                    </div>
+                </div>
+
+                <div className="space-y-2">
+                    <Label>Printing & Finishing Details</Label>
+                    <Textarea value={form.specification.printing} onChange={e => updateSpec('printing', e.target.value)} placeholder="e.g. 2 Color Printing, Stapled 10 Pins..." />
                 </div>
             </div>
 
