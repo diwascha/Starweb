@@ -2,15 +2,15 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { Product, Party, PartyType, CostReport, CostReportItem, ProductSpecification, CostSetting, Accessory as ProductAccessory, Product as ProductType, CostReportTerm } from '@/lib/types';
 import { onProductsUpdate, addProduct as addProductService, updateProduct as updateProductService, deleteProduct as deleteProductService } from '@/services/product-service';
-import { onPartiesUpdate, addParty, updateParty } from '@/services/party-service';
-import { onCostReportsUpdate, addCostReport, deleteCostReport, generateNextCostReportNumber, getCostReport, updateCostReport } from '@/services/cost-report-service';
+import { onPartiesUpdate, addParty } from '@/services/party-service';
+import { onCostReportsUpdate, addCostReport, deleteCostReport, generateNextCostReportNumber, updateCostReport } from '@/services/cost-report-service';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Printer, Loader2, Plus, Trash2, ChevronsUpDown, Check, PlusCircle, Edit, Save, MoreHorizontal, Search, ArrowUpDown, History, Library, HistoryIcon, Paperclip, Clipboard, Copy, Image as ImageIcon, ChevronDown, ChevronUp, X, Sparkles } from 'lucide-react';
+import { Printer, Loader2, Plus, Trash2, ChevronsUpDown, Check, PlusCircle, Edit, Save, MoreHorizontal, HistoryIcon, Image as ImageIcon, Copy, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon } from 'lucide-react';
@@ -29,10 +29,8 @@ import html2canvas from 'html2canvas';
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { onSettingUpdate, updateCostSettings } from '@/services/settings-service';
-import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import React from 'react';
 
 const bfOptions = ['16 BF', '18 BF', '20 BF', '22 BF'];
@@ -336,8 +334,6 @@ const initialKraftCosts: Record<string, number | ''> = {
     '16 BF': '', '18 BF': '', '20 BF': '', '22 BF': ''
 };
 
-const fluteOptions = ['A', 'B', 'A/B', 'B/A', 'A/A', 'B/B'];
-
 interface Accessory extends ProductAccessory {
   calculated: CalculatedValues;
 }
@@ -391,9 +387,6 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
   const [partySearch, setPartySearch] = useState('');
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [costSettings, setCostSettings] = useState<CostSetting | null>(null);
-  const [isDetailsOpen, setIsDetailsOpen] = useState(true);
-  const [isCostsOpen, setIsCostsOpen] = useState(true);
-  const [isTermsOpen, setIsTermsOpen] = useState(true);
   const [productSearch, setProductSearch] = useState('');
 
   const sortedParties = useMemo(() => [...parties].sort((a, b) => a.name.localeCompare(b.name)), [parties]);
@@ -604,45 +597,264 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
   };
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
         {reportToEdit && (
-            <div className="flex justify-between items-center bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4" role="alert">
+            <div className="flex justify-between items-center bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-md" role="alert">
                 <p className="font-bold">Editing Report #{reportToEdit.reportNumber}</p>
                 <Button variant="ghost" onClick={onCancelEdit}>Cancel Edit</Button>
             </div>
         )}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-4">
-                <Collapsible open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-                    <Card><CardHeader className="py-2 px-4"><CollapsibleTrigger asChild><Button variant="ghost" size="sm" className="w-full justify-between hover:bg-transparent"><CardTitle className="text-sm flex items-center gap-2">{isDetailsOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />} Report Details</CardTitle></Button></CollapsibleTrigger></CardHeader>
-                        <CollapsibleContent><CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-0 pb-3">
-                            <div className="space-y-1"><Label className="text-[10px]">Report Number</Label><Input value={reportNumber} readOnly className="bg-muted/50 h-7 text-xs" /></div>
-                            <div className="space-y-1"><Label className="text-[10px]">Report Date</Label><Popover><PopoverTrigger asChild><Button variant="outline" className="w-full justify-start h-7 text-xs"><CalendarIcon className="mr-2 h-3 w-3" /> {toNepaliDate(reportDate.toISOString())} BS</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><DualCalendar selected={reportDate} onSelect={(d) => d && setReportDate(d)} /></PopoverContent></Popover></div>
-                            <div className="space-y-1 md:col-span-2"><Label className="text-[10px]">Party Name</Label><Popover><PopoverTrigger asChild><Button variant="outline" className="w-full justify-between h-7 text-xs">{selectedPartyId ? parties.find(p => p.id === selectedPartyId)?.name : "Select party..."}<ChevronsUpDown className="ml-2 h-3 w-3 opacity-50" /></Button></PopoverTrigger><PopoverContent className="p-0"><Command><CommandInput placeholder="Search or add party..." onValueChange={setPartySearch}/><CommandList><CommandEmpty>
-                                <div className="p-2">
-                                    <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={() => { setPartyForm({ ...partyForm, name: partySearch }); setIsPartyDialogOpen(true); }}>
-                                        <PlusCircle className="h-4 w-4" /> Add "{partySearch}"
-                                    </Button>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card className="shadow-md">
+                <CardHeader className="py-3 px-4 border-b">
+                    <CardTitle className="text-sm flex items-center gap-2">Report Details</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 gap-4 pt-4">
+                    <div className="space-y-1">
+                        <Label className="text-[10px]">Report Number</Label>
+                        <Input value={reportNumber} readOnly className="bg-muted/50 h-8 text-xs" />
+                    </div>
+                    <div className="space-y-1">
+                        <Label className="text-[10px]">Report Date</Label>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button variant="outline" className="w-full justify-start h-8 text-xs"><CalendarIcon className="mr-2 h-3 w-3" /> {toNepaliDate(reportDate.toISOString())} BS</Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0"><DualCalendar selected={reportDate} onSelect={(d) => d && setReportDate(d)} /></PopoverContent>
+                        </Popover>
+                    </div>
+                    <div className="space-y-1">
+                        <Label className="text-[10px]">Party Name</Label>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button variant="outline" className="w-full justify-between h-8 text-xs">{selectedPartyId ? parties.find(p => p.id === selectedPartyId)?.name : "Select party..."}<ChevronsUpDown className="ml-2 h-3 w-3 opacity-50" /></Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="p-0">
+                                <Command>
+                                    <CommandInput placeholder="Search or add party..." onValueChange={setPartySearch}/>
+                                    <CommandList>
+                                        <CommandEmpty>
+                                            <div className="p-2">
+                                                <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={() => { setPartyForm({ ...partyForm, name: partySearch }); setIsPartyDialogOpen(true); }}>
+                                                    <PlusCircle className="h-4 w-4" /> Add "{partySearch}"
+                                                </Button>
+                                            </div>
+                                        </CommandEmpty>
+                                        <CommandGroup>{sortedParties.map(p => (<CommandItem key={p.id} value={p.name} onSelect={() => setSelectedPartyId(p.id)}>{p.name}</CommandItem>))}</CommandGroup>
+                                    </CommandList>
+                                </Command>
+                            </PopoverContent>
+                        </Popover>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card className="shadow-md">
+                <CardHeader className="py-3 px-4 border-b">
+                    <div className="flex items-center justify-between">
+                        <CardTitle className="text-sm flex items-center gap-2">Additional Costs</CardTitle>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsCostHistoryDialogOpen(true)}><HistoryIcon className="h-3 w-3" /></Button>
+                    </div>
+                </CardHeader>
+                <CardContent className="pt-4 space-y-4">
+                    <div className="space-y-2 p-3 border rounded-md bg-muted/20">
+                        <Label className="text-[10px] font-bold">Kraft Rates</Label>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                            {bfOptions.map(bf => (
+                                <div key={bf} className="flex items-center justify-between gap-2">
+                                    <Label className="text-[10px] whitespace-nowrap">{bf}</Label>
+                                    <Input type="number" className="w-16 h-8 text-xs px-2" value={kraftPaperCosts[normalizeBF(bf)] ?? ''} onChange={e => handleCostChange('kraft', e.target.value, bf)} />
                                 </div>
-                            </CommandEmpty><CommandGroup>{sortedParties.map(p => (<CommandItem key={p.id} value={p.name} onSelect={() => setSelectedPartyId(p.id)}>{p.name}</CommandItem>))}</CommandGroup></CommandList></Command></PopoverContent></Popover></div>
-                        </CardContent></CollapsibleContent></Card></Collapsible>
-                <Collapsible open={isTermsOpen} onOpenChange={setIsTermsOpen}><Card><CardHeader className="py-2 px-4"><CollapsibleTrigger asChild><Button variant="ghost" size="sm" className="w-full justify-between hover:bg-transparent"><CardTitle className="text-sm flex items-center gap-2">{isTermsOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />} Terms & Conditions</CardTitle></Button></CollapsibleTrigger></CardHeader>
-                        <CollapsibleContent><CardContent className="pt-0 pb-3 space-y-2"><ScrollArea className="h-24 pr-2">{termsAndConditions.map((t, i) => (<div key={i} className="flex items-center gap-2 group"><Checkbox checked={t.isSelected} onCheckedChange={(v) => { const next = [...termsAndConditions]; next[i].isSelected = !!v; setTermsAndConditions(next); }} /><Input value={t.text} onChange={(e) => { const next = [...termsAndConditions]; next[i].text = e.target.value; setTermsAndConditions(next); }} className="h-6 text-[10px]" /><Button variant="ghost" size="icon" className="h-5 w-5 opacity-0 group-hover:opacity-100" onClick={() => setTermsAndConditions(termsAndConditions.filter((_, idx) => idx !== i))}><Trash2 className="h-3 w-3" /></Button></div>))}</ScrollArea><div className="flex gap-2"><Input value={newTerm} onChange={e => setNewTerm(e.target.value)} className="h-7 text-xs" /><Button size="icon" className="h-7 w-7" onClick={() => { if(newTerm.trim()) { setTermsAndConditions([...termsAndConditions, { text: newTerm.trim(), isSelected: true }]); setNewTerm(''); } }}><Plus className="h-3 w-3" /></Button></div></CardContent></CollapsibleContent></Card></Collapsible>
-            </div>
-            <Collapsible open={isCostsOpen} onOpenChange={setIsCostsOpen}><Card className="h-full"><CardHeader className="py-2 px-4"><div className="flex items-center justify-between"><CollapsibleTrigger asChild><Button variant="ghost" size="sm" className="p-0 h-auto hover:bg-transparent"><CardTitle className="text-sm flex items-center gap-2">{isCostsOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />} Additional Costs</CardTitle></Button></CollapsibleTrigger><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsCostHistoryDialogOpen(true)}><HistoryIcon className="h-3 w-3" /></Button></div></CardHeader>
-                    <CollapsibleContent><CardContent className="pt-0 pb-3"><div className="grid grid-cols-1 md:grid-cols-2 gap-3"><div className="space-y-1 p-2 border rounded-md bg-muted/20"><Label className="text-[10px] font-bold">Kraft Rates</Label><div className="grid grid-cols-2 gap-x-2 gap-y-1">{bfOptions.map(bf => (<div key={bf} className="flex items-center justify-between gap-1"><Label className="text-[9px]">{bf}</Label><Input type="number" className="w-12 h-6 text-[10px] px-1" value={kraftPaperCosts[normalizeBF(bf)] ?? ''} onChange={e => handleCostChange('kraft', e.target.value, bf)} /></div>))}</div></div><div className="space-y-2"><div className="grid grid-cols-2 gap-2"><div><Label className="text-[9px]">Virgin Rate</Label><Input type="number" className="h-6 text-[10px]" value={virginPaperCost} onChange={e => handleCostChange('virgin', e.target.value)} /></div><div><Label className="text-[9px]">Conversion</Label><Input type="number" className="h-6 text-[10px]" value={conversionCost} onChange={e => handleCostChange('conversion', e.target.value)} /></div></div><div className="grid grid-cols-2 gap-2"><div><Label className="text-[9px]">Transport</Label><Input type="number" className="h-6 text-[10px]" value={transportCost} onChange={e => setTransportCost(e.target.value === '' ? '' : parseFloat(e.target.value))} /></div><div><Label className="text-[9px]">Basis</Label><Select value={transportCostType} onValueChange={(v: any) => setTransportCostType(v)}><SelectTrigger className="h-6 text-[9px]"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Per Piece" className="text-xs">Per Piece</SelectItem><SelectItem value="Per Consignment" className="text-xs">Per Consignment</SelectItem></SelectContent></Select></div></div></div></div></CardContent></CollapsibleContent></Card></Collapsible>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                            <Label className="text-[10px]">Virgin Rate</Label>
+                            <Input type="number" className="h-8 text-xs" value={virginPaperCost} onChange={e => handleCostChange('virgin', e.target.value)} />
+                        </div>
+                        <div className="space-y-1">
+                            <Label className="text-[10px]">Conversion</Label>
+                            <Input type="number" className="h-8 text-xs" value={conversionCost} onChange={e => handleCostChange('conversion', e.target.value)} />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                            <Label className="text-[10px]">Transport</Label>
+                            <Input type="number" className="h-8 text-xs" value={transportCost} onChange={e => setTransportCost(e.target.value === '' ? '' : parseFloat(e.target.value))} />
+                        </div>
+                        <div className="space-y-1">
+                            <Label className="text-[10px]">Basis</Label>
+                            <Select value={transportCostType} onValueChange={(v: any) => setTransportCostType(v)}>
+                                <SelectTrigger className="h-8 text-xs">
+                                    <SelectValue/>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Per Piece">Per Piece</SelectItem>
+                                    <SelectItem value="Per Consignment">Per Consignment</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card className="shadow-md">
+                <CardHeader className="py-3 px-4 border-b">
+                    <CardTitle className="text-sm">Terms & Conditions</CardTitle>
+                </CardHeader>
+                <CardContent className="pt-4 space-y-4">
+                    <ScrollArea className="h-32 pr-2">
+                        <div className="space-y-2">
+                            {termsAndConditions.map((t, i) => (
+                                <div key={i} className="flex items-center gap-2 group">
+                                    <Checkbox checked={t.isSelected} onCheckedChange={(v) => { const next = [...termsAndConditions]; next[i].isSelected = !!v; setTermsAndConditions(next); }} />
+                                    <Input value={t.text} onChange={(e) => { const next = [...termsAndConditions]; next[i].text = e.target.value; setTermsAndConditions(next); }} className="h-7 text-[10px]" />
+                                    <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 text-destructive" onClick={() => setTermsAndConditions(termsAndConditions.filter((_, idx) => idx !== i))}><Trash2 className="h-3 w-3" /></Button>
+                                </div>
+                            ))}
+                        </div>
+                    </ScrollArea>
+                    <div className="flex gap-2">
+                        <Input value={newTerm} onChange={e => setNewTerm(e.target.value)} placeholder="Add new term..." className="h-8 text-xs" />
+                        <Button size="icon" className="h-8 w-8" onClick={() => { if(newTerm.trim()) { setTermsAndConditions([...termsAndConditions, { text: newTerm.trim(), isSelected: true }]); setNewTerm(''); } }}><Plus className="h-3 w-3" /></Button>
+                    </div>
+                </CardContent>
+            </Card>
         </div>
-        <Card><CardHeader className="py-3 px-4 flex flex-row items-center justify-between"><CardTitle className="text-sm">Product Cost Breakdown</CardTitle><div className="flex gap-2"><Button size="sm" variant="outline" onClick={handleAddItem}>Add Manual Item</Button><Button size="sm" onClick={handlePrintPreview}>Preview Quotation</Button><Button size="sm" onClick={handleSaveReport} disabled={isSaving}>{isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Save Report</Button></div></CardHeader><CardContent className="px-2"><ScrollArea className="h-[600px]"><Table className="text-[10px]"><TableHeader><TableRow className="h-8"><TableHead rowSpan={2} className="px-1"><Checkbox checked={selectedForPrint.size === items.length && items.length > 0} onCheckedChange={v => setSelectedForPrint(v ? new Set(items.map(i => i.id)) : new Set())}/></TableHead><TableHead rowSpan={2}>Item Name</TableHead><TableHead colSpan={3} className="text-center">Box Size (mm)</TableHead><TableHead rowSpan={2}>Pcs</TableHead><TableHead rowSpan={2}>Ply</TableHead><TableHead rowSpan={2}>Type</TableHead><TableHead rowSpan={2}>Paper BF</TableHead><TableHead rowSpan={2} className="w-[60px]">Waste %</TableHead><TableHead colSpan={maxPly} className="text-center">GSM</TableHead><TableHead rowSpan={2}>T.GSM</TableHead><TableHead rowSpan={2}>Box Wt(g)</TableHead><TableHead rowSpan={2}>Total Wt</TableHead><TableHead rowSpan={2}>Paper Rs</TableHead><TableHead rowSpan={2}>Total</TableHead><TableHead rowSpan={2}></TableHead></TableRow><TableRow className="h-8"><TableHead className="px-1 text-center">L</TableHead><TableHead className="px-1 text-center">B</TableHead><TableHead className="px-1 text-center">H</TableHead><TableHead className="px-1 text-center">T</TableHead><TableHead className="px-1 text-center">F1</TableHead>{maxPly >= 5 && <TableHead className="px-1 text-center">F2</TableHead>}{maxPly >= 5 && <TableHead className="px-1 text-center">M</TableHead>}{maxPly >= 7 && <TableHead className="px-1 text-center">F3</TableHead>}<TableHead className="px-1 text-center">B</TableHead></TableRow></TableHeader><TableBody>{items.map((item, idx) => (<React.Fragment key={item.id}><TableRow><TableCell className="px-1"><Checkbox checked={selectedForPrint.has(item.id)} onCheckedChange={v => { const next = new Set(selectedForPrint); if(v) next.add(item.id); else next.delete(item.id); setSelectedForPrint(next); }}/></TableCell><TableCell className="px-1 min-w-[150px]"><div className="flex gap-1"><Button variant="outline" size="icon" className="h-5 w-5" onClick={() => { const k = Object.fromEntries(Object.entries(kraftPaperCosts).map(([b, c]) => [normalizeBF(b), Number(c) || 0])); const vi = Number(virginPaperCost) || 0; const co = Number(conversionCost) || 0; const acc = { id: Date.now().toString(), name: 'Acc', l:'',b:'',h:'0', noOfPcs:'1', ply:'0', fluteType:'B', paperType:'KRAFT', paperBf:'18 BF', wastagePercent:'3.5', topGsm:'120', flute1Gsm:'' }; setItems(prev => { const next = [...prev]; next[idx].accessories = [...(next[idx].accessories || []), { ...acc, calculated: calculateItemCost(acc, k, vi, co) }]; return next; }); }}><Plus className="h-3 w-3" /></Button><Popover><PopoverTrigger asChild><Button variant="outline" className="w-full h-7 text-[10px] truncate">{products.find(p => p.id === item.productId)?.name || "Select product..."}</Button></PopoverTrigger><PopoverContent className="p-0 w-[--radix-popover-trigger-width]"><Command><CommandInput placeholder="Search or add product..." onValueChange={setProductSearch} /><CommandList><CommandEmpty>
-                                <div className="p-2">
-                                    <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={() => { 
-                                        setProductFormForAdd({ name: productSearch, materialCode: '', partyId: selectedPartyId, specification: { ply: '3', wastagePercent: '3.5', boxType: 'RSC', paperType: 'KRAFT', paperBf: '18 BF', topGsm: '120', flute1Gsm: '100', bottomGsm: '120' }, accessories: [] });
-                                        setPendingProductIdx(idx);
-                                        setIsProductDialogOpen(true);
-                                    }}>
-                                        <PlusCircle className="h-4 w-4" /> Add "{productSearch}"
-                                    </Button>
-                                </div>
-                            </CommandEmpty><CommandGroup>{sortedProducts.map(p => (<CommandItem key={p.id} value={p.name} onSelect={() => handleProductSelect(idx, p.id)}>{p.name}</CommandItem>))}</CommandGroup></CommandList></Command></PopoverContent></Popover></div></TableCell><TableCell className="px-1"><div className="flex gap-1"><Input type="number" value={item.l} onChange={e => handleItemChange(idx, 'l', e.target.value)} className="w-10 h-7 px-1" /><Input type="number" value={item.b} onChange={e => handleItemChange(idx, 'b', e.target.value)} className="w-10 h-7 px-1" /><Input type="number" value={item.h} onChange={e => handleItemChange(idx, 'h', e.target.value)} className="w-10 h-7 px-1" /></div></TableCell><TableCell className="px-1"></TableCell><TableCell className="px-1"></TableCell><TableCell className="px-1"><Input type="number" value={item.noOfPcs} onChange={e => handleItemChange(idx, 'noOfPcs', e.target.value)} className="w-10 h-7 px-1" /></TableCell><TableCell className="px-1"><Select value={item.ply} onValueChange={v => handleItemChange(idx, 'ply', v)}><SelectTrigger className="w-12 h-7"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="3">3</SelectItem><SelectItem value="5">5</SelectItem><SelectItem value="7">7</SelectItem><SelectItem value="9">9</SelectItem></SelectContent></Select></TableCell><TableCell className="px-1"><Select value={item.paperType} onValueChange={v => handleItemChange(idx, 'paperType', v)}><SelectTrigger className="w-16 h-7"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="KRAFT">K</SelectItem><SelectItem value="VIRGIN">V</SelectItem><SelectItem value="VIRGIN & KRAFT">M</SelectItem></SelectContent></Select></TableCell><TableCell className="px-1"><Select value={normalizeBF(item.paperBf)} onValueChange={v => handleItemChange(idx, 'paperBf', v)}><SelectTrigger className="w-14 h-7"><SelectValue/></SelectTrigger><SelectContent>{bfOptions.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent></Select></TableCell><TableCell className="px-1"><Input type="number" value={item.wastagePercent} onChange={e => handleItemChange(idx, 'wastagePercent', e.target.value)} className="w-12 h-7 px-1" /></TableCell><TableCell className="px-1"><Input type="number" value={item.topGsm} onChange={e => handleItemChange(idx, 'topGsm', e.target.value)} className="w-10 h-7 px-1" /></TableCell><TableCell className="px-1"><Input type="number" value={item.flute1Gsm} onChange={e => handleItemChange(idx, 'flute1Gsm', e.target.value)} className="w-10 h-7 px-1" /></TableCell>{maxPly >= 5 && <TableCell className="px-1"><Input type="number" value={item.flute2Gsm} onChange={e => handleItemChange(idx, 'flute2Gsm', e.target.value)} className="w-10 h-7 px-1" /></TableCell>}{maxPly >= 5 && <TableCell className="px-1"><Input type="number" value={item.middleGsm} onChange={e => handleItemChange(idx, 'middleGsm', e.target.value)} className="w-10 h-7 px-1" /></TableCell>}<TableCell className="px-1"><Input type="number" value={item.bottomGsm} onChange={e => handleItemChange(idx, 'bottomGsm', e.target.value)} className="w-10 h-7 px-1" /></TableCell><TableCell className="px-1">{item.calculated?.totalGsm.toFixed(0)}</TableCell><TableCell className="px-1">{item.calculated?.paperWeight.toFixed(0)}</TableCell><TableCell className="px-1">{item.calculated?.totalBoxWeight.toFixed(0)}</TableCell><TableCell className="px-1">{item.calculated?.paperCost.toFixed(1)}</TableCell><TableCell className="px-1 font-bold">{(item.calculated?.paperCost + (item.accessories || []).reduce((s, a) => s + (a.calculated?.paperCost || 0), 0)).toFixed(1)}</TableCell><TableCell className="px-1"><div className="flex"><Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { const k = Object.fromEntries(Object.entries(kraftPaperCosts).map(([b, c]) => [normalizeBF(b), Number(c) || 0])); const vi = Number(virginPaperCost) || 0; const co = Number(conversionCost) || 0; const copy = { ...item, id: Date.now().toString(), accessories: (item.accessories || []).map(a => ({...a, id: Math.random().toString()})) }; setItems([...items, { ...copy, calculated: calculateItemCost(copy, k, vi, co) }]); }}><Copy className="h-3 w-3" /></Button><Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => setItems(items.filter(i => i.id !== item.id))}><Trash2 className="h-3 w-3" /></Button></div></TableCell></TableRow>{(item.accessories || []).map((acc, aIdx) => (<TableRow key={acc.id} className="bg-muted/20"><TableCell colSpan={2} className="pl-6"><Input value={acc.name} onChange={e => { const k = Object.fromEntries(Object.entries(kraftPaperCosts).map(([b, c]) => [normalizeBF(b), Number(c) || 0])); const vi = Number(virginPaperCost) || 0; const co = Number(conversionCost) || 0; const next = [...items]; next[idx].accessories![aIdx].name = e.target.value; setItems(next); }} className="h-6 text-[10px]" /></TableCell><TableCell className="px-1"><div className="flex gap-1"><Input type="number" value={acc.l} onChange={e => { const k = Object.fromEntries(Object.entries(kraftPaperCosts).map(([b, c]) => [normalizeBF(b), Number(c) || 0])); const vi = Number(virginPaperCost) || 0; const co = Number(conversionCost) || 0; const next = [...items]; const ac = { ...next[idx].accessories![aIdx], l: e.target.value }; ac.calculated = calculateItemCost(ac, k, vi, co); next[idx].accessories![aIdx] = ac; setItems(next); }} className="w-10 h-6 px-1" /></div></TableCell><TableCell colSpan={10}></TableCell><TableCell>{acc.calculated?.paperCost.toFixed(1)}</TableCell><TableCell colSpan={2}></TableCell></TableRow>))}</React.Fragment>))}</TableBody></Table></ScrollArea></CardContent></Card>
+
+        <Card className="shadow-lg border-t-4 border-t-primary">
+            <CardHeader className="py-4 px-6 border-b flex flex-row items-center justify-between">
+                <div>
+                    <CardTitle className="text-lg">Product Cost Breakdown</CardTitle>
+                    <CardDescription>Comprehensive board and weight calculations</CardDescription>
+                </div>
+                <div className="flex gap-3">
+                    <Button size="sm" variant="outline" onClick={handleAddItem}><Plus className="mr-2 h-4 w-4"/> Add Manual Item</Button>
+                    <Button size="sm" variant="secondary" onClick={handlePrintPreview}><ImageIcon className="mr-2 h-4 w-4"/> Preview Quotation</Button>
+                    <Button size="sm" onClick={handleSaveReport} disabled={isSaving}>{isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4"/>} Save Report</Button>
+                </div>
+            </CardHeader>
+            <CardContent className="p-0">
+                <ScrollArea className="w-full">
+                    <div className="p-4">
+                        <Table className="text-xs min-w-[1500px]">
+                            <TableHeader>
+                                <TableRow className="h-10 bg-muted/30">
+                                    <TableHead rowSpan={2} className="w-[40px] px-2"><Checkbox checked={selectedForPrint.size === items.length && items.length > 0} onCheckedChange={v => setSelectedForPrint(v ? new Set(items.map(i => i.id)) : new Set())}/></TableHead>
+                                    <TableHead rowSpan={2} className="min-w-[200px]">Item Name</TableHead>
+                                    <TableHead colSpan={3} className="text-center border-x">Box Size (mm)</TableHead>
+                                    <TableHead rowSpan={2} className="text-center w-[60px]">Pcs</TableHead>
+                                    <TableHead rowSpan={2} className="text-center w-[70px]">Ply</TableHead>
+                                    <TableHead rowSpan={2} className="text-center w-[80px]">Type</TableHead>
+                                    <TableHead rowSpan={2} className="text-center w-[100px]">Paper BF</TableHead>
+                                    <TableHead rowSpan={2} className="text-center w-[70px]">Waste %</TableHead>
+                                    <TableHead colSpan={maxPly} className="text-center border-x">GSM Layers</TableHead>
+                                    <TableHead rowSpan={2} className="text-center w-[80px]">T.GSM</TableHead>
+                                    <TableHead rowSpan={2} className="text-center w-[80px]">Wt(g)</TableHead>
+                                    <TableHead rowSpan={2} className="text-center w-[80px]">Total Wt</TableHead>
+                                    <TableHead rowSpan={2} className="text-center w-[100px]">Paper Rs</TableHead>
+                                    <TableHead rowSpan={2} className="text-right w-[100px] pr-6">Total</TableHead>
+                                    <TableHead rowSpan={2} className="w-[80px]"></TableHead>
+                                </TableRow>
+                                <TableRow className="h-10 bg-muted/10">
+                                    <TableHead className="text-center border-l w-[60px]">L</TableHead>
+                                    <TableHead className="text-center w-[60px]">B</TableHead>
+                                    <TableHead className="text-center border-r w-[60px]">H</TableHead>
+                                    <TableHead className="text-center border-l w-[60px]">T</TableHead>
+                                    <TableHead className="text-center w-[60px]">F1</TableHead>
+                                    {maxPly >= 5 && <TableHead className="text-center w-[60px]">F2</TableHead>}
+                                    {maxPly >= 5 && <TableHead className="text-center w-[60px]">M</TableHead>}
+                                    {maxPly >= 7 && <TableHead className="text-center w-[60px]">F3</TableHead>}
+                                    <TableHead className="text-center border-r w-[60px]">B</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {items.map((item, idx) => (
+                                    <React.Fragment key={item.id}>
+                                        <TableRow className="hover:bg-muted/50 h-14">
+                                            <TableCell className="px-2"><Checkbox checked={selectedForPrint.has(item.id)} onCheckedChange={v => { const next = new Set(selectedForPrint); if(v) next.add(item.id); else next.delete(item.id); setSelectedForPrint(next); }}/></TableCell>
+                                            <TableCell className="min-w-[200px]">
+                                                <div className="flex gap-2">
+                                                    <Button variant="outline" size="icon" className="h-7 w-7 shrink-0" onClick={() => { const k = Object.fromEntries(Object.entries(kraftPaperCosts).map(([b, c]) => [normalizeBF(b), Number(c) || 0])); const vi = Number(virginPaperCost) || 0; const co = Number(conversionCost) || 0; const acc = { id: Date.now().toString(), name: 'Acc', l:'',b:'',h:'0', noOfPcs:'1', ply:'0', fluteType:'B', paperType:'KRAFT', paperBf:'18 BF', wastagePercent:'3.5', topGsm:'120', flute1Gsm:'' }; setItems(prev => { const next = [...prev]; next[idx].accessories = [...(next[idx].accessories || []), { ...acc, calculated: calculateItemCost(acc, k, vi, co) }]; return next; }); }}><Plus className="h-3 w-3" /></Button>
+                                                    <Popover>
+                                                        <PopoverTrigger asChild><Button variant="outline" className="w-full h-8 text-[11px] justify-start truncate">{products.find(p => p.id === item.productId)?.name || "Select product..."}</Button></PopoverTrigger>
+                                                        <PopoverContent className="p-0 w-[--radix-popover-trigger-width]"><Command><CommandInput placeholder="Search or add product..." onValueChange={setProductSearch} /><CommandList><CommandEmpty>
+                                                                <div className="p-2">
+                                                                    <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={() => { 
+                                                                        setProductFormForAdd({ name: productSearch, materialCode: '', partyId: selectedPartyId, specification: { ply: '3', wastagePercent: '3.5', boxType: 'RSC', paperType: 'KRAFT', paperBf: '18 BF', topGsm: '120', flute1Gsm: '100', bottomGsm: '120' }, accessories: [] });
+                                                                        setPendingProductIdx(idx);
+                                                                        setIsProductDialogOpen(true);
+                                                                    }}><PlusCircle className="h-4 w-4" /> Add "{productSearch}"</Button>
+                                                                </div>
+                                                            </CommandEmpty><CommandGroup>{sortedProducts.map(p => (<CommandItem key={p.id} value={p.name} onSelect={() => handleProductSelect(idx, p.id)}>{p.name}</CommandItem>))}</CommandGroup></CommandList></Command></PopoverContent>
+                                                    </Popover>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="border-l"><Input type="number" value={item.l} onChange={e => handleItemChange(idx, 'l', e.target.value)} className="w-16 h-8 text-center" /></TableCell>
+                                            <TableCell><Input type="number" value={item.b} onChange={e => handleItemChange(idx, 'b', e.target.value)} className="w-16 h-8 text-center" /></TableCell>
+                                            <TableCell className="border-r"><Input type="number" value={item.h} onChange={e => handleItemChange(idx, 'h', e.target.value)} className="w-16 h-8 text-center" /></TableCell>
+                                            <TableCell><Input type="number" value={item.noOfPcs} onChange={e => handleItemChange(idx, 'noOfPcs', e.target.value)} className="w-14 h-8 text-center" /></TableCell>
+                                            <TableCell>
+                                                <Select value={item.ply} onValueChange={v => handleItemChange(idx, 'ply', v)}>
+                                                    <SelectTrigger className="h-8"><SelectValue/></SelectTrigger>
+                                                    <SelectContent><SelectItem value="3">3</SelectItem><SelectItem value="5">5</SelectItem><SelectItem value="7">7</SelectItem><SelectItem value="9">9</SelectItem></SelectContent>
+                                                </Select>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Select value={item.paperType} onValueChange={v => handleItemChange(idx, 'paperType', v)}>
+                                                    <SelectTrigger className="h-8"><SelectValue/></SelectTrigger>
+                                                    <SelectContent><SelectItem value="KRAFT">K</SelectItem><SelectItem value="VIRGIN">V</SelectItem><SelectItem value="VIRGIN & KRAFT">M</SelectItem></SelectContent>
+                                                </Select>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Select value={normalizeBF(item.paperBf)} onValueChange={v => handleItemChange(idx, 'paperBf', v)}>
+                                                    <SelectTrigger className="h-8 w-20"><SelectValue/></SelectTrigger>
+                                                    <SelectContent>{bfOptions.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
+                                                </Select>
+                                            </TableCell>
+                                            <TableCell><Input type="number" value={item.wastagePercent} onChange={e => handleItemChange(idx, 'wastagePercent', e.target.value)} className="w-14 h-8 text-center" /></TableCell>
+                                            <TableCell className="border-l"><Input type="number" value={item.topGsm} onChange={e => handleItemChange(idx, 'topGsm', e.target.value)} className="w-16 h-8 text-center" /></TableCell>
+                                            <TableCell><Input type="number" value={item.flute1Gsm} onChange={e => handleItemChange(idx, 'flute1Gsm', e.target.value)} className="w-16 h-8 text-center" /></TableCell>
+                                            {maxPly >= 5 && <TableCell><Input type="number" value={item.flute2Gsm} onChange={e => handleItemChange(idx, 'flute2Gsm', e.target.value)} className="w-16 h-8 text-center" /></TableCell>}
+                                            {maxPly >= 5 && <TableCell><Input type="number" value={item.middleGsm} onChange={e => handleItemChange(idx, 'middleGsm', e.target.value)} className="w-16 h-8 text-center" /></TableCell>}
+                                            <TableCell className="border-r"><Input type="number" value={item.bottomGsm} onChange={e => handleItemChange(idx, 'bottomGsm', e.target.value)} className="w-16 h-8 text-center" /></TableCell>
+                                            <TableCell className="text-center font-medium">{item.calculated?.totalGsm.toFixed(0)}</TableCell>
+                                            <TableCell className="text-center font-medium">{item.calculated?.paperWeight.toFixed(0)}</TableCell>
+                                            <TableCell className="text-center font-medium">{item.calculated?.totalBoxWeight.toFixed(0)}</TableCell>
+                                            <TableCell className="text-center font-medium">{item.calculated?.paperCost.toFixed(2)}</TableCell>
+                                            <TableCell className="text-right font-bold pr-6">{(item.calculated?.paperCost + (item.accessories || []).reduce((s, a) => s + (a.calculated?.paperCost || 0), 0)).toFixed(2)}</TableCell>
+                                            <TableCell>
+                                                <div className="flex gap-1">
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10" onClick={() => { const k = Object.fromEntries(Object.entries(kraftPaperCosts).map(([b, c]) => [normalizeBF(b), Number(c) || 0])); const vi = Number(virginPaperCost) || 0; const co = Number(conversionCost) || 0; const copy = { ...item, id: Date.now().toString(), accessories: (item.accessories || []).map(a => ({...a, id: Math.random().toString()})) }; setItems([...items, { ...copy, calculated: calculateItemCost(copy, k, vi, co) }]); }}><Copy className="h-3.5 w-3.5" /></Button>
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10 text-destructive" onClick={() => setItems(items.filter(i => i.id !== item.id))}><Trash2 className="h-3.5 w-3.5" /></Button>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                        {(item.accessories || []).map((acc, aIdx) => (
+                                            <TableRow key={acc.id} className="bg-muted/10 h-12">
+                                                <TableCell colSpan={2} className="pl-12">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[10px] text-muted-foreground font-bold">ACC</span>
+                                                        <Input value={acc.name} onChange={e => { const k = Object.fromEntries(Object.entries(kraftPaperCosts).map(([b, c]) => [normalizeBF(b), Number(c) || 0])); const vi = Number(virginPaperCost) || 0; const co = Number(conversionCost) || 0; const next = [...items]; next[idx].accessories![aIdx].name = e.target.value; setItems(next); }} className="h-7 text-xs w-48" />
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="border-l"><Input type="number" value={acc.l} onChange={e => { const k = Object.fromEntries(Object.entries(kraftPaperCosts).map(([b, c]) => [normalizeBF(b), Number(c) || 0])); const vi = Number(virginPaperCost) || 0; const co = Number(conversionCost) || 0; const next = [...items]; const ac = { ...next[idx].accessories![aIdx], l: e.target.value }; ac.calculated = calculateItemCost(ac, k, vi, co); next[idx].accessories![aIdx] = ac; setItems(next); }} className="w-16 h-7 text-center" /></TableCell>
+                                                <TableCell colSpan={11}></TableCell>
+                                                <TableCell className="text-center font-medium text-muted-foreground">{acc.calculated?.paperCost.toFixed(2)}</TableCell>
+                                                <TableCell colSpan={2}></TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </React.Fragment>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                    <ScrollBar orientation="horizontal" />
+                </ScrollArea>
+            </CardContent>
+        </Card>
         
         <Dialog open={isCostHistoryDialogOpen} onOpenChange={setIsCostHistoryDialogOpen}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Costing History</DialogTitle></DialogHeader><ScrollArea className="h-96">{(costSettings?.history || []).length > 0 ? (<div className="space-y-4 p-4">{[...(costSettings?.history || [])].reverse().map((e, i) => (<div key={i} className="flex justify-between items-center text-sm"><div><p className="font-medium capitalize">{e.costType.replace('Cost', ' Cost')}</p><p className="text-xs text-muted-foreground">{format(new Date(e.date), "PPp")} by {e.setBy}</p></div><div className="text-right"><p>{e.newValue.toLocaleString()}</p><p className="text-xs text-muted-foreground line-through">{e.oldValue.toLocaleString()}</p></div></div>))}</div>) : (<div className="text-center text-muted-foreground p-8">No history found.</div>)}</ScrollArea></DialogContent></Dialog>
         
@@ -761,11 +973,11 @@ function SavedProductsList() {
     };
 
     return (
-      <><Card><CardHeader><div className="flex justify-between items-center"><div><CardTitle>Products for Costing</CardTitle></div><div className="flex gap-2"><Input placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-64" /><Button onClick={() => { setEditingProduct(null); setIsDialogOpen(true); }}>Add Product</Button></div></div></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Product Name</TableHead><TableHead>Delivered To</TableHead><TableHead>Dimension</TableHead><TableHead>Ply</TableHead><TableHead>GSM</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{sorted.map(p => (<TableRow key={p.id}><TableCell>{p.name}</TableCell><TableCell>{p.partyName || 'N/A'}</TableCell><TableCell>{p.specification?.dimension || 'N/A'}</TableCell><TableCell>{p.specification?.ply || 'N/A'}</TableCell><TableCell><CompactGsmDisplay item={p} /></TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger><DropdownMenuContent><DropdownMenuItem onSelect={() => { setEditingProduct(p); setIsDialogOpen(true); }}>Edit</DropdownMenuItem><AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive">Delete</DropdownMenuItem></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => deleteProductService(p.id)}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog></DropdownMenuContent></DropdownMenu></TableCell></TableRow>))}</TableBody></Table></CardContent></Card><Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}><DialogContent className="max-w-3xl"><DialogHeader><DialogTitle>{editingProduct ? 'Edit' : 'Add'} Product</DialogTitle></DialogHeader><ProductForm productToEdit={editingProduct} onSaveSuccess={handleProductSave} onProductFormChange={() => {}}/></DialogContent></Dialog></>
+      <><Card><CardHeader><div className="flex justify-between items-center"><div><CardTitle>Products for Costing</CardTitle></div><div className="flex gap-2"><Input placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-64" /><Button onClick={() => { setEditingProduct(null); setIsDialogOpen(true); }}>Add Product</Button></div></div></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Product Name</TableHead><TableHead>Delivered To</TableHead><TableHead>Dimension</TableHead><TableHead>Ply</TableHead><TableHead>GSM</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{sorted.map(p => (<TableRow key={p.id}><TableCell>{p.name}</TableCell><TableCell>{p.partyName || 'N/A'}</TableCell><TableCell>{p.specification?.dimension || 'N/A'}</TableCell><TableCell>{p.specification?.ply || 'N/A'}</TableCell><TableCell><CompactGsmDisplay item={p} /></TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger><DropdownMenuContent><DropdownMenuItem onSelect={() => { setEditingProduct(p); setIsDialogOpen(true); }}>Edit</DropdownMenuItem><AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive">Delete</DropdownMenuItem></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => deleteProductService(p.id)}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog></DropdownMenuContent></DropdownMenu></TableCell></TableRow>))}</TableBody></Table></CardContent></Card><Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}><DialogContent className="max-w-3xl"><DialogHeader><DialogTitle>{editingProduct ? 'Edit' : 'Add'} Product</DialogTitle></DialogHeader><ProductForm productToEdit={editingProduct} onSaveSuccess={handleProductSave}/></DialogContent></Dialog></>
     );
 }
 
-function ProductForm({ productToEdit, onSaveSuccess, onProductFormChange }: any) {
+function ProductForm({ productToEdit, onSaveSuccess }: any) {
     const [form, setForm] = useState<any>({ name: '', materialCode: '', partyId: '', specification: { ply: '3', wastagePercent: '3.5', boxType: 'RSC', paperType: 'KRAFT', paperBf: '18 BF', topGsm: '120', flute1Gsm: '100', bottomGsm: '120' }, accessories: [] });
     const [dim, setDim] = useState({ l: '', b: '', h: '' });
     const [parties, setParties] = useState<Party[]>([]);
