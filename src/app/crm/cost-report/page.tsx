@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Printer, Loader2, Plus, Trash2, ChevronsUpDown, Check, PlusCircle, Edit, Save, MoreHorizontal, HistoryIcon, Image as ImageIcon, Copy, X } from 'lucide-react';
+import { Printer, Loader2, Plus, Trash2, ChevronsUpDown, Check, PlusCircle, Edit, Save, MoreHorizontal, HistoryIcon, Image as ImageIcon, Copy, X, ListFilter, FileSpreadsheet } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon } from 'lucide-react';
@@ -237,6 +237,8 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
   const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
   const [partyForm, setPartyForm] = useState<{ name: string, type: PartyType, address?: string, panNumber?: string }>({ name: '', type: 'Customer', address: '', panNumber: '' });
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
+  const [isBatchAddDialogOpen, setIsBatchAddDialogOpen] = useState(false);
+  const [selectedBatchProductIds, setSelectedBatchProductIds] = useState<Set<string>>(new Set());
   const [pendingIdx, setPendingIdx] = useState<number | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [costSettings, setCostSettings] = useState<CostSetting | null>(null);
@@ -282,6 +284,33 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     }
   }, [reportToEdit, costReports, costSettings]);
 
+  const mapProductToItem = useCallback((product: Product): CostReportItem => {
+    const spec = product.specification || {};
+    const [dimL, dimB, dimH] = (spec.dimension || '').split('x');
+    const base = {
+        id: Math.random().toString(36).substr(2, 9),
+        productId: product.id,
+        l: dimL || '',
+        b: dimB || '',
+        h: dimH || '',
+        noOfPcs: '1',
+        ply: spec.ply || '3',
+        fluteType: 'B',
+        paperType: spec.paperType || 'KRAFT',
+        paperBf: spec.paperBf || '18 BF',
+        paperShade: spec.paperShade || 'NS',
+        boxType: spec.boxType || 'RSC',
+        topGsm: spec.topGsm || '120',
+        flute1Gsm: spec.flute1Gsm || '100',
+        middleGsm: spec.middleGsm || '',
+        flute2Gsm: spec.flute2Gsm || '',
+        bottomGsm: spec.bottomGsm || '120',
+        wastagePercent: spec.wastagePercent || '3.5',
+        accessories: []
+    };
+    return { ...base, calculated: calculateItemCost(base, kraftPaperCosts, Number(virginPaperCost) || 0, Number(conversionCost) || 0) };
+  }, [calculateItemCost, kraftPaperCosts, virginPaperCost, conversionCost]);
+
   const handleAddItem = () => {
     const base = { id: Date.now().toString(), productId: '', l:'',b:'',h:'', noOfPcs:'1', ply:'3', fluteType: 'B', paperType: 'KRAFT', paperBf:'18 BF', paperShade: 'NS', boxType: 'RSC', topGsm:'120',flute1Gsm:'100',middleGsm:'',flute2Gsm:'',bottomGsm:'120', wastagePercent:'3.5', accessories: [] };
     const newItem = { ...base, calculated: calculateItemCost(base, kraftPaperCosts, Number(virginPaperCost) || 0, Number(conversionCost) || 0) };
@@ -289,31 +318,25 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     setSelectedForPrint(new Set(selectedForPrint).add(newItem.id));
   };
 
+  const handleBatchLoad = () => {
+    const selectedProducts = products.filter(p => selectedBatchProductIds.has(p.id));
+    const newItems = selectedProducts.map(p => mapProductToItem(p));
+    setItems([...items, ...newItems]);
+    const newSelectedForPrint = new Set(selectedForPrint);
+    newItems.forEach(i => newSelectedForPrint.add(i.id));
+    setSelectedForPrint(newSelectedForPrint);
+    setIsBatchAddDialogOpen(false);
+    setSelectedBatchProductIds(new Set());
+  };
+
   const handleItemChange = (idx: number, f: string, v: string) => {
     const next = [...items];
     let item = { ...next[idx], [f]: f === 'paperBf' ? normalizeBF(v) : v };
     
-    // Auto-load product specifications when product is selected
     if (f === 'productId') {
         const product = products.find((p: Product) => p.id === v);
-        if (product && product.specification) {
-            const spec = product.specification;
-            const [dimL, dimB, dimH] = spec.dimension?.split('x') || ['', '', ''];
-            item = {
-                ...item,
-                l: dimL || item.l,
-                b: dimB || item.b,
-                h: dimH || item.h,
-                ply: spec.ply || item.ply,
-                paperType: spec.paperType || item.paperType,
-                paperBf: spec.paperBf || item.paperBf,
-                wastagePercent: spec.wastagePercent || item.wastagePercent,
-                topGsm: spec.topGsm || item.topGsm,
-                flute1Gsm: spec.flute1Gsm || item.flute1Gsm,
-                middleGsm: spec.middleGsm || item.middleGsm,
-                flute2Gsm: spec.flute2Gsm || item.flute2Gsm,
-                bottomGsm: spec.bottomGsm || item.bottomGsm,
-            };
+        if (product) {
+            item = mapProductToItem(product);
         }
     }
 
@@ -337,6 +360,11 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
         toast({ title: 'Error', description: 'Failed to add party.', variant: 'destructive' });
     }
   };
+
+  const companyProducts = useMemo(() => {
+    if (!selectedPartyId) return [];
+    return products.filter(p => p.partyId === selectedPartyId).sort((a,b) => a.name.localeCompare(b.name));
+  }, [products, selectedPartyId]);
 
   return (
     <div className="space-y-6">
@@ -421,6 +449,9 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
             <CardHeader className="flex flex-row items-center gap-4 bg-muted/20 py-4 px-6">
                 <div className="flex gap-2">
                     <Button size="sm" variant="outline" onClick={handleAddItem}><Plus className="mr-2 h-4 w-4" /> Add Item</Button>
+                    <Button size="sm" variant="outline" onClick={() => setIsBatchAddDialogOpen(true)} disabled={!selectedPartyId}>
+                        <FileSpreadsheet className="mr-2 h-4 w-4" /> Load from List
+                    </Button>
                     <Button size="sm" onClick={() => setIsSaving(true)}><Save className="mr-2 h-4 w-4" /> Save Report</Button>
                     <Button size="sm" variant="outline" onClick={() => setIsPreviewOpen(true)}><ImageIcon className="mr-2 h-4 w-4" /> Preview Quotation</Button>
                 </div>
@@ -474,10 +505,10 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                                 </Select>
                                             </div>
                                         </TableCell>
-                                        <TableCell className="border-l"><Input type="number" value={item.l} onChange={e => handleItemChange(idx, 'l', e.target.value)} className="h-8 text-center px-1" /></TableCell>
-                                        <TableCell><Input type="number" value={item.b} onChange={e => handleItemChange(idx, 'b', e.target.value)} className="h-8 text-center px-1" /></TableCell>
-                                        <TableCell className="border-r"><Input type="number" value={item.h} onChange={e => handleItemChange(idx, 'h', e.target.value)} className="h-8 text-center px-1" /></TableCell>
-                                        <TableCell><Input type="number" value={item.noOfPcs} onChange={e => handleItemChange(idx, 'noOfPcs', e.target.value)} className="h-8 text-center px-1" /></TableCell>
+                                        <TableCell className="border-l"><Input type="number" value={item.l} onChange={e => handleItemChange(idx, 'l', e.target.value)} className="h-8 text-center px-0 w-full border-none focus-visible:ring-0" /></TableCell>
+                                        <TableCell><Input type="number" value={item.b} onChange={e => handleItemChange(idx, 'b', e.target.value)} className="h-8 text-center px-0 w-full border-none focus-visible:ring-0" /></TableCell>
+                                        <TableCell className="border-r"><Input type="number" value={item.h} onChange={e => handleItemChange(idx, 'h', e.target.value)} className="h-8 text-center px-0 w-full border-none focus-visible:ring-0" /></TableCell>
+                                        <TableCell><Input type="number" value={item.noOfPcs} onChange={e => handleItemChange(idx, 'noOfPcs', e.target.value)} className="h-8 text-center px-0 w-full border-none focus-visible:ring-0" /></TableCell>
                                         <TableCell>
                                             <Select value={item.ply} onValueChange={v => handleItemChange(idx, 'ply', v)}>
                                                 <SelectTrigger className="h-8 text-center px-1"><SelectValue/></SelectTrigger>
@@ -496,12 +527,12 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                                 <SelectContent>{bfOptions.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
                                             </Select>
                                         </TableCell>
-                                        <TableCell><Input type="number" value={item.wastagePercent} onChange={e => handleItemChange(idx, 'wastagePercent', e.target.value)} className="h-8 text-center px-1" /></TableCell>
-                                        <TableCell className="border-l"><Input type="number" value={item.topGsm} onChange={e => handleItemChange(idx, 'topGsm', e.target.value)} className="h-8 text-center px-1" /></TableCell>
-                                        <TableCell><Input type="number" value={item.flute1Gsm} onChange={e => handleItemChange(idx, 'flute1Gsm', e.target.value)} className="h-8 text-center px-1" /></TableCell>
-                                        <TableCell><Input type="number" value={item.middleGsm} onChange={e => handleItemChange(idx, 'middleGsm', e.target.value)} className="h-8 text-center px-1" disabled={item.ply === '3'} /></TableCell>
-                                        <TableCell><Input type="number" value={item.flute2Gsm} onChange={e => handleItemChange(idx, 'flute2Gsm', e.target.value)} className="h-8 text-center px-1" disabled={item.ply === '3'} /></TableCell>
-                                        <TableCell className="border-r"><Input type="number" value={item.bottomGsm} onChange={e => handleItemChange(idx, 'bottomGsm', e.target.value)} className="h-8 text-center px-1" /></TableCell>
+                                        <TableCell><Input type="number" value={item.wastagePercent} onChange={e => handleItemChange(idx, 'wastagePercent', e.target.value)} className="h-8 text-center px-0 w-full border-none focus-visible:ring-0" /></TableCell>
+                                        <TableCell className="border-l"><Input type="number" value={item.topGsm} onChange={e => handleItemChange(idx, 'topGsm', e.target.value)} className="h-8 text-center px-0 w-full border-none focus-visible:ring-0" /></TableCell>
+                                        <TableCell><Input type="number" value={item.flute1Gsm} onChange={e => handleItemChange(idx, 'flute1Gsm', e.target.value)} className="h-8 text-center px-0 w-full border-none focus-visible:ring-0" /></TableCell>
+                                        <TableCell><Input type="number" value={item.middleGsm} onChange={e => handleItemChange(idx, 'middleGsm', e.target.value)} className="h-8 text-center px-0 w-full border-none focus-visible:ring-0" disabled={item.ply === '3'} /></TableCell>
+                                        <TableCell><Input type="number" value={item.flute2Gsm} onChange={e => handleItemChange(idx, 'flute2Gsm', e.target.value)} className="h-8 text-center px-0 w-full border-none focus-visible:ring-0" disabled={item.ply === '3'} /></TableCell>
+                                        <TableCell className="border-r"><Input type="number" value={item.bottomGsm} onChange={e => handleItemChange(idx, 'bottomGsm', e.target.value)} className="h-8 text-center px-0 w-full border-none focus-visible:ring-0" /></TableCell>
                                         <TableCell className="text-center font-medium bg-muted/10">{item.calculated?.totalGsm.toFixed(0)}</TableCell>
                                         <TableCell className="text-center font-medium bg-muted/10">{item.calculated?.paperWeight.toFixed(0)}</TableCell>
                                         <TableCell className="text-center font-medium bg-muted/20">{item.calculated?.paperCost.toFixed(2)}</TableCell>
@@ -520,6 +551,60 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                 </ScrollArea>
             </CardContent>
         </Card>
+
+        <Dialog open={isBatchAddDialogOpen} onOpenChange={setIsBatchAddDialogOpen}>
+            <DialogContent className="sm:max-w-2xl max-h-[80vh]">
+                <DialogHeader>
+                    <DialogTitle>Load Products from List</DialogTitle>
+                    <DialogDescription>Select multiple products for the current party to add to the calculator.</DialogDescription>
+                </DialogHeader>
+                <ScrollArea className="pr-4 mt-4">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className="w-12"></TableHead>
+                                <TableHead>Product Name</TableHead>
+                                <TableHead>Specs</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {companyProducts.map(p => (
+                                <TableRow key={p.id}>
+                                    <TableCell>
+                                        <Checkbox 
+                                            checked={selectedBatchProductIds.has(p.id)} 
+                                            onCheckedChange={(v) => {
+                                                const next = new Set(selectedBatchProductIds);
+                                                if (v) next.add(p.id);
+                                                else next.delete(p.id);
+                                                setSelectedBatchProductIds(next);
+                                            }}
+                                        />
+                                    </TableCell>
+                                    <TableCell className="font-medium">{p.name}</TableCell>
+                                    <TableCell className="text-xs text-muted-foreground">
+                                        {p.specification?.dimension || 'N/A'} • {p.specification?.ply} Ply • {p.specification?.paperType}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                            {companyProducts.length === 0 && (
+                                <TableRow>
+                                    <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                                        No products found for this party.
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </ScrollArea>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsBatchAddDialogOpen(false)}>Cancel</Button>
+                    <Button onClick={handleBatchLoad} disabled={selectedBatchProductIds.size === 0}>
+                        Load Selected ({selectedBatchProductIds.size})
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
 
         <Dialog open={isPartyDialogOpen} onOpenChange={setIsPartyDialogOpen}>
             <DialogContent className="sm:max-w-md">
