@@ -470,7 +470,9 @@ export default function PoliciesPage() {
                                             {hasPermission('fleet', 'delete') && <DropdownMenuSeparator />}
                                             {hasPermission('fleet', 'delete') && (
                                                 <AlertDialog>
-                                                    <AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem></AlertDialogTrigger>
+                                                    <AlertDialogTrigger asChild>
+                                                        <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
+                                                    </AlertDialogTrigger>
                                                     <AlertDialogContent>
                                                         <AlertDialogHeader><AlertDialogTitle>Confirm Deletion</AlertDialogTitle><AlertDialogDescription>This will permanently remove this record from the database. This action cannot be reversed.</AlertDialogDescription></AlertDialogHeader>
                                                         <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(policy.id)}>Delete</AlertDialogAction></AlertDialogFooter>
@@ -727,7 +729,7 @@ export default function PoliciesPage() {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => { setIsDialogOpen(false); resetForm(); }}>Cancel</Button>
-                        <Button onClick={handleSubmit}>{editingPolicy ? (isRenewal ? 'Renew Record' : 'Save Changes') : (isRenewal ? 'Renew Record' : 'Add Record')}</Button>
+                        <Button onClick={handleSubmit}>{editingPolicy ? (isRenewal ? 'Renew Record' : 'Save Changes') : 'Add Record'}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -739,8 +741,8 @@ export default function PoliciesPage() {
                         <DialogDescription>Full record information.</DialogDescription>
                     </DialogHeader>
                     {viewingPolicy && (
-                        <div className="space-y-4 py-4">
-                            <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div className="space-y-4 py-4 text-sm">
+                            <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <Label className="text-muted-foreground">Type</Label>
                                     <p className="font-medium">{viewingPolicy.type}</p>
