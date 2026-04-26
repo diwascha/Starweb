@@ -11,7 +11,8 @@ import type {
   CostSetting, 
   CalculatedValues, 
   CostReportTerm,
-  Accessory
+  Accessory,
+  ProductAccessory
 } from '@/lib/types';
 import { onProductsUpdate, addProduct as addProductService, updateProduct } from '@/services/product-service';
 import { onPartiesUpdate, addParty } from '@/services/party-service';
@@ -60,8 +61,6 @@ import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { onSettingUpdate, updateCostSettings } from '@/services/settings-service';
@@ -102,7 +101,6 @@ interface QuotationPreviewDialogProps {
 
 function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate, party, items, products, termsAndConditions = [] }: QuotationPreviewDialogProps) {
   const printRef = useRef<HTMLDivElement>(null);
-  const { toast } = useToast();
   
   const selectedTerms = useMemo(() => (termsAndConditions || []).filter(t => t.isSelected), [termsAndConditions]);
 
@@ -290,9 +288,13 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
         }
     });
     const unsubParties = onPartiesUpdate(setParties);
-    const unsubReports = onCostReportsUpdate(setCostReports);
+    const unsubReports = onSnapshotCostReports();
     return () => { unsubCostSettings(); unsubParties(); unsubReports(); };
   }, []);
+
+  function onSnapshotCostReports() {
+     return onCostReportsUpdate(setCostReports);
+  }
 
   useEffect(() => {
       if (!reportToEdit) {
@@ -357,6 +359,11 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
         middleGsm: spec.middleGsm || '',
         flute2Gsm: spec.flute2Gsm || '',
         bottomGsm: spec.bottomGsm || '120',
+        liner2Gsm: spec.liner2Gsm || '',
+        flute3Gsm: spec.flute3Gsm || '',
+        liner3Gsm: spec.liner3Gsm || '',
+        flute4Gsm: spec.flute4Gsm || '',
+        liner4Gsm: spec.liner4Gsm || '',
         wastagePercent: spec.wastagePercent || '3.5',
         accessories: []
     };
@@ -364,7 +371,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
   }, [calculateItemCost, kraftPaperCosts, virginPaperCost, conversionCost]);
 
   const handleAddItem = () => {
-    const base = { id: Date.now().toString(), productId: '', l:'', b:'', h:'', noOfPcs:'1', ply:'3', fluteType: 'B', paperType: 'KRAFT', paperBf:'18 BF', paperShade: 'NS', boxType: 'RSC', topGsm:'120', flute1Gsm:'100', middleGsm:'', flute2Gsm:'', bottomGsm:'120', wastagePercent:'3.5', accessories: [] };
+    const base = { id: Date.now().toString(), productId: '', l:'', b:'', h:'', noOfPcs:'1', ply:'3', fluteType: 'B', paperType: 'KRAFT', paperBf:'18 BF', paperShade: 'NS', boxType: 'RSC', topGsm:'120', flute1Gsm:'100', middleGsm:'', flute2Gsm:'', bottomGsm:'120', liner2Gsm:'', flute3Gsm:'', liner3Gsm:'', flute4Gsm:'', liner4Gsm:'', wastagePercent:'3.5', accessories: [] };
     const newItem = { ...base, calculated: calculateItemCost(base, kraftPaperCosts, Number(virginPaperCost) || 0, Number(conversionCost) || 0) };
     setItems([...items, newItem]);
     setSelectedForPrint(new Set(selectedForPrint).add(newItem.id));
@@ -467,7 +474,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
                 <CardHeader className="py-3 px-4 border-b bg-muted/5"><CardTitle className="text-xs uppercase tracking-wider">Report Identity</CardTitle></CardHeader>
                 <CardContent className="pt-4 space-y-4">
                     <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1"><Label className="text-[10px] font-bold">Report No</Label><Input value={reportNumber} readOnly className="h-8 text-xs bg-muted font-mono" /></div>
+                        <div className="space-y-1"><Label className="text-[10px] font-bold">Report No</Label><Input value={reportNumber ?? ''} readOnly className="h-8 text-xs bg-muted font-mono" /></div>
                         <div className="space-y-1"><Label className="text-[10px] font-bold">Date</Label><Button variant="outline" className="w-full h-8 text-xs font-normal justify-start"><CalendarIcon className="mr-2 h-3.5 w-3.5" /> {toNepaliDate(reportDate.toISOString())}</Button></div>
                     </div>
                     <div className="space-y-1">
@@ -492,13 +499,13 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
                             {bfOptions.map(bf => (
                                 <div key={bf} className="flex items-center gap-2">
                                     <span className="text-[10px] w-12 font-medium">{bf}</span>
-                                    <Input type="number" className="h-8 text-xs px-2" value={kraftPaperCosts[normalizeBF(bf)] || ''} onChange={e => setKraftPaperCosts({...kraftPaperCosts, [normalizeBF(bf)]: e.target.value === '' ? 0 : parseFloat(e.target.value)})} />
+                                    <Input type="number" className="h-8 text-xs px-2" value={kraftPaperCosts[normalizeBF(bf)] ?? ''} onChange={e => setKraftPaperCosts({...kraftPaperCosts, [normalizeBF(bf)]: e.target.value === '' ? 0 : parseFloat(e.target.value)})} />
                                 </div>
                             ))}
                         </div>
                     </div>
-                    <div className="space-y-1"><Label className="text-[10px] font-bold">Virgin Rate</Label><Input type="number" value={virginPaperCost} onChange={e => setVirginCost(e.target.value === '' ? '' : parseFloat(e.target.value))} className="h-8 text-xs" /></div>
-                    <div className="space-y-1"><Label className="text-[10px] font-bold">Conversion</Label><Input type="number" value={conversionCost} onChange={e => setConversionCost(e.target.value === '' ? '' : parseFloat(e.target.value))} className="h-8 text-xs" /></div>
+                    <div className="space-y-1"><Label className="text-[10px] font-bold">Virgin Rate</Label><Input type="number" value={virginPaperCost ?? ''} onChange={e => setVirginCost(e.target.value === '' ? '' : parseFloat(e.target.value))} className="h-8 text-xs" /></div>
+                    <div className="space-y-1"><Label className="text-[10px] font-bold">Conversion</Label><Input type="number" value={conversionCost ?? ''} onChange={e => setConversionCost(e.target.value === '' ? '' : parseFloat(e.target.value))} className="h-8 text-xs" /></div>
                 </CardContent>
             </Card>
 
@@ -509,7 +516,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
                 </CardHeader>
                 <CardContent className="pt-4 space-y-4">
                     <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1"><Label className="text-[10px] font-bold">Transport</Label><Input type="number" value={transportCost} onChange={e => setTransportCost(e.target.value === '' ? '' : parseFloat(e.target.value))} className="h-8 text-xs" /></div>
+                        <div className="space-y-1"><Label className="text-[10px] font-bold">Transport</Label><Input type="number" value={transportCost ?? ''} onChange={e => setTransportCost(e.target.value === '' ? '' : parseFloat(e.target.value))} className="h-8 text-xs" /></div>
                         <div className="space-y-1"><Label className="text-[10px] font-bold">Basis</Label>
                             <Select value={transportCostType} onValueChange={(v: any) => setTransportCostType(v)}>
                                 <SelectTrigger className="h-8 text-xs"><SelectValue/></SelectTrigger>
@@ -603,24 +610,24 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
                                         <TableCell className="border-r pr-2">
                                             <div className="flex gap-1.5 items-center">
                                                 <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" onClick={() => setIsProductDialogOpen(true)} title="Quick Add Product"><Plus className="h-3.5 w-3.5" /></Button>
-                                                <Select value={item.productId} onValueChange={v => handleItemChange(idx, 'productId', v)}>
+                                                <Select value={item.productId ?? ''} onValueChange={v => handleItemChange(idx, 'productId', v)}>
                                                     <SelectTrigger className="h-8 text-[11px] w-full"><SelectValue placeholder="Select product..." /></SelectTrigger>
                                                     <SelectContent>{products.sort((a,b)=>a.name.localeCompare(b.name)).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
                                                 </Select>
                                             </div>
                                         </TableCell>
-                                        <TableCell className="border-r p-0"><Input type="number" value={item.l} onChange={e => handleItemChange(idx, 'l', e.target.value)} className="h-14 text-center px-2 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
-                                        <TableCell className="border-r p-0"><Input type="number" value={item.b} onChange={e => handleItemChange(idx, 'b', e.target.value)} className="h-14 text-center px-2 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
-                                        <TableCell className="border-r p-0"><Input type="number" value={item.h} onChange={e => handleItemChange(idx, 'h', e.target.value)} className="h-14 text-center px-2 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
-                                        <TableCell className="border-r p-0"><Input type="number" value={item.noOfPcs} onChange={e => handleItemChange(idx, 'noOfPcs', e.target.value)} className="h-14 text-center px-2 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
+                                        <TableCell className="border-r p-0"><Input type="number" value={item.l ?? ''} onChange={e => handleItemChange(idx, 'l', e.target.value)} className="h-14 text-center px-2 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
+                                        <TableCell className="border-r p-0"><Input type="number" value={item.b ?? ''} onChange={e => handleItemChange(idx, 'b', e.target.value)} className="h-14 text-center px-2 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
+                                        <TableCell className="border-r p-0"><Input type="number" value={item.h ?? ''} onChange={e => handleItemChange(idx, 'h', e.target.value)} className="h-14 text-center px-2 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
+                                        <TableCell className="border-r p-0"><Input type="number" value={item.noOfPcs ?? ''} onChange={e => handleItemChange(idx, 'noOfPcs', e.target.value)} className="h-14 text-center px-2 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
                                         <TableCell className="border-r px-2">
-                                            <Select value={item.ply} onValueChange={v => handleItemChange(idx, 'ply', v)}>
+                                            <Select value={item.ply ?? '3'} onValueChange={v => handleItemChange(idx, 'ply', v)}>
                                                 <SelectTrigger className="h-8 text-center px-1"><SelectValue/></SelectTrigger>
                                                 <SelectContent><SelectItem value="3">3</SelectItem><SelectItem value="5">5</SelectItem></SelectContent>
                                             </Select>
                                         </TableCell>
                                         <TableCell className="border-r px-2">
-                                            <Select value={item.paperType} onValueChange={v => handleItemChange(idx, 'paperType', v)}>
+                                            <Select value={item.paperType ?? 'KRAFT'} onValueChange={v => handleItemChange(idx, 'paperType', v)}>
                                                 <SelectTrigger className="h-8 px-2"><SelectValue/></SelectTrigger>
                                                 <SelectContent>
                                                     <SelectItem value="KRAFT">Kraft (K)</SelectItem>
@@ -635,12 +642,12 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
                                                 <SelectContent>{bfOptions.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
                                             </Select>
                                         </TableCell>
-                                        <TableCell className="border-r p-0"><Input type="number" value={item.wastagePercent} onChange={e => handleItemChange(idx, 'wastagePercent', e.target.value)} className="h-14 text-center px-2 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
-                                        <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.topGsm} onChange={e => handleItemChange(idx, 'topGsm', e.target.value)} className="h-14 text-center px-2 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
-                                        <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.flute1Gsm} onChange={e => handleItemChange(idx, 'flute1Gsm', e.target.value)} className="h-14 text-center px-2 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
-                                        <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.middleGsm} onChange={e => handleItemChange(idx, 'middleGsm', e.target.value)} className="h-14 text-center px-2 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" disabled={item.ply === '3'} /></TableCell>
-                                        <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.flute2Gsm} onChange={e => handleItemChange(idx, 'flute2Gsm', e.target.value)} className="h-14 text-center px-2 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" disabled={item.ply === '3'} /></TableCell>
-                                        <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.bottomGsm} onChange={e => handleItemChange(idx, 'bottomGsm', e.target.value)} className="h-14 text-center px-2 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
+                                        <TableCell className="border-r p-0"><Input type="number" value={item.wastagePercent ?? ''} onChange={e => handleItemChange(idx, 'wastagePercent', e.target.value)} className="h-14 text-center px-2 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
+                                        <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.topGsm ?? ''} onChange={e => handleItemChange(idx, 'topGsm', e.target.value)} className="h-14 text-center px-2 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
+                                        <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.flute1Gsm ?? ''} onChange={e => handleItemChange(idx, 'flute1Gsm', e.target.value)} className="h-14 text-center px-2 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
+                                        <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.middleGsm ?? ''} onChange={e => handleItemChange(idx, 'middleGsm', e.target.value)} className="h-14 text-center px-2 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" disabled={item.ply === '3'} /></TableCell>
+                                        <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.flute2Gsm ?? ''} onChange={e => handleItemChange(idx, 'flute2Gsm', e.target.value)} className="h-14 text-center px-2 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" disabled={item.ply === '3'} /></TableCell>
+                                        <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.bottomGsm ?? ''} onChange={e => handleItemChange(idx, 'bottomGsm', e.target.value)} className="h-14 text-center px-2 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
                                         <TableCell className="text-center font-medium bg-muted/20 border-r">{item.calculated?.totalGsm.toFixed(0)}</TableCell>
                                         <TableCell className="text-center font-medium bg-muted/20 border-r">{item.calculated?.paperWeight.toFixed(1)}</TableCell>
                                         <TableCell className="text-center font-bold border-r bg-primary/5">Rs. {item.calculated?.paperCost.toFixed(2)}</TableCell>
@@ -726,8 +733,8 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
             <DialogContent className="sm:max-w-md">
                 <DialogHeader><DialogTitle>Quick Add Party</DialogTitle></DialogHeader>
                 <div className="grid gap-4 py-4">
-                    <div className="space-y-2"><Label>Party Name</Label><Input value={partyForm.name} onChange={e => setPartyForm({...partyForm, name: e.target.value})} /></div>
-                    <div className="space-y-2"><Label>Address</Label><Textarea value={partyForm.address} onChange={e => setPartyForm({...partyForm, address: e.target.value})} /></div>
+                    <div className="space-y-2"><Label>Party Name</Label><Input value={partyForm.name ?? ''} onChange={e => setPartyForm({...partyForm, name: e.target.value})} /></div>
+                    <div className="space-y-2"><Label>Address</Label><Textarea value={partyForm.address ?? ''} onChange={e => setPartyForm({...partyForm, address: e.target.value})} /></div>
                 </div>
                 <DialogFooter><Button onClick={handleSubmitParty}>Add Party</Button></DialogFooter>
             </DialogContent>
@@ -790,7 +797,7 @@ function ProductsList({ products, onEdit }: { products: Product[], onEdit: (p: P
                     <Input 
                         placeholder="Search products or customers..." 
                         className="pl-8" 
-                        value={search} 
+                        value={search ?? ''} 
                         onChange={e => setSearch(e.target.value)} 
                     />
                 </div>
@@ -852,7 +859,13 @@ function ProductForm({ productToEdit, onSaveSuccess }: any) {
         if (productToEdit) {
             const [l, b, h] = productToEdit.specification?.dimension?.split('x') || ['', '', ''];
             setDim({ l, b, h });
-            setForm(productToEdit);
+            setForm({
+                ...productToEdit,
+                specification: {
+                    ...form.specification,
+                    ...productToEdit.specification
+                }
+            });
         }
     }, [productToEdit]);
 
@@ -869,9 +882,9 @@ function ProductForm({ productToEdit, onSaveSuccess }: any) {
             <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-4">
                     <h3 className="text-xs font-bold uppercase border-b pb-1 text-muted-foreground">General Info</h3>
-                    <div className="space-y-2"><Label>Product Name</Label><Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} /></div>
+                    <div className="space-y-2"><Label>Product Name</Label><Input value={form.name ?? ''} onChange={e => setForm({...form, name: e.target.value})} /></div>
                     <div className="space-y-2"><Label>Party (Customer)</Label>
-                        <Select value={form.partyId} onValueChange={v => setForm({...form, partyId: v})}>
+                        <Select value={form.partyId ?? ''} onValueChange={v => setForm({...form, partyId: v})}>
                             <SelectTrigger><SelectValue placeholder="Select party..." /></SelectTrigger>
                             <SelectContent>{parties.sort((a,b)=>a.name.localeCompare(b.name)).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
                         </Select>
@@ -880,9 +893,9 @@ function ProductForm({ productToEdit, onSaveSuccess }: any) {
                 <div className="space-y-4">
                     <h3 className="text-xs font-bold uppercase border-b pb-1 text-muted-foreground">Dimensions (mm)</h3>
                     <div className="grid grid-cols-3 gap-2">
-                        <div><Label className="text-[10px]">L</Label><Input type="number" value={dim.l} onChange={e => setDim({...dim, l: e.target.value})} /></div>
-                        <div><Label className="text-[10px]">B</Label><Input type="number" value={dim.b} onChange={e => setDim({...dim, b: e.target.value})} /></div>
-                        <div><Label className="text-[10px]">H</Label><Input type="number" value={dim.h} onChange={e => setDim({...dim, h: e.target.value})} /></div>
+                        <div><Label className="text-[10px]">L</Label><Input type="number" value={dim.l ?? ''} onChange={e => setDim({...dim, l: e.target.value})} /></div>
+                        <div><Label className="text-[10px]">B</Label><Input type="number" value={dim.b ?? ''} onChange={e => setDim({...dim, b: e.target.value})} /></div>
+                        <div><Label className="text-[10px]">H</Label><Input type="number" value={dim.h ?? ''} onChange={e => setDim({...dim, h: e.target.value})} /></div>
                     </div>
                 </div>
             </div>
@@ -890,19 +903,19 @@ function ProductForm({ productToEdit, onSaveSuccess }: any) {
             <div className="space-y-4">
                 <h3 className="text-xs font-bold uppercase border-b pb-1 text-muted-foreground">Technical Specs</h3>
                 <div className="grid grid-cols-4 gap-4">
-                    <div><Label>Ply</Label><Select value={form.specification.ply} onValueChange={v => updateSpec('ply', v)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="3">3</SelectItem><SelectItem value="5">5</SelectItem></SelectContent></Select></div>
-                    <div><Label>Paper Type</Label><Select value={form.specification.paperType} onValueChange={v => updateSpec('paperType', v)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="KRAFT">Kraft</SelectItem><SelectItem value="VIRGIN">Virgin</SelectItem><SelectItem value="VIRGIN & KRAFT">Mixed</SelectItem></SelectContent></Select></div>
+                    <div><Label>Ply</Label><Select value={form.specification.ply ?? '3'} onValueChange={v => updateSpec('ply', v)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="3">3</SelectItem><SelectItem value="5">5</SelectItem></SelectContent></Select></div>
+                    <div><Label>Paper Type</Label><Select value={form.specification.paperType ?? 'KRAFT'} onValueChange={v => updateSpec('paperType', v)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="KRAFT">Kraft</SelectItem><SelectItem value="VIRGIN">Virgin</SelectItem><SelectItem value="VIRGIN & KRAFT">Mixed</SelectItem></SelectContent></Select></div>
                     <div><Label>Paper BF</Label><Select value={normalizeBF(form.specification.paperBf)} onValueChange={v => updateSpec('paperBf', v)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{bfOptions.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent></Select></div>
-                    <div><Label>Waste %</Label><Input type="number" value={form.specification.wastagePercent} onChange={e => updateSpec('wastagePercent', e.target.value)} /></div>
+                    <div><Label>Waste %</Label><Input type="number" value={form.specification.wastagePercent ?? '3.5'} onChange={e => updateSpec('wastagePercent', e.target.value)} /></div>
                 </div>
                 <div className="p-6 bg-muted/10 rounded-lg space-y-4 border border-dashed">
                     <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">GSM Composition Layers</Label>
                     <div className="grid grid-cols-5 gap-6">
-                        <div><Label className="text-[10px] font-bold">Top</Label><Input type="number" value={form.specification.topGsm} onChange={e => updateSpec('topGsm', e.target.value)} /></div>
-                        <div><Label className="text-[10px] font-bold">Flute 1</Label><Input type="number" value={form.specification.flute1Gsm} onChange={e => updateSpec('flute1Gsm', e.target.value)} /></div>
-                        <div><Label className="text-[10px] font-bold">Middle</Label><Input type="number" value={form.specification.middleGsm} onChange={e => updateSpec('middleGsm', e.target.value)} disabled={form.specification.ply === '3'} /></div>
-                        <div><Label className="text-[10px] font-bold">Flute 2</Label><Input type="number" value={form.specification.flute2Gsm} onChange={e => updateSpec('flute2Gsm', e.target.value)} disabled={form.specification.ply === '3'} /></div>
-                        <div><Label className="text-[10px] font-bold">Bottom</Label><Input type="number" value={form.specification.bottomGsm} onChange={e => updateSpec('bottomGsm', e.target.value)} /></div>
+                        <div><Label className="text-[10px] font-bold">Top</Label><Input type="number" value={form.specification.topGsm ?? ''} onChange={e => updateSpec('topGsm', e.target.value)} /></div>
+                        <div><Label className="text-[10px] font-bold">Flute 1</Label><Input type="number" value={form.specification.flute1Gsm ?? ''} onChange={e => updateSpec('flute1Gsm', e.target.value)} /></div>
+                        <div><Label className="text-[10px] font-bold">Middle</Label><Input type="number" value={form.specification.middleGsm ?? ''} onChange={e => updateSpec('middleGsm', e.target.value)} disabled={form.specification.ply === '3'} /></div>
+                        <div><Label className="text-[10px] font-bold">Flute 2</Label><Input type="number" value={form.specification.flute2Gsm ?? ''} onChange={e => updateSpec('flute2Gsm', e.target.value)} disabled={form.specification.ply === '3'} /></div>
+                        <div><Label className="text-[10px] font-bold">Bottom</Label><Input type="number" value={form.specification.bottomGsm ?? ''} onChange={e => updateSpec('bottomGsm', e.target.value)} /></div>
                     </div>
                 </div>
             </div>
@@ -968,11 +981,13 @@ export default function CostReportPage() {
                         <ProductForm 
                             productToEdit={productToEdit} 
                             onSaveSuccess={(data: any) => {
-                                updateProduct(productToEdit!.id, { ...data, lastModifiedBy: user?.username }).then(() => {
-                                    setIsProductEditorOpen(false);
-                                    setProductToEdit(null);
-                                    toast({ title: 'Product Updated' });
-                                });
+                                if (productToEdit) {
+                                    updateProduct(productToEdit.id, { ...data, lastModifiedBy: user?.username }).then(() => {
+                                        setIsProductEditorOpen(false);
+                                        setProductToEdit(null);
+                                        toast({ title: 'Product Updated' });
+                                    });
+                                }
                             }} 
                         />
                     </ScrollArea>
