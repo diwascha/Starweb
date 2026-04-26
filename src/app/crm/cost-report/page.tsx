@@ -102,7 +102,6 @@ interface QuotationPreviewDialogProps {
 
 function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate, party, items, products, termsAndConditions = [] }: QuotationPreviewDialogProps) {
   const printRef = useRef<HTMLDivElement>(null);
-  const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
   
   const selectedTerms = useMemo(() => (termsAndConditions || []).filter(t => t.isSelected), [termsAndConditions]);
@@ -287,7 +286,6 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
             setKraftPaperCosts(s.value.kraftPaperCosts || {});
             setVirginCost(s.value.virginPaperCost || '');
             setConversionCost(s.value.conversionCost || '');
-            // Initialize local report terms if they haven't been customized yet
             setTermsAndConditions(prev => prev.length === 0 ? (s.value.termsAndConditions || []) : prev);
         }
     });
@@ -413,6 +411,16 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
     } catch {
         toast({ title: 'Error', description: 'Failed to add party.', variant: 'destructive' });
     }
+  };
+
+  const handleSaveMasterTerms = async (newTerms: CostReportTerm[]) => {
+      if (!user) return;
+      try {
+          await updateCostSettings({ termsAndConditions: newTerms }, user.username);
+          toast({ title: 'Terms Updated', description: 'Master list has been updated.' });
+      } catch {
+          toast({ title: 'Error', description: 'Failed to update master terms.', variant: 'destructive' });
+      }
   };
 
   const handleSaveReport = async () => {
