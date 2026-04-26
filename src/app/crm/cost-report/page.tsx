@@ -205,8 +205,8 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
         </ScrollArea>
         <DialogFooter>
             <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
-            <Button onClick={handleExportPdf} disabled={isExporting}>{isExporting ? <Loader2 className="animate-spin" /> : <Save className="mr-2" />} Save PDF</Button>
-            <Button onClick={handlePrint}><Printer className="mr-2" /> Print</Button>
+            <Button onClick={handleExportPdf} disabled={isExporting}>{isExporting ? <Loader2 className="animate-spin" /> : <Save className="mr-2 h-4 w-4" />} Save PDF</Button>
+            <Button onClick={handlePrint}><Printer className="mr-2 h-4 w-4" /> Print</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -291,7 +291,32 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
 
   const handleItemChange = (idx: number, f: string, v: string) => {
     const next = [...items];
-    const item = { ...next[idx], [f]: f === 'paperBf' ? normalizeBF(v) : v };
+    let item = { ...next[idx], [f]: f === 'paperBf' ? normalizeBF(v) : v };
+    
+    // Auto-load product specifications when product is selected
+    if (f === 'productId') {
+        const product = products.find((p: Product) => p.id === v);
+        if (product && product.specification) {
+            const spec = product.specification;
+            const [dimL, dimB, dimH] = spec.dimension?.split('x') || ['', '', ''];
+            item = {
+                ...item,
+                l: dimL || item.l,
+                b: dimB || item.b,
+                h: dimH || item.h,
+                ply: spec.ply || item.ply,
+                paperType: spec.paperType || item.paperType,
+                paperBf: spec.paperBf || item.paperBf,
+                wastagePercent: spec.wastagePercent || item.wastagePercent,
+                topGsm: spec.topGsm || item.topGsm,
+                flute1Gsm: spec.flute1Gsm || item.flute1Gsm,
+                middleGsm: spec.middleGsm || item.middleGsm,
+                flute2Gsm: spec.flute2Gsm || item.flute2Gsm,
+                bottomGsm: spec.bottomGsm || item.bottomGsm,
+            };
+        }
+    }
+
     next[idx] = { ...item, calculated: calculateItemCost(item, kraftPaperCosts, Number(virginPaperCost) || 0, Number(conversionCost) || 0) };
     setItems(next);
   };
@@ -367,20 +392,41 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                             </Select>
                         </div>
                     </div>
-                    <Button variant="outline" className="w-full h-8 text-xs" onClick={() => setIsPreviewOpen(true)}><ImageIcon className="mr-2 h-3 w-3" /> Preview Quotation</Button>
+                    <div className="pt-2">
+                        <p className="text-[10px] text-muted-foreground uppercase font-bold mb-2">Terms & Conditions</p>
+                        <ScrollArea className="h-20 border rounded p-2 bg-muted/10">
+                            {costSettings?.termsAndConditions?.map((term, idx) => (
+                                <div key={idx} className="flex items-center space-x-2 mb-1">
+                                    <Checkbox 
+                                        id={`term-${idx}`} 
+                                        checked={termsAndConditions.find(t => t.text === term.text)?.isSelected} 
+                                        onCheckedChange={(v) => {
+                                            const next = [...termsAndConditions];
+                                            const existingIdx = next.findIndex(t => t.text === term.text);
+                                            if (existingIdx > -1) next[existingIdx].isSelected = !!v;
+                                            else next.push({ text: term.text, isSelected: !!v });
+                                            setTermsAndConditions(next);
+                                        }}
+                                    />
+                                    <Label htmlFor={`term-${idx}`} className="text-[10px] cursor-pointer">{term.text}</Label>
+                                </div>
+                            ))}
+                        </ScrollArea>
+                    </div>
                 </CardContent>
             </Card>
         </div>
 
         <Card className="shadow-lg overflow-hidden border-t-4 border-t-primary">
-            <CardHeader className="flex flex-row items-center justify-between bg-muted/20 py-4 px-6">
-                <div>
-                    <CardTitle className="text-lg">Product Cost Breakdown</CardTitle>
-                    <CardDescription>Detailed technical analysis and weight calculation</CardDescription>
-                </div>
+            <CardHeader className="flex flex-row items-center gap-4 bg-muted/20 py-4 px-6">
                 <div className="flex gap-2">
                     <Button size="sm" variant="outline" onClick={handleAddItem}><Plus className="mr-2 h-4 w-4" /> Add Item</Button>
                     <Button size="sm" onClick={() => setIsSaving(true)}><Save className="mr-2 h-4 w-4" /> Save Report</Button>
+                    <Button size="sm" variant="outline" onClick={() => setIsPreviewOpen(true)}><ImageIcon className="mr-2 h-4 w-4" /> Preview Quotation</Button>
+                </div>
+                <div className="ml-auto text-right">
+                    <CardTitle className="text-lg">Product Cost Breakdown</CardTitle>
+                    <CardDescription>Detailed technical analysis and weight calculation</CardDescription>
                 </div>
             </CardHeader>
             <CardContent className="p-0">
