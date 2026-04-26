@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Printer, Loader2, Plus, Trash2, ChevronsUpDown, Check, PlusCircle, Edit, Save, MoreHorizontal, HistoryIcon, Image as ImageIcon, Copy, X, ListFilter, FileSpreadsheet } from 'lucide-react';
+import { Printer, Loader2, Plus, Trash2, ChevronsUpDown, Check, PlusCircle, Edit, Save, MoreHorizontal, HistoryIcon, Image as ImageIcon, Copy, X, ListFilter, FileSpreadsheet, Settings2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon } from 'lucide-react';
@@ -27,7 +27,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { onSettingUpdate } from '@/services/settings-service';
+import { onSettingUpdate, updateCostSettings } from '@/services/settings-service';
 import React from 'react';
 
 const bfOptions = ['16 BF', '18 BF', '20 BF', '22 BF'];
@@ -97,7 +97,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
     const printableArea = printRef.current;
     if (!printableArea) return;
     const printWindow = window.open('', '', 'height=800,width=800');
-    printWindow?.document.write('<html><head><title>Print Quotation</title></head><body>');
+    printWindow?.document.write('<html><head><title>Print Quotation</title><style>body{font-family:sans-serif;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ddd;padding:8px;text-align:left;}th{background-color:#f2f2f2;}.text-right{text-align:right;}</style></head><body>');
     printWindow?.document.write(printableArea.innerHTML);
     printWindow?.document.write('</body></html>');
     printWindow?.document.close();
@@ -201,6 +201,14 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                         ))}
                     </TableBody>
                 </Table>
+                {selectedTerms.length > 0 && (
+                    <div className="mt-8">
+                        <p className="font-bold underline text-sm mb-2">Terms & Conditions:</p>
+                        <ol className="list-decimal pl-5 text-xs space-y-1">
+                            {selectedTerms.map((term, i) => <li key={i}>{term.text}</li>)}
+                        </ol>
+                    </div>
+                )}
             </div>
         </ScrollArea>
         <DialogFooter>
@@ -218,6 +226,45 @@ const initialCalculatedState: CalculatedValues = {
 };
 
 const initialKraftCosts: Record<string, number | ''> = { '16 BF': '', '18 BF': '', '20 BF': '', '22 BF': '' };
+
+function ManageTermsDialog({ isOpen, onOpenChange, masterTerms, onSave }: { isOpen: boolean, onOpenChange: (v: boolean) => void, masterTerms: CostReportTerm[], onSave: (v: CostReportTerm[]) => void }) {
+    const [terms, setTerms] = useState<string[]>([]);
+    const [newTerm, setNewTerm] = useState('');
+
+    useEffect(() => {
+        if (isOpen) setTerms(masterTerms.map(t => t.text));
+    }, [isOpen, masterTerms]);
+
+    const handleSave = () => {
+        onSave(terms.map(text => ({ text, isSelected: true })));
+        onOpenChange(false);
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-2xl">
+                <DialogHeader><DialogTitle>Manage Master Terms & Conditions</DialogTitle><DialogDescription>Define standard terms that can be selected for any quotation.</DialogDescription></DialogHeader>
+                <div className="space-y-4 py-4">
+                    <div className="flex gap-2">
+                        <Input placeholder="Add a new term..." value={newTerm} onChange={e => setNewTerm(e.target.value)} onKeyDown={e => { if(e.key === 'Enter') { setTerms([...terms, newTerm]); setNewTerm(''); } }} />
+                        <Button onClick={() => { if(newTerm) { setTerms([...terms, newTerm]); setNewTerm(''); } }}><Plus className="h-4 w-4" /></Button>
+                    </div>
+                    <ScrollArea className="h-60 border rounded p-2">
+                        <div className="space-y-2">
+                            {terms.map((text, idx) => (
+                                <div key={idx} className="flex gap-2 items-center group">
+                                    <Input value={text} onChange={e => { const n = [...terms]; n[idx] = e.target.value; setTerms(n); }} className="h-8 text-xs" />
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setTerms(terms.filter((_, i) => i !== idx))}><Trash2 className="h-4 w-4" /></Button>
+                                </div>
+                            ))}
+                        </div>
+                    </ScrollArea>
+                </div>
+                <DialogFooter><Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button><Button onClick={handleSave}>Save Master List</Button></DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
 
 function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, products }: any) {
   const [parties, setParties] = useState<Party[]>([]);
@@ -238,6 +285,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
   const [partyForm, setPartyForm] = useState<{ name: string, type: PartyType, address?: string, panNumber?: string }>({ name: '', type: 'Customer', address: '', panNumber: '' });
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
   const [isBatchAddDialogOpen, setIsBatchAddDialogOpen] = useState(false);
+  const [isManageTermsDialogOpen, setIsManageTermsDialogOpen] = useState(false);
   const [selectedBatchProductIds, setSelectedBatchProductIds] = useState<Set<string>>(new Set());
   const [pendingIdx, setPendingIdx] = useState<number | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -361,6 +409,16 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     }
   };
 
+  const handleSaveMasterTerms = async (newTerms: CostReportTerm[]) => {
+      if (!user) return;
+      try {
+          await updateCostSettings({ termsAndConditions: newTerms }, user.username);
+          toast({ title: 'Success', description: 'Master terms list updated.' });
+      } catch {
+          toast({ title: 'Error', description: 'Failed to save master terms.', variant: 'destructive' });
+      }
+  };
+
   const companyProducts = useMemo(() => {
     if (!selectedPartyId) return [];
     return products.filter(p => p.partyId === selectedPartyId).sort((a,b) => a.name.localeCompare(b.name));
@@ -409,7 +467,10 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
             </Card>
 
             <Card className="shadow-sm">
-                <CardHeader className="py-3 px-4 border-b"><CardTitle className="text-sm">Terms & Transport</CardTitle></CardHeader>
+                <CardHeader className="py-3 px-4 border-b flex flex-row items-center justify-between">
+                    <CardTitle className="text-sm">Terms & Transport</CardTitle>
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setIsManageTermsDialogOpen(true)}><Settings2 className="h-3 w-3" /></Button>
+                </CardHeader>
                 <CardContent className="pt-4 space-y-3">
                     <div className="grid grid-cols-2 gap-2">
                         <div className="space-y-1"><Label className="text-[10px]">Transport</Label><Input type="number" value={transportCost} onChange={e => setTransportCost(e.target.value === '' ? '' : parseFloat(e.target.value))} className="h-8 text-xs" /></div>
@@ -421,7 +482,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                         </div>
                     </div>
                     <div className="pt-2">
-                        <p className="text-[10px] text-muted-foreground uppercase font-bold mb-2">Terms & Conditions</p>
+                        <p className="text-[10px] text-muted-foreground uppercase font-bold mb-2">Selected Terms & Conditions</p>
                         <ScrollArea className="h-20 border rounded p-2 bg-muted/10">
                             {costSettings?.termsAndConditions?.map((term, idx) => (
                                 <div key={idx} className="flex items-center space-x-2 mb-1">
@@ -436,9 +497,12 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                             setTermsAndConditions(next);
                                         }}
                                     />
-                                    <Label htmlFor={`term-${idx}`} className="text-[10px] cursor-pointer">{term.text}</Label>
+                                    <Label htmlFor={`term-${idx}`} className="text-[10px] cursor-pointer leading-tight">{term.text}</Label>
                                 </div>
                             ))}
+                            {(!costSettings?.termsAndConditions || costSettings.termsAndConditions.length === 0) && (
+                                <p className="text-[9px] text-center text-muted-foreground pt-4">No terms added to master list.</p>
+                            )}
                         </ScrollArea>
                     </div>
                 </CardContent>
@@ -473,7 +537,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                     <TableHead rowSpan={2} className="text-center min-w-[80px]">Ply</TableHead>
                                     <TableHead rowSpan={2} className="text-center min-w-[150px]">Type (K/V/M)</TableHead>
                                     <TableHead rowSpan={2} className="text-center min-w-[130px]">Paper BF</TableHead>
-                                    <TableHead rowSpan={2} className="text-center min-w-[80px]">Waste %</TableHead>
+                                    <TableHead rowSpan={2} className="text-center min-w-[90px]">Waste %</TableHead>
                                     <TableHead colSpan={5} className="text-center border-x">GSM Composition</TableHead>
                                     <TableHead rowSpan={2} className="text-center min-w-[80px]">T.GSM</TableHead>
                                     <TableHead rowSpan={2} className="text-center min-w-[90px]">Weight (g)</TableHead>
@@ -625,6 +689,13 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                 </ScrollArea>
             </DialogContent>
         </Dialog>
+
+        <ManageTermsDialog 
+            isOpen={isManageTermsDialogOpen} 
+            onOpenChange={setIsManageTermsDialogOpen} 
+            masterTerms={costSettings?.termsAndConditions || []} 
+            onSave={handleSaveMasterTerms} 
+        />
 
         <QuotationPreviewDialog isOpen={isPreviewOpen} onOpenChange={setIsPreviewOpen} reportNumber={reportNumber} reportDate={reportDate} party={parties.find(p => p.id === selectedPartyId)} items={items.filter(i => selectedForPrint.has(i.id)).map(i => ({...i, totalItemCost: i.calculated.paperCost}))} products={products} transportCost={Number(transportCost)} transportCostType={transportCostType} termsAndConditions={termsAndConditions} />
     </div>
