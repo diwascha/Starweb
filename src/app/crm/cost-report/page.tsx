@@ -57,15 +57,15 @@ const getGsmDisplay = (item: any) => {
     
     let layers: (string | undefined)[] = [];
     if (p === 3) {
-        layers = [item.topGsm, item.flute1Gsm, item.bottomGsm];
+        layers = [item.topGsm || item.specification?.topGsm, item.flute1Gsm || item.specification?.flute1Gsm, item.bottomGsm || item.specification?.bottomGsm];
     } else if (p === 5) {
-        layers = [item.topGsm, item.flute1Gsm, item.middleGsm, item.flute2Gsm, item.bottomGsm];
+        layers = [item.topGsm || item.specification?.topGsm, item.flute1Gsm || item.specification?.flute1Gsm, item.middleGsm || item.specification?.middleGsm, item.flute2Gsm || item.specification?.flute2Gsm, item.bottomGsm || item.specification?.bottomGsm];
     } else if (p === 7) {
-        layers = [item.topGsm, item.flute1Gsm, item.liner2Gsm, item.flute2Gsm, item.liner3Gsm, item.flute3Gsm, item.bottomGsm];
+        layers = [item.topGsm || item.specification?.topGsm, item.flute1Gsm || item.specification?.flute1Gsm, item.liner2Gsm || item.specification?.liner2Gsm, item.flute2Gsm || item.specification?.flute2Gsm, item.liner3Gsm || item.specification?.liner3Gsm, item.flute3Gsm || item.specification?.flute3Gsm, item.bottomGsm || item.specification?.bottomGsm];
     } else if (p === 9) {
-        layers = [item.topGsm, item.flute1Gsm, item.liner2Gsm, item.flute2Gsm, item.liner3Gsm, item.flute3Gsm, item.liner4Gsm, item.flute4Gsm, item.bottomGsm];
+        layers = [item.topGsm || item.specification?.topGsm, item.flute1Gsm || item.specification?.flute1Gsm, item.liner2Gsm || item.specification?.liner2Gsm, item.flute2Gsm || item.specification?.flute2Gsm, item.liner3Gsm || item.specification?.liner3Gsm, item.flute3Gsm || item.specification?.flute3Gsm, item.liner4Gsm || item.specification?.liner4Gsm, item.flute4Gsm || item.specification?.flute4Gsm, item.bottomGsm || item.specification?.bottomGsm];
     } else {
-        layers = [item.topGsm, item.bottomGsm];
+        layers = [item.topGsm || item.specification?.topGsm, item.bottomGsm || item.specification?.bottomGsm];
     }
     
     return layers.filter(l => l !== undefined && l !== null && String(l).trim() !== '').join('/');
@@ -323,7 +323,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
             </Button>
             <Button onClick={handlePrint}><Printer className="mr-2 h-4 w-4" /> Print</Button>
         </DialogFooter>
-      </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
@@ -512,7 +512,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     const accs = (p.accessories || []).map(a => ({...a, paperBf: normalizeBF(a.paperBf), calculated: calculateItemCost(a, k, v, c)}));
     setItems(prev => {
         const next = [...prev];
-        const up = { ...next[idx], productId: p.id, l: l || '', b: b || '', h: h || '', ply: p.specification.ply || '3', paperBf: normalizeBF(p.specification.paperBf) || '', wastagePercent: p.specification.wastagePercent || '3.5', accessories: accs };
+        const up = { ...next[idx], productId: p.id, l: l || '', b: b || '', h: h || '', ply: p.specification.ply || '3', paperType: p.specification.paperType || 'KRAFT', paperBf: normalizeBF(p.specification.paperBf) || '18 BF', boxType: p.specification.boxType || 'RSC', wastagePercent: p.specification.wastagePercent || '3.5', topGsm: p.specification.topGsm || '120', flute1Gsm: p.specification.flute1Gsm || '100', middleGsm: p.specification.middleGsm || '', flute2Gsm: p.specification.flute2Gsm || '', bottomGsm: p.specification.bottomGsm || '120', accessories: accs };
         next[idx] = { ...up, calculated: calculateItemCost(up, k, v, c) };
         return next;
     });
@@ -583,11 +583,11 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
     }
   };
 
-  const handleQuickAddProduct = async () => {
-    if (!user || !productFormForAdd) return;
+  const handleQuickAddProduct = async (formData: any) => {
+    if (!user) return;
     try {
-        const party = parties.find(p => p.id === productFormForAdd.partyId);
-        const data = { ...productFormForAdd, partyName: party?.name || '', partyAddress: party?.address || '' };
+        const party = parties.find(p => p.id === formData.partyId);
+        const data = { ...formData, partyName: party?.name || '', partyAddress: party?.address || '' };
         const newProductId = await addProductService({ ...data, createdBy: user.username, createdAt: new Date().toISOString() });
         
         if (pendingProductIdx !== null) {
@@ -664,19 +664,11 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
         </Dialog>
 
         <Dialog open={isProductDialogOpen} onOpenChange={setIsProductDialogOpen}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
                 <DialogHeader><DialogTitle>Quick Add New Product</DialogTitle></DialogHeader>
-                <div className="grid gap-4 py-4">
-                    <div className="space-y-2"><Label htmlFor="prod-name">Product Name</Label><Input id="prod-name" value={productFormForAdd?.name || ''} onChange={e => setProductFormForAdd({...productFormForAdd, name: e.target.value})} /></div>
-                    <div className="space-y-2"><Label htmlFor="prod-code">Material Code</Label><Input id="prod-code" value={productFormForAdd?.materialCode || ''} onChange={e => setProductFormForAdd({...productFormForAdd, materialCode: e.target.value})} /></div>
-                    <div className="space-y-2"><Label htmlFor="prod-party">Delivered To</Label>
-                        <Select value={productFormForAdd?.partyId || ''} onValueChange={v => setProductFormForAdd({...productFormForAdd, partyId: v})}>
-                            <SelectTrigger id="prod-party"><SelectValue placeholder="Select party..." /></SelectTrigger>
-                            <SelectContent>{parties.filter(p => p.type === 'Customer' || p.type === 'Both').sort((a,b)=>a.name.localeCompare(b.name)).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
-                        </Select>
-                    </div>
-                </div>
-                <DialogFooter><Button variant="outline" onClick={() => setIsProductDialogOpen(false)}>Cancel</Button><Button onClick={handleQuickAddProduct}>Add Product</Button></DialogFooter>
+                <ScrollArea className="flex-1">
+                    <ProductForm productToEdit={productFormForAdd} onSaveSuccess={handleQuickAddProduct} />
+                </ScrollArea>
             </DialogContent>
         </Dialog>
 
@@ -761,13 +753,21 @@ function SavedProductsList() {
     
     const sorted = useMemo(() => products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || (p.materialCode || '').toLowerCase().includes(searchQuery.toLowerCase())).sort((a,b) => a.name.localeCompare(b.name)), [products, searchQuery]);
 
+    const handleProductSave = async (formData: any) => {
+        const { id, ...data } = formData;
+        if (id) await updateProductService(id, data);
+        else await addProductService(data);
+        setIsDialogOpen(false);
+    };
+
     return (
-      <><Card><CardHeader><div className="flex justify-between items-center"><div><CardTitle>Products for Costing</CardTitle></div><div className="flex gap-2"><Input placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-64" /><Button onClick={() => { setEditingProduct(null); setIsDialogOpen(true); }}>Add Product</Button></div></div></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Product Name</TableHead><TableHead>Delivered To</TableHead><TableHead>Dimension</TableHead><TableHead>Ply</TableHead><TableHead>GSM</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{sorted.map(p => (<TableRow key={p.id}><TableCell>{p.name}</TableCell><TableCell>{p.partyName || 'N/A'}</TableCell><TableCell>{p.specification?.dimension || 'N/A'}</TableCell><TableCell>{p.specification?.ply || 'N/A'}</TableCell><TableCell><CompactGsmDisplay item={p} /></TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger><DropdownMenuContent><DropdownMenuItem onSelect={() => { setEditingProduct(p); setIsDialogOpen(true); }}>Edit</DropdownMenuItem><AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive">Delete</DropdownMenuItem></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => deleteProductService(p.id)}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog></DropdownMenuContent></DropdownMenu></TableCell></TableRow>))}</TableBody></Table></CardContent></Card><Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>{editingProduct ? 'Edit' : 'Add'} Product</DialogTitle></DialogHeader><ProductForm productToEdit={editingProduct} onSaveSuccess={() => setIsDialogOpen(false)} onProductFormChange={() => {}}/></DialogContent></Dialog></>
+      <><Card><CardHeader><div className="flex justify-between items-center"><div><CardTitle>Products for Costing</CardTitle></div><div className="flex gap-2"><Input placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-64" /><Button onClick={() => { setEditingProduct(null); setIsDialogOpen(true); }}>Add Product</Button></div></div></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Product Name</TableHead><TableHead>Delivered To</TableHead><TableHead>Dimension</TableHead><TableHead>Ply</TableHead><TableHead>GSM</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{sorted.map(p => (<TableRow key={p.id}><TableCell>{p.name}</TableCell><TableCell>{p.partyName || 'N/A'}</TableCell><TableCell>{p.specification?.dimension || 'N/A'}</TableCell><TableCell>{p.specification?.ply || 'N/A'}</TableCell><TableCell><CompactGsmDisplay item={p} /></TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger><DropdownMenuContent><DropdownMenuItem onSelect={() => { setEditingProduct(p); setIsDialogOpen(true); }}>Edit</DropdownMenuItem><AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive">Delete</DropdownMenuItem></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => deleteProductService(p.id)}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog></DropdownMenuContent></DropdownMenu></TableCell></TableRow>))}</TableBody></Table></CardContent></Card><Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}><DialogContent className="max-w-3xl"><DialogHeader><DialogTitle>{editingProduct ? 'Edit' : 'Add'} Product</DialogTitle></DialogHeader><ProductForm productToEdit={editingProduct} onSaveSuccess={handleProductSave} onProductFormChange={() => {}}/></DialogContent></Dialog></>
     );
 }
 
 function ProductForm({ productToEdit, onSaveSuccess, onProductFormChange }: any) {
-    const [form, setForm] = useState<any>({ name: '', materialCode: '', partyId: '', specification: { ply: '3', wastagePercent: '3.5' }, accessories: [] });
+    const [form, setForm] = useState<any>({ name: '', materialCode: '', partyId: '', specification: { ply: '3', wastagePercent: '3.5', boxType: 'RSC', paperType: 'KRAFT', paperBf: '18 BF', topGsm: '120', flute1Gsm: '100', bottomGsm: '120' }, accessories: [] });
+    const [dim, setDim] = useState({ l: '', b: '', h: '' });
     const [parties, setParties] = useState<Party[]>([]);
     const { user } = useAuth();
     const { toast } = useToast();
@@ -778,28 +778,111 @@ function ProductForm({ productToEdit, onSaveSuccess, onProductFormChange }: any)
     }, []);
 
     useEffect(() => {
-        if (productToEdit) setForm({ ...productToEdit, specification: { ...productToEdit.specification } });
-        else setForm({ name: '', materialCode: '', partyId: '', specification: { ply: '3', wastagePercent: '3.5' }, accessories: [] });
+        if (productToEdit) {
+            const [l, b, h] = productToEdit.specification?.dimension?.split('x') || ['', '', ''];
+            setDim({ l, b, h });
+            setForm({ ...productToEdit, specification: { ...productToEdit.specification } });
+        } else {
+            setDim({ l: '', b: '', h: '' });
+            setForm({ name: '', materialCode: '', partyId: '', specification: { ply: '3', wastagePercent: '3.5', boxType: 'RSC', paperType: 'KRAFT', paperBf: '18 BF', topGsm: '120', flute1Gsm: '100', bottomGsm: '120' }, accessories: [] });
+        }
     }, [productToEdit]);
 
     const handleSave = async () => {
-        if (!user || !form.name || !form.partyId) return;
-        try {
-            const p = parties.find(p => p.id === form.partyId);
-            const data = { ...form, partyName: p?.name || '', partyAddress: p?.address || '' };
-            if (productToEdit) await updateProductService(productToEdit.id, { ...data, lastModifiedBy: user.username });
-            else await addProductService({ ...data, createdBy: user.username, createdAt: new Date().toISOString() });
-            toast({ title: 'Success' }); onSaveSuccess();
-        } catch { toast({ title: 'Error', variant: 'destructive' }); }
+        if (!user || !form.name || !form.partyId) {
+            toast({ title: 'Validation Error', description: 'Name and Party are required.', variant: 'destructive' });
+            return;
+        }
+        const dimension = `${dim.l}x${dim.b}x${dim.h}`;
+        const p = parties.find(p => p.id === form.partyId);
+        const data = { 
+            ...form, 
+            partyName: p?.name || '', 
+            partyAddress: p?.address || '',
+            specification: { ...form.specification, dimension },
+            lastModifiedBy: user.username 
+        };
+        onSaveSuccess(data);
     };
 
+    const updateSpec = (f: string, v: string) => {
+        setForm((prev: any) => ({ ...prev, specification: { ...prev.specification, [f]: v } }));
+    };
+
+    const ply = parseInt(form.specification.ply, 10);
+
     return (
-        <ScrollArea className="max-h-[70vh]"><div className="p-6 space-y-4">
-            <div className="grid grid-cols-2 gap-4"><div><Label>Name</Label><Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} /></div><div><Label>Code</Label><Input value={form.materialCode} onChange={e => setForm({...form, materialCode: e.target.value})} /></div></div>
-            <div><Label>Party</Label><Select value={form.partyId} onValueChange={v => setForm({...form, partyId: v})}><SelectTrigger><SelectValue placeholder="Select party..." /></SelectTrigger><SelectContent>{parties.sort((a,b)=>a.name.localeCompare(b.name)).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select></div>
-            <div className="grid grid-cols-2 gap-4"><div><Label>Ply</Label><Select value={form.specification.ply} onValueChange={v => setForm({...form, specification: {...form.specification, ply: v}})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="3">3</SelectItem><SelectItem value="5">5</SelectItem></SelectContent></Select></div><div><Label>Waste %</Label><Input type="number" value={form.specification.wastagePercent} onChange={e => setForm({...form, specification: {...form.specification, wastagePercent: e.target.value}})} /></div></div>
-            <Button className="w-full" onClick={handleSave}>Save Product</Button>
-        </div></ScrollArea>
+        <div className="p-6 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">General Info</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1"><Label>Product Name</Label><Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="e.g. Apple Box" /></div>
+                        <div className="space-y-1"><Label>Material Code</Label><Input value={form.materialCode} onChange={e => setForm({...form, materialCode: e.target.value})} placeholder="CODE-123" /></div>
+                    </div>
+                    <div className="space-y-1">
+                        <Label>Party (Customer)</Label>
+                        <Select value={form.partyId} onValueChange={v => setForm({...form, partyId: v})}>
+                            <SelectTrigger><SelectValue placeholder="Select party..." /></SelectTrigger>
+                            <SelectContent>{parties.sort((a,b)=>a.name.localeCompare(b.name)).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+                        </Select>
+                    </div>
+                </div>
+
+                <div className="space-y-4">
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Box Dimensions (mm)</h3>
+                    <div className="grid grid-cols-3 gap-2">
+                        <div className="space-y-1"><Label>Length</Label><Input type="number" value={dim.l} onChange={e => setDim({...dim, l: e.target.value})} /></div>
+                        <div className="space-y-1"><Label>Breadth</Label><Input type="number" value={dim.b} onChange={e => setDim({...dim, b: e.target.value})} /></div>
+                        <div className="space-y-1"><Label>Height</Label><Input type="number" value={dim.h} onChange={e => setDim({...dim, h: e.target.value})} /></div>
+                    </div>
+                </div>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-4">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Board Specifications</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="space-y-1">
+                        <Label>Ply</Label>
+                        <Select value={form.specification.ply} onValueChange={v => updateSpec('ply', v)}>
+                            <SelectTrigger><SelectValue/></SelectTrigger>
+                            <SelectContent><SelectItem value="3">3</SelectItem><SelectItem value="5">5</SelectItem><SelectItem value="7">7</SelectItem><SelectItem value="9">9</SelectItem></SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-1">
+                        <Label>Box Type</Label>
+                        <Input value={form.specification.boxType} onChange={e => updateSpec('boxType', e.target.value)} placeholder="RSC" />
+                    </div>
+                    <div className="space-y-1">
+                        <Label>Paper Type</Label>
+                        <Select value={form.specification.paperType} onValueChange={v => updateSpec('paperType', v)}>
+                            <SelectTrigger><SelectValue/></SelectTrigger>
+                            <SelectContent><SelectItem value="KRAFT">Kraft</SelectItem><SelectItem value="VIRGIN">Virgin</SelectItem><SelectItem value="VIRGIN & KRAFT">Mixed</SelectItem></SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-1">
+                        <Label>Paper BF</Label>
+                        <Select value={normalizeBF(form.specification.paperBf)} onValueChange={v => updateSpec('paperBf', normalizeBF(v))}>
+                            <SelectTrigger><SelectValue/></SelectTrigger>
+                            <SelectContent>{bfOptions.map(bf => <SelectItem key={bf} value={bf}>{bf}</SelectItem>)}</SelectContent>
+                        </Select>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 pt-2">
+                    <div className="space-y-1"><Label>Top GSM</Label><Input type="number" value={form.specification.topGsm} onChange={e => updateSpec('topGsm', e.target.value)} /></div>
+                    <div className="space-y-1"><Label>Flute 1 GSM</Label><Input type="number" value={form.specification.flute1Gsm} onChange={e => updateSpec('flute1Gsm', e.target.value)} /></div>
+                    {ply >= 5 && <div className="space-y-1"><Label>Flute 2 GSM</Label><Input type="number" value={form.specification.flute2Gsm} onChange={e => updateSpec('flute2Gsm', e.target.value)} /></div>}
+                    {ply >= 5 && <div className="space-y-1"><Label>Middle GSM</Label><Input type="number" value={form.specification.middleGsm} onChange={e => updateSpec('middleGsm', e.target.value)} /></div>}
+                    <div className="space-y-1"><Label>Bottom GSM</Label><Input type="number" value={form.specification.bottomGsm} onChange={e => updateSpec('bottomGsm', e.target.value)} /></div>
+                    <div className="space-y-1"><Label>Waste %</Label><Input type="number" value={form.specification.wastagePercent} onChange={e => updateSpec('wastagePercent', e.target.value)} /></div>
+                </div>
+            </div>
+
+            <Button className="w-full mt-4" onClick={handleSave}>{productToEdit ? 'Update Product' : 'Save Product'}</Button>
+        </div>
     );
 }
 
