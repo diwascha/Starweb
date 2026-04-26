@@ -321,7 +321,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
             </Button>
             <Button onClick={handlePrint}><Printer className="mr-2 h-4 w-4" /> Print</Button>
         </DialogFooter>
-      </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
@@ -664,7 +664,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                             {bfOptions.map(bf => (
                                 <div key={bf} className="flex items-center justify-between gap-2">
                                     <Label className="text-[10px] whitespace-nowrap">{bf}</Label>
-                                    <Input type="number" className="w-16 h-8 text-xs px-2" value={kraftPaperCosts[normalizeBF(bf)] ?? ''} onChange={e => handleCostChange('kraft', e.target.value, bf)} />
+                                    <Input type="number" className="w-20 h-9 text-xs px-2" value={kraftPaperCosts[normalizeBF(bf)] ?? ''} onChange={e => handleCostChange('kraft', e.target.value, bf)} />
                                 </div>
                             ))}
                         </div>
@@ -672,22 +672,22 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
                             <Label className="text-[10px]">Virgin Rate</Label>
-                            <Input type="number" className="h-8 text-xs" value={virginPaperCost} onChange={e => handleCostChange('virgin', e.target.value)} />
+                            <Input type="number" className="h-9 text-xs" value={virginPaperCost} onChange={e => handleCostChange('virgin', e.target.value)} />
                         </div>
                         <div className="space-y-1">
                             <Label className="text-[10px]">Conversion</Label>
-                            <Input type="number" className="h-8 text-xs" value={conversionCost} onChange={e => handleCostChange('conversion', e.target.value)} />
+                            <Input type="number" className="h-9 text-xs" value={conversionCost} onChange={e => handleCostChange('conversion', e.target.value)} />
                         </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
                             <Label className="text-[10px]">Transport</Label>
-                            <Input type="number" className="h-8 text-xs" value={transportCost} onChange={e => setTransportCost(e.target.value === '' ? '' : parseFloat(e.target.value))} />
+                            <Input type="number" className="h-9 text-xs" value={transportCost} onChange={e => setTransportCost(e.target.value === '' ? '' : parseFloat(e.target.value))} />
                         </div>
                         <div className="space-y-1">
                             <Label className="text-[10px]">Basis</Label>
                             <Select value={transportCostType} onValueChange={(v: any) => setTransportCostType(v)}>
-                                <SelectTrigger className="h-8 text-xs">
+                                <SelectTrigger className="h-9 text-xs">
                                     <SelectValue/>
                                 </SelectTrigger>
                                 <SelectContent>
@@ -739,17 +739,17 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
             <CardContent className="p-0">
                 <ScrollArea className="w-full">
                     <div className="p-4">
-                        <Table className="text-xs min-w-[1500px]">
+                        <Table className="text-xs min-w-[1600px]">
                             <TableHeader>
                                 <TableRow className="h-10 bg-muted/30">
                                     <TableHead rowSpan={2} className="w-[40px] px-2"><Checkbox checked={selectedForPrint.size === items.length && items.length > 0} onCheckedChange={v => setSelectedForPrint(v ? new Set(items.map(i => i.id)) : new Set())}/></TableHead>
-                                    <TableHead rowSpan={2} className="min-w-[200px]">Item Name</TableHead>
+                                    <TableHead rowSpan={2} className="min-w-[220px]">Item Name</TableHead>
                                     <TableHead colSpan={3} className="text-center border-x">Box Size (mm)</TableHead>
-                                    <TableHead rowSpan={2} className="text-center w-[60px]">Pcs</TableHead>
-                                    <TableHead rowSpan={2} className="text-center w-[70px]">Ply</TableHead>
-                                    <TableHead rowSpan={2} className="text-center w-[80px]">Type</TableHead>
-                                    <TableHead rowSpan={2} className="text-center w-[100px]">Paper BF</TableHead>
-                                    <TableHead rowSpan={2} className="text-center w-[70px]">Waste %</TableHead>
+                                    <TableHead rowSpan={2} className="text-center w-[70px]">Pcs</TableHead>
+                                    <TableHead rowSpan={2} className="text-center w-[80px]">Ply</TableHead>
+                                    <TableHead rowSpan={2} className="text-center w-[100px]">Type (K/V/M)</TableHead>
+                                    <TableHead rowSpan={2} className="text-center w-[110px]">Paper BF</TableHead>
+                                    <TableHead rowSpan={2} className="text-center w-[80px]">Waste %</TableHead>
                                     <TableHead colSpan={maxPly} className="text-center border-x">GSM Layers</TableHead>
                                     <TableHead rowSpan={2} className="text-center w-[80px]">T.GSM</TableHead>
                                     <TableHead rowSpan={2} className="text-center w-[80px]">Wt(g)</TableHead>
@@ -759,27 +759,27 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                     <TableHead rowSpan={2} className="w-[80px]"></TableHead>
                                 </TableRow>
                                 <TableRow className="h-10 bg-muted/10">
-                                    <TableHead className="text-center border-l w-[60px]">L</TableHead>
-                                    <TableHead className="text-center w-[60px]">B</TableHead>
-                                    <TableHead className="text-center border-r w-[60px]">H</TableHead>
-                                    <TableHead className="text-center border-l w-[60px]">T</TableHead>
-                                    <TableHead className="text-center w-[60px]">F1</TableHead>
-                                    {maxPly >= 5 && <TableHead className="text-center w-[60px]">F2</TableHead>}
-                                    {maxPly >= 5 && <TableHead className="text-center w-[60px]">M</TableHead>}
-                                    {maxPly >= 7 && <TableHead className="text-center w-[60px]">F3</TableHead>}
-                                    <TableHead className="text-center border-r w-[60px]">B</TableHead>
+                                    <TableHead className="text-center border-l w-[70px]">L</TableHead>
+                                    <TableHead className="text-center w-[70px]">B</TableHead>
+                                    <TableHead className="text-center border-r w-[70px]">H</TableHead>
+                                    <TableHead className="text-center border-l w-[70px]">T</TableHead>
+                                    <TableHead className="text-center w-[70px]">F1</TableHead>
+                                    {maxPly >= 5 && <TableHead className="text-center w-[70px]">F2</TableHead>}
+                                    {maxPly >= 5 && <TableHead className="text-center w-[70px]">M</TableHead>}
+                                    {maxPly >= 7 && <TableHead className="text-center w-[70px]">F3</TableHead>}
+                                    <TableHead className="text-center border-r w-[70px]">B</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {items.map((item, idx) => (
                                     <React.Fragment key={item.id}>
-                                        <TableRow className="hover:bg-muted/50 h-14">
+                                        <TableRow className="hover:bg-muted/50 h-16">
                                             <TableCell className="px-2"><Checkbox checked={selectedForPrint.has(item.id)} onCheckedChange={v => { const next = new Set(selectedForPrint); if(v) next.add(item.id); else next.delete(item.id); setSelectedForPrint(next); }}/></TableCell>
-                                            <TableCell className="min-w-[200px]">
+                                            <TableCell className="min-w-[220px]">
                                                 <div className="flex gap-2">
-                                                    <Button variant="outline" size="icon" className="h-7 w-7 shrink-0" onClick={() => { const k = Object.fromEntries(Object.entries(kraftPaperCosts).map(([b, c]) => [normalizeBF(b), Number(c) || 0])); const vi = Number(virginPaperCost) || 0; const co = Number(conversionCost) || 0; const acc = { id: Date.now().toString(), name: 'Acc', l:'',b:'',h:'0', noOfPcs:'1', ply:'0', fluteType:'B', paperType:'KRAFT', paperBf:'18 BF', wastagePercent:'3.5', topGsm:'120', flute1Gsm:'' }; setItems(prev => { const next = [...prev]; next[idx].accessories = [...(next[idx].accessories || []), { ...acc, calculated: calculateItemCost(acc, k, vi, co) }]; return next; }); }}><Plus className="h-3 w-3" /></Button>
+                                                    <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" onClick={() => { const k = Object.fromEntries(Object.entries(kraftPaperCosts).map(([b, c]) => [normalizeBF(b), Number(c) || 0])); const vi = Number(virginPaperCost) || 0; const co = Number(conversionCost) || 0; const acc = { id: Date.now().toString(), name: 'Acc', l:'',b:'',h:'0', noOfPcs:'1', ply:'0', fluteType:'B', paperType:'KRAFT', paperBf:'18 BF', wastagePercent:'3.5', topGsm:'120', flute1Gsm:'' }; setItems(prev => { const next = [...prev]; next[idx].accessories = [...(next[idx].accessories || []), { ...acc, calculated: calculateItemCost(acc, k, vi, co) }]; return next; }); }}><Plus className="h-4 w-4" /></Button>
                                                     <Popover>
-                                                        <PopoverTrigger asChild><Button variant="outline" className="w-full h-8 text-[11px] justify-start truncate">{products.find(p => p.id === item.productId)?.name || "Select product..."}</Button></PopoverTrigger>
+                                                        <PopoverTrigger asChild><Button variant="outline" className="w-full h-9 text-[11px] justify-start truncate">{products.find(p => p.id === item.productId)?.name || "Select product..."}</Button></PopoverTrigger>
                                                         <PopoverContent className="p-0 w-[--radix-popover-trigger-width]"><Command><CommandInput placeholder="Search or add product..." onValueChange={setProductSearch} /><CommandList><CommandEmpty>
                                                                 <div className="p-2">
                                                                     <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={() => { 
@@ -792,34 +792,38 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                                     </Popover>
                                                 </div>
                                             </TableCell>
-                                            <TableCell className="border-l"><Input type="number" value={item.l} onChange={e => handleItemChange(idx, 'l', e.target.value)} className="w-16 h-8 text-center" /></TableCell>
-                                            <TableCell><Input type="number" value={item.b} onChange={e => handleItemChange(idx, 'b', e.target.value)} className="w-16 h-8 text-center" /></TableCell>
-                                            <TableCell className="border-r"><Input type="number" value={item.h} onChange={e => handleItemChange(idx, 'h', e.target.value)} className="w-16 h-8 text-center" /></TableCell>
-                                            <TableCell><Input type="number" value={item.noOfPcs} onChange={e => handleItemChange(idx, 'noOfPcs', e.target.value)} className="w-14 h-8 text-center" /></TableCell>
+                                            <TableCell className="border-l"><Input type="number" value={item.l} onChange={e => handleItemChange(idx, 'l', e.target.value)} className="w-20 h-9 px-1 text-center" /></TableCell>
+                                            <TableCell><Input type="number" value={item.b} onChange={e => handleItemChange(idx, 'b', e.target.value)} className="w-20 h-9 px-1 text-center" /></TableCell>
+                                            <TableCell className="border-r"><Input type="number" value={item.h} onChange={e => handleItemChange(idx, 'h', e.target.value)} className="w-20 h-9 px-1 text-center" /></TableCell>
+                                            <TableCell><Input type="number" value={item.noOfPcs} onChange={e => handleItemChange(idx, 'noOfPcs', e.target.value)} className="w-16 h-9 px-1 text-center" /></TableCell>
                                             <TableCell>
                                                 <Select value={item.ply} onValueChange={v => handleItemChange(idx, 'ply', v)}>
-                                                    <SelectTrigger className="h-8"><SelectValue/></SelectTrigger>
+                                                    <SelectTrigger className="h-9"><SelectValue/></SelectTrigger>
                                                     <SelectContent><SelectItem value="3">3</SelectItem><SelectItem value="5">5</SelectItem><SelectItem value="7">7</SelectItem><SelectItem value="9">9</SelectItem></SelectContent>
                                                 </Select>
                                             </TableCell>
                                             <TableCell>
                                                 <Select value={item.paperType} onValueChange={v => handleItemChange(idx, 'paperType', v)}>
-                                                    <SelectTrigger className="h-8"><SelectValue/></SelectTrigger>
-                                                    <SelectContent><SelectItem value="KRAFT">K</SelectItem><SelectItem value="VIRGIN">V</SelectItem><SelectItem value="VIRGIN & KRAFT">M</SelectItem></SelectContent>
+                                                    <SelectTrigger className="h-9"><SelectValue/></SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="KRAFT">Kraft (K)</SelectItem>
+                                                        <SelectItem value="VIRGIN">Virgin (V)</SelectItem>
+                                                        <SelectItem value="VIRGIN & KRAFT">Mixed (M)</SelectItem>
+                                                    </SelectContent>
                                                 </Select>
                                             </TableCell>
                                             <TableCell>
                                                 <Select value={normalizeBF(item.paperBf)} onValueChange={v => handleItemChange(idx, 'paperBf', v)}>
-                                                    <SelectTrigger className="h-8 w-20"><SelectValue/></SelectTrigger>
+                                                    <SelectTrigger className="h-9 w-24"><SelectValue/></SelectTrigger>
                                                     <SelectContent>{bfOptions.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
                                                 </Select>
                                             </TableCell>
-                                            <TableCell><Input type="number" value={item.wastagePercent} onChange={e => handleItemChange(idx, 'wastagePercent', e.target.value)} className="w-14 h-8 text-center" /></TableCell>
-                                            <TableCell className="border-l"><Input type="number" value={item.topGsm} onChange={e => handleItemChange(idx, 'topGsm', e.target.value)} className="w-16 h-8 text-center" /></TableCell>
-                                            <TableCell><Input type="number" value={item.flute1Gsm} onChange={e => handleItemChange(idx, 'flute1Gsm', e.target.value)} className="w-16 h-8 text-center" /></TableCell>
-                                            {maxPly >= 5 && <TableCell><Input type="number" value={item.flute2Gsm} onChange={e => handleItemChange(idx, 'flute2Gsm', e.target.value)} className="w-16 h-8 text-center" /></TableCell>}
-                                            {maxPly >= 5 && <TableCell><Input type="number" value={item.middleGsm} onChange={e => handleItemChange(idx, 'middleGsm', e.target.value)} className="w-16 h-8 text-center" /></TableCell>}
-                                            <TableCell className="border-r"><Input type="number" value={item.bottomGsm} onChange={e => handleItemChange(idx, 'bottomGsm', e.target.value)} className="w-16 h-8 text-center" /></TableCell>
+                                            <TableCell><Input type="number" value={item.wastagePercent} onChange={e => handleItemChange(idx, 'wastagePercent', e.target.value)} className="w-20 h-9 px-1 text-center" /></TableCell>
+                                            <TableCell className="border-l"><Input type="number" value={item.topGsm} onChange={e => handleItemChange(idx, 'topGsm', e.target.value)} className="w-20 h-9 px-1 text-center" /></TableCell>
+                                            <TableCell><Input type="number" value={item.flute1Gsm} onChange={e => handleItemChange(idx, 'flute1Gsm', e.target.value)} className="w-20 h-9 px-1 text-center" /></TableCell>
+                                            {maxPly >= 5 && <TableCell><Input type="number" value={item.flute2Gsm} onChange={e => handleItemChange(idx, 'flute2Gsm', e.target.value)} className="w-20 h-9 px-1 text-center" /></TableCell>}
+                                            {maxPly >= 5 && <TableCell><Input type="number" value={item.middleGsm} onChange={e => handleItemChange(idx, 'middleGsm', e.target.value)} className="w-20 h-9 px-1 text-center" /></TableCell>}
+                                            <TableCell className="border-r"><Input type="number" value={item.bottomGsm} onChange={e => handleItemChange(idx, 'bottomGsm', e.target.value)} className="w-20 h-9 px-1 text-center" /></TableCell>
                                             <TableCell className="text-center font-medium">{item.calculated?.totalGsm.toFixed(0)}</TableCell>
                                             <TableCell className="text-center font-medium">{item.calculated?.paperWeight.toFixed(0)}</TableCell>
                                             <TableCell className="text-center font-medium">{item.calculated?.totalBoxWeight.toFixed(0)}</TableCell>
@@ -827,20 +831,20 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, onCancelEdit, produ
                                             <TableCell className="text-right font-bold pr-6">{(item.calculated?.paperCost + (item.accessories || []).reduce((s, a) => s + (a.calculated?.paperCost || 0), 0)).toFixed(2)}</TableCell>
                                             <TableCell>
                                                 <div className="flex gap-1">
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10" onClick={() => { const k = Object.fromEntries(Object.entries(kraftPaperCosts).map(([b, c]) => [normalizeBF(b), Number(c) || 0])); const vi = Number(virginPaperCost) || 0; const co = Number(conversionCost) || 0; const copy = { ...item, id: Date.now().toString(), accessories: (item.accessories || []).map(a => ({...a, id: Math.random().toString()})) }; setItems([...items, { ...copy, calculated: calculateItemCost(copy, k, vi, co) }]); }}><Copy className="h-3.5 w-3.5" /></Button>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10 text-destructive" onClick={() => setItems(items.filter(i => i.id !== item.id))}><Trash2 className="h-3.5 w-3.5" /></Button>
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10" onClick={() => { const k = Object.fromEntries(Object.entries(kraftPaperCosts).map(([b, c]) => [normalizeBF(b), Number(c) || 0])); const vi = Number(virginPaperCost) || 0; const co = Number(conversionCost) || 0; const copy = { ...item, id: Date.now().toString(), accessories: (item.accessories || []).map(a => ({...a, id: Math.random().toString()})) }; setItems([...items, { ...copy, calculated: calculateItemCost(copy, k, vi, co) }]); }}><Copy className="h-4 w-4" /></Button>
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10 text-destructive" onClick={() => setItems(items.filter(i => i.id !== item.id))}><Trash2 className="h-4 w-4" /></Button>
                                                 </div>
                                             </TableCell>
                                         </TableRow>
                                         {(item.accessories || []).map((acc, aIdx) => (
-                                            <TableRow key={acc.id} className="bg-muted/10 h-12">
+                                            <TableRow key={acc.id} className="bg-muted/10 h-14">
                                                 <TableCell colSpan={2} className="pl-12">
                                                     <div className="flex items-center gap-2">
                                                         <span className="text-[10px] text-muted-foreground font-bold">ACC</span>
-                                                        <Input value={acc.name} onChange={e => { const k = Object.fromEntries(Object.entries(kraftPaperCosts).map(([b, c]) => [normalizeBF(b), Number(c) || 0])); const vi = Number(virginPaperCost) || 0; const co = Number(conversionCost) || 0; const next = [...items]; next[idx].accessories![aIdx].name = e.target.value; setItems(next); }} className="h-7 text-xs w-48" />
+                                                        <Input value={acc.name} onChange={e => { const k = Object.fromEntries(Object.entries(kraftPaperCosts).map(([b, c]) => [normalizeBF(b), Number(c) || 0])); const vi = Number(virginPaperCost) || 0; const co = Number(conversionCost) || 0; const next = [...items]; next[idx].accessories![aIdx].name = e.target.value; setItems(next); }} className="h-8 text-xs w-48" />
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="border-l"><Input type="number" value={acc.l} onChange={e => { const k = Object.fromEntries(Object.entries(kraftPaperCosts).map(([b, c]) => [normalizeBF(b), Number(c) || 0])); const vi = Number(virginPaperCost) || 0; const co = Number(conversionCost) || 0; const next = [...items]; const ac = { ...next[idx].accessories![aIdx], l: e.target.value }; ac.calculated = calculateItemCost(ac, k, vi, co); next[idx].accessories![aIdx] = ac; setItems(next); }} className="w-16 h-7 text-center" /></TableCell>
+                                                <TableCell className="border-l"><Input type="number" value={acc.l} onChange={e => { const k = Object.fromEntries(Object.entries(kraftPaperCosts).map(([b, c]) => [normalizeBF(b), Number(c) || 0])); const vi = Number(virginPaperCost) || 0; const co = Number(conversionCost) || 0; const next = [...items]; const ac = { ...next[idx].accessories![aIdx], l: e.target.value }; ac.calculated = calculateItemCost(ac, k, vi, co); next[idx].accessories![aIdx] = ac; setItems(next); }} className="w-20 h-8 px-1 text-center" /></TableCell>
                                                 <TableCell colSpan={11}></TableCell>
                                                 <TableCell className="text-center font-medium text-muted-foreground">{acc.calculated?.paperCost.toFixed(2)}</TableCell>
                                                 <TableCell colSpan={2}></TableCell>
