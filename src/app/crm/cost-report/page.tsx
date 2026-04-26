@@ -13,7 +13,7 @@ import type {
   CostReportTerm,
   Accessory
 } from '@/lib/types';
-import { onProductsUpdate, addProduct as addProductService } from '@/services/product-service';
+import { onProductsUpdate, addProduct as addProductService, updateProduct } from '@/services/product-service';
 import { onPartiesUpdate, addParty } from '@/services/party-service';
 import { 
   onCostReportsUpdate, 
@@ -39,7 +39,8 @@ import {
   Image as ImageIcon, 
   Settings2,
   FileSpreadsheet,
-  X
+  X,
+  Search
 } from 'lucide-react';
 import { 
   Table, 
@@ -414,16 +415,6 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
     }
   };
 
-  const handleSaveMasterTerms = async (newTerms: CostReportTerm[]) => {
-      if (!user) return;
-      try {
-          await updateCostSettings({ termsAndConditions: newTerms }, user.username);
-          toast({ title: 'Success', description: 'Master terms list updated.' });
-      } catch {
-          toast({ title: 'Error', description: 'Failed to save master terms.', variant: 'destructive' });
-      }
-  };
-
   const handleSaveReport = async () => {
     if (!user || !selectedPartyId || items.length === 0) {
         toast({ title: 'Error', description: 'Party and at least one item are required.', variant: 'destructive' });
@@ -769,6 +760,73 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
   );
 }
 
+function ProductsList({ products, onEdit }: { products: Product[], onEdit: (p: Product) => void }) {
+    const [search, setSearch] = useState('');
+    
+    const filtered = useMemo(() => {
+        return products.filter(p => 
+            p.name.toLowerCase().includes(search.toLowerCase()) || 
+            (p.partyName || '').toLowerCase().includes(search.toLowerCase())
+        ).sort((a,b) => a.name.localeCompare(b.name));
+    }, [products, search]);
+
+    return (
+        <Card>
+            <CardHeader className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div>
+                    <CardTitle>Product Specification Catalog</CardTitle>
+                    <CardDescription>Manage saved board compositions and dimensions.</CardDescription>
+                </div>
+                <div className="relative w-full sm:w-72">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                        placeholder="Search products or customers..." 
+                        className="pl-8" 
+                        value={search} 
+                        onChange={e => setSearch(e.target.value)} 
+                    />
+                </div>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Product Name</TableHead>
+                            <TableHead>Customer</TableHead>
+                            <TableHead>Dimension (mm)</TableHead>
+                            <TableHead>Ply</TableHead>
+                            <TableHead>Composition (GSM)</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {filtered.length > 0 ? filtered.map(p => (
+                            <TableRow key={p.id}>
+                                <TableCell className="font-bold">{p.name}</TableCell>
+                                <TableCell>{p.partyName}</TableCell>
+                                <TableCell>{p.specification?.dimension || 'N/A'}</TableCell>
+                                <TableCell>{p.specification?.ply} Ply</TableCell>
+                                <TableCell className="text-xs text-muted-foreground">
+                                    {getGsmDisplay(p.specification)}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                    <Button variant="ghost" size="icon" onClick={() => onEdit(p)}>
+                                        <Edit className="h-4 w-4" />
+                                    </Button>
+                                </TableCell>
+                            </TableRow>
+                        )) : (
+                            <TableRow>
+                                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No products found.</TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+    );
+}
+
 function ProductForm({ productToEdit, onSaveSuccess }: any) {
     const [form, setForm] = useState<any>({ 
         name: '', materialCode: '', partyId: '', 
@@ -856,8 +914,19 @@ function SavedReportsList({ onEdit }: any) {
 export default function CostReportPage() {
     const [activeTab, setActiveTab] = useState("calculator");
     const [reportToEdit, setReportToEdit] = useState<CostReport | null>(null);
+    const [productToEdit, setProductToEdit] = useState<Product | null>(null);
+    const [isProductEditorOpen, setIsProductEditorOpen] = useState(false);
     const [products, setProducts] = useState<Product[]>([]);
+    const { user } = useAuth();
+    const { toast } = useToast();
+
     useEffect(() => onProductsUpdate(setProducts), []);
+
+    const handleProductEdit = (product: Product) => {
+        setProductToEdit(product);
+        setIsProductEditorOpen(true);
+    };
+
     return (
         <div className="flex flex-col gap-8">
             <header>
@@ -868,6 +937,7 @@ export default function CostReportPage() {
                 <TabsList className="mb-4">
                     <TabsTrigger value="calculator">Calculator</TabsTrigger>
                     <TabsTrigger value="saved">Saved Reports History</TabsTrigger>
+                    <TabsTrigger value="products">Product Catalog</TabsTrigger>
                 </TabsList>
                 <TabsContent value="calculator" className="pt-0">
                     <CostReportCalculator reportToEdit={reportToEdit} products={products} onSaveSuccess={() => { setReportToEdit(null); setActiveTab("saved"); }} />
@@ -875,7 +945,31 @@ export default function CostReportPage() {
                 <TabsContent value="saved" className="pt-0">
                     <SavedReportsList onEdit={(r: any) => { setReportToEdit(r); setActiveTab("calculator"); }} />
                 </TabsContent>
+                <TabsContent value="products" className="pt-0">
+                    <ProductsList products={products} onEdit={handleProductEdit} />
+                </TabsContent>
             </Tabs>
+
+            <Dialog open={isProductEditorOpen} onOpenChange={setIsProductEditorOpen}>
+                <DialogContent className="sm:max-w-5xl max-h-[90vh]">
+                    <DialogHeader>
+                        <DialogTitle>Edit Product Record</DialogTitle>
+                        <DialogDescription>Update the technical specifications for this product.</DialogDescription>
+                    </DialogHeader>
+                    <ScrollArea className="pr-4">
+                        <ProductForm 
+                            productToEdit={productToEdit} 
+                            onSaveSuccess={(data: any) => {
+                                updateProduct(productToEdit!.id, { ...data, lastModifiedBy: user?.username }).then(() => {
+                                    setIsProductEditorOpen(false);
+                                    setProductToEdit(null);
+                                    toast({ title: 'Product Updated' });
+                                });
+                            }} 
+                        />
+                    </ScrollArea>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
