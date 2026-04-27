@@ -38,7 +38,8 @@ import {
   Settings2,
   FileSpreadsheet,
   Search,
-  ChevronsUpDown
+  ChevronsUpDown,
+  Calendar
 } from 'lucide-react';
 import { 
   Table, 
@@ -276,6 +277,8 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
   const [isManageTermsDialogOpen, setIsManageTermsDialogOpen] = useState(false);
   const [selectedBatchProductIds, setSelectedBatchProductIds] = useState<Set<string>>(new Set());
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [productSearch, setProductSearch] = useState<Record<string, string>>({});
+  const [isProductPopoverOpen, setIsProductPopoverOpen] = useState<Record<string, boolean>>({});
   
   const [costSettings, setCostSettings] = useState<CostSetting | null>(null);
   const { toast } = useToast();
@@ -535,7 +538,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
                 <CardContent className="pt-4 space-y-4">
                     <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1"><Label className="text-[10px] font-bold">Report No</Label><Input value={reportNumber ?? ''} readOnly className="h-8 text-xs bg-muted font-mono" /></div>
-                        <div className="space-y-1"><Label className="text-[10px] font-bold">Date</Label><Button variant="outline" className="w-full h-8 text-xs font-normal justify-start"><CalendarIcon className="mr-2 h-3.5 w-3.5" /> {toNepaliDate(reportDate.toISOString())}</Button></div>
+                        <div className="space-y-1"><Label className="text-[10px] font-bold">Date</Label><Button variant="outline" className="w-full h-8 text-xs font-normal justify-start"><Calendar className="mr-2 h-3.5 w-3.5" /> {toNepaliDate(reportDate.toISOString())}</Button></div>
                     </div>
                     <div className="space-y-1">
                         <Label className="text-[10px] font-bold">Party Name</Label>
@@ -674,19 +677,19 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
                                     <TableHead rowSpan={2} className="w-20"></TableHead>
                                 </TableRow>
                                 <TableRow>
-                                    <TableHead className="text-center border-l min-w-[100px] bg-blue-50/30">L</TableHead>
-                                    <TableHead className="text-center min-w-[100px] bg-blue-50/30">B</TableHead>
-                                    <TableHead className="text-center border-r min-w-[100px] bg-blue-50/30">H</TableHead>
+                                    <TableHead className="text-center border-l min-w-[110px] bg-blue-50/30">L</TableHead>
+                                    <TableHead className="text-center min-w-[110px] bg-blue-50/30">B</TableHead>
+                                    <TableHead className="text-center border-r min-w-[110px] bg-blue-50/30">H</TableHead>
                                     
-                                    <TableHead className="text-center border-l min-w-[90px] bg-orange-50/30">Top</TableHead>
-                                    <TableHead className="text-center min-w-[90px] bg-orange-50/30">F1</TableHead>
-                                    {maxPly >= 5 && <TableHead className="text-center min-w-[90px] bg-orange-50/30">Mid1</TableHead>}
-                                    {maxPly >= 5 && <TableHead className="text-center min-w-[90px] bg-orange-50/30">F2</TableHead>}
-                                    {maxPly >= 7 && <TableHead className="text-center min-w-[90px] bg-orange-50/30">Mid2</TableHead>}
-                                    {maxPly >= 7 && <TableHead className="text-center min-w-[90px] bg-orange-50/30">F3</TableHead>}
-                                    {maxPly >= 9 && <TableHead className="text-center min-w-[90px] bg-orange-50/30">Mid3</TableHead>}
-                                    {maxPly >= 9 && <TableHead className="text-center min-w-[90px] bg-orange-50/30">F4</TableHead>}
-                                    <TableHead className="text-center border-r min-w-[90px] bg-orange-50/30">Bot</TableHead>
+                                    <TableHead className="text-center border-l min-w-[100px] bg-orange-50/30">Top</TableHead>
+                                    <TableHead className="text-center min-w-[100px] bg-orange-50/30">F1</TableHead>
+                                    {maxPly >= 5 && <TableHead className="text-center min-w-[100px] bg-orange-50/30">Mid1</TableHead>}
+                                    {maxPly >= 5 && <TableHead className="text-center min-w-[100px] bg-orange-50/30">F2</TableHead>}
+                                    {maxPly >= 7 && <TableHead className="text-center min-w-[100px] bg-orange-50/30">Mid2</TableHead>}
+                                    {maxPly >= 7 && <TableHead className="text-center min-w-[100px] bg-orange-50/30">F3</TableHead>}
+                                    {maxPly >= 9 && <TableHead className="text-center min-w-[100px] bg-orange-50/30">Mid3</TableHead>}
+                                    {maxPly >= 9 && <TableHead className="text-center min-w-[100px] bg-orange-50/30">F4</TableHead>}
+                                    <TableHead className="text-center border-r min-w-[100px] bg-orange-50/30">Bot</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -698,18 +701,44 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
                                         <TableCell className="border-r pr-2">
                                             <div className="flex gap-1.5 items-center">
                                                 <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" onClick={() => setIsAccessoryDialogOpen(true)} title="Add Accessory"><Plus className="h-3.5 w-3.5" /></Button>
-                                                <Select value={item.productId ?? ''} onValueChange={v => handleItemChange(idx, 'productId', v)}>
-                                                    <SelectTrigger className="h-8 text-[11px] w-full"><SelectValue placeholder="Select product..." /></SelectTrigger>
-                                                    <SelectContent>
-                                                        {products.sort((a,b)=>a.name.localeCompare(b.name)).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                                                    </SelectContent>
-                                                </Select>
+                                                <Popover open={isProductPopoverOpen[item.id]} onOpenChange={(v) => setIsProductPopoverOpen(prev => ({...prev, [item.id]: v}))}>
+                                                    <PopoverTrigger asChild>
+                                                        <Button variant="outline" role="combobox" className="h-8 text-[11px] w-full justify-between px-2">
+                                                            {item.productId ? products.find(p => p.id === item.productId)?.name : "Select product..."}
+                                                            <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
+                                                        </Button>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent className="p-0">
+                                                        <Command>
+                                                            <CommandInput 
+                                                                placeholder="Search product..." 
+                                                                value={productSearch[item.id] || ''} 
+                                                                onValueChange={(v) => setProductSearch(prev => ({...prev, [item.id]: v}))} 
+                                                            />
+                                                            <CommandList>
+                                                                <CommandEmpty>
+                                                                    <Button variant="ghost" className="w-full justify-start text-xs" onClick={() => { setIsProductDialogOpen(true); setIsProductPopoverOpen(prev => ({...prev, [item.id]: false})); }}>
+                                                                        <PlusCircle className="mr-2 h-4 w-4" /> Add "{productSearch[item.id]}"
+                                                                    </Button>
+                                                                </CommandEmpty>
+                                                                <CommandGroup>
+                                                                    {products.sort((a,b)=>a.name.localeCompare(b.name)).map(p => (
+                                                                        <CommandItem key={p.id} value={p.name} onSelect={() => { handleItemChange(idx, 'productId', p.id); setIsProductPopoverOpen(prev => ({...prev, [item.id]: false})); }}>
+                                                                            <Check className={cn("mr-2 h-4 w-4", item.productId === p.id ? "opacity-100" : "opacity-0")} />
+                                                                            {p.name}
+                                                                        </CommandItem>
+                                                                    ))}
+                                                                </CommandGroup>
+                                                            </CommandList>
+                                                        </Command>
+                                                    </PopoverContent>
+                                                </Popover>
                                             </div>
                                         </TableCell>
-                                        <TableCell className="border-r p-0"><Input type="number" value={item.l ?? ''} onChange={e => handleItemChange(idx, 'l', e.target.value)} className="h-14 text-center px-1 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
-                                        <TableCell className="border-r p-0"><Input type="number" value={item.b ?? ''} onChange={e => handleItemChange(idx, 'b', e.target.value)} className="h-14 text-center px-1 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
-                                        <TableCell className="border-r p-0"><Input type="number" value={item.h ?? ''} onChange={e => handleItemChange(idx, 'h', e.target.value)} className="h-14 text-center px-1 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
-                                        <TableCell className="border-r p-0"><Input type="number" value={item.noOfPcs ?? ''} onChange={e => handleItemChange(idx, 'noOfPcs', e.target.value)} className="h-14 text-center px-1 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
+                                        <TableCell className="border-r p-0"><Input type="number" value={item.l ?? ''} onChange={e => handleItemChange(idx, 'l', e.target.value)} className="h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
+                                        <TableCell className="border-r p-0"><Input type="number" value={item.b ?? ''} onChange={e => handleItemChange(idx, 'b', e.target.value)} className="h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
+                                        <TableCell className="border-r p-0"><Input type="number" value={item.h ?? ''} onChange={e => handleItemChange(idx, 'h', e.target.value)} className="h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
+                                        <TableCell className="border-r p-0"><Input type="number" value={item.noOfPcs ?? ''} onChange={e => handleItemChange(idx, 'noOfPcs', e.target.value)} className="h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
                                         <TableCell className="border-r px-2">
                                             <Select value={item.ply ?? '3'} onValueChange={v => handleItemChange(idx, 'ply', v)}>
                                                 <SelectTrigger className="h-8 text-center px-1"><SelectValue/></SelectTrigger>
@@ -718,7 +747,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
                                         </TableCell>
                                         <TableCell className="border-r px-2">
                                             <Select value={item.paperType ?? 'KRAFT'} onValueChange={v => handleItemChange(idx, 'paperType', v)}>
-                                                <SelectTrigger className="h-8 px-2"><SelectValue/></SelectTrigger>
+                                                <SelectTrigger className="h-8 px-2 text-[10px]"><SelectValue/></SelectTrigger>
                                                 <SelectContent>
                                                     <SelectItem value="KRAFT">Kraft (K)</SelectItem>
                                                     <SelectItem value="VIRGIN">Virgin (V)</SelectItem>
@@ -732,33 +761,33 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
                                                 <SelectContent>{bfOptions.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
                                             </Select>
                                         </TableCell>
-                                        <TableCell className="border-r p-0"><Input type="number" value={item.wastagePercent ?? ''} onChange={e => handleItemChange(idx, 'wastagePercent', e.target.value)} className="h-14 text-center px-1 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
+                                        <TableCell className="border-r p-0"><Input type="number" value={item.wastagePercent ?? ''} onChange={e => handleItemChange(idx, 'wastagePercent', e.target.value)} className="h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
                                         
-                                        <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.topGsm ?? ''} onChange={e => handleItemChange(idx, 'topGsm', e.target.value)} className="h-14 text-center px-1 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
-                                        <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.flute1Gsm ?? ''} onChange={e => handleItemChange(idx, 'flute1Gsm', e.target.value)} className="h-14 text-center px-1 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
+                                        <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.topGsm ?? ''} onChange={e => handleItemChange(idx, 'topGsm', e.target.value)} className="h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
+                                        <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.flute1Gsm ?? ''} onChange={e => handleItemChange(idx, 'flute1Gsm', e.target.value)} className="h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
                                         
                                         {maxPly >= 5 && (
                                             <>
-                                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.middleGsm ?? ''} onChange={e => handleItemChange(idx, 'middleGsm', e.target.value)} className={cn("h-14 text-center px-1 w-full border-none focus-visible:ring-0 rounded-none", p < 5 ? "bg-muted/20" : "bg-transparent")} disabled={p < 5} /></TableCell>
-                                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.flute2Gsm ?? ''} onChange={e => handleItemChange(idx, 'flute2Gsm', e.target.value)} className={cn("h-14 text-center px-1 w-full border-none focus-visible:ring-0 rounded-none", p < 5 ? "bg-muted/20" : "bg-transparent")} disabled={p < 5} /></TableCell>
+                                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.middleGsm ?? ''} onChange={e => handleItemChange(idx, 'middleGsm', e.target.value)} className={cn("h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none", p < 5 ? "bg-muted/20" : "bg-transparent")} disabled={p < 5} /></TableCell>
+                                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.flute2Gsm ?? ''} onChange={e => handleItemChange(idx, 'flute2Gsm', e.target.value)} className={cn("h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none", p < 5 ? "bg-muted/20" : "bg-transparent")} disabled={p < 5} /></TableCell>
                                             </>
                                         )}
                                         
                                         {maxPly >= 7 && (
                                             <>
-                                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.liner2Gsm ?? ''} onChange={e => handleItemChange(idx, 'liner2Gsm', e.target.value)} className={cn("h-14 text-center px-1 w-full border-none focus-visible:ring-0 rounded-none", p < 7 ? "bg-muted/20" : "bg-transparent")} disabled={p < 7} /></TableCell>
-                                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.flute3Gsm ?? ''} onChange={e => handleItemChange(idx, 'flute3Gsm', e.target.value)} className={cn("h-14 text-center px-1 w-full border-none focus-visible:ring-0 rounded-none", p < 7 ? "bg-muted/20" : "bg-transparent")} disabled={p < 7} /></TableCell>
+                                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.liner2Gsm ?? ''} onChange={e => handleItemChange(idx, 'liner2Gsm', e.target.value)} className={cn("h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none", p < 7 ? "bg-muted/20" : "bg-transparent")} disabled={p < 7} /></TableCell>
+                                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.flute3Gsm ?? ''} onChange={e => handleItemChange(idx, 'flute3Gsm', e.target.value)} className={cn("h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none", p < 7 ? "bg-muted/20" : "bg-transparent")} disabled={p < 7} /></TableCell>
                                             </>
                                         )}
                                         
                                         {maxPly >= 9 && (
                                             <>
-                                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.liner3Gsm ?? ''} onChange={e => handleItemChange(idx, 'liner3Gsm', e.target.value)} className={cn("h-14 text-center px-1 w-full border-none focus-visible:ring-0 rounded-none", p < 9 ? "bg-muted/20" : "bg-transparent")} disabled={p < 9} /></TableCell>
-                                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.flute4Gsm ?? ''} onChange={e => handleItemChange(idx, 'flute4Gsm', e.target.value)} className={cn("h-14 text-center px-1 w-full border-none focus-visible:ring-0 rounded-none", p < 9 ? "bg-muted/20" : "bg-transparent")} disabled={p < 9} /></TableCell>
+                                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.liner3Gsm ?? ''} onChange={e => handleItemChange(idx, 'liner3Gsm', e.target.value)} className={cn("h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none", p < 9 ? "bg-muted/20" : "bg-transparent")} disabled={p < 9} /></TableCell>
+                                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.flute4Gsm ?? ''} onChange={e => handleItemChange(idx, 'flute4Gsm', e.target.value)} className={cn("h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none", p < 9 ? "bg-muted/20" : "bg-transparent")} disabled={p < 9} /></TableCell>
                                             </>
                                         )}
                                         
-                                        <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.bottomGsm ?? ''} onChange={e => handleItemChange(idx, 'bottomGsm', e.target.value)} className="h-14 text-center px-1 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
+                                        <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.bottomGsm ?? ''} onChange={e => handleItemChange(idx, 'bottomGsm', e.target.value)} className="h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
                                         
                                         <TableCell className="text-center font-medium bg-muted/20 border-r">{item.calculated?.totalGsm.toFixed(0)}</TableCell>
                                         <TableCell className="text-center font-medium bg-muted/20 border-r">{item.calculated?.paperWeight.toFixed(1)}</TableCell>
