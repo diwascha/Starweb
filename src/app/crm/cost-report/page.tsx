@@ -11,6 +11,7 @@ import type {
   CostSetting, 
   CalculatedValues, 
   CostReportTerm,
+  Accessory,
 } from '@/lib/types';
 import { onProductsUpdate, addProduct as addProductService, updateProduct } from '@/services/product-service';
 import { onPartiesUpdate, addParty } from '@/services/party-service';
@@ -39,7 +40,8 @@ import {
   FileSpreadsheet,
   Search,
   ChevronsUpDown,
-  Calendar
+  Calendar,
+  X
 } from 'lucide-react';
 import { 
   Table, 
@@ -162,16 +164,29 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {items.map((item, index) => (
-                             <TableRow key={item.id}>
-                                <TableCell>{index + 1}</TableCell>
-                                <TableCell className="font-bold">{getProductDisplayName(item.productId)}</TableCell>
-                                <TableCell>{item.l}x{item.b}x{item.h}</TableCell>
-                                <TableCell>{item.ply} Ply</TableCell>
-                                <TableCell>{item.paperType} {normalizeBF(item.paperBf)}</TableCell>
-                                <TableCell className="text-right font-bold">Rs. {item.totalItemCost.toFixed(2)}</TableCell>
-                             </TableRow>
-                        ))}
+                        {items.flatMap((item, index) => {
+                            const mainRow = (
+                                <TableRow key={item.id}>
+                                    <TableCell>{index + 1}</TableCell>
+                                    <TableCell className="font-bold">{getProductDisplayName(item.productId)}</TableCell>
+                                    <TableCell>{item.l}x{item.b}x{item.h}</TableCell>
+                                    <TableCell>{item.ply} Ply</TableCell>
+                                    <TableCell>{item.paperType} {normalizeBF(item.paperBf)}</TableCell>
+                                    <TableCell className="text-right font-bold">Rs. {item.totalItemCost.toFixed(2)}</TableCell>
+                                </TableRow>
+                            );
+                            const accRows = (item.accessories || []).map((acc, aIdx) => (
+                                <TableRow key={acc.id} className="bg-muted/5 italic">
+                                    <TableCell></TableCell>
+                                    <TableCell className="pl-6">— {acc.name}</TableCell>
+                                    <TableCell>{acc.l}x{acc.b}x{acc.h}</TableCell>
+                                    <TableCell>{acc.ply} Ply</TableCell>
+                                    <TableCell>{acc.paperType} {normalizeBF(acc.paperBf)}</TableCell>
+                                    <TableCell className="text-right">Rs. {acc.calculated?.paperCost.toFixed(2)}</TableCell>
+                                </TableRow>
+                            ));
+                            return [mainRow, ...accRows];
+                        })}
                     </TableBody>
                 </Table>
                 {selectedTerms.length > 0 && (
@@ -272,7 +287,6 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
   const [partySearch, setPartySearch] = useState('');
   
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
-  const [isAccessoryDialogOpen, setIsAccessoryDialogOpen] = useState(false);
   const [isBatchAddDialogOpen, setIsBatchAddDialogOpen] = useState(false);
   const [isManageTermsDialogOpen, setIsManageTermsDialogOpen] = useState(false);
   const [selectedBatchProductIds, setSelectedBatchProductIds] = useState<Set<string>>(new Set());
@@ -307,6 +321,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
           setReportDate(new Date(reportToEdit.reportDate));
           setSelectedPartyId(reportToEdit.partyId);
           setTermsAndConditions(reportToEdit.termsAndConditions || []);
+          // Note: Full item load with accessories should be mapped here if needed
       }
   }, [reportToEdit, costReports]);
 
@@ -337,17 +352,11 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
     let tGsm = 0;
     const factor = 1.35;
 
-    if (ply === 3) {
-        tGsm = gsm.l1 + (gsm.f1 * factor) + gsm.l5;
-    } else if (ply === 5) {
-        tGsm = gsm.l1 + (gsm.f1 * factor) + gsm.l2 + (gsm.f2 * factor) + gsm.l5;
-    } else if (ply === 7) {
-        tGsm = gsm.l1 + (gsm.f1 * factor) + gsm.l2 + (gsm.f2 * factor) + gsm.l3 + (gsm.f3 * factor) + gsm.l5;
-    } else if (ply === 9) {
-        tGsm = gsm.l1 + (gsm.f1 * factor) + gsm.l2 + (gsm.f2 * factor) + gsm.l3 + (gsm.f3 * factor) + gsm.l4 + (gsm.f4 * factor) + gsm.l5;
-    } else {
-        tGsm = gsm.l1 + gsm.l5;
-    }
+    if (ply === 3) tGsm = gsm.l1 + (gsm.f1 * factor) + gsm.l5;
+    else if (ply === 5) tGsm = gsm.l1 + (gsm.f1 * factor) + gsm.l2 + (gsm.f2 * factor) + gsm.l5;
+    else if (ply === 7) tGsm = gsm.l1 + (gsm.f1 * factor) + gsm.l2 + (gsm.f2 * factor) + gsm.l3 + (gsm.f3 * factor) + gsm.l5;
+    else if (ply === 9) tGsm = gsm.l1 + (gsm.f1 * factor) + gsm.l2 + (gsm.f2 * factor) + gsm.l3 + (gsm.f3 * factor) + gsm.l4 + (gsm.f4 * factor) + gsm.l5;
+    else tGsm = gsm.l1 + gsm.l5;
     
     const sArea = (sL * sB) / 1000000;
     const pWt = sArea * tGsm * pcs;
@@ -401,7 +410,10 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
         bottomGsm: spec.bottomGsm || '120',
         liner4Gsm: spec.liner4Gsm || '',
         wastagePercent: spec.wastagePercent || '3.5',
-        accessories: []
+        accessories: (product.accessories || []).map(acc => ({
+            ...acc,
+            calculated: calculateItemCost(acc, kraftPaperCosts, Number(virginPaperCost) || 0, Number(conversionCost) || 0)
+        }))
     };
     return { ...base, calculated: calculateItemCost(base, kraftPaperCosts, Number(virginPaperCost) || 0, Number(conversionCost) || 0) };
   }, [calculateItemCost, kraftPaperCosts, virginPaperCost, conversionCost]);
@@ -411,6 +423,40 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
     const newItem = { ...base, calculated: calculateItemCost(base, kraftPaperCosts, Number(virginPaperCost) || 0, Number(conversionCost) || 0) };
     setItems([...items, newItem]);
     setSelectedForPrint(new Set(selectedForPrint).add(newItem.id));
+  };
+
+  const handleAddAccessory = (idx: number) => {
+    const parent = items[idx];
+    const newAcc: Accessory = {
+        id: Math.random().toString(36).substr(2, 9),
+        name: 'Internal Pad',
+        l: parent.l,
+        b: parent.b,
+        h: '0',
+        noOfPcs: '1',
+        ply: '3',
+        fluteType: 'B',
+        paperType: 'KRAFT',
+        paperBf: '18 BF',
+        paperShade: 'NS',
+        boxType: 'PAD',
+        topGsm: '120',
+        flute1Gsm: '100',
+        middleGsm: '',
+        flute2Gsm: '',
+        bottomGsm: '120',
+        liner2Gsm: '',
+        flute3Gsm: '',
+        liner3Gsm: '',
+        flute4Gsm: '',
+        liner4Gsm: '',
+        wastagePercent: '2.5',
+        calculated: { sheetSizeL: 0, sheetSizeB: 0, sheetArea: 0, totalGsm: 0, paperWeight: 0, totalBoxWeight: 0, paperRate: 0, paperCost: 0 }
+    };
+    newAcc.calculated = calculateItemCost(newAcc, kraftPaperCosts, Number(virginPaperCost) || 0, Number(conversionCost) || 0);
+    const next = [...items];
+    next[idx].accessories = [...(next[idx].accessories || []), newAcc];
+    setItems(next);
   };
 
   const handleBatchLoad = () => {
@@ -427,15 +473,19 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
   const handleItemChange = (idx: number, f: string, v: string) => {
     const next = [...items];
     let item = { ...next[idx], [f]: f === 'paperBf' ? normalizeBF(v) : v };
-    
     if (f === 'productId') {
         const product = products.find((p: Product) => p.id === v);
-        if (product) {
-            item = mapProductToItem(product);
-        }
+        if (product) item = mapProductToItem(product);
     }
-
     next[idx] = { ...item, calculated: calculateItemCost(item, kraftPaperCosts, Number(virginPaperCost) || 0, Number(conversionCost) || 0) };
+    setItems(next);
+  };
+
+  const handleAccessoryChange = (itemIdx: number, accIdx: number, f: string, v: string) => {
+    const next = [...items];
+    const acc = { ...next[itemIdx].accessories![accIdx], [f]: f === 'paperBf' ? normalizeBF(v) : v };
+    acc.calculated = calculateItemCost(acc, kraftPaperCosts, Number(virginPaperCost) || 0, Number(conversionCost) || 0);
+    next[itemIdx].accessories![accIdx] = acc;
     setItems(next);
   };
 
@@ -475,16 +525,16 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
             transportCostType,
             termsAndConditions,
             items: items.map(({ calculated, ...rest }) => rest),
-            totalCost: items.reduce((sum, i) => sum + i.calculated.paperCost, 0),
+            totalCost: items.reduce((sum, i) => sum + i.calculated.paperCost + (i.accessories?.reduce((aSum, a) => aSum + a.calculated.paperCost, 0) || 0), 0),
             createdBy: user.username
         };
         await addCostReport(reportData);
 
-        // SYNC SPECIFICATIONS BACK TO PRODUCT MASTER
-        const updatePromises = items.map(item => {
-            if (!item.productId) return Promise.resolve();
+        const updatePromises: any[] = [];
+        items.forEach(item => {
+            if (!item.productId) return;
             const product = products.find(p => p.id === item.productId);
-            if (!product) return Promise.resolve();
+            if (!product) return;
             
             const updatedSpec: Partial<ProductSpecification> = {
                 ...product.specification,
@@ -504,18 +554,19 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
                 wastagePercent: item.wastagePercent,
             };
             
-            return updateProduct(item.productId, { 
+            updatePromises.push(updateProduct(item.productId, { 
                 specification: updatedSpec, 
+                accessories: item.accessories?.map(({ calculated, ...rest }) => rest),
                 lastModifiedBy: user.username 
-            });
+            }));
         });
         
         await Promise.all(updatePromises);
-        toast({ title: 'Success', description: 'Report saved and product specifications updated.' });
+        toast({ title: 'Success', description: 'Report saved and specifications updated.' });
         onSaveSuccess();
     } catch (error) {
         console.error("Save error:", error);
-        toast({ title: 'Error', description: 'Failed to save report and update products.', variant: 'destructive' });
+        toast({ title: 'Error', description: 'Failed to save record.', variant: 'destructive' });
     } finally {
         setIsSaving(false);
     }
@@ -527,7 +578,12 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
   }, [products, selectedPartyId]);
 
   const maxPly = useMemo(() => {
-      return items.reduce((max, item) => Math.max(max, parseInt(item.ply, 10) || 3), 3);
+      let max = 3;
+      items.forEach(i => {
+          max = Math.max(max, parseInt(i.ply, 10) || 3);
+          i.accessories?.forEach(a => max = Math.max(max, parseInt(a.ply, 10) || 3));
+      });
+      return max;
   }, [items]);
 
   return (
@@ -651,7 +707,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
                     <Button size="sm" variant="outline" onClick={() => setIsPreviewOpen(true)} className="h-9"><ImageIcon className="mr-2 h-4 w-4" /> Preview Quotation</Button>
                 </div>
                 <div className="ml-auto text-right">
-                    <CardTitle className="text-base font-bold">Product Cost Breakdown</CardTitle>
+                    <CardTitle className="text-base font-bold">Costing Dashboard</CardTitle>
                     <CardDescription className="text-[11px]">Technical analysis and weight calculation</CardDescription>
                 </div>
             </CardHeader>
@@ -680,7 +736,6 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
                                     <TableHead className="text-center border-l min-w-[110px] bg-blue-50/30">L</TableHead>
                                     <TableHead className="text-center min-w-[110px] bg-blue-50/30">B</TableHead>
                                     <TableHead className="text-center border-r min-w-[110px] bg-blue-50/30">H</TableHead>
-                                    
                                     <TableHead className="text-center border-l min-w-[100px] bg-orange-50/30">Top</TableHead>
                                     <TableHead className="text-center min-w-[100px] bg-orange-50/30">F1</TableHead>
                                     {maxPly >= 5 && <TableHead className="text-center min-w-[100px] bg-orange-50/30">Mid1</TableHead>}
@@ -693,117 +748,173 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {items.map((item, idx) => {
-                                    const p = parseInt(item.ply, 10);
-                                    return (
-                                    <TableRow key={item.id} className="h-14 hover:bg-muted/30 border-b">
-                                        <TableCell className="px-2 border-r"><Checkbox checked={selectedForPrint.has(item.id)} onCheckedChange={v => { const n = new Set(selectedForPrint); if(v) n.add(item.id); else n.delete(item.id); setSelectedForPrint(n); }} /></TableCell>
-                                        <TableCell className="border-r pr-2">
-                                            <div className="flex gap-1.5 items-center">
-                                                <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" onClick={() => setIsAccessoryDialogOpen(true)} title="Add Accessory"><Plus className="h-3.5 w-3.5" /></Button>
-                                                <Popover open={isProductPopoverOpen[item.id]} onOpenChange={(v) => setIsProductPopoverOpen(prev => ({...prev, [item.id]: v}))}>
-                                                    <PopoverTrigger asChild>
-                                                        <Button variant="outline" role="combobox" className="h-8 text-[11px] w-full justify-between px-2">
-                                                            {item.productId ? products.find(p => p.id === item.productId)?.name : "Select product..."}
-                                                            <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
-                                                        </Button>
-                                                    </PopoverTrigger>
-                                                    <PopoverContent className="p-0">
-                                                        <Command>
-                                                            <CommandInput 
-                                                                placeholder="Search product..." 
-                                                                value={productSearch[item.id] || ''} 
-                                                                onValueChange={(v) => setProductSearch(prev => ({...prev, [item.id]: v}))} 
-                                                            />
-                                                            <CommandList>
-                                                                <CommandEmpty>
-                                                                    <Button variant="ghost" className="w-full justify-start text-xs" onClick={() => { setIsProductDialogOpen(true); setIsProductPopoverOpen(prev => ({...prev, [item.id]: false})); }}>
-                                                                        <PlusCircle className="mr-2 h-4 w-4" /> Add "{productSearch[item.id]}"
-                                                                    </Button>
-                                                                </CommandEmpty>
-                                                                <CommandGroup>
-                                                                    {products.sort((a,b)=>a.name.localeCompare(b.name)).map(p => (
-                                                                        <CommandItem key={p.id} value={p.name} onSelect={() => { handleItemChange(idx, 'productId', p.id); setIsProductPopoverOpen(prev => ({...prev, [item.id]: false})); }}>
-                                                                            <Check className={cn("mr-2 h-4 w-4", item.productId === p.id ? "opacity-100" : "opacity-0")} />
-                                                                            {p.name}
-                                                                        </CommandItem>
-                                                                    ))}
-                                                                </CommandGroup>
-                                                            </CommandList>
-                                                        </Command>
-                                                    </PopoverContent>
-                                                </Popover>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="border-r p-0"><Input type="number" value={item.l ?? ''} onChange={e => handleItemChange(idx, 'l', e.target.value)} className="h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
-                                        <TableCell className="border-r p-0"><Input type="number" value={item.b ?? ''} onChange={e => handleItemChange(idx, 'b', e.target.value)} className="h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
-                                        <TableCell className="border-r p-0"><Input type="number" value={item.h ?? ''} onChange={e => handleItemChange(idx, 'h', e.target.value)} className="h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
-                                        <TableCell className="border-r p-0"><Input type="number" value={item.noOfPcs ?? ''} onChange={e => handleItemChange(idx, 'noOfPcs', e.target.value)} className="h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
-                                        <TableCell className="border-r px-2">
-                                            <Select value={item.ply ?? '3'} onValueChange={v => handleItemChange(idx, 'ply', v)}>
-                                                <SelectTrigger className="h-8 text-center px-1"><SelectValue/></SelectTrigger>
-                                                <SelectContent>{plyOptions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
-                                            </Select>
-                                        </TableCell>
-                                        <TableCell className="border-r px-2">
-                                            <Select value={item.paperType ?? 'KRAFT'} onValueChange={v => handleItemChange(idx, 'paperType', v)}>
-                                                <SelectTrigger className="h-8 px-2 text-[10px]"><SelectValue/></SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="KRAFT">Kraft (K)</SelectItem>
-                                                    <SelectItem value="VIRGIN">Virgin (V)</SelectItem>
-                                                    <SelectItem value="VIRGIN & KRAFT">Mixed (M)</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </TableCell>
-                                        <TableCell className="border-r px-2">
-                                            <Select value={normalizeBF(item.paperBf)} onValueChange={v => handleItemChange(idx, 'paperBf', v)}>
-                                                <SelectTrigger className="h-8 px-2"><SelectValue/></SelectTrigger>
-                                                <SelectContent>{bfOptions.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
-                                            </Select>
-                                        </TableCell>
-                                        <TableCell className="border-r p-0"><Input type="number" value={item.wastagePercent ?? ''} onChange={e => handleItemChange(idx, 'wastagePercent', e.target.value)} className="h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
-                                        
-                                        <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.topGsm ?? ''} onChange={e => handleItemChange(idx, 'topGsm', e.target.value)} className="h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
-                                        <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.flute1Gsm ?? ''} onChange={e => handleItemChange(idx, 'flute1Gsm', e.target.value)} className="h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
-                                        
-                                        {maxPly >= 5 && (
-                                            <>
-                                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.middleGsm ?? ''} onChange={e => handleItemChange(idx, 'middleGsm', e.target.value)} className={cn("h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none", p < 5 ? "bg-muted/20" : "bg-transparent")} disabled={p < 5} /></TableCell>
-                                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.flute2Gsm ?? ''} onChange={e => handleItemChange(idx, 'flute2Gsm', e.target.value)} className={cn("h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none", p < 5 ? "bg-muted/20" : "bg-transparent")} disabled={p < 5} /></TableCell>
-                                            </>
-                                        )}
-                                        
-                                        {maxPly >= 7 && (
-                                            <>
-                                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.liner2Gsm ?? ''} onChange={e => handleItemChange(idx, 'liner2Gsm', e.target.value)} className={cn("h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none", p < 7 ? "bg-muted/20" : "bg-transparent")} disabled={p < 7} /></TableCell>
-                                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.flute3Gsm ?? ''} onChange={e => handleItemChange(idx, 'flute3Gsm', e.target.value)} className={cn("h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none", p < 7 ? "bg-muted/20" : "bg-transparent")} disabled={p < 7} /></TableCell>
-                                            </>
-                                        )}
-                                        
-                                        {maxPly >= 9 && (
-                                            <>
-                                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.liner3Gsm ?? ''} onChange={e => handleItemChange(idx, 'liner3Gsm', e.target.value)} className={cn("h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none", p < 9 ? "bg-muted/20" : "bg-transparent")} disabled={p < 9} /></TableCell>
-                                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.flute4Gsm ?? ''} onChange={e => handleItemChange(idx, 'flute4Gsm', e.target.value)} className={cn("h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none", p < 9 ? "bg-muted/20" : "bg-transparent")} disabled={p < 9} /></TableCell>
-                                            </>
-                                        )}
-                                        
-                                        <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.bottomGsm ?? ''} onChange={e => handleItemChange(idx, 'bottomGsm', e.target.value)} className="h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
-                                        
-                                        <TableCell className="text-center font-medium bg-muted/20 border-r">{item.calculated?.totalGsm.toFixed(0)}</TableCell>
-                                        <TableCell className="text-center font-medium bg-muted/20 border-r">{item.calculated?.paperWeight.toFixed(1)}</TableCell>
-                                        <TableCell className="text-center font-bold border-r bg-primary/5">Rs. {item.calculated?.paperCost.toFixed(2)}</TableCell>
-                                        <TableCell className="text-right font-bold pr-6 bg-primary/10">Rs. {item.calculated?.paperCost.toFixed(2)}</TableCell>
-                                        <TableCell className="px-2">
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={() => setItems(items.filter(i => i.id !== item.id))}><Trash2 className="h-4 w-4" /></Button>
-                                        </TableCell>
-                                    </TableRow>
-                                )})}
+                                {items.map((item, idx) => (
+                                    <React.Fragment key={item.id}>
+                                        <TableRow className="h-14 hover:bg-muted/30 border-b">
+                                            <TableCell className="px-2 border-r"><Checkbox checked={selectedForPrint.has(item.id)} onCheckedChange={v => { const n = new Set(selectedForPrint); if(v) n.add(item.id); else n.delete(item.id); setSelectedForPrint(n); }} /></TableCell>
+                                            <TableCell className="border-r pr-2">
+                                                <div className="flex gap-1.5 items-center">
+                                                    <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" onClick={() => handleAddAccessory(idx)} title="Add Accessory"><Plus className="h-3.5 w-3.5" /></Button>
+                                                    <Popover open={isProductPopoverOpen[item.id]} onOpenChange={(v) => setIsProductPopoverOpen(prev => ({...prev, [item.id]: v}))}>
+                                                        <PopoverTrigger asChild>
+                                                            <Button variant="outline" role="combobox" className="h-8 text-[11px] w-full justify-between px-2">
+                                                                {item.productId ? products.find(p => p.id === item.productId)?.name : "Select product..."}
+                                                                <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
+                                                            </Button>
+                                                        </PopoverTrigger>
+                                                        <PopoverContent className="p-0">
+                                                            <Command>
+                                                                <CommandInput placeholder="Search product..." value={productSearch[item.id] || ''} onValueChange={(v) => setProductSearch(prev => ({...prev, [item.id]: v}))} />
+                                                                <CommandList>
+                                                                    <CommandEmpty>
+                                                                        <Button variant="ghost" className="w-full justify-start text-xs" onClick={() => { setIsProductDialogOpen(true); setIsProductPopoverOpen(prev => ({...prev, [item.id]: false})); }}>
+                                                                            <PlusCircle className="mr-2 h-4 w-4" /> Add "{productSearch[item.id]}"
+                                                                        </Button>
+                                                                    </CommandEmpty>
+                                                                    <CommandGroup>
+                                                                        {products.sort((a,b)=>a.name.localeCompare(b.name)).map(p => (
+                                                                            <CommandItem key={p.id} value={p.name} onSelect={() => { handleItemChange(idx, 'productId', p.id); setIsProductPopoverOpen(prev => ({...prev, [item.id]: false})); }}>
+                                                                                <Check className={cn("mr-2 h-4 w-4", item.productId === p.id ? "opacity-100" : "opacity-0")} />
+                                                                                {p.name}
+                                                                            </CommandItem>
+                                                                        ))}
+                                                                    </CommandGroup>
+                                                                </CommandList>
+                                                            </Command>
+                                                        </PopoverContent>
+                                                    </Popover>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="border-r p-0"><Input type="number" value={item.l ?? ''} onChange={e => handleItemChange(idx, 'l', e.target.value)} className="h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
+                                            <TableCell className="border-r p-0"><Input type="number" value={item.b ?? ''} onChange={e => handleItemChange(idx, 'b', e.target.value)} className="h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
+                                            <TableCell className="border-r p-0"><Input type="number" value={item.h ?? ''} onChange={e => handleItemChange(idx, 'h', e.target.value)} className="h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
+                                            <TableCell className="border-r p-0"><Input type="number" value={item.noOfPcs ?? ''} onChange={e => handleItemChange(idx, 'noOfPcs', e.target.value)} className="h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
+                                            <TableCell className="border-r px-2">
+                                                <Select value={item.ply ?? '3'} onValueChange={v => handleItemChange(idx, 'ply', v)}>
+                                                    <SelectTrigger className="h-8 text-center px-1"><SelectValue/></SelectTrigger>
+                                                    <SelectContent>{plyOptions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
+                                                </Select>
+                                            </TableCell>
+                                            <TableCell className="border-r px-2">
+                                                <Select value={item.paperType ?? 'KRAFT'} onValueChange={v => handleItemChange(idx, 'paperType', v)}>
+                                                    <SelectTrigger className="h-8 px-2 text-[10px]"><SelectValue/></SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="KRAFT">Kraft (K)</SelectItem>
+                                                        <SelectItem value="VIRGIN">Virgin (V)</SelectItem>
+                                                        <SelectItem value="VIRGIN & KRAFT">Mixed (M)</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </TableCell>
+                                            <TableCell className="border-r px-2">
+                                                <Select value={normalizeBF(item.paperBf)} onValueChange={v => handleItemChange(idx, 'paperBf', v)}>
+                                                    <SelectTrigger className="h-8 px-2"><SelectValue/></SelectTrigger>
+                                                    <SelectContent>{bfOptions.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
+                                                </Select>
+                                            </TableCell>
+                                            <TableCell className="border-r p-0"><Input type="number" value={item.wastagePercent ?? ''} onChange={e => handleItemChange(idx, 'wastagePercent', e.target.value)} className="h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
+                                            <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.topGsm ?? ''} onChange={e => handleItemChange(idx, 'topGsm', e.target.value)} className="h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
+                                            <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.flute1Gsm ?? ''} onChange={e => handleItemChange(idx, 'flute1Gsm', e.target.value)} className="h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
+                                            {maxPly >= 5 && (
+                                                <>
+                                                    <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.middleGsm ?? ''} onChange={e => handleItemChange(idx, 'middleGsm', e.target.value)} className={cn("h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none", parseInt(item.ply, 10) < 5 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(item.ply, 10) < 5} /></TableCell>
+                                                    <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.flute2Gsm ?? ''} onChange={e => handleItemChange(idx, 'flute2Gsm', e.target.value)} className={cn("h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none", parseInt(item.ply, 10) < 5 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(item.ply, 10) < 5} /></TableCell>
+                                                </>
+                                            )}
+                                            {maxPly >= 7 && (
+                                                <>
+                                                    <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.liner2Gsm ?? ''} onChange={e => handleItemChange(idx, 'liner2Gsm', e.target.value)} className={cn("h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none", parseInt(item.ply, 10) < 7 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(item.ply, 10) < 7} /></TableCell>
+                                                    <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.flute3Gsm ?? ''} onChange={e => handleItemChange(idx, 'flute3Gsm', e.target.value)} className={cn("h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none", parseInt(item.ply, 10) < 7 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(item.ply, 10) < 7} /></TableCell>
+                                                </>
+                                            )}
+                                            {maxPly >= 9 && (
+                                                <>
+                                                    <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.liner3Gsm ?? ''} onChange={e => handleItemChange(idx, 'liner3Gsm', e.target.value)} className={cn("h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none", parseInt(item.ply, 10) < 9 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(item.ply, 10) < 9} /></TableCell>
+                                                    <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.flute4Gsm ?? ''} onChange={e => handleItemChange(idx, 'flute4Gsm', e.target.value)} className={cn("h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none", parseInt(item.ply, 10) < 9 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(item.ply, 10) < 9} /></TableCell>
+                                                </>
+                                            )}
+                                            <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.bottomGsm ?? ''} onChange={e => handleItemChange(idx, 'bottomGsm', e.target.value)} className="h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
+                                            <TableCell className="text-center font-medium bg-muted/20 border-r">{item.calculated?.totalGsm.toFixed(0)}</TableCell>
+                                            <TableCell className="text-center font-medium bg-muted/20 border-r">{item.calculated?.paperWeight.toFixed(1)}</TableCell>
+                                            <TableCell className="text-center font-bold border-r bg-primary/5">Rs. {item.calculated?.paperCost.toFixed(2)}</TableCell>
+                                            <TableCell className="text-right font-bold pr-6 bg-primary/10">Rs. {item.calculated?.paperCost.toFixed(2)}</TableCell>
+                                            <TableCell className="px-2">
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setItems(items.filter(i => i.id !== item.id))}><Trash2 className="h-4 w-4" /></Button>
+                                            </TableCell>
+                                        </TableRow>
+                                        {/* Accessory Rows */}
+                                        {(item.accessories || []).map((acc, aIdx) => (
+                                            <TableRow key={acc.id} className="h-12 bg-muted/10 border-b border-dashed">
+                                                <TableCell></TableCell>
+                                                <TableCell className="border-r pr-2 pl-6">
+                                                    <div className="flex gap-1.5 items-center">
+                                                        <Input value={acc.name} onChange={e => handleAccessoryChange(idx, aIdx, 'name', e.target.value)} className="h-8 text-[10px] w-full bg-white font-semibold" />
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="border-r p-0"><Input type="number" value={acc.l ?? ''} onChange={e => handleAccessoryChange(idx, aIdx, 'l', e.target.value)} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
+                                                <TableCell className="border-r p-0"><Input type="number" value={acc.b ?? ''} onChange={e => handleAccessoryChange(idx, aIdx, 'b', e.target.value)} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
+                                                <TableCell className="border-r p-0 bg-muted/20"><Input readOnly value="0" className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
+                                                <TableCell className="border-r p-0"><Input type="number" value={acc.noOfPcs ?? ''} onChange={e => handleAccessoryChange(idx, aIdx, 'noOfPcs', e.target.value)} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
+                                                <TableCell className="border-r px-2">
+                                                    <Select value={acc.ply ?? '3'} onValueChange={v => handleAccessoryChange(idx, aIdx, 'ply', v)}>
+                                                        <SelectTrigger className="h-8 text-center px-1"><SelectValue/></SelectTrigger>
+                                                        <SelectContent>{plyOptions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
+                                                    </Select>
+                                                </TableCell>
+                                                <TableCell className="border-r px-2">
+                                                    <Select value={acc.paperType ?? 'KRAFT'} onValueChange={v => handleAccessoryChange(idx, aIdx, 'paperType', v)}>
+                                                        <SelectTrigger className="h-8 px-2 text-[10px]"><SelectValue/></SelectTrigger>
+                                                        <SelectContent><SelectItem value="KRAFT">Kraft (K)</SelectItem><SelectItem value="VIRGIN">Virgin (V)</SelectItem></SelectContent>
+                                                    </Select>
+                                                </TableCell>
+                                                <TableCell className="border-r px-2">
+                                                    <Select value={normalizeBF(acc.paperBf)} onValueChange={v => handleAccessoryChange(idx, aIdx, 'paperBf', v)}>
+                                                        <SelectTrigger className="h-8 px-2"><SelectValue/></SelectTrigger>
+                                                        <SelectContent>{bfOptions.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
+                                                    </Select>
+                                                </TableCell>
+                                                <TableCell className="border-r p-0"><Input type="number" value={acc.wastagePercent ?? ''} onChange={e => handleAccessoryChange(idx, aIdx, 'wastagePercent', e.target.value)} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
+                                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.topGsm ?? ''} onChange={e => handleAccessoryChange(idx, aIdx, 'topGsm', e.target.value)} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
+                                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.flute1Gsm ?? ''} onChange={e => handleAccessoryChange(idx, aIdx, 'flute1Gsm', e.target.value)} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
+                                                {maxPly >= 5 && (
+                                                    <>
+                                                        <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.middleGsm ?? ''} onChange={e => handleAccessoryChange(idx, aIdx, 'middleGsm', e.target.value)} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 5 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 5} /></TableCell>
+                                                        <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.flute2Gsm ?? ''} onChange={e => handleAccessoryChange(idx, aIdx, 'flute2Gsm', e.target.value)} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 5 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 5} /></TableCell>
+                                                    </>
+                                                )}
+                                                {maxPly >= 7 && (
+                                                    <>
+                                                        <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.liner2Gsm ?? ''} onChange={e => handleAccessoryChange(idx, aIdx, 'liner2Gsm', e.target.value)} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 7 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 7} /></TableCell>
+                                                        <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.flute3Gsm ?? ''} onChange={e => handleAccessoryChange(idx, aIdx, 'flute3Gsm', e.target.value)} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 7 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 7} /></TableCell>
+                                                    </>
+                                                )}
+                                                {maxPly >= 9 && (
+                                                    <>
+                                                        <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.liner3Gsm ?? ''} onChange={e => handleAccessoryChange(idx, aIdx, 'liner3Gsm', e.target.value)} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 9 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 9} /></TableCell>
+                                                        <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.flute4Gsm ?? ''} onChange={e => handleAccessoryChange(idx, aIdx, 'flute4Gsm', e.target.value)} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 9 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 9} /></TableCell>
+                                                    </>
+                                                )}
+                                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.bottomGsm ?? ''} onChange={e => handleAccessoryChange(idx, aIdx, 'bottomGsm', e.target.value)} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
+                                                <TableCell className="text-center bg-muted/20 border-r">{acc.calculated?.totalGsm.toFixed(0)}</TableCell>
+                                                <TableCell className="text-center bg-muted/20 border-r">{acc.calculated?.paperWeight.toFixed(1)}</TableCell>
+                                                <TableCell className="text-center border-r">Rs. {acc.calculated?.paperCost.toFixed(2)}</TableCell>
+                                                <TableCell className="text-right pr-6">Rs. {acc.calculated?.paperCost.toFixed(2)}</TableCell>
+                                                <TableCell className="px-2">
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive/70" onClick={() => {
+                                                        const next = [...items];
+                                                        next[idx].accessories = next[idx].accessories!.filter((_, i) => i !== aIdx);
+                                                        setItems(next);
+                                                    }}><X className="h-3.5 w-3.5" /></Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </React.Fragment>
+                                ))}
                             </TableBody>
                             {items.length > 0 && (
                                 <TableFooter className="bg-muted/50 border-t-2">
                                     <TableRow className="h-12 font-bold">
-                                        <TableCell colSpan={maxPly + 12} className="text-right text-sm">Grand Total (Estimated Paper Cost)</TableCell>
-                                        <TableCell className="text-right pr-6 text-sm text-primary">Rs. {items.reduce((sum, i) => sum + i.calculated.paperCost, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                        <TableCell colSpan={maxPly + 12} className="text-right text-sm">Grand Total (Paper Cost)</TableCell>
+                                        <TableCell className="text-right pr-6 text-sm text-primary">Rs. {items.reduce((sum, i) => sum + i.calculated.paperCost + (i.accessories?.reduce((aSum, a) => aSum + a.calculated.paperCost, 0) || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell></TableCell>
                                     </TableRow>
                                 </TableFooter>
@@ -815,23 +926,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
             </CardContent>
         </Card>
 
-        {/* Accessory Placeholder Dialog */}
-        <Dialog open={isAccessoryDialogOpen} onOpenChange={setIsAccessoryDialogOpen}>
-            <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                    <DialogTitle>Product Accessories</DialogTitle>
-                    <DialogDescription>Add or manage pads, liners, and partitions associated with this box.</DialogDescription>
-                </DialogHeader>
-                <div className="py-12 text-center text-muted-foreground italic">
-                    Accessory configuration tool coming soon.
-                </div>
-                <DialogFooter>
-                    <Button onClick={() => setIsAccessoryDialogOpen(false)}>Close</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-
-        {/* Dialogs */}
+        {/* Batch Load Dialog */}
         <Dialog open={isBatchAddDialogOpen} onOpenChange={setIsBatchAddDialogOpen}>
             <DialogContent className="sm:max-w-2xl max-h-[80vh]">
                 <DialogHeader>
@@ -924,7 +1019,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
             reportNumber={reportNumber} 
             reportDate={reportDate} 
             party={parties.find(p => p.id === selectedPartyId)} 
-            items={items.filter(i => selectedForPrint.has(i.id)).map(i => ({...i, totalItemCost: i.calculated.paperCost}))} 
+            items={items.filter(i => selectedForPrint.has(i.id)).map(i => ({...i, totalItemCost: i.calculated.paperCost + (i.accessories?.reduce((sum, a) => sum + a.calculated.paperCost, 0) || 0)}))} 
             products={products}
             termsAndConditions={termsAndConditions}
         />
@@ -1004,7 +1099,8 @@ function ProductForm({ productToEdit, onSaveSuccess }: any) {
         name: '', materialCode: '', partyId: '', 
         specification: { 
             ply: '3', wastagePercent: '3.5', boxType: 'RSC', paperType: 'KRAFT', paperBf: '18 BF', 
-            topGsm: '120', flute1Gsm: '100', middleGsm: '', flute2Gsm: '', liner2Gsm: '', flute3Gsm: '', liner3Gsm: '', flute4Gsm: '', bottomGsm: '120', dimension: '' 
+            topGsm: '120', flute1Gsm: '100', middleGsm: '', flute2Gsm: '', liner2Gsm: '', flute3Gsm: '', liner3Gsm: '', flute4Gsm: '', bottomGsm: '120', dimension: '',
+            weightOfBox: '', moisture: '', load: '', printing: ''
         } 
     });
     const [dim, setDim] = useState({ l: '', b: '', h: '' });
@@ -1038,7 +1134,7 @@ function ProductForm({ productToEdit, onSaveSuccess }: any) {
 
     return (
         <div className="space-y-6 pt-2">
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                     <h3 className="text-xs font-bold uppercase border-b pb-1 text-muted-foreground">General Info</h3>
                     <div className="space-y-2"><Label>Product Name</Label><Input value={form.name ?? ''} onChange={e => setForm({...form, name: e.target.value})} /></div>
@@ -1056,12 +1152,16 @@ function ProductForm({ productToEdit, onSaveSuccess }: any) {
                         <div><Label className="text-[10px]">B</Label><Input type="number" value={dim.b ?? ''} onChange={e => setDim({...dim, b: e.target.value})} /></div>
                         <div><Label className="text-[10px]">H</Label><Input type="number" value={dim.h ?? ''} onChange={e => setDim({...dim, h: e.target.value})} /></div>
                     </div>
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                        <div><Label className="text-[10px]">Weight (g)</Label><Input value={form.specification.weightOfBox ?? ''} onChange={e => updateSpec('weightOfBox', e.target.value)} /></div>
+                        <div><Label className="text-[10px]">Load (KGF)</Label><Input value={form.specification.load ?? ''} onChange={e => updateSpec('load', e.target.value)} /></div>
+                    </div>
                 </div>
             </div>
             <Separator />
             <div className="space-y-4">
                 <h3 className="text-xs font-bold uppercase border-b pb-1 text-muted-foreground">Technical Specs</h3>
-                <div className="grid grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div><Label>Ply</Label><Select value={form.specification.ply ?? '3'} onValueChange={v => updateSpec('ply', v)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{plyOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}</SelectContent></Select></div>
                     <div><Label>Paper Type</Label><Select value={form.specification.paperType ?? 'KRAFT'} onValueChange={v => updateSpec('paperType', v)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="KRAFT">Kraft</SelectItem><SelectItem value="VIRGIN">Virgin</SelectItem><SelectItem value="VIRGIN & KRAFT">Mixed</SelectItem></SelectContent></Select></div>
                     <div><Label>Paper BF</Label><Select value={normalizeBF(form.specification.paperBf)} onValueChange={v => updateSpec('paperBf', v)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{bfOptions.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent></Select></div>
@@ -1093,6 +1193,7 @@ function ProductForm({ productToEdit, onSaveSuccess }: any) {
                         <div><Label className="text-[10px] font-bold">L5 (Bottom)</Label><Input type="number" value={form.specification.bottomGsm ?? ''} onChange={e => updateSpec('bottomGsm', e.target.value)} /></div>
                     </div>
                 </div>
+                <div className="space-y-2"><Label>Finishing & Printing Instructions</Label><Textarea value={form.specification.printing ?? ''} onChange={e => updateSpec('printing', e.target.value)} placeholder="e.g. 2 Color Flexo printing, Glue closing..." /></div>
             </div>
             <Button className="w-full h-11" onClick={handleSave}>Save Product Record</Button>
         </div>
