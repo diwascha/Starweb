@@ -19,6 +19,7 @@ import {
   onCostReportsUpdate, 
   addCostReport, 
   generateNextCostReportNumber, 
+  deleteCostReport
 } from '@/services/cost-report-service';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -40,8 +41,11 @@ import {
   FileSpreadsheet,
   Search,
   ChevronsUpDown,
-  Calendar,
-  X
+  Calendar as CalendarIcon,
+  X,
+  FileDown,
+  MoreHorizontal,
+  Eye
 } from 'lucide-react';
 import { 
   Table, 
@@ -64,7 +68,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { onSettingUpdate, updateCostSettings } from '@/services/settings-service';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import React from 'react';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 const bfOptions = ['16 BF', '18 BF', '20 BF', '22 BF'];
 const plyOptions = ['3', '5', '7', '9'];
@@ -99,13 +107,16 @@ interface QuotationPreviewDialogProps {
   reportNumber: string;
   reportDate: Date;
   party: Party | null | undefined;
-  items: (CostReportItem & { totalItemCost: number })[];
+  items: (any)[];
   products: Product[];
   termsAndConditions?: CostReportTerm[];
 }
 
 function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate, party, items, products, termsAndConditions = [] }: QuotationPreviewDialogProps) {
   const printRef = useRef<HTMLDivElement>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const { toast } = useToast();
+  
   const selectedTerms = useMemo(() => (termsAndConditions || []).filter(t => t.isSelected), [termsAndConditions]);
 
   const getProductDisplayName = (productId: string) => {
@@ -117,34 +128,68 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
     const printableArea = printRef.current;
     if (!printableArea) return;
     const printWindow = window.open('', '', 'height=800,width=800');
-    printWindow?.document.write('<html><head><title>Print Quotation</title><style>body{font-family:sans-serif;padding:20px;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ddd;padding:8px;text-align:left;}th{background-color:#f2f2f2;}.text-right{text-align:right;}.font-bold{font-weight:bold;}</style></head><body>');
+    printWindow?.document.write('<html><head><title>Quotation</title><style>body{font-family:sans-serif;padding:20px;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ddd;padding:8px;text-align:left;}th{background-color:#f2f2f2;}.text-right{text-align:right;}.font-bold{font-weight:bold;}</style></head><body>');
     printWindow?.document.write(printableArea.innerHTML);
     printWindow?.document.write('</body></html>');
     printWindow?.document.close();
     printWindow?.focus();
     setTimeout(() => { printWindow?.print(); printWindow?.close(); }, 250);
   };
+
+  const handleExportPdf = async () => {
+    if (!printRef.current) return;
+    setIsExporting(true);
+    try {
+        const canvas = await html2canvas(printRef.current, { scale: 2, useCORS: true });
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        pdf.save(`Quotation-${reportNumber}.pdf`);
+    } catch (error) {
+        toast({ title: 'Export Failed', variant: 'destructive' });
+    } finally {
+        setIsExporting(false);
+    }
+  };
+
+  const handleExportImage = async () => {
+    if (!printRef.current) return;
+    setIsExporting(true);
+    try {
+        const canvas = await html2canvas(printRef.current, { scale: 2, useCORS: true });
+        const link = document.createElement('a');
+        link.download = `Quotation-${reportNumber}.jpg`;
+        link.href = canvas.toDataURL('image/jpeg', 0.9);
+        link.click();
+    } catch (error) {
+        toast({ title: 'Export Failed', variant: 'destructive' });
+    } finally {
+        setIsExporting(false);
+    }
+  };
   
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[90vh]">
-        <DialogHeader>
+      <DialogContent className="max-w-6xl max-h-[95vh] p-0">
+        <DialogHeader className="p-6 pb-0">
           <DialogTitle>Quotation Preview</DialogTitle>
-          <DialogDescription>Review the document layout before printing.</DialogDescription>
+          <DialogDescription>Review the document layout. This is a paperless, digitally generated document.</DialogDescription>
         </DialogHeader>
-        <ScrollArea className="max-h-[70vh] bg-gray-100 p-4 border rounded">
-            <div ref={printRef} className="w-[210mm] mx-auto bg-white p-12 text-black shadow-lg">
+        <ScrollArea className="max-h-[75vh] bg-muted/30 p-4">
+            <div ref={printRef} className="w-[210mm] mx-auto bg-white p-12 text-black shadow-sm">
                <header className="text-center space-y-1 mb-8">
-                    <h1 className="text-2xl font-bold">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
+                    <h1 className="text-2xl font-bold uppercase tracking-tight">Shivam Packaging Industry Private Limited</h1>
                     <p className="text-base uppercase tracking-wide">Hetauda 08, Bagmati Province, Nepal</p>
                     <h2 className="text-xl font-bold underline mt-4">QUOTATION</h2>
                 </header>
                  <div className="grid grid-cols-2 text-sm mb-6">
                     <div>
-                        <p>To,</p>
+                        <p className="text-muted-foreground uppercase font-bold text-[10px]">To,</p>
                         <p className="font-bold text-lg">{party?.name}</p>
-                        <p className="whitespace-pre-line">{party?.address}</p>
-                        {party?.panNumber && <p>PAN/VAT: {party.panNumber}</p>}
+                        <p className="whitespace-pre-line text-muted-foreground">{party?.address}</p>
+                        {party?.panNumber && <p className="text-xs font-mono">PAN/VAT: {party.panNumber}</p>}
                     </div>
                     <div className="text-right">
                         <p><span className="font-semibold">Ref No:</span> {reportNumber}</p>
@@ -153,13 +198,13 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                     </div>
                 </div>
                 <Table className="text-xs border">
-                    <TableHeader className="bg-muted/50">
+                    <TableHeader className="bg-muted/10">
                         <TableRow>
                             <TableHead className="w-12 text-black font-bold">S.N.</TableHead>
-                            <TableHead className="text-black font-bold">Particulars</TableHead>
+                            <TableHead className="text-black font-bold">Particulars / Specifications</TableHead>
                             <TableHead className="text-black font-bold">Size (mm)</TableHead>
                             <TableHead className="text-black font-bold">Ply</TableHead>
-                            <TableHead className="text-black font-bold">Paper</TableHead>
+                            <TableHead className="text-black font-bold">Paper Grade</TableHead>
                             <TableHead className="text-black font-bold text-right">Rate (NPR)</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -175,7 +220,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                                     <TableCell className="text-right font-bold">Rs. {item.totalItemCost.toFixed(2)}</TableCell>
                                 </TableRow>
                             );
-                            const accRows = (item.accessories || []).map((acc, aIdx) => (
+                            const accRows = (item.accessories || []).map((acc: any) => (
                                 <TableRow key={acc.id} className="bg-muted/5 italic">
                                     <TableCell></TableCell>
                                     <TableCell className="pl-6">— {acc.name}</TableCell>
@@ -197,21 +242,34 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                         </ol>
                     </div>
                 )}
-                <div className="mt-20 flex justify-between px-4">
-                    <div className="text-center">
-                        <div className="border-t border-black w-40 mb-1"></div>
-                        <p className="text-xs font-bold">Prepared By</p>
-                    </div>
-                    <div className="text-center">
-                        <div className="border-t border-black w-40 mb-1"></div>
-                        <p className="text-xs font-bold">Authorized Signature</p>
-                    </div>
+                <div className="mt-20 pt-8 border-t border-dashed border-gray-300">
+                    <p className="text-center text-xs font-bold italic text-muted-foreground">
+                        This document is digitally produced; no signature required.
+                    </p>
+                    <p className="text-center text-[10px] uppercase tracking-widest text-muted-foreground mt-1">
+                        End of Quotation
+                    </p>
                 </div>
             </div>
+            <ScrollBar orientation="horizontal" />
         </ScrollArea>
-        <DialogFooter>
-            <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
-            <Button onClick={handlePrint}><Printer className="mr-2 h-4 w-4" /> Print Quotation</Button>
+        <DialogFooter className="p-6 bg-muted/20 border-t">
+            <div className="flex w-full justify-between items-center">
+                <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={handleExportImage} disabled={isExporting}>
+                        {isExporting ? <Loader2 className="h-4 w-4 animate-spin"/> : <ImageIcon className="mr-2 h-4 w-4"/>}
+                        Export Image
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={isExporting}>
+                        {isExporting ? <Loader2 className="h-4 w-4 animate-spin"/> : <FileDown className="mr-2 h-4 w-4"/>}
+                        Export PDF
+                    </Button>
+                </div>
+                <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Close</Button>
+                    <Button size="sm" onClick={handlePrint}><Printer className="mr-2 h-4 w-4" /> Print Quotation</Button>
+                </div>
+            </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -263,7 +321,7 @@ function ManageTermsDialog({ isOpen, onOpenChange, masterTerms, onSave }: { isOp
     );
 }
 
-function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
+function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview }: any) {
   const [parties, setParties] = useState<Party[]>([]);
   const [costReports, setCostReports] = useState<CostReport[]>([]);
   const [selectedPartyId, setSelectedPartyId] = useState('');
@@ -290,39 +348,12 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
   const [isBatchAddDialogOpen, setIsBatchAddDialogOpen] = useState(false);
   const [isManageTermsDialogOpen, setIsManageTermsDialogOpen] = useState(false);
   const [selectedBatchProductIds, setSelectedBatchProductIds] = useState<Set<string>>(new Set());
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [productSearch, setProductSearch] = useState<Record<string, string>>({});
   const [isProductPopoverOpen, setIsProductPopoverOpen] = useState<Record<string, boolean>>({});
   
   const [costSettings, setCostSettings] = useState<CostSetting | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
-
-  useEffect(() => {
-    const unsubCostSettings = onSettingUpdate('costing', (s) => {
-        if (s?.value) {
-            setCostSettings(s.value);
-            setKraftPaperCosts(s.value.kraftPaperCosts || {});
-            setVirginCost(s.value.virginPaperCost || '');
-            setConversionCost(s.value.conversionCost || '');
-            setTermsAndConditions(prev => prev.length === 0 ? (s.value.termsAndConditions || []) : prev);
-        }
-    });
-    const unsubParties = onPartiesUpdate(setParties);
-    const unsubReports = onCostReportsUpdate(setCostReports);
-    return () => { unsubCostSettings(); unsubParties(); unsubReports(); };
-  }, []);
-
-  useEffect(() => {
-      if (!reportToEdit) {
-          generateNextCostReportNumber(costReports).then(setReportNumber);
-      } else {
-          setReportNumber(reportToEdit.reportNumber);
-          setReportDate(new Date(reportToEdit.reportDate));
-          setSelectedPartyId(reportToEdit.partyId);
-          setTermsAndConditions(reportToEdit.termsAndConditions || []);
-      }
-  }, [reportToEdit, costReports]);
 
   const calculateItemCost = useCallback((item: any, globalK: any, globalV: number, globalC: number): CalculatedValues => {
     const l = parseFloat(item.l) || 0, b = parseFloat(item.b) || 0, h = parseFloat(item.h) || 0, pcs = parseInt(item.noOfPcs, 10) || 1;
@@ -371,6 +402,44 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
     };
   }, []);
 
+  useEffect(() => {
+    const unsubCostSettings = onSettingUpdate('costing', (s) => {
+        if (s?.value) {
+            setCostSettings(s.value);
+            setKraftPaperCosts(s.value.kraftPaperCosts || {});
+            setVirginCost(s.value.virginPaperCost || '');
+            setConversionCost(s.value.conversionCost || '');
+            setTermsAndConditions(prev => prev.length === 0 ? (s.value.termsAndConditions || []) : prev);
+        }
+    });
+    const unsubParties = onPartiesUpdate(setParties);
+    const unsubReports = onCostReportsUpdate(setCostReports);
+    return () => { unsubCostSettings(); unsubParties(); unsubReports(); };
+  }, []);
+
+  useEffect(() => {
+      if (!reportToEdit) {
+          generateNextCostReportNumber(costReports).then(setReportNumber);
+      } else {
+          setReportNumber(reportToEdit.reportNumber);
+          setReportDate(new Date(reportToEdit.reportDate));
+          setSelectedPartyId(reportToEdit.partyId);
+          setTermsAndConditions(reportToEdit.termsAndConditions || []);
+          // Re-calculate loaded items
+          const kCosts = reportToEdit.kraftPaperCosts || {};
+          const vCost = Number(reportToEdit.virginPaperCost) || 0;
+          const cCost = Number(reportToEdit.conversionCost) || 0;
+          setItems(reportToEdit.items.map(item => ({
+              ...item,
+              calculated: calculateItemCost(item, kCosts, vCost, cCost),
+              accessories: (item.accessories || []).map((acc: any) => ({
+                  ...acc,
+                  calculated: calculateItemCost(acc, kCosts, vCost, cCost)
+              }))
+          })));
+      }
+  }, [reportToEdit, costReports, calculateItemCost]);
+
   const handleSaveMasterTerms = async (newTerms: CostReportTerm[]) => {
       if (!user) return;
       try {
@@ -385,7 +454,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
   const mapProductToItem = useCallback((product: Product): CostReportItem => {
     const spec = product.specification || {};
     const [dimL, dimB, dimH] = (spec.dimension || '').split('x');
-    const base = {
+    const base: any = {
         id: Math.random().toString(36).substr(2, 9),
         productId: product.id,
         l: dimL || '',
@@ -418,7 +487,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
   }, [calculateItemCost, kraftPaperCosts, virginPaperCost, conversionCost]);
 
   const handleAddItem = () => {
-    const base = { id: Date.now().toString(), productId: '', l:'', b:'', h:'', noOfPcs:'1', ply:'3', fluteType: 'B', paperType: 'KRAFT', paperBf:'18 BF', paperShade: 'NS', boxType: 'RSC', topGsm:'120', flute1Gsm:'100', middleGsm:'', flute2Gsm:'', bottomGsm:'120', liner2Gsm:'', flute3Gsm:'', liner3Gsm:'', flute4Gsm:'', liner4Gsm:'', wastagePercent:'3.5', accessories: [] };
+    const base: any = { id: Date.now().toString(), productId: '', l:'', b:'', h:'', noOfPcs:'1', ply:'3', fluteType: 'B', paperType: 'KRAFT', paperBf:'18 BF', paperShade: 'NS', boxType: 'RSC', topGsm:'120', flute1Gsm:'100', middleGsm:'', flute2Gsm:'', bottomGsm:'120', liner2Gsm:'', flute3Gsm:'', liner3Gsm:'', flute4Gsm:'', liner4Gsm:'', wastagePercent:'3.5', accessories: [] };
     const newItem = { ...base, calculated: calculateItemCost(base, kraftPaperCosts, Number(virginPaperCost) || 0, Number(conversionCost) || 0) };
     setItems([...items, newItem]);
     setSelectedForPrint(new Set(selectedForPrint).add(newItem.id));
@@ -459,7 +528,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
   };
 
   const handleBatchLoad = () => {
-    const selectedProducts = products.filter(p => selectedBatchProductIds.has(p.id));
+    const selectedProducts = products.filter((p: Product) => selectedBatchProductIds.has(p.id));
     const newItems = selectedProducts.map(p => mapProductToItem(p));
     setItems([...items, ...newItems]);
     const newSelectedForPrint = new Set(selectedForPrint);
@@ -532,7 +601,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
         const updatePromises: any[] = [];
         items.forEach(item => {
             if (!item.productId) return;
-            const product = products.find(p => p.id === item.productId);
+            const product = products.find((p: Product) => p.id === item.productId);
             if (!product) return;
             
             const updatedSpec: Partial<ProductSpecification> = {
@@ -555,7 +624,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
             
             updatePromises.push(updateProduct(item.productId, { 
                 specification: updatedSpec, 
-                accessories: item.accessories?.map(({ calculated, ...rest }) => rest),
+                accessories: item.accessories?.map(({ calculated, ...rest }: any) => rest),
                 lastModifiedBy: user.username 
             }));
         });
@@ -571,9 +640,19 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
     }
   };
 
+  const handleManualPreview = () => {
+    onPreview({
+        reportNumber,
+        reportDate,
+        party: parties.find(p => p.id === selectedPartyId),
+        items: items.filter(i => selectedForPrint.has(i.id)).map(i => ({...i, totalItemCost: i.calculated.paperCost + (i.accessories?.reduce((sum, a) => sum + a.calculated.paperCost, 0) || 0)})),
+        termsAndConditions
+    });
+  };
+
   const companyProducts = useMemo(() => {
     if (!selectedPartyId) return [];
-    return products.filter(p => p.partyId === selectedPartyId).sort((a,b) => a.name.localeCompare(b.name));
+    return products.filter((p: Product) => p.partyId === selectedPartyId).sort((a: Product, b: Product) => a.name.localeCompare(b.name));
   }, [products, selectedPartyId]);
 
   const maxPly = useMemo(() => {
@@ -593,7 +672,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
                 <CardContent className="pt-4 space-y-4">
                     <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1"><Label className="text-[10px] font-bold">Report No</Label><Input value={reportNumber ?? ''} readOnly className="h-8 text-xs bg-muted font-mono" /></div>
-                        <div className="space-y-1"><Label className="text-[10px] font-bold">Date</Label><Button variant="outline" className="w-full h-8 text-xs font-normal justify-start"><Calendar className="mr-2 h-3.5 w-3.5" /> {toNepaliDate(reportDate.toISOString())}</Button></div>
+                        <div className="space-y-1"><Label className="text-[10px] font-bold">Date</Label><Button variant="outline" className="w-full h-8 text-xs font-normal justify-start"><CalendarIcon className="mr-2 h-3.5 w-3.5" /> {toNepaliDate(reportDate.toISOString())}</Button></div>
                     </div>
                     <div className="space-y-1">
                         <Label className="text-[10px] font-bold">Party Name</Label>
@@ -703,7 +782,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
                         {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} 
                         Save Report
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => setIsPreviewOpen(true)} className="h-9"><ImageIcon className="mr-2 h-4 w-4" /> Preview Quotation</Button>
+                    <Button size="sm" variant="outline" onClick={handleManualPreview} className="h-9"><ImageIcon className="mr-2 h-4 w-4" /> Preview Quotation</Button>
                 </div>
                 <div className="ml-auto text-right">
                     <CardTitle className="text-base font-bold">Costing Dashboard</CardTitle>
@@ -757,7 +836,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
                                                     <Popover open={isProductPopoverOpen[item.id]} onOpenChange={(v) => setIsProductPopoverOpen(prev => ({...prev, [item.id]: v}))}>
                                                         <PopoverTrigger asChild>
                                                             <Button variant="outline" role="combobox" className="h-8 text-[11px] w-full justify-between px-2">
-                                                                {item.productId ? products.find(p => p.id === item.productId)?.name : "Select product..."}
+                                                                {item.productId ? products.find((p: any) => p.id === item.productId)?.name : "Select product..."}
                                                                 <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
                                                             </Button>
                                                         </PopoverTrigger>
@@ -771,7 +850,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
                                                                         </Button>
                                                                     </CommandEmpty>
                                                                     <CommandGroup>
-                                                                        {products.sort((a,b)=>a.name.localeCompare(b.name)).map(p => (
+                                                                        {products.sort((a: any,b: any)=>a.name.localeCompare(b.name)).map((p: any) => (
                                                                             <CommandItem key={p.id} value={p.name} onSelect={() => { handleItemChange(idx, 'productId', p.id); setIsProductPopoverOpen(prev => ({...prev, [item.id]: false})); }}>
                                                                                 <Check className={cn("mr-2 h-4 w-4", item.productId === p.id ? "opacity-100" : "opacity-0")} />
                                                                                 {p.name}
@@ -840,8 +919,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
                                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setItems(items.filter(i => i.id !== item.id))}><Trash2 className="h-4 w-4" /></Button>
                                             </TableCell>
                                         </TableRow>
-                                        {/* Accessory Rows */}
-                                        {(item.accessories || []).map((acc, aIdx) => (
+                                        {(item.accessories || []).map((acc: any, aIdx: number) => (
                                             <TableRow key={acc.id} className="h-12 bg-muted/10 border-b border-dashed">
                                                 <TableCell></TableCell>
                                                 <TableCell className="border-r pr-2 pl-6">
@@ -942,7 +1020,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {companyProducts.map(p => (
+                            {companyProducts.map((p: any) => (
                                 <TableRow key={p.id}>
                                     <TableCell>
                                         <Checkbox 
@@ -1011,17 +1089,6 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
             onOpenChange={setIsManageTermsDialogOpen} 
             masterTerms={costSettings?.termsAndConditions || []} 
             onSave={handleSaveMasterTerms} 
-        />
-
-        <QuotationPreviewDialog 
-            isOpen={isPreviewOpen} 
-            onOpenChange={setIsPreviewOpen} 
-            reportNumber={reportNumber} 
-            reportDate={reportDate} 
-            party={parties.find(p => p.id === selectedPartyId)} 
-            items={items.filter(i => selectedForPrint.has(i.id)).map(i => ({...i, totalItemCost: i.calculated.paperCost + (i.accessories?.reduce((sum, a) => sum + a.calculated.paperCost, 0) || 0)}))} 
-            products={products}
-            termsAndConditions={termsAndConditions}
         />
     </div>
   );
@@ -1167,6 +1234,7 @@ function ProductForm({ productToEdit, onSaveSuccess }: any) {
                     <div><Label>Paper BF</Label><Select value={normalizeBF(form.specification.paperBf)} onValueChange={v => updateSpec('paperBf', v)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{bfOptions.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent></Select></div>
                     <div><Label>Waste %</Label><Input type="number" value={form.specification.wastagePercent ?? '3.5'} onChange={e => updateSpec('wastagePercent', e.target.value)} /></div>
                 </div>
+                {p > 0 && (
                 <div className="p-6 bg-muted/10 rounded-lg space-y-4 border border-dashed">
                     <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">GSM Composition Layers (Up to {p} Ply)</Label>
                     <div className="grid grid-cols-3 md:grid-cols-5 gap-4">
@@ -1193,6 +1261,7 @@ function ProductForm({ productToEdit, onSaveSuccess }: any) {
                         <div><Label className="text-[10px] font-bold">L5 (Bottom)</Label><Input type="number" value={form.specification.bottomGsm ?? ''} onChange={e => updateSpec('bottomGsm', e.target.value)} /></div>
                     </div>
                 </div>
+                )}
                 <div className="space-y-2"><Label>Finishing & Printing Instructions</Label><Textarea value={form.specification.printing ?? ''} onChange={e => updateSpec('printing', e.target.value)} placeholder="e.g. 2 Color Flexo printing, Glue closing..." /></div>
             </div>
             <Button className="w-full h-11" onClick={handleSave}>Save Product Record</Button>
@@ -1200,11 +1269,65 @@ function ProductForm({ productToEdit, onSaveSuccess }: any) {
     );
 }
 
-function SavedReportsList({ onEdit }: any) {
+function SavedReportsList({ onEdit, onPreview, onDelete }: any) {
     const [reports, setReports] = useState<CostReport[]>([]);
     useEffect(() => onCostReportsUpdate(setReports), []);
     return (
-        <Card><CardHeader><CardTitle>Saved Cost Reports</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Report #</TableHead><TableHead>Date</TableHead><TableHead>Party Name</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{reports.map(r => (<TableRow key={r.id}><TableCell className="font-mono">{r.reportNumber}</TableCell><TableCell>{toNepaliDate(r.reportDate)}</TableCell><TableCell>{r.partyName}</TableCell><TableCell className="text-right"><Button variant="ghost" size="icon" onClick={() => onEdit(r)}><Edit className="h-4 w-4" /></Button></TableCell></TableRow>))}</TableBody></Table></CardContent></Card>
+        <Card>
+            <CardHeader>
+                <CardTitle>Saved Cost Reports</CardTitle>
+                <CardDescription>Historical logs of manufacturing estimates and quotations.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Report #</TableHead>
+                            <TableHead>Date (BS)</TableHead>
+                            <TableHead>Party Name</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {reports.map(r => (
+                            <TableRow key={r.id}>
+                                <TableCell className="font-mono">{r.reportNumber}</TableCell>
+                                <TableCell>{toNepaliDate(r.reportDate)}</TableCell>
+                                <TableCell>{r.partyName}</TableCell>
+                                <TableCell className="text-right">
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4"/></Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onSelect={() => onPreview(r)}><Eye className="mr-2 h-4 w-4"/> View / Print</DropdownMenuItem>
+                                            <DropdownMenuItem onSelect={() => onEdit(r)}><Edit className="mr-2 h-4 w-4"/> Edit</DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4"/> Delete</DropdownMenuItem>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>Delete this report?</AlertDialogTitle>
+                                                        <AlertDialogDescription>This action is permanent and will remove the record from history.</AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => onDelete(r.id)}>Confirm Delete</AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                        {reports.length === 0 && <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">No reports found.</TableCell></TableRow>}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
     );
 }
 
@@ -1213,6 +1336,8 @@ export default function CostReportPage() {
     const [reportToEdit, setReportToEdit] = useState<CostReport | null>(null);
     const [productToEdit, setProductToEdit] = useState<Product | null>(null);
     const [isProductEditorOpen, setIsProductEditorOpen] = useState(false);
+    const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+    const [previewData, setPreviewData] = useState<any>(null);
     const [products, setProducts] = useState<Product[]>([]);
     const { user } = useAuth();
     const { toast } = useToast();
@@ -1222,6 +1347,69 @@ export default function CostReportPage() {
     const handleProductEdit = (product: Product) => {
         setProductToEdit(product);
         setIsProductEditorOpen(true);
+    };
+
+    const handlePreviewFromList = (report: CostReport) => {
+        // Prepare items with calculations
+        const kCosts = report.kraftPaperCosts || {};
+        const vCost = report.virginPaperCost || 0;
+        const cCost = report.conversionCost || 0;
+        
+        // Local calculation function for mapping
+        const calc = (item: any) => {
+            const l = parseFloat(item.l) || 0, b = parseFloat(item.b) || 0, h = parseFloat(item.h) || 0, pcs = parseInt(item.noOfPcs, 10) || 1;
+            const isBox = h > 0;
+            let sL = 0, sB = 0;
+            if (isBox) {
+                const c1 = b + h + 20, d1 = (2 * l) + (2 * b) + 62, c2 = l + h + 20, d2 = (2 * b) + (2 * l) + 62;
+                if (c1 * d1 <= c2 * d2) { sL = c1; sB = d1; } else { sL = c2; sB = d2; }
+            } else { const d = [l, b].sort((x, y) => y - x); sL = d[0]; sB = d[1]; }
+            const ply = parseInt(item.ply, 10) || 0;
+            const g = { l1: parseFloat(item.topGsm) || 0, f1: parseFloat(item.flute1Gsm) || 0, l2: parseFloat(item.middleGsm) || 0, f2: parseFloat(item.flute2Gsm) || 0, l3: parseFloat(item.liner2Gsm) || 0, f3: parseFloat(item.flute3Gsm) || 0, l4: parseFloat(item.liner3Gsm) || 0, f4: parseFloat(item.flute4Gsm) || 0, l5: parseFloat(item.bottomGsm) || 0 };
+            let tGsm = 0; const factor = 1.35;
+            if (ply === 3) tGsm = g.l1 + (g.f1 * factor) + g.l5;
+            else if (ply === 5) tGsm = g.l1 + (g.f1 * factor) + g.l2 + (g.f2 * factor) + g.l5;
+            else if (ply === 7) tGsm = g.l1 + (g.f1 * factor) + g.l2 + (g.f2 * factor) + g.l3 + (g.f3 * factor) + g.l5;
+            else if (ply === 9) tGsm = g.l1 + (g.f1 * factor) + g.l2 + (g.f2 * factor) + g.l3 + (g.f3 * factor) + g.l4 + (g.f4 * factor) + g.l5;
+            else tGsm = g.l1 + g.l5;
+            const sArea = (sL * sB) / 1000000;
+            const pWt = sArea * tGsm * pcs;
+            const tBWt = pWt * (1 + (parseFloat(item.wastagePercent) / 100 || 0));
+            let pRate = item.paperType === 'VIRGIN' ? vCost : (kCosts[normalizeBF(item.paperBf)] || 0);
+            const finalRate = pRate + cCost;
+            return { paperCost: (tBWt / 1000) * finalRate };
+        };
+
+        const itemsWithCost = report.items.map(item => {
+            const calculated = calc(item);
+            const accessories = (item.accessories || []).map((acc: any) => ({
+                ...acc,
+                calculated: calc(acc)
+            }));
+            return {
+                ...item,
+                accessories,
+                totalItemCost: calculated.paperCost + accessories.reduce((sum: number, a: any) => sum + a.calculated.paperCost, 0)
+            };
+        });
+
+        setPreviewData({
+            reportNumber: report.reportNumber,
+            reportDate: new Date(report.reportDate),
+            party: { id: report.partyId, name: report.partyName },
+            items: itemsWithCost,
+            termsAndConditions: report.termsAndConditions || []
+        });
+        setIsPreviewOpen(true);
+    };
+
+    const handleDeleteReport = async (id: string) => {
+        try {
+            await deleteCostReport(id);
+            toast({ title: 'Report Deleted' });
+        } catch {
+            toast({ title: 'Error', variant: 'destructive' });
+        }
     };
 
     return (
@@ -1237,10 +1425,19 @@ export default function CostReportPage() {
                     <TabsTrigger value="products">Product Catalog</TabsTrigger>
                 </TabsList>
                 <TabsContent value="calculator" className="pt-0">
-                    <CostReportCalculator reportToEdit={reportToEdit} products={products} onSaveSuccess={() => { setReportToEdit(null); setActiveTab("saved"); }} />
+                    <CostReportCalculator 
+                        reportToEdit={reportToEdit} 
+                        products={products} 
+                        onSaveSuccess={() => { setReportToEdit(null); setActiveTab("saved"); }} 
+                        onPreview={(data: any) => { setPreviewData(data); setIsPreviewOpen(true); }}
+                    />
                 </TabsContent>
                 <TabsContent value="saved" className="pt-0">
-                    <SavedReportsList onEdit={(r: any) => { setReportToEdit(r); setActiveTab("calculator"); }} />
+                    <SavedReportsList 
+                        onEdit={(r: any) => { setReportToEdit(r); setActiveTab("calculator"); }} 
+                        onPreview={handlePreviewFromList}
+                        onDelete={handleDeleteReport}
+                    />
                 </TabsContent>
                 <TabsContent value="products" className="pt-0">
                     <ProductsList products={products} onEdit={handleProductEdit} />
@@ -1269,6 +1466,17 @@ export default function CostReportPage() {
                     </ScrollArea>
                 </DialogContent>
             </Dialog>
+
+            <QuotationPreviewDialog 
+                isOpen={isPreviewOpen} 
+                onOpenChange={setIsPreviewOpen} 
+                reportNumber={previewData?.reportNumber || ''}
+                reportDate={previewData?.reportDate || new Date()}
+                party={previewData?.party}
+                items={previewData?.items || []}
+                products={products}
+                termsAndConditions={previewData?.termsAndConditions}
+            />
         </div>
     );
 }
