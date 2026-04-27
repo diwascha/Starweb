@@ -72,6 +72,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import React from 'react';
 import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import html2canvas from 'html2canvas';
 
 const bfOptions = ['16 BF', '18 BF', '20 BF', '22 BF'];
@@ -137,17 +138,118 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
   };
 
   const handleExportPdf = async () => {
-    if (!printRef.current) return;
     setIsExporting(true);
     try {
-        const canvas = await html2canvas(printRef.current, { scale: 2, useCORS: true });
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-        pdf.save(`Quotation-${reportNumber}.pdf`);
+        const doc = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = doc.internal.pageSize.getWidth();
+        
+        // Header
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(18);
+        doc.text('Shivam Packaging Industry Private Limited', pageWidth / 2, 20, { align: 'center' });
+        
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.text('Hetauda 08, Bagmati Province, Nepal', pageWidth / 2, 26, { align: 'center' });
+        
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(14);
+        doc.text('QUOTATION', pageWidth / 2, 38, { align: 'center' });
+        doc.setLineWidth(0.5);
+        doc.line(14, 40, pageWidth - 14, 40);
+
+        // Party Info
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text('To,', 14, 50);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(12);
+        doc.text(party?.name || 'N/A', 14, 56);
+        
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        const addressLines = doc.splitTextToSize(party?.address || '', 100);
+        doc.text(addressLines, 14, 62);
+        
+        let infoY = 62 + (addressLines.length * 5);
+        if (party?.panNumber) {
+            doc.text(`PAN/VAT: ${party.panNumber}`, 14, infoY);
+            infoY += 5;
+        }
+
+        // Ref & Date Info (Right aligned)
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Ref No: ${reportNumber}`, pageWidth - 14, 56, { align: 'right' });
+        const nepaliDateStr = toNepaliDate(reportDate.toISOString());
+        doc.text(`Date: ${nepaliDateStr} BS`, pageWidth - 14, 62, { align: 'right' });
+        doc.setFontSize(8);
+        doc.text(`(${format(reportDate, "MMMM do, yyyy")})`, pageWidth - 14, 67, { align: 'right' });
+
+        // Table
+        const tableData = items.flatMap((item, index) => {
+            const main = [
+                index + 1,
+                getProductDisplayName(item.productId),
+                `${item.l}x${item.b}x${item.h}`,
+                `${item.ply} Ply`,
+                `${item.paperType} ${normalizeBF(item.paperBf)}`,
+                `Rs. ${item.totalItemCost.toFixed(2)}`
+            ];
+            const accs = (item.accessories || []).map((acc: any) => [
+                '',
+                `-- ${acc.name}`,
+                `${acc.l}x${acc.b}x${acc.h}`,
+                `${acc.ply} Ply`,
+                `${acc.paperType} ${normalizeBF(acc.paperBf)}`,
+                `Rs. ${acc.calculated?.paperCost.toFixed(2)}`
+            ]);
+            return [main, ...accs];
+        });
+
+        autoTable(doc, {
+            startY: Math.max(infoY + 10, 80),
+            head: [['S.N.', 'Particulars / Specifications', 'Size (mm)', 'Ply', 'Paper Grade', 'Rate (NPR)']],
+            body: tableData,
+            theme: 'grid',
+            headStyles: { fillColor: [245, 245, 245], textColor: [0, 0, 0], fontStyle: 'bold', lineWidth: 0.1 },
+            styles: { fontSize: 8, cellPadding: 2, lineWidth: 0.1, textColor: [0, 0, 0] },
+            columnStyles: {
+                0: { cellWidth: 10 },
+                1: { cellWidth: 60 },
+                5: { halign: 'right' }
+            }
+        });
+
+        let currentY = (doc as any).lastAutoTable.finalY + 15;
+
+        // Terms
+        if (selectedTerms.length > 0) {
+            if (currentY > 250) { doc.addPage(); currentY = 20; }
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(10);
+            doc.text('Terms & Conditions:', 14, currentY);
+            currentY += 6;
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8);
+            selectedTerms.forEach((term, i) => {
+                const lines = doc.splitTextToSize(`${i + 1}. ${term.text}`, pageWidth - 28);
+                if (currentY + (lines.length * 4) > 280) { doc.addPage(); currentY = 20; }
+                doc.text(lines, 14, currentY);
+                currentY += lines.length * 4 + 2;
+            });
+        }
+
+        // Footer
+        const footerY = doc.internal.pageSize.getHeight() - 20;
+        doc.setFont('helvetica', 'italic');
+        doc.setFontSize(8);
+        doc.setTextColor(120);
+        doc.text('This document is digitally produced; no signature required.', pageWidth / 2, footerY, { align: 'center' });
+        doc.text('--- End of Quotation ---', pageWidth / 2, footerY + 5, { align: 'center' });
+
+        doc.save(`Quotation-${reportNumber}.pdf`);
     } catch (error) {
+        console.error("PDF Export Error:", error);
         toast({ title: 'Export Failed', variant: 'destructive' });
     } finally {
         setIsExporting(false);
@@ -425,7 +527,6 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
           setReportDate(new Date(reportToEdit.reportDate));
           setSelectedPartyId(reportToEdit.partyId);
           setTermsAndConditions(reportToEdit.termsAndConditions || []);
-          // Re-calculate loaded items
           const kCosts = reportToEdit.kraftPaperCosts || {};
           const vCost = Number(reportToEdit.virginPaperCost) || 0;
           const cCost = Number(reportToEdit.conversionCost) || 0;
@@ -1350,12 +1451,10 @@ export default function CostReportPage() {
     };
 
     const handlePreviewFromList = (report: CostReport) => {
-        // Prepare items with calculations
         const kCosts = report.kraftPaperCosts || {};
         const vCost = report.virginPaperCost || 0;
         const cCost = report.conversionCost || 0;
         
-        // Local calculation function for mapping
         const calc = (item: any) => {
             const l = parseFloat(item.l) || 0, b = parseFloat(item.b) || 0, h = parseFloat(item.h) || 0, pcs = parseInt(item.noOfPcs, 10) || 1;
             const isBox = h > 0;
