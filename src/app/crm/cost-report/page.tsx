@@ -11,7 +11,6 @@ import type {
   CostSetting, 
   CalculatedValues, 
   CostReportTerm,
-  Accessory,
   ProductAccessory
 } from '@/lib/types';
 import { onProductsUpdate, addProduct as addProductService, updateProduct } from '@/services/product-service';
@@ -20,7 +19,6 @@ import {
   onCostReportsUpdate, 
   addCostReport, 
   generateNextCostReportNumber, 
-  updateCostReport 
 } from '@/services/cost-report-service';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -40,7 +38,6 @@ import {
   Image as ImageIcon, 
   Settings2,
   FileSpreadsheet,
-  X,
   Search
 } from 'lucide-react';
 import { 
@@ -494,6 +491,10 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
     return products.filter(p => p.partyId === selectedPartyId).sort((a,b) => a.name.localeCompare(b.name));
   }, [products, selectedPartyId]);
 
+  const maxPly = useMemo(() => {
+      return items.reduce((max, item) => Math.max(max, parseInt(item.ply, 10) || 3), 3);
+  }, [items]);
+
   return (
     <div className="space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -601,7 +602,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
             <CardContent className="p-0">
                 <ScrollArea className="w-full">
                     <div className="p-4">
-                        <Table className="text-[11px] border border-collapse min-w-[2800px]">
+                        <Table className="text-[11px] border border-collapse min-w-[1500px]">
                             <TableHeader className="bg-muted/80">
                                 <TableRow>
                                     <TableHead rowSpan={2} className="w-10 px-2"></TableHead>
@@ -612,7 +613,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
                                     <TableHead rowSpan={2} className="text-center min-w-[150px] border-r">Type (K/V/M)</TableHead>
                                     <TableHead rowSpan={2} className="text-center min-w-[130px] border-r">Paper BF</TableHead>
                                     <TableHead rowSpan={2} className="text-center min-w-[100px] border-r">Waste %</TableHead>
-                                    <TableHead colSpan={9} className="text-center border-x font-bold text-black bg-orange-50/50">GSM Composition (Up to 9 Ply)</TableHead>
+                                    <TableHead colSpan={maxPly} className="text-center border-x font-bold text-black bg-orange-50/50">GSM Composition</TableHead>
                                     <TableHead rowSpan={2} className="text-center min-w-[90px] border-r bg-muted/20">T.GSM</TableHead>
                                     <TableHead rowSpan={2} className="text-center min-w-[100px] border-r bg-muted/20">Weight (g)</TableHead>
                                     <TableHead rowSpan={2} className="text-center min-w-[120px] border-r bg-primary/5 font-bold">Paper Cost</TableHead>
@@ -623,15 +624,16 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
                                     <TableHead className="text-center border-l min-w-[100px] bg-blue-50/30">L</TableHead>
                                     <TableHead className="text-center min-w-[100px] bg-blue-50/30">B</TableHead>
                                     <TableHead className="text-center border-r min-w-[100px] bg-blue-50/30">H</TableHead>
-                                    <TableHead className="text-center border-l min-w-[90px] bg-orange-50/30">L1(Top)</TableHead>
+                                    
+                                    <TableHead className="text-center border-l min-w-[90px] bg-orange-50/30">Top</TableHead>
                                     <TableHead className="text-center min-w-[90px] bg-orange-50/30">F1</TableHead>
-                                    <TableHead className="text-center min-w-[90px] bg-orange-50/30">L2(Mid)</TableHead>
-                                    <TableHead className="text-center min-w-[90px] bg-orange-50/30">F2</TableHead>
-                                    <TableHead className="text-center min-w-[90px] bg-orange-50/30">L3</TableHead>
-                                    <TableHead className="text-center min-w-[90px] bg-orange-50/30">F3</TableHead>
-                                    <TableHead className="text-center min-w-[90px] bg-orange-50/30">L4</TableHead>
-                                    <TableHead className="text-center min-w-[90px] bg-orange-50/30">F4</TableHead>
-                                    <TableHead className="text-center border-r min-w-[90px] bg-orange-50/30">L5(Bot)</TableHead>
+                                    {maxPly >= 5 && <TableHead className="text-center min-w-[90px] bg-orange-50/30">Mid1</TableHead>}
+                                    {maxPly >= 5 && <TableHead className="text-center min-w-[90px] bg-orange-50/30">F2</TableHead>}
+                                    {maxPly >= 7 && <TableHead className="text-center min-w-[90px] bg-orange-50/30">Mid2</TableHead>}
+                                    {maxPly >= 7 && <TableHead className="text-center min-w-[90px] bg-orange-50/30">F3</TableHead>}
+                                    {maxPly >= 9 && <TableHead className="text-center min-w-[90px] bg-orange-50/30">Mid3</TableHead>}
+                                    {maxPly >= 9 && <TableHead className="text-center min-w-[90px] bg-orange-50/30">F4</TableHead>}
+                                    <TableHead className="text-center border-r min-w-[90px] bg-orange-50/30">Bot</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -677,15 +679,31 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
                                         </TableCell>
                                         <TableCell className="border-r p-0"><Input type="number" value={item.wastagePercent ?? ''} onChange={e => handleItemChange(idx, 'wastagePercent', e.target.value)} className="h-14 text-center px-2 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
                                         
-                                        {/* GSM Composition Inputs */}
+                                        {/* Dynamic GSM Composition Inputs */}
                                         <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.topGsm ?? ''} onChange={e => handleItemChange(idx, 'topGsm', e.target.value)} className="h-14 text-center px-2 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
                                         <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.flute1Gsm ?? ''} onChange={e => handleItemChange(idx, 'flute1Gsm', e.target.value)} className="h-14 text-center px-2 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
-                                        <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.middleGsm ?? ''} onChange={e => handleItemChange(idx, 'middleGsm', e.target.value)} className={cn("h-14 text-center px-2 w-full border-none focus-visible:ring-0 rounded-none", p < 5 ? "bg-muted/20" : "bg-transparent")} disabled={p < 5} /></TableCell>
-                                        <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.flute2Gsm ?? ''} onChange={e => handleItemChange(idx, 'flute2Gsm', e.target.value)} className={cn("h-14 text-center px-2 w-full border-none focus-visible:ring-0 rounded-none", p < 5 ? "bg-muted/20" : "bg-transparent")} disabled={p < 5} /></TableCell>
-                                        <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.liner2Gsm ?? ''} onChange={e => handleItemChange(idx, 'liner2Gsm', e.target.value)} className={cn("h-14 text-center px-2 w-full border-none focus-visible:ring-0 rounded-none", p < 7 ? "bg-muted/20" : "bg-transparent")} disabled={p < 7} /></TableCell>
-                                        <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.flute3Gsm ?? ''} onChange={e => handleItemChange(idx, 'flute3Gsm', e.target.value)} className={cn("h-14 text-center px-2 w-full border-none focus-visible:ring-0 rounded-none", p < 7 ? "bg-muted/20" : "bg-transparent")} disabled={p < 7} /></TableCell>
-                                        <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.liner3Gsm ?? ''} onChange={e => handleItemChange(idx, 'liner3Gsm', e.target.value)} className={cn("h-14 text-center px-2 w-full border-none focus-visible:ring-0 rounded-none", p < 9 ? "bg-muted/20" : "bg-transparent")} disabled={p < 9} /></TableCell>
-                                        <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.flute4Gsm ?? ''} onChange={e => handleItemChange(idx, 'flute4Gsm', e.target.value)} className={cn("h-14 text-center px-2 w-full border-none focus-visible:ring-0 rounded-none", p < 9 ? "bg-muted/20" : "bg-transparent")} disabled={p < 9} /></TableCell>
+                                        
+                                        {maxPly >= 5 && (
+                                            <>
+                                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.middleGsm ?? ''} onChange={e => handleItemChange(idx, 'middleGsm', e.target.value)} className={cn("h-14 text-center px-2 w-full border-none focus-visible:ring-0 rounded-none", p < 5 ? "bg-muted/20" : "bg-transparent")} disabled={p < 5} /></TableCell>
+                                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.flute2Gsm ?? ''} onChange={e => handleItemChange(idx, 'flute2Gsm', e.target.value)} className={cn("h-14 text-center px-2 w-full border-none focus-visible:ring-0 rounded-none", p < 5 ? "bg-muted/20" : "bg-transparent")} disabled={p < 5} /></TableCell>
+                                            </>
+                                        )}
+                                        
+                                        {maxPly >= 7 && (
+                                            <>
+                                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.liner2Gsm ?? ''} onChange={e => handleItemChange(idx, 'liner2Gsm', e.target.value)} className={cn("h-14 text-center px-2 w-full border-none focus-visible:ring-0 rounded-none", p < 7 ? "bg-muted/20" : "bg-transparent")} disabled={p < 7} /></TableCell>
+                                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.flute3Gsm ?? ''} onChange={e => handleItemChange(idx, 'flute3Gsm', e.target.value)} className={cn("h-14 text-center px-2 w-full border-none focus-visible:ring-0 rounded-none", p < 7 ? "bg-muted/20" : "bg-transparent")} disabled={p < 7} /></TableCell>
+                                            </>
+                                        )}
+                                        
+                                        {maxPly >= 9 && (
+                                            <>
+                                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.liner3Gsm ?? ''} onChange={e => handleItemChange(idx, 'liner3Gsm', e.target.value)} className={cn("h-14 text-center px-2 w-full border-none focus-visible:ring-0 rounded-none", p < 9 ? "bg-muted/20" : "bg-transparent")} disabled={p < 9} /></TableCell>
+                                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.flute4Gsm ?? ''} onChange={e => handleItemChange(idx, 'flute4Gsm', e.target.value)} className={cn("h-14 text-center px-2 w-full border-none focus-visible:ring-0 rounded-none", p < 9 ? "bg-muted/20" : "bg-transparent")} disabled={p < 9} /></TableCell>
+                                            </>
+                                        )}
+                                        
                                         <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.bottomGsm ?? ''} onChange={e => handleItemChange(idx, 'bottomGsm', e.target.value)} className="h-14 text-center px-2 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
                                         
                                         <TableCell className="text-center font-medium bg-muted/20 border-r">{item.calculated?.totalGsm.toFixed(0)}</TableCell>
@@ -701,7 +719,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
                             {items.length > 0 && (
                                 <TableFooter className="bg-muted/50 border-t-2">
                                     <TableRow className="h-12 font-bold">
-                                        <TableCell colSpan={21} className="text-right text-sm">Grand Total (Estimated Paper Cost)</TableCell>
+                                        <TableCell colSpan={maxPly + 12} className="text-right text-sm">Grand Total (Estimated Paper Cost)</TableCell>
                                         <TableCell className="text-right pr-6 text-sm text-primary">Rs. {items.reduce((sum, i) => sum + i.calculated.paperCost, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell></TableCell>
                                     </TableRow>
@@ -955,12 +973,24 @@ function ProductForm({ productToEdit, onSaveSuccess }: any) {
                     <div className="grid grid-cols-3 md:grid-cols-5 gap-4">
                         <div><Label className="text-[10px] font-bold">L1 (Top)</Label><Input type="number" value={form.specification.topGsm ?? ''} onChange={e => updateSpec('topGsm', e.target.value)} /></div>
                         <div><Label className="text-[10px] font-bold">F1</Label><Input type="number" value={form.specification.flute1Gsm ?? ''} onChange={e => updateSpec('flute1Gsm', e.target.value)} /></div>
-                        <div><Label className="text-[10px] font-bold">L2 (Mid 1)</Label><Input type="number" value={form.specification.middleGsm ?? ''} onChange={e => updateSpec('middleGsm', e.target.value)} disabled={p < 5} /></div>
-                        <div><Label className="text-[10px] font-bold">F2</Label><Input type="number" value={form.specification.flute2Gsm ?? ''} onChange={e => updateSpec('flute2Gsm', e.target.value)} disabled={p < 5} /></div>
-                        <div><Label className="text-[10px] font-bold">L3 (Mid 2)</Label><Input type="number" value={form.specification.liner2Gsm ?? ''} onChange={e => updateSpec('liner2Gsm', e.target.value)} disabled={p < 7} /></div>
-                        <div><Label className="text-[10px] font-bold">F3</Label><Input type="number" value={form.specification.flute3Gsm ?? ''} onChange={e => updateSpec('flute3Gsm', e.target.value)} disabled={p < 7} /></div>
-                        <div><Label className="text-[10px] font-bold">L4 (Mid 3)</Label><Input type="number" value={form.specification.liner3Gsm ?? ''} onChange={e => updateSpec('liner3Gsm', e.target.value)} disabled={p < 9} /></div>
-                        <div><Label className="text-[10px] font-bold">F4</Label><Input type="number" value={form.specification.flute4Gsm ?? ''} onChange={e => updateSpec('flute4Gsm', e.target.value)} disabled={p < 9} /></div>
+                        {p >= 5 && (
+                            <>
+                                <div><Label className="text-[10px] font-bold">L2 (Mid 1)</Label><Input type="number" value={form.specification.middleGsm ?? ''} onChange={e => updateSpec('middleGsm', e.target.value)} /></div>
+                                <div><Label className="text-[10px] font-bold">F2</Label><Input type="number" value={form.specification.flute2Gsm ?? ''} onChange={e => updateSpec('flute2Gsm', e.target.value)} /></div>
+                            </>
+                        )}
+                        {p >= 7 && (
+                            <>
+                                <div><Label className="text-[10px] font-bold">L3 (Mid 2)</Label><Input type="number" value={form.specification.liner2Gsm ?? ''} onChange={e => updateSpec('liner2Gsm', e.target.value)} /></div>
+                                <div><Label className="text-[10px] font-bold">F3</Label><Input type="number" value={form.specification.flute3Gsm ?? ''} onChange={e => updateSpec('flute3Gsm', e.target.value)} /></div>
+                            </>
+                        )}
+                        {p >= 9 && (
+                            <>
+                                <div><Label className="text-[10px] font-bold">L4 (Mid 3)</Label><Input type="number" value={form.specification.liner3Gsm ?? ''} onChange={e => updateSpec('liner3Gsm', e.target.value)} /></div>
+                                <div><Label className="text-[10px] font-bold">F4</Label><Input type="number" value={form.specification.flute4Gsm ?? ''} onChange={e => updateSpec('flute4Gsm', e.target.value)} /></div>
+                            </>
+                        )}
                         <div><Label className="text-[10px] font-bold">L5 (Bottom)</Label><Input type="number" value={form.specification.bottomGsm ?? ''} onChange={e => updateSpec('bottomGsm', e.target.value)} /></div>
                     </div>
                 </div>
