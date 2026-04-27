@@ -37,7 +37,8 @@ import {
   Image as ImageIcon, 
   Settings2,
   FileSpreadsheet,
-  Search
+  Search,
+  ChevronsUpDown
 } from 'lucide-react';
 import { 
   Table, 
@@ -49,7 +50,7 @@ import {
   TableFooter
 } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon } from 'lucide-react';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn, toNepaliDate } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
@@ -102,7 +103,6 @@ interface QuotationPreviewDialogProps {
 
 function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate, party, items, products, termsAndConditions = [] }: QuotationPreviewDialogProps) {
   const printRef = useRef<HTMLDivElement>(null);
-  
   const selectedTerms = useMemo(() => (termsAndConditions || []).filter(t => t.isSelected), [termsAndConditions]);
 
   const getProductDisplayName = (productId: string) => {
@@ -267,8 +267,11 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
   const [isSaving, setIsSaving] = useState(false);
   const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
   const [partyForm, setPartyForm] = useState({ name: '', type: 'Customer' as PartyType, address: '', panNumber: '' });
+  const [isPartyPopoverOpen, setIsPartyPopoverOpen] = useState(false);
+  const [partySearch, setPartySearch] = useState('');
   
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
+  const [isAccessoryDialogOpen, setIsAccessoryDialogOpen] = useState(false);
   const [isBatchAddDialogOpen, setIsBatchAddDialogOpen] = useState(false);
   const [isManageTermsDialogOpen, setIsManageTermsDialogOpen] = useState(false);
   const [selectedBatchProductIds, setSelectedBatchProductIds] = useState<Set<string>>(new Set());
@@ -361,6 +364,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
       if (!user) return;
       try {
           await updateCostSettings({ termsAndConditions: newTerms }, user.username);
+          setTermsAndConditions(newTerms);
           toast({ title: 'Terms Updated', description: 'Master list has been updated.' });
       } catch {
           toast({ title: 'Error', description: 'Failed to update master terms.', variant: 'destructive' });
@@ -467,13 +471,13 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
             transportCost: Number(transportCost) || 0,
             transportCostType,
             termsAndConditions,
-            items: items.map(({ calculated, ...rest }) => rest), // Store only inputs
+            items: items.map(({ calculated, ...rest }) => rest),
             totalCost: items.reduce((sum, i) => sum + i.calculated.paperCost, 0),
             createdBy: user.username
         };
         await addCostReport(reportData);
 
-        // SYNC SPECIFICATIONS BACK TO PRODUCT CATALOG
+        // SYNC SPECIFICATIONS BACK TO PRODUCT MASTER
         const updatePromises = items.map(item => {
             if (!item.productId) return Promise.resolve();
             const product = products.find(p => p.id === item.productId);
@@ -504,7 +508,6 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
         });
         
         await Promise.all(updatePromises);
-
         toast({ title: 'Success', description: 'Report saved and product specifications updated.' });
         onSaveSuccess();
     } catch (error) {
@@ -536,13 +539,34 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
                     </div>
                     <div className="space-y-1">
                         <Label className="text-[10px] font-bold">Party Name</Label>
-                        <div className="flex gap-2">
-                            <Select value={selectedPartyId} onValueChange={setSelectedPartyId}>
-                                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select customer..." /></SelectTrigger>
-                                <SelectContent>{parties.sort((a,b)=>a.name.localeCompare(b.name)).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
-                            </Select>
-                            <Button size="icon" variant="outline" className="h-8 w-8 shrink-0" onClick={() => setIsPartyDialogOpen(true)}><Plus className="h-4 w-4" /></Button>
-                        </div>
+                        <Popover open={isPartyPopoverOpen} onOpenChange={setIsPartyPopoverOpen}>
+                            <PopoverTrigger asChild>
+                                <Button variant="outline" role="combobox" className="w-full justify-between h-8 text-xs">
+                                    {selectedPartyId ? parties.find(p => p.id === selectedPartyId)?.name : "Select customer..."}
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="p-0">
+                                <Command>
+                                    <CommandInput placeholder="Search customer..." value={partySearch} onValueChange={setPartySearch} />
+                                    <CommandList>
+                                        <CommandEmpty>
+                                            <Button variant="ghost" className="w-full justify-start text-xs" onClick={() => { setPartyForm({ name: partySearch, type: 'Customer', address: '', panNumber: '' }); setIsPartyDialogOpen(true); setIsPartyPopoverOpen(false); }}>
+                                                <PlusCircle className="mr-2 h-4 w-4" /> Add "{partySearch}"
+                                            </Button>
+                                        </CommandEmpty>
+                                        <CommandGroup>
+                                            {parties.sort((a,b)=>a.name.localeCompare(b.name)).map(p => (
+                                                <CommandItem key={p.id} value={p.name} onSelect={() => { setSelectedPartyId(p.id); setIsPartyPopoverOpen(false); }}>
+                                                    <Check className={cn("mr-2 h-4 w-4", selectedPartyId === p.id ? "opacity-100" : "opacity-0")} />
+                                                    {p.name}
+                                                </CommandItem>
+                                            ))}
+                                        </CommandGroup>
+                                    </CommandList>
+                                </Command>
+                            </PopoverContent>
+                        </Popover>
                     </div>
                 </CardContent>
             </Card>
@@ -650,19 +674,19 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
                                     <TableHead rowSpan={2} className="w-20"></TableHead>
                                 </TableRow>
                                 <TableRow>
-                                    <TableHead className="text-center border-l min-w-[90px] bg-blue-50/30">L</TableHead>
-                                    <TableHead className="text-center min-w-[90px] bg-blue-50/30">B</TableHead>
-                                    <TableHead className="text-center border-r min-w-[90px] bg-blue-50/30">H</TableHead>
+                                    <TableHead className="text-center border-l min-w-[100px] bg-blue-50/30">L</TableHead>
+                                    <TableHead className="text-center min-w-[100px] bg-blue-50/30">B</TableHead>
+                                    <TableHead className="text-center border-r min-w-[100px] bg-blue-50/30">H</TableHead>
                                     
-                                    <TableHead className="text-center border-l min-w-[85px] bg-orange-50/30">Top</TableHead>
-                                    <TableHead className="text-center min-w-[85px] bg-orange-50/30">F1</TableHead>
-                                    {maxPly >= 5 && <TableHead className="text-center min-w-[85px] bg-orange-50/30">Mid1</TableHead>}
-                                    {maxPly >= 5 && <TableHead className="text-center min-w-[85px] bg-orange-50/30">F2</TableHead>}
-                                    {maxPly >= 7 && <TableHead className="text-center min-w-[85px] bg-orange-50/30">Mid2</TableHead>}
-                                    {maxPly >= 7 && <TableHead className="text-center min-w-[85px] bg-orange-50/30">F3</TableHead>}
-                                    {maxPly >= 9 && <TableHead className="text-center min-w-[85px] bg-orange-50/30">Mid3</TableHead>}
-                                    {maxPly >= 9 && <TableHead className="text-center min-w-[85px] bg-orange-50/30">F4</TableHead>}
-                                    <TableHead className="text-center border-r min-w-[85px] bg-orange-50/30">Bot</TableHead>
+                                    <TableHead className="text-center border-l min-w-[90px] bg-orange-50/30">Top</TableHead>
+                                    <TableHead className="text-center min-w-[90px] bg-orange-50/30">F1</TableHead>
+                                    {maxPly >= 5 && <TableHead className="text-center min-w-[90px] bg-orange-50/30">Mid1</TableHead>}
+                                    {maxPly >= 5 && <TableHead className="text-center min-w-[90px] bg-orange-50/30">F2</TableHead>}
+                                    {maxPly >= 7 && <TableHead className="text-center min-w-[90px] bg-orange-50/30">Mid2</TableHead>}
+                                    {maxPly >= 7 && <TableHead className="text-center min-w-[90px] bg-orange-50/30">F3</TableHead>}
+                                    {maxPly >= 9 && <TableHead className="text-center min-w-[90px] bg-orange-50/30">Mid3</TableHead>}
+                                    {maxPly >= 9 && <TableHead className="text-center min-w-[90px] bg-orange-50/30">F4</TableHead>}
+                                    <TableHead className="text-center border-r min-w-[90px] bg-orange-50/30">Bot</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -673,10 +697,12 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
                                         <TableCell className="px-2 border-r"><Checkbox checked={selectedForPrint.has(item.id)} onCheckedChange={v => { const n = new Set(selectedForPrint); if(v) n.add(item.id); else n.delete(item.id); setSelectedForPrint(n); }} /></TableCell>
                                         <TableCell className="border-r pr-2">
                                             <div className="flex gap-1.5 items-center">
-                                                <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" onClick={() => setIsProductDialogOpen(true)} title="Quick Add Product"><Plus className="h-3.5 w-3.5" /></Button>
+                                                <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" onClick={() => setIsAccessoryDialogOpen(true)} title="Add Accessory"><Plus className="h-3.5 w-3.5" /></Button>
                                                 <Select value={item.productId ?? ''} onValueChange={v => handleItemChange(idx, 'productId', v)}>
                                                     <SelectTrigger className="h-8 text-[11px] w-full"><SelectValue placeholder="Select product..." /></SelectTrigger>
-                                                    <SelectContent>{products.sort((a,b)=>a.name.localeCompare(b.name)).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+                                                    <SelectContent>
+                                                        {products.sort((a,b)=>a.name.localeCompare(b.name)).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                                                    </SelectContent>
                                                 </Select>
                                             </div>
                                         </TableCell>
@@ -759,6 +785,22 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
                 </ScrollArea>
             </CardContent>
         </Card>
+
+        {/* Accessory Placeholder Dialog */}
+        <Dialog open={isAccessoryDialogOpen} onOpenChange={setIsAccessoryDialogOpen}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Product Accessories</DialogTitle>
+                    <DialogDescription>Add or manage pads, liners, and partitions associated with this box.</DialogDescription>
+                </DialogHeader>
+                <div className="py-12 text-center text-muted-foreground italic">
+                    Accessory configuration tool coming soon.
+                </div>
+                <DialogFooter>
+                    <Button onClick={() => setIsAccessoryDialogOpen(false)}>Close</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
 
         {/* Dialogs */}
         <Dialog open={isBatchAddDialogOpen} onOpenChange={setIsBatchAddDialogOpen}>
