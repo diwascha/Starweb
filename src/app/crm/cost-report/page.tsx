@@ -321,7 +321,6 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
           setReportDate(new Date(reportToEdit.reportDate));
           setSelectedPartyId(reportToEdit.partyId);
           setTermsAndConditions(reportToEdit.termsAndConditions || []);
-          // Note: Full item load with accessories should be mapped here if needed
       }
   }, [reportToEdit, costReports]);
 
@@ -986,6 +985,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products }: any) {
                 <DialogHeader><DialogTitle>Quick Add Party</DialogTitle></DialogHeader>
                 <div className="grid gap-4 py-4">
                     <div className="space-y-2"><Label>Party Name</Label><Input value={partyForm.name ?? ''} onChange={e => setPartyForm({...partyForm, name: e.target.value})} /></div>
+                    <div className="space-y-2"><Label>PAN Number</Label><Input value={partyForm.panNumber ?? ''} onChange={e => setPartyForm({...partyForm, panNumber: e.target.value})} /></div>
                     <div className="space-y-2"><Label>Address</Label><Textarea value={partyForm.address ?? ''} onChange={e => setPartyForm({...partyForm, address: e.target.value})} /></div>
                 </div>
                 <DialogFooter><Button onClick={handleSubmitParty}>Add Party</Button></DialogFooter>
