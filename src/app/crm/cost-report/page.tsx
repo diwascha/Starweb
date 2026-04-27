@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -13,7 +14,7 @@ import type {
   CostReportTerm,
   Accessory,
 } from '@/lib/types';
-import { onProductsUpdate, addProduct as addProductService, updateProduct } from '@/services/product-service';
+import { onProductsUpdate, addProduct as addProductService, updateProduct, deleteProduct } from '@/services/product-service';
 import { onPartiesUpdate, addParty } from '@/services/party-service';
 import { 
   onCostReportsUpdate, 
@@ -1067,7 +1068,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
                                                 )}
                                                 {maxPly >= 9 && (
                                                     <>
-                                                        <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.liner3Gsm ?? ''} onChange={e => handleAccessoryChange(idx, aIdx, 'liner3Gsm', e.target.value)} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 9 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 9} /></TableCell>
+                                                        <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.liner3Gsm ?? ''} onChange={e => handleUsageSort && handleAccessoryChange(idx, aIdx, 'liner3Gsm', e.target.value)} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 9 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 9} /></TableCell>
                                                         <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.flute4Gsm ?? ''} onChange={e => handleAccessoryChange(idx, aIdx, 'flute4Gsm', e.target.value)} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 9 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 9} /></TableCell>
                                                     </>
                                                 )}
@@ -1195,7 +1196,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
   );
 }
 
-function ProductsList({ products, onEdit }: { products: Product[], onEdit: (p: Product) => void }) {
+function ProductsList({ products, onEdit, onDelete }: { products: Product[], onEdit: (p: Product) => void, onDelete: (id: string) => void }) {
     const [search, setSearch] = useState('');
     
     const filtered = useMemo(() => {
@@ -1245,9 +1246,30 @@ function ProductsList({ products, onEdit }: { products: Product[], onEdit: (p: P
                                     {getGsmDisplay(p.specification)}
                                 </TableCell>
                                 <TableCell className="text-right">
-                                    <Button variant="ghost" size="icon" onClick={() => onEdit(p)}>
-                                        <Edit className="h-4 w-4" />
-                                    </Button>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4"/></Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onSelect={() => onEdit(p)}><Edit className="mr-2 h-4 w-4"/> Edit Specs</DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4"/> Delete Product</DropdownMenuItem>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>Delete this product?</AlertDialogTitle>
+                                                        <AlertDialogDescription>This will permanently remove the product and its specification from the catalog.</AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => onDelete(p.id)}>Confirm Delete</AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
                                 </TableCell>
                             </TableRow>
                         )) : (
@@ -1450,6 +1472,15 @@ export default function CostReportPage() {
         setIsProductEditorOpen(true);
     };
 
+    const handleDeleteProduct = async (id: string) => {
+        try {
+            await deleteProduct(id);
+            toast({ title: 'Product Deleted' });
+        } catch {
+            toast({ title: 'Error', variant: 'destructive' });
+        }
+    };
+
     const handlePreviewFromList = (report: CostReport) => {
         const kCosts = report.kraftPaperCosts || {};
         const vCost = report.virginPaperCost || 0;
@@ -1539,7 +1570,7 @@ export default function CostReportPage() {
                     />
                 </TabsContent>
                 <TabsContent value="products" className="pt-0">
-                    <ProductsList products={products} onEdit={handleProductEdit} />
+                    <ProductsList products={products} onEdit={handleProductEdit} onDelete={handleDeleteProduct} />
                 </TabsContent>
             </Tabs>
 
