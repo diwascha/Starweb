@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -300,7 +301,7 @@ export default function SettingsPage() {
     getPayrollYears().then(years => {
         const currentYear = new NepaliDate().getYear();
         const allYears = Array.from(new Set([...years, currentYear])).sort((a,b) => b-a);
-        setPayrollLockYears(allYears);
+        setBsYears(allYears);
         setSelectedLockYear(String(allYears[0] || currentYear));
         setSelectedLockMonth(String(new NepaliDate().getMonth()));
     });

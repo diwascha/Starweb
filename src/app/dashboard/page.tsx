@@ -14,7 +14,6 @@ import {
   Package, 
   ClipboardList,
   MousePointerClick,
-  AlertTriangle,
   Clock
 } from 'lucide-react';
 
