@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -9,31 +8,24 @@ import {
   Calculator, 
   FileText, 
   Receipt, 
-  Users, 
   Truck, 
-  AlertTriangle, 
   TrendingUp, 
   Package, 
-  ArrowRight,
   ClipboardList,
   MousePointerClick
 } from 'lucide-react';
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/use-auth';
-import { onEmployeesUpdate } from '@/services/employee-service';
-import { onAttendanceUpdate } from '@/services/attendance-service';
-import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onPoliciesUpdate } from '@/services/policy-service';
 import { onPurchaseOrdersUpdate } from '@/services/purchase-order-service';
 import { onEstimatedInvoicesUpdate } from '@/services/estimate-invoice-service';
 import { onPageVisitsUpdate } from '@/services/usage-service';
 import { onSettingUpdate } from '@/services/settings-service';
-import type { Employee, AttendanceRecord, Vehicle, PolicyOrMembership, PurchaseOrder, EstimatedInvoice, PageVisit, CompanyProfile } from '@/lib/types';
-import { isToday, differenceInDays, startOfToday, startOfMonth } from 'date-fns';
+import type { PolicyOrMembership, PurchaseOrder, EstimatedInvoice, PageVisit, CompanyProfile } from '@/lib/types';
+import { differenceInDays, startOfToday, startOfMonth } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 const defaultCompanyProfile: CompanyProfile = {
@@ -47,8 +39,6 @@ const defaultCompanyProfile: CompanyProfile = {
 
 export default function DashboardPage() {
   const { user, hasPermission } = useAuth();
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [policies, setPolicies] = useState<PolicyOrMembership[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [invoices, setInvoices] = useState<EstimatedInvoice[]>([]);
@@ -58,8 +48,6 @@ export default function DashboardPage() {
 
   useEffect(() => {
     setIsLoading(true);
-    const unsubEmployees = onEmployeesUpdate(setEmployees);
-    const unsubAttendance = onAttendanceUpdate(setAttendance);
     const unsubPolicies = onPoliciesUpdate(setPolicies);
     const unsubPOs = onPurchaseOrdersUpdate(setPurchaseOrders);
     const unsubInvoices = onEstimatedInvoicesUpdate(setInvoices);
@@ -68,8 +56,6 @@ export default function DashboardPage() {
 
     setIsLoading(false);
     return () => {
-      unsubEmployees();
-      unsubAttendance();
       unsubPolicies();
       unsubPOs();
       unsubInvoices();
@@ -80,10 +66,6 @@ export default function DashboardPage() {
 
   const stats = useMemo(() => {
     const today = startOfToday();
-    
-    // HR Stats
-    const totalStaff = employees.filter(e => e.status === 'Working').length;
-    const presentToday = attendance.filter(r => isToday(new Date(r.date)) && r.status === 'Present').length;
     
     // Fleet Alerts Breakdown
     const fleetStats = policies.reduce((acc, p) => {
@@ -110,8 +92,8 @@ export default function DashboardPage() {
 
     const totalVisits = pageVisits.reduce((sum, v) => sum + v.count, 0);
 
-    return { totalStaff, presentToday, fleetStats, openPOs, mtdRevenue, totalVisits };
-  }, [employees, attendance, policies, purchaseOrders, invoices, pageVisits]);
+    return { fleetStats, openPOs, mtdRevenue, totalVisits };
+  }, [policies, purchaseOrders, invoices, pageVisits]);
 
   return (
     <div className="flex flex-col gap-8">
@@ -139,24 +121,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <Link href="/hr/attendance" className="block">
-          <Card className="border-l-4 border-l-blue-500 hover:bg-accent transition-colors cursor-pointer h-full">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground uppercase">Staff Presence</p>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-bold">{stats.presentToday}</span>
-                    <span className="text-sm text-muted-foreground">/ {stats.totalStaff} present</span>
-                  </div>
-                </div>
-                <Users className="h-8 w-8 text-blue-500 opacity-20" />
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Link href="/fleet/policies" className="block">
           <Card className={cn(
             "border-l-4 hover:bg-accent transition-colors cursor-pointer h-full", 
