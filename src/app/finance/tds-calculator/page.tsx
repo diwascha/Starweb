@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -43,7 +42,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { onPartiesUpdate, addParty } from '@/services/party-service';
 import { onSettingUpdate } from '@/services/settings-service';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/command';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
@@ -990,7 +989,7 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
                             {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ImageIcon className="mr-2 h-4 w-4"/>}
                              Export as JPG
                         </Button>
-                        <Button variant="outline" onClick={() => handleExport('pdf')} disabled={isExporting}>
+                        <Button variant="outline" onClickSplit={() => handleExport('pdf')} disabled={isExporting}>
                             {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
                             Export as PDF
                         </Button>

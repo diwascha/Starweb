@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -59,7 +58,7 @@ import {
   TableFooter
 } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/command';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn, toNepaliDate } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
@@ -531,6 +530,17 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
     return () => { unsubCostSettings(); unsubParties(); unsubReports(); };
   }, []);
 
+  const handleSaveMasterTerms = async (newTerms: CostReportTerm[]) => {
+      if (!user) return;
+      try {
+          await updateCostSettings({ termsAndConditions: newTerms }, user.username);
+          setTermsAndConditions(newTerms);
+          toast({ title: 'Terms Updated', description: 'Master list has been updated.' });
+      } catch {
+          toast({ title: 'Error', description: 'Failed to update master terms.', variant: 'destructive' });
+      }
+  };
+
   useEffect(() => {
       if (!reportToEdit) {
           generateNextCostReportNumber(costReports).then(setReportNumber);
@@ -552,17 +562,6 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
           })));
       }
   }, [reportToEdit, costReports, calculateItemCost]);
-
-  const handleSaveMasterTerms = async (newTerms: CostReportTerm[]) => {
-      if (!user) return;
-      try {
-          await updateCostSettings({ termsAndConditions: newTerms }, user.username);
-          setTermsAndConditions(newTerms);
-          toast({ title: 'Terms Updated', description: 'Master list has been updated.' });
-      } catch {
-          toast({ title: 'Error', description: 'Failed to update master terms.', variant: 'destructive' });
-      }
-  };
 
   const mapProductToItem = useCallback((product: Product): CostReportItem => {
     const spec = product.specification || {};
@@ -1064,7 +1063,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
                                                 </TableCell>
                                                 <TableCell className="border-r p-0"><Input type="number" value={acc.wastagePercent ?? ''} onChange={e => handleAccessoryChange(idx, aIdx, 'wastagePercent', e.target.value)} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
                                                 <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.topGsm ?? ''} onChange={e => handleAccessoryChange(idx, aIdx, 'topGsm', e.target.value)} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
-                                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.flute1Gsm ?? ''} onChange={e => handleAccessoryChange(idx, aIdx, 'flute1Gsm', e.target.value)} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
+                                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.topGsm ?? ''} onChange={e => handleAccessoryChange(idx, aIdx, 'topGsm', e.target.value)} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
                                                 {maxPly >= 5 && (
                                                     <>
                                                         <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.middleGsm ?? ''} onChange={e => handleAccessoryChange(idx, aIdx, 'middleGsm', e.target.value)} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 5 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 5} /></TableCell>

@@ -31,10 +31,10 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
@@ -1178,7 +1178,7 @@ export default function SettingsPage() {
                                 </div>
                                 <div className="flex flex-wrap items-center gap-2">
                                     <div className="relative">
-                                        <Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                                        <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
                                         <Input 
                                             placeholder="Search path..." 
                                             value={usageSearch}
