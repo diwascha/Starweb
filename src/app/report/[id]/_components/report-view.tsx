@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { Report, ProductSpecification } from '@/lib/types';
+import type { Report, ProductSpecification, CompanyProfile } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,16 @@ import { Printer, Loader2, Save } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import NepaliDate from 'nepali-date-converter';
 import { updateReport } from '@/services/report-service';
+import { onSettingUpdate } from '@/services/settings-service';
+
+const defaultCompanyProfile: CompanyProfile = {
+  nameEn: "Shivam Packaging Industry Private Limited",
+  nameNp: "शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.",
+  address: "Hetauda 08, Bagmati Province, Nepal",
+  phone: "N/A",
+  email: "N/A",
+  pan: "N/A"
+};
 
 const orderedSpecificationKeys: (keyof ProductSpecification)[] = [
   'dimension',
@@ -27,10 +37,16 @@ const orderedSpecificationKeys: (keyof ProductSpecification)[] = [
 export default function ReportView({ initialReport }: { initialReport: Report }) {
   const [report, setReport] = useState<Report>(initialReport);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(defaultCompanyProfile);
 
   useEffect(() => {
     setReport(initialReport);
   }, [initialReport]);
+
+  useEffect(() => {
+    const unsub = onSettingUpdate('companyProfile', (s) => setCompanyProfile(s?.value || defaultCompanyProfile));
+    return () => unsub();
+  }, []);
 
   const handlePrint = async () => {
     if (!report) return;
@@ -145,9 +161,9 @@ export default function ReportView({ initialReport }: { initialReport: Report })
       <div className="printable-area space-y-4 p-4 border rounded-lg bg-white text-black">
         <header className="text-center space-y-1 mb-4 relative">
             <div className="pt-8">
-              <h1 className="text-xl font-bold">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
-              <h2 className="text-lg font-semibold"> शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.</h2>
-              <p className="text-sm">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
+              <h1 className="text-xl font-bold uppercase">{companyProfile.nameEn}</h1>
+              <h2 className="text-lg font-semibold">{companyProfile.nameNp}</h2>
+              <p className="text-sm">{companyProfile.address}</p>
               <h2 className="text-lg font-semibold underline mt-1">TEST REPORT</h2>
             </div>
         </header>

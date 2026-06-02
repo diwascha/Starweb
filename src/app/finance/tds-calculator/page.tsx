@@ -38,16 +38,25 @@ import html2canvas from 'html2canvas';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { onTdsCalculationsUpdate, addTdsCalculation, getTdsPrefix, deleteTdsCalculation, updateTdsCalculation } from '@/services/tds-service';
-import type { TdsCalculation, TdsRate, Party, PartyType } from '@/lib/types';
+import type { TdsCalculation, TdsRate, Party, PartyType, CompanyProfile } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { onPartiesUpdate, addParty } from '@/services/party-service';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { onSettingUpdate } from '@/services/settings-service';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/command';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 
+const defaultCompanyProfile: CompanyProfile = {
+  nameEn: "SHIVAM PACKAGING INDUSTRIES PVT LTD.",
+  nameNp: "शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.",
+  address: "HETAUDA 08, BAGMATI PROVIENCE, NEPAL",
+  phone: "N/A",
+  email: "N/A",
+  pan: "N/A"
+};
 
 const initialTdsRates: TdsRate[] = [
   { value: '1.5', label: 'Goods & Contracts', description: 'Supply of goods and contracts/sub-contracts (1.5%)' },
@@ -61,13 +70,13 @@ type SortKey = 'date' | 'voucherNo' | 'partyName' | 'taxableAmount' | 'netPayabl
 type SortDirection = 'asc' | 'desc';
 
 
-function TdsVoucherView({ calculation }: { calculation: TdsCalculation }) {
+function TdsVoucherView({ calculation, companyProfile }: { calculation: TdsCalculation, companyProfile: CompanyProfile }) {
     const totalWithVat = calculation.taxableAmount + calculation.vatAmount;
     return (
         <div className="printable-area space-y-4 p-4 border rounded-lg bg-white text-black">
             <header className="text-center space-y-1 mb-4">
-              <h1 className="text-xl font-bold">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
-              <p className="text-sm">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
+              <h1 className="text-xl font-bold uppercase">{companyProfile.nameEn}</h1>
+              <p className="text-sm">{companyProfile.address}</p>
               <h2 className="text-lg font-semibold underline mt-1">TDS ESTIMATE VOUCHER</h2>
             </header>
             <div className="grid grid-cols-2 text-xs mb-2 gap-x-4">
@@ -101,7 +110,7 @@ function TdsVoucherView({ calculation }: { calculation: TdsCalculation }) {
 }
 
 
-function SavedTdsRecords({ onEdit }: { onEdit: (calculation: TdsCalculation) => void }) {
+function SavedTdsRecords({ onEdit, companyProfile }: { onEdit: (calculation: TdsCalculation) => void, companyProfile: CompanyProfile }) {
     const [savedCalculations, setSavedCalculations] = useState<TdsCalculation[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
@@ -190,11 +199,11 @@ function SavedTdsRecords({ onEdit }: { onEdit: (calculation: TdsCalculation) => 
             // Header
             doc.setFont('Helvetica', 'bold');
             doc.setFontSize(12);
-            doc.text('SHIVAM PACKAGING INDUSTRIES PVT LTD.', doc.internal.pageSize.getWidth() / 2, 10, { align: 'center' });
+            doc.text(companyProfile.nameEn, doc.internal.pageSize.getWidth() / 2, 10, { align: 'center' });
             
             doc.setFont('Helvetica', 'normal');
             doc.setFontSize(8);
-            doc.text('HETAUDA 08, BAGMATI PROVIENCE, NEPAL', doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
+            doc.text(companyProfile.address, doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
             
             doc.setFont('Helvetica', 'bold');
             doc.setFontSize(10);
@@ -372,7 +381,7 @@ function SavedTdsRecords({ onEdit }: { onEdit: (calculation: TdsCalculation) => 
                 </DialogHeader>
                 <div className="bg-gray-100 p-4">
                     <div ref={printRef}>
-                      {selectedRecordForView && <TdsVoucherView calculation={selectedRecordForView} />}
+                      {selectedRecordForView && <TdsVoucherView calculation={selectedRecordForView} companyProfile={companyProfile} />}
                     </div>
                 </div>
                  <DialogFooter className="sm:justify-end gap-2">
@@ -394,7 +403,7 @@ function SavedTdsRecords({ onEdit }: { onEdit: (calculation: TdsCalculation) => 
 }
 
 
-function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit }: { calculationToEdit: TdsCalculation | null, onSaveSuccess: () => void, onCancelEdit: () => void }) {
+function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, companyProfile }: { calculationToEdit: TdsCalculation | null, onSaveSuccess: () => void, onCancelEdit: () => void, companyProfile: CompanyProfile }) {
   const [amount, setAmount] = useState<number | ''>('');
   const [selectedRateValue, setSelectedRateValue] = useState<string>('1.5');
   const [date, setDate] = useState<Date>(new Date());
@@ -555,9 +564,9 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit }: { cal
             const { voucherNo, date, partyName, taxableAmount, vatAmount, tdsRate, tdsAmount, netPayable } = calculationData;
             
             doc.setFont('Helvetica', 'bold'); doc.setFontSize(12);
-            doc.text('SHIVAM PACKAGING INDUSTRIES PVT LTD.', doc.internal.pageSize.getWidth() / 2, 10, { align: 'center' });
+            doc.text(companyProfile.nameEn, doc.internal.pageSize.getWidth() / 2, 10, { align: 'center' });
             doc.setFont('Helvetica', 'normal'); doc.setFontSize(8);
-            doc.text('HETAUDA 08, BAGMATI PROVIENCE, NEPAL', doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
+            doc.text(companyProfile.address, doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
             doc.setFont('Helvetica', 'bold'); doc.setFontSize(10);
             doc.text('TDS ESTIMATE VOUCHER', doc.internal.pageSize.getWidth() / 2, 22, { align: 'center' });
             doc.setFontSize(8); doc.setFont('Helvetica', 'normal');
@@ -972,7 +981,7 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit }: { cal
                     </DialogHeader>
                     <div className="bg-gray-100 p-4">
                       <div ref={printRef}>
-                        {calculationData && <TdsVoucherView calculation={calculationData} />}
+                        {calculationData && <TdsVoucherView calculation={calculationData} companyProfile={companyProfile} />}
                       </div>
                     </div>
                     <DialogFooter className="sm:justify-end gap-2">
@@ -996,6 +1005,12 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit }: { cal
 export default function TdsCalculatorPage() {
     const [activeTab, setActiveTab] = useState("calculator");
     const [calculationToEdit, setCalculationToEdit] = useState<TdsCalculation | null>(null);
+    const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(defaultCompanyProfile);
+
+    useEffect(() => {
+        const unsub = onSettingUpdate('companyProfile', (s) => setCompanyProfile(s?.value || defaultCompanyProfile));
+        return () => unsub();
+    }, []);
 
     const handleEdit = (calculation: TdsCalculation) => {
         setCalculationToEdit(calculation);
@@ -1024,13 +1039,12 @@ export default function TdsCalculatorPage() {
                     calculationToEdit={calculationToEdit} 
                     onSaveSuccess={handleSaveSuccess}
                     onCancelEdit={handleCancelEdit}
+                    companyProfile={companyProfile}
                 />
             </TabsContent>
             <TabsContent value="history">
-                <SavedTdsRecords onEdit={handleEdit} />
+                <SavedTdsRecords onEdit={handleEdit} companyProfile={companyProfile} />
             </TabsContent>
         </Tabs>
     );
 }
-    
-    

@@ -1,17 +1,26 @@
 
 'use client';
 
-import type { Employee, Payroll } from '@/lib/types';
+import type { Employee, Payroll, CompanyProfile } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Printer, Save, Loader2, ArrowLeft } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { toNepaliDate, toWords } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Table, TableBody, TableCell, TableRow, TableHeader, TableHead } from '@/components/ui/table';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import NepaliDate from 'nepali-date-converter';
 import { useRouter } from 'next/navigation';
+import { onSettingUpdate } from '@/services/settings-service';
 
+const defaultCompanyProfile: CompanyProfile = {
+  nameEn: "SHIVAM PACKAGING INDUSTRIES PVT LTD.",
+  nameNp: "शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.",
+  address: "Hetauda 08, Bagmati Province, Nepal",
+  phone: "N/A",
+  email: "N/A",
+  pan: "N/A"
+};
 
 interface PayslipViewProps {
   employee: Employee;
@@ -22,9 +31,15 @@ interface PayslipViewProps {
 
 export default function PayslipView({ employee, payroll, bsYear, bsMonthName }: PayslipViewProps) {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(defaultCompanyProfile);
   const router = useRouter();
   const generationDate = new Date();
   const nepaliGenerationDate = new NepaliDate(generationDate);
+
+  useEffect(() => {
+    const unsub = onSettingUpdate('companyProfile', (s) => setCompanyProfile(s?.value || defaultCompanyProfile));
+    return () => unsub();
+  }, []);
   
   const handlePrint = () => {
     setTimeout(() => {
@@ -71,8 +86,8 @@ export default function PayslipView({ employee, payroll, bsYear, bsMonthName }: 
       { label: "Advance", amount: payroll.advance },
   ];
 
-  const totalEarnings = earnings.reduce((sum, item) => sum + item.amount, 0);
-  const totalDeductions = deductions.reduce((sum, item) => sum + item.amount, 0);
+  const totalEarnings = earnings.reduce((sum, item) => sum + (item.amount || 0), 0);
+  const totalDeductions = deductions.reduce((sum, item) => sum + (item.amount || 0), 0);
 
   return (
     <>
@@ -99,10 +114,10 @@ export default function PayslipView({ employee, payroll, bsYear, bsMonthName }: 
       
        <div className="printable-area space-y-4 p-4 border rounded-lg bg-white text-black">
         <header className="text-center space-y-1 mb-4">
-            <h1 className="text-xl font-bold">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
-            <h2 className="text-lg font-semibold">शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.</h2>
-            <p className="text-sm">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
-            <h2 className="text-lg font-semibold">Payslip for {bsMonthName}, {bsYear}</h2>
+            <h1 className="text-xl font-bold uppercase">{companyProfile.nameEn}</h1>
+            <h2 className="text-lg font-semibold">{companyProfile.nameNp}</h2>
+            <p className="text-sm">{companyProfile.address}</p>
+            <h2 className="text-lg font-semibold underline mt-1">Payslip for {bsMonthName}, {bsYear}</h2>
         </header>
         
         <div className="text-right text-xs">
@@ -131,7 +146,7 @@ export default function PayslipView({ employee, payroll, bsYear, bsMonthName }: 
                         {earnings.map(item => (
                             <TableRow key={item.label} className="border-b-gray-300">
                                 <TableCell className="px-2 py-1 text-xs">{item.label}</TableCell>
-                                <TableCell className="px-2 py-1 text-xs text-right">{item.amount.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                                <TableCell className="px-2 py-1 text-xs text-right">{(item.amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
@@ -148,7 +163,7 @@ export default function PayslipView({ employee, payroll, bsYear, bsMonthName }: 
                         {deductions.map(item => (
                             <TableRow key={item.label} className="border-b-gray-300">
                                 <TableCell className="px-2 py-1 text-xs">{item.label}</TableCell>
-                                <TableCell className="px-2 py-1 text-xs text-right">{item.amount.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                                <TableCell className="px-2 py-1 text-xs text-right">{(item.amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
@@ -180,8 +195,8 @@ export default function PayslipView({ employee, payroll, bsYear, bsMonthName }: 
         </div>
         
         <div className="mt-4 p-2 bg-blue-100 border border-blue-300 rounded-md text-center">
-            <p className="font-semibold text-sm">Net Salary: NPR {payroll.netPayment.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
-            <p className="text-xs font-medium">In Words: {toWords(payroll.netPayment)}</p>
+            <p className="font-semibold text-sm">Net Salary: NPR {(payroll.netPayment || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+            <p className="text-xs font-medium">In Words: {toWords(payroll.netPayment || 0)}</p>
         </div>
 
 

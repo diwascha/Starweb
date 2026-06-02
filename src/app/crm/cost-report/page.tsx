@@ -13,6 +13,7 @@ import type {
   CalculatedValues, 
   CostReportTerm,
   Accessory,
+  CompanyProfile
 } from '@/lib/types';
 import { onProductsUpdate, addProduct as addProductService, updateProduct, deleteProduct } from '@/services/product-service';
 import { onPartiesUpdate, addParty } from '@/services/party-service';
@@ -58,7 +59,7 @@ import {
   TableFooter
 } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/command';
 import { cn, toNepaliDate } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
@@ -75,6 +76,15 @@ import React from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import html2canvas from 'html2canvas';
+
+const defaultCompanyProfile: CompanyProfile = {
+  nameEn: "Shivam Packaging Industry Private Limited",
+  nameNp: "शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.",
+  address: "Hetauda 08, Bagmati Province, Nepal",
+  phone: "N/A",
+  email: "N/A",
+  pan: "N/A"
+};
 
 const bfOptions = ['16 BF', '18 BF', '20 BF', '22 BF'];
 const plyOptions = ['3', '5', '7', '9'];
@@ -112,9 +122,10 @@ interface QuotationPreviewDialogProps {
   items: (any)[];
   products: Product[];
   termsAndConditions?: CostReportTerm[];
+  companyProfile: CompanyProfile;
 }
 
-function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate, party, items, products, termsAndConditions = [] }: QuotationPreviewDialogProps) {
+function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate, party, items, products, termsAndConditions = [], companyProfile }: QuotationPreviewDialogProps) {
   const printRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
@@ -147,11 +158,11 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
         // Header
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(18);
-        doc.text('Shivam Packaging Industry Private Limited', pageWidth / 2, 20, { align: 'center' });
+        doc.text(companyProfile.nameEn, pageWidth / 2, 20, { align: 'center' });
         
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(10);
-        doc.text('Hetauda 08, Bagmati Province, Nepal', pageWidth / 2, 26, { align: 'center' });
+        doc.text(companyProfile.address, pageWidth / 2, 26, { align: 'center' });
         
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(14);
@@ -283,8 +294,8 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
         <ScrollArea className="max-h-[75vh] bg-muted/30 p-4">
             <div ref={printRef} className="w-[210mm] mx-auto bg-white p-12 text-black shadow-sm">
                <header className="text-center space-y-1 mb-8">
-                    <h1 className="text-2xl font-bold uppercase tracking-tight">Shivam Packaging Industry Private Limited</h1>
-                    <p className="text-base uppercase tracking-wide">Hetauda 08, Bagmati Province, Nepal</p>
+                    <h1 className="text-2xl font-bold uppercase tracking-tight">{companyProfile.nameEn}</h1>
+                    <p className="text-base uppercase tracking-wide">{companyProfile.address}</p>
                     <h2 className="text-xl font-bold underline mt-4">QUOTATION</h2>
                 </header>
                  <div className="grid grid-cols-2 text-sm mb-6">
@@ -424,7 +435,7 @@ function ManageTermsDialog({ isOpen, onOpenChange, masterTerms, onSave }: { isOp
     );
 }
 
-function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview }: any) {
+function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview, companyProfile }: any) {
   const [parties, setParties] = useState<Party[]>([]);
   const [costReports, setCostReports] = useState<CostReport[]>([]);
   const [selectedPartyId, setSelectedPartyId] = useState('');
@@ -1068,7 +1079,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
                                                 )}
                                                 {maxPly >= 9 && (
                                                     <>
-                                                        <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.liner3Gsm ?? ''} onChange={e => handleUsageSort && handleAccessoryChange(idx, aIdx, 'liner3Gsm', e.target.value)} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 9 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 9} /></TableCell>
+                                                        <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.liner3Gsm ?? ''} onChange={e => handleAccessoryChange(idx, aIdx, 'liner3Gsm', e.target.value)} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 9 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 9} /></TableCell>
                                                         <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.flute4Gsm ?? ''} onChange={e => handleAccessoryChange(idx, aIdx, 'flute4Gsm', e.target.value)} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 9 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 9} /></TableCell>
                                                     </>
                                                 )}
@@ -1462,10 +1473,18 @@ export default function CostReportPage() {
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
     const [previewData, setPreviewData] = useState<any>(null);
     const [products, setProducts] = useState<Product[]>([]);
+    const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(defaultCompanyProfile);
     const { user } = useAuth();
     const { toast } = useToast();
 
-    useEffect(() => onProductsUpdate(setProducts), []);
+    useEffect(() => {
+        const unsubProducts = onProductsUpdate(setProducts);
+        const unsubProfile = onSettingUpdate('companyProfile', (s) => setCompanyProfile(s?.value || defaultCompanyProfile));
+        return () => {
+            unsubProducts();
+            unsubProfile();
+        };
+    }, []);
 
     const handleProductEdit = (product: Product) => {
         setProductToEdit(product);
@@ -1558,6 +1577,7 @@ export default function CostReportPage() {
                     <CostReportCalculator 
                         reportToEdit={reportToEdit} 
                         products={products} 
+                        companyProfile={companyProfile}
                         onSaveSuccess={() => { setReportToEdit(null); setActiveTab("saved"); }} 
                         onPreview={(data: any) => { setPreviewData(data); setIsPreviewOpen(true); }}
                     />
@@ -1606,6 +1626,7 @@ export default function CostReportPage() {
                 items={previewData?.items || []}
                 products={products}
                 termsAndConditions={previewData?.termsAndConditions}
+                companyProfile={companyProfile}
             />
         </div>
     );

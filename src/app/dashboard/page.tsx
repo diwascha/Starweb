@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -30,9 +31,19 @@ import { onPoliciesUpdate } from '@/services/policy-service';
 import { onPurchaseOrdersUpdate } from '@/services/purchase-order-service';
 import { onEstimatedInvoicesUpdate } from '@/services/estimate-invoice-service';
 import { onPageVisitsUpdate } from '@/services/usage-service';
-import type { Employee, AttendanceRecord, Vehicle, PolicyOrMembership, PurchaseOrder, EstimatedInvoice, PageVisit } from '@/lib/types';
+import { onSettingUpdate } from '@/services/settings-service';
+import type { Employee, AttendanceRecord, Vehicle, PolicyOrMembership, PurchaseOrder, EstimatedInvoice, PageVisit, CompanyProfile } from '@/lib/types';
 import { isToday, differenceInDays, startOfToday, startOfMonth } from 'date-fns';
 import { cn } from '@/lib/utils';
+
+const defaultCompanyProfile: CompanyProfile = {
+  nameEn: "SHIVAM PACKAGING INDUSTRIES PVT LTD.",
+  nameNp: "शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.",
+  address: "Hetauda 08, Nepal",
+  phone: "N/A",
+  email: "N/A",
+  pan: "N/A"
+};
 
 export default function DashboardPage() {
   const { user, hasPermission } = useAuth();
@@ -42,6 +53,7 @@ export default function DashboardPage() {
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [invoices, setInvoices] = useState<EstimatedInvoice[]>([]);
   const [pageVisits, setPageVisits] = useState<PageVisit[]>([]);
+  const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(defaultCompanyProfile);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -52,6 +64,7 @@ export default function DashboardPage() {
     const unsubPOs = onPurchaseOrdersUpdate(setPurchaseOrders);
     const unsubInvoices = onEstimatedInvoicesUpdate(setInvoices);
     const unsubUsage = onPageVisitsUpdate(setPageVisits);
+    const unsubProfile = onSettingUpdate('companyProfile', (s) => setCompanyProfile(s?.value || defaultCompanyProfile));
 
     setIsLoading(false);
     return () => {
@@ -61,6 +74,7 @@ export default function DashboardPage() {
       unsubPOs();
       unsubInvoices();
       unsubUsage();
+      unsubProfile();
     };
   }, []);
 
@@ -103,9 +117,9 @@ export default function DashboardPage() {
     <div className="flex flex-col gap-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
-          <h2 className="text-lg font-semibold text-muted-foreground">शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.</h2>
-          <p className="text-sm text-muted-foreground mt-1">Welcome back, {user?.username} • Hetauda 08, Nepal</p>
+          <h1 className="text-2xl font-bold tracking-tight uppercase">{companyProfile.nameEn}</h1>
+          <h2 className="text-lg font-semibold text-muted-foreground">{companyProfile.nameNp}</h2>
+          <p className="text-sm text-muted-foreground mt-1">Welcome back, {user?.username} • {companyProfile.address}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {hasPermission('reports', 'create') && (

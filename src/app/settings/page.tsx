@@ -1,7 +1,8 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import type { Party, Account, PartyType, AccountType, UnitOfMeasurement, AppSetting, User, Permissions, Module, Action, DocumentPrefixes, BankAccountType, PageVisit } from '@/lib/types';
+import type { Party, Account, PartyType, AccountType, UnitOfMeasurement, AppSetting, User, Permissions, Module, Action, DocumentPrefixes, BankAccountType, PageVisit, CompanyProfile } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -23,14 +24,13 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, MoreHorizontal, Search, Save, KeyRound, Download, Upload, View, ChevronDown, Lock, Unlock, GitMerge, ChevronsUpDown, Check, BarChart3, TrendingDown, TrendingUp, ArrowUpDown, CalendarIcon } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, Search, Save, KeyRound, Download, Upload, View, ChevronDown, Lock, Unlock, GitMerge, ChevronsUpDown, Check, BarChart3, TrendingDown, TrendingUp, ArrowUpDown, CalendarIcon, Building2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/use-auth';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { onPartiesUpdate, addParty, updateParty, deleteParty, mergeParties } from '@/services/party-service';
 import { onAccountsUpdate, addAccount, updateAccount, deleteAccount } from '@/services/account-service';
@@ -58,6 +58,15 @@ const nepaliMonths = [
     { value: 6, name: "Kartik" }, { value: 7, name: "Mangsir" }, { value: 8, "name": "Poush" },
     { value: 9, name: "Magh" }, { value: 10, name: "Falgun" }, { value: 11, name: "Chaitra" }
 ];
+
+const defaultCompanyProfile: CompanyProfile = {
+  nameEn: "Shivam Packaging Industry Private Limited",
+  nameNp: "शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.",
+  address: "Hetauda 08, Bagmati Province, Nepal",
+  phone: "N/A",
+  email: "N/A",
+  pan: "N/A"
+};
 
 function MergePartiesDialog({ open, onOpenChange, parties, onMerge }: { open: boolean, onOpenChange: (open: boolean) => void, parties: Party[], onMerge: (sourceId: string, destinationId: string) => void }) {
     const [sourceId, setSourceId] = useState<string>('');
@@ -165,6 +174,10 @@ export default function SettingsPage() {
   const [isPrefixDialogOpen, setIsPrefixDialogOpen] = useState(false);
   const [editingPrefix, setEditingPrefix] = useState<{ key: keyof DocumentPrefixes; value: string } | null>(null);
   
+  // Company Profile State
+  const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(defaultCompanyProfile);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+
   // Payroll Lock State
   const [payrollLocks, setPayrollLocks] = useState<Record<string, boolean>>({});
   const [payrollLockYears, setPayrollLockYears] = useState<number[]>([]);
@@ -207,6 +220,7 @@ export default function SettingsPage() {
     const unsubUoms = onUomsUpdate(setUoms);
     const unsubPrefixes = onSettingUpdate('documentPrefixes', (setting) => setPrefixes(setting?.value || {}));
     const unsubPayrollLocks = onSettingUpdate('payrollLocks', (setting) => setPayrollLocks(setting?.value || {}));
+    const unsubCompanyProfile = onSettingUpdate('companyProfile', (setting) => setCompanyProfile(setting?.value || defaultCompanyProfile));
     const unsubUsage = onPageVisitsUpdate(setPageVisits);
     
     getPayrollYears().then(years => {
@@ -228,11 +242,30 @@ export default function SettingsPage() {
         unsubUoms();
         unsubPrefixes();
         unsubPayrollLocks();
+        unsubCompanyProfile();
         unsubUsage();
         window.removeEventListener('storage', handleStorageChange);
     }
   }, []);
   
+  const handleSaveCompanyProfile = async () => {
+    if (!user) return;
+    setIsSavingProfile(true);
+    try {
+        const updatedProfile = {
+            ...companyProfile,
+            lastModifiedBy: user.username,
+            lastModifiedAt: new Date().toISOString()
+        };
+        await setSetting('companyProfile', updatedProfile);
+        toast({ title: 'Success', description: 'Company details updated successfully.' });
+    } catch {
+        toast({ title: 'Error', description: 'Failed to update company details.', variant: 'destructive' });
+    } finally {
+        setIsSavingProfile(false);
+    }
+  };
+
   const handleOpenPrefixDialog = (key: keyof DocumentPrefixes) => {
     setEditingPrefix({ key, value: prefixes[key] || '' });
     setIsPrefixDialogOpen(true);
@@ -576,6 +609,7 @@ export default function SettingsPage() {
   };
   
   const otherTabs = [
+    { value: "company-details", label: "Company Profile" },
     { value: "parties", label: "Vendors & Suppliers" },
     { value: "accounts", label: "Accounts" },
     { value: "uom", label: "Units of Measurement" },
@@ -784,6 +818,53 @@ export default function SettingsPage() {
                         </>
                     )}
                 </div>
+            </TabsContent>
+            <TabsContent value="company-details">
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                        <div className="space-y-1">
+                            <CardTitle>Company Profile</CardTitle>
+                            <CardDescription>Consolidated business identity and contact information.</CardDescription>
+                        </div>
+                        <Button onClick={handleSaveCompanyProfile} disabled={isSavingProfile}>
+                            {isSavingProfile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                            Save Details
+                        </Button>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <Label htmlFor="co-name-en">Company Name (English)</Label>
+                                <Input id="co-name-en" value={companyProfile.nameEn} onChange={e => setCompanyProfile(prev => ({...prev, nameEn: e.target.value}))} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="co-name-np">Company Name (Nepali)</Label>
+                                <Input id="co-name-np" value={companyProfile.nameNp} onChange={e => setCompanyProfile(prev => ({...prev, nameNp: e.target.value}))} className="font-body" />
+                            </div>
+                            <div className="space-y-2 md:col-span-2">
+                                <Label htmlFor="co-address">Business Address</Label>
+                                <Input id="co-address" value={companyProfile.address} onChange={e => setCompanyProfile(prev => ({...prev, address: e.target.value}))} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="co-phone">Contact Phone</Label>
+                                <Input id="co-phone" value={companyProfile.phone} onChange={e => setCompanyProfile(prev => ({...prev, phone: e.target.value}))} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="co-email">Contact Email</Label>
+                                <Input id="co-email" type="email" value={companyProfile.email} onChange={e => setCompanyProfile(prev => ({...prev, email: e.target.value}))} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="co-pan">PAN Number</Label>
+                                <Input id="co-pan" value={companyProfile.pan} onChange={e => setCompanyProfile(prev => ({...prev, pan: e.target.value}))} />
+                            </div>
+                        </div>
+                        {companyProfile.lastModifiedAt && (
+                            <div className="pt-4 border-t text-[10px] text-muted-foreground italic">
+                                Last updated by {companyProfile.lastModifiedBy} on {new Date(companyProfile.lastModifiedAt).toLocaleString()}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
             </TabsContent>
             <TabsContent value="parties">
                 <Card>

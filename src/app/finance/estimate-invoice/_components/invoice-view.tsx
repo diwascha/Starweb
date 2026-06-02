@@ -1,12 +1,22 @@
 
 'use client';
 
-import type { Party, EstimateInvoiceItem } from '@/lib/types';
+import type { Party, EstimateInvoiceItem, CompanyProfile } from '@/lib/types';
 import { toNepaliDate } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
+import { useState, useEffect } from 'react';
+import { onSettingUpdate } from '@/services/settings-service';
 
+const defaultCompanyProfile: CompanyProfile = {
+  nameEn: "SHIVAM PACKAGING INDUSTRIES PVT LTD.",
+  nameNp: "शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.",
+  address: "Hetauda 08, Bagmati Province, Nepal",
+  phone: "N/A",
+  email: "N/A",
+  pan: "N/A"
+};
 
 interface InvoiceViewProps {
   invoiceNumber: string;
@@ -29,7 +39,13 @@ export function InvoiceView({
   netTotal,
   amountInWords,
 }: InvoiceViewProps) {
+  const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(defaultCompanyProfile);
   
+  useEffect(() => {
+    const unsub = onSettingUpdate('companyProfile', (s) => setCompanyProfile(s?.value || defaultCompanyProfile));
+    return () => unsub();
+  }, []);
+
   const nepaliDate = toNepaliDate(date);
   const adDate = format(new Date(date), 'yyyy-MM-dd');
   const totalQuantity = items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
@@ -38,8 +54,8 @@ export function InvoiceView({
     <div className="bg-white text-black p-8 font-sans text-sm">
         <div id="invoice-header">
             <header className="text-center space-y-1 mb-6">
-                <h1 className="text-2xl font-bold">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
-                <p className="text-base">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
+                <h1 className="text-2xl font-bold uppercase">{companyProfile.nameEn}</h1>
+                <p className="text-base">{companyProfile.address}</p>
                 <h2 className="text-xl font-bold underline mt-2">ESTIMATE INVOICE</h2>
             </header>
 

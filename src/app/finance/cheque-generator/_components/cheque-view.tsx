@@ -4,7 +4,18 @@
 import { toWords, toNepaliDate } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
-import type { Account } from '@/lib/types';
+import type { Account, CompanyProfile } from '@/lib/types';
+import { useState, useEffect } from 'react';
+import { onSettingUpdate } from '@/services/settings-service';
+
+const defaultCompanyProfile: CompanyProfile = {
+  nameEn: "SHIVAM PACKAGING INDUSTRIES PVT LTD.",
+  nameNp: "शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.",
+  address: "Hetauda 08, Bagmati Province, Nepal",
+  phone: "N/A",
+  email: "N/A",
+  pan: "N/A"
+};
 
 interface SplitDetail {
   chequeDate: Date;
@@ -21,9 +32,15 @@ interface ChequeViewProps {
 }
 
 export function ChequeView({ voucherNo, voucherDate, payeeName, account, splits }: ChequeViewProps) {
+  const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(defaultCompanyProfile);
   const nepaliDate = toNepaliDate(voucherDate.toISOString());
   const adDate = format(voucherDate, 'yyyy-MM-dd');
   
+  useEffect(() => {
+    const unsub = onSettingUpdate('companyProfile', (s) => setCompanyProfile(s?.value || defaultCompanyProfile));
+    return () => unsub();
+  }, []);
+
   const totalAmount = splits.reduce((sum, split) => sum + (Number(split.amount) || 0), 0);
   const amountInWords = toWords(totalAmount);
   const formattedTotalAmount = totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 });
@@ -31,8 +48,8 @@ export function ChequeView({ voucherNo, voucherDate, payeeName, account, splits 
   return (
     <div className="cheque-container bg-white text-black p-8 font-sans text-sm space-y-6" style={{ pageBreakAfter: 'always' }}>
         <header className="text-center space-y-1">
-            <h1 className="text-xl font-bold">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
-            <p className="text-sm">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
+            <h1 className="text-xl font-bold uppercase">{companyProfile.nameEn}</h1>
+            <p className="text-sm">{companyProfile.address}</p>
             <h2 className="text-lg font-semibold underline mt-1">PAYMENT VOUCHER</h2>
         </header>
 

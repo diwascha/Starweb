@@ -1,15 +1,25 @@
 
 'use client';
 
-import type { Transaction, Vehicle, Party, Account } from '@/lib/types';
+import type { Transaction, Vehicle, Party, Account, CompanyProfile } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Printer, Loader2, Save, ArrowLeft, Edit } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { toNepaliDate, toWords } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Table, TableBody, TableCell, TableRow, TableHeader, TableHead } from '@/components/ui/table';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { onSettingUpdate } from '@/services/settings-service';
+
+const defaultCompanyProfile: CompanyProfile = {
+  nameEn: "SIJAN DHUWANI SEWA",
+  nameNp: "",
+  address: "HETAUDA 16, BAGMATI PROVIENCE, NEPAL",
+  phone: "N/A",
+  email: "N/A",
+  pan: "304603712"
+};
 
 interface VoucherViewClientProps {
   initialTransactions: Transaction[];
@@ -26,7 +36,13 @@ export default function VoucherViewClient({
 }: VoucherViewClientProps) {
   const router = useRouter();
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(defaultCompanyProfile);
   const transaction = initialTransactions[0]; // The main transaction details
+
+  useEffect(() => {
+    const unsub = onSettingUpdate('companyProfile', (s) => setCompanyProfile(s?.value || defaultCompanyProfile));
+    return () => unsub();
+  }, []);
 
   const handlePrint = () => {
     setTimeout(() => {
@@ -85,9 +101,9 @@ export default function VoucherViewClient({
       
       <div className="printable-area space-y-4 p-4 border rounded-lg bg-white text-black">
         <header className="text-center space-y-1 mb-4">
-            <h1 className="text-xl font-bold">SIJAN DHUWANI SEWA</h1>
-            <p className="text-sm">HETAUDA 16, BAGMATI PROVIENCE, NEPAL</p>
-            <p className="text-xs">PAN: 304603712</p>
+            <h1 className="text-xl font-bold uppercase">{companyProfile.nameEn}</h1>
+            <p className="text-sm">{companyProfile.address}</p>
+            <p className="text-xs">PAN: {companyProfile.pan}</p>
             <h2 className="text-lg font-semibold underline mt-1">PAYMENT/RECEIPT VOUCHER</h2>
         </header>
 

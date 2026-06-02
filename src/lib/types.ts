@@ -775,3 +775,14 @@ export interface PageVisit {
   count: number;
   lastVisited: string; // ISO
 }
+
+export interface CompanyProfile {
+  nameEn: string;
+  nameNp: string;
+  address: string;
+  phone: string;
+  email: string;
+  pan: string;
+  lastModifiedBy?: string;
+  lastModifiedAt?: string;
+}

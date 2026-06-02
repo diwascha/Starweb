@@ -1,8 +1,9 @@
+
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import type { Transaction, Vehicle, Party, Account } from '@/lib/types';
+import type { Transaction, Vehicle, Party, Account, CompanyProfile } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Printer, Loader2, Save, ArrowLeft, Edit } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
@@ -10,6 +11,16 @@ import { toNepaliDate, toWords } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Table, TableBody, TableCell, TableRow, TableHeader, TableHead } from '@/components/ui/table';
 import { useRouter } from 'next/navigation';
+import { onSettingUpdate } from '@/services/settings-service';
+
+const defaultCompanyProfile: CompanyProfile = {
+  nameEn: "SIJAN DHUWANI SEWA",
+  nameNp: "",
+  address: "HETAUDA 16, BAGMATI PROVIENCE, NEPAL",
+  phone: "N/A",
+  email: "N/A",
+  pan: "304603712"
+};
 
 interface PurchaseViewClientProps {
   initialTransaction: Transaction;
@@ -26,6 +37,7 @@ export default function PurchaseViewClient({
 }: PurchaseViewClientProps) {
   const router = useRouter();
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(defaultCompanyProfile);
   
   const vehicle = vehicles.find(v => v.id === initialTransaction.vehicleId);
   const party = parties.find(p => p.id === initialTransaction.partyId);
@@ -34,6 +46,11 @@ export default function PurchaseViewClient({
   const subtotal = initialTransaction.items.reduce((sum, item) => sum + item.quantity * item.rate, 0);
   const vatAmount = initialTransaction.invoiceType === 'Taxable' ? subtotal * 0.13 : 0;
   const totalAmount = subtotal + vatAmount;
+
+  useEffect(() => {
+    const unsub = onSettingUpdate('companyProfile', (s) => setCompanyProfile(s?.value || defaultCompanyProfile));
+    return () => unsub();
+  }, []);
 
   const handlePrint = () => {
     setTimeout(() => {
@@ -90,9 +107,9 @@ export default function PurchaseViewClient({
       
        <div className="printable-area space-y-4 p-4 border rounded-lg bg-white text-black">
         <header className="text-center space-y-1 mb-4">
-            <h1 className="text-xl font-bold">SIJAN DHUWANI SEWA</h1>
-            <p className="text-sm">HETAUDA 16, BAGMATI PROVIENCE, NEPAL</p>
-            <p className="text-xs">PAN: 304603712</p>
+            <h1 className="text-xl font-bold uppercase">{companyProfile.nameEn}</h1>
+            <p className="text-sm">{companyProfile.address}</p>
+            <p className="text-xs">PAN: {companyProfile.pan}</p>
             <h2 className="text-lg font-semibold underline mt-1">PURCHASE VOUCHER</h2>
         </header>
 
