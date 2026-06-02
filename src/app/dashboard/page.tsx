@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -12,7 +13,9 @@ import {
   TrendingUp, 
   Package, 
   ClipboardList,
-  MousePointerClick
+  MousePointerClick,
+  AlertTriangle,
+  Clock
 } from 'lucide-react';
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -24,7 +27,8 @@ import { onPurchaseOrdersUpdate } from '@/services/purchase-order-service';
 import { onEstimatedInvoicesUpdate } from '@/services/estimate-invoice-service';
 import { onPageVisitsUpdate } from '@/services/usage-service';
 import { onSettingUpdate } from '@/services/settings-service';
-import type { PolicyOrMembership, PurchaseOrder, EstimatedInvoice, PageVisit, CompanyProfile } from '@/lib/types';
+import { onChequesUpdate } from '@/services/cheque-service';
+import type { PolicyOrMembership, PurchaseOrder, EstimatedInvoice, PageVisit, CompanyProfile, Cheque } from '@/lib/types';
 import { differenceInDays, startOfToday, startOfMonth } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -43,6 +47,7 @@ export default function DashboardPage() {
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [invoices, setInvoices] = useState<EstimatedInvoice[]>([]);
   const [pageVisits, setPageVisits] = useState<PageVisit[]>([]);
+  const [cheques, setCheques] = useState<Cheque[]>([]);
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(defaultCompanyProfile);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -52,6 +57,7 @@ export default function DashboardPage() {
     const unsubPOs = onPurchaseOrdersUpdate(setPurchaseOrders);
     const unsubInvoices = onEstimatedInvoicesUpdate(setInvoices);
     const unsubUsage = onPageVisitsUpdate(setPageVisits);
+    const unsubCheques = onChequesUpdate(setCheques);
     const unsubProfile = onSettingUpdate('companyProfile', (s) => setCompanyProfile(s?.value || defaultCompanyProfile));
 
     setIsLoading(false);
@@ -60,6 +66,7 @@ export default function DashboardPage() {
       unsubPOs();
       unsubInvoices();
       unsubUsage();
+      unsubCheques();
       unsubProfile();
     };
   }, []);
@@ -83,6 +90,20 @@ export default function DashboardPage() {
       return acc;
     }, { expired: 0, comingSoon: 0, ok: 0 });
 
+    // Cheque Alerts Breakdown
+    const chequeStats = cheques.reduce((acc, c) => {
+      c.splits.forEach(s => {
+        if (s.status === 'Paid' || s.status === 'Canceled') return;
+        const daysLeft = differenceInDays(new Date(s.chequeDate), today);
+        if (daysLeft < 0) {
+          acc.overdue++;
+        } else if (daysLeft <= 7) {
+          acc.soon++;
+        }
+      });
+      return acc;
+    }, { overdue: 0, soon: 0 });
+
     const openPOs = purchaseOrders.filter(po => po.status === 'Ordered' || po.status === 'Amended').length;
 
     const monthStart = startOfMonth(new Date());
@@ -92,8 +113,8 @@ export default function DashboardPage() {
 
     const totalVisits = pageVisits.reduce((sum, v) => sum + v.count, 0);
 
-    return { fleetStats, openPOs, mtdRevenue, totalVisits };
-  }, [policies, purchaseOrders, invoices, pageVisits]);
+    return { fleetStats, chequeStats, openPOs, mtdRevenue, totalVisits };
+  }, [policies, purchaseOrders, invoices, pageVisits, cheques]);
 
   return (
     <div className="flex flex-col gap-8">
@@ -121,82 +142,108 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         <Link href="/fleet/policies" className="block">
           <Card className={cn(
-            "border-l-4 hover:bg-accent transition-colors cursor-pointer h-full", 
+            "border-l-4 hover:bg-accent transition-colors cursor-pointer h-full shadow-sm", 
             stats.fleetStats.expired > 0 ? "border-l-destructive bg-destructive/5" : (stats.fleetStats.comingSoon > 0 ? "border-l-amber-500 bg-amber-50/50" : "border-l-green-500")
           )}>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div className="space-y-1 w-full">
-                  <p className="text-xs font-medium text-muted-foreground uppercase">Fleet Alerts</p>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Fleet Alerts</p>
                   <div className="grid grid-cols-3 gap-1 mt-2">
                     <div className="flex flex-col text-center">
                         <span className={cn("text-lg font-bold", stats.fleetStats.expired > 0 ? "text-destructive" : "text-muted-foreground")}>{stats.fleetStats.expired}</span>
-                        <span className="text-[9px] text-muted-foreground uppercase leading-none">Expired</span>
+                        <span className="text-[8px] text-muted-foreground uppercase leading-none">Expired</span>
                     </div>
                     <div className="flex flex-col text-center border-x px-1">
                         <span className={cn("text-lg font-bold", stats.fleetStats.comingSoon > 0 ? "text-amber-600" : "text-muted-foreground")}>{stats.fleetStats.comingSoon}</span>
-                        <span className="text-[9px] text-muted-foreground uppercase leading-none">Soon</span>
+                        <span className="text-[8px] text-muted-foreground uppercase leading-none">Soon</span>
                     </div>
                     <div className="flex flex-col text-center pl-1">
                         <span className="text-lg font-bold text-green-600">{stats.fleetStats.ok}</span>
-                        <span className="text-[9px] text-muted-foreground uppercase leading-none">OK</span>
+                        <span className="text-[8px] text-muted-foreground uppercase leading-none">OK</span>
                     </div>
                   </div>
                 </div>
-                <Truck className="h-8 w-8 text-muted-foreground opacity-20" />
+                <Truck className="h-6 w-6 text-muted-foreground opacity-20" />
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/finance/cheque-generator" className="block">
+          <Card className={cn(
+            "border-l-4 hover:bg-accent transition-colors cursor-pointer h-full shadow-sm", 
+            stats.chequeStats.overdue > 0 ? "border-l-destructive bg-destructive/5" : (stats.chequeStats.soon > 0 ? "border-l-amber-500 bg-amber-50/50" : "border-l-blue-500")
+          )}>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1 w-full">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Cheque Alerts</p>
+                  <div className="grid grid-cols-2 gap-1 mt-2">
+                    <div className="flex flex-col text-center">
+                        <span className={cn("text-lg font-bold", stats.chequeStats.overdue > 0 ? "text-destructive" : "text-muted-foreground")}>{stats.chequeStats.overdue}</span>
+                        <span className="text-[8px] text-muted-foreground uppercase leading-none">Overdue</span>
+                    </div>
+                    <div className="flex flex-col text-center border-l pl-1">
+                        <span className={cn("text-lg font-bold", stats.chequeStats.soon > 0 ? "text-amber-600" : "text-muted-foreground")}>{stats.chequeStats.soon}</span>
+                        <span className="text-[8px] text-muted-foreground uppercase leading-none">Soon</span>
+                    </div>
+                  </div>
+                </div>
+                <Clock className="h-6 w-6 text-muted-foreground opacity-20" />
               </div>
             </CardContent>
           </Card>
         </Link>
 
         <Link href="/purchase-orders/list" className="block">
-          <Card className="border-l-4 border-l-amber-500 hover:bg-accent transition-colors cursor-pointer h-full">
+          <Card className="border-l-4 border-l-amber-500 hover:bg-accent transition-colors cursor-pointer h-full shadow-sm">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground uppercase">Open Orders</p>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Open Orders</p>
                   <div className="flex items-baseline gap-2">
                     <span className="text-2xl font-bold">{stats.openPOs}</span>
-                    <span className="text-sm text-muted-foreground">Pending POs</span>
+                    <span className="text-[10px] text-muted-foreground uppercase font-semibold">Pending POs</span>
                   </div>
                 </div>
-                <ShoppingCart className="h-8 w-8 text-amber-500 opacity-20" />
+                <ShoppingCart className="h-6 w-6 text-amber-500 opacity-20" />
               </div>
             </CardContent>
           </Card>
         </Link>
 
         <Link href="/finance/estimate-invoice" className="block">
-          <Card className="border-l-4 border-l-green-600 hover:bg-accent transition-colors cursor-pointer h-full">
+          <Card className="border-l-4 border-l-green-600 hover:bg-accent transition-colors cursor-pointer h-full shadow-sm">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground uppercase">MTD Revenue Est.</p>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">MTD Revenue Est.</p>
                   <div className="flex items-baseline gap-2">
                     <span className="text-xl font-bold">Rs.{stats.mtdRevenue.toLocaleString()}</span>
                   </div>
                 </div>
-                <TrendingUp className="h-8 w-8 text-green-600 opacity-20" />
+                <TrendingUp className="h-6 w-6 text-green-600 opacity-20" />
               </div>
             </CardContent>
           </Card>
         </Link>
 
         <Link href="/settings" className="block">
-          <Card className="border-l-4 border-l-purple-500 hover:bg-accent transition-colors cursor-pointer h-full">
+          <Card className="border-l-4 border-l-purple-500 hover:bg-accent transition-colors cursor-pointer h-full shadow-sm">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground uppercase">System Traffic</p>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">System Traffic</p>
                   <div className="flex items-baseline gap-2">
                     <span className="text-2xl font-bold">{stats.totalVisits.toLocaleString()}</span>
-                    <span className="text-sm text-muted-foreground">Visits</span>
+                    <span className="text-[10px] text-muted-foreground uppercase font-semibold">Visits</span>
                   </div>
                 </div>
-                <MousePointerClick className="h-8 w-8 text-purple-500 opacity-20" />
+                <MousePointerClick className="h-6 w-6 text-purple-500 opacity-20" />
               </div>
             </CardContent>
           </Card>
