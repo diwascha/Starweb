@@ -29,7 +29,7 @@ import { onSettingUpdate } from '@/services/settings-service';
 import { onChequesUpdate } from '@/services/cheque-service';
 import type { PolicyOrMembership, PurchaseOrder, EstimatedInvoice, PageVisit, CompanyProfile, Cheque } from '@/lib/types';
 import { differenceInDays, startOfToday, startOfMonth } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { cn, toNepaliDate } from '@/lib/utils';
 
 const defaultCompanyProfile: CompanyProfile = {
   nameEn: "SHIVAM PACKAGING INDUSTRIES PVT LTD.",
@@ -57,7 +57,9 @@ export default function DashboardPage() {
     const unsubInvoices = onEstimatedInvoicesUpdate(setInvoices);
     const unsubUsage = onPageVisitsUpdate(setPageVisits);
     const unsubCheques = onChequesUpdate(setCheques);
-    const unsubProfile = onSettingUpdate('companyProfile', (s) => setCompanyProfile(s?.value || defaultCompanyProfile));
+    const unsubProfile = onSettingUpdate('companyProfile', (s) => {
+        if (s?.value) setCompanyProfile(s.value);
+    });
 
     setIsLoading(false);
     return () => {
@@ -194,7 +196,7 @@ export default function DashboardPage() {
                     </div>
                     <div className="flex flex-col text-center pl-1">
                         <span className="text-lg font-bold text-blue-600">{stats.chequeStats.notDue}</span>
-                        <span className="text-[8px] text-muted-foreground uppercase leading-none">OK</span>
+                        <span className="text-[8px] text-muted-foreground uppercase leading-none">Not Due</span>
                     </div>
                   </div>
                 </div>

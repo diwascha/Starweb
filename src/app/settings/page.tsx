@@ -96,7 +96,6 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } f
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
-import { toNepaliDate } from '@/lib/utils';
 import { 
     Select, 
     SelectContent, 
@@ -104,14 +103,6 @@ import {
     SelectTrigger, 
     SelectValue 
 } from '@/components/ui/select';
-import { 
-    Command, 
-    CommandEmpty, 
-    CommandGroup, 
-    CommandInput, 
-    CommandItem, 
-    CommandList 
-} from '@/components/ui/command';
 
 const nepaliMonths = [
     { value: 0, name: "Baishakh" }, { value: 1, name: "Jestha" }, { value: 2, name: "Ashadh" },
