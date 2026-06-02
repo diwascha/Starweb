@@ -8,7 +8,6 @@ import type {
   PartyType, 
   AccountType, 
   UnitOfMeasurement, 
-  AppSetting, 
   User, 
   Permissions, 
   Module, 
@@ -93,7 +92,7 @@ import { exportData, importData } from '@/services/backup-service';
 import { useRouter } from 'next/navigation';
 import { getPayrollYears } from '@/services/payroll-service';
 import NepaliDate from 'nepali-date-converter';
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart-core';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
@@ -255,7 +254,7 @@ export default function SettingsPage() {
 
   // Payroll Lock State
   const [payrollLocks, setPayrollLocks] = useState<Record<string, boolean>>({});
-  const [payrollLockYears, setPayrollLockYears] = useState<number[]>([]);
+  const [bsYears, setBsYears] = useState<number[]>([]);
   const [selectedLockYear, setSelectedLockYear] = useState<string>('');
   const [selectedLockMonth, setSelectedLockMonth] = useState<string>('');
 
@@ -1162,11 +1161,11 @@ export default function SettingsPage() {
                                 Lock a specific month to prevent accidental recalculation or editing of historical payroll data. This ensures data integrity for past periods.
                             </p>
                             <div className="flex flex-col sm:flex-row items-center gap-2">
-                                <Select value={selectedLockYear} onValueChange={setSelectedLockYear} disabled={payrollLockYears.length === 0}>
+                                <Select value={selectedLockYear} onValueChange={setSelectedLockYear} disabled={bsYears.length === 0}>
                                     <SelectTrigger className="w-full sm:w-[120px]"><SelectValue placeholder="Year (BS)" /></SelectTrigger>
-                                    <SelectContent>{payrollLockYears.map(year => <SelectItem key={year} value={String(year)}>{year}</SelectItem>)}</SelectContent>
+                                    <SelectContent>{bsYears.map(year => <SelectItem key={year} value={String(year)}>{year}</SelectItem>)}</SelectContent>
                                 </Select>
-                                <Select value={selectedLockMonth} onValueChange={setSelectedLockMonth} disabled={payrollLockYears.length === 0}>
+                                <Select value={selectedLockMonth} onValueChange={setSelectedLockMonth} disabled={bsYears.length === 0}>
                                     <SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Month (BS)" /></SelectTrigger>
                                     <SelectContent>{nepaliMonths.map(month => <SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>)}</SelectContent>
                                 </Select>
@@ -1400,11 +1399,11 @@ export default function SettingsPage() {
                 <div className="grid gap-4 py-4">
                     <div className="space-y-2">
                         <Label htmlFor="uom-name">Unit Name</Label>
-                        <Input id="uom-name" value={uomForm.name} onChange={e => uomForm.name = e.target.value} placeholder="e.g. Kilogram" />
+                        <Input id="uom-name" value={uomForm.name} onChange={e => setUomForm(prev => ({...prev, name: e.target.value}))} placeholder="e.g. Kilogram" />
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="uom-abbr">Abbreviation</Label>
-                        <Input id="uom-abbr" value={uomForm.abbreviation} onChange={e => uomForm.abbreviation = e.target.value} placeholder="e.g. Kg" />
+                        <Input id="uom-abbr" value={uomForm.abbreviation} onChange={e => setUomForm(prev => ({...prev, abbreviation: e.target.value}))} placeholder="e.g. Kg" />
                     </div>
                 </div>
                 <DialogFooter>
