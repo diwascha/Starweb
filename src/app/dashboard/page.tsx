@@ -99,10 +99,12 @@ export default function DashboardPage() {
           acc.overdue++;
         } else if (daysLeft <= 7) {
           acc.soon++;
+        } else {
+          acc.notDue++;
         }
       });
       return acc;
-    }, { overdue: 0, soon: 0 });
+    }, { overdue: 0, soon: 0, notDue: 0 });
 
     const openPOs = purchaseOrders.filter(po => po.status === 'Ordered' || po.status === 'Amended').length;
 
@@ -182,14 +184,18 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between">
                 <div className="space-y-1 w-full">
                   <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Cheque Alerts</p>
-                  <div className="grid grid-cols-2 gap-1 mt-2">
+                  <div className="grid grid-cols-3 gap-1 mt-2">
                     <div className="flex flex-col text-center">
                         <span className={cn("text-lg font-bold", stats.chequeStats.overdue > 0 ? "text-destructive" : "text-muted-foreground")}>{stats.chequeStats.overdue}</span>
                         <span className="text-[8px] text-muted-foreground uppercase leading-none">Overdue</span>
                     </div>
-                    <div className="flex flex-col text-center border-l pl-1">
+                    <div className="flex flex-col text-center border-x px-1">
                         <span className={cn("text-lg font-bold", stats.chequeStats.soon > 0 ? "text-amber-600" : "text-muted-foreground")}>{stats.chequeStats.soon}</span>
                         <span className="text-[8px] text-muted-foreground uppercase leading-none">Soon</span>
+                    </div>
+                    <div className="flex flex-col text-center pl-1">
+                        <span className="text-lg font-bold text-blue-600">{stats.chequeStats.notDue}</span>
+                        <span className="text-[8px] text-muted-foreground uppercase leading-none">OK</span>
                     </div>
                   </div>
                 </div>
