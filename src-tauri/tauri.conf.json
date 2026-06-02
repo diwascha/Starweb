@@ -23,7 +23,8 @@
       "active": true,
       "targets": "all",
       "identifier": "com.starweb.dev",
-      "icon": []
+      "icon": ["icons/icon.ico",
+ 	            "icons/icon.png"]
     },
     "security": {
       "csp": null
