@@ -131,6 +131,15 @@ const defaultCompanyProfile: CompanyProfile = {
   pan: "N/A"
 };
 
+const defaultFleetProfile: CompanyProfile = {
+  nameEn: "SIJAN DHUWANI SEWA",
+  nameNp: "सिजन ढुवानी सेवा",
+  address: "HETAUDA 16, BAGMATI PROVIENCE, NEPAL",
+  phone: "N/A",
+  email: "N/A",
+  pan: "304603712"
+};
+
 function MergePartiesDialog({ open, onOpenChange, parties, onMerge }: { open: boolean, onOpenChange: (open: boolean) => void, parties: Party[], onMerge: (sourceId: string, destinationId: string) => void }) {
     const [sourceId, setSourceId] = useState<string>('');
     const [destinationId, setDestinationId] = useState<string>('');
@@ -237,10 +246,15 @@ export default function SettingsPage() {
   const [isPrefixDialogOpen, setIsPrefixDialogOpen] = useState(false);
   const [editingPrefix, setEditingPrefix] = useState<{ key: keyof DocumentPrefixes; value: string } | null>(null);
   
-  // Company Profile State
+  // Company Profile States
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(defaultCompanyProfile);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
+
+  // Fleet Profile States
+  const [fleetProfile, setFleetProfile] = useState<CompanyProfile>(defaultFleetProfile);
+  const [isSavingFleetProfile, setIsSavingFleetProfile] = useState(false);
+  const [isTranslatingFleet, setIsTranslatingFleet] = useState(false);
 
   // Payroll Lock State
   const [payrollLocks, setPayrollLocks] = useState<Record<string, boolean>>({});
@@ -284,6 +298,7 @@ export default function SettingsPage() {
     const unsubPrefixes = onSettingUpdate('documentPrefixes', (setting) => setPrefixes(setting?.value || {}));
     const unsubPayrollLocks = onSettingUpdate('payrollLocks', (setting) => setPayrollLocks(setting?.value || {}));
     const unsubCompanyProfile = onSettingUpdate('companyProfile', (setting) => setCompanyProfile(setting?.value || defaultCompanyProfile));
+    const unsubFleetProfile = onSettingUpdate('fleetCompanyProfile', (setting) => setFleetProfile(setting?.value || defaultFleetProfile));
     const unsubUsage = onPageVisitsUpdate(setPageVisits);
     
     getPayrollYears().then(years => {
@@ -306,39 +321,58 @@ export default function SettingsPage() {
         unsubPrefixes();
         unsubPayrollLocks();
         unsubCompanyProfile();
+        unsubFleetProfile();
         unsubUsage();
         window.removeEventListener('storage', handleStorageChange);
     }
   }, []);
   
-  // Auto-convert English name to Nepali
-  useEffect(() => {
-    if (!companyProfile.nameEn || companyProfile.nameEn.length < 3) return;
-
-    const timer = setTimeout(async () => {
-        // Only auto-convert if the Nepali name is currently empty or matches a default
-        if (!companyProfile.nameNp || companyProfile.nameNp === "शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.") {
-            setIsTranslating(true);
-            try {
-                const response = await fetch('/api/translate-to-nepali', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text: companyProfile.nameEn })
-                });
-                if (response.ok) {
-                    const result = await response.json();
-                    setCompanyProfile(prev => ({ ...prev, nameNp: result.nepaliText }));
-                }
-            } catch (err) {
-                console.error("Auto-conversion failed:", err);
-            } finally {
-                setIsTranslating(false);
-            }
-        }
-    }, 1500); // Wait for typing to stop
+  const performTranslation = async (text: string, isFleet: boolean = false) => {
+    if (!text || text.length < 3) return;
     
+    if (isFleet) setIsTranslatingFleet(true);
+    else setIsTranslating(true);
+    
+    try {
+        const response = await fetch('/api/translate-to-nepali', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text })
+        });
+        if (response.ok) {
+            const result = await response.json();
+            if (isFleet) setFleetProfile(prev => ({ ...prev, nameNp: result.nepaliText }));
+            else setCompanyProfile(prev => ({ ...prev, nameNp: result.nepaliText }));
+        }
+    } catch (err) {
+        console.error("Auto-conversion failed:", err);
+    } finally {
+        if (isFleet) setIsTranslatingFleet(false);
+        else setIsTranslating(false);
+    }
+  };
+
+  // Auto-suggestion effects
+  useEffect(() => {
+    if (!companyProfile.nameEn || companyProfile.nameEn.length < 5) return;
+    const timer = setTimeout(() => {
+        if (!companyProfile.nameNp || companyProfile.nameNp === defaultCompanyProfile.nameNp) {
+            performTranslation(companyProfile.nameEn, false);
+        }
+    }, 2000);
     return () => clearTimeout(timer);
   }, [companyProfile.nameEn]);
+
+  useEffect(() => {
+    if (!fleetProfile.nameEn || fleetProfile.nameEn.length < 5) return;
+    const timer = setTimeout(() => {
+        if (!fleetProfile.nameNp || fleetProfile.nameNp === defaultFleetProfile.nameNp) {
+            performTranslation(fleetProfile.nameEn, true);
+        }
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [fleetProfile.nameEn]);
+
 
   const handleSaveCompanyProfile = async () => {
     if (!user) return;
@@ -350,11 +384,29 @@ export default function SettingsPage() {
             lastModifiedAt: new Date().toISOString()
         };
         await setSetting('companyProfile', updatedProfile);
-        toast({ title: 'Success', description: 'Company details updated successfully.' });
+        toast({ title: 'Success', description: 'Main Company details updated.' });
     } catch {
         toast({ title: 'Error', description: 'Failed to update company details.', variant: 'destructive' });
     } finally {
         setIsSavingProfile(false);
+    }
+  };
+
+  const handleSaveFleetProfile = async () => {
+    if (!user) return;
+    setIsSavingFleetProfile(true);
+    try {
+        const updatedProfile = {
+            ...fleetProfile,
+            lastModifiedBy: user.username,
+            lastModifiedAt: new Date().toISOString()
+        };
+        await setSetting('fleetCompanyProfile', updatedProfile);
+        toast({ title: 'Success', description: 'Fleet Company details updated.' });
+    } catch {
+        toast({ title: 'Error', description: 'Failed to update fleet details.', variant: 'destructive' });
+    } finally {
+        setIsSavingFleetProfile(false);
     }
   };
 
@@ -912,65 +964,129 @@ export default function SettingsPage() {
                 </div>
             </TabsContent>
             <TabsContent value="company-details">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                        <div className="space-y-1">
-                            <CardTitle>Company Profile</CardTitle>
-                            <CardDescription>Consolidated business identity and contact information.</CardDescription>
-                        </div>
-                        <Button onClick={handleSaveCompanyProfile} disabled={isSavingProfile}>
-                            {isSavingProfile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                            Save Details
-                        </Button>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-2">
-                                <Label htmlFor="co-name-en">Company Name (English)</Label>
-                                <Input 
-                                    id="co-name-en" 
-                                    value={companyProfile.nameEn} 
-                                    onChange={e => setCompanyProfile(prev => ({...prev, nameEn: e.target.value}))} 
-                                />
+                <div className="space-y-8">
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between">
+                            <div className="space-y-1">
+                                <CardTitle>Main Company Profile (Production)</CardTitle>
+                                <CardDescription>Used for Reports, Payslips, CRM, and Finance.</CardDescription>
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="co-name-np" className="flex items-center gap-2">
-                                    Company Name (Nepali)
-                                    {isTranslating && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
-                                    {!isTranslating && companyProfile.nameEn && <Sparkles className="h-3 w-3 text-purple-500" title="Auto-converting from English..." />}
-                                </Label>
-                                <Input 
-                                    id="co-name-np" 
-                                    value={companyProfile.nameNp} 
-                                    onChange={e => setCompanyProfile(prev => ({...prev, nameNp: e.target.value}))} 
-                                    className="font-body" 
-                                    placeholder={isTranslating ? "Converting..." : "Nepali Name"}
-                                />
+                            <Button onClick={handleSaveCompanyProfile} disabled={isSavingProfile}>
+                                {isSavingProfile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                                Save Profile
+                            </Button>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <Label htmlFor="co-name-en">Company Name (English)</Label>
+                                    <div className="flex gap-2">
+                                        <Input 
+                                            id="co-name-en" 
+                                            value={companyProfile.nameEn} 
+                                            onChange={e => setCompanyProfile(prev => ({...prev, nameEn: e.target.value}))} 
+                                        />
+                                        <Button 
+                                            variant="outline" 
+                                            size="icon" 
+                                            onClick={() => performTranslation(companyProfile.nameEn, false)}
+                                            disabled={isTranslating || !companyProfile.nameEn}
+                                            title="Convert to Nepali"
+                                        >
+                                            {isTranslating ? <Loader2 className="h-4 w-4 animate-spin"/> : <Sparkles className="h-4 w-4" />}
+                                        </Button>
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="co-name-np">Company Name (Nepali)</Label>
+                                    <Input 
+                                        id="co-name-np" 
+                                        value={companyProfile.nameNp} 
+                                        onChange={e => setCompanyProfile(prev => ({...prev, nameNp: e.target.value}))} 
+                                        className="font-body" 
+                                    />
+                                </div>
+                                <div className="space-y-2 md:col-span-2">
+                                    <Label htmlFor="co-address">Business Address</Label>
+                                    <Input id="co-address" value={companyProfile.address} onChange={e => setCompanyProfile(prev => ({...prev, address: e.target.value}))} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="co-phone">Contact Phone</Label>
+                                    <Input id="co-phone" value={companyProfile.phone} onChange={e => setCompanyProfile(prev => ({...prev, phone: e.target.value}))} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="co-email">Contact Email</Label>
+                                    <Input id="co-email" type="email" value={companyProfile.email} onChange={e => setCompanyProfile(prev => ({...prev, email: e.target.value}))} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="co-pan">PAN Number</Label>
+                                    <Input id="co-pan" value={companyProfile.pan} onChange={e => setCompanyProfile(prev => ({...prev, pan: e.target.value}))} />
+                                </div>
                             </div>
-                            <div className="space-y-2 md:col-span-2">
-                                <Label htmlFor="co-address">Business Address</Label>
-                                <Input id="co-address" value={companyProfile.address} onChange={e => setCompanyProfile(prev => ({...prev, address: e.target.value}))} />
+                        </CardContent>
+                    </Card>
+
+                    <Card className="border-l-4 border-l-blue-500">
+                        <CardHeader className="flex flex-row items-center justify-between">
+                            <div className="space-y-1">
+                                <CardTitle>Fleet Management Profile (Independent)</CardTitle>
+                                <CardDescription>Used exclusively for SIJAN DHUWANI SEWA vouchers and reports.</CardDescription>
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="co-phone">Contact Phone</Label>
-                                <Input id="co-phone" value={companyProfile.phone} onChange={e => setCompanyProfile(prev => ({...prev, phone: e.target.value}))} />
+                            <Button onClick={handleSaveFleetProfile} disabled={isSavingFleetProfile}>
+                                {isSavingFleetProfile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                                Save Fleet Profile
+                            </Button>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <Label htmlFor="fleet-name-en">Fleet Company Name (English)</Label>
+                                    <div className="flex gap-2">
+                                        <Input 
+                                            id="fleet-name-en" 
+                                            value={fleetProfile.nameEn} 
+                                            onChange={e => setFleetProfile(prev => ({...prev, nameEn: e.target.value}))} 
+                                        />
+                                         <Button 
+                                            variant="outline" 
+                                            size="icon" 
+                                            onClick={() => performTranslation(fleetProfile.nameEn, true)}
+                                            disabled={isTranslatingFleet || !fleetProfile.nameEn}
+                                            title="Convert to Nepali"
+                                        >
+                                            {isTranslatingFleet ? <Loader2 className="h-4 w-4 animate-spin"/> : <Sparkles className="h-4 w-4" />}
+                                        </Button>
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="fleet-name-np">Fleet Company Name (Nepali)</Label>
+                                    <Input 
+                                        id="fleet-name-np" 
+                                        value={fleetProfile.nameNp} 
+                                        onChange={e => setFleetProfile(prev => ({...prev, nameNp: e.target.value}))} 
+                                        className="font-body" 
+                                    />
+                                </div>
+                                <div className="space-y-2 md:col-span-2">
+                                    <Label htmlFor="fleet-address">Business Address</Label>
+                                    <Input id="fleet-address" value={fleetProfile.address} onChange={e => setFleetProfile(prev => ({...prev, address: e.target.value}))} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="fleet-phone">Contact Phone</Label>
+                                    <Input id="fleet-phone" value={fleetProfile.phone} onChange={e => setFleetProfile(prev => ({...prev, phone: e.target.value}))} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="fleet-email">Contact Email</Label>
+                                    <Input id="fleet-email" type="email" value={fleetProfile.email} onChange={e => setFleetProfile(prev => ({...prev, email: e.target.value}))} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="fleet-pan">PAN Number</Label>
+                                    <Input id="fleet-pan" value={fleetProfile.pan} onChange={e => setFleetProfile(prev => ({...prev, pan: e.target.value}))} />
+                                </div>
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="co-email">Contact Email</Label>
-                                <Input id="co-email" type="email" value={companyProfile.email} onChange={e => setCompanyProfile(prev => ({...prev, email: e.target.value}))} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="co-pan">PAN Number</Label>
-                                <Input id="co-pan" value={companyProfile.pan} onChange={e => setCompanyProfile(prev => ({...prev, pan: e.target.value}))} />
-                            </div>
-                        </div>
-                        {companyProfile.lastModifiedAt && (
-                            <div className="pt-4 border-t text-[10px] text-muted-foreground italic">
-                                Last updated by {companyProfile.lastModifiedBy} on {new Date(companyProfile.lastModifiedAt).toLocaleString()}
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
+                        </CardContent>
+                    </Card>
+                </div>
             </TabsContent>
             <TabsContent value="parties">
                 <Card>

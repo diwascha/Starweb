@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -6,7 +5,7 @@ import { Truck, Users, ShieldCheck, CreditCard, ArrowRight, TrendingUp, Trending
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
 import { useState, useEffect, useMemo } from 'react';
-import type { Vehicle, Driver, PolicyOrMembership, Transaction } from '@/lib/types';
+import type { Vehicle, Driver, PolicyOrMembership, Transaction, CompanyProfile } from '@/lib/types';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -18,6 +17,7 @@ import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onDriversUpdate } from '@/services/driver-service';
 import { onPoliciesUpdate } from '@/services/policy-service';
 import { onTransactionsUpdate } from '@/services/transaction-service';
+import { onSettingUpdate } from '@/services/settings-service';
 import { useToast } from '@/hooks/use-toast';
 
 const fleetModules = [
@@ -26,6 +26,15 @@ const fleetModules = [
     { name: 'Policies & Memberships', href: '/fleet/policies', icon: ShieldCheck },
     { name: 'Transactions', href: '/fleet/transactions', icon: CreditCard },
 ];
+
+const defaultFleetProfile: CompanyProfile = {
+  nameEn: "SIJAN DHUWANI SEWA",
+  nameNp: "सिजन ढुवानी सेवा",
+  address: "HETAUDA 16, BAGMATI PROVIENCE, NEPAL",
+  phone: "N/A",
+  email: "N/A",
+  pan: "304603712"
+};
 
 export default function FleetDashboardPage() {
     const { hasPermission } = useAuth();
@@ -36,6 +45,7 @@ export default function FleetDashboardPage() {
     const [drivers, setDrivers] = useState<Driver[]>([]);
     const [policies, setPolicies] = useState<PolicyOrMembership[]>([]);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(defaultFleetProfile);
     
     useEffect(() => {
         setIsLoading(true);
@@ -43,6 +53,9 @@ export default function FleetDashboardPage() {
         const unsubDrivers = onDriversUpdate(setDrivers);
         const unsubPolicies = onPoliciesUpdate(setPolicies);
         const unsubTxns = onTransactionsUpdate(setTransactions);
+        const unsubProfile = onSettingUpdate('fleetCompanyProfile', (s) => {
+            if (s?.value) setCompanyProfile(s.value);
+        });
         
         setIsLoading(false);
 
@@ -51,6 +64,7 @@ export default function FleetDashboardPage() {
             unsubDrivers();
             unsubPolicies();
             unsubTxns();
+            unsubProfile();
         }
     }, []);
     
@@ -66,8 +80,8 @@ export default function FleetDashboardPage() {
             return tDate >= start && tDate <= end;
         });
 
-        const income = monthlyTxns.filter(t => t.type === 'Income').reduce((sum, t) => sum + t.amount, 0);
-        const expense = monthlyTxns.filter(t => t.type === 'Expense').reduce((sum, t) => sum + t.amount, 0);
+        const income = monthlyTxns.filter(t => t.type === 'Income' || t.type === 'Sales' || t.type === 'Receipt').reduce((sum, t) => sum + t.amount, 0);
+        const expense = monthlyTxns.filter(t => t.type === 'Expense' || t.type === 'Purchase' || t.type === 'Payment').reduce((sum, t) => sum + t.amount, 0);
         
         const statusCounts = vehicles.reduce((acc, v) => {
             acc[v.status] = (acc[v.status] || 0) + 1;
@@ -97,8 +111,8 @@ export default function FleetDashboardPage() {
                 return tDate >= start && tDate <= end;
             });
 
-            const income = monthTxns.filter(t => t.type === 'Income').reduce((sum, t) => sum + t.amount, 0);
-            const expense = monthTxns.filter(t => t.type === 'Expense').reduce((sum, t) => sum + t.amount, 0);
+            const income = monthTxns.filter(t => t.type === 'Income' || t.type === 'Sales' || t.type === 'Receipt').reduce((sum, t) => sum + t.amount, 0);
+            const expense = monthTxns.filter(t => t.type === 'Expense' || t.type === 'Purchase' || t.type === 'Payment').reduce((sum, t) => sum + t.amount, 0);
             
             data.push({
                 month: format(date, 'MMM'),
@@ -146,9 +160,10 @@ export default function FleetDashboardPage() {
     return (
         <div className="flex flex-col gap-8">
             <header>
-                <h1 className="text-3xl font-bold tracking-tight">SIJAN DHUWANI SEWA</h1>
-                <p className="text-muted-foreground">HETAUDA 16, BAGMATI PROVIENCE, NEPAL</p>
-                <p className="text-muted-foreground">PAN: 304603712</p>
+                <h1 className="text-3xl font-bold tracking-tight uppercase">{companyProfile.nameEn}</h1>
+                <h2 className="text-xl font-semibold text-muted-foreground">{companyProfile.nameNp}</h2>
+                <p className="text-sm text-muted-foreground uppercase">{companyProfile.address}</p>
+                <p className="text-xs text-muted-foreground">PAN: {companyProfile.pan}</p>
             </header>
             
             <div className="grid gap-6 md:grid-cols-3">
@@ -278,11 +293,11 @@ export default function FleetDashboardPage() {
                                 {recentTransactions.map(t => (
                                     <div key={t.id} className="flex justify-between items-center">
                                         <div>
-                                            <p className="font-medium">{t.category} <span className="text-sm text-muted-foreground">for {vehicles.find(v => v.id === t.vehicleId)?.name}</span></p>
+                                            <p className="font-medium">{t.category || t.type} <span className="text-sm text-muted-foreground">for {vehicles.find(v => v.id === t.vehicleId)?.name}</span></p>
                                             <p className="text-sm text-muted-foreground">{new Date(t.date).toLocaleDateString()}</p>
                                         </div>
-                                        <p className={cn("font-medium", t.type === 'Income' ? 'text-green-600' : 'text-red-600')}>
-                                            {t.type === 'Expense' && '-'}{t.amount.toLocaleString()}
+                                        <p className={cn("font-medium", ['Income', 'Sales', 'Receipt'].includes(t.type) ? 'text-green-600' : 'text-red-600')}>
+                                            {['Expense', 'Purchase', 'Payment'].includes(t.type) && '-'}{t.amount.toLocaleString()}
                                         </p>
                                     </div>
                                 ))}

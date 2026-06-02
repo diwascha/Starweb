@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { Transaction, Vehicle, Party, Account, CompanyProfile } from '@/lib/types';
@@ -14,7 +13,7 @@ import { onSettingUpdate } from '@/services/settings-service';
 
 const defaultCompanyProfile: CompanyProfile = {
   nameEn: "SIJAN DHUWANI SEWA",
-  nameNp: "",
+  nameNp: "सिजन ढुवानी सेवा",
   address: "HETAUDA 16, BAGMATI PROVIENCE, NEPAL",
   phone: "N/A",
   email: "N/A",
@@ -40,7 +39,9 @@ export default function VoucherViewClient({
   const transaction = initialTransactions[0]; // The main transaction details
 
   useEffect(() => {
-    const unsub = onSettingUpdate('companyProfile', (s) => setCompanyProfile(s?.value || defaultCompanyProfile));
+    const unsub = onSettingUpdate('fleetCompanyProfile', (s) => {
+        if (s?.value) setCompanyProfile(s.value);
+    });
     return () => unsub();
   }, []);
 
@@ -102,6 +103,7 @@ export default function VoucherViewClient({
       <div className="printable-area space-y-4 p-4 border rounded-lg bg-white text-black">
         <header className="text-center space-y-1 mb-4">
             <h1 className="text-xl font-bold uppercase">{companyProfile.nameEn}</h1>
+            <h2 className="text-lg font-semibold">{companyProfile.nameNp}</h2>
             <p className="text-sm">{companyProfile.address}</p>
             <p className="text-xs">PAN: {companyProfile.pan}</p>
             <h2 className="text-lg font-semibold underline mt-1">PAYMENT/RECEIPT VOUCHER</h2>
