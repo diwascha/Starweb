@@ -48,7 +48,6 @@ import {
   KeyRound, 
   Download, 
   Upload, 
-  View, 
   ChevronDown, 
   Lock, 
   Unlock, 
@@ -356,20 +355,23 @@ export default function SettingsPage() {
   useEffect(() => {
     if (!companyProfile.nameEn || companyProfile.nameEn.length < 5) return;
     const timer = setTimeout(() => {
-        if (!companyProfile.nameNp || companyProfile.nameNp === defaultCompanyProfile.nameNp) {
+        // Only auto-convert if the Nepali name is empty or matches a known default
+        const currentNp = companyProfile.nameNp?.trim();
+        if (!currentNp || currentNp === defaultCompanyProfile.nameNp) {
             performTranslation(companyProfile.nameEn, false);
         }
-    }, 2000);
+    }, 2500);
     return () => clearTimeout(timer);
   }, [companyProfile.nameEn]);
 
   useEffect(() => {
     if (!fleetProfile.nameEn || fleetProfile.nameEn.length < 5) return;
     const timer = setTimeout(() => {
-        if (!fleetProfile.nameNp || fleetProfile.nameNp === defaultFleetProfile.nameNp) {
+        const currentNp = fleetProfile.nameNp?.trim();
+        if (!currentNp || currentNp === defaultFleetProfile.nameNp) {
             performTranslation(fleetProfile.nameEn, true);
         }
-    }, 2000);
+    }, 2500);
     return () => clearTimeout(timer);
   }, [fleetProfile.nameEn]);
 
@@ -991,19 +993,20 @@ export default function SettingsPage() {
                                             size="icon" 
                                             onClick={() => performTranslation(companyProfile.nameEn, false)}
                                             disabled={isTranslating || !companyProfile.nameEn}
-                                            title="Convert to Nepali"
+                                            title="Convert to Nepali Unicode"
                                         >
                                             {isTranslating ? <Loader2 className="h-4 w-4 animate-spin"/> : <Sparkles className="h-4 w-4" />}
                                         </Button>
                                     </div>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="co-name-np">Company Name (Nepali)</Label>
+                                    <Label htmlFor="co-name-np">Company Name (Nepali Unicode)</Label>
                                     <Input 
                                         id="co-name-np" 
                                         value={companyProfile.nameNp} 
                                         onChange={e => setCompanyProfile(prev => ({...prev, nameNp: e.target.value}))} 
                                         className="font-body" 
+                                        placeholder="Manually type or use AI button"
                                     />
                                 </div>
                                 <div className="space-y-2 md:col-span-2">
@@ -1030,7 +1033,7 @@ export default function SettingsPage() {
                         <CardHeader className="flex flex-row items-center justify-between">
                             <div className="space-y-1">
                                 <CardTitle>Fleet Management Profile (Independent)</CardTitle>
-                                <CardDescription>Used exclusively for SIJAN DHUWANI SEWA vouchers and reports.</CardDescription>
+                                <CardDescription>Used exclusively for Fleet vouchers and reports.</CardDescription>
                             </div>
                             <Button onClick={handleSaveFleetProfile} disabled={isSavingFleetProfile}>
                                 {isSavingFleetProfile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
@@ -1052,19 +1055,20 @@ export default function SettingsPage() {
                                             size="icon" 
                                             onClick={() => performTranslation(fleetProfile.nameEn, true)}
                                             disabled={isTranslatingFleet || !fleetProfile.nameEn}
-                                            title="Convert to Nepali"
+                                            title="Convert to Nepali Unicode"
                                         >
                                             {isTranslatingFleet ? <Loader2 className="h-4 w-4 animate-spin"/> : <Sparkles className="h-4 w-4" />}
                                         </Button>
                                     </div>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="fleet-name-np">Fleet Company Name (Nepali)</Label>
+                                    <Label htmlFor="fleet-name-np">Fleet Company Name (Nepali Unicode)</Label>
                                     <Input 
                                         id="fleet-name-np" 
                                         value={fleetProfile.nameNp} 
                                         onChange={e => setFleetProfile(prev => ({...prev, nameNp: e.target.value}))} 
                                         className="font-body" 
+                                        placeholder="Manually type or use AI button"
                                     />
                                 </div>
                                 <div className="space-y-2 md:col-span-2">
@@ -1470,11 +1474,11 @@ export default function SettingsPage() {
                 <div className="grid gap-4 py-4">
                     <div className="space-y-2">
                         <Label htmlFor="uom-name">Unit Name</Label>
-                        <Input id="uom-name" value={uomForm.name} onChange={e => setUomForm(p => ({...p, name: e.target.value}))} placeholder="e.g. Kilogram" />
+                        <Input id="uom-name" value={uomForm.name} onChange={e => uomForm.name = e.target.value} placeholder="e.g. Kilogram" />
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="uom-abbr">Abbreviation</Label>
-                        <Input id="uom-abbr" value={uomForm.abbreviation} onChange={e => setUomForm(p => ({...p, abbreviation: e.target.value}))} placeholder="e.g. Kg" />
+                        <Input id="uom-abbr" value={uomForm.abbreviation} onChange={e => uomForm.abbreviation = e.target.value} placeholder="e.g. Kg" />
                     </div>
                 </div>
                 <DialogFooter>
