@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo, useRef } from 'react';
-import type { PurchaseOrder, PurchaseOrderStatus, PurchaseOrderVersion } from '@/lib/types';
+import type { PurchaseOrder, PurchaseOrderStatus, PurchaseOrderVersion, CompanyProfile } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -16,9 +16,19 @@ import { getPurchaseOrder } from '@/services/purchase-order-service';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { onSettingUpdate } from '@/services/settings-service';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useToast } from '@/hooks/use-toast';
+
+const defaultCompanyProfile: CompanyProfile = {
+  nameEn: "Shivam Packaging Industry Private Limited",
+  nameNp: "शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.",
+  address: "Hetauda 08, Bagmati Province, Nepal",
+  phone: "N/A",
+  email: "N/A",
+  pan: "N/A"
+};
 
 const paperTypes = ['Kraft Paper', 'Virgin Paper'];
 
@@ -41,11 +51,13 @@ const normalizeBF = (val: any): string => {
 function PurchaseOrderDocument({ 
   po, 
   includeAmendments = true,
-  containerRef
+  containerRef,
+  companyProfile
 }: { 
   po: any, 
   includeAmendments?: boolean,
-  containerRef?: React.RefObject<HTMLDivElement | null>
+  containerRef?: React.RefObject<HTMLDivElement | null>,
+  companyProfile: CompanyProfile
 }) {
   const nepaliPoDateString = new NepaliDate(new Date(po.poDate)).format('YYYY/MM/DD');
   const showAmendedDate = po.amendments && po.amendments.length > 0;
@@ -65,9 +77,9 @@ function PurchaseOrderDocument({
   return (
     <div ref={containerRef} className="bg-white text-black p-8 font-sans">
         <header className="text-center space-y-1 mb-6">
-            <h1 className="text-2xl font-bold">SHIVAM PACKAGING INDUSTRIES PVT LTD.</h1>
-            <h2 className="text-xl font-semibold">शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.</h2>
-            <p className="text-base">HETAUDA 08, BAGMATI PROVIENCE, NEPAL</p>
+            <h1 className="text-2xl font-bold uppercase">{companyProfile.nameEn}</h1>
+            <h2 className="text-xl font-semibold">{companyProfile.nameNp}</h2>
+            <p className="text-base uppercase">{companyProfile.address}</p>
             <h2 className="text-xl font-bold underline mt-2">PURCHASE ORDER</h2>
             {showAmendedDate && amendedDate && (
                 <p className="text-xs italic text-gray-600">
@@ -192,7 +204,7 @@ function PurchaseOrderDocument({
 
         <div className="mt-16 text-center text-xs text-gray-500 border-t border-gray-200 pt-8">
             <p>This is a digitally issued document and is valid without a signature.</p>
-            <p className="font-bold mt-1 text-black">SHIVAM PACKAGING INDUSTRIES PVT LTD.</p>
+            <p className="font-bold mt-1 text-black uppercase">{companyProfile.nameEn}</p>
         </div>
     </div>
   );
@@ -206,6 +218,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
   const [isVersionDialogOpen, setIsVersionDialogOpen] = useState(false);
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
+  const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(defaultCompanyProfile);
   
   const mainPrintRef = useRef<HTMLDivElement>(null);
   const snapshotPrintRef = useRef<HTMLDivElement>(null);
@@ -220,6 +233,11 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
       getPurchaseOrder(poId).then(setPurchaseOrder);
     }
   }, [initialPurchaseOrder, poId]);
+
+  useEffect(() => {
+    const unsub = onSettingUpdate('companyProfile', (s) => setCompanyProfile(s?.value || defaultCompanyProfile));
+    return () => unsub();
+  }, []);
   
   const handleExportPdf = async (targetPo: any, poNo: string) => {
     const key = `pdf-${poNo}`;
@@ -228,10 +246,10 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
         const doc = new jsPDF();
         doc.setFont('Helvetica', 'bold');
         doc.setFontSize(16);
-        doc.text('SHIVAM PACKAGING INDUSTRIES PVT LTD.', doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
+        doc.text(companyProfile.nameEn.toUpperCase(), doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
         doc.setFont('Helvetica', 'normal');
         doc.setFontSize(10);
-        doc.text('HETAUDA 08, BAGMATI PROVIENCE, NEPAL', doc.internal.pageSize.getWidth() / 2, 21, { align: 'center' });
+        doc.text(companyProfile.address.toUpperCase(), doc.internal.pageSize.getWidth() / 2, 21, { align: 'center' });
         doc.setFont('Helvetica', 'bold');
         doc.setFontSize(14);
         doc.text('PURCHASE ORDER', doc.internal.pageSize.getWidth() / 2, 30, { align: 'center' });
@@ -305,7 +323,6 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
     if (!ref.current) return;
     const printWindow = window.open('', '', 'height=800,width=800');
     printWindow?.document.write('<html><head><title>Print PO</title>');
-    // Simple inline styles for basic layout persistence
     printWindow?.document.write('<style>body{font-family:sans-serif;}table{width:100%;border-collapse:collapse;margin-bottom:1rem;}th,td{border:1px solid #ddd;padding:8px;text-align:left;}th{background-color:#f2f2f2;}.text-right{text-align:right;}</style>');
     printWindow?.document.write('</head><body>');
     printWindow?.document.write(ref.current.innerHTML);
@@ -401,6 +418,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
             po={purchaseOrder} 
             includeAmendments={includeAmendments} 
             containerRef={mainPrintRef}
+            companyProfile={companyProfile}
         />
       </Card>
 
@@ -507,6 +525,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
                                 po={selectedVersion.data} 
                                 includeAmendments={false} 
                                 containerRef={snapshotPrintRef}
+                                companyProfile={companyProfile}
                             />
                         </div>
                     )}
