@@ -56,8 +56,7 @@ import {
   ArrowUpDown, 
   TrendingDown, 
   TrendingUp,
-  Loader2,
-  Sparkles
+  Loader2
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -248,12 +247,10 @@ export default function SettingsPage() {
   // Company Profile States
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(defaultCompanyProfile);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
-  const [isTranslating, setIsTranslating] = useState(false);
 
   // Fleet Profile States
   const [fleetProfile, setFleetProfile] = useState<CompanyProfile>(defaultFleetProfile);
   const [isSavingFleetProfile, setIsSavingFleetProfile] = useState(false);
-  const [isTranslatingFleet, setIsTranslatingFleet] = useState(false);
 
   // Payroll Lock State
   const [payrollLocks, setPayrollLocks] = useState<Record<string, boolean>>({});
@@ -325,56 +322,6 @@ export default function SettingsPage() {
         window.removeEventListener('storage', handleStorageChange);
     }
   }, []);
-  
-  const performTranslation = async (text: string, isFleet: boolean = false) => {
-    if (!text || text.length < 3) return;
-    
-    if (isFleet) setIsTranslatingFleet(true);
-    else setIsTranslating(true);
-    
-    try {
-        const response = await fetch('/api/translate-to-nepali', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text })
-        });
-        if (response.ok) {
-            const result = await response.json();
-            if (isFleet) setFleetProfile(prev => ({ ...prev, nameNp: result.nepaliText }));
-            else setCompanyProfile(prev => ({ ...prev, nameNp: result.nepaliText }));
-        }
-    } catch (err) {
-        console.error("Auto-conversion failed:", err);
-    } finally {
-        if (isFleet) setIsTranslatingFleet(false);
-        else setIsTranslating(false);
-    }
-  };
-
-  // Auto-suggestion effects
-  useEffect(() => {
-    if (!companyProfile.nameEn || companyProfile.nameEn.length < 5) return;
-    const timer = setTimeout(() => {
-        // Only auto-convert if the Nepali name is empty or matches a known default
-        const currentNp = companyProfile.nameNp?.trim();
-        if (!currentNp || currentNp === defaultCompanyProfile.nameNp) {
-            performTranslation(companyProfile.nameEn, false);
-        }
-    }, 2500);
-    return () => clearTimeout(timer);
-  }, [companyProfile.nameEn]);
-
-  useEffect(() => {
-    if (!fleetProfile.nameEn || fleetProfile.nameEn.length < 5) return;
-    const timer = setTimeout(() => {
-        const currentNp = fleetProfile.nameNp?.trim();
-        if (!currentNp || currentNp === defaultFleetProfile.nameNp) {
-            performTranslation(fleetProfile.nameEn, true);
-        }
-    }, 2500);
-    return () => clearTimeout(timer);
-  }, [fleetProfile.nameEn]);
-
 
   const handleSaveCompanyProfile = async () => {
     if (!user) return;
@@ -982,22 +929,11 @@ export default function SettingsPage() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-2">
                                     <Label htmlFor="co-name-en">Company Name (English)</Label>
-                                    <div className="flex gap-2">
-                                        <Input 
-                                            id="co-name-en" 
-                                            value={companyProfile.nameEn} 
-                                            onChange={e => setCompanyProfile(prev => ({...prev, nameEn: e.target.value}))} 
-                                        />
-                                        <Button 
-                                            variant="outline" 
-                                            size="icon" 
-                                            onClick={() => performTranslation(companyProfile.nameEn, false)}
-                                            disabled={isTranslating || !companyProfile.nameEn}
-                                            title="Convert to Nepali Unicode"
-                                        >
-                                            {isTranslating ? <Loader2 className="h-4 w-4 animate-spin"/> : <Sparkles className="h-4 w-4" />}
-                                        </Button>
-                                    </div>
+                                    <Input 
+                                        id="co-name-en" 
+                                        value={companyProfile.nameEn} 
+                                        onChange={e => setCompanyProfile(prev => ({...prev, nameEn: e.target.value}))} 
+                                    />
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="co-name-np">Company Name (Nepali Unicode)</Label>
@@ -1006,7 +942,7 @@ export default function SettingsPage() {
                                         value={companyProfile.nameNp} 
                                         onChange={e => setCompanyProfile(prev => ({...prev, nameNp: e.target.value}))} 
                                         className="font-body" 
-                                        placeholder="Manually type or use AI button"
+                                        placeholder="Manually type company name in Nepali"
                                     />
                                 </div>
                                 <div className="space-y-2 md:col-span-2">
@@ -1044,22 +980,11 @@ export default function SettingsPage() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-2">
                                     <Label htmlFor="fleet-name-en">Fleet Company Name (English)</Label>
-                                    <div className="flex gap-2">
-                                        <Input 
-                                            id="fleet-name-en" 
-                                            value={fleetProfile.nameEn} 
-                                            onChange={e => setFleetProfile(prev => ({...prev, nameEn: e.target.value}))} 
-                                        />
-                                         <Button 
-                                            variant="outline" 
-                                            size="icon" 
-                                            onClick={() => performTranslation(fleetProfile.nameEn, true)}
-                                            disabled={isTranslatingFleet || !fleetProfile.nameEn}
-                                            title="Convert to Nepali Unicode"
-                                        >
-                                            {isTranslatingFleet ? <Loader2 className="h-4 w-4 animate-spin"/> : <Sparkles className="h-4 w-4" />}
-                                        </Button>
-                                    </div>
+                                    <Input 
+                                        id="fleet-name-en" 
+                                        value={fleetProfile.nameEn} 
+                                        onChange={e => setFleetProfile(prev => ({...prev, nameEn: e.target.value}))} 
+                                    />
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="fleet-name-np">Fleet Company Name (Nepali Unicode)</Label>
@@ -1068,7 +993,7 @@ export default function SettingsPage() {
                                         value={fleetProfile.nameNp} 
                                         onChange={e => setFleetProfile(prev => ({...prev, nameNp: e.target.value}))} 
                                         className="font-body" 
-                                        placeholder="Manually type or use AI button"
+                                        placeholder="Manually type company name in Nepali"
                                     />
                                 </div>
                                 <div className="space-y-2 md:col-span-2">
