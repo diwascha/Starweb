@@ -57,7 +57,8 @@ import {
   ArrowUpDown, 
   TrendingDown, 
   TrendingUp,
-  Loader2
+  Loader2,
+  Sparkles
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -193,7 +194,7 @@ function MergePartiesDialog({ open, onOpenChange, parties, onMerge }: { open: bo
                             <AlertDialogHeader>
                                 <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                    You are about to merge <span className="font-bold">{sourceParty?.name}</span> into <span className="font-bold">{destinationParty?.name}</span>. All records associated with the first party will be transferred, and the first party will be permanently deleted.
+                                    You are about to merge <span className="font-bold text-destructive">{sourceParty?.name}</span> into <span className="font-bold">{destinationParty?.name}</span>. All records associated with the first party will be transferred, and the first party will be permanently deleted.
                                 </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
@@ -239,6 +240,7 @@ export default function SettingsPage() {
   // Company Profile State
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(defaultCompanyProfile);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isTranslating, setIsTranslating] = useState(false);
 
   // Payroll Lock State
   const [payrollLocks, setPayrollLocks] = useState<Record<string, boolean>>({});
@@ -309,6 +311,35 @@ export default function SettingsPage() {
     }
   }, []);
   
+  // Auto-convert English name to Nepali
+  useEffect(() => {
+    if (!companyProfile.nameEn || companyProfile.nameEn.length < 3) return;
+
+    const timer = setTimeout(async () => {
+        // Only auto-convert if the Nepali name is currently empty or matches a default
+        if (!companyProfile.nameNp || companyProfile.nameNp === "शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.") {
+            setIsTranslating(true);
+            try {
+                const response = await fetch('/api/translate-to-nepali', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: companyProfile.nameEn })
+                });
+                if (response.ok) {
+                    const result = await response.json();
+                    setCompanyProfile(prev => ({ ...prev, nameNp: result.nepaliText }));
+                }
+            } catch (err) {
+                console.error("Auto-conversion failed:", err);
+            } finally {
+                setIsTranslating(false);
+            }
+        }
+    }, 1500); // Wait for typing to stop
+    
+    return () => clearTimeout(timer);
+  }, [companyProfile.nameEn]);
+
   const handleSaveCompanyProfile = async () => {
     if (!user) return;
     setIsSavingProfile(true);
@@ -896,11 +927,25 @@ export default function SettingsPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
                                 <Label htmlFor="co-name-en">Company Name (English)</Label>
-                                <Input id="co-name-en" value={companyProfile.nameEn} onChange={e => setCompanyProfile(prev => ({...prev, nameEn: e.target.value}))} />
+                                <Input 
+                                    id="co-name-en" 
+                                    value={companyProfile.nameEn} 
+                                    onChange={e => setCompanyProfile(prev => ({...prev, nameEn: e.target.value}))} 
+                                />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="co-name-np">Company Name (Nepali)</Label>
-                                <Input id="co-name-np" value={companyProfile.nameNp} onChange={e => setCompanyProfile(prev => ({...prev, nameNp: e.target.value}))} className="font-body" />
+                                <Label htmlFor="co-name-np" className="flex items-center gap-2">
+                                    Company Name (Nepali)
+                                    {isTranslating && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+                                    {!isTranslating && companyProfile.nameEn && <Sparkles className="h-3 w-3 text-purple-500" title="Auto-converting from English..." />}
+                                </Label>
+                                <Input 
+                                    id="co-name-np" 
+                                    value={companyProfile.nameNp} 
+                                    onChange={e => setCompanyProfile(prev => ({...prev, nameNp: e.target.value}))} 
+                                    className="font-body" 
+                                    placeholder={isTranslating ? "Converting..." : "Nepali Name"}
+                                />
                             </div>
                             <div className="space-y-2 md:col-span-2">
                                 <Label htmlFor="co-address">Business Address</Label>
