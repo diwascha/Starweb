@@ -1,8 +1,22 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import type { Party, Account, PartyType, AccountType, UnitOfMeasurement, AppSetting, User, Permissions, Module, Action, DocumentPrefixes, BankAccountType, PageVisit, CompanyProfile } from '@/lib/types';
+import type { 
+  Party, 
+  Account, 
+  PartyType, 
+  AccountType, 
+  UnitOfMeasurement, 
+  AppSetting, 
+  User, 
+  Permissions, 
+  Module, 
+  Action, 
+  DocumentPrefixes, 
+  BankAccountType, 
+  PageVisit, 
+  CompanyProfile 
+} from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -24,7 +38,27 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, MoreHorizontal, Search, Save, KeyRound, Download, Upload, View, ChevronDown, Lock, Unlock, GitMerge, ChevronsUpDown, Check, BarChart3, TrendingDown, TrendingUp, ArrowUpDown, CalendarIcon, Building2 } from 'lucide-react';
+import { 
+  Plus, 
+  Edit, 
+  Trash2, 
+  MoreHorizontal, 
+  Search, 
+  Save, 
+  KeyRound, 
+  Download, 
+  Upload, 
+  View, 
+  ChevronDown, 
+  Lock, 
+  Unlock, 
+  GitMerge, 
+  Check, 
+  ArrowUpDown, 
+  TrendingDown, 
+  TrendingUp,
+  Loader2
+} from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
@@ -35,22 +69,50 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { onPartiesUpdate, addParty, updateParty, deleteParty, mergeParties } from '@/services/party-service';
 import { onAccountsUpdate, addAccount, updateAccount, deleteAccount } from '@/services/account-service';
 import { onUomsUpdate, addUom, updateUom, deleteUom } from '@/services/uom-service';
-import { onSettingUpdate, setSetting, getSetting } from '@/services/settings-service';
+import { onSettingUpdate, setSetting } from '@/services/settings-service';
 import { onPageVisitsUpdate } from '@/services/usage-service';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuRadioGroup, DropdownMenuRadioItem } from '@/components/ui/dropdown-menu';
-import { getUsers, setUsers, validatePassword, setAdminPassword, updateUserPassword } from '@/services/user-service';
+import { 
+    DropdownMenu, 
+    DropdownMenuContent, 
+    DropdownMenuItem, 
+    DropdownMenuTrigger, 
+    DropdownMenuSeparator, 
+    DropdownMenuRadioGroup, 
+    DropdownMenuRadioItem 
+} from '@/components/ui/dropdown-menu';
+import { 
+    getUsers, 
+    setUsers, 
+    validatePassword, 
+    setAdminPassword, 
+    updateUserPassword 
+} from '@/services/user-service';
 import { modules, actions, documentTypes, getDocumentName } from '@/lib/types';
 import { Checkbox } from '@/components/ui/checkbox';
 import { exportData, importData } from '@/services/backup-service';
-import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { getPayrollYears } from '@/services/payroll-service';
 import NepaliDate from 'nepali-date-converter';
-import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from '@/components/ui/chart';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
-import { cn, toNepaliDate } from '@/lib/utils';
+import { toNepaliDate } from '@/lib/utils';
+import { 
+    Select, 
+    SelectContent, 
+    SelectItem, 
+    SelectTrigger, 
+    SelectValue 
+} from '@/components/ui/select';
+import { 
+    Command, 
+    CommandEmpty, 
+    CommandGroup, 
+    CommandInput, 
+    CommandItem, 
+    CommandList 
+} from '@/components/ui/command';
 
 const nepaliMonths = [
     { value: 0, name: "Baishakh" }, { value: 1, name: "Jestha" }, { value: 2, name: "Ashadh" },
@@ -147,14 +209,14 @@ function MergePartiesDialog({ open, onOpenChange, parties, onMerge }: { open: bo
 }
 
 export default function SettingsPage() {
-  const { user, hasPermission, logout } = useAuth();
+  const { user, logout } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
   
   const [parties, setParties] = useState<Party[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [uoms, setUoms] = useState<UnitOfMeasurement[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsersState] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState("users-security");
@@ -208,7 +270,6 @@ export default function SettingsPage() {
   
   // Change Password State
   const [isChangePasswordDialogOpen, setIsChangePasswordDialogOpen] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [changePasswordError, setChangePasswordError] = useState<string | null>(null);
@@ -227,11 +288,11 @@ export default function SettingsPage() {
         const currentYear = new NepaliDate().getYear();
         const allYears = Array.from(new Set([...years, currentYear])).sort((a,b) => b-a);
         setPayrollLockYears(allYears);
-        setSelectedLockYear(String(allYears[0]));
+        setSelectedLockYear(String(allYears[0] || currentYear));
         setSelectedLockMonth(String(new NepaliDate().getMonth()));
     });
 
-    const handleStorageChange = () => setUsers(getUsers());
+    const handleStorageChange = () => setUsersState(getUsers());
     window.addEventListener('storage', handleStorageChange);
     handleStorageChange();
 
