@@ -429,15 +429,30 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
 
     const handleStatusUpdate = async (cheque: Cheque, splitId: string, newStatus: ChequeStatus, reason?: string) => {
         if (!user) return;
+        
         const updatedSplits = cheque.splits.map(s => {
             if (s.id === splitId) {
-                const updatedSplit = { ...s, status: newStatus, cancellationReason: newStatus === 'Canceled' ? reason : undefined };
+                // Determine the cancellation reason (Firestore doesn't allow 'undefined', must use 'null' or omit)
+                let finalReason = s.cancellationReason || null;
+                if (newStatus === 'Canceled') {
+                    finalReason = reason || 'No reason provided';
+                } else if (newStatus === 'Due' || newStatus === 'Paid') {
+                    finalReason = null; // Clear reason if status changes back
+                }
+
+                const updatedSplit: any = { 
+                    ...s, 
+                    status: newStatus, 
+                    cancellationReason: finalReason 
+                };
                 
                 // If marking as paid, ensure the balance is cleared by adding an automatic full payment entry
                 if (newStatus === 'Paid') {
                     const totalAmount = Number(s.amount) || 0;
-                    const paidSoFar = (s.partialPayments || []).reduce((sum, p) => sum + p.amount, 0);
+                    const currentPayments = s.partialPayments || [];
+                    const paidSoFar = currentPayments.reduce((sum, p) => sum + p.amount, 0);
                     const remaining = totalAmount - paidSoFar;
+                    
                     if (remaining > 0) {
                         const autoPayment: PartialPayment = {
                             id: `manual-${Date.now()}`,
@@ -445,18 +460,20 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                             amount: remaining,
                             remarks: 'Marked as paid manually'
                         };
-                        updatedSplit.partialPayments = [...(s.partialPayments || []), autoPayment];
+                        updatedSplit.partialPayments = [...currentPayments, autoPayment];
                     }
                 }
-                
+
                 return updatedSplit;
             }
             return s;
         });
+
         try {
             await updateCheque(cheque.id, { splits: updatedSplits, lastModifiedBy: user.username });
             toast({ title: 'Status Updated', description: `Cheque status set to ${newStatus}.` });
         } catch (error) {
+            console.error("Failed to update status:", error);
             toast({ title: 'Error', description: 'Failed to update status.', variant: 'destructive' });
         }
     };
@@ -482,12 +499,15 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                         <CardDescription>A log of all saved cheque records.</CardDescription>
                     </div>
                     <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                        <Input
-                            placeholder="Search..."
-                            className="w-full sm:w-[200px]"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
+                        <div className="relative">
+                            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Search..."
+                                className="pl-8 w-full sm:w-[200px]"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                        </div>
                          <Select value={filterStatus} onValueChange={setFilterStatus}>
                             <SelectTrigger className="w-full sm:w-[150px]">
                                 <SelectValue placeholder="Filter by Status" />
