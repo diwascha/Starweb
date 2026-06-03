@@ -740,6 +740,7 @@ export interface CostReport {
   kraftPaperCosts: Record<string, number>;
   virginPaperCost: number;
   conversionCost: number;
+  accessoryConversionCost?: number; // Added
   transportCost?: number; // Added
   transportCostType?: 'Per Piece' | 'Per Consignment'; // Added
   items: Omit<CostReportItem, 'calculated'>[]; // We only store the inputs, not the calculated values
@@ -750,7 +751,7 @@ export interface CostReport {
 }
 
 export interface CostSettingHistoryEntry {
-    costType: 'kraftPaperCost' | 'virginPaperCost' | 'conversionCost' | string; // Allow string for dynamic kraft cost keys
+    costType: 'kraftPaperCost' | 'virginPaperCost' | 'conversionCost' | 'accessoryConversionCost' | string; // Allow string for dynamic kraft cost keys
     oldValue: number;
     newValue: number;
     date: string; // ISO
@@ -761,6 +762,7 @@ export interface CostSetting {
     kraftPaperCosts: Record<string, number>;
     virginPaperCost: number;
     conversionCost: number;
+    accessoryConversionCost: number; // Added
     termsAndConditions?: CostReportTerm[];
     history: CostSettingHistoryEntry[];
     createdBy?: string;

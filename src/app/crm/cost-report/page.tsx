@@ -444,6 +444,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
   const [kraftPaperCosts, setKraftPaperCosts] = useState<Record<string, number>>({});
   const [virginPaperCost, setVirginCost] = useState<number | ''>('');
   const [conversionCost, setConversionCost] = useState<number | ''>('');
+  const [accessoryConversionCost, setAccessoryConversionCost] = useState<number | ''>('');
   const [transportCost, setTransportCost] = useState<number | ''>('');
   const [transportCostType, setTransportCostType] = useState<'Per Piece' | 'Per Consignment'>('Per Consignment');
   
@@ -528,6 +529,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
         const kCosts = kraftPaperCosts;
         const vCost = Number(virginPaperCost) || 0;
         const cCost = Number(conversionCost) || 0;
+        const aCCost = Number(accessoryConversionCost) || 0;
         const tCost = Number(transportCost) || 0;
         const tType = transportCostType;
 
@@ -538,12 +540,12 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
                 calculated: newCalculated,
                 accessories: (item.accessories || []).map((acc: any) => ({
                     ...acc,
-                    calculated: calculateItemCost(acc, kCosts, vCost, cCost, tCost, tType)
+                    calculated: calculateItemCost(acc, kCosts, vCost, aCCost, tCost, tType)
                 }))
             };
         });
     });
-  }, [kraftPaperCosts, virginPaperCost, conversionCost, transportCost, transportCostType, calculateItemCost]);
+  }, [kraftPaperCosts, virginPaperCost, conversionCost, accessoryConversionCost, transportCost, transportCostType, calculateItemCost]);
 
   useEffect(() => {
     const unsubCostSettings = onSettingUpdate('costing', (s) => {
@@ -552,6 +554,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
             setKraftPaperCosts(s.value.kraftPaperCosts || {});
             setVirginCost(s.value.virginPaperCost || '');
             setConversionCost(s.value.conversionCost || '');
+            setAccessoryConversionCost(s.value.accessoryConversionCost || '');
             setTermsAndConditions(prev => prev.length === 0 ? (s.value.termsAndConditions || []) : prev);
         }
     });
@@ -582,6 +585,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
           const kCosts = reportToEdit.kraftPaperCosts || {};
           const vCost = Number(reportToEdit.virginPaperCost) || 0;
           const cCost = Number(reportToEdit.conversionCost) || 0;
+          const aCCost = Number(reportToEdit.accessoryConversionCost) || 0;
           const tCost = Number(reportToEdit.transportCost) || 0;
           const tType = reportToEdit.transportCostType || 'Per Consignment';
 
@@ -590,7 +594,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
               calculated: calculateItemCost(item, kCosts, vCost, cCost, tCost, tType),
               accessories: (item.accessories || []).map((acc: any) => ({
                   ...acc,
-                  calculated: calculateItemCost(acc, kCosts, vCost, cCost, tCost, tType)
+                  calculated: calculateItemCost(acc, kCosts, vCost, aCCost, tCost, tType)
               }))
           })));
       }
@@ -625,11 +629,11 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
         wastagePercent: spec.wastagePercent || '3.5',
         accessories: (product.accessories || []).map(acc => ({
             ...acc,
-            calculated: calculateItemCost(acc, kraftPaperCosts, Number(virginPaperCost) || 0, Number(conversionCost) || 0, Number(transportCost) || 0, transportCostType)
+            calculated: calculateItemCost(acc, kraftPaperCosts, Number(virginPaperCost) || 0, Number(accessoryConversionCost) || 0, Number(transportCost) || 0, transportCostType)
         }))
     };
     return { ...base, calculated: calculateItemCost(base, kraftPaperCosts, Number(virginPaperCost) || 0, Number(conversionCost) || 0, Number(transportCost) || 0, transportCostType) };
-  }, [calculateItemCost, kraftPaperCosts, virginPaperCost, conversionCost, transportCost, transportCostType]);
+  }, [calculateItemCost, kraftPaperCosts, virginPaperCost, conversionCost, accessoryConversionCost, transportCost, transportCostType]);
 
   const handleAddItem = () => {
     const base: any = { id: Date.now().toString(), productId: '', l:'', b:'', h:'', noOfPcs:'1', ply:'3', fluteType: 'B', paperType: 'KRAFT', paperBf:'18 BF', paperShade: 'NS', boxType: 'RSC', topGsm:'120', flute1Gsm:'100', middleGsm:'', flute2Gsm:'', bottomGsm:'120', liner2Gsm:'', flute3Gsm:'', liner3Gsm:'', flute4Gsm:'', liner4Gsm:'', wastagePercent:'3.5', accessories: [] };
@@ -638,11 +642,11 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
     setSelectedForPrint(new Set(selectedForPrint).add(newItem.id));
   };
 
-  const handleAddAccessory = (idx: number) => {
+  const handleAddAccessory = (idx: number, typeName: string = 'Internal Pad') => {
     const parent = items[idx];
     const newAcc: Accessory = {
         id: Math.random().toString(36).substr(2, 9),
-        name: 'Internal Pad',
+        name: typeName === 'Manual Entry' ? '' : typeName,
         l: parent.l,
         b: parent.b,
         h: '0',
@@ -652,7 +656,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
         paperType: 'KRAFT',
         paperBf: '18 BF',
         paperShade: 'NS',
-        boxType: 'PAD',
+        boxType: typeName === 'Corner Protectors' ? 'CORNER' : 'PAD',
         topGsm: '120',
         flute1Gsm: '100',
         middleGsm: '',
@@ -666,7 +670,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
         wastagePercent: '2.5',
         calculated: { sheetSizeL: 0, sheetSizeB: 0, sheetArea: 0, totalGsm: 0, paperWeight: 0, totalBoxWeight: 0, paperRate: 0, paperCost: 0 }
     };
-    newAcc.calculated = calculateItemCost(newAcc, kraftPaperCosts, Number(virginPaperCost) || 0, Number(conversionCost) || 0, Number(transportCost) || 0, transportCostType);
+    newAcc.calculated = calculateItemCost(newAcc, kraftPaperCosts, Number(virginPaperCost) || 0, Number(accessoryConversionCost) || 0, Number(transportCost) || 0, transportCostType);
     const next = [...items];
     next[idx].accessories = [...(next[idx].accessories || []), newAcc];
     setItems(next);
@@ -697,7 +701,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
   const handleAccessoryChange = (itemIdx: number, accIdx: number, f: string, v: string) => {
     const next = [...items];
     const acc = { ...next[itemIdx].accessories![accIdx], [f]: f === 'paperBf' ? normalizeBF(v) : v };
-    acc.calculated = calculateItemCost(acc, kraftPaperCosts, Number(virginPaperCost) || 0, Number(conversionCost) || 0, Number(transportCost) || 0, transportCostType);
+    acc.calculated = calculateItemCost(acc, kraftPaperCosts, Number(virginPaperCost) || 0, Number(accessoryConversionCost) || 0, Number(transportCost) || 0, transportCostType);
     next[itemIdx].accessories![accIdx] = acc;
     setItems(next);
   };
@@ -734,6 +738,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
             kraftPaperCosts,
             virginPaperCost: Number(virginPaperCost) || 0,
             conversionCost: Number(conversionCost) || 0,
+            accessoryConversionCost: Number(accessoryConversionCost) || 0,
             transportCost: Number(transportCost) || 0,
             transportCostType,
             termsAndConditions,
@@ -875,6 +880,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
                     </div>
                     <div className="space-y-1"><Label className="text-[10px] font-bold">Virgin Rate</Label><Input type="number" value={virginPaperCost ?? ''} onChange={e => setVirginCost(e.target.value === '' ? '' : parseFloat(e.target.value))} className="h-8 text-xs" /></div>
                     <div className="space-y-1"><Label className="text-[10px] font-bold">Conversion</Label><Input type="number" value={conversionCost ?? ''} onChange={e => setConversionCost(e.target.value === '' ? '' : parseFloat(e.target.value))} className="h-8 text-xs" /></div>
+                    <div className="space-y-1 col-span-2"><Label className="text-[10px] font-bold">Acc. Conversion</Label><Input type="number" value={accessoryConversionCost ?? ''} onChange={e => setAccessoryConversionCost(e.target.value === '' ? '' : parseFloat(e.target.value))} className="h-8 text-xs" placeholder="Rate for honeycomb, plates, etc." /></div>
                 </CardContent>
             </Card>
 
@@ -983,7 +989,18 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
                                             <TableCell className="px-2 border-r"><Checkbox checked={selectedForPrint.has(item.id)} onCheckedChange={v => { const n = new Set(selectedForPrint); if(v) n.add(item.id); else n.delete(item.id); setSelectedForPrint(n); }} /></TableCell>
                                             <TableCell className="border-r pr-2">
                                                 <div className="flex gap-1.5 items-center">
-                                                    <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" onClick={() => handleAddAccessory(idx)} title="Add Accessory"><Plus className="h-3.5 w-3.5" /></Button>
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" title="Add Accessory"><Plus className="h-3.5 w-3.5" /></Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="start">
+                                                            <DropdownMenuItem onSelect={() => handleAddAccessory(idx, 'Honeycomb Partition')}>Honeycomb Partition</DropdownMenuItem>
+                                                            <DropdownMenuItem onSelect={() => handleAddAccessory(idx, 'Layer Plate')}>Layer Plate</DropdownMenuItem>
+                                                            <DropdownMenuItem onSelect={() => handleAddAccessory(idx, 'Corner Protectors')}>Corner Protectors</DropdownMenuItem>
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem onSelect={() => handleAddAccessory(idx, 'Manual Entry')}>Manual Entry</DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
                                                     <Popover open={isProductPopoverOpen[item.id]} onOpenChange={(v) => setIsProductPopoverOpen(prev => ({...prev, [item.id]: v}))}>
                                                         <PopoverTrigger asChild>
                                                             <Button variant="outline" role="combobox" className="h-8 text-[11px] w-full justify-between px-2">
@@ -1075,7 +1092,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
                                                 <TableCell></TableCell>
                                                 <TableCell className="border-r pr-2 pl-6">
                                                     <div className="flex gap-1.5 items-center">
-                                                        <Input value={acc.name} onChange={e => handleAccessoryChange(idx, aIdx, 'name', e.target.value)} className="h-8 text-[10px] w-full bg-white font-semibold" />
+                                                        <Input value={acc.name} onChange={e => handleAccessoryChange(idx, aIdx, 'name', e.target.value)} className="h-8 text-[10px] w-full bg-white font-semibold" placeholder="Accessory name..." />
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="border-r p-0"><Input type="number" value={acc.l ?? ''} onChange={e => handleAccessoryChange(idx, aIdx, 'l', e.target.value)} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
@@ -1542,10 +1559,11 @@ export default function CostReportPage() {
         const kCosts = report.kraftPaperCosts || {};
         const vCost = report.virginPaperCost || 0;
         const cCost = report.conversionCost || 0;
+        const aCCost = report.accessoryConversionCost || 0;
         const tCost = report.transportCost || 0;
         const tType = report.transportCostType || 'Per Consignment';
         
-        const calc = (item: any) => {
+        const calc = (item: any, isAcc = false) => {
             const l = parseFloat(item.l) || 0, b = parseFloat(item.b) || 0, h = parseFloat(item.h) || 0, pcs = parseInt(item.noOfPcs, 10) || 1;
             const isBox = h > 0;
             let sL = 0, sB = 0;
@@ -1565,7 +1583,7 @@ export default function CostReportPage() {
             const pWt = sArea * tGsm * pcs;
             const tBWt = pWt * (1 + (parseFloat(item.wastagePercent) / 100 || 0));
             let pRate = item.paperType === 'VIRGIN' ? vCost : (kCosts[normalizeBF(item.paperBf)] || 0);
-            const finalRate = pRate + cCost;
+            const finalRate = pRate + (isAcc ? aCCost : cCost);
             let paperCost = (tBWt / 1000) * finalRate;
             if (tType === 'Per Piece') {
                 paperCost += tCost * pcs;
@@ -1577,7 +1595,7 @@ export default function CostReportPage() {
             const calculated = calc(item);
             const accessories = (item.accessories || []).map((acc: any) => ({
                 ...acc,
-                calculated: calc(acc)
+                calculated: calc(acc, true)
             }));
             return {
                 ...item,

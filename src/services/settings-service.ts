@@ -1,3 +1,4 @@
+
 import { getFirebase } from '@/lib/firebase';
 import { collection, doc, getDoc, setDoc, onSnapshot, updateDoc } from 'firebase/firestore';
 import type { AppSetting, CostSetting, CostSettingHistoryEntry } from '@/lib/types';
@@ -78,6 +79,10 @@ export const updateCostSettings = async (newCosts: Partial<CostSetting>, updated
             newHistory.push({ costType: 'conversionCost', oldValue: currentData.conversionCost, newValue: newCosts.conversionCost, date: now, setBy: updatedBy });
             changed = true;
         }
+        if (newCosts.accessoryConversionCost !== undefined && newCosts.accessoryConversionCost !== currentData.accessoryConversionCost) {
+            newHistory.push({ costType: 'accessoryConversionCost', oldValue: currentData.accessoryConversionCost || 0, newValue: newCosts.accessoryConversionCost, date: now, setBy: updatedBy });
+            changed = true;
+        }
         
         // Terms & Conditions don't need history for now as per user request focus
         if (newCosts.termsAndConditions) {
@@ -106,12 +111,14 @@ export const updateCostSettings = async (newCosts: Partial<CostSetting>, updated
          }
          if (newCosts.virginPaperCost) newHistory.push({ costType: 'virginPaperCost', oldValue: 0, newValue: newCosts.virginPaperCost, date: now, setBy: updatedBy });
          if (newCosts.conversionCost) newHistory.push({ costType: 'conversionCost', oldValue: 0, newValue: newCosts.conversionCost, date: now, setBy: updatedBy });
+         if (newCosts.accessoryConversionCost) newHistory.push({ costType: 'accessoryConversionCost', oldValue: 0, newValue: newCosts.accessoryConversionCost, date: now, setBy: updatedBy });
 
         await setDoc(docRef, {
             value: {
                 kraftPaperCosts: newCosts.kraftPaperCosts || {},
                 virginPaperCost: newCosts.virginPaperCost || 0,
                 conversionCost: newCosts.conversionCost || 0,
+                accessoryConversionCost: newCosts.accessoryConversionCost || 0,
                 termsAndConditions: newCosts.termsAndConditions || [],
                 history: newHistory,
                 createdBy: updatedBy,
