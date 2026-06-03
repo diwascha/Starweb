@@ -1,23 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { translateToNepali } from '@/ai/flows/translate-to-nepali-flow';
 
-export async function POST(req: NextRequest) {
-  try {
-    const { text } = await req.json();
+import { NextResponse } from 'next/server';
 
-    if (!text) {
-      return NextResponse.json({ error: 'Missing text to translate' }, { status: 400 });
-    }
+export async function GET() {
+  return NextResponse.json({ message: 'API routes are not available in static builds.' });
+}
 
-    const result = await translateToNepali(text);
-
-    return NextResponse.json(result);
-  } catch (error) {
-    console.error('Error in translate-to-nepali API route:', error);
-    let errorMessage = 'An unknown error occurred';
-    if (error instanceof Error) {
-      errorMessage = error.message;
-    }
-    return NextResponse.json({ error: 'Failed to convert text', details: errorMessage }, { status: 500 });
-  }
+export async function POST() {
+  return NextResponse.json({ message: 'API routes are not available in static builds.' });
 }

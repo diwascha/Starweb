@@ -1,24 +1,10 @@
 
-import { NextRequest, NextResponse } from 'next/server';
-import { summarizePurchaseOrderChanges } from '@/ai/flows/summarize-po-changes-flow';
+import { NextResponse } from 'next/server';
 
-export async function POST(req: NextRequest) {
-  try {
-    const { originalPO, updatedPO } = await req.json();
+export async function GET() {
+  return NextResponse.json({ message: 'API routes are not available in static builds.' });
+}
 
-    if (!originalPO || !updatedPO) {
-      return NextResponse.json({ error: 'Missing purchase order data' }, { status: 400 });
-    }
-
-    const result = await summarizePurchaseOrderChanges(originalPO, updatedPO);
-
-    return NextResponse.json(result);
-  } catch (error) {
-    console.error('Error in summarize-po API route:', error);
-    let errorMessage = 'An unknown error occurred';
-    if (error instanceof Error) {
-      errorMessage = error.message;
-    }
-    return NextResponse.json({ error: 'Failed to summarize changes', details: errorMessage }, { status: 500 });
-  }
+export async function POST() {
+  return NextResponse.json({ message: 'API routes are not available in static builds.' });
 }

@@ -1,4 +1,4 @@
-'use server';
+
 /**
  * @fileOverview An AI flow to translate/transliterate English company names to Nepali Unicode.
  *
@@ -35,6 +35,10 @@ Please return only the Nepali Unicode text.`,
 });
 
 export async function translateToNepali(text: string): Promise<TranslateToNepaliOutput> {
+  // Handle client-side environment gracefully during static export
+  if (typeof window !== 'undefined') {
+    return { nepaliText: text };
+  }
   return translateToNepaliFlow({ text });
 }
 

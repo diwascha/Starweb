@@ -42,10 +42,10 @@ function toPromptData(po: PurchaseOrder): z.infer<typeof PurchaseOrderSchema> {
     poNumber: po.poNumber,
     poDate: new Date(po.poDate).toLocaleDateString('en-CA'),
     companyName: po.companyName,
-    items: po.items.map(item => ({
+    items: (po.items || []).map(item => ({
       rawMaterialName: item.rawMaterialName,
       quantity: item.quantity,
-      unit: item.unit || 'N/A', // Handle cases where unit might be missing in old data
+      unit: item.unit || 'N/A', 
     })),
   };
 }
@@ -54,6 +54,10 @@ export async function summarizePurchaseOrderChanges(
   originalPO: PurchaseOrder,
   updatedPO: PurchaseOrder
 ): Promise<SummarizePurchaseOrderChangesOutput> {
+  // Handle client-side environment gracefully during static export
+  if (typeof window !== 'undefined') {
+    return { summary: 'Comparison summary is only available in the cloud version.' };
+  }
   const input = {
     originalPO: toPromptData(originalPO),
     updatedPO: toPromptData(updatedPO),
