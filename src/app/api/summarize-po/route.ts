@@ -2,9 +2,9 @@
 import { NextResponse } from 'next/server';
 
 export async function GET() {
-  return NextResponse.json({ message: 'API routes are not available in static builds.' });
+  return NextResponse.json({ message: 'AI features are disabled.' });
 }
 
 export async function POST() {
-  return NextResponse.json({ message: 'API routes are not available in static builds.' });
+  return NextResponse.json({ message: 'AI features are disabled.' });
 }

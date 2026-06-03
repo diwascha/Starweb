@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, useMemo, useRef } from 'react';
@@ -5,13 +6,12 @@ import type { PurchaseOrder, PurchaseOrderStatus, PurchaseOrderVersion, CompanyP
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Printer, Loader2, Save, Image as ImageIcon, History, Eye, ArrowLeft, Sparkles, X, Edit } from 'lucide-react';
+import { Printer, Save, Image as ImageIcon, History, Eye, ArrowLeft, X, Edit } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import NepaliDate from 'nepali-date-converter';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { differenceInDays } from 'date-fns';
 import { getPurchaseOrder } from '@/services/purchase-order-service';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -216,8 +216,6 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
   const [includeAmendments, setIncludeAmendments] = useState(true);
   const [selectedVersion, setSelectedVersion] = useState<PurchaseOrderVersion | null>(null);
   const [isVersionDialogOpen, setIsVersionDialogOpen] = useState(false);
-  const [aiSummary, setAiSummary] = useState<string | null>(null);
-  const [isSummarizing, setIsSummarizing] = useState(false);
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(defaultCompanyProfile);
   
   const mainPrintRef = useRef<HTMLDivElement>(null);
@@ -335,42 +333,6 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
     }, 250);
   };
 
-  const handleSummarizeChanges = async (version: PurchaseOrderVersion) => {
-    if (!purchaseOrder) return;
-    setIsSummarizing(true);
-    setAiSummary(null);
-    try {
-        const response = await fetch('/api/summarize-po', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                originalPO: {
-                    poNumber: version.data.poNumber,
-                    poDate: version.data.poDate,
-                    companyName: version.data.companyName,
-                    items: version.data.items,
-                },
-                updatedPO: {
-                    poNumber: purchaseOrder.poNumber,
-                    poDate: purchaseOrder.poDate,
-                    companyName: purchaseOrder.companyName,
-                    items: purchaseOrder.items,
-                }
-            })
-        });
-        
-        if (!response.ok) throw new Error('Failed to summarize');
-        const result = await response.json();
-        setAiSummary(result.summary);
-        setSelectedVersion(version);
-        setIsVersionDialogOpen(true);
-    } catch (error) {
-        toast({ title: 'AI Summary Failed', description: 'Could not generate summary of changes.', variant: 'destructive' });
-    } finally {
-        setIsSummarizing(false);
-    }
-  };
-
   const scrollToHistory = () => {
     const element = document.getElementById('po-history-section');
     if (element) element.scrollIntoView({ behavior: 'smooth' });
@@ -448,11 +410,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
                                             <div className="text-xs text-muted-foreground">Replaced by {version.replacedBy}</div>
                                         </TableCell>
                                         <TableCell className="text-right space-x-2">
-                                            <Button variant="ghost" size="sm" onClick={() => handleSummarizeChanges(version)} disabled={isSummarizing}>
-                                                {isSummarizing ? <Loader2 className="h-3 w-3 animate-spin"/> : <Sparkles className="mr-2 h-4 w-4 text-purple-600"/>}
-                                                Compare
-                                            </Button>
-                                            <Button variant="ghost" size="sm" onClick={() => { setSelectedVersion(version); setAiSummary(null); setIsVersionDialogOpen(true); }}>
+                                            <Button variant="ghost" size="sm" onClick={() => { setSelectedVersion(version); setIsVersionDialogOpen(true); }}>
                                                 <Eye className="mr-2 h-4 w-4"/> View
                                             </Button>
                                         </TableCell>
@@ -500,7 +458,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
             <DialogContent className="max-w-5xl max-h-[95vh] overflow-auto p-0">
                 <DialogHeader className="p-6 pb-0">
                     <DialogTitle className="flex items-center justify-between">
-                        <span>{aiSummary ? 'Change Summary' : 'Snapshot Preview'}</span>
+                        <span>Snapshot Preview</span>
                         <Button variant="ghost" size="icon" onClick={() => setIsVersionDialogOpen(false)}><X className="h-4 w-4"/></Button>
                     </DialogTitle>
                     <DialogDescription>
@@ -509,16 +467,6 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
                 </DialogHeader>
                 
                 <div className="p-6 space-y-6">
-                    {aiSummary && (
-                        <div className="bg-purple-50 border border-purple-100 p-4 rounded-lg">
-                            <div className="flex items-center gap-2 mb-2">
-                                <Sparkles className="h-4 w-4 text-purple-600"/>
-                                <span className="font-bold text-purple-900">AI Comparison Summary</span>
-                            </div>
-                            <p className="text-purple-800 whitespace-pre-wrap text-sm leading-relaxed">{aiSummary}</p>
-                        </div>
-                    )}
-
                     {selectedVersion && (
                         <div className="border rounded-lg shadow-inner overflow-hidden">
                             <PurchaseOrderDocument 
