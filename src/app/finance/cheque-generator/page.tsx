@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { Suspense, useState, useEffect, useMemo, useRef } from 'react';
@@ -8,7 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Search, ArrowUpDown, MoreHorizontal, Printer, Trash2, Edit, AlertTriangle, PlusCircle, History, Image as ImageIcon, Save, Loader2 } from 'lucide-react';
+import { Search, ArrowUpDown, MoreHorizontal, Printer, Trash2, Edit, AlertTriangle, PlusCircle, History, Image as ImageIcon, Save, Loader2, Check, X, Clock } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { onChequesUpdate, deleteCheque, updateCheque } from '@/services/cheque-service';
@@ -434,6 +432,23 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
         const updatedSplits = cheque.splits.map(s => {
             if (s.id === splitId) {
                 const updatedSplit = { ...s, status: newStatus, cancellationReason: newStatus === 'Canceled' ? reason : undefined };
+                
+                // If marking as paid, ensure the balance is cleared by adding an automatic full payment entry
+                if (newStatus === 'Paid') {
+                    const totalAmount = Number(s.amount) || 0;
+                    const paidSoFar = (s.partialPayments || []).reduce((sum, p) => sum + p.amount, 0);
+                    const remaining = totalAmount - paidSoFar;
+                    if (remaining > 0) {
+                        const autoPayment: PartialPayment = {
+                            id: `manual-${Date.now()}`,
+                            date: new Date().toISOString(),
+                            amount: remaining,
+                            remarks: 'Marked as paid manually'
+                        };
+                        updatedSplit.partialPayments = [...(s.partialPayments || []), autoPayment];
+                    }
+                }
+                
                 return updatedSplit;
             }
             return s;
@@ -533,16 +548,25 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                                     <DropdownMenuItem onSelect={() => onEdit(split.parentCheque)}><Edit className="mr-2 h-4 w-4" /> Edit Voucher</DropdownMenuItem>
                                     <DropdownMenuItem onSelect={() => handlePrint(split.parentCheque)}><Printer className="mr-2 h-4 w-4"/> Print Voucher</DropdownMenuItem>
                                     <DropdownMenuSeparator />
-                                     <DropdownMenuItem onSelect={() => handleStatusUpdate(split.parentCheque, split.id, 'Paid')}>Mark as Paid</DropdownMenuItem>
-                                     <DropdownMenuItem onSelect={() => {setSplitToCancel({cheque: split.parentCheque, splitId: split.id}); setIsCancelDialogOpen(true);}}>Mark as Canceled</DropdownMenuItem>
-                                     <DropdownMenuItem onSelect={() => handleStatusUpdate(split.parentCheque, split.id, 'Due')}>Mark as Due</DropdownMenuItem>
+                                     <DropdownMenuItem onSelect={() => handleStatusUpdate(split.parentCheque, split.id, 'Paid')}>
+                                        <Check className="mr-2 h-4 w-4 text-green-600" />
+                                        Mark as Paid
+                                     </DropdownMenuItem>
+                                     <DropdownMenuItem onSelect={() => {setSplitToCancel({cheque: split.parentCheque, splitId: split.id}); setIsCancelDialogOpen(true);}}>
+                                        <X className="mr-2 h-4 w-4 text-destructive" />
+                                        Mark as Canceled
+                                     </DropdownMenuItem>
+                                     <DropdownMenuItem onSelect={() => handleStatusUpdate(split.parentCheque, split.id, 'Due')}>
+                                        <Clock className="mr-2 h-4 w-4" />
+                                        Mark as Due
+                                     </DropdownMenuItem>
                                     <DropdownMenuSeparator />
                                     <AlertDialog>
                                     <AlertDialogTrigger asChild>
                                         <DropdownMenuItem onSelect={e => e.preventDefault()}><Trash2 className="mr-2 h-4 w-4 text-destructive" /> <span className="text-destructive">Delete Voucher</span></DropdownMenuItem>
                                     </AlertDialogTrigger>
                                     <AlertDialogContent>
-                                        <AlertDialogHeader><AlertDialogTitle>Delete this record?</AlertDialogTitle><AlertDialogDescription>This action will delete the entire voucher and all its associated cheques. It cannot be undone.</AlertDialogDescription></AlertDialogHeader>
+                                        <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This action will delete the entire voucher and all its associated cheques. It cannot be undone.</AlertDialogDescription></AlertDialogHeader>
                                         <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(split.parentCheque.id)}>Delete</AlertDialogAction></AlertDialogFooter>
                                     </AlertDialogContent>
                                     </AlertDialog>
@@ -707,15 +731,15 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
 
 export default function ChequeGeneratorPage() {
     const [activeTab, setActiveTab] = useState('generator');
-    const [chequeToEdit, setChequeToEdit] = useState<Cheque | null>(null);
+    const [chequeToEdit, setCheckToEdit] = useState<Cheque | null>(null);
 
     const handleEditCheque = (cheque: Cheque) => {
-        setChequeToEdit(cheque);
+        setCheckToEdit(cheque);
         setActiveTab('generator');
     };
 
     const handleFinishEditing = () => {
-        setChequeToEdit(null);
+        setCheckToEdit(null);
         setActiveTab('history');
     };
 
