@@ -374,7 +374,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                         Export Image
                     </Button>
                     <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={isExporting}>
-                        {isExporting ? <Loader2 className="h-4 w-4 animate-spin"/> : <FileDown className="mr-2 h-4 w-4"/>}
+                        {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <FileDown className="mr-2 h-4 w-4"/>}
                         Export PDF
                     </Button>
                 </div>
@@ -468,7 +468,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
   const { toast } = useToast();
   const { user } = useAuth();
 
-  const calculateItemCost = useCallback((item: any, globalK: any, globalV: number, globalC: number): CalculatedValues => {
+  const calculateItemCost = useCallback((item: any, globalK: any, globalV: number, globalC: number, globalT: number, tType: string): CalculatedValues => {
     const l = parseFloat(item.l) || 0, b = parseFloat(item.b) || 0, h = parseFloat(item.h) || 0, pcs = parseInt(item.noOfPcs, 10) || 1;
     if (l <= 0 || b <= 0) return { sheetSizeL: 0, sheetSizeB: 0, sheetArea: 0, totalGsm: 0, paperWeight: 0, totalBoxWeight: 0, paperRate: 0, paperCost: 0 };
     
@@ -508,12 +508,42 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
     let pRate = item.paperType === 'VIRGIN' ? globalV : kC;
     const finalRate = pRate + globalC;
     
+    let paperCost = (tBWt / 1000) * finalRate;
+    if (tType === 'Per Piece') {
+        paperCost += globalT * pcs;
+    }
+    
     return { 
         sheetSizeL: sL, sheetSizeB: sB, sheetArea: sArea, totalGsm: tGsm, 
         paperWeight: pWt, totalBoxWeight: tBWt, paperRate: finalRate, 
-        paperCost: (tBWt / 1000) * finalRate 
+        paperCost: paperCost
     };
   }, []);
+
+  // Effect to recalculate all items when global costs change
+  useEffect(() => {
+    if (items.length === 0) return;
+
+    setItems(prevItems => {
+        const kCosts = kraftPaperCosts;
+        const vCost = Number(virginPaperCost) || 0;
+        const cCost = Number(conversionCost) || 0;
+        const tCost = Number(transportCost) || 0;
+        const tType = transportCostType;
+
+        return prevItems.map(item => {
+            const newCalculated = calculateItemCost(item, kCosts, vCost, cCost, tCost, tType);
+            return {
+                ...item,
+                calculated: newCalculated,
+                accessories: (item.accessories || []).map((acc: any) => ({
+                    ...acc,
+                    calculated: calculateItemCost(acc, kCosts, vCost, cCost, tCost, tType)
+                }))
+            };
+        });
+    });
+  }, [kraftPaperCosts, virginPaperCost, conversionCost, transportCost, transportCostType, calculateItemCost]);
 
   useEffect(() => {
     const unsubCostSettings = onSettingUpdate('costing', (s) => {
@@ -552,12 +582,15 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
           const kCosts = reportToEdit.kraftPaperCosts || {};
           const vCost = Number(reportToEdit.virginPaperCost) || 0;
           const cCost = Number(reportToEdit.conversionCost) || 0;
+          const tCost = Number(reportToEdit.transportCost) || 0;
+          const tType = reportToEdit.transportCostType || 'Per Consignment';
+
           setItems(reportToEdit.items.map(item => ({
               ...item,
-              calculated: calculateItemCost(item, kCosts, vCost, cCost),
+              calculated: calculateItemCost(item, kCosts, vCost, cCost, tCost, tType),
               accessories: (item.accessories || []).map((acc: any) => ({
                   ...acc,
-                  calculated: calculateItemCost(acc, kCosts, vCost, cCost)
+                  calculated: calculateItemCost(acc, kCosts, vCost, cCost, tCost, tType)
               }))
           })));
       }
@@ -592,15 +625,15 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
         wastagePercent: spec.wastagePercent || '3.5',
         accessories: (product.accessories || []).map(acc => ({
             ...acc,
-            calculated: calculateItemCost(acc, kraftPaperCosts, Number(virginPaperCost) || 0, Number(conversionCost) || 0)
+            calculated: calculateItemCost(acc, kraftPaperCosts, Number(virginPaperCost) || 0, Number(conversionCost) || 0, Number(transportCost) || 0, transportCostType)
         }))
     };
-    return { ...base, calculated: calculateItemCost(base, kraftPaperCosts, Number(virginPaperCost) || 0, Number(conversionCost) || 0) };
-  }, [calculateItemCost, kraftPaperCosts, virginPaperCost, conversionCost]);
+    return { ...base, calculated: calculateItemCost(base, kraftPaperCosts, Number(virginPaperCost) || 0, Number(conversionCost) || 0, Number(transportCost) || 0, transportCostType) };
+  }, [calculateItemCost, kraftPaperCosts, virginPaperCost, conversionCost, transportCost, transportCostType]);
 
   const handleAddItem = () => {
     const base: any = { id: Date.now().toString(), productId: '', l:'', b:'', h:'', noOfPcs:'1', ply:'3', fluteType: 'B', paperType: 'KRAFT', paperBf:'18 BF', paperShade: 'NS', boxType: 'RSC', topGsm:'120', flute1Gsm:'100', middleGsm:'', flute2Gsm:'', bottomGsm:'120', liner2Gsm:'', flute3Gsm:'', liner3Gsm:'', flute4Gsm:'', liner4Gsm:'', wastagePercent:'3.5', accessories: [] };
-    const newItem = { ...base, calculated: calculateItemCost(base, kraftPaperCosts, Number(virginPaperCost) || 0, Number(conversionCost) || 0) };
+    const newItem = { ...base, calculated: calculateItemCost(base, kraftPaperCosts, Number(virginPaperCost) || 0, Number(conversionCost) || 0, Number(transportCost) || 0, transportCostType) };
     setItems([...items, newItem]);
     setSelectedForPrint(new Set(selectedForPrint).add(newItem.id));
   };
@@ -633,7 +666,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
         wastagePercent: '2.5',
         calculated: { sheetSizeL: 0, sheetSizeB: 0, sheetArea: 0, totalGsm: 0, paperWeight: 0, totalBoxWeight: 0, paperRate: 0, paperCost: 0 }
     };
-    newAcc.calculated = calculateItemCost(newAcc, kraftPaperCosts, Number(virginPaperCost) || 0, Number(conversionCost) || 0);
+    newAcc.calculated = calculateItemCost(newAcc, kraftPaperCosts, Number(virginPaperCost) || 0, Number(conversionCost) || 0, Number(transportCost) || 0, transportCostType);
     const next = [...items];
     next[idx].accessories = [...(next[idx].accessories || []), newAcc];
     setItems(next);
@@ -657,14 +690,14 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
         const product = products.find((p: Product) => p.id === v);
         if (product) item = mapProductToItem(product);
     }
-    next[idx] = { ...item, calculated: calculateItemCost(item, kraftPaperCosts, Number(virginPaperCost) || 0, Number(conversionCost) || 0) };
+    next[idx] = { ...item, calculated: calculateItemCost(item, kraftPaperCosts, Number(virginPaperCost) || 0, Number(conversionCost) || 0, Number(transportCost) || 0, transportCostType) };
     setItems(next);
   };
 
   const handleAccessoryChange = (itemIdx: number, accIdx: number, f: string, v: string) => {
     const next = [...items];
     const acc = { ...next[itemIdx].accessories![accIdx], [f]: f === 'paperBf' ? normalizeBF(v) : v };
-    acc.calculated = calculateItemCost(acc, kraftPaperCosts, Number(virginPaperCost) || 0, Number(conversionCost) || 0);
+    acc.calculated = calculateItemCost(acc, kraftPaperCosts, Number(virginPaperCost) || 0, Number(conversionCost) || 0, Number(transportCost) || 0, transportCostType);
     next[itemIdx].accessories![accIdx] = acc;
     setItems(next);
   };
@@ -705,7 +738,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
             transportCostType,
             termsAndConditions,
             items: items.map(({ calculated, ...rest }) => rest),
-            totalCost: items.reduce((sum, i) => sum + i.calculated.paperCost + (i.accessories?.reduce((aSum, a) => aSum + a.calculated.paperCost, 0) || 0), 0),
+            totalCost: items.reduce((sum, i) => sum + i.calculated.paperCost + (i.accessories?.reduce((aSum, a) => aSum + a.calculated.paperCost, 0) || 0), 0) + (transportCostType === 'Per Consignment' ? (Number(transportCost) || 0) : 0),
             createdBy: user.username
         };
         await addCostReport(reportData);
@@ -775,6 +808,12 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
       });
       return max;
   }, [items]);
+
+  const grandTotal = useMemo(() => {
+      const itemsTotal = items.reduce((sum, i) => sum + i.calculated.paperCost + (i.accessories?.reduce((aSum, a) => aSum + a.calculated.paperCost, 0) || 0), 0);
+      const lumpSumTransport = transportCostType === 'Per Consignment' ? (Number(transportCost) || 0) : 0;
+      return itemsTotal + lumpSumTransport;
+  }, [items, transportCost, transportCostType]);
 
   return (
     <div className="space-y-6">
@@ -1103,7 +1142,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
                                 <TableFooter className="bg-muted/50 border-t-2">
                                     <TableRow className="h-12 font-bold">
                                         <TableCell colSpan={maxPly + 12} className="text-right text-sm">Grand Total (Paper Cost)</TableCell>
-                                        <TableCell className="text-right pr-6 text-sm text-primary">Rs. {items.reduce((sum, i) => sum + i.calculated.paperCost + (i.accessories?.reduce((aSum, a) => aSum + a.calculated.paperCost, 0) || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                        <TableCell className="text-right pr-6 text-sm text-primary">Rs. {grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell></TableCell>
                                     </TableRow>
                                 </TableFooter>
@@ -1503,6 +1542,8 @@ export default function CostReportPage() {
         const kCosts = report.kraftPaperCosts || {};
         const vCost = report.virginPaperCost || 0;
         const cCost = report.conversionCost || 0;
+        const tCost = report.transportCost || 0;
+        const tType = report.transportCostType || 'Per Consignment';
         
         const calc = (item: any) => {
             const l = parseFloat(item.l) || 0, b = parseFloat(item.b) || 0, h = parseFloat(item.h) || 0, pcs = parseInt(item.noOfPcs, 10) || 1;
@@ -1525,7 +1566,11 @@ export default function CostReportPage() {
             const tBWt = pWt * (1 + (parseFloat(item.wastagePercent) / 100 || 0));
             let pRate = item.paperType === 'VIRGIN' ? vCost : (kCosts[normalizeBF(item.paperBf)] || 0);
             const finalRate = pRate + cCost;
-            return { paperCost: (tBWt / 1000) * finalRate };
+            let paperCost = (tBWt / 1000) * finalRate;
+            if (tType === 'Per Piece') {
+                paperCost += tCost * pcs;
+            }
+            return { paperCost: paperCost };
         };
 
         const itemsWithCost = report.items.map(item => {
@@ -1628,5 +1673,5 @@ export default function CostReportPage() {
                 companyProfile={companyProfile}
             />
         </div>
-    );
+  );
 }
