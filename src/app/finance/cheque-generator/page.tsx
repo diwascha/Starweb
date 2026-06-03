@@ -27,7 +27,7 @@ import { DualCalendar } from '@/components/ui/dual-calendar';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Textarea } from '@/components/ui/textarea';
 import { onAccountsUpdate } from '@/services/account-service';
 import jsPDF from 'jspdf';
@@ -92,6 +92,10 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
     const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
     const [cancelReason, setCancelReason] = useState('');
     const [splitToCancel, setSplitToCancel] = useState<{cheque: Cheque, splitId: string} | null>(null);
+
+    const [isPaidDialogOpen, setIsPaidDialogOpen] = useState(false);
+    const [paidRemark, setPaidRemark] = useState('');
+    const [splitToPay, setSplitToPay] = useState<{cheque: Cheque, splitId: string} | null>(null);
 
     const [isExporting, setIsExporting] = useState(false);
 
@@ -427,23 +431,24 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
     };
 
 
-    const handleStatusUpdate = async (cheque: Cheque, splitId: string, newStatus: ChequeStatus, reason?: string) => {
+    const handleStatusUpdate = async (cheque: Cheque, splitId: string, newStatus: ChequeStatus, reasonOrRemark?: string) => {
         if (!user) return;
         
         const updatedSplits = cheque.splits.map(s => {
             if (s.id === splitId) {
-                // Determine the cancellation reason (Firestore doesn't allow 'undefined', must use 'null' or omit)
-                let finalReason = s.cancellationReason || null;
+                // Determine the optional fields (Firestore doesn't allow 'undefined', must use 'null' or omit)
+                let finalCancellationReason = s.cancellationReason || null;
+                
                 if (newStatus === 'Canceled') {
-                    finalReason = reason || 'No reason provided';
-                } else if (newStatus === 'Due' || newStatus === 'Paid') {
-                    finalReason = null; // Clear reason if status changes back
+                    finalCancellationReason = reasonOrRemark || 'No reason provided';
+                } else {
+                    finalCancellationReason = null; // Clear reason if status changes back
                 }
 
                 const updatedSplit: any = { 
                     ...s, 
                     status: newStatus, 
-                    cancellationReason: finalReason 
+                    cancellationReason: finalCancellationReason 
                 };
                 
                 // If marking as paid, ensure the balance is cleared by adding an automatic full payment entry
@@ -458,7 +463,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                             id: `manual-${Date.now()}`,
                             date: new Date().toISOString(),
                             amount: remaining,
-                            remarks: 'Marked as paid manually'
+                            remarks: reasonOrRemark || 'Marked as paid manually'
                         };
                         updatedSplit.partialPayments = [...currentPayments, autoPayment];
                     }
@@ -486,6 +491,15 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
             setSplitToCancel(null);
         } else {
             toast({ title: 'Reason Required', description: 'Please provide a reason for cancellation.', variant: 'destructive' });
+        }
+    };
+
+    const handleConfirmPaid = () => {
+        if (splitToPay) {
+            handleStatusUpdate(splitToPay.cheque, splitToPay.splitId, 'Paid', paidRemark);
+            setIsPaidDialogOpen(false);
+            setPaidRemark('');
+            setSplitToPay(null);
         }
     };
 
@@ -568,7 +582,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                                     <DropdownMenuItem onSelect={() => onEdit(split.parentCheque)}><Edit className="mr-2 h-4 w-4" /> Edit Voucher</DropdownMenuItem>
                                     <DropdownMenuItem onSelect={() => handlePrint(split.parentCheque)}><Printer className="mr-2 h-4 w-4"/> Print Voucher</DropdownMenuItem>
                                     <DropdownMenuSeparator />
-                                     <DropdownMenuItem onSelect={() => handleStatusUpdate(split.parentCheque, split.id, 'Paid')}>
+                                     <DropdownMenuItem onSelect={() => {setSplitToPay({cheque: split.parentCheque, splitId: split.id}); setIsPaidDialogOpen(true);}}>
                                         <Check className="mr-2 h-4 w-4 text-green-600" />
                                         Mark as Paid
                                      </DropdownMenuItem>
@@ -742,6 +756,29 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsCancelDialogOpen(false)}>Cancel</Button>
                         <Button variant="destructive" onClick={handleConfirmCancel}>Confirm Cancellation</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            <Dialog open={isPaidDialogOpen} onOpenChange={setIsPaidDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Mark as Paid</DialogTitle>
+                        <DialogDescription>
+                            Provide a remark for this payment (e.g., "Paid with different cheque #123").
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <Label htmlFor="paid-remark">Remarks (Optional)</Label>
+                        <Textarea
+                            id="paid-remark"
+                            placeholder="Enter payment details..."
+                            value={paidRemark}
+                            onChange={(e) => setPaidRemark(e.target.value)}
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsPaidDialogOpen(false)}>Cancel</Button>
+                        <Button onClick={handleConfirmPaid}>Confirm Payment</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
