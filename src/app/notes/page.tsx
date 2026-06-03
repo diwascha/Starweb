@@ -1,5 +1,6 @@
 
-import { getNoteItems } from '@/services/notes-service';
+'use client';
+
 import NotesClientPage from './_components/notes-client-page';
 import { Suspense } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -19,12 +20,10 @@ function NotesSkeleton() {
     )
 }
 
-export default async function NotesPage() {
-    const initialItems = await getNoteItems();
-
+export default function NotesPage() {
     return (
         <Suspense fallback={<NotesSkeleton />}>
-            <NotesClientPage initialItems={initialItems} />
+            <NotesClientPage initialItems={[]} />
         </Suspense>
     );
 }

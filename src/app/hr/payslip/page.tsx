@@ -25,7 +25,7 @@ const nepaliMonths = [
     { value: 9, name: "Magh" }, { value: 10, name: "Falgun" }, { value: 11, name: "Chaitra" }
 ];
 
-function PayslipDisplay() {
+function PayslipContent() {
     const searchParams = useSearchParams();
     const employeeId = searchParams.get('employeeId');
     const year = searchParams.get('year');
@@ -49,12 +49,13 @@ function PayslipDisplay() {
         }
     }, [employeeId, year, month]);
 
-    if (!employeeId || !year || !month) return null; // Don't render if no params
+    if (employeeId && year && month) {
+        if (loading) return <div className="p-8">Loading payslip...</div>;
+        if (!employee || !payrollData) return <div className="p-8">Payslip data not found for the selected period.</div>;
+        return <PayslipView employee={employee} payroll={payrollData} bsYear={parseInt(year)} bsMonthName={nepaliMonths[parseInt(month)]?.name || ''} />;
+    }
 
-    if (loading) return <div className="p-8">Loading payslip...</div>;
-    if (!employee || !payrollData) return <div className="p-8">Payslip data not found for the selected period.</div>;
-
-    return <PayslipView employee={employee} payroll={payrollData} bsYear={parseInt(year)} bsMonthName={nepaliMonths[parseInt(month)]?.name || ''} />;
+    return <PayslipList />;
 }
 
 function PayslipList() {
@@ -123,10 +124,6 @@ function PayslipList() {
         });
     };
 
-    const handleExportAll = () => {
-        toast({ title: "Feature Coming Soon", description: "Bulk PDF export is under development." });
-    }
-
     return (
         <div className="flex flex-col gap-8">
             <header>
@@ -169,9 +166,6 @@ function PayslipList() {
                                 <Button variant="outline" onClick={handlePrintAll}>
                                     <Printer className="mr-2 h-4 w-4" /> Print All
                                 </Button>
-                                <Button variant="outline" onClick={handleExportAll}>
-                                    <FileDown className="mr-2 h-4 w-4" /> Export All as PDF
-                                </Button>
                              </div>
                         </div>
                     </CardHeader>
@@ -203,9 +197,6 @@ function PayslipList() {
                                                     <DropdownMenuItem onSelect={() => openPrintWindow(p.employeeId)}>
                                                         <Printer className="mr-2 h-4 w-4" /> Print
                                                     </DropdownMenuItem>
-                                                    <DropdownMenuItem onSelect={() => toast({ title: "Feature Coming Soon", description: "PDF export is under development." })}>
-                                                        <FileDown className="mr-2 h-4 w-4" /> Export PDF
-                                                    </DropdownMenuItem>
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
                                         </TableCell>
@@ -221,9 +212,6 @@ function PayslipList() {
 }
 
 export default function PayslipPage() {
-    const searchParams = useSearchParams();
-    const hasId = searchParams.has('employeeId');
-
     return (
         <Suspense fallback={
             <div className="space-y-4">
@@ -231,7 +219,7 @@ export default function PayslipPage() {
                 <Skeleton className="h-[400px] w-full" />
             </div>
         }>
-            {hasId ? <PayslipDisplay /> : <PayslipList />}
+            <PayslipContent />
         </Suspense>
     );
 }

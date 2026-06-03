@@ -1,4 +1,5 @@
 
+'use client';
 
 import PayrollClientPage from './_components/payroll-client-page';
 import { Suspense } from 'react';
@@ -19,9 +20,7 @@ function PayrollSkeleton() {
     );
 }
 
-export default async function PayrollPage() {
-    // Data fetching is now handled on the client side in PayrollClientPage
-    // to allow for dynamic filtering by month/year without reloading the page.
+export default function PayrollPage() {
     return (
         <Suspense fallback={<PayrollSkeleton />}>
             <PayrollClientPage />
