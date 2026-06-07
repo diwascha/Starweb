@@ -312,7 +312,6 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
       };
 
       if (poToEdit?.id) {
-        // Correctly handle transitions for existing documents
         if (!isCurrentlyDraft && !finalize) {
           const newAmendment: Amendment = {
             date: now,
@@ -330,7 +329,6 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         await updatePurchaseOrder(poToEdit.id, poData);
         toast({ title: 'Success', description: `Purchase Order ${poData.status.toLowerCase()}.` });
         
-        // Redirect to Professional View if finalized or already ordered
         if (finalize || !isCurrentlyDraft) {
             router.push(`/purchase-orders/view?id=${poToEdit.id}`);
         } else {
@@ -338,7 +336,6 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         }
 
       } else {
-        // Creating a new document
         const newPOId = await addPurchaseOrder(poData);
         toast({ title: 'Success', description: `Purchase Order ${finalize ? 'created' : 'saved as draft'}.` });
         
@@ -355,7 +352,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         description: 'Failed to save purchase order. Please try again.',
         variant: 'destructive',
       });
-      setIsSubmitting(false); // Reset so user can fix and retry
+      setIsSubmitting(false);
     }
   }
 

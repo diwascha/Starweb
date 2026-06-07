@@ -363,7 +363,7 @@ export default function PurchaseOrderView({ initialPurchaseOrder, poId }: { init
                     {isExporting[`jpg-${purchaseOrder.poNumber}`] ? <Loader2 className="animate-spin h-4 w-4"/> : <ImageIcon className="h-4 w-4"/>}
                 </Button>
                 <Button variant="outline" onClick={() => handleExportPdf(purchaseOrder, purchaseOrder.poNumber)} disabled={isExporting[`pdf-${purchaseOrder.poNumber}`]}>
-                    {isExporting[`pdf-${purchaseOrder.poNumber}`] ? <Loader2 className="animate-spin h-4 w-4"/> : <Save className="h-4 w-4"/>}
+                    {isExporting[`pdf-${purchaseOrder.poNumber}`] ? <Loader2 className="animate-spin h-4 w-4"/> : <Save className="mr-2 h-4 w-4"/>}
                 </Button>
                 <Button onClick={() => handlePrint(mainPrintRef)}><Printer className="mr-2 h-4 w-4" /> Print</Button>
             </div>

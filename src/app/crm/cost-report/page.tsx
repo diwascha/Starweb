@@ -587,7 +587,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
           const kCosts = reportToEdit.kraftPaperCosts || {};
           const vCost = Number(reportToEdit.virginPaperCost) || 0;
           const cCost = Number(reportToEdit.conversionCost) || 0;
-          const aCCost = Number(reportToEdit.accessoryConversionCost) || 0;
+          const aCCost = reportToEdit.accessoryConversionCost || 0;
           const tCost = Number(reportToEdit.transportCost) || 0;
           const tType = reportToEdit.transportCostType || 'Per Consignment';
 
