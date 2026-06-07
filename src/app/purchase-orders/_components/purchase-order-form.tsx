@@ -121,6 +121,8 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   const [isQuickAddUnitPopoverOpen, setIsQuickAddUnitPopoverOpen] = useState(false);
   const [isQuickAddTypePopoverOpen, setIsQuickAddTypePopoverOpen] = useState(false);
 
+  const title = poToEdit ? (poToEdit.isDraft ? 'Edit Draft PO' : 'Amend Purchase Order') : 'New Purchase Order';
+
   const defaultValues = useMemo(() => {
     if (poToEdit) {
       return {
