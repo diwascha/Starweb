@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, X, Check, User } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, X, Check, User, Loader2, ChevronsUpDown } from 'lucide-react';
 import type { RawMaterial, UnitOfMeasurement } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -41,13 +41,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import { cn, normalizeBF } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { onRawMaterialsUpdate, addRawMaterial, updateRawMaterial, deleteRawMaterial } from '@/services/raw-material-service';
 import { format } from 'date-fns';
-import { ChevronsUpDown } from 'lucide-react';
-
 
 const materialTypes = [
     'Kraft Paper', 'Virgin Paper', 'Gum', 'Ink', 'Stitching Wire', 'Strapping', 'Machinery Spare Parts', 'Other'
@@ -55,19 +53,6 @@ const materialTypes = [
 
 const paperTypes = ['Kraft Paper', 'Virgin Paper'];
 const bfOptions = ['16 BF', '18 BF', '20 BF', '22 BF'];
-
-const normalizeBF = (val: any): string => {
-  if (val === undefined || val === null || val === '') return "";
-  const trimmed = String(val).trim();
-  if (/^\d+$/.test(trimmed)) {
-    return `${trimmed} BF`;
-  }
-  const match = trimmed.match(/^(\d+)\s*bf$/i);
-  if (match) {
-    return `${match[1]} BF`;
-  }
-  return trimmed;
-};
 
 type RawMaterialSortKey = 'name' | 'type' | 'authorship';
 type SortDirection = 'asc' | 'desc';
