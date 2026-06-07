@@ -21,13 +21,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Loader2 } from 'lucide-react';
+import { Loader2, GitMerge, Archive, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { onRawMaterialsUpdate, addRawMaterial } from '@/services/raw-material-service';
 import { onPurchaseOrdersUpdate, addPurchaseOrder, updatePurchaseOrder } from '@/services/purchase-order-service';
 import { onUomsUpdate, addUom } from '@/services/uom-service';
 import { Badge } from '@/components/ui/badge';
 import { onPartiesUpdate, addParty, updateParty } from '@/services/party-service';
+import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const poItemSchema = z.object({
   rawMaterialId: z.string().min(1, 'Material is required.'),
@@ -104,7 +107,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   const [editingParty, setEditingParty] = useState<Party | null>(null);
   const [partyForm, setPartyForm] = useState<{name: string, type: PartyType, address?: string, panNumber?: string}>({name: '', type: 'Vendor', address: '', panNumber: ''});
   
-  const [itemFilterType, setItemFilterType] = useState<string>('All');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(['All']);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isQuickAddMaterialDialogOpen, setIsQuickAddMaterialDialogOpen] = useState(false);
   const [quickAddMaterialSearch, setQuickAddMaterialSearch] = useState('');
@@ -112,7 +115,6 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   const [unitInputValue, setUnitInputValue] = useState('');
   const [isQuickAddUnitPopoverOpen, setIsQuickAddUnitPopoverOpen] = useState(false);
   const [isQuickAddTypePopoverOpen, setIsQuickAddTypePopoverOpen] = useState(false);
-
 
   const defaultValues = useMemo(() => {
     if (poToEdit) {
@@ -155,7 +157,6 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     }, {} as Record<string, number>);
   }, [watchedItems]);
 
-
   useEffect(() => {
     setIsClient(true);
     const unsubRawMaterials = onRawMaterialsUpdate(setRawMaterials);
@@ -187,18 +188,22 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     return [...parties].sort((a,b) => a.name.localeCompare(b.name));
   }, [parties]);
 
-
   const allCategories = useMemo(() => {
     const types = new Set([...baseMaterialTypes, ...rawMaterials.map(m => m.type)]);
     return Array.from(types).sort();
   }, [rawMaterials]);
 
-  const filteredRawMaterials = (type: string) => {
-    let filtered = type === 'All' || !type
-      ? [...rawMaterials] 
-      : rawMaterials.filter(m => m.type === type);
+  const filteredRawMaterials = useMemo(() => {
+    let filtered = rawMaterials;
+    if (!selectedCategories.includes('All') && selectedCategories.length > 0) {
+        filtered = rawMaterials.filter(m => selectedCategories.includes(m.type));
+    }
     return filtered.sort((a, b) => a.name.localeCompare(b.name));
-  };
+  }, [rawMaterials, selectedCategories]);
+
+  const showPaperSpecs = useMemo(() => {
+    return selectedCategories.includes('All') || selectedCategories.some(c => paperTypes.includes(c));
+  }, [selectedCategories]);
 
   const handleCompanySelect = (partyId: string) => {
     const party = companies.find(c => c.id === partyId);
@@ -246,7 +251,6 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     }
   };
 
-
   const handleItemMaterialChange = (index: number, rawMaterialId: string) => {
     const material = rawMaterials.find(p => p.id === rawMaterialId);
     if (material) {
@@ -254,20 +258,20 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         rawMaterialId: material.id,
         rawMaterialName: material.name,
         rawMaterialType: material.type,
-        size: material.size,
-        gsm: material.gsm,
-        bf: normalizeBF(material.bf),
+        size: material.size || '',
+        gsm: material.gsm || '',
+        bf: normalizeBF(material.bf) || '',
         quantity: watchedItems[index]?.quantity || '',
         unit: (material.units && material.units[0]) || '',
       });
     }
   };
 
-  const addNewItem = (category: string = 'All') => {
+  const addNewItem = () => {
     append({ 
       rawMaterialId: '', 
       rawMaterialName: '', 
-      rawMaterialType: category === 'All' ? '' : category, 
+      rawMaterialType: '', 
       size: '', 
       gsm: '', 
       bf: '', 
@@ -347,7 +351,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   useEffect(() => {
     if (isQuickAddMaterialDialogOpen) {
       setQuickAddForm({
-        type: itemFilterType !== 'All' ? itemFilterType : '',
+        type: selectedCategories.length === 1 && selectedCategories[0] !== 'All' ? selectedCategories[0] : '',
         name: quickAddMaterialSearch,
         size: '',
         gsm: '',
@@ -355,8 +359,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         units: [],
       });
     }
-  }, [itemFilterType, isQuickAddMaterialDialogOpen, quickAddMaterialSearch]);
-
+  }, [selectedCategories, isQuickAddMaterialDialogOpen, quickAddMaterialSearch]);
 
   const handleQuickAddMaterial = async () => {
     if (!user) {
@@ -422,8 +425,6 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     }
   };
   
-  const isQuickAddPaper = paperTypes.includes(quickAddForm.type);
-  
   const allUnits = useMemo(() => {
     return uoms.map(u => u.abbreviation).sort();
   }, [uoms]);
@@ -450,18 +451,18 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     }
   };
   
-  const sizeInMM = useMemo(() => {
-      const inches = parseFloat(quickAddForm.size);
-      if (!isNaN(inches)) {
-          return (inches * 25.4).toFixed(2);
-      }
-      return null;
-  }, [quickAddForm.size]);
-
-  const showPaperSpecs = useMemo(() => {
-    return itemFilterType === 'All' || paperTypes.includes(itemFilterType);
-  }, [itemFilterType]);
-
+  const handleToggleCategory = (category: string) => {
+    setSelectedCategories(prev => {
+        if (category === 'All') return ['All'];
+        const withoutAll = prev.filter(c => c !== 'All');
+        if (withoutAll.includes(category)) {
+            const next = withoutAll.filter(c => c !== category);
+            return next.length === 0 ? ['All'] : next;
+        } else {
+            return [...withoutAll, category];
+        }
+    });
+  };
 
   return (
     <div className="flex flex-col gap-8">
@@ -602,17 +603,36 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                     </div>
                     <div className="flex items-center gap-2">
                          <div className="w-full sm:w-auto">
-                           <Select value={itemFilterType} onValueChange={setItemFilterType}>
-                               <SelectTrigger className="w-full sm:w-[180px]">
-                                   <SelectValue placeholder="Global Category..." />
-                               </SelectTrigger>
-                               <SelectContent>
-                                   <SelectItem value="All">All Categories</SelectItem>
-                                   {allCategories.map(type => (
-                                        <SelectItem key={type} value={type}>{type}</SelectItem>
-                                   ))}
-                               </SelectContent>
-                           </Select>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" className="w-full sm:w-[250px] justify-between text-xs font-normal">
+                                        <span className="truncate">
+                                            {selectedCategories.includes('All') 
+                                                ? "All Categories" 
+                                                : selectedCategories.join(', ')}
+                                        </span>
+                                        <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[250px] p-0" align="start">
+                                    <div className="p-2 space-y-2">
+                                        <div className="flex items-center space-x-2 p-1 rounded hover:bg-muted cursor-pointer" onClick={() => handleToggleCategory('All')}>
+                                            <Checkbox checked={selectedCategories.includes('All')} onCheckedChange={() => handleToggleCategory('All')} />
+                                            <Label className="cursor-pointer">All Categories</Label>
+                                        </div>
+                                        <Separator />
+                                        <ScrollArea className="h-60">
+                                            {allCategories.map(category => (
+                                                <div key={category} className="flex items-center space-x-2 p-2 rounded hover:bg-muted cursor-pointer" 
+                                                     onClick={() => handleToggleCategory(category)}>
+                                                    <Checkbox checked={selectedCategories.includes(category)} />
+                                                    <Label className="cursor-pointer">{category}</Label>
+                                                </div>
+                                            ))}
+                                        </ScrollArea>
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
                          </div>
                         <Button 
                             type="button" 
@@ -627,7 +647,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                             type="button" 
                             size="sm" 
                             className="w-full sm:w-auto"
-                            onClick={() => addNewItem(itemFilterType)}
+                            onClick={addNewItem}
                         >
                             <PlusCircle className="mr-2 h-4 w-4" /> Add Item
                         </Button>
@@ -653,8 +673,6 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                         </TableHeader>
                         <TableBody>
                             {fields.map((item, index) => {
-                                const rowType = watchedItems[index]?.rawMaterialType || (itemFilterType !== 'All' ? itemFilterType : '');
-                                const rowMaterials = filteredRawMaterials(rowType);
                                 const selectedMaterial = rawMaterials.find(m => m.id === item.rawMaterialId);
                                 
                                 return (
@@ -691,7 +709,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                                                         </Button>
                                                                     </CommandEmpty>
                                                                     <CommandGroup>
-                                                                        {isClient && rowMaterials.map(p => (
+                                                                        {isClient && filteredRawMaterials.map(p => (
                                                                             <CommandItem
                                                                                 key={p.id}
                                                                                 value={p.name}
@@ -873,7 +891,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                 />
                                 <CommandList>
                                     <CommandEmpty>
-                                        <button className="p-2 text-xs text-left w-full hover:bg-muted" onClick={() => setIsQuickAddTypePopoverOpen(false)}>
+                                        <button type="button" className="p-2 text-xs text-left w-full hover:bg-muted" onClick={() => setIsQuickAddTypePopoverOpen(false)}>
                                             Add new category: "{quickAddForm.type}"
                                         </button>
                                     </CommandEmpty>
@@ -893,7 +911,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                         </PopoverContent>
                     </Popover>
                  </div>
-                 {!isQuickAddPaper && quickAddForm.type && (
+                 {quickAddForm.type && !paperTypes.includes(quickAddForm.type) && (
                      <div className="space-y-2">
                          <Label htmlFor="quick-add-name">Name / Description</Label>
                          <Input
@@ -905,14 +923,11 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                      </div>
                  )}
                  
-                 {isQuickAddPaper && (
+                 {quickAddForm.type && paperTypes.includes(quickAddForm.type) && (
                      <>
                         <div className="space-y-2">
                             <Label htmlFor="quick-add-size">Size (Inch)</Label>
-                            <div className="flex items-center gap-2">
-                                <Input id="quick-add-size" value={quickAddForm.size} onChange={e => setQuickAddForm(prev => ({...prev, size: e.target.value}))} placeholder="e.g. 42.5" />
-                                {sizeInMM && <span className="text-sm text-muted-foreground whitespace-nowrap">({sizeInMM} mm)</span>}
-                            </div>
+                            <Input id="quick-add-size" value={quickAddForm.size} onChange={e => setQuickAddForm(prev => ({...prev, size: e.target.value}))} placeholder="e.g. 42.5" />
                         </div>
                          <div className="space-y-2">
                           <Label htmlFor="quick-add-gsm">GSM</Label>
