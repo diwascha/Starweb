@@ -365,6 +365,7 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
                 </div>
             </div>
             <ScrollBar orientation="horizontal" />
+            <ScrollBar orientation="vertical" />
         </ScrollArea>
         <DialogFooter className="p-6 bg-muted/20 border-t">
             <div className="flex w-full justify-between items-center">
@@ -423,6 +424,7 @@ function ManageTermsDialog({ isOpen, onOpenChange, masterTerms, onSave }: { isOp
                                 </div>
                             ))}
                         </div>
+                        <ScrollBar orientation="vertical" />
                     </ScrollArea>
                 </div>
                 <DialogFooter>
@@ -663,6 +665,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
         flute2Gsm: '',
         bottomGsm: '120',
         liner2Gsm: '',
+        substring: '',
         flute3Gsm: '',
         liner3Gsm: '',
         flute4Gsm: '',
@@ -922,6 +925,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
                             ) : (
                                 <p className="text-[9px] text-center text-muted-foreground py-4 italic">No terms in master list.</p>
                             )}
+                            <ScrollBar orientation="vertical" />
                         </ScrollArea>
                     </div>
                 </CardContent>
@@ -1165,14 +1169,15 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
                                 </TableFooter>
                             )}
                         </Table>
+                        <ScrollBar orientation="horizontal" />
+                        <ScrollBar orientation="vertical" />
                     </div>
-                    <ScrollBar orientation="horizontal" />
                 </ScrollArea>
             </CardContent>
         </Card>
 
         {/* Batch Load Dialog */}
-        <Dialog open={isBatchAddDialogOpen} onOpenChange={setIsBatchAddDialogOpen}>
+        <Dialog open={isBatchAddDialogOpen} onOpenChange={isBatchAddDialogOpen ? () => setIsBatchAddDialogOpen(false) : undefined}>
             <DialogContent className="sm:max-w-2xl max-h-[80vh] flex flex-col">
                 <DialogHeader>
                     <DialogTitle>Load Products from List</DialogTitle>
@@ -1216,6 +1221,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
                             )}
                         </TableBody>
                     </Table>
+                    <ScrollBar orientation="vertical" />
                 </ScrollArea>
                 <DialogFooter className="mt-4">
                     <Button variant="outline" onClick={() => setIsBatchAddDialogOpen(false)}>Cancel</Button>
@@ -1226,7 +1232,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
             </DialogContent>
         </Dialog>
 
-        <Dialog open={isPartyDialogOpen} onOpenChange={setIsPartyDialogOpen}>
+        <Dialog open={isPartyDialogOpen} onOpenChange={isPartyDialogOpen ? () => setIsPartyDialogOpen(false) : undefined}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader><DialogTitle>Quick Add Party</DialogTitle></DialogHeader>
                 <div className="grid gap-4 py-4">
@@ -1238,16 +1244,19 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
             </DialogContent>
         </Dialog>
 
-        <Dialog open={isProductDialogOpen} onOpenChange={setIsProductDialogOpen}>
+        <Dialog open={isProductDialogOpen} onOpenChange={isProductDialogOpen ? () => setIsProductDialogOpen(false) : undefined}>
             <DialogContent className="sm:max-w-5xl max-h-[90vh] flex flex-col">
                 <DialogHeader><DialogTitle>Quick Add Product</DialogTitle></DialogHeader>
-                <ScrollArea className="flex-1 pr-4">
-                    <ProductForm onSaveSuccess={(data: any) => { 
-                        addProductService({...data, createdBy: user?.username}).then(() => {
-                            setIsProductDialogOpen(false);
-                            toast({ title: 'Product Added' });
-                        }); 
-                    }} />
+                <ScrollArea className="flex-1 pr-4 min-h-0">
+                    <div className="pb-12">
+                        <ProductForm onSaveSuccess={(data: any) => { 
+                            addProductService({...data, createdBy: user?.username}).then(() => {
+                                setIsProductDialogOpen(false);
+                                toast({ title: 'Product Added' });
+                            }); 
+                        }} />
+                    </div>
+                    <ScrollBar orientation="vertical" />
                 </ScrollArea>
             </DialogContent>
         </Dialog>
@@ -1409,8 +1418,8 @@ function ProductForm({ productToEdit, onSaveSuccess }: any) {
                         <div><Label className="text-[10px]">H</Label><Input type="number" value={dim.h ?? ''} onChange={e => setDim({...dim, h: e.target.value})} /></div>
                     </div>
                     <div className="grid grid-cols-2 gap-2 mt-2">
-                        <div><Label className="text-[10px]">Weight (g)</Label><Input value={form.specification.weightOfBox ?? ''} onChange={updateSpec.bind(null, 'weightOfBox')} /></div>
-                        <div><Label className="text-[10px]">Load (KGF)</Label><Input value={form.specification.load ?? ''} onChange={updateSpec.bind(null, 'load')} /></div>
+                        <div><Label className="text-[10px]">Weight (g)</Label><Input value={form.specification.weightOfBox ?? ''} onChange={e => updateSpec('weightOfBox', e.target.value)} /></div>
+                        <div><Label className="text-[10px]">Load (KGF)</Label><Input value={form.specification.load ?? ''} onChange={e => updateSpec('load', e.target.value)} /></div>
                     </div>
                 </div>
             </div>
@@ -1453,7 +1462,9 @@ function ProductForm({ productToEdit, onSaveSuccess }: any) {
                 )}
                 <div className="space-y-2"><Label>Finishing & Printing Instructions</Label><Textarea value={form.specification.printing ?? ''} onChange={e => updateSpec('printing', e.target.value)} placeholder="e.g. 2 Color Flexo printing, Glue closing..." /></div>
             </div>
-            <Button className="w-full h-11" onClick={handleSave}>Save Product Record</Button>
+            <div className="pt-4 pb-12">
+                <Button className="w-full h-11" onClick={handleSave}>Save Product Record</Button>
+            </div>
         </div>
     );
 }
@@ -1656,25 +1667,28 @@ export default function CostReportPage() {
                 </TabsContent>
             </Tabs>
 
-            <Dialog open={isProductEditorOpen} onOpenChange={setIsProductEditorOpen}>
+            <Dialog open={isProductEditorOpen} onOpenChange={isProductEditorOpen ? () => setIsProductEditorOpen(false) : undefined}>
                 <DialogContent className="sm:max-w-5xl max-h-[90vh] flex flex-col">
                     <DialogHeader>
                         <DialogTitle>Edit Product Record</DialogTitle>
                         <DialogDescription>Update the technical specifications for this product.</DialogDescription>
                     </DialogHeader>
-                    <ScrollArea className="flex-1 pr-4">
-                        <ProductForm 
-                            productToEdit={productToEdit} 
-                            onSaveSuccess={(data: any) => {
-                                if (productToEdit) {
-                                    updateProduct(productToEdit.id, { ...data, lastModifiedBy: user?.username }).then(() => {
-                                        setIsProductEditorOpen(false);
-                                        setProductToEdit(null);
-                                        toast({ title: 'Product Updated' });
-                                    });
-                                }
-                            }} 
-                        />
+                    <ScrollArea className="flex-1 pr-4 min-h-0">
+                        <div className="pb-12">
+                            <ProductForm 
+                                productToEdit={productToEdit} 
+                                onSaveSuccess={(data: any) => {
+                                    if (productToEdit) {
+                                        updateProduct(productToEdit.id, { ...data, lastModifiedBy: user?.username }).then(() => {
+                                            setIsProductEditorOpen(false);
+                                            setProductToEdit(null);
+                                            toast({ title: 'Product Updated' });
+                                        });
+                                    }
+                                }} 
+                            />
+                        </div>
+                        <ScrollBar orientation="vertical" />
                     </ScrollArea>
                 </DialogContent>
             </Dialog>
