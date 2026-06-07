@@ -368,9 +368,9 @@ export default function RawMaterialsPage() {
                     }
                     {isCurrentTabPaper && (
                         <>
-                            <TableHead>Size (Inch)</TableHead>
-                            <TableHead>GSM</TableHead>
-                            <TableHead>BF</TableHead>
+                            <TableHead className="text-center">Size (Inch)</TableHead>
+                            <TableHead className="text-center">GSM</TableHead>
+                            <TableHead className="text-center">BF</TableHead>
                         </>
                     )}
                     <TableHead>Units</TableHead>
@@ -384,83 +384,84 @@ export default function RawMaterialsPage() {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {filteredAndSortedMaterials.map(material => (
-                    <TableRow key={material.id}>
-                        <TableCell className="font-medium">{material.name}</TableCell>
-                        {activeTab === 'All' && <TableCell>{material.type}</TableCell>}
-                        {isCurrentTabPaper && (
-                             <>
-                                <TableCell>{material.size || '-'}</TableCell>
-                                <TableCell>{material.gsm || '-'}</TableCell>
-                                <TableCell>{normalizeBF(material.bf) || '-'}</TableCell>
-                            </>
-                        )}
-                        <TableCell>{Array.isArray(material.units) ? material.units.join(', ') : ''}</TableCell>
-                         <TableCell>
-                            <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-default">
-                                        {material.lastModifiedBy ? <Edit className="h-4 w-4" /> : <User className="h-4 w-4" />}
-                                        <span>{material.lastModifiedBy || material.createdBy}</span>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        {material.createdBy && (
+                    {filteredAndSortedMaterials.map(material => {
+                        const isRowPaper = paperTypes.includes(material.type);
+                        return (
+                        <TableRow key={material.id}>
+                            <TableCell className="font-medium">{material.name}</TableCell>
+                            {activeTab === 'All' && <TableCell>{material.type}</TableCell>}
+                            {isCurrentTabPaper && (
+                                <>
+                                    <TableCell className="text-center">{isRowPaper ? (material.size || '-') : '-'}</TableCell>
+                                    <TableCell className="text-center">{isRowPaper ? (material.gsm || '-') : '-'}</TableCell>
+                                    <TableCell className="text-center">{isRowPaper ? (normalizeBF(material.bf) || '-') : '-'}</TableCell>
+                                </>
+                            )}
+                            <TableCell>{Array.isArray(material.units) ? material.units.join(', ') : ''}</TableCell>
+                             <TableCell>
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-default">
+                                            {material.lastModifiedBy ? <Edit className="h-4 w-4" /> : <User className="h-4 w-4" />}
+                                            <span>{material.lastModifiedBy || material.createdBy}</span>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            {material.createdBy && (
+                                                <p>
+                                                Created by: {material.createdBy}
+                                                {material.createdAt ? ` on ${format(new Date(material.createdAt), "PP")}` : ''}
+                                                </p>
+                                            )}
+                                            {material.lastModifiedBy && material.lastModifiedAt && (
                                             <p>
-                                            Created by: {material.createdBy}
-                                            {material.createdAt ? ` on ${format(new Date(material.createdAt), "PP")}` : ''}
+                                                Modified by: {material.lastModifiedBy}
+                                                {material.lastModifiedAt ? ` on ${format(new Date(material.lastModifiedAt), "PP")}` : ''}
                                             </p>
-                                        )}
-                                        {material.lastModifiedBy && material.lastModifiedAt && (
-                                        <p>
-                                            Modified by: {material.lastModifiedBy}
-                                            {material.lastModifiedAt ? ` on ${format(new Date(material.lastModifiedAt), "PP")}` : ''}
-                                        </p>
-                                        )}
-                                    </TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
-                        </TableCell>
-                        <TableCell className="text-right">
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                            {hasPermission('rawMaterials', 'edit') && (
-                                <DropdownMenuItem onSelect={() => openEditMaterialDialog(material)}>
-                                    <Edit className="mr-2 h-4 w-4" /> Edit
-                                </DropdownMenuItem>
-                            )}
-                            {hasPermission('rawMaterials', 'edit') && hasPermission('rawMaterials', 'delete') && <DropdownMenuSeparator />}
-                            {hasPermission('rawMaterials', 'delete') && (
-                                <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <DropdownMenuItem onSelect={e => e.preventDefault()}>
-                                        <Trash2 className="mr-2 h-4 w-4 text-destructive" /> 
-                                        <span className="text-destructive">Delete</span>
+                                            )}
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            </TableCell>
+                            <TableCell className="text-right">
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                {hasPermission('rawMaterials', 'edit') && (
+                                    <DropdownMenuItem onSelect={() => openEditMaterialDialog(material)}>
+                                        <Edit className="mr-2 h-4 w-4" /> Edit
                                     </DropdownMenuItem>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            This will permanently delete the raw material. This action cannot be undone.
-                                        </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => handleDeleteMaterial(material.id)}>Delete</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                            )}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                        </TableCell>
-                    </TableRow>
-                    ))}
+                                )}
+                                {hasPermission('rawMaterials', 'edit') && hasPermission('rawMaterials', 'delete') && <DropdownMenuSeparator />}
+                                {hasPermission('rawMaterials', 'delete') && (
+                                    <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                                            <Trash2 className="mr-2 h-4 w-4 text-destructive" /> 
+                                            <span className="text-destructive">Delete</span>
+                                        </DropdownMenuItem>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                This will permanently delete the raw material. This action cannot be undone.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => handleDeleteMaterial(material.id)}>Delete</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialog>
+                                )}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                            </TableCell>
+                        </TableRow>
+                    )})}
                 </TableBody>
                 </Table>
             </CardContent>
@@ -527,7 +528,7 @@ export default function RawMaterialsPage() {
                                 id="material-name"
                                 value={newMaterialName}
                                 onChange={e => setNewMaterialName(e.target.value)}
-                                placeholder={"Product description"}
+                                placeholder={"Product description, Part No, or Specifications"}
                                 />
                             </div>
                         )}
@@ -583,7 +584,7 @@ export default function RawMaterialsPage() {
                                                     </Badge>
                                                 ))}
                                                 <input
-                                                    placeholder={newMaterialUnits.length === 0 ? "e.g. Kg, Ton..." : ""}
+                                                    placeholder={newMaterialUnits.length === 0 ? "e.g. Kg, Ton, Piece..." : ""}
                                                     value={unitInputValue}
                                                     onChange={e => setUnitInputValue(e.target.value)}
                                                     onKeyDown={handleUnitKeyDown}

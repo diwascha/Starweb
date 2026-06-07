@@ -643,9 +643,9 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                             <TableRow>
                                 <TableHead className="w-[180px]">Category</TableHead>
                                 <TableHead className="w-[300px]">Material</TableHead>
-                                <TableHead>Size (Inch)</TableHead>
-                                <TableHead>GSM</TableHead>
-                                <TableHead>BF</TableHead>
+                                <TableHead className="text-center">Size (Inch)</TableHead>
+                                <TableHead className="text-center">GSM</TableHead>
+                                <TableHead className="text-center">BF</TableHead>
                                 <TableHead className="w-[200px]">Quantity</TableHead>
                                 <TableHead className="w-[50px]"> </TableHead>
                             </TableRow>
@@ -655,6 +655,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                 const rowType = watchedItems[index]?.rawMaterialType;
                                 const rowMaterials = filteredRawMaterials(rowType);
                                 const selectedMaterial = rawMaterials.find(m => m.id === item.rawMaterialId);
+                                const isPaper = paperTypes.includes(rowType);
                                 
                                 return (
                                 <TableRow key={item.id}>
@@ -735,14 +736,14 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                             )}
                                         />
                                     </TableCell>
-                                    <TableCell>
-                                        <Input readOnly value={item.size || '-'} className="bg-muted/30 border-none h-9 text-xs" />
+                                    <TableCell className="text-center">
+                                        <Input readOnly value={isPaper ? (item.size || '-') : '-'} className={cn("bg-muted/30 border-none h-9 text-xs text-center", !isPaper && "text-muted-foreground/30")} />
                                     </TableCell>
-                                    <TableCell>
-                                        <Input readOnly value={item.gsm || '-'} className="bg-muted/30 border-none h-9 text-xs" />
+                                    <TableCell className="text-center">
+                                        <Input readOnly value={isPaper ? (item.gsm || '-') : '-'} className={cn("bg-muted/30 border-none h-9 text-xs text-center", !isPaper && "text-muted-foreground/30")} />
                                     </TableCell>
-                                    <TableCell>
-                                        <Input readOnly value={item.bf || '-'} className="bg-muted/30 border-none h-9 text-xs" />
+                                    <TableCell className="text-center">
+                                        <Input readOnly value={isPaper ? (item.bf || '-') : '-'} className={cn("bg-muted/30 border-none h-9 text-xs text-center", !isPaper && "text-muted-foreground/30")} />
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex gap-2">
@@ -869,8 +870,8 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
        <Dialog open={isQuickAddMaterialDialogOpen} onOpenChange={setIsQuickAddMaterialDialogOpen}>
         <DialogContent>
             <DialogHeader>
-                <DialogTitle>Quick Add Raw Material</DialogTitle>
-                <DialogDescription>Add a new material. You can select or create a new category.</DialogDescription>
+                <DialogTitle>Quick Add Product Category</DialogTitle>
+                <DialogDescription>Define a new material specification. Paper types (Kraft/Virgin) require Size, GSM, and BF.</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
                  <div className="space-y-2">
@@ -917,7 +918,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                              id="quick-add-name"
                              value={quickAddForm.name}
                              onChange={e => setQuickAddForm(prev => ({...prev, name: e.target.value}))}
-                             placeholder="e.g. Corrugation Gum"
+                             placeholder="e.g. Corrugation Gum, Stitching Wire, Part #123"
                          />
                      </div>
                  )}
@@ -966,7 +967,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                             </Badge>
                                         ))}
                                         <input
-                                            placeholder={quickAddForm.units.length === 0 ? "e.g. Kg, Ton..." : ""}
+                                            placeholder={quickAddForm.units.length === 0 ? "e.g. Kg, Ton, Piece..." : ""}
                                             value={unitInputValue}
                                             onChange={e => setUnitInputValue(e.target.value)}
                                             onKeyDown={handleQuickAddUnitKeyDown}
