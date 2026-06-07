@@ -23,6 +23,15 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -101,6 +110,7 @@ export default function RawMaterialsPage() {
   
   const [unitInputValue, setUnitInputValue] = useState('');
   const [isUnitPopoverOpen, setIsUnitPopoverOpen] = useState(false);
+  const [isQuickAddTypePopoverOpen, setIsQuickAddTypePopoverOpen] = useState(false);
 
   useEffect(() => {
     setIsLoading(true);
