@@ -617,22 +617,14 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                         >
                             <PlusCircle className="mr-2 h-4 w-4" /> ADD PRODUCT CATEGORY
                         </Button>
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button type="button" size="sm" className="w-full sm:w-auto">
-                                    <PlusCircle className="mr-2 h-4 w-4" /> Add Item <ChevronDown className="ml-1 h-3 w-3 opacity-50" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-[200px]">
-                                <DropdownMenuItem onSelect={() => addNewItem('All')}>Add Blank Row</DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                {allCategories.map(cat => (
-                                    <DropdownMenuItem key={cat} onSelect={() => addNewItem(cat)}>
-                                        Add {cat}
-                                    </DropdownMenuItem>
-                                ))}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                        <Button 
+                            type="button" 
+                            size="sm" 
+                            className="w-full sm:w-auto"
+                            onClick={() => addNewItem('All')}
+                        >
+                            <PlusCircle className="mr-2 h-4 w-4" /> Add Item
+                        </Button>
                     </div>
                 </div>
             </CardHeader>
