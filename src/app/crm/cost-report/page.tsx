@@ -1178,12 +1178,12 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
 
         {/* Batch Load Dialog */}
         <Dialog open={isBatchAddDialogOpen} onOpenChange={isBatchAddDialogOpen ? () => setIsBatchAddDialogOpen(false) : undefined}>
-            <DialogContent className="sm:max-w-2xl max-h-[80vh] flex flex-col">
-                <DialogHeader>
+            <DialogContent className="sm:max-w-2xl max-h-[80vh] flex flex-col p-0">
+                <DialogHeader className="p-6 pb-0">
                     <DialogTitle>Load Products from List</DialogTitle>
                     <DialogDescription>Select multiple products for the current party to add to the calculator.</DialogDescription>
                 </DialogHeader>
-                <ScrollArea className="flex-1 pr-4 mt-4">
+                <div className="flex-1 overflow-y-auto p-6">
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -1221,9 +1221,8 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
                             )}
                         </TableBody>
                     </Table>
-                    <ScrollBar orientation="vertical" />
-                </ScrollArea>
-                <DialogFooter className="mt-4">
+                </div>
+                <DialogFooter className="p-6 border-t">
                     <Button variant="outline" onClick={() => setIsBatchAddDialogOpen(false)}>Cancel</Button>
                     <Button onClick={handleBatchLoad} disabled={selectedBatchProductIds.size === 0}>
                         Load Selected ({selectedBatchProductIds.size})
@@ -1245,19 +1244,16 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
         </Dialog>
 
         <Dialog open={isProductDialogOpen} onOpenChange={isProductDialogOpen ? () => setIsProductDialogOpen(false) : undefined}>
-            <DialogContent className="sm:max-w-5xl max-h-[90vh] flex flex-col">
-                <DialogHeader><DialogTitle>Quick Add Product</DialogTitle></DialogHeader>
-                <ScrollArea className="flex-1 pr-4 min-h-0">
-                    <div className="pb-12">
-                        <ProductForm onSaveSuccess={(data: any) => { 
-                            addProductService({...data, createdBy: user?.username}).then(() => {
-                                setIsProductDialogOpen(false);
-                                toast({ title: 'Product Added' });
-                            }); 
-                        }} />
-                    </div>
-                    <ScrollBar orientation="vertical" />
-                </ScrollArea>
+            <DialogContent className="sm:max-w-5xl max-h-[95vh] flex flex-col p-0">
+                <DialogHeader className="p-6 pb-0"><DialogTitle>Quick Add Product</DialogTitle></DialogHeader>
+                <div className="flex-1 overflow-y-auto px-6 pb-6">
+                    <ProductForm onSaveSuccess={(data: any) => { 
+                        addProductService({...data, createdBy: user?.username}).then(() => {
+                            setIsProductDialogOpen(false);
+                            toast({ title: 'Product Added' });
+                        }); 
+                    }} />
+                </div>
             </DialogContent>
         </Dialog>
 
@@ -1505,7 +1501,7 @@ function SavedReportsList({ onEdit, onPreview, onDelete }: any) {
                                             <DropdownMenuSeparator />
                                             <AlertDialog>
                                                 <AlertDialogTrigger asChild>
-                                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4"/> Delete</DropdownMenuItem>
+                                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4 text-destructive"/> Delete</DropdownMenuItem>
                                                 </AlertDialogTrigger>
                                                 <AlertDialogContent>
                                                     <AlertDialogHeader>
@@ -1668,28 +1664,25 @@ export default function CostReportPage() {
             </Tabs>
 
             <Dialog open={isProductEditorOpen} onOpenChange={isProductEditorOpen ? () => setIsProductEditorOpen(false) : undefined}>
-                <DialogContent className="sm:max-w-5xl max-h-[90vh] flex flex-col">
-                    <DialogHeader>
+                <DialogContent className="sm:max-w-5xl max-h-[95vh] flex flex-col p-0">
+                    <DialogHeader className="p-6 pb-0">
                         <DialogTitle>Edit Product Record</DialogTitle>
                         <DialogDescription>Update the technical specifications for this product.</DialogDescription>
                     </DialogHeader>
-                    <ScrollArea className="flex-1 pr-4 min-h-0">
-                        <div className="pb-12">
-                            <ProductForm 
-                                productToEdit={productToEdit} 
-                                onSaveSuccess={(data: any) => {
-                                    if (productToEdit) {
-                                        updateProduct(productToEdit.id, { ...data, lastModifiedBy: user?.username }).then(() => {
-                                            setIsProductEditorOpen(false);
-                                            setProductToEdit(null);
-                                            toast({ title: 'Product Updated' });
-                                        });
-                                    }
-                                }} 
-                            />
-                        </div>
-                        <ScrollBar orientation="vertical" />
-                    </ScrollArea>
+                    <div className="flex-1 overflow-y-auto px-6 pb-6">
+                        <ProductForm 
+                            productToEdit={productToEdit} 
+                            onSaveSuccess={(data: any) => {
+                                if (productToEdit) {
+                                    updateProduct(productToEdit.id, { ...data, lastModifiedBy: user?.username }).then(() => {
+                                        setIsProductEditorOpen(false);
+                                        setProductToEdit(null);
+                                        toast({ title: 'Product Updated' });
+                                    });
+                                }
+                            }} 
+                        />
+                    </div>
                 </DialogContent>
             </Dialog>
 
