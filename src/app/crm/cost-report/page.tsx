@@ -523,7 +523,6 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
     };
   }, []);
 
-  // Effect to recalculate all items when global costs change
   useEffect(() => {
     if (items.length === 0) return;
 
@@ -1402,7 +1401,7 @@ function ProductForm({ productToEdit, onSaveSuccess }: any) {
     const p = parseInt(form.specification.ply, 10);
 
     return (
-        <div className="space-y-6 pt-2 pb-8">
+        <div className="space-y-6 pt-2 pb-8 overflow-y-auto max-h-[75vh]">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                     <h3 className="text-xs font-bold uppercase border-b pb-1 text-muted-foreground">General Info</h3>
@@ -1466,7 +1465,7 @@ function ProductForm({ productToEdit, onSaveSuccess }: any) {
                 )}
                 <div className="space-y-2"><Label>Finishing & Printing Instructions</Label><Textarea value={form.specification.printing ?? ''} onChange={e => updateSpec('printing', e.target.value)} placeholder="e.g. 2 Color Flexo printing, Glue closing..." /></div>
             </div>
-            <div className="pt-4 pb-12">
+            <div className="pt-4">
                 <Button className="w-full h-11" onClick={handleSave}>Save Product Record</Button>
             </div>
         </div>
