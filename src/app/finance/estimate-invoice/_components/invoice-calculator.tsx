@@ -1,4 +1,3 @@
-
 'use client';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import type { Party, PartyType, Product, EstimateInvoiceItem, EstimatedInvoice } from '@/lib/types';
@@ -73,6 +72,11 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
         const unsubInvoices = onEstimatedInvoicesUpdate(setAllInvoices);
         const unsubParties = onPartiesUpdate(setParties);
         const unsubProducts = onProductsUpdate(setProducts);
+
+        if (!invoiceToEdit) {
+            setItems([{ id: Math.random().toString(36).substr(2, 9), productName: '', quantity: 1, rate: 0, gross: 0 }]);
+        }
+
         return () => {
             unsubInvoices();
             unsubParties();
@@ -96,7 +100,6 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
         } else {
           const nextNumber = await generateNextEstimateInvoiceNumber(allInvoices);
           setInvoiceNumber(nextNumber);
-          setItems([{ id: Date.now().toString(), productName: '', quantity: 1, rate: 0, gross: 0 }]);
           setParty(null);
           setDate(new Date());
         }
@@ -152,7 +155,7 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
     };
     
     const handleAddItem = () => {
-        setItems([...items, { id: Date.now().toString(), productName: '', quantity: 1, rate: 0, gross: 0 }]);
+        setItems([...items, { id: Math.random().toString(36).substr(2, 9), productName: '', quantity: 1, rate: 0, gross: 0 }]);
     };
     
     const handleItemChange = (index: number, field: keyof EstimateInvoiceItem, value: any) => {
@@ -241,7 +244,7 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
                 // Reset form for new entry
                 setDate(new Date());
                 setParty(null);
-                setItems([{ id: Date.now().toString(), productName: '', quantity: 1, rate: 0, gross: 0 }]);
+                setItems([{ id: Math.random().toString(36).substr(2, 9), productName: '', quantity: 1, rate: 0, gross: 0 }]);
                 const nextNumber = await generateNextEstimateInvoiceNumber(allInvoices);
                 setInvoiceNumber(nextNumber);
             }

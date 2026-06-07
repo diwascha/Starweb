@@ -589,7 +589,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
           const tCost = Number(reportToEdit.transportCost) || 0;
           const tType = reportToEdit.transportCostType || 'Per Consignment';
 
-          setItems(reportToEdit.items.map(item => ({
+          setItems(reportToEdit.items.map((item: any) => ({
               ...item,
               calculated: calculateItemCost(item, kCosts, vCost, cCost, tCost, tType),
               accessories: (item.accessories || []).map((acc: any) => ({
@@ -636,7 +636,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
   }, [calculateItemCost, kraftPaperCosts, virginPaperCost, conversionCost, accessoryConversionCost, transportCost, transportCostType]);
 
   const handleAddItem = () => {
-    const base: any = { id: Date.now().toString(), productId: '', l:'', b:'', h:'', noOfPcs:'1', ply:'3', fluteType: 'B', paperType: 'KRAFT', paperBf:'18 BF', paperShade: 'NS', boxType: 'RSC', topGsm:'120', flute1Gsm:'100', middleGsm:'', flute2Gsm:'', bottomGsm:'120', liner2Gsm:'', flute3Gsm:'', liner3Gsm:'', flute4Gsm:'', liner4Gsm:'', wastagePercent:'3.5', accessories: [] };
+    const base: any = { id: Math.random().toString(36).substr(2, 9), productId: '', l:'', b:'', h:'', noOfPcs:'1', ply:'3', fluteType: 'B', paperType: 'KRAFT', paperBf:'18 BF', paperShade: 'NS', boxType: 'RSC', topGsm:'120', flute1Gsm:'100', middleGsm:'', flute2Gsm:'', bottomGsm:'120', liner2Gsm:'', flute3Gsm:'', liner3Gsm:'', flute4Gsm:'', liner4Gsm:'', wastagePercent:'3.5', accessories: [] };
     const newItem = { ...base, calculated: calculateItemCost(base, kraftPaperCosts, Number(virginPaperCost) || 0, Number(conversionCost) || 0, Number(transportCost) || 0, transportCostType) };
     setItems([...items, newItem]);
     setSelectedForPrint(new Set(selectedForPrint).add(newItem.id));
@@ -1591,7 +1591,7 @@ export default function CostReportPage() {
             return { paperCost: paperCost };
         };
 
-        const itemsWithCost = report.items.map(item => {
+        const itemsWithCost = report.items.map((item: any) => {
             const calculated = calc(item);
             const accessories = (item.accessories || []).map((acc: any) => ({
                 ...acc,
@@ -1600,7 +1600,7 @@ export default function CostReportPage() {
             return {
                 ...item,
                 accessories,
-                totalItemCost: calculated.paperCost + accessories.reduce((sum: number, a: any) => sum + a.calculated.paperCost, 0)
+                totalItemCost: (calculated.paperCost || 0) + accessories.reduce((sum: number, a: any) => sum + (a.calculated?.paperCost || 0), 0)
             };
         });
 

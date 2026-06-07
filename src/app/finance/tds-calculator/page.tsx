@@ -30,7 +30,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
+  AlertDialogDescription as AlertDialogDescriptionPrimitive,
 } from '@/components/ui/alert-dialog';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -44,9 +44,9 @@ import { onPartiesUpdate, addParty } from '@/services/party-service';
 import { onSettingUpdate } from '@/services/settings-service';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
-import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import { Textarea } from '@/components/ui/textarea';
 
 const defaultCompanyProfile: CompanyProfile = {
   nameEn: "SHIVAM PACKAGING INDUSTRIES PVT LTD.",
@@ -385,11 +385,11 @@ function SavedTdsRecords({ onEdit, companyProfile }: { onEdit: (calculation: Tds
                 </div>
                  <DialogFooter className="sm:justify-end gap-2">
                     <Button variant="outline" onClick={() => setIsVoucherViewOpen(false)}>Cancel</Button>
-                    <Button variant="outline" onClick={handleExportJpg} disabled={isExporting}>
+                    <Button variant="outline" onClick={() => handleExportJpg()} disabled={isExporting}>
                         {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ImageIcon className="mr-2 h-4 w-4"/>}
                          Export as JPG
                     </Button>
-                    <Button variant="outline" onClick={handleExportPdf} disabled={isExporting}>
+                    <Button variant="outline" onClick={() => handleExportPdf()} disabled={isExporting}>
                         {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
                         Export as PDF
                     </Button>
@@ -989,7 +989,7 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
                             {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ImageIcon className="mr-2 h-4 w-4"/>}
                              Export as JPG
                         </Button>
-                        <Button variant="outline" onClickSplit={() => handleExport('pdf')} disabled={isExporting}>
+                        <Button variant="outline" onClick={() => handleExport('pdf')} disabled={isExporting}>
                             {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
                             Export as PDF
                         </Button>

@@ -47,16 +47,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
     const [invoiceAmount, setInvoiceAmount] = useState<number | ''>('');
     const [numberOfSplits, setNumberOfSplits] = useState<number>(1);
     
-    const [chequeSplits, setChequeSplits] = useState<ChequeSplit[]>([{
-        id: Date.now().toString(),
-        chequeDate: new Date(),
-        chequeNumber: '',
-        amount: '',
-        remarks: '',
-        interval: 0,
-        status: 'Due',
-        partialPayments: [],
-    }]);
+    const [chequeSplits, setChequeSplits] = useState<ChequeSplit[]>([]);
 
     const [parties, setParties] = useState<Party[]>([]);
     const [accounts, setAccounts] = useState<Account[]>([]);
@@ -74,7 +65,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
     const { toast } = useToast();
     const { user } = useAuth();
     
-    const [cheques, setCheques] = useState<Check[]>([]);
+    const [cheques, setCheques] = useState<any[]>([]);
     const [voucherNo, setVoucherNo] = useState('');
 
     const printRef = useRef<HTMLDivElement>(null);
@@ -85,6 +76,21 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
         const unsubParties = onPartiesUpdate(setParties);
         const unsubCheques = onChequesUpdate(setCheques);
         const unsubAccounts = onAccountsUpdate(setAccounts);
+        
+        // Initial splits on mount to avoid hydration mismatch
+        if (!chequeToEdit) {
+            setChequeSplits([{
+                id: Math.random().toString(36).substr(2, 9),
+                chequeDate: new Date(),
+                chequeNumber: '',
+                amount: '',
+                remarks: '',
+                interval: 0,
+                status: 'Due',
+                partialPayments: [],
+            }]);
+        }
+
         return () => {
           unsubParties();
           unsubCheques();
@@ -107,7 +113,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                 const baseDate = chequeToEdit.invoiceDate ? new Date(chequeToEdit.invoiceDate) : new Date(chequeToEdit.paymentDate);
                 const interval = Math.round((splitDate.getTime() - baseDate.getTime()) / (1000 * 3600 * 24));
                 return {
-                    id: s.id || String(Math.random()),
+                    id: s.id || Math.random().toString(36).substr(2, 9),
                     chequeDate: splitDate,
                     chequeNumber: s.chequeNumber,
                     amount: s.amount,
@@ -136,7 +142,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
             
             const splitAmount = totalAmount > 0 ? Math.floor(totalAmount / numSplits) : '';
             const remainder = totalAmount > 0 ? totalAmount % numSplits : 0;
-            const currentAmount = totalAmount > 0 ? splitAmount + (i < remainder ? 1 : 0) : '';
+            const currentAmount = totalAmount > 0 ? (Number(splitAmount) + (i < remainder ? 1 : 0)) : '';
             
             const intervalDays = existingSplit.interval || 0;
             const chequeDate = addDays(baseDate, intervalDays);
@@ -149,7 +155,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                 remarks: existingSplit.remarks || '',
                 interval: intervalDays,
                 status: 'Due' as ChequeStatus,
-                partialPayments: [],
+                partialPayments: existingSplit.partialPayments || [],
             };
         });
         setChequeSplits(newSplits);
@@ -229,7 +235,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
         setInvoiceAmount('');
         setNumberOfSplits(1);
         setSelectedAccountId(undefined);
-        setChequeSplits([{ id: Date.now().toString(), chequeDate: new Date(), chequeNumber: '', amount: '', remarks: '', interval: 0, status: 'Due', partialPayments: [] }]);
+        setChequeSplits([{ id: Math.random().toString(36).substr(2, 9), chequeDate: new Date(), chequeNumber: '', amount: '', remarks: '', interval: 0, status: 'Due', partialPayments: [] }]);
         onSaveSuccess();
     };
 
