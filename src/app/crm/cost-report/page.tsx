@@ -285,12 +285,12 @@ function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate
   
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[95vh] p-0">
+      <DialogContent className="max-w-6xl max-h-[95vh] p-0 flex flex-col">
         <DialogHeader className="p-6 pb-0">
           <DialogTitle>Quotation Preview</DialogTitle>
           <DialogDescription>Review the document layout. This is a paperless, digitally generated document.</DialogDescription>
         </DialogHeader>
-        <ScrollArea className="max-h-[75vh] bg-muted/30 p-4">
+        <ScrollArea className="flex-1 bg-muted/30 p-4">
             <div ref={printRef} className="w-[210mm] mx-auto bg-white p-12 text-black shadow-sm">
                <header className="text-center space-y-1 mb-8">
                     <h1 className="text-2xl font-bold uppercase tracking-tight">{companyProfile.nameEn}</h1>
@@ -1173,12 +1173,12 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
 
         {/* Batch Load Dialog */}
         <Dialog open={isBatchAddDialogOpen} onOpenChange={setIsBatchAddDialogOpen}>
-            <DialogContent className="sm:max-w-2xl max-h-[80vh]">
+            <DialogContent className="sm:max-w-2xl max-h-[80vh] flex flex-col">
                 <DialogHeader>
                     <DialogTitle>Load Products from List</DialogTitle>
                     <DialogDescription>Select multiple products for the current party to add to the calculator.</DialogDescription>
                 </DialogHeader>
-                <ScrollArea className="pr-4 mt-4">
+                <ScrollArea className="flex-1 pr-4 mt-4">
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -1217,7 +1217,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
                         </TableBody>
                     </Table>
                 </ScrollArea>
-                <DialogFooter>
+                <DialogFooter className="mt-4">
                     <Button variant="outline" onClick={() => setIsBatchAddDialogOpen(false)}>Cancel</Button>
                     <Button onClick={handleBatchLoad} disabled={selectedBatchProductIds.size === 0}>
                         Load Selected ({selectedBatchProductIds.size})
@@ -1239,9 +1239,9 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
         </Dialog>
 
         <Dialog open={isProductDialogOpen} onOpenChange={setIsProductDialogOpen}>
-            <DialogContent className="sm:max-w-5xl max-h-[90vh]">
+            <DialogContent className="sm:max-w-5xl max-h-[90vh] flex flex-col">
                 <DialogHeader><DialogTitle>Quick Add Product</DialogTitle></DialogHeader>
-                <ScrollArea className="pr-4">
+                <ScrollArea className="flex-1 pr-4">
                     <ProductForm onSaveSuccess={(data: any) => { 
                         addProductService({...data, createdBy: user?.username}).then(() => {
                             setIsProductDialogOpen(false);
@@ -1389,7 +1389,7 @@ function ProductForm({ productToEdit, onSaveSuccess }: any) {
     const p = parseInt(form.specification.ply, 10);
 
     return (
-        <div className="space-y-6 pt-2">
+        <div className="space-y-6 pt-2 pb-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                     <h3 className="text-xs font-bold uppercase border-b pb-1 text-muted-foreground">General Info</h3>
@@ -1409,8 +1409,8 @@ function ProductForm({ productToEdit, onSaveSuccess }: any) {
                         <div><Label className="text-[10px]">H</Label><Input type="number" value={dim.h ?? ''} onChange={e => setDim({...dim, h: e.target.value})} /></div>
                     </div>
                     <div className="grid grid-cols-2 gap-2 mt-2">
-                        <div><Label className="text-[10px]">Weight (g)</Label><Input value={form.specification.weightOfBox ?? ''} onChange={e => updateSpec('weightOfBox', e.target.value)} /></div>
-                        <div><Label className="text-[10px]">Load (KGF)</Label><Input value={form.specification.load ?? ''} onChange={e => updateSpec('load', e.target.value)} /></div>
+                        <div><Label className="text-[10px]">Weight (g)</Label><Input value={form.specification.weightOfBox ?? ''} onChange={updateSpec.bind(null, 'weightOfBox')} /></div>
+                        <div><Label className="text-[10px]">Load (KGF)</Label><Input value={form.specification.load ?? ''} onChange={updateSpec.bind(null, 'load')} /></div>
                     </div>
                 </div>
             </div>
@@ -1657,12 +1657,12 @@ export default function CostReportPage() {
             </Tabs>
 
             <Dialog open={isProductEditorOpen} onOpenChange={setIsProductEditorOpen}>
-                <DialogContent className="sm:max-w-5xl max-h-[90vh]">
+                <DialogContent className="sm:max-w-5xl max-h-[90vh] flex flex-col">
                     <DialogHeader>
                         <DialogTitle>Edit Product Record</DialogTitle>
                         <DialogDescription>Update the technical specifications for this product.</DialogDescription>
                     </DialogHeader>
-                    <ScrollArea className="pr-4">
+                    <ScrollArea className="flex-1 pr-4">
                         <ProductForm 
                             productToEdit={productToEdit} 
                             onSaveSuccess={(data: any) => {
