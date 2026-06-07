@@ -751,6 +751,14 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
         };
         await addCostReport(reportData);
 
+        // Persist global rates to settings so they are used as defaults next time
+        await updateCostSettings({
+            kraftPaperCosts,
+            virginPaperCost: Number(virginPaperCost) || 0,
+            conversionCost: Number(conversionCost) || 0,
+            accessoryConversionCost: Number(accessoryConversionCost) || 0,
+        }, user.username);
+
         const updatePromises: any[] = [];
         items.forEach(item => {
             if (!item.productId) return;
