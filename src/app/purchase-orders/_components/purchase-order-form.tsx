@@ -11,7 +11,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useEffect, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, PlusCircle, Trash2, Check, ChevronsUpDown, Edit, X } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Trash2, Check, ChevronsUpDown, Edit, X, ChevronDown } from 'lucide-react';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { format } from 'date-fns';
 import { cn, generateNextPONumber, toNepaliDate } from '@/lib/utils';
@@ -28,6 +28,7 @@ import { onPurchaseOrdersUpdate, addPurchaseOrder, updatePurchaseOrder } from '@
 import { onUomsUpdate, addUom } from '@/services/uom-service';
 import { Badge } from '@/components/ui/badge';
 import { onPartiesUpdate, addParty, updateParty } from '@/services/party-service';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 
 
 const poItemSchema = z.object({
@@ -57,9 +58,9 @@ interface PurchaseOrderFormProps {
   poToEdit?: PurchaseOrder;
 }
 
-const materialTypesForAdd = [
+const baseMaterialTypes = [
     'Kraft Paper', 'Virgin Paper', 'Gum', 'Ink', 'Stitching Wire', 'Strapping', 'Machinery Spare Parts', 'Other'
-].sort();
+];
 
 const paperTypes = ['Kraft Paper', 'Virgin Paper'];
 const bfOptions = ['16 BF', '18 BF', '20 BF', '22 BF'];
@@ -111,8 +112,8 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   const [quickAddMaterialSearch, setQuickAddMaterialSearch] = useState('');
   
   const [unitInputValue, setUnitInputValue] = useState('');
-  const [quickAddUnitInput, setQuickAddUnitInput] = useState('');
   const [isQuickAddUnitPopoverOpen, setIsQuickAddUnitPopoverOpen] = useState(false);
+  const [isQuickAddTypePopoverOpen, setIsQuickAddTypePopoverOpen] = useState(false);
 
 
   const defaultValues = useMemo(() => {
@@ -189,17 +190,17 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   }, [parties]);
 
 
-  const materialTypesForFilter = useMemo(() => {
-    const types = new Set(rawMaterials.map(m => m.type));
-    return ['All', ...Array.from(types).sort()];
+  const allCategories = useMemo(() => {
+    const types = new Set([...baseMaterialTypes, ...rawMaterials.map(m => m.type)]);
+    return Array.from(types).sort();
   }, [rawMaterials]);
 
-  const filteredRawMaterials = useMemo(() => {
-    let filtered = itemFilterType === 'All' 
+  const filteredRawMaterials = (type: string) => {
+    let filtered = type === 'All' || !type
       ? [...rawMaterials] 
-      : rawMaterials.filter(m => m.type === itemFilterType);
+      : rawMaterials.filter(m => m.type === type);
     return filtered.sort((a, b) => a.name.localeCompare(b.name));
-  }, [rawMaterials, itemFilterType]);
+  };
 
   const handleCompanySelect = (partyId: string) => {
     const party = companies.find(c => c.id === partyId);
@@ -220,7 +221,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
           setEditingParty(null);
           setPartyForm({ name: searchName, type: 'Vendor', address: '', panNumber: '' });
       }
-      setIsCompanyPopoverOpen(false); // Close popover when opening dialog
+      setIsCompanyPopoverOpen(false);
       setIsPartyDialogOpen(true);
   };
 
@@ -258,14 +259,23 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         size: material.size,
         gsm: material.gsm,
         bf: normalizeBF(material.bf),
-        quantity: '',
+        quantity: watchedItems[index]?.quantity || '',
         unit: (material.units && material.units[0]) || '',
       });
     }
   };
 
-  const addNewItem = () => {
-    append({ rawMaterialId: '', rawMaterialName: '', rawMaterialType: '', size: '', gsm: '', bf: '', quantity: '', unit: '' });
+  const addNewItem = (category: string = 'All') => {
+    append({ 
+      rawMaterialId: '', 
+      rawMaterialName: '', 
+      rawMaterialType: category === 'All' ? '' : category, 
+      size: '', 
+      gsm: '', 
+      bf: '', 
+      quantity: '', 
+      unit: '' 
+    });
   };
 
   async function onSubmit(values: PurchaseOrderFormValues, finalize: boolean = false) {
@@ -291,8 +301,6 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
       };
 
       if (poToEdit) {
-        // If it's a finalized order being saved, it's an amendment.
-        // If it's a draft being saved (not finalized), it's just an update, not an amendment.
         if (!isCurrentlyDraft && !finalize) {
           const newAmendment: Amendment = {
             date: now,
@@ -307,12 +315,11 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
            poData.status = 'Draft';
         }
 
-
         await updatePurchaseOrder(poToEdit.id, poData);
         toast({ title: 'Success', description: `Purchase Order ${poData.status.toLowerCase()}.` });
         router.push(finalize || !isCurrentlyDraft ? `/purchase-orders/view?id=${poToEdit.id}` : '/purchase-orders/list');
 
-      } else { // creating new
+      } else {
         const newPOId = await addPurchaseOrder(poData);
         toast({ title: 'Success', description: `Purchase Order ${finalize ? 'created' : 'saved as draft'}.` });
         router.push(finalize ? `/purchase-orders/view?id=${newPOId}` : '/purchase-orders/list');
@@ -330,11 +337,14 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   }
 
   const title = poToEdit ? (poToEdit.isDraft ? 'Edit Draft Purchase Order' : 'Amend Finalized Purchase Order') : 'Create New Purchase Order';
-  const showPaperColumns = itemFilterType === 'All' || paperTypes.includes(itemFilterType);
 
-  const [quickAddForm, setQuickAddForm] = useState({
-      type: '', name: '', size: '', gsm: '', bf: '', units: [] as string[]
-  });
+  const [quickAddForm, setQuickAddForm] = setQuickAddFormState();
+  
+  function setQuickAddFormState() {
+      return useState({
+        type: '', name: '', size: '', gsm: '', bf: '', units: [] as string[]
+      });
+  }
   
   useEffect(() => {
     if (isQuickAddMaterialDialogOpen) {
@@ -372,12 +382,13 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
       return;
     }
     
+    const finalBF = isPaper ? normalizeBF(bf) : '';
     const finalName = isPaper 
         ? generateMaterialName(
             type.trim(), 
             size.trim(), 
             gsm.trim(), 
-            bf.trim()
+            finalBF
           )
         : name.trim();
     
@@ -399,7 +410,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
             name: finalName,
             size: isPaper ? size : '',
             gsm: isPaper ? gsm : '',
-            bf: isPaper ? normalizeBF(bf) : '',
+            bf: finalBF,
             units: units,
             createdBy: user.username,
             createdAt: new Date().toISOString(),
@@ -591,18 +602,32 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                          <div className="w-full sm:w-auto">
                            <Select value={itemFilterType} onValueChange={setItemFilterType}>
                                <SelectTrigger className="w-full sm:w-[180px]">
-                                   <SelectValue placeholder="Filter by type..." />
+                                   <SelectValue placeholder="Global Filter..." />
                                </SelectTrigger>
                                <SelectContent>
-                                   {materialTypesForFilter.map(type => (
+                                   <SelectItem value="All">All Categories</SelectItem>
+                                   {allCategories.map(type => (
                                         <SelectItem key={type} value={type}>{type}</SelectItem>
                                    ))}
                                </SelectContent>
                            </Select>
                          </div>
-                        <Button type="button" size="sm" onClick={addNewItem} className="w-full sm:w-auto">
-                            <PlusCircle className="mr-2 h-4 w-4" /> Add Item
-                        </Button>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button type="button" size="sm" className="w-full sm:w-auto">
+                                    <PlusCircle className="mr-2 h-4 w-4" /> Add Item <ChevronDown className="ml-1 h-3 w-3 opacity-50" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-[200px]">
+                                <DropdownMenuItem onSelect={() => addNewItem('All')}>Add Blank Row</DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                {allCategories.map(cat => (
+                                    <DropdownMenuItem key={cat} onSelect={() => addNewItem(cat)}>
+                                        Add {cat}
+                                    </DropdownMenuItem>
+                                ))}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
                 </div>
             </CardHeader>
@@ -611,24 +636,45 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                     <Table>
                         <TableHeader>
                             <TableRow>
+                                <TableHead className="w-[180px]">Category</TableHead>
                                 <TableHead className="w-[300px]">Material</TableHead>
-                                {itemFilterType === 'All' && <TableHead>Type</TableHead>}
-                                {showPaperColumns && (
-                                    <>
-                                        <TableHead>Size (Inch)</TableHead>
-                                        <TableHead>GSM</TableHead>
-                                        <TableHead>BF</TableHead>
-                                    </>
-                                )}
+                                <TableHead>Size (Inch)</TableHead>
+                                <TableHead>GSM</TableHead>
+                                <TableHead>BF</TableHead>
                                 <TableHead className="w-[200px]">Quantity</TableHead>
                                 <TableHead className="w-[50px]"> </TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {fields.map((item, index) => {
+                                const rowType = watchedItems[index]?.rawMaterialType;
+                                const rowMaterials = filteredRawMaterials(rowType);
                                 const selectedMaterial = rawMaterials.find(m => m.id === item.rawMaterialId);
+                                
                                 return (
                                 <TableRow key={item.id}>
+                                    <TableCell>
+                                        <FormField
+                                            control={form.control}
+                                            name={`items.${index}.rawMaterialType`}
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <Select onValueChange={field.onChange} value={field.value}>
+                                                        <FormControl>
+                                                            <SelectTrigger className="h-9 text-xs">
+                                                                <SelectValue placeholder="Type..." />
+                                                            </SelectTrigger>
+                                                        </FormControl>
+                                                        <SelectContent>
+                                                            {allCategories.map(cat => (
+                                                                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </FormItem>
+                                            )}
+                                        />
+                                    </TableCell>
                                     <TableCell>
                                         <FormField
                                             control={form.control}
@@ -638,9 +684,9 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                                     <Popover>
                                                         <PopoverTrigger asChild>
                                                             <FormControl>
-                                                                <Button variant="outline" role="combobox" className="w-full justify-between">
-                                                                    {field.value ? filteredRawMaterials.find(m => m.id === field.value)?.name : "Select a material"}
-                                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                                <Button variant="outline" role="combobox" className="w-full justify-between h-9 text-xs font-normal">
+                                                                    {field.value ? rawMaterials.find(m => m.id === field.value)?.name : "Select a material"}
+                                                                    <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
                                                                 </Button>
                                                             </FormControl>
                                                         </PopoverTrigger>
@@ -661,7 +707,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                                                         </Button>
                                                                     </CommandEmpty>
                                                                     <CommandGroup>
-                                                                        {isClient && filteredRawMaterials.map(p => (
+                                                                        {isClient && rowMaterials.map(p => (
                                                                             <CommandItem
                                                                                 key={p.id}
                                                                                 value={p.name}
@@ -684,46 +730,15 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                             )}
                                         />
                                     </TableCell>
-                                    {itemFilterType === 'All' && <TableCell>{item.rawMaterialType || '-'}</TableCell>}
-                                    {showPaperColumns && (
-                                        <>
-                                            <TableCell>{item.size || '-'}</TableCell>
-                                            <TableCell>{item.gsm || '-'}</TableCell>
-                                            <TableCell>
-                                                <FormField
-                                                    control={form.control}
-                                                    name={`items.${index}.bf`}
-                                                    render={({ field }) => {
-                                                        const normalizedValue = normalizeBF(field.value);
-                                                        const isPaper = paperTypes.includes(item.rawMaterialType);
-                                                        
-                                                        return (
-                                                            <FormItem>
-                                                                <Select 
-                                                                    onValueChange={(val) => field.onChange(normalizeBF(val))} 
-                                                                    value={normalizedValue} 
-                                                                    disabled={isPaper}
-                                                                >
-                                                                    <FormControl>
-                                                                        <SelectTrigger className={cn(isPaper && "bg-muted cursor-not-allowed opacity-100")}>
-                                                                            <SelectValue placeholder="BF" />
-                                                                        </SelectTrigger>
-                                                                    </FormControl>
-                                                                    <SelectContent>
-                                                                        {bfOptions.map(option => <SelectItem key={option} value={option}>{option}</SelectItem>)}
-                                                                        {/* Fallback for pre-determined specs not in the standard list */}
-                                                                        {normalizedValue && !bfOptions.includes(normalizedValue) && (
-                                                                            <SelectItem value={normalizedValue}>{normalizedValue}</SelectItem>
-                                                                        )}
-                                                                    </SelectContent>
-                                                                </Select>
-                                                            </FormItem>
-                                                        );
-                                                    }}
-                                                />
-                                            </TableCell>
-                                        </>
-                                    )}
+                                    <TableCell>
+                                        <Input readOnly value={item.size || '-'} className="bg-muted/30 border-none h-9 text-xs" />
+                                    </TableCell>
+                                    <TableCell>
+                                        <Input readOnly value={item.gsm || '-'} className="bg-muted/30 border-none h-9 text-xs" />
+                                    </TableCell>
+                                    <TableCell>
+                                        <Input readOnly value={item.bf || '-'} className="bg-muted/30 border-none h-9 text-xs" />
+                                    </TableCell>
                                     <TableCell>
                                         <div className="flex gap-2">
                                             <FormField
@@ -733,8 +748,9 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                                     <FormItem className="flex-1">
                                                         <FormControl>
                                                             <Input 
-                                                                placeholder="e.g. 5"
-                                                                {...field} 
+                                                                placeholder="Qty"
+                                                                {...field}
+                                                                className="h-9 text-xs"
                                                             />
                                                         </FormControl>
                                                         <FormMessage />
@@ -746,10 +762,10 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                                     control={form.control}
                                                     name={`items.${index}.unit`}
                                                     render={({ field }) => (
-                                                        <FormItem className="w-[100px]">
+                                                        <FormItem className="w-[80px]">
                                                             <Select onValueChange={field.onChange} value={field.value}>
                                                                 <FormControl>
-                                                                    <SelectTrigger>
+                                                                    <SelectTrigger className="h-9 text-[10px] px-2">
                                                                         <SelectValue placeholder="Unit" />
                                                                     </SelectTrigger>
                                                                 </FormControl>
@@ -767,7 +783,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                         </div>
                                     </TableCell>
                                     <TableCell>
-                                        <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
+                                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => remove(index)}>
                                             <Trash2 className="h-4 w-4 text-destructive" />
                                         </Button>
                                     </TableCell>
@@ -776,7 +792,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                         </TableBody>
                         <TableFooter>
                             <TableRow>
-                                <TableCell colSpan={showPaperColumns ? 5 : (itemFilterType === 'All' ? 2 : 1)} className="text-right font-bold">Total</TableCell>
+                                <TableCell colSpan={5} className="text-right font-bold">Total</TableCell>
                                 <TableCell className="font-bold">
                                     {Object.entries(quantityTotalsByUnit).map(([unit, total]) => (
                                         <span key={unit} className="mr-4">{total.toLocaleString()} {unit}</span>
@@ -837,7 +853,6 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                     <Label htmlFor="party-address-dialog">Address</Label>
                     <Textarea id="party-address-dialog" value={partyForm.address} onChange={(e) => setPartyForm(prev => ({...prev, address: e.target.value}))}/>
                 </div>
-                 <input type="hidden" value={partyForm.type = 'Vendor'} />
             </div>
             <DialogFooter>
                 <Button variant="outline" onClick={() => setIsPartyDialogOpen(false)}>Cancel</Button>
@@ -850,21 +865,45 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         <DialogContent>
             <DialogHeader>
                 <DialogTitle>Quick Add Raw Material</DialogTitle>
-                <DialogDescription>Add a new material that is not in the list.</DialogDescription>
+                <DialogDescription>Add a new material. You can select or create a new category.</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
                  <div className="space-y-2">
-                    <Label htmlFor="quick-add-type">Type</Label>
-                    <Select value={quickAddForm.type} onValueChange={value => setQuickAddForm(prev => ({...prev, type: value}))}>
-                        <SelectTrigger id="quick-add-type">
-                            <SelectValue placeholder="Select a type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {materialTypesForAdd.map(type => (
-                                <SelectItem key={type} value={type}>{type}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <Label htmlFor="quick-add-type">Category / Type</Label>
+                    <Popover open={isQuickAddTypePopoverOpen} onOpenChange={setIsQuickAddTypePopoverOpen}>
+                        <PopoverTrigger asChild>
+                            <Button variant="outline" role="combobox" className="w-full justify-between">
+                                {quickAddForm.type || "Select or type a category..."}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="p-0">
+                            <Command>
+                                <CommandInput 
+                                    placeholder="Search or add category..."
+                                    onValueChange={(val) => setQuickAddForm(prev => ({...prev, type: val}))}
+                                />
+                                <CommandList>
+                                    <CommandEmpty>
+                                        <button className="p-2 text-xs text-left w-full hover:bg-muted" onClick={() => setIsQuickAddTypePopoverOpen(false)}>
+                                            Add new category: "{quickAddForm.type}"
+                                        </button>
+                                    </CommandEmpty>
+                                    <CommandGroup>
+                                        {allCategories.map(cat => (
+                                            <CommandItem key={cat} value={cat} onSelect={() => {
+                                                setQuickAddForm(prev => ({...prev, type: cat}));
+                                                setIsQuickAddTypePopoverOpen(false);
+                                            }}>
+                                                <Check className={cn("mr-2 h-4 w-4", quickAddForm.type === cat ? "opacity-100" : "opacity-0")} />
+                                                {cat}
+                                            </CommandItem>
+                                        ))}
+                                    </CommandGroup>
+                                </CommandList>
+                            </Command>
+                        </PopoverContent>
+                    </Popover>
                  </div>
                  {!isQuickAddPaper && quickAddForm.type && (
                      <div className="space-y-2">
@@ -925,7 +964,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                             placeholder={quickAddForm.units.length === 0 ? "e.g. Kg, Ton..." : ""}
                                             value={unitInputValue}
                                             onChange={e => setUnitInputValue(e.target.value)}
-                                            onKeyDown={quickAddUnitKeyDown}
+                                            onKeyDown={handleQuickAddUnitKeyDown}
                                             className="bg-transparent outline-none flex-1 placeholder:text-muted-foreground text-sm min-w-[80px]"
                                         />
                                     </div>
