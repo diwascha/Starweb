@@ -6,5 +6,6 @@ export const firebaseConfig = {
   "authDomain": "testreportgen.firebaseapp.com",
   "measurementId": "",
   "storageBucket": "testreportgen.appspot.com",
-  "messagingSenderId": "671245122025"
+  "messagingSenderId": "671245122025",
+  "databaseURL": "https://testreportgen-default-rtdb.asia-southeast1.firebasedatabase.app"
 };

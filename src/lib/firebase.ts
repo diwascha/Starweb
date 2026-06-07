@@ -1,4 +1,3 @@
-
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getFirestore, Firestore } from "firebase/firestore";
 import { getStorage, FirebaseStorage } from "firebase/storage";
@@ -19,7 +18,7 @@ export const getFirebase = () => {
   const auth = getAuth(app);
   const db = getFirestore(app);
   const storage = getStorage(app);
-  const rtdb = getDatabase(app);
+  const rtdb = getDatabase(app, "https://testreportgen-default-rtdb.asia-southeast1.firebasedatabase.app");
 
   return { app, db, storage, auth, rtdb };
 };
