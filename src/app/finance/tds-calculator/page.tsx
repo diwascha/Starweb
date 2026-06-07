@@ -30,7 +30,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogDescription as AlertDialogDescriptionPrimitive,
+  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -348,7 +348,9 @@ function SavedTdsRecords({ onEdit, companyProfile }: { onEdit: (calculation: Tds
                                 <AlertDialogContent>
                                     <AlertDialogHeader>
                                         <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                        <AlertDialogDescription>This will permanently delete the record.</AlertDialogDescription>
+                                        <AlertDialogDescription>
+                                            This will permanently delete the record.
+                                        </AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
                                         <AlertDialogCancel>Cancel</AlertDialogCancel>
