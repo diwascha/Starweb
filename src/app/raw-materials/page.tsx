@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, X, Check, User } from 'lucide-react';
-import type { RawMaterial } from '@/lib/types';
+import type { RawMaterial, UnitOfMeasurement } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -12,15 +12,6 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -455,6 +446,7 @@ export default function RawMaterialsPage() {
                                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                                             <AlertDialogAction onClick={() => handleDeleteMaterial(material.id)}>Delete</AlertDialogAction>
                                         </AlertDialogFooter>
+                                    </AlertDialogContent>
                                     </AlertDialog>
                                 )}
                                 </DropdownMenuContent>
