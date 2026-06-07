@@ -338,13 +338,9 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
 
   const title = poToEdit ? (poToEdit.isDraft ? 'Edit Draft Purchase Order' : 'Amend Finalized Purchase Order') : 'Create New Purchase Order';
 
-  const [quickAddForm, setQuickAddForm] = setQuickAddFormState();
-  
-  function setQuickAddFormState() {
-      return useState({
-        type: '', name: '', size: '', gsm: '', bf: '', units: [] as string[]
-      });
-  }
+  const [quickAddForm, setQuickAddForm] = useState({
+    type: '', name: '', size: '', gsm: '', bf: '', units: [] as string[]
+  });
   
   useEffect(() => {
     if (isQuickAddMaterialDialogOpen) {
@@ -612,6 +608,15 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                </SelectContent>
                            </Select>
                          </div>
+                        <Button 
+                            type="button" 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => setIsQuickAddMaterialDialogOpen(true)}
+                            className="w-full sm:w-auto"
+                        >
+                            <PlusCircle className="mr-2 h-4 w-4" /> ADD PRODUCT CATEGORY
+                        </Button>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button type="button" size="sm" className="w-full sm:w-auto">
@@ -975,8 +980,8 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                 <Command>
                                     <CommandInput 
                                         placeholder="Search or add unit..."
-                                        value={quickAddUnitInput}
-                                        onValueChange={setQuickAddUnitInput}
+                                        value={unitInputValue}
+                                        onValueChange={setUnitInputValue}
                                         onKeyDown={(e) => {
                                              if (e.key === ' ' && e.currentTarget.value.endsWith(' ')) {
                                                 e.preventDefault();
