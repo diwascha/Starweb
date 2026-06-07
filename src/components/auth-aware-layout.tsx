@@ -9,7 +9,10 @@ import { Separator } from "./ui/separator";
 export default function AuthAwareLayout({ children }: { children: React.ReactNode }) {
     const { user, loading } = useAuth();
     const pathname = usePathname();
-    const isAuthPage = pathname === '/login';
+    
+    // Normalize path to handle trailing slashes for auth state check
+    const normalizedPath = pathname.replace(/\/$/, '') || '/';
+    const isAuthPage = normalizedPath === '/login';
 
     if (loading) {
          return (

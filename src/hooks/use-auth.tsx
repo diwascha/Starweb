@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, createContext, useContext, ReactNode, useCallback, useRef } from 'react';
@@ -72,10 +71,14 @@ const AuthRedirect = ({ children }: { children: ReactNode }) => {
     const router = useRouter();
     const pathname = usePathname();
 
+    // Helper to normalize paths and handle trailing slashes
+    const getNormalizedPath = (path: string) => path.replace(/\/$/, '') || '/';
+
     useEffect(() => {
         if (loading) return;
 
-        const isAuthPage = pathname === '/login';
+        const normalizedPath = getNormalizedPath(pathname);
+        const isAuthPage = normalizedPath === '/login';
 
         if (!user && !isAuthPage) {
             router.push('/login');
@@ -89,7 +92,7 @@ const AuthRedirect = ({ children }: { children: ReactNode }) => {
 
         if (user && !isAuthPage && !user.is_admin) {
             const pathSegments = pathname.split('/').filter(Boolean);
-            if (pathSegments.length === 0 && pathname !== '/dashboard') return;
+            if (pathSegments.length === 0 && normalizedPath !== '/dashboard') return;
             
             const firstSegment = pathSegments[0] || 'dashboard';
             const currentModuleAttempt = kebabToCamel(firstSegment);
@@ -101,7 +104,7 @@ const AuthRedirect = ({ children }: { children: ReactNode }) => {
                     
                     const redirectPath = firstAllowedPage ? moduleToPath(firstAllowedPage) : '/dashboard';
 
-                    if (pathname !== redirectPath) {
+                    if (normalizedPath !== getNormalizedPath(redirectPath)) {
                         router.push(redirectPath);
                     }
                 }
@@ -110,7 +113,8 @@ const AuthRedirect = ({ children }: { children: ReactNode }) => {
     }, [user, loading, pathname, router, hasPermission]);
 
 
-    if (loading || (!user && pathname !== '/login')) {
+    const normalizedPath = getNormalizedPath(pathname);
+    if (loading || (!user && normalizedPath !== '/login')) {
         return (
             <div className="flex h-screen items-center justify-center">
                 <p>Loading session...</p>
@@ -119,11 +123,11 @@ const AuthRedirect = ({ children }: { children: ReactNode }) => {
     }
     
     // This check ensures children of AuthRedirect are only rendered when appropriate
-    if (user && !loading && pathname !== '/login') {
+    if (user && !loading && normalizedPath !== '/login') {
          return <>{children}</>;
     }
 
-    if (!user && !loading && pathname === '/login') {
+    if (!user && !loading && normalizedPath === '/login') {
         return <>{children}</>;
     }
     
