@@ -1,3 +1,4 @@
+
 'use client';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -8,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import type { RawMaterial, PurchaseOrder, Amendment, UnitOfMeasurement, Party, PartyType } from '@/lib/types';
 import { useRouter } from 'next/navigation';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, PlusCircle, Trash2, Check, ChevronsUpDown, Edit, X, ChevronDown } from 'lucide-react';
@@ -178,18 +179,23 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     };
   }, []);
   
+  // Auto-set initial PO number ONLY when creating new and field is empty
   useEffect(() => {
-    const setInitialPoNumber = async () => {
-        if(isClient && !poToEdit) {
-            const nextPoNumber = await generateNextPONumber(purchaseOrders);
-            form.setValue('poNumber', nextPoNumber);
-        }
+    if(isClient && !poToEdit && purchaseOrders.length > 0) {
+        generateNextPONumber(purchaseOrders).then(nextPoNumber => {
+            if (!form.getValues('poNumber')) {
+                form.setValue('poNumber', nextPoNumber);
+            }
+        });
     }
-    setInitialPoNumber();
+  }, [isClient, poToEdit, purchaseOrders, form]);
+
+  // Reset form ONLY when the source poToEdit ID changes (prevents resets from real-time list updates)
+  useEffect(() => {
     if (poToEdit) {
       form.reset(defaultValues);
     }
-  }, [isClient, poToEdit, purchaseOrders, form, defaultValues]);
+  }, [poToEdit?.id, form, defaultValues]);
 
   const companies = useMemo(() => {
     return [...parties].sort((a,b) => a.name.localeCompare(b.name));
@@ -288,10 +294,8 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   };
 
   async function onSubmit(values: PurchaseOrderFormValues, finalize: boolean = false) {
-    if (!user) {
-      toast({ title: 'Error', description: 'You must be logged in to perform this action.', variant: 'destructive' });
-      return;
-    }
+    if (!user || isSubmitting) return;
+
     setIsSubmitting(true);
     try {
       const isCurrentlyDraft = poToEdit ? poToEdit.isDraft : true;
@@ -309,7 +313,8 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         lastModifiedBy: user.username,
       };
 
-      if (poToEdit) {
+      if (poToEdit?.id) {
+        // Correctly handle transitions for existing documents
         if (!isCurrentlyDraft && !finalize) {
           const newAmendment: Amendment = {
             date: now,
@@ -326,12 +331,24 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
 
         await updatePurchaseOrder(poToEdit.id, poData);
         toast({ title: 'Success', description: `Purchase Order ${poData.status.toLowerCase()}.` });
-        router.push(finalize || !isCurrentlyDraft ? `/purchase-orders/view?id=${poToEdit.id}` : '/purchase-orders/list');
+        
+        // Redirect to Professional View if finalized or already ordered
+        if (finalize || !isCurrentlyDraft) {
+            router.push(`/purchase-orders/view?id=${poToEdit.id}`);
+        } else {
+            router.push('/purchase-orders/list');
+        }
 
       } else {
+        // Creating a new document
         const newPOId = await addPurchaseOrder(poData);
         toast({ title: 'Success', description: `Purchase Order ${finalize ? 'created' : 'saved as draft'}.` });
-        router.push(finalize ? `/purchase-orders/view?id=${newPOId}` : '/purchase-orders/list');
+        
+        if (finalize) {
+            router.push(`/purchase-orders/view?id=${newPOId}`);
+        } else {
+            router.push('/purchase-orders/list');
+        }
       }
     } catch (error) {
       console.error('Failed to save purchase order:', error);
@@ -340,8 +357,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         description: 'Failed to save purchase order. Please try again.',
         variant: 'destructive',
       });
-    } finally {
-        setIsSubmitting(false);
+      setIsSubmitting(false); // Reset so user can fix and retry
     }
   }
 
@@ -461,7 +477,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     setUnitInputValue('');
   };
 
-  const handleQuickAddUnitRemove = (unit: string) => {
+  const handleUnitRemove = (unit: string) => {
     setQuickAddForm(prev => ({...prev, units: prev.units.filter(u => u !== unit)}));
   };
 
@@ -1025,7 +1041,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                         {quickAddForm.units.map(unit => (
                                             <Badge key={unit} variant="secondary" className="gap-1">
                                                 {unit}
-                                                <button type="button" onClick={() => handleQuickAddUnitRemove(unit)} className="rounded-full hover:bg-background/50">
+                                                <button type="button" onClick={() => handleUnitRemove(unit)} className="rounded-full hover:bg-background/50">
                                                     <X className="h-3 w-3" />
                                                 </button>
                                             </Badge>
