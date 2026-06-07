@@ -456,6 +456,10 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
       return null;
   }, [quickAddForm.size]);
 
+  const showPaperSpecs = useMemo(() => {
+    return itemFilterType === 'All' || paperTypes.includes(itemFilterType);
+  }, [itemFilterType]);
+
 
   return (
     <div className="flex flex-col gap-8">
@@ -635,9 +639,13 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                             <TableRow>
                                 <TableHead className="w-[180px]">Category</TableHead>
                                 <TableHead className="w-[300px]">Material</TableHead>
-                                <TableHead className="text-center">Size (Inch)</TableHead>
-                                <TableHead className="text-center">GSM</TableHead>
-                                <TableHead className="text-center">BF</TableHead>
+                                {showPaperSpecs && (
+                                    <>
+                                        <TableHead className="text-center">Size (Inch)</TableHead>
+                                        <TableHead className="text-center">GSM</TableHead>
+                                        <TableHead className="text-center">BF</TableHead>
+                                    </>
+                                )}
                                 <TableHead className="w-[200px]">Quantity</TableHead>
                                 <TableHead className="w-[50px]"> </TableHead>
                             </TableRow>
@@ -647,7 +655,6 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                 const rowType = watchedItems[index]?.rawMaterialType || (itemFilterType !== 'All' ? itemFilterType : '');
                                 const rowMaterials = filteredRawMaterials(rowType);
                                 const selectedMaterial = rawMaterials.find(m => m.id === item.rawMaterialId);
-                                const isPaper = paperTypes.includes(rowType);
                                 
                                 return (
                                 <TableRow key={item.id}>
@@ -711,15 +718,19 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                             )}
                                         />
                                     </TableCell>
-                                    <TableCell className="text-center">
-                                        <Input readOnly value={isPaper ? (item.size || '-') : '-'} className={cn("bg-muted/30 border-none h-9 text-xs text-center", !isPaper && "text-muted-foreground/30")} />
-                                    </TableCell>
-                                    <TableCell className="text-center">
-                                        <Input readOnly value={isPaper ? (item.gsm || '-') : '-'} className={cn("bg-muted/30 border-none h-9 text-xs text-center", !isPaper && "text-muted-foreground/30")} />
-                                    </TableCell>
-                                    <TableCell className="text-center">
-                                        <Input readOnly value={isPaper ? (item.bf || '-') : '-'} className={cn("bg-muted/30 border-none h-9 text-xs text-center", !isPaper && "text-muted-foreground/30")} />
-                                    </TableCell>
+                                    {showPaperSpecs && (
+                                        <>
+                                            <TableCell className="text-center">
+                                                <Input readOnly value={item.size || '-'} className="bg-muted/30 border-none h-9 text-xs text-center" />
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                <Input readOnly value={item.gsm || '-'} className="bg-muted/30 border-none h-9 text-xs text-center" />
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                <Input readOnly value={item.bf || '-'} className="bg-muted/30 border-none h-9 text-xs text-center" />
+                                            </TableCell>
+                                        </>
+                                    )}
                                     <TableCell>
                                         <div className="flex gap-2">
                                             <FormField
@@ -773,7 +784,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                         </TableBody>
                         <TableFooter>
                             <TableRow>
-                                <TableCell colSpan={5} className="text-right font-bold">Total</TableCell>
+                                <TableCell colSpan={showPaperSpecs ? 5 : 2} className="text-right font-bold">Total</TableCell>
                                 <TableCell className="font-bold">
                                     {Object.entries(quantityTotalsByUnit).map(([unit, total]) => (
                                         <span key={unit} className="mr-4">{total.toLocaleString()} {unit}</span>
