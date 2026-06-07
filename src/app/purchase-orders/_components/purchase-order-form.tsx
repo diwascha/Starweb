@@ -28,8 +28,6 @@ import { onPurchaseOrdersUpdate, addPurchaseOrder, updatePurchaseOrder } from '@
 import { onUomsUpdate, addUom } from '@/services/uom-service';
 import { Badge } from '@/components/ui/badge';
 import { onPartiesUpdate, addParty, updateParty } from '@/services/party-service';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-
 
 const poItemSchema = z.object({
   rawMaterialId: z.string().min(1, 'Material is required.'),
@@ -857,7 +855,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         <DialogContent>
             <DialogHeader>
                 <DialogTitle>Quick Add Product Category</DialogTitle>
-                <DialogDescription>Define a new material specification. Paper types (Kraft/Virgin) require Size, GSM, and BF.</DialogDescription>
+                <DialogDescription>Define a new material specification. You can also create completely new categories if needed.</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
                  <div className="space-y-2">

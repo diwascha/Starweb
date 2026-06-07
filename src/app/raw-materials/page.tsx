@@ -500,17 +500,41 @@ export default function RawMaterialsPage() {
                 >
                     <div className="grid gap-4 py-4">
                         <div className="space-y-2">
-                            <Label htmlFor="material-type">Type</Label>
-                            <Select onValueChange={setNewMaterialType} value={newMaterialType}>
-                                <SelectTrigger id="material-type">
-                                    <SelectValue placeholder="Select a type" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {materialTypes.map(cat => (
-                                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <Label htmlFor="material-type">Type / Category</Label>
+                            <Popover open={isQuickAddTypePopoverOpen} onOpenChange={setIsQuickAddTypePopoverOpen}>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" role="combobox" className="w-full justify-between">
+                                        {newMaterialType || "Select or type a category..."}
+                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="p-0">
+                                    <Command>
+                                        <CommandInput 
+                                            placeholder="Search or add category..."
+                                            onValueChange={(val) => setNewMaterialType(val)}
+                                        />
+                                        <CommandList>
+                                            <CommandEmpty>
+                                                <button type="button" className="p-2 text-xs text-left w-full hover:bg-muted" onClick={() => setIsQuickAddTypePopoverOpen(false)}>
+                                                    Add new category: "{newMaterialType}"
+                                                </button>
+                                            </CommandEmpty>
+                                            <CommandGroup>
+                                                {materialTypes.map(cat => (
+                                                    <CommandItem key={cat} value={cat} onSelect={() => {
+                                                        setNewMaterialType(cat);
+                                                        setIsQuickAddTypePopoverOpen(false);
+                                                    }}>
+                                                        <Check className={cn("mr-2 h-4 w-4", newMaterialType === cat ? "opacity-100" : "opacity-0")} />
+                                                        {cat}
+                                                    </CommandItem>
+                                                ))}
+                                            </CommandGroup>
+                                        </CommandList>
+                                    </Command>
+                                </PopoverContent>
+                            </Popover>
                         </div>
                         
                         {!isPaperTypeSelectedInDialog && newMaterialType && (
