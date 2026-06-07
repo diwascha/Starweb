@@ -598,7 +598,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                          <div className="w-full sm:w-auto">
                            <Select value={itemFilterType} onValueChange={setItemFilterType}>
                                <SelectTrigger className="w-full sm:w-[180px]">
-                                   <SelectValue placeholder="Global Filter..." />
+                                   <SelectValue placeholder="Global Category..." />
                                </SelectTrigger>
                                <SelectContent>
                                    <SelectItem value="All">All Categories</SelectItem>
@@ -621,7 +621,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                             type="button" 
                             size="sm" 
                             className="w-full sm:w-auto"
-                            onClick={() => addNewItem('All')}
+                            onClick={() => addNewItem(itemFilterType)}
                         >
                             <PlusCircle className="mr-2 h-4 w-4" /> Add Item
                         </Button>
@@ -644,7 +644,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                         </TableHeader>
                         <TableBody>
                             {fields.map((item, index) => {
-                                const rowType = watchedItems[index]?.rawMaterialType;
+                                const rowType = watchedItems[index]?.rawMaterialType || (itemFilterType !== 'All' ? itemFilterType : '');
                                 const rowMaterials = filteredRawMaterials(rowType);
                                 const selectedMaterial = rawMaterials.find(m => m.id === item.rawMaterialId);
                                 const isPaper = paperTypes.includes(rowType);
@@ -652,26 +652,9 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                 return (
                                 <TableRow key={item.id}>
                                     <TableCell>
-                                        <FormField
-                                            control={form.control}
-                                            name={`items.${index}.rawMaterialType`}
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <Select onValueChange={field.onChange} value={field.value}>
-                                                        <FormControl>
-                                                            <SelectTrigger className="h-9 text-xs">
-                                                                <SelectValue placeholder="Type..." />
-                                                            </SelectTrigger>
-                                                        </FormControl>
-                                                        <SelectContent>
-                                                            {allCategories.map(cat => (
-                                                                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                </FormItem>
-                                            )}
-                                        />
+                                        <div className="flex items-center px-2 h-9 text-[10px] font-bold uppercase text-muted-foreground bg-muted/10 rounded-md border border-dashed truncate">
+                                            {watchedItems[index]?.rawMaterialType || (itemFilterType !== 'All' ? itemFilterType : 'Any Category')}
+                                        </div>
                                     </TableCell>
                                     <TableCell>
                                         <FormField
