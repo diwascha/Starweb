@@ -334,6 +334,10 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     }
   }
 
+  const formatLabel = (key: string) => {
+    return key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+  };
+
   const title = poToEdit ? (poToEdit.isDraft ? 'Edit Draft Purchase Order' : 'Amend Finalized Purchase Order') : 'Create New Purchase Order';
 
   const [quickAddForm, setQuickAddForm] = useState({
@@ -635,7 +639,6 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead className="w-[180px]">Category</TableHead>
                                 <TableHead className="w-[300px]">Material</TableHead>
                                 {showPaperSpecs && (
                                     <>
@@ -656,11 +659,6 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                                 
                                 return (
                                 <TableRow key={item.id}>
-                                    <TableCell>
-                                        <div className="flex items-center px-2 h-9 text-[10px] font-bold uppercase text-muted-foreground bg-muted/10 rounded-md border border-dashed truncate">
-                                            {watchedItems[index]?.rawMaterialType || (itemFilterType !== 'All' ? itemFilterType : 'Any Category')}
-                                        </div>
-                                    </TableCell>
                                     <TableCell>
                                         <FormField
                                             control={form.control}
@@ -782,7 +780,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
                         </TableBody>
                         <TableFooter>
                             <TableRow>
-                                <TableCell colSpan={showPaperSpecs ? 5 : 2} className="text-right font-bold">Total</TableCell>
+                                <TableCell colSpan={showPaperSpecs ? 4 : 1} className="text-right font-bold">Total</TableCell>
                                 <TableCell className="font-bold">
                                     {Object.entries(quantityTotalsByUnit).map(([unit, total]) => (
                                         <span key={unit} className="mr-4">{total.toLocaleString()} {unit}</span>
