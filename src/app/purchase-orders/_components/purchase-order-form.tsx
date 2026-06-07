@@ -23,7 +23,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Label } from '@/components/ui/label';
 import { Loader2, GitMerge, Archive, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
-import { onRawMaterialsUpdate, addRawMaterial } from '@/services/raw-material-service';
+import { onRawMaterialsUpdate, addRawMaterial, renameCategory, deleteCategory } from '@/services/raw-material-service';
 import { onPurchaseOrdersUpdate, addPurchaseOrder, updatePurchaseOrder } from '@/services/purchase-order-service';
 import { onUomsUpdate, addUom } from '@/services/uom-service';
 import { Badge } from '@/components/ui/badge';
@@ -31,6 +31,7 @@ import { onPartiesUpdate, addParty, updateParty } from '@/services/party-service
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 const poItemSchema = z.object({
   rawMaterialId: z.string().min(1, 'Material is required.'),
@@ -109,8 +110,12 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   
   const [selectedCategories, setSelectedCategories] = useState<string[]>(['All']);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Category Management State
   const [isQuickAddMaterialDialogOpen, setIsQuickAddMaterialDialogOpen] = useState(false);
   const [quickAddMaterialSearch, setQuickAddMaterialSearch] = useState('');
+  const [isRenamingCategory, setIsRenamingCategory] = useState(false);
+  const [categoryRenameValue, setCategoryRenameValue] = useState('');
   
   const [unitInputValue, setUnitInputValue] = useState('');
   const [isQuickAddUnitPopoverOpen, setIsQuickAddUnitPopoverOpen] = useState(false);
@@ -338,12 +343,6 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     }
   }
 
-  const formatLabel = (key: string) => {
-    return key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-  };
-
-  const title = poToEdit ? (poToEdit.isDraft ? 'Edit Draft Purchase Order' : 'Amend Finalized Purchase Order') : 'Create New Purchase Order';
-
   const [quickAddForm, setQuickAddForm] = useState({
     type: '', name: '', size: '', gsm: '', bf: '', units: [] as string[]
   });
@@ -425,6 +424,30 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     }
   };
   
+  const handleRenameCategory = async () => {
+    if (!user || !quickAddForm.type || !categoryRenameValue.trim()) return;
+    try {
+        await renameCategory(quickAddForm.type, categoryRenameValue.trim(), user.username);
+        setQuickAddForm(prev => ({ ...prev, type: categoryRenameValue.trim() }));
+        setIsRenamingCategory(false);
+        setCategoryRenameValue('');
+        toast({ title: 'Success', description: 'Category renamed globally.' });
+    } catch {
+        toast({ title: 'Error', description: 'Failed to rename category.', variant: 'destructive' });
+    }
+  };
+
+  const handleDeleteCategoryItems = async () => {
+    if (!quickAddForm.type) return;
+    try {
+        await deleteCategory(quickAddForm.type);
+        setQuickAddForm(prev => ({ ...prev, type: '' }));
+        toast({ title: 'Success', description: 'Category deleted and associated materials removed.' });
+    } catch {
+        toast({ title: 'Error', description: 'Failed to delete category.', variant: 'destructive' });
+    }
+  };
+
   const allUnits = useMemo(() => {
     return uoms.map(u => u.abbreviation).sort();
   }, [uoms]);
@@ -876,41 +899,83 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
             <div className="grid gap-4 py-4">
                  <div className="space-y-2">
                     <Label htmlFor="quick-add-type">Category / Type</Label>
-                    <Popover open={isQuickAddTypePopoverOpen} onOpenChange={setIsQuickAddTypePopoverOpen}>
-                        <PopoverTrigger asChild>
-                            <Button variant="outline" role="combobox" className="w-full justify-between">
-                                {quickAddForm.type || "Select or type a category..."}
-                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="p-0">
-                            <Command>
-                                <CommandInput 
-                                    placeholder="Search or add category..."
-                                    onValueChange={(val) => setQuickAddForm(prev => ({...prev, type: val}))}
-                                />
-                                <CommandList>
-                                    <CommandEmpty>
-                                        <button type="button" className="p-2 text-xs text-left w-full hover:bg-muted" onClick={() => setIsQuickAddTypePopoverOpen(false)}>
-                                            Add new category: "{quickAddForm.type}"
-                                        </button>
-                                    </CommandEmpty>
-                                    <CommandGroup>
-                                        {allCategories.map(cat => (
-                                            <CommandItem key={cat} value={cat} onSelect={() => {
-                                                setQuickAddForm(prev => ({...prev, type: cat}));
-                                                setIsQuickAddTypePopoverOpen(false);
-                                            }}>
-                                                <Check className={cn("mr-2 h-4 w-4", quickAddForm.type === cat ? "opacity-100" : "opacity-0")} />
-                                                {cat}
-                                            </CommandItem>
-                                        ))}
-                                    </CommandGroup>
-                                </CommandList>
-                            </Command>
-                        </PopoverContent>
-                    </Popover>
+                    <div className="flex gap-2">
+                        <Popover open={isQuickAddTypePopoverOpen} onOpenChange={setIsQuickAddTypePopoverOpen}>
+                            <PopoverTrigger asChild>
+                                <Button variant="outline" role="combobox" className="w-full justify-between h-9">
+                                    {quickAddForm.type || "Select or type a category..."}
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="p-0">
+                                <Command>
+                                    <CommandInput 
+                                        placeholder="Search or add category..."
+                                        onValueChange={(val) => setQuickAddForm(prev => ({...prev, type: val}))}
+                                    />
+                                    <CommandList>
+                                        <CommandEmpty>
+                                            <button type="button" className="p-2 text-xs text-left w-full hover:bg-muted" onClick={() => setIsQuickAddTypePopoverOpen(false)}>
+                                                Add new category: "{quickAddForm.type}"
+                                            </button>
+                                        </CommandEmpty>
+                                        <CommandGroup>
+                                            {allCategories.map(cat => (
+                                                <CommandItem key={cat} value={cat} onSelect={() => {
+                                                    setQuickAddForm(prev => ({...prev, type: cat}));
+                                                    setIsQuickAddTypePopoverOpen(false);
+                                                }}>
+                                                    <Check className={cn("mr-2 h-4 w-4", quickAddForm.type === cat ? "opacity-100" : "opacity-0")} />
+                                                    {cat}
+                                                </CommandItem>
+                                            ))}
+                                        </CommandGroup>
+                                    </CommandList>
+                                </Command>
+                            </PopoverContent>
+                        </Popover>
+                        {quickAddForm.type && (
+                            <div className="flex gap-1">
+                                <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => { setIsRenamingCategory(true); setCategoryRenameValue(quickAddForm.type); }}>
+                                    <Edit className="h-4 w-4" />
+                                </Button>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="outline" size="icon" className="h-9 w-9 text-destructive">
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Delete category "{quickAddForm.type}"?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                This will permanently delete all raw material items associated with this category. This action cannot be undone.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={handleDeleteCategoryItems}>Confirm Delete</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </div>
+                        )}
+                    </div>
                  </div>
+                 
+                 {isRenamingCategory && (
+                    <div className="flex items-center gap-2 p-3 bg-muted rounded-md animate-in fade-in slide-in-from-top-2">
+                        <Input 
+                            value={categoryRenameValue} 
+                            onChange={e => setCategoryRenameValue(e.target.value)}
+                            placeholder="New category name..."
+                            className="h-8 text-xs bg-white"
+                        />
+                        <Button size="sm" variant="outline" onClick={() => setIsRenamingCategory(false)} className="h-8">Cancel</Button>
+                        <Button size="sm" onClick={handleRenameCategory} className="h-8">Apply</Button>
+                    </div>
+                 )}
+
                  {quickAddForm.type && !paperTypes.includes(quickAddForm.type) && (
                      <div className="space-y-2">
                          <Label htmlFor="quick-add-name">Name / Description</Label>

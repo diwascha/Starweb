@@ -1,6 +1,18 @@
-
 import { getFirebase } from '@/lib/firebase';
-import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
+import { 
+    collection, 
+    addDoc, 
+    getDocs, 
+    doc, 
+    updateDoc, 
+    deleteDoc, 
+    onSnapshot, 
+    DocumentData, 
+    QueryDocumentSnapshot,
+    query,
+    where,
+    writeBatch
+} from 'firebase/firestore';
 import type { RawMaterial, UnitOfMeasurement } from '@/lib/types';
 import { getUoms, addUom } from './uom-service';
 
@@ -31,7 +43,6 @@ export const getRawMaterials = async (): Promise<RawMaterial[]> => {
     return snapshot.docs.map(fromFirestore);
 };
 
-
 // Function to consolidate units
 const consolidateUnits = async (materials: RawMaterial[], createdBy: string = 'System') => {
     try {
@@ -50,7 +61,6 @@ const consolidateUnits = async (materials: RawMaterial[], createdBy: string = 'S
         });
         
         if (newUnitsToAdd.size > 0) {
-            console.log(`Found ${newUnitsToAdd.size} new units to add:`, Array.from(newUnitsToAdd));
             const promises = Array.from(newUnitsToAdd).map(abbr => {
                  const newUom: Omit<UnitOfMeasurement, 'id'> = {
                     name: abbr,
@@ -61,16 +71,13 @@ const consolidateUnits = async (materials: RawMaterial[], createdBy: string = 'S
                 return addUom(newUom);
             });
             await Promise.all(promises);
-            console.log("Successfully added new units to the UoM collection.");
         }
     } catch (error) {
         console.error("Error during unit consolidation:", error);
     }
 };
 
-
 export const addRawMaterial = async (material: Omit<RawMaterial, 'id'>): Promise<string> => {
-    // Consolidate units before adding new material
     if (material.units) {
       const existingUoms = await getUoms();
       const existingAbbrs = new Set(existingUoms.map(u => u.abbreviation.toLowerCase()));
@@ -88,7 +95,6 @@ export const onRawMaterialsUpdate = (callback: (materials: RawMaterial[]) => voi
     return onSnapshot(getRawMaterialsCollection(), 
         (snapshot) => {
             const materials = snapshot.docs.map(fromFirestore);
-            // Consolidate units in the background
             consolidateUnits(materials);
             callback(materials);
         },
@@ -99,7 +105,6 @@ export const onRawMaterialsUpdate = (callback: (materials: RawMaterial[]) => voi
 };
 
 export const updateRawMaterial = async (id: string, material: Partial<Omit<RawMaterial, 'id'>>): Promise<void> => {
-    // Consolidate units before updating material
     if (material.units && material.lastModifiedBy) {
       const existingUoms = await getUoms();
       const existingAbbrs = new Set(existingUoms.map(u => u.abbreviation.toLowerCase()));
@@ -116,4 +121,40 @@ export const updateRawMaterial = async (id: string, material: Partial<Omit<RawMa
 export const deleteRawMaterial = async (id: string): Promise<void> => {
     const materialDoc = doc(getRawMaterialsCollection(), id);
     await deleteDoc(materialDoc);
+};
+
+export const renameCategory = async (oldName: string, newName: string, modifiedBy: string): Promise<void> => {
+    const { db } = getFirebase();
+    const q = query(getRawMaterialsCollection(), where("type", "==", oldName));
+    const snapshot = await getDocs(q);
+    
+    if (snapshot.empty) return;
+
+    const batch = writeBatch(db);
+    const now = new Date().toISOString();
+
+    snapshot.docs.forEach(docSnap => {
+        batch.update(docSnap.ref, {
+            type: newName,
+            lastModifiedBy: modifiedBy,
+            lastModifiedAt: now
+        });
+    });
+
+    await batch.commit();
+};
+
+export const deleteCategory = async (name: string): Promise<void> => {
+    const { db } = getFirebase();
+    const q = query(getRawMaterialsCollection(), where("type", "==", name));
+    const snapshot = await getDocs(q);
+    
+    if (snapshot.empty) return;
+
+    const batch = writeBatch(db);
+    snapshot.docs.forEach(docSnap => {
+        batch.delete(docSnap.ref);
+    });
+
+    await batch.commit();
 };
