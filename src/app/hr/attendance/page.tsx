@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
@@ -24,17 +23,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import NepaliDate from 'nepali-date-converter';
 import { format as formatDate } from 'date-fns';
+import { NEPALI_MONTHS } from '@/lib/constants';
 
 
 type SortKey = 'date' | 'employeeName' | 'status' | 'regularHours' | 'overtimeHours';
 type SortDirection = 'asc' | 'desc';
-
-const nepaliMonths = [
-    { value: 0, name: "Baishakh" }, { value: 1, name: "Jestha" }, { value: 2, name: "Ashadh" },
-    { value: 3, name: "Shrawan" }, { value: 4, name: "Bhadra" }, { value: 5, name: "Ashwin" },
-    { value: 6, name: "Kartik" }, { value: 7, name: "Mangsir" }, { value: 8, "name": "Poush" },
-    { value: 9, name: "Magh" }, { value: 10, name: "Falgun" }, { value: 11, name: "Chaitra" }
-];
 
 const attendanceStatuses: AttendanceStatus[] = ['Present', 'Absent', 'C/I Miss', 'C/O Miss', 'Saturday', 'Public Holiday', 'EXTRAOK'];
 const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -299,7 +292,7 @@ export default function AttendancePage() {
         const month = parseInt(selectedBsMonth);
         await deleteAttendanceForMonth(year, month);
         await fetchAttendanceData(); // Refetch data
-        toast({ title: 'Cleanup Successful', description: `Attendance and Payroll data for ${nepaliMonths[month].name} ${year} has been removed.` });
+        toast({ title: 'Cleanup Successful', description: `Attendance and Payroll data for ${NEPALI_MONTHS[month].name} ${year} has been removed.` });
     } catch (error) {
         console.error("Failed to clean month data:", error);
         toast({ title: 'Cleanup Failed', description: 'Could not remove the monthly data.', variant: 'destructive' });
@@ -363,107 +356,6 @@ export default function AttendancePage() {
       return ['All', ...Array.from(names).sort()];
   }, [employees]);
   
-  const renderContent = () => {
-    if (isDataLoading) return <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24"><h3 className="text-2xl font-bold tracking-tight">Loading...</h3></div>;
-    
-    if (attendance.length === 0) {
-      return (
-        <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
-          <div className="flex flex-col items-center gap-1 text-center">
-            <h3 className="text-2xl font-bold tracking-tight">No attendance records for this period</h3>
-            <p className="text-sm text-muted-foreground">Get started by importing an Excel file.</p>
-             {hasPermission('hr', 'create') && (
-                <Button className="mt-4" onClick={() => fileInputRef.current?.click()} disabled={!!importProgress}>
-                    {importProgress ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {importProgress}</> : <><Upload className="mr-2 h-4 w-4" /> Import Attendance</>}
-                </Button>
-            )}
-          </div>
-        </div>
-      );
-    }
-    
-    return (
-      <Card>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead><Button variant="ghost" onClick={() => requestSort('date')}>Date (AD) <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-              <TableHead>Date (BS)</TableHead>
-              <TableHead>Weekday</TableHead>
-              <TableHead><Button variant="ghost" onClick={() => requestSort('employeeName')}>Employee Name <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-              <TableHead>Source Sheet</TableHead>
-              <TableHead><Button variant="ghost" onClick={() => requestSort('status')}>Status <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-              <TableHead>On/Off Duty</TableHead>
-              <TableHead>Clock In/Out</TableHead>
-              <TableHead><Button variant="ghost" onClick={() => requestSort('regularHours')}>Regular Hours <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-              <TableHead><Button variant="ghost" onClick={() => requestSort('overtimeHours')}>Overtime Hours <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-              <TableHead>Remarks</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredAndSortedRecords.map(record => {
-              const dayOfWeek = record.date ? weekdays[getDay(new Date(record.date))] : '';
-              const isSaturday = dayOfWeek === 'Saturday';
-              const isAbsent = record.status === 'Absent';
-              return (
-              <TableRow key={record.id} className={cn(
-                isSaturday && 'bg-yellow-100',
-                isAbsent && 'bg-red-100'
-              )}>
-                <TableCell className="font-medium">{record.date ? formatDate(new Date(record.date), 'yyyy-MM-dd') : '-'}</TableCell>
-                <TableCell>{record.bsDate}</TableCell>
-                <TableCell>{dayOfWeek}</TableCell>
-                <TableCell>{record.employeeName}</TableCell>
-                <TableCell>{record.sourceSheet || 'N/A'}</TableCell>
-                 <TableCell><Badge variant={getAttendanceBadgeVariant(record.status as AttendanceStatus)}>{record.status}</Badge></TableCell>
-                <TableCell>{formatTimeForDisplay(record.onDuty)} / {formatTimeForDisplay(record.offDuty)}</TableCell>
-                <TableCell>{formatTimeForDisplay(record.clockIn)} / {formatTimeForDisplay(record.clockOut)}</TableCell>
-                <TableCell>{(Number(record.regularHours) || 0).toFixed(1)}</TableCell>
-                <TableCell>{(Number(record.overtimeHours) || 0).toFixed(1)}</TableCell>
-                <TableCell>{record.remarks}</TableCell>
-                <TableCell className="text-right">
-                  <DropdownMenu>
-                      <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                          <DropdownMenuItem onSelect={() => { setSelectedRawData(record.rawImportData || {}); setIsRawDataDialogOpen(true); }}><View className="mr-2 h-4 w-4" /> View Raw Data</DropdownMenuItem>
-                          <DropdownMenuItem onSelect={() => handleOpenEditDialog(record)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <AlertDialog>
-                              <AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()}><Trash2 className="mr-2 h-4 w-4 text-destructive" /> <span className="text-destructive">Delete</span></DropdownMenuItem></AlertDialogTrigger>
-                              <AlertDialogContent>
-                                  <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the attendance record.</AlertDialogDescription></AlertDialogHeader>
-                                  <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(record.id)}>Delete</AlertDialogAction></AlertDialogFooter>
-                              </AlertDialogContent>
-                          </AlertDialog>
-                      </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
-            )})}
-          </TableBody>
-        </Table>
-      </Card>
-    );
-  };
-  
-  const handleSheetSelectionChange = (sheetName: string, checked: boolean) => {
-    const currentNepaliDate = new NepaliDate();
-    if (checked) {
-        setSelectedSheets(prev => [...prev, {
-            name: sheetName,
-            year: selectedBsYear || String(currentNepaliDate.getYear()),
-            month: selectedBsMonth || String(currentNepaliDate.getMonth())
-        }]);
-    } else {
-        setSelectedSheets(prev => prev.filter(s => s.name !== sheetName));
-    }
-  };
-
-  const handleSheetPeriodChange = (sheetName: string, type: 'year' | 'month', value: string) => {
-      setSelectedSheets(prev => prev.map(s => s.name === sheetName ? { ...s, [type]: value } : s));
-  };
-  
   const allPossibleStatuses = useMemo(() => {
     const statuses = new Set(attendance.map(a => a.status).filter(s => s && s.trim() !== ''));
     return ['All', ...Array.from(statuses).sort()];
@@ -497,7 +389,7 @@ export default function AttendancePage() {
             <div className="flex flex-col sm:flex-row flex-wrap gap-2 items-center">
                 <Label>Filter by:</Label>
                 <Select value={selectedBsYear} onValueChange={setSelectedBsYear}><SelectTrigger className="w-full sm:w-[120px]"><SelectValue placeholder="Year (BS)" /></SelectTrigger><SelectContent>{bsYears.map(year => (<SelectItem key={year} value={String(year)}>{year}</SelectItem>))}</SelectContent></Select>
-                <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth}><SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Month (BS)" /></SelectTrigger><SelectContent>{nepaliMonths.map(month => (<SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>))}</SelectContent></Select>
+                <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth}><SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Month (BS)" /></SelectTrigger><SelectContent>{NEPALI_MONTHS.map(month => (<SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>))}</SelectContent></Select>
                 <Select value={filterEmployeeName} onValueChange={setFilterEmployeeName}><SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Select Employee" /></SelectTrigger><SelectContent>{uniqueEmployeeNames.map(name => (<SelectItem key={name} value={name}>{name}</SelectItem>))}</SelectContent></Select>
                 <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as 'All' | AttendanceStatus)}><SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Select Status" /></SelectTrigger><SelectContent>{allPossibleStatuses.filter(s => !!s).map(status => (<SelectItem key={status} value={status}>{status}</SelectItem>))}</SelectContent></Select>
                 <AlertDialog>
@@ -506,7 +398,7 @@ export default function AttendancePage() {
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                             <AlertDialogHeader>
-                                <AlertDialogTitle>Delete All Data for {nepaliMonths[parseInt(selectedBsMonth)]?.name}, {selectedBsYear}?</AlertDialogTitle>
+                                <AlertDialogTitle>Delete All Data for {NEPALI_MONTHS[parseInt(selectedBsMonth)]?.name}, {selectedBsYear}?</AlertDialogTitle>
                                 <AlertDialogDescription>
                                     This action cannot be undone. This will permanently delete all attendance AND payroll records for the selected month.
                                 </AlertDialogDescription>
@@ -596,7 +488,7 @@ export default function AttendancePage() {
                                             </Select>
                                             <Select value={currentSelection.month} onValueChange={(value) => handleSheetPeriodChange(sheet.name, 'month', value)}>
                                                 <SelectTrigger className="w-[150px] h-8"><SelectValue /></SelectTrigger>
-                                                <SelectContent>{nepaliMonths.map(month => <SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>)}</SelectContent>
+                                                <SelectContent>{NEPALI_MONTHS.map(month => <SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>)}</SelectContent>
                                             </Select>
                                         </div>
                                     )}

@@ -1,4 +1,3 @@
-
 import { google } from 'googleapis';
 
 // This is the scope we'll need to read and write to Google Sheets
@@ -7,14 +6,18 @@ const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
 // This function will authenticate with Google using a service account
 // The credentials for the service account should be stored in environment variables
 const getAuth = () => {
-  const credentials = {
-    client_email: process.env.GOOGLE_CLIENT_EMAIL,
-    private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'), // Handle newline characters
-  };
+  const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
+  const privateKey = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
 
-  if (!credentials.client_email || !credentials.private_key) {
-    throw new Error('Google service account credentials are not set in environment variables.');
+  if (!clientEmail || !privateKey) {
+    console.warn('Google service account credentials (GOOGLE_CLIENT_EMAIL, GOOGLE_PRIVATE_KEY) are not set in environment variables. Google Sheets integration will not function.');
+    throw new Error('Google service account credentials are not configured.');
   }
+
+  const credentials = {
+    client_email: clientEmail,
+    private_key: privateKey,
+  };
 
   const auth = new google.auth.GoogleAuth({
     credentials,

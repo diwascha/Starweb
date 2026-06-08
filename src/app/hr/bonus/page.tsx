@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -16,13 +15,7 @@ import NepaliDate from 'nepali-date-converter';
 import { Badge } from '@/components/ui/badge';
 import { Award, CheckCircle, XCircle } from 'lucide-react';
 import { differenceInYears } from 'date-fns';
-
-const nepaliMonths = [
-    { value: 0, name: "Baishakh" }, { value: 1, name: "Jestha" }, { value: 2, name: "Ashadh" },
-    { value: 3, name: "Shrawan" }, { value: 4, name: "Bhadra" }, { value: 5, name: "Ashwin" },
-    { value: 6, name: "Kartik" }, { value: 7, name: "Mangsir" }, { value: 8, "name": "Poush" },
-    { value: 9, name: "Magh" }, { value: 10, name: "Falgun" }, { value: 11, name: "Chaitra" }
-];
+import { NEPALI_MONTHS } from '@/lib/constants';
 
 const customEmployeeOrder = [
     "Tika Gurung",
@@ -119,8 +112,8 @@ export default function BonusPage() {
                 }
             });
 
-            const qualifyingStasuses: string[] = ['Present', 'Public Holiday', 'Saturday', 'EXTRAOK'];
-            const presentDays = employeeAttendance.filter(r => qualifyingStasuses.includes(r.status)).length;
+            const qualifyingStatuses: string[] = ['Present', 'Public Holiday', 'Saturday', 'EXTRAOK'];
+            const presentDays = employeeAttendance.filter(r => qualifyingStatuses.includes(r.status)).length;
             
             let tenureYears = 0;
             if (employee.joiningDate) {
@@ -193,7 +186,7 @@ export default function BonusPage() {
                             </Select>
                             <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth} disabled={isLoading || bsYears.length === 0}>
                                 <SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Month (BS)" /></SelectTrigger>
-                                <SelectContent>{nepaliMonths.map(month => <SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>)}</SelectContent>
+                                <SelectContent>{NEPALI_MONTHS.map(month => <SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>)}</SelectContent>
                             </Select>
                         </div>
                         <div className="space-y-2">
@@ -222,7 +215,7 @@ export default function BonusPage() {
                             <div>
                                 <CardTitle>Bonus Eligibility Report</CardTitle>
                                 <CardDescription>
-                                    For {nepaliMonths[parseInt(selectedBsMonth)]?.name}, {selectedBsYear}
+                                    For {NEPALI_MONTHS[parseInt(selectedBsMonth)]?.name}, {selectedBsYear}
                                 </CardDescription>
                             </div>
                              <Button onClick={handleApplyBonuses}>

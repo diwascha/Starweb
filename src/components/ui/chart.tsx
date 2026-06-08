@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -38,10 +37,10 @@ const ChartLegendContext = React.createContext<
 >(null)
 
 function useChartLegend() {
-  const context = React.createContext(ChartLegendContext)
+  const context = React.useContext(ChartLegendContext)
 
   if (!context) {
-    throw new Error("useChartLegend must be used within a <Chart />")
+    return null;
   }
 
   return context
@@ -130,7 +129,7 @@ const PieChart = React.forwardRef<
   }, [config])
 
   return (
-    <ChartLegendContext.Provider value={legend}>
+    <ChartLegendContext.Provider value={legend as any}>
       <Chart
         ref={ref}
         config={config}
@@ -145,7 +144,7 @@ const PieChart = React.forwardRef<
 PieChart.displayName = "PieChart"
 
 const Pie = React.forwardRef<
-  React.ElementRef<typeof RechartsPieChart>,
+  any,
   Omit<RechartsPieProps, "activeShape" | "inactiveShape"> & {
     activeShape?: React.ComponentType<PieSectorDataItem>
     inactiveShape?: React.ComponentType<PieSectorDataItem>
@@ -194,7 +193,6 @@ const Pie = React.forwardRef<
   return (
     <RechartsPie
       {...props}
-      // @ts-ignore
       ref={ref}
       className={cn(
         "fill-chart-1 stroke-border",
@@ -212,7 +210,7 @@ const Pie = React.forwardRef<
           key={`cell-${index}`}
           fill={
             config?.[(entry as any).name]?.color ||
-            `hsl(var(--chart-${index % 5}))`
+            `hsl(var(--chart-${(index % 5) + 1}))`
           }
           data-testid={`pie-cell-${index}`}
         />
@@ -235,23 +233,17 @@ const PieLabel = React.forwardRef<
 >((props, ref) => {
   if (typeof props.children === "function") {
     return (
-      // @ts-ignore
       <Label
-        ref={ref}
         {...props}
-        formatter={(value: string, payload: any[]) => {
-          const entry = payload[0]
-          const { payload: originalPayload, percent } = entry
-          return props.children?.({
-            payload: originalPayload,
-            percent,
-          }) as React.ReactNode
+        content={(labelProps: any) => {
+          const { percent, payload } = labelProps;
+          return props.children?.({ percent, payload }) as any;
         }}
       />
     )
   }
 
-  return <Label ref={ref} {...props} />
+  return <Label {...props} />
 })
 PieLabel.displayName = "PieLabel"
 
@@ -290,4 +282,4 @@ export {
 }
 
 // Re-export zod for convenience
-export *from "zod"
+export * from "zod"

@@ -91,7 +91,7 @@ import { exportData, importData } from '@/services/backup-service';
 import { useRouter } from 'next/navigation';
 import { getPayrollYears } from '@/services/payroll-service';
 import NepaliDate from 'nepali-date-converter';
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart-core';
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
@@ -111,31 +111,7 @@ import {
     CommandItem, 
     CommandList 
 } from '@/components/ui/command';
-
-const nepaliMonths = [
-    { value: 0, name: "Baishakh" }, { value: 1, name: "Jestha" }, { value: 2, name: "Ashadh" },
-    { value: 3, name: "Shrawan" }, { value: 4, name: "Bhadra" }, { value: 5, name: "Ashwin" },
-    { value: 6, name: "Kartik" }, { value: 7, name: "Mangsir" }, { value: 8, "name": "Poush" },
-    { value: 9, name: "Magh" }, { value: 10, name: "Falgun" }, { value: 11, name: "Chaitra" }
-];
-
-const defaultCompanyProfile: CompanyProfile = {
-  nameEn: "Shivam Packaging Industry Private Limited",
-  nameNp: "शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.",
-  address: "Hetauda 08, Bagmati Province, Nepal",
-  phone: "N/A",
-  email: "N/A",
-  pan: "N/A"
-};
-
-const defaultFleetProfile: CompanyProfile = {
-  nameEn: "SIJAN DHUWANI SEWA",
-  nameNp: "सिजन ढुवानी सेवा",
-  address: "HETAUDA 16, BAGMATI PROVIENCE, NEPAL",
-  phone: "N/A",
-  email: "N/A",
-  pan: "304603712"
-};
+import { NEPALI_MONTHS, DEFAULT_COMPANY_PROFILE, DEFAULT_FLEET_PROFILE } from '@/lib/constants';
 
 function MergePartiesDialog({ open, onOpenChange, parties, onMerge }: { open: boolean, onOpenChange: (open: boolean) => void, parties: Party[], onMerge: (sourceId: string, destinationId: string) => void }) {
     const [sourceId, setSourceId] = useState<string>('');
@@ -244,11 +220,11 @@ export default function SettingsPage() {
   const [editingPrefix, setEditingPrefix] = useState<{ key: keyof DocumentPrefixes; value: string } | null>(null);
   
   // Company Profile States
-  const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(defaultCompanyProfile);
+  const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   // Fleet Profile States
-  const [fleetProfile, setFleetProfile] = useState<CompanyProfile>(defaultFleetProfile);
+  const [fleetProfile, setFleetProfile] = useState<CompanyProfile>(DEFAULT_FLEET_PROFILE);
   const [isSavingFleetProfile, setIsSavingFleetProfile] = useState(false);
 
   // Payroll Lock State
@@ -292,8 +268,8 @@ export default function SettingsPage() {
     const unsubUoms = onUomsUpdate(setUoms);
     const unsubPrefixes = onSettingUpdate('documentPrefixes', (setting) => setPrefixes(setting?.value || {}));
     const unsubPayrollLocks = onSettingUpdate('payrollLocks', (setting) => setPayrollLocks(setting?.value || {}));
-    const unsubCompanyProfile = onSettingUpdate('companyProfile', (setting) => setCompanyProfile(setting?.value || defaultCompanyProfile));
-    const unsubFleetProfile = onSettingUpdate('fleetCompanyProfile', (setting) => setFleetProfile(setting?.value || defaultFleetProfile));
+    const unsubCompanyProfile = onSettingUpdate('companyProfile', (setting) => setCompanyProfile(setting?.value || DEFAULT_COMPANY_PROFILE));
+    const unsubFleetProfile = onSettingUpdate('fleetCompanyProfile', (setting) => setFleetProfile(setting?.value || DEFAULT_FLEET_PROFILE));
     const unsubUsage = onPageVisitsUpdate(setPageVisits);
     
     getPayrollYears().then(years => {
@@ -434,7 +410,7 @@ export default function SettingsPage() {
     
     try {
         await setSetting('payrollLocks', newLocks);
-        toast({ title: 'Success', description: `Payroll for ${nepaliMonths.find(m => m.value.toString() === selectedLockMonth)?.name} ${selectedLockYear} has been ${newLocks[lockKey] ? 'locked' : 'unlocked'}.` });
+        toast({ title: 'Success', description: `Payroll for ${NEPALI_MONTHS.find(m => m.value.toString() === selectedLockMonth)?.name} ${selectedLockYear} has been ${newLocks[lockKey] ? 'locked' : 'unlocked'}.` });
     } catch {
         toast({ title: 'Error', description: 'Failed to update lock status.', variant: 'destructive' });
     }
@@ -1166,7 +1142,7 @@ export default function SettingsPage() {
                                 </Select>
                                 <Select value={selectedLockMonth} onValueChange={setSelectedLockMonth} disabled={bsYears.length === 0}>
                                     <SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Month (BS)" /></SelectTrigger>
-                                    <SelectContent>{nepaliMonths.map(month => <SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>)}</SelectContent>
+                                    <SelectContent>{NEPALI_MONTHS.map(month => <SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>)}</SelectContent>
                                 </Select>
                                 <Button onClick={handleTogglePayrollLock} variant={isCurrentPeriodLocked ? 'destructive' : 'default'} className="w-full sm:w-auto">
                                     {isCurrentPeriodLocked ? <><Unlock className="mr-2 h-4 w-4"/> Unlock Period</> : <><Lock className="mr-2 h-4 w-4"/> Lock Period</>}
@@ -1174,7 +1150,7 @@ export default function SettingsPage() {
                             </div>
                             {selectedLockYear && selectedLockMonth && (
                                 <p className="text-sm mt-2 font-semibold">
-                                    Status for {nepaliMonths.find(m => m.value.toString() === selectedLockMonth)?.name}, {selectedLockYear}: 
+                                    Status for {NEPALI_MONTHS.find(m => m.value.toString() === selectedLockMonth)?.name}, {selectedLockYear}: 
                                     <span className={isCurrentPeriodLocked ? 'text-destructive' : 'text-green-600'}>
                                         {isCurrentPeriodLocked ? ' Locked' : ' Unlocked'}
                                     </span>
@@ -1240,7 +1216,7 @@ export default function SettingsPage() {
                                         <SelectTrigger className="h-9 w-[120px] text-xs"><SelectValue placeholder="Month" /></SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="All">All Months</SelectItem>
-                                            {nepaliMonths.map(m => <SelectItem key={m.value} value={String(m.value)}>{m.name}</SelectItem>)}
+                                            {NEPALI_MONTHS.map(m => <SelectItem key={m.value} value={String(m.value)}>{m.name}</SelectItem>)}
                                         </SelectContent>
                                     </Select>
                                 </div>

@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, ChevronsUpDown, Check, PlusCircle, Trash2, Printer, Save, FileText, Loader2, Plus, Edit, Image as ImageIcon } from 'lucide-react';
-import { cn, toWords, toNepaliDate, generateNextEstimateInvoiceNumber } from '@/lib/utils';
+import { cn, toWords, toNepaliDate, generateNextEstimateInvoiceNumber, generateId } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { onPartiesUpdate, addParty, updateParty, getPartyByName } from '@/services/party-service';
@@ -74,7 +74,7 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
         const unsubProducts = onProductsUpdate(setProducts);
 
         if (!invoiceToEdit) {
-            setItems([{ id: Math.random().toString(36).substr(2, 9), productName: '', quantity: 1, rate: 0, gross: 0 }]);
+            setItems([{ id: generateId(), productName: '', quantity: 1, rate: 0, gross: 0 }]);
         }
 
         return () => {
@@ -95,7 +95,7 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
             setParty(existingParty);
           } else {
              // Handle case where party might not exist anymore
-             setParty({ id: '', name: invoiceToEdit.partyName, type: 'Customer' });
+             setParty({ id: '', name: invoiceToEdit.partyName, type: 'Customer', createdBy: '', createdAt: '' });
           }
         } else {
           const nextNumber = await generateNextEstimateInvoiceNumber(allInvoices);
@@ -155,7 +155,7 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
     };
     
     const handleAddItem = () => {
-        setItems([...items, { id: Math.random().toString(36).substr(2, 9), productName: '', quantity: 1, rate: 0, gross: 0 }]);
+        setItems([...items, { id: generateId(), productName: '', quantity: 1, rate: 0, gross: 0 }]);
     };
     
     const handleItemChange = (index: number, field: keyof EstimateInvoiceItem, value: any) => {
@@ -244,7 +244,7 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
                 // Reset form for new entry
                 setDate(new Date());
                 setParty(null);
-                setItems([{ id: Math.random().toString(36).substr(2, 9), productName: '', quantity: 1, rate: 0, gross: 0 }]);
+                setItems([{ id: generateId(), productName: '', quantity: 1, rate: 0, gross: 0 }]);
                 const nextNumber = await generateNextEstimateInvoiceNumber(allInvoices);
                 setInvoiceNumber(nextNumber);
             }

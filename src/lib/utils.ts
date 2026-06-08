@@ -9,6 +9,17 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+/**
+ * Generates a unique ID. Uses crypto.randomUUID where available for security.
+ */
+export const generateId = (): string => {
+  if (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID) {
+    return window.crypto.randomUUID();
+  }
+  // Fallback for older browsers or non-secure contexts
+  return Math.random().toString(36).substring(2, 11);
+};
+
 export const normalizeBF = (val: any): string => {
   if (val === undefined || val === null || val === '') return "";
   const trimmed = String(val).trim();

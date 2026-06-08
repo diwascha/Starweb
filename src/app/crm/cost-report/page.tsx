@@ -59,7 +59,7 @@ import {
 } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { cn, toNepaliDate, normalizeBF } from '@/lib/utils';
+import { cn, toNepaliDate, normalizeBF, generateId } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
@@ -75,15 +75,7 @@ import React from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import html2canvas from 'html2canvas';
-
-const defaultCompanyProfile: CompanyProfile = {
-  nameEn: "Shivam Packaging Industry Private Limited",
-  nameNp: "शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.",
-  address: "Hetauda 08, Bagmati Province, Nepal",
-  phone: "N/A",
-  email: "N/A",
-  pan: "N/A"
-};
+import { DEFAULT_COMPANY_PROFILE } from '@/lib/constants';
 
 const bfOptions = ['16 BF', '18 BF', '20 BF', '22 BF'];
 const plyOptions = ['3', '5', '7', '9'];
@@ -103,7 +95,7 @@ const getGsmDisplay = (item: any) => {
     return layers.filter(l => l !== undefined && l !== null && String(l).trim() !== '').join('/');
 };
 
-interface QuotationPreviewDialogProps {
+interface QuotationPreviewDialog {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   reportNumber: string;
@@ -115,7 +107,7 @@ interface QuotationPreviewDialogProps {
   companyProfile: CompanyProfile;
 }
 
-function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate, party, items, products, termsAndConditions = [], companyProfile }: QuotationPreviewDialogProps) {
+function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate, party, items, products, termsAndConditions = [], companyProfile }: QuotationPreviewDialog) {
   const printRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
@@ -596,7 +588,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
     const spec = product.specification || {};
     const [dimL, dimB, dimH] = (spec.dimension || '').split('x');
     const base: any = {
-        id: Math.random().toString(36).substr(2, 9),
+        id: generateId(),
         productId: product.id,
         l: dimL || '',
         b: dimB || '',
@@ -628,7 +620,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
   }, [calculateItemCost, kraftPaperCosts, virginPaperCost, conversionCost, accessoryConversionCost, transportCost, transportCostType]);
 
   const handleAddItem = () => {
-    const base: any = { id: Math.random().toString(36).substr(2, 9), productId: '', l:'', b:'', h:'', noOfPcs:'1', ply:'3', fluteType: 'B', paperType: 'KRAFT', paperBf:'18 BF', paperShade: 'NS', boxType: 'RSC', topGsm:'120', flute1Gsm:'100', middleGsm:'', flute2Gsm:'', bottomGsm:'120', liner2Gsm:'', flute3Gsm:'', liner3Gsm:'', flute4Gsm:'', liner4Gsm:'', wastagePercent:'3.5', accessories: [] };
+    const base: any = { id: generateId(), productId: '', l:'', b:'', h:'', noOfPcs:'1', ply:'3', fluteType: 'B', paperType: 'KRAFT', paperBf:'18 BF', paperShade: 'NS', boxType: 'RSC', topGsm:'120', flute1Gsm:'100', middleGsm:'', flute2Gsm:'', bottomGsm:'120', liner2Gsm:'', flute3Gsm:'', liner3Gsm:'', flute4Gsm:'', liner4Gsm:'', wastagePercent:'3.5', accessories: [] };
     const newItem = { ...base, calculated: calculateItemCost(base, kraftPaperCosts, Number(virginPaperCost) || 0, Number(conversionCost) || 0, Number(transportCost) || 0, transportCostType) };
     setItems([...items, newItem]);
     setSelectedForPrint(new Set(selectedForPrint).add(newItem.id));
@@ -637,7 +629,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
   const handleAddAccessory = (idx: number, typeName: string = 'Internal Pad') => {
     const parent = items[idx];
     const newAcc: Accessory = {
-        id: Math.random().toString(36).substr(2, 9),
+        id: generateId(),
         name: typeName === 'Manual Entry' ? '' : typeName,
         l: parent.l,
         b: parent.b,
@@ -1392,7 +1384,7 @@ function ProductForm({ productToEdit, onSaveSuccess }: any) {
     const p = parseInt(form.specification.ply, 10);
 
     return (
-        <div className="space-y-6 pt-2 pb-8">
+        <div className="space-y-6 pt-2 pb-8 overflow-y-auto max-h-[75vh]">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                     <h3 className="text-xs font-bold uppercase border-b pb-1 text-muted-foreground">General Info</h3>
@@ -1533,13 +1525,13 @@ export default function CostReportPage() {
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
     const [previewData, setPreviewData] = useState<any>(null);
     const [products, setProducts] = useState<Product[]>([]);
-    const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(defaultCompanyProfile);
+    const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE);
     const { user } = useAuth();
     const { toast } = useToast();
 
     useEffect(() => {
         const unsubProducts = onProductsUpdate(setProducts);
-        const unsubProfile = onSettingUpdate('companyProfile', (s) => setCompanyProfile(s?.value || defaultCompanyProfile));
+        const unsubProfile = onSettingUpdate('companyProfile', (s) => setCompanyProfile(s?.value || DEFAULT_COMPANY_PROFILE));
         return () => {
             unsubProducts();
             unsubProfile();

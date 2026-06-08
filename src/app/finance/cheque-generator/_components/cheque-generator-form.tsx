@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, ChevronsUpDown, Check, PlusCircle, Printer, Save, Loader2, Trash2, Plus, Image as ImageIcon } from 'lucide-react';
-import { cn, toWords, generateNextVoucherNumber, toNepaliDate } from '@/lib/utils';
+import { cn, toWords, generateNextVoucherNumber, toNepaliDate, generateId } from '@/lib/utils';
 import { format, addDays, parseISO } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { onPartiesUpdate, addParty } from '@/services/party-service';
@@ -80,7 +80,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
         // Initial splits on mount to avoid hydration mismatch
         if (!chequeToEdit) {
             setChequeSplits([{
-                id: Math.random().toString(36).substr(2, 9),
+                id: generateId(),
                 chequeDate: new Date(),
                 chequeNumber: '',
                 amount: '',
@@ -113,7 +113,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                 const baseDate = chequeToEdit.invoiceDate ? new Date(chequeToEdit.invoiceDate) : new Date(chequeToEdit.paymentDate);
                 const interval = Math.round((splitDate.getTime() - baseDate.getTime()) / (1000 * 3600 * 24));
                 return {
-                    id: s.id || Math.random().toString(36).substr(2, 9),
+                    id: s.id || generateId(),
                     chequeDate: splitDate,
                     chequeNumber: s.chequeNumber,
                     amount: s.amount,
@@ -235,7 +235,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
         setInvoiceAmount('');
         setNumberOfSplits(1);
         setSelectedAccountId(undefined);
-        setChequeSplits([{ id: Math.random().toString(36).substr(2, 9), chequeDate: new Date(), chequeNumber: '', amount: '', remarks: '', interval: 0, status: 'Due', partialPayments: [] }]);
+        setChequeSplits([{ id: generateId(), chequeDate: new Date(), chequeNumber: '', amount: '', remarks: '', interval: 0, status: 'Due', partialPayments: [] }]);
         onSaveSuccess();
     };
 
