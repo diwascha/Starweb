@@ -14,9 +14,19 @@ export const coerceNumber = (val: any, fallback: number = 0): number => {
   return isNaN(num) ? fallback : num;
 };
 
+// Throttled logging to prevent performance degradation during errors
+const errorLog = new Map<string, number>();
+
 /**
  * Standard error logger for services.
  */
 export const logServiceError = (context: string, error: any) => {
-  console.error(`[Service Error: ${context}]`, error?.message || error);
+  const lastLog = errorLog.get(context) || 0;
+  // Max 1 error per 5 seconds per context to avoid blocking the main thread
+  if (Date.now() - lastLog > 5000) {
+    if (process.env.NODE_ENV === 'development') {
+        console.error(`[Service Error: ${context}]`, error?.message || error);
+    }
+    errorLog.set(context, Date.now());
+  }
 };

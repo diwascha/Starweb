@@ -26,23 +26,23 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Vehicle =
     };
 }
 
+// Memory cache to avoid repeated JSON parsing from sessionStorage
+const vehicleCache = new Map<string, { data: Vehicle[]; timestamp: number }>();
+
 export const getVehicles = async (useCache = false): Promise<Vehicle[]> => {
-    if (useCache && typeof window !== 'undefined') {
-        const cached = sessionStorage.getItem('vehicles');
-        if (cached) {
-             try {
-                return JSON.parse(cached);
-            } catch (e) {
-                console.error("Failed to parse cached vehicles:", e);
-                sessionStorage.removeItem('vehicles');
-            }
+    if (useCache) {
+        const cached = vehicleCache.get('vehicles');
+        // Cache valid for 60 seconds
+        if (cached && Date.now() - cached.timestamp < 60000) {
+            return cached.data;
         }
     }
+    
     const snapshot = await getDocs(getVehiclesCollection());
     const vehicles = snapshot.docs.map(fromFirestore);
-    if (typeof window !== 'undefined') {
-        sessionStorage.setItem('vehicles', JSON.stringify(vehicles));
-    }
+    
+    vehicleCache.set('vehicles', { data: vehicles, timestamp: Date.now() });
+    
     return vehicles;
 };
 
@@ -58,9 +58,7 @@ export const onVehiclesUpdate = (callback: (vehicles: Vehicle[]) => void): () =>
     return onSnapshot(getVehiclesCollection(), 
         (snapshot) => {
             const vehicles = snapshot.docs.map(fromFirestore);
-             if (typeof window !== 'undefined') {
-                sessionStorage.setItem('vehicles', JSON.stringify(vehicles));
-            }
+            vehicleCache.set('vehicles', { data: vehicles, timestamp: Date.now() });
             callback(vehicles);
         },
         (error) => {
