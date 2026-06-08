@@ -20,6 +20,13 @@ export const generateId = (): string => {
   return Math.random().toString(36).substring(2, 11);
 };
 
+/**
+ * Normalizes a path by removing trailing slashes.
+ */
+export const getNormalizedPath = (path: string): string => {
+  return path.replace(/\/$/, '') || '/';
+};
+
 export const normalizeBF = (val: any): string => {
   if (val === undefined || val === null || val === '') return "";
   const trimmed = String(val).trim();
@@ -33,110 +40,49 @@ export const normalizeBF = (val: any): string => {
   return trimmed;
 };
 
-export const generateNextSerialNumber = async (reports: Pick<Report, 'serialNumber'>[]): Promise<string> => {
+/**
+ * Generic helper to generate the next serial/document number.
+ */
+export const generateNextNumber = async (
+  items: any[],
+  fieldName: string,
+  settingKey: keyof DocumentPrefixes,
+  defaultPrefix: string
+): Promise<string> => {
   const prefixSetting = await getSetting('documentPrefixes');
   const prefixes = prefixSetting?.value as DocumentPrefixes || {};
-  const serialPrefix = prefixes.report || '2082/083-';
+  const prefix = prefixes[settingKey] || defaultPrefix;
   
   let maxNumber = 0;
-
-  reports.forEach(report => {
-    if (report && report.serialNumber && report.serialNumber.startsWith(serialPrefix)) {
-      const numPart = parseInt(report.serialNumber.substring(serialPrefix.length), 10);
+  
+  items.forEach(item => {
+    const numberField = item[fieldName];
+    if (numberField && typeof numberField === 'string' && numberField.startsWith(prefix)) {
+      const numPart = parseInt(numberField.substring(prefix.length), 10);
       if (!isNaN(numPart) && numPart > maxNumber) {
         maxNumber = numPart;
       }
     }
   });
-
+  
   const nextNumber = maxNumber + 1;
-  return `${serialPrefix}${nextNumber.toString().padStart(3, '0')}`;
+  return `${prefix}${nextNumber.toString().padStart(3, '0')}`;
 };
 
-export const generateNextPONumber = async (items: Pick<PurchaseOrder, 'poNumber'>[]): Promise<string> => {
-    const prefixSetting = await getSetting('documentPrefixes');
-    const prefixes = prefixSetting?.value as DocumentPrefixes || {};
-    const poPrefix = prefixes.purchaseOrder || 'SPI-';
-    
-    let maxNumber = 0;
+export const generateNextSerialNumber = (reports: Pick<Report, 'serialNumber'>[]) =>
+  generateNextNumber(reports, 'serialNumber', 'report', '2082/083-');
 
-    items.forEach(item => {
-        const numToCheck = item.poNumber;
-        if(numToCheck && numToCheck.startsWith(poPrefix)) {
-            const numPart = parseInt(numToCheck.substring(poPrefix.length), 10);
-            if(!isNaN(numPart) && numPart > maxNumber) {
-                maxNumber = numPart;
-            }
-        }
-    });
-    
-    const nextNumber = maxNumber + 1;
-    return `${poPrefix}${nextNumber.toString().padStart(3, '0')}`;
-};
+export const generateNextPONumber = (items: Pick<PurchaseOrder, 'poNumber'>[]) =>
+  generateNextNumber(items, 'poNumber', 'purchaseOrder', 'SPI-');
 
-export const generateNextPurchaseNumber = async (items: Pick<Transaction, 'purchaseNumber'>[]): Promise<string> => {
-    const prefixSetting = await getSetting('documentPrefixes');
-    const prefixes = prefixSetting?.value as DocumentPrefixes || {};
-    const purchasePrefix = prefixes.purchase || 'PUR-';
-    
-    let maxNumber = 0;
+export const generateNextPurchaseNumber = (items: Pick<Transaction, 'purchaseNumber'>[]) =>
+  generateNextNumber(items, 'purchaseNumber', 'purchase', 'PUR-');
 
-    items.forEach(item => {
-        const numToCheck = item.purchaseNumber;
-        if(numToCheck && numToCheck.startsWith(purchasePrefix)) {
-            const numPart = parseInt(numToCheck.substring(purchasePrefix.length), 10);
-            if(!isNaN(numPart) && numPart > maxNumber) {
-                maxNumber = numPart;
-            }
-        }
-    });
-    
-    const nextNumber = maxNumber + 1;
-    return `${purchasePrefix}${nextNumber.toString().padStart(3, '0')}`;
-};
+export const generateNextEstimateInvoiceNumber = (items: Pick<EstimatedInvoice, 'invoiceNumber'>[]) =>
+  generateNextNumber(items, 'invoiceNumber', 'estimateInvoice', 'EST-');
 
-export const generateNextEstimateInvoiceNumber = async (items: Pick<EstimatedInvoice, 'invoiceNumber'>[]): Promise<string> => {
-    const prefixSetting = await getSetting('documentPrefixes');
-    const prefixes = prefixSetting?.value as DocumentPrefixes || {};
-    const estimatePrefix = prefixes.estimateInvoice || 'EST-';
-    
-    let maxNumber = 0;
-
-    items.forEach(item => {
-        const numToCheck = item.invoiceNumber;
-        if(numToCheck && numToCheck.startsWith(estimatePrefix)) {
-            const numPart = parseInt(numToCheck.substring(estimatePrefix.length), 10);
-            if(!isNaN(numPart) && numPart > maxNumber) {
-                maxNumber = numPart;
-            }
-        }
-    });
-    
-    const nextNumber = maxNumber + 1;
-    return `${estimatePrefix}${nextNumber.toString().padStart(3, '0')}`;
-};
-
-
-export const generateNextSalesNumber = async (items: Pick<Trip, 'tripNumber'>[]): Promise<string> => {
-    const prefixSetting = await getSetting('documentPrefixes');
-    const prefixes = prefixSetting?.value as DocumentPrefixes || {};
-    const salesPrefix = prefixes.sales || 'SALE-';
-    
-    let maxNumber = 0;
-
-    items.forEach(item => {
-        const numToCheck = item.tripNumber;
-        if(numToCheck && numToCheck.startsWith(salesPrefix)) {
-            const numPart = parseInt(numToCheck.substring(salesPrefix.length), 10);
-            if(!isNaN(numPart) && numPart > maxNumber) {
-                maxNumber = numPart;
-            }
-        }
-    });
-    
-    const nextNumber = maxNumber + 1;
-    return `${salesPrefix}${nextNumber.toString().padStart(3, '0')}`;
-};
+export const generateNextSalesNumber = (items: Pick<Trip, 'tripNumber'>[]) =>
+  generateNextNumber(items, 'tripNumber', 'sales', 'SALE-');
 
 export const generateNextVoucherNumber = async (items: TdsCalculation[] | Transaction[], prefix: string): Promise<string> => {
     let maxNumber = 0;
@@ -201,31 +147,27 @@ export const toNepaliDate = (isoDate: string): string => {
 
 export const formatTimeForDisplay = (timeString: string | null | undefined): string => {
     if (!timeString) return '-';
-    // Check if it's already a simple time string like HH:mm:ss
     if (/^\d{2}:\d{2}:\d{2}$/.test(timeString)) {
         return timeString;
     }
-    // Check if it's a full date string
     try {
         const date = new Date(timeString);
         if (!isNaN(date.getTime())) {
             return format(date, 'HH:mm:ss');
         }
     } catch {
-        // Fallback for other unexpected formats, like just "HH:mm"
         try {
             const parsed = parse(timeString, 'HH:mm', new Date());
             if (!isNaN(parsed.getTime())) {
                 return format(parsed, 'HH:mm:ss');
             }
         } catch {
-            return timeString; // Return original string if all parsing fails
+            return timeString;
         }
     }
     return timeString;
 };
 
-// Function to convert number to words (simple implementation)
 export const toWords = (num: number): string => {
     const a = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
     const b = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
