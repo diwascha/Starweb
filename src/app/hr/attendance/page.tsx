@@ -1,22 +1,21 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import type { AttendanceRecord, Employee, AttendanceStatus, RawAttendanceRow } from '@/lib/types';
+import type { AttendanceRecord, Employee, AttendanceStatus } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableCell as TableCellComponent } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, Search, ArrowUpDown, CalendarIcon, Edit, MoreHorizontal, Trash2, RefreshCw, Loader2, View } from 'lucide-react';
+import { Upload, Search, ArrowUpDown, CalendarIcon, Edit, MoreHorizontal, Trash2, Loader2, View } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { Badge } from '@/components/ui/badge';
-import { getDay } from 'date-fns';
-import { onEmployeesUpdate, addEmployee } from '@/services/employee-service';
+import { onEmployeesUpdate } from '@/services/employee-service';
 import { updateAttendanceRecord, deleteAttendanceRecord, deleteAttendanceForMonth, getAttendanceForMonth, getAttendanceYears, addAttendanceRecords, deleteAllAttendance } from '@/services/attendance-service';
 import { getAttendanceBadgeVariant, cn, formatTimeForDisplay, toNepaliDate } from '@/lib/utils';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -25,12 +24,8 @@ import NepaliDate from 'nepali-date-converter';
 import { format as formatDate } from 'date-fns';
 import { NEPALI_MONTHS } from '@/lib/constants';
 
-
 type SortKey = 'date' | 'employeeName' | 'status' | 'regularHours' | 'overtimeHours';
 type SortDirection = 'asc' | 'desc';
-
-const attendanceStatuses: AttendanceStatus[] = ['Present', 'Absent', 'C/I Miss', 'C/O Miss', 'Saturday', 'Public Holiday', 'EXTRAOK'];
-const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 interface SheetInfo {
   name: string;
@@ -43,7 +38,6 @@ interface SelectedSheet {
     year: string;
     month: string;
 }
-
 
 export default function AttendancePage() {
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
@@ -63,18 +57,16 @@ export default function AttendancePage() {
   
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
-  const [editForm, setEditForm] = useState({ onDuty: '', offDuty: '', clockIn: '', clockOut: '', status: '' as AttendanceStatus, regularHours: 0, overtimeHours: 0, remarks: '' });
+  const [editForm, setEditForm] = useState({ onDuty: '', offDuty: '', clockIn: '', clockOut: '', status: '' as any, regularHours: 0, overtimeHours: 0, remarks: '' });
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [isRawDataDialogOpen, setIsRawDataDialogOpen] = useState(false);
   const [selectedRawData, setSelectedRawData] = useState<Record<string, any> | null>(null);
-
 
   // Import Dialog State
   const [isSheetSelectDialogOpen, setIsSheetSelectDialogOpen] = useState(false);
   const [availableSheets, setAvailableSheets] = useState<SheetInfo[]>([]);
   const [selectedSheets, setSelectedSheets] = useState<SelectedSheet[]>([]);
   const [importProgress, setImportProgress] = useState<string | null>(null);
-
 
   const fetchAttendanceData = useCallback(async () => {
     if (selectedBsYear && selectedBsMonth !== '') {
@@ -170,7 +162,7 @@ export default function AttendancePage() {
 
         } catch (error) {
             console.error("File processing error:", error);
-            toast({ title: 'Error', description: 'Failed to read the Excel file. It might be corrupted or in an unsupported format.', variant: 'destructive' });
+            toast({ title: 'Error', description: 'Failed to read the Excel file.', variant: 'destructive' });
         }
     };
     reader.readAsArrayBuffer(file);
@@ -225,13 +217,27 @@ export default function AttendancePage() {
     if (totalSkipped > 0) description += ` ${totalSkipped} rows were skipped due to missing dates.`;
     
     toast({ title: 'Import Complete', description, duration: 8000 });
-    
-    // Refresh years list and current view
     const years = await getAttendanceYears();
     setBsYears(years);
     fetchAttendanceData(); 
-    
     setImportProgress(null);
+  };
+
+  const handleSheetSelectionChange = (sheetName: string, checked: boolean) => {
+    const currentNepaliDate = new NepaliDate();
+    if (checked) {
+        setSelectedSheets(prev => [...prev, {
+            name: sheetName,
+            year: selectedBsYear || String(currentNepaliDate.getYear()),
+            month: selectedBsMonth || String(currentNepaliDate.getMonth())
+        }]);
+    } else {
+        setSelectedSheets(prev => prev.filter(s => s.name !== sheetName));
+    }
+  };
+
+  const handleSheetPeriodChange = (sheetName: string, type: 'year' | 'month', value: string) => {
+    setSelectedSheets(prev => prev.map(s => s.name === sheetName ? { ...s, [type]: value } : s));
   };
   
   const handleOpenEditDialog = (record: AttendanceRecord) => {
@@ -239,7 +245,7 @@ export default function AttendancePage() {
     setEditForm({
         onDuty: record.onDuty || '', offDuty: record.offDuty || '',
         clockIn: record.clockIn || '', clockOut: record.clockOut || '',
-        status: record.status as AttendanceStatus, // Cast here as status can be any string now
+        status: record.status, 
         regularHours: record.regularHours,
         overtimeHours: record.overtimeHours,
         remarks: record.remarks || ''
@@ -263,7 +269,7 @@ export default function AttendancePage() {
             remarks: editForm.remarks || null,
         };
         await updateAttendanceRecord(editingRecord.id, updates);
-        await fetchAttendanceData(); // Refetch data
+        await fetchAttendanceData();
         toast({ title: 'Success', description: 'Attendance record updated.' });
         setIsEditDialogOpen(false);
         setEditingRecord(null);
@@ -275,7 +281,7 @@ export default function AttendancePage() {
   const handleDelete = async (id: string) => {
     try {
         await deleteAttendanceRecord(id);
-        await fetchAttendanceData(); // Refetch data
+        await fetchAttendanceData();
         toast({ title: 'Success', description: 'Attendance record deleted.' });
     } catch (error) {
         toast({ title: 'Error', description: 'Failed to delete record.', variant: 'destructive' });
@@ -291,7 +297,7 @@ export default function AttendancePage() {
         const year = parseInt(selectedBsYear);
         const month = parseInt(selectedBsMonth);
         await deleteAttendanceForMonth(year, month);
-        await fetchAttendanceData(); // Refetch data
+        await fetchAttendanceData();
         toast({ title: 'Cleanup Successful', description: `Attendance and Payroll data for ${NEPALI_MONTHS[month].name} ${year} has been removed.` });
     } catch (error) {
         console.error("Failed to clean month data:", error);
@@ -302,7 +308,7 @@ export default function AttendancePage() {
   const handleClearAllData = async () => {
     try {
         await deleteAllAttendance();
-        await fetchAttendanceData(); // Refetch data, which will be empty
+        await fetchAttendanceData();
         setBsYears([]);
         setSelectedBsYear('');
         setSelectedBsMonth('');
@@ -340,12 +346,6 @@ export default function AttendancePage() {
       const bVal = b[sortConfig.key];
       if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
       if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
-      if (sortConfig.key !== 'date') {
-          const dateA = new Date(a.date).getTime();
-          const dateB = new Date(b.date).getTime();
-          if (dateA < dateB) return -1;
-          if (dateA > dateB) return 1;
-      }
       return 0;
     });
     return filtered;
@@ -360,6 +360,88 @@ export default function AttendancePage() {
     const statuses = new Set(attendance.map(a => a.status).filter(s => s && s.trim() !== ''));
     return ['All', ...Array.from(statuses).sort()];
   }, [attendance]);
+
+  const renderContent = () => {
+    if (isDataLoading) {
+      return (
+        <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
+          <div className="flex flex-col items-center gap-1 text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <h3 className="text-xl font-bold tracking-tight">Loading attendance data...</h3>
+          </div>
+        </div>
+      );
+    }
+
+    if (attendance.length === 0) {
+      return (
+        <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
+          <div className="flex flex-col items-center gap-1 text-center">
+            <h3 className="text-2xl font-bold tracking-tight">No attendance records found</h3>
+            <p className="text-sm text-muted-foreground">Select a different month or import new data.</p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <Card>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead><Button variant="ghost" onClick={() => requestSort('date')} className="h-8 px-2">Date <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                <TableHead><Button variant="ghost" onClick={() => requestSort('employeeName')} className="h-8 px-2">Employee <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Clock In</TableHead>
+                <TableHead>Clock Out</TableHead>
+                <TableHead><Button variant="ghost" onClick={() => requestSort('regularHours')} className="h-8 px-2">Reg. Hrs <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                <TableHead><Button variant="ghost" onClick={() => requestSort('overtimeHours')} className="h-8 px-2">OT Hrs <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredAndSortedRecords.map(record => (
+                <TableRow key={record.id}>
+                  <TableCell>
+                    <div className="flex flex-col">
+                      <span className="text-sm">{toNepaliDate(record.date)}</span>
+                      <span className="text-[10px] text-muted-foreground">{formatDate(new Date(record.date), 'EEE, MMM d')}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="font-medium">{record.employeeName}</TableCell>
+                  <TableCell><Badge variant={getAttendanceBadgeVariant(record.status as any)}>{record.status}</Badge></TableCell>
+                  <TableCell>{formatTimeForDisplay(record.clockIn)}</TableCell>
+                  <TableCell>{formatTimeForDisplay(record.clockOut)}</TableCell>
+                  <TableCell>{record.regularHours.toFixed(1)}</TableCell>
+                  <TableCell>{record.overtimeHours.toFixed(1)}</TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onSelect={() => { setSelectedRawData(record.rawImportData || null); setIsRawDataDialogOpen(true); }}><View className="mr-2 h-4 w-4" /> View Raw Data</DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        {hasPermission('hr', 'edit') && <DropdownMenuItem onSelect={() => handleOpenEditDialog(record)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>}
+                        {hasPermission('hr', 'delete') && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem></AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader><AlertDialogTitle>Delete record?</AlertDialogTitle><AlertDialogDescription>This will permanently delete this attendance entry.</AlertDialogDescription></AlertDialogHeader>
+                              <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(record.id)}>Delete</AlertDialogAction></AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </Card>
+    );
+  };
   
   return (
     <>
@@ -385,16 +467,16 @@ export default function AttendancePage() {
             </div>
         </header>
 
-        {(!isDataLoading || attendance.length > 0) && bsYears.length > 0 && (
+        {bsYears.length > 0 && (
             <div className="flex flex-col sm:flex-row flex-wrap gap-2 items-center">
                 <Label>Filter by:</Label>
                 <Select value={selectedBsYear} onValueChange={setSelectedBsYear}><SelectTrigger className="w-full sm:w-[120px]"><SelectValue placeholder="Year (BS)" /></SelectTrigger><SelectContent>{bsYears.map(year => (<SelectItem key={year} value={String(year)}>{year}</SelectItem>))}</SelectContent></Select>
                 <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth}><SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Month (BS)" /></SelectTrigger><SelectContent>{NEPALI_MONTHS.map(month => (<SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>))}</SelectContent></Select>
                 <Select value={filterEmployeeName} onValueChange={setFilterEmployeeName}><SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Select Employee" /></SelectTrigger><SelectContent>{uniqueEmployeeNames.map(name => (<SelectItem key={name} value={name}>{name}</SelectItem>))}</SelectContent></Select>
-                <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as 'All' | AttendanceStatus)}><SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Select Status" /></SelectTrigger><SelectContent>{allPossibleStatuses.filter(s => !!s).map(status => (<SelectItem key={status} value={status}>{status}</SelectItem>))}</SelectContent></Select>
+                <Select value={filterStatus} onValueChange={setFilterStatus}><SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Select Status" /></SelectTrigger><SelectContent>{allPossibleStatuses.filter(s => !!s).map(status => (<SelectItem key={status} value={status}>{status}</SelectItem>))}</SelectContent></Select>
                 <AlertDialog>
                         <AlertDialogTrigger asChild>
-                            <Button variant="destructive-outline"><Trash2 className="mr-2 h-4 w-4" /> Delete Month Data</Button>
+                            <Button variant="outline" className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"><Trash2 className="mr-2 h-4 w-4" /> Delete Month Data</Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                             <AlertDialogHeader>
@@ -408,7 +490,7 @@ export default function AttendancePage() {
                 </AlertDialog>
                  <AlertDialog>
                     <AlertDialogTrigger asChild>
-                        <Button variant="destructive"><Trash2 className="mr-2 h-4 w-4" /> Clear All Attendance Data</Button>
+                        <Button variant="destructive"><Trash2 className="mr-2 h-4 w-4" /> Clear All Data</Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                         <AlertDialogHeader>
@@ -429,12 +511,12 @@ export default function AttendancePage() {
         </div>
      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-md">
-            <DialogHeader><DialogTitle>Edit Attendance for {editingRecord?.employeeName}</DialogTitle><DialogDescription>Date: {editingRecord ? formatDate(new Date(editingRecord.date), 'PPP') : ''}</DialogDescription></DialogHeader>
+            <DialogHeader><DialogTitle>Edit Attendance for {editingRecord?.employeeName}</DialogTitle><DialogDescription>Date: {editingRecord ? formatDate(new Date(record.date), 'PPP') : ''}</DialogDescription></DialogHeader>
             <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="edit-on-duty">On Duty Time (HH:mm)</Label><Input id="edit-on-duty" value={editForm.onDuty} onChange={e => setEditForm(prev => ({...prev, onDuty: e.target.value}))} placeholder="e.g., 08:00"/></div><div className="space-y-2"><Label htmlFor="edit-off-duty">Off Duty Time (HH:mm)</Label><Input id="edit-off-duty" value={editForm.offDuty} onChange={e => setEditForm(prev => ({...prev, offDuty: e.target.value}))} placeholder="e.g., 17:00"/></div></div>
-                 <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="edit-clock-in">Clock In Time (HH:mm)</Label><Input id="edit-clock-in" value={editForm.clockIn} onChange={e => setEditForm(prev => ({...prev, clockIn: e.target.value}))} placeholder="e.g., 08:00"/></div><div className="space-y-2"><Label htmlFor="edit-clock-out">Clock Out Time (HH:mm)</Label><Input id="edit-clock-out" value={editForm.clockOut} onChange={e => setEditForm(prev => ({...prev, clockOut: e.target.value}))} placeholder="e.g., 17:00"/></div></div>
+                <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="edit-on-duty">On Duty Time</Label><Input id="edit-on-duty" value={editForm.onDuty} onChange={e => setEditForm(prev => ({...prev, onDuty: e.target.value}))} /></div><div className="space-y-2"><Label htmlFor="edit-off-duty">Off Duty Time</Label><Input id="edit-off-duty" value={editForm.offDuty} onChange={e => setEditForm(prev => ({...prev, offDuty: e.target.value}))} /></div></div>
+                 <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="edit-clock-in">Clock In</Label><Input id="edit-clock-in" value={editForm.clockIn} onChange={e => setEditForm(prev => ({...prev, clockIn: e.target.value}))} /></div><div className="space-y-2"><Label htmlFor="edit-clock-out">Clock Out</Label><Input id="edit-clock-out" value={editForm.clockOut} onChange={e => setEditForm(prev => ({...prev, clockOut: e.target.value}))} /></div></div>
                  <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="edit-regular-hours">Regular Hours</Label><Input id="edit-regular-hours" type="number" value={editForm.regularHours} onChange={e => setEditForm(prev => ({...prev, regularHours: Number(e.target.value) || 0}))} /></div><div className="space-y-2"><Label htmlFor="edit-overtime-hours">Overtime Hours</Label><Input id="edit-overtime-hours" type="number" value={editForm.overtimeHours} onChange={e => setEditForm(prev => ({...prev, overtimeHours: Number(e.target.value) || 0}))} /></div></div>
-                <div className="space-y-2"><Label htmlFor="edit-status">Status</Label><Input id="edit-status" value={editForm.status} onChange={e => setEditForm(prev => ({...prev, status: e.target.value as AttendanceStatus}))} /></div>
+                <div className="space-y-2"><Label htmlFor="edit-status">Status</Label><Input id="edit-status" value={editForm.status} onChange={e => setEditForm(prev => ({...prev, status: e.target.value as any}))} /></div>
                  <div className="space-y-2"><Label htmlFor="edit-remarks">Remarks</Label><Input id="edit-remarks" value={editForm.remarks} onChange={e => setEditForm(prev => ({...prev, remarks: e.target.value}))} /></div>
             </div>
             <DialogFooter><Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button><Button onClick={handleSaveEdit}>Save Changes</Button></DialogFooter>
@@ -445,7 +527,7 @@ export default function AttendancePage() {
             <DialogHeader>
                 <DialogTitle>Raw Imported Data</DialogTitle>
                 <DialogDescription>
-                    This is the original, unprocessed data from the Excel sheet for this record.
+                    Original, unprocessed data from the Excel sheet.
                 </DialogDescription>
             </DialogHeader>
             <ScrollArea className="h-72 my-4">
@@ -457,7 +539,7 @@ export default function AttendancePage() {
      </Dialog>
      <Dialog open={isSheetSelectDialogOpen} onOpenChange={setIsSheetSelectDialogOpen}>
         <DialogContent className="sm:max-w-2xl">
-            <DialogHeader><DialogTitle>Select Sheets to Import</DialogTitle><DialogDescription>Choose sheets and their target period. Data will be mapped to the selected Nepali month and year.</DialogDescription></DialogHeader>
+            <DialogHeader><DialogTitle>Select Sheets to Import</DialogTitle><DialogDescription>Choose sheets and their target period.</DialogDescription></DialogHeader>
             <div className="py-4 space-y-4">
                  <div className="space-y-2">
                     <div className="flex items-center space-x-2 border-b pb-2">
