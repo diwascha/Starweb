@@ -1,5 +1,3 @@
-
-
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import type { Report, PurchaseOrder, PurchaseOrderStatus, AttendanceStatus, User, Transaction, DocumentPrefixes, Trip, TdsCalculation, EstimatedInvoice } from './types';
@@ -10,6 +8,19 @@ import { format, parse } from 'date-fns';
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
+
+export const normalizeBF = (val: any): string => {
+  if (val === undefined || val === null || val === '') return "";
+  const trimmed = String(val).trim();
+  if (/^\d+$/.test(trimmed)) {
+    return `${trimmed} BF`;
+  }
+  const match = trimmed.match(/^(\d+)\s*bf$/i);
+  if (match) {
+    return `${match[1]} BF`;
+  }
+  return trimmed;
+};
 
 export const generateNextSerialNumber = async (reports: Pick<Report, 'serialNumber'>[]): Promise<string> => {
   const prefixSetting = await getSetting('documentPrefixes');

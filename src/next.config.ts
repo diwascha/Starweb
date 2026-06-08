@@ -1,4 +1,3 @@
-
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
@@ -12,7 +11,7 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   experimental: {
-    allowedDevOrigins: ['*.cloudworkstations.dev'],
+    // Cleaned up invalid keys
   },
   images: {
     unoptimized: true,

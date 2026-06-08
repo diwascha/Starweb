@@ -59,7 +59,7 @@ import {
 } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { cn, toNepaliDate } from '@/lib/utils';
+import { cn, toNepaliDate, normalizeBF } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
@@ -87,15 +87,6 @@ const defaultCompanyProfile: CompanyProfile = {
 
 const bfOptions = ['16 BF', '18 BF', '20 BF', '22 BF'];
 const plyOptions = ['3', '5', '7', '9'];
-
-const normalizeBF = (val: any): string => {
-  if (val === undefined || val === null || val === '') return "";
-  const trimmed = String(val).trim();
-  if (/^\d+$/.test(trimmed)) return `${trimmed} BF`;
-  const match = trimmed.match(/^(\d+)\s*bf$/i);
-  if (match) return `${match[1]} BF`;
-  return trimmed;
-};
 
 const getGsmDisplay = (item: any) => {
     if (!item) return 'N/A';
@@ -1401,7 +1392,7 @@ function ProductForm({ productToEdit, onSaveSuccess }: any) {
     const p = parseInt(form.specification.ply, 10);
 
     return (
-        <div className="space-y-6 pt-2 pb-8 overflow-y-auto max-h-[75vh]">
+        <div className="space-y-6 pt-2 pb-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                     <h3 className="text-xs font-bold uppercase border-b pb-1 text-muted-foreground">General Info</h3>
