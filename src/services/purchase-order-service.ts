@@ -1,28 +1,34 @@
+
 import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDoc } from 'firebase/firestore';
 import type { PurchaseOrder, PurchaseOrderVersion } from '@/lib/types';
+import { COLLECTIONS } from '@/lib/constants';
+import { createTimestamp, logServiceError } from '@/lib/service-utils';
 
 const getPurchaseOrdersCollection = () => {
     const { db } = getFirebase();
-    return collection(db, 'purchaseOrders');
+    return collection(db, COLLECTIONS.PURCHASE_ORDERS);
 }
 
 const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentData): PurchaseOrder => {
     const data = snapshot.data();
     return {
         id: snapshot.id,
-        poNumber: data.poNumber,
+        poNumber: String(data.poNumber || ''),
         poDate: data.poDate,
         createdAt: data.createdAt,
         updatedAt: data.updatedAt,
-        companyName: data.companyName,
-        companyAddress: data.companyAddress,
-        panNumber: data.panNumber,
-        items: data.items,
-        amendments: data.amendments,
+        companyName: String(data.companyName || ''),
+        companyAddress: String(data.companyAddress || ''),
+        panNumber: data.panNumber ? String(data.panNumber) : undefined,
+        items: (data.items || []).map((item: any) => ({
+            ...item,
+            quantity: String(item.quantity || '0')
+        })),
+        amendments: data.amendments || [],
         versions: data.versions || [],
         status: data.status,
-        isDraft: data.isDraft ?? false,
+        isDraft: !!data.isDraft,
         deliveryDate: data.deliveryDate,
         createdBy: data.createdBy,
         lastModifiedBy: data.lastModifiedBy,
@@ -30,85 +36,104 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
 }
 
 export const getPurchaseOrders = async (): Promise<PurchaseOrder[]> => {
-    const snapshot = await getDocs(getPurchaseOrdersCollection());
-    return snapshot.docs.map(fromFirestore);
+    try {
+        const snapshot = await getDocs(getPurchaseOrdersCollection());
+        return snapshot.docs.map(fromFirestore);
+    } catch (error) {
+        logServiceError('getPurchaseOrders', error);
+        throw error;
+    }
 };
 
 export const addPurchaseOrder = async (po: Omit<PurchaseOrder, 'id'>): Promise<string> => {
-    const docRef = await addDoc(getPurchaseOrdersCollection(), {
-        ...po,
-        createdAt: new Date().toISOString(),
-    });
-    return docRef.id;
+    try {
+        const now = createTimestamp();
+        const docRef = await addDoc(getPurchaseOrdersCollection(), {
+            ...po,
+            createdAt: now,
+            updatedAt: now,
+        });
+        return docRef.id;
+    } catch (error) {
+        logServiceError('addPurchaseOrder', error);
+        throw error;
+    }
 };
 
-export const onSnapshotPurchaseOrders = (callback: (purchaseOrders: PurchaseOrder[]) => void): () => void => {
+export const onPurchaseOrdersUpdate = (callback: (purchaseOrders: PurchaseOrder[]) => void): () => void => {
     return onSnapshot(getPurchaseOrdersCollection(), 
         (snapshot) => {
             callback(snapshot.docs.map(fromFirestore));
         },
         (error) => {
-            console.error("FIREBASE FAIL MESSAGE (Purchase Orders):", error.message, error);
+            logServiceError('onPurchaseOrdersUpdate', error);
         }
     );
 };
 
-export const onPurchaseOrdersUpdate = onSnapshotPurchaseOrders;
-
 export const getPurchaseOrder = async (id: string): Promise<PurchaseOrder | null> => {
-    if (!id || typeof id !== 'string') {
-        console.error("getPurchaseOrder called with an invalid ID:", id);
+    if (!id || typeof id !== 'string') return null;
+    try {
+        const poDoc = doc(getPurchaseOrdersCollection(), id);
+        const docSnap = await getDoc(poDoc);
+        if (docSnap.exists()) {
+            return fromFirestore(docSnap);
+        }
         return null;
-    }
-    const poDoc = doc(getPurchaseOrdersCollection(), id);
-    const docSnap = await getDoc(poDoc);
-    if (docSnap.exists()) {
-        return fromFirestore(docSnap);
-    } else {
+    } catch (error) {
+        logServiceError('getPurchaseOrder', error);
         return null;
     }
 };
-
 
 export const updatePurchaseOrder = async (id: string, poUpdate: Partial<Omit<PurchaseOrder, 'id'>>): Promise<void> => {
     if (!id) return;
     const poDocRef = doc(getPurchaseOrdersCollection(), id);
     
-    // Snapshot current state for versioning BEFORE applying the update
-    const poSnap = await getDoc(poDocRef);
-    if (poSnap.exists()) {
-        const currentData = poSnap.data() as PurchaseOrder;
-        
-        // Ensure we capture a truly FULL snapshot of all meaningful data fields
-        const newVersion: PurchaseOrderVersion = {
-            versionId: Date.now().toString(),
-            replacedAt: new Date().toISOString(),
-            replacedBy: poUpdate.lastModifiedBy || currentData.lastModifiedBy || 'System',
-            data: {
-                poNumber: currentData.poNumber,
-                poDate: currentData.poDate,
-                items: currentData.items,
-                companyName: currentData.companyName,
-                companyAddress: currentData.companyAddress,
-                panNumber: currentData.panNumber || '',
-                status: currentData.status,
-                deliveryDate: currentData.deliveryDate || '',
-                amendments: currentData.amendments || [],
-            }
-        };
+    try {
+        const poSnap = await getDoc(poDocRef);
+        if (poSnap.exists()) {
+            const currentData = poSnap.data() as PurchaseOrder;
+            const now = createTimestamp();
+            
+            const newVersion: PurchaseOrderVersion = {
+                versionId: Date.now().toString(),
+                replacedAt: now,
+                replacedBy: poUpdate.lastModifiedBy || currentData.lastModifiedBy || 'System',
+                data: {
+                    poNumber: currentData.poNumber,
+                    poDate: currentData.poDate,
+                    items: currentData.items,
+                    companyName: currentData.companyName,
+                    companyAddress: currentData.companyAddress,
+                    panNumber: currentData.panNumber || '',
+                    status: currentData.status,
+                    deliveryDate: currentData.deliveryDate || '',
+                    amendments: currentData.amendments || [],
+                }
+            };
 
-        const updatedVersions = [...(currentData.versions || []), newVersion];
-        
-        await updateDoc(poDocRef, {
-            ...poUpdate,
-            versions: updatedVersions,
-            updatedAt: new Date().toISOString()
-        });
+            const updatedVersions = [...(currentData.versions || []), newVersion];
+            
+            await updateDoc(poDocRef, {
+                ...poUpdate,
+                versions: updatedVersions,
+                updatedAt: now
+            });
+        }
+    } catch (error) {
+        logServiceError('updatePurchaseOrder', error);
+        throw error;
     }
 };
 
 export const deletePurchaseOrder = async (id: string): Promise<void> => {
     if (!id) return;
-    const poDoc = doc(getPurchaseOrdersCollection(), id);
-    await deleteDoc(poDoc);
+    try {
+        const poDoc = doc(getPurchaseOrdersCollection(), id);
+        await deleteDoc(poDoc);
+    } catch (error) {
+        logServiceError('deletePurchaseOrder', error);
+        throw error;
+    }
 };

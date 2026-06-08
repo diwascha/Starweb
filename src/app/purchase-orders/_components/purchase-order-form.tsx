@@ -1,3 +1,4 @@
+
 'use client';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -6,15 +7,15 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import type { RawMaterial, PurchaseOrder, Amendment, UnitOfMeasurement, Party, PartyType } from '@/lib/types';
+import type { RawMaterial, PurchaseOrder, Amendment, UnitOfMeasurement, Party, PartyType, PurchaseOrderVersion } from '@/lib/types';
 import { useRouter } from 'next/navigation';
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, PlusCircle, Trash2, Check, ChevronsUpDown, Edit, X, ChevronDown, Printer, Save, History, Eye, ArrowLeft, Loader2, GitMerge, Archive, RefreshCw } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Trash2, Check, ChevronsUpDown, Edit, X, ChevronDown, Save, History, Loader2 } from 'lucide-react';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { format } from 'date-fns';
-import { cn, generateNextPONumber, toNepaliDate } from '@/lib/utils';
+import { cn, generateNextPONumber, toNepaliDate, normalizeBF } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -66,19 +67,6 @@ const baseMaterialTypes = [
 const paperTypes = ['Kraft Paper', 'Virgin Paper'];
 const bfOptions = ['16 BF', '18 BF', '20 BF', '22 BF'];
 
-const normalizeBF = (val: any): string => {
-  if (val === undefined || val === null || val === '') return "";
-  const trimmed = String(val).trim();
-  if (/^\d+$/.test(trimmed)) {
-    return `${trimmed} BF`;
-  }
-  const match = trimmed.match(/^(\d+)\s*bf$/i);
-  if (match) {
-    return `${match[1]} BF`;
-  }
-  return trimmed;
-};
-
 const generateMaterialName = (type: string, size: string, gsm: string, bf: string) => {
     if (paperTypes.includes(type)) {
         const parts = [type];
@@ -110,7 +98,6 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
   const [selectedCategories, setSelectedCategories] = useState<string[]>(['All']);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Category Management State
   const [isQuickAddMaterialDialogOpen, setIsQuickAddMaterialDialogOpen] = useState(false);
   const [quickAddMaterialSearch, setQuickAddMaterialSearch] = useState('');
   const [isRenamingCategory, setIsRenamingCategory] = useState(false);
@@ -165,19 +152,15 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
 
   useEffect(() => {
     setIsClient(true);
-    const unsubRawMaterials = onRawMaterialsUpdate(setRawMaterials);
-    const unsubPOs = onPurchaseOrdersUpdate(setPurchaseOrders);
-    const unsubUoms = onUomsUpdate(setUoms);
-    const unsubParties = onPartiesUpdate(setParties);
-    return () => {
-      unsubRawMaterials();
-      unsubPOs();
-      unsubUoms();
-      unsubParties();
-    };
+    const unsubs = [
+      onRawMaterialsUpdate(setRawMaterials),
+      onPurchaseOrdersUpdate(setPurchaseOrders),
+      onUomsUpdate(setUoms),
+      onPartiesUpdate(setParties)
+    ];
+    return () => unsubs.forEach(unsub => unsub());
   }, []);
   
-  // Auto-set initial PO number ONLY when creating new and field is empty
   useEffect(() => {
     if(isClient && !poToEdit && purchaseOrders.length > 0) {
         generateNextPONumber(purchaseOrders).then(nextPoNumber => {
@@ -188,7 +171,6 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
     }
   }, [isClient, poToEdit, purchaseOrders, form]);
 
-  // Reset form ONLY when the source poToEdit ID changes (prevents resets from real-time list updates)
   useEffect(() => {
     if (poToEdit) {
       form.reset(defaultValues);
@@ -352,6 +334,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         description: 'Failed to save purchase order. Please try again.',
         variant: 'destructive',
       });
+    } finally {
       setIsSubmitting(false);
     }
   }
@@ -406,6 +389,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
         : name.trim();
     
       try {
+        const now = new Date().toISOString();
         for (const unitAbbr of units) {
           const exists = uoms.some(u => u.abbreviation.toLowerCase() === unitAbbr.toLowerCase());
           if (!exists) {
@@ -413,7 +397,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
               name: unitAbbr,
               abbreviation: unitAbbr,
               createdBy: user.username,
-              createdAt: new Date().toISOString()
+              createdAt: now
             });
           }
         }
@@ -426,7 +410,7 @@ export function PurchaseOrderForm({ poToEdit }: PurchaseOrderFormProps) {
             bf: finalBF,
             units: units,
             createdBy: user.username,
-            createdAt: new Date().toISOString(),
+            createdAt: now,
         };
         
         await addRawMaterial(newMaterial);

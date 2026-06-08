@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { 
   PlusCircle, 
@@ -52,57 +52,40 @@ export default function DashboardPage() {
 
   useEffect(() => {
     setIsLoading(true);
-    const unsubPolicies = onPoliciesUpdate(setPolicies);
-    const unsubPOs = onPurchaseOrdersUpdate(setPurchaseOrders);
-    const unsubInvoices = onEstimatedInvoicesUpdate(setInvoices);
-    const unsubUsage = onPageVisitsUpdate(setPageVisits);
-    const unsubCheques = onChequesUpdate(setCheques);
-    const unsubProfile = onSettingUpdate('companyProfile', (s) => {
-        if (s?.value) setCompanyProfile(s.value);
-    });
+    const unsubs = [
+      onPoliciesUpdate(setPolicies),
+      onPurchaseOrdersUpdate(setPurchaseOrders),
+      onEstimatedInvoicesUpdate(setInvoices),
+      onPageVisitsUpdate(setPageVisits),
+      onChequesUpdate(setCheques),
+      onSettingUpdate('companyProfile', (s) => {
+          if (s?.value) setCompanyProfile(s.value);
+      })
+    ];
 
     setIsLoading(false);
-    return () => {
-      unsubPolicies();
-      unsubPOs();
-      unsubInvoices();
-      unsubUsage();
-      unsubCheques();
-      unsubProfile();
-    };
+    return () => unsubs.forEach(unsub => unsub());
   }, []);
 
   const stats = useMemo(() => {
     const today = startOfToday();
     
-    // Fleet Alerts Breakdown
     const fleetStats = policies.reduce((acc, p) => {
       if (p.status === 'Renewed' || p.status === 'Archived') return acc;
-      
       const daysLeft = differenceInDays(new Date(p.endDate), today);
-      
-      if (daysLeft < 0) {
-        acc.expired++;
-      } else if (daysLeft <= 7) {
-        acc.comingSoon++;
-      } else {
-        acc.ok++;
-      }
+      if (daysLeft < 0) acc.expired++;
+      else if (daysLeft <= 7) acc.comingSoon++;
+      else acc.ok++;
       return acc;
     }, { expired: 0, comingSoon: 0, ok: 0 });
 
-    // Cheque Alerts Breakdown
     const chequeStats = cheques.reduce((acc, c) => {
-      c.splits.forEach(s => {
+      (c.splits || []).forEach(s => {
         if (s.status === 'Paid' || s.status === 'Canceled') return;
         const daysLeft = differenceInDays(new Date(s.chequeDate), today);
-        if (daysLeft < 0) {
-          acc.overdue++;
-        } else if (daysLeft <= 7) {
-          acc.soon++;
-        } else {
-          acc.notDue++;
-        }
+        if (daysLeft < 0) acc.overdue++;
+        else if (daysLeft <= 7) acc.soon++;
+        else acc.notDue++;
       });
       return acc;
     }, { overdue: 0, soon: 0, notDue: 0 });
@@ -112,9 +95,9 @@ export default function DashboardPage() {
     const monthStart = startOfMonth(new Date());
     const mtdRevenue = invoices
       .filter(inv => new Date(inv.date) >= monthStart)
-      .reduce((sum, inv) => sum + inv.netTotal, 0);
+      .reduce((sum, inv) => sum + (Number(inv.netTotal) || 0), 0);
 
-    const totalVisits = pageVisits.reduce((sum, v) => sum + v.count, 0);
+    const totalVisits = pageVisits.reduce((sum, v) => sum + (Number(v.count) || 0), 0);
 
     return { fleetStats, chequeStats, openPOs, mtdRevenue, totalVisits };
   }, [policies, purchaseOrders, invoices, pageVisits, cheques]);
@@ -283,28 +266,6 @@ export default function DashboardPage() {
                     Estimate Invoice
                   </CardTitle>
                   <CardDescription className="text-xs">Generate pro-forma VAT documents</CardDescription>
-                </CardHeader>
-              </Card>
-            </Link>
-            <Link href="/finance/cheque-generator">
-              <Card className="hover:bg-accent transition-colors cursor-pointer h-full border-dashed">
-                <CardHeader className="p-4">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Receipt className="h-4 w-4 text-green-600" />
-                    Cheque Generator
-                  </CardTitle>
-                  <CardDescription className="text-xs">Track PDCs and payments</CardDescription>
-                </CardHeader>
-              </Card>
-            </Link>
-            <Link href="/crm/pack-spec">
-              <Card className="hover:bg-accent transition-colors cursor-pointer h-full border-dashed">
-                <CardHeader className="p-4">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Package className="h-4 w-4 text-amber-600" />
-                    PackSpec Technical
-                  </CardTitle>
-                  <CardDescription className="text-xs">Technical specification data sheets</CardDescription>
                 </CardHeader>
               </Card>
             </Link>
