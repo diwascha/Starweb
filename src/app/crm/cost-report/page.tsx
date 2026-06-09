@@ -233,7 +233,7 @@ const CostingTableRow = React.memo(({
                     <TableCell className="text-center bg-muted/20 border-r">{acc.calculated?.totalGsm.toFixed(0)}</TableCell>
                     <TableCell className="text-center bg-muted/20 border-r">{acc.calculated?.paperWeight.toFixed(1)}</TableCell>
                     <TableCell className="text-center border-r">Rs. {acc.calculated?.paperCost.toFixed(2)}</TableCell>
-                    <TableCell className="text-right pr-6">Rs. {acc.calculated?.paperCost.toFixed(2)}</TableCell>
+                    <TableCell className="text-right pr-6"></TableCell>
                     <TableCell className="px-2">
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive/70" onClick={() => onItemChange(index, 'acc_remove', aIdx)}><X className="h-3.5 w-3.5" /></Button>
                     </TableCell>
