@@ -60,6 +60,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { onSettingUpdate, updateCostSettings } from '@/services/settings-service';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { Textarea } from '@/components/ui/textarea';
 import React from 'react';
 import { DEFAULT_COMPANY_PROFILE, PLY_OPTIONS, BF_OPTIONS } from '@/lib/constants';
 
@@ -106,7 +107,7 @@ const CostingTableRow = React.memo(({
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onSelect={() => onAddAccessory(index, 'Manual Entry')}>Manual Entry</DropdownMenuItem>
                             </DropdownMenuContent>
-                        </DropdownMenu>
+                        </DL>
                         <Select value={item.productId || ''} onValueChange={v => onItemChange(index, 'productId', v)}>
                             <SelectTrigger className="h-8 text-[11px] w-full px-2">
                                 <SelectValue placeholder="Select product..." />
