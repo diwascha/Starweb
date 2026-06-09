@@ -61,3 +61,6 @@ export const DEFAULT_FLEET_PROFILE = {
   email: "N/A",
   pan: "304603712"
 };
+
+export const PLY_OPTIONS = ['3', '5', '7', '9'];
+export const BF_OPTIONS = ['16 BF', '18 BF', '20 BF', '22 BF'];
