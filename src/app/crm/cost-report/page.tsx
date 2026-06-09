@@ -55,7 +55,6 @@ import {
   TableHead, 
   TableHeader, 
   TableRow,
-  TableFooter
 } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
@@ -95,7 +94,7 @@ const getGsmDisplay = (item: any) => {
     return layers.filter(l => l !== undefined && l !== null && String(l).trim() !== '').join('/');
 };
 
-interface QuotationPreviewDialog {
+interface QuotationPreviewDialogProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   reportNumber: string;
@@ -107,7 +106,7 @@ interface QuotationPreviewDialog {
   companyProfile: CompanyProfile;
 }
 
-function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate, party, items, products, termsAndConditions = [], companyProfile }: QuotationPreviewDialog) {
+function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate, party, items, products, termsAndConditions = [], companyProfile }: QuotationPreviewDialogProps) {
   const printRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
@@ -647,7 +646,6 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
         flute2Gsm: '',
         bottomGsm: '120',
         liner2Gsm: '',
-        substring: '',
         flute3Gsm: '',
         liner3Gsm: '',
         flute4Gsm: '',
@@ -1149,15 +1147,6 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
                                     </React.Fragment>
                                 ))}
                             </TableBody>
-                            {items.length > 0 && (
-                                <TableFooter className="bg-muted/50 border-t-2">
-                                    <TableRow className="h-12 font-bold">
-                                        <TableCell colSpan={maxPly + 12} className="text-right text-sm">Grand Total (Paper Cost)</TableCell>
-                                        <TableCell className="text-right pr-6 text-sm text-primary">Rs. {grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell></TableCell>
-                                    </TableRow>
-                                </TableFooter>
-                            )}
                         </Table>
                         <ScrollBar orientation="horizontal" />
                         <ScrollBar orientation="vertical" />
@@ -1616,7 +1605,7 @@ export default function CostReportPage() {
             await deleteCostReport(id);
             toast({ title: 'Report Deleted' });
         } catch {
-            toast({ title: 'Error', variant: 'destructive' });
+            toast({ title: 'Error', description: 'Failed to delete report.', variant: 'destructive' });
         }
     };
 
