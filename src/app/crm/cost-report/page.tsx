@@ -85,6 +85,10 @@ const CostingTableRow = React.memo(({
     selectedForPrint,
     onAddProductQuickly
 }: any) => {
+    // Calculate total cost for this row (Main Item + all its Accessories)
+    const totalRowCost = (item.calculated?.paperCost || 0) + 
+        (item.accessories || []).reduce((sum: number, acc: any) => sum + (acc.calculated?.paperCost || 0), 0);
+
     return (
         <React.Fragment>
             <TableRow className="h-14 hover:bg-muted/30 border-b">
@@ -171,7 +175,7 @@ const CostingTableRow = React.memo(({
                 <TableCell className="text-center font-medium bg-muted/20 border-r">{item.calculated?.totalGsm.toFixed(0)}</TableCell>
                 <TableCell className="text-center font-medium bg-muted/20 border-r">{item.calculated?.paperWeight.toFixed(1)}</TableCell>
                 <TableCell className="text-center font-bold border-r bg-primary/5">Rs. {item.calculated?.paperCost.toFixed(2)}</TableCell>
-                <TableCell className="text-right font-bold pr-6 bg-primary/10">Rs. {item.calculated?.paperCost.toFixed(2)}</TableCell>
+                <TableCell className="text-right font-bold pr-6 bg-primary/10">Rs. {totalRowCost.toFixed(2)}</TableCell>
                 <TableCell className="px-2">
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => onRemoveItem(item.id)}><Trash2 className="h-4 w-4" /></Button>
                 </TableCell>
