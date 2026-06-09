@@ -107,7 +107,7 @@ const CostingTableRow = React.memo(({
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onSelect={() => onAddAccessory(index, 'Manual Entry')}>Manual Entry</DropdownMenuItem>
                             </DropdownMenuContent>
-                        </DL>
+                        </DropdownMenu>
                         <Select value={item.productId || ''} onValueChange={v => onItemChange(index, 'productId', v)}>
                             <SelectTrigger className="h-8 text-[11px] w-full px-2">
                                 <SelectValue placeholder="Select product..." />
