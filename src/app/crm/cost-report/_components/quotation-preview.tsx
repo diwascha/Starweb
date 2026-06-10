@@ -423,7 +423,6 @@ export function QuotationPreviewDialog({
                     </div>
                     <div className="text-right text-[9px] text-muted-foreground italic max-w-[200px] leading-tight">
                         <p>This is a computer-generated document and does not require a physical signature.</p>
-                        <p className="font-bold text-black uppercase mt-1">Digitally Prepared via STARWEB</p>
                     </div>
                 </footer>
             </div>
