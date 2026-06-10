@@ -5,7 +5,7 @@ import type { Party, Product, CostReportTerm, CompanyProfile } from '@/lib/types
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Printer, Image as ImageIcon, FileDown, Loader2, Settings2, CheckCircle2 } from 'lucide-react';
 import { toNepaliDate, normalizeBF } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -48,10 +48,10 @@ export function QuotationPreviewDialog({
   
   // Customization Options
   const [options, setOptions] = useState({
-    showSize: true,
-    showPly: true,
-    showPaperGrade: true,
-    showGSM: true,
+    showSpecs: true,      // Combined Size/Ply
+    showComposition: true, // Combined GSM/Grade
+    showGross: false,     // Item Gross
+    showTransport: false, // Item Transport
     showAccessories: true,
     showRate: true,
     showTerms: true,
@@ -77,16 +77,11 @@ export function QuotationPreviewDialog({
     return display || 'N/A';
   };
 
-  const grandTotal = useMemo(() => {
-    const itemsTotal = items.reduce((sum, i) => sum + (i.totalItemCost || 0), 0);
-    return transportCostType === 'Per Consignment' ? itemsTotal + transportCost : itemsTotal;
-  }, [items, transportCost, transportCostType]);
-
   const handlePrint = () => {
     const printableArea = printRef.current;
     if (!printableArea) return;
     const printWindow = window.open('', '', 'height=800,width=800');
-    printWindow?.document.write('<html><head><title>Quotation</title><style>body{font-family:sans-serif;padding:20px;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ddd;padding:8px;text-align:left;}th{background-color:#f2f2f2;}.text-right{text-align:right;}.font-bold{font-weight:bold;}.italic{font-style:italic;}.bg-muted-5{background-color:rgba(0,0,0,0.05);}.pl-6{padding-left:24px;}</style></head><body>');
+    printWindow?.document.write('<html><head><title>Quotation</title><style>body{font-family:sans-serif;padding:20px;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ddd;padding:8px;text-align:left;}th{background-color:#f2f2f2;}.text-right{text-align:right;}.text-center{text-align:center;}.font-bold{font-weight:bold;}.italic{font-style:italic;}.bg-muted-5{background-color:rgba(0,0,0,0.05);}.pl-6{padding-left:24px;}.text-xs{font-size:10px;}.leading-tight{line-height:1.25;}</style></head><body>');
     printWindow?.document.write(printableArea.innerHTML);
     printWindow?.document.write('</body></html>');
     printWindow?.document.close();
@@ -137,31 +132,31 @@ export function QuotationPreviewDialog({
         const tableHeaders = [];
         if (options.showSN) tableHeaders.push('S.N.');
         tableHeaders.push('Particulars / Specifications');
-        if (options.showSize) tableHeaders.push('Size (mm)');
-        if (options.showPly) tableHeaders.push('Ply');
-        if (options.showPaperGrade) tableHeaders.push('Paper Grade');
-        if (options.showGSM) tableHeaders.push('Composition');
+        if (options.showSpecs) tableHeaders.push('Size (mm) / Ply');
+        if (options.showComposition) tableHeaders.push('Composition / Grade');
+        if (options.showGross) tableHeaders.push('Gross');
+        if (options.showTransport) tableHeaders.push('Transport');
         if (options.showRate) tableHeaders.push('Rate (NPR)');
 
         const tableData = items.flatMap((item, index) => {
             const row = [];
             if (options.showSN) row.push(index + 1);
             row.push(getProductDisplayName(item.productId));
-            if (options.showSize) row.push(`${item.l}x${item.b}x${item.h}`);
-            if (options.showPly) row.push(`${item.ply} Ply`);
-            if (options.showPaperGrade) row.push(`${item.paperType} ${normalizeBF(item.paperBf)}`);
-            if (options.showGSM) row.push(getGsmComposition(item));
+            if (options.showSpecs) row.push(`${item.l}x${item.b}x${item.h}\n${item.ply} Ply`);
+            if (options.showComposition) row.push(`${getGsmComposition(item)}\n${item.paperType} ${normalizeBF(item.paperBf)}`);
+            if (options.showGross) row.push(`Rs. ${item.calculated?.paperCost.toFixed(2)}`);
+            if (options.showTransport) row.push(`Rs. ${item.calculated?.transportCost.toFixed(2)}`);
             if (options.showRate) row.push(`Rs. ${item.totalItemCost.toFixed(2)}`);
 
             const accs = options.showAccessories ? (item.accessories || []).map((acc: any) => {
                 const accRow = [];
                 if (options.showSN) accRow.push('');
                 accRow.push(`-- ${acc.name}`);
-                if (options.showSize) accRow.push(`${acc.l}x${acc.b}x${acc.h}`);
-                if (options.showPly) accRow.push(`${acc.ply} Ply`);
-                if (options.showPaperGrade) accRow.push(`${acc.paperType} ${normalizeBF(acc.paperBf)}`);
-                if (options.showGSM) accRow.push(getGsmComposition(acc));
-                if (options.showRate) accRow.push(''); // Accessories hidden rate per user request
+                if (options.showSpecs) accRow.push(`${acc.l}x${acc.b}x${acc.h}\n${acc.ply} Ply`);
+                if (options.showComposition) accRow.push(`${getGsmComposition(acc)}\n${acc.paperType} ${normalizeBF(acc.paperBf)}`);
+                if (options.showGross) accRow.push(`Rs. ${acc.calculated?.paperCost.toFixed(2)}`);
+                if (options.showTransport) accRow.push('');
+                if (options.showRate) accRow.push('');
                 return accRow;
             }) : [];
 
@@ -173,10 +168,10 @@ export function QuotationPreviewDialog({
             const transportRow = [];
             if (options.showSN) transportRow.push('');
             transportRow.push('Transportation Charges');
-            if (options.showSize) transportRow.push('');
-            if (options.showPly) transportRow.push('');
-            if (options.showPaperGrade) transportRow.push('');
-            if (options.showGSM) transportRow.push('');
+            if (options.showSpecs) transportRow.push('');
+            if (options.showComposition) transportRow.push('');
+            if (options.showGross) transportRow.push('');
+            if (options.showTransport) transportRow.push('');
             if (options.showRate) transportRow.push(`Rs. ${transportCost.toFixed(2)}`);
             tableData.push(transportRow);
         }
@@ -268,23 +263,23 @@ export function QuotationPreviewDialog({
                   <Switch id="opt-sn" checked={options.showSN} onCheckedChange={v => setOptions(p => ({...p, showSN: v}))} />
                 </div>
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="opt-size" className="text-xs cursor-pointer">Dimensions (Size)</Label>
-                  <Switch id="opt-size" checked={options.showSize} onCheckedChange={v => setOptions(p => ({...p, showSize: v}))} />
+                  <Label htmlFor="opt-specs" className="text-xs cursor-pointer">Size & Ply Detail</Label>
+                  <Switch id="opt-specs" checked={options.showSpecs} onCheckedChange={v => setOptions(p => ({...p, showSpecs: v}))} />
                 </div>
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="opt-ply" className="text-xs cursor-pointer">Ply Count</Label>
-                  <Switch id="opt-ply" checked={options.showPly} onCheckedChange={v => setOptions(p => ({...p, showPly: v}))} />
+                  <Label htmlFor="opt-comp" className="text-xs cursor-pointer">Composition & Grade</Label>
+                  <Switch id="opt-comp" checked={options.showComposition} onCheckedChange={v => setOptions(p => ({...p, showComposition: v}))} />
                 </div>
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="opt-grade" className="text-xs cursor-pointer">Paper Grade (BF)</Label>
-                  <Switch id="opt-grade" checked={options.showPaperGrade} onCheckedChange={v => setOptions(p => ({...p, showPaperGrade: v}))} />
+                  <Label htmlFor="opt-gross" className="text-xs cursor-pointer">Show Gross Cost</Label>
+                  <Switch id="opt-gross" checked={options.showGross} onCheckedChange={v => setOptions(p => ({...p, showGross: v}))} />
                 </div>
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="opt-gsm" className="text-xs cursor-pointer">GSM Composition</Label>
-                  <Switch id="opt-gsm" checked={options.showGSM} onCheckedChange={v => setOptions(p => ({...p, showGSM: v}))} />
+                  <Label htmlFor="opt-transport" className="text-xs cursor-pointer">Show Transport Cost</Label>
+                  <Switch id="opt-transport" checked={options.showTransport} onCheckedChange={v => setOptions(p => ({...p, showTransport: v}))} />
                 </div>
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="opt-rate" className="text-xs cursor-pointer font-bold text-primary">Rate / Total Cost</Label>
+                  <Label htmlFor="opt-rate" className="text-xs cursor-pointer font-bold text-primary">Final Rate (Total)</Label>
                   <Switch id="opt-rate" checked={options.showRate} onCheckedChange={v => setOptions(p => ({...p, showRate: v}))} />
                 </div>
               </div>
@@ -305,12 +300,6 @@ export function QuotationPreviewDialog({
                   <Switch id="opt-terms" checked={options.showTerms} onCheckedChange={v => setOptions(p => ({...p, showTerms: v}))} />
                 </div>
               </div>
-            </div>
-            
-            <div className="p-4 bg-primary/5 rounded-lg border border-primary/10">
-                <p className="text-[10px] text-muted-foreground leading-relaxed italic">
-                    Note: "NPR Rate" for main items includes the cost of all its associated accessories. Accessory rows do not show separate rates to avoid duplication.
-                </p>
             </div>
           </aside>
 
@@ -343,10 +332,18 @@ export function QuotationPreviewDialog({
                         <TableRow className="hover:bg-transparent border-black/10">
                             {options.showSN && <TableHead className="w-12 text-black font-bold">S.N.</TableHead>}
                             <TableHead className="text-black font-bold">Particulars / Specifications</TableHead>
-                            {options.showSize && <TableHead className="text-black font-bold text-center">Size (mm)</TableHead>}
-                            {options.showPly && <TableHead className="text-black font-bold text-center">Ply</TableHead>}
-                            {options.showPaperGrade && <TableHead className="text-black font-bold text-center">Paper Grade</TableHead>}
-                            {options.showGSM && <TableHead className="text-black font-bold text-center">Composition</TableHead>}
+                            {options.showSpecs && (
+                                <TableHead className="text-black font-bold text-center">
+                                    Size (mm) <br/> <span className="text-[9px] font-normal opacity-70">Ply</span>
+                                </TableHead>
+                            )}
+                            {options.showComposition && (
+                                <TableHead className="text-black font-bold text-center">
+                                    Composition <br/> <span className="text-[9px] font-normal opacity-70">Grade</span>
+                                </TableHead>
+                            )}
+                            {options.showGross && <TableHead className="text-black font-bold text-center">Gross</TableHead>}
+                            {options.showTransport && <TableHead className="text-black font-bold text-center">Transport</TableHead>}
                             {options.showRate && <TableHead className="text-black font-bold text-right">Rate (NPR)</TableHead>}
                         </TableRow>
                     </TableHeader>
@@ -356,10 +353,20 @@ export function QuotationPreviewDialog({
                                 <TableRow key={item.id} className="border-black/5 hover:bg-transparent">
                                     {options.showSN && <TableCell className="text-center">{index + 1}</TableCell>}
                                     <TableCell className="font-bold py-3">{getProductDisplayName(item.productId)}</TableCell>
-                                    {options.showSize && <TableCell className="text-center">{item.l}x{item.b}x{item.h}</TableCell>}
-                                    {options.showPly && <TableCell className="text-center">{item.ply} Ply</TableCell>}
-                                    {options.showPaperGrade && <TableCell className="text-center">{item.paperType} {normalizeBF(item.paperBf)}</TableCell>}
-                                    {options.showGSM && <TableCell className="text-center">{getGsmComposition(item)}</TableCell>}
+                                    {options.showSpecs && (
+                                        <TableCell className="text-center leading-tight">
+                                            {item.l}x{item.b}x{item.h} <br/>
+                                            <span className="text-[10px] text-muted-foreground font-normal">{item.ply} Ply</span>
+                                        </TableCell>
+                                    )}
+                                    {options.showComposition && (
+                                        <TableCell className="text-center leading-tight">
+                                            {getGsmComposition(item)} <br/>
+                                            <span className="text-[10px] text-muted-foreground font-normal">{item.paperType} {normalizeBF(item.paperBf)}</span>
+                                        </TableCell>
+                                    )}
+                                    {options.showGross && <TableCell className="text-center">Rs. {item.calculated?.paperCost.toFixed(2)}</TableCell>}
+                                    {options.showTransport && <TableCell className="text-center">Rs. {item.calculated?.transportCost.toFixed(2)}</TableCell>}
                                     {options.showRate && <TableCell className="text-right font-bold">Rs. {item.totalItemCost.toFixed(2)}</TableCell>}
                                 </TableRow>
                             );
@@ -367,10 +374,20 @@ export function QuotationPreviewDialog({
                                 <TableRow key={acc.id} className="bg-muted/5 italic border-black/5 border-dashed hover:bg-transparent">
                                     {options.showSN && <TableCell></TableCell>}
                                     <TableCell className="pl-6 text-muted-foreground">— {acc.name}</TableCell>
-                                    {options.showSize && <TableCell className="text-center text-muted-foreground">{acc.l}x{acc.b}x{acc.h}</TableCell>}
-                                    {options.showPly && <TableCell className="text-center text-muted-foreground">{acc.ply} Ply</TableCell>}
-                                    {options.showPaperGrade && <TableCell className="text-center text-muted-foreground">{acc.paperType} {normalizeBF(acc.paperBf)}</TableCell>}
-                                    {options.showGSM && <TableCell className="text-center text-muted-foreground">{getGsmComposition(acc)}</TableCell>}
+                                    {options.showSpecs && (
+                                        <TableCell className="text-center text-muted-foreground leading-tight">
+                                            {acc.l}x{acc.b}x{acc.h} <br/>
+                                            <span className="text-[9px] font-normal">{acc.ply} Ply</span>
+                                        </TableCell>
+                                    )}
+                                    {options.showComposition && (
+                                        <TableCell className="text-center text-muted-foreground leading-tight">
+                                            {getGsmComposition(acc)} <br/>
+                                            <span className="text-[9px] font-normal">{acc.paperType} {normalizeBF(acc.paperBf)}</span>
+                                        </TableCell>
+                                    )}
+                                    {options.showGross && <TableCell className="text-center text-muted-foreground">Rs. {acc.calculated?.paperCost.toFixed(2)}</TableCell>}
+                                    {options.showTransport && <TableCell className="text-center"></TableCell>}
                                     {options.showRate && <TableCell className="text-right text-muted-foreground"></TableCell>}
                                 </TableRow>
                             )) : [];
@@ -379,21 +396,15 @@ export function QuotationPreviewDialog({
                         {transportCostType === 'Per Consignment' && transportCost > 0 && options.showRate && (
                             <TableRow className="border-t border-black/10 hover:bg-transparent">
                                 {options.showSN && <TableCell></TableCell>}
-                                <TableCell colSpan={options.showSize ? 1 : 0} className="font-medium py-3">Transportation Charges</TableCell>
-                                {options.showSize && <TableCell></TableCell>}
-                                {options.showPly && <TableCell></TableCell>}
-                                {options.showPaperGrade && <TableCell></TableCell>}
-                                {options.showGSM && <TableCell></TableCell>}
+                                <TableCell className="font-medium py-3">Transportation Charges</TableCell>
+                                {options.showSpecs && <TableCell></TableCell>}
+                                {options.showComposition && <TableCell></TableCell>}
+                                {options.showGross && <TableCell></TableCell>}
+                                {options.showTransport && <TableCell></TableCell>}
                                 <TableCell className="text-right font-bold">Rs. {transportCost.toFixed(2)}</TableCell>
                             </TableRow>
                         )}
                     </TableBody>
-                    <TableFooter className="bg-muted/5">
-                        <TableRow className="hover:bg-transparent">
-                            <TableCell colSpan={options.showSN ? (options.showSize ? 6 : 5) : (options.showSize ? 5 : 4)} className="text-right font-bold py-3">Grand Total (Estimated)</TableCell>
-                            <TableCell className="text-right font-bold text-lg">Rs. {grandTotal.toFixed(2)}</TableCell>
-                        </TableRow>
-                    </TableFooter>
                 </Table>
 
                 {options.showTerms && selectedTerms.length > 0 && (
