@@ -687,7 +687,7 @@ export interface Accessory extends ProductAccessory {
 }
 
 
-interface CalculatedValues {
+export interface CalculatedValues {
     sheetSizeL: number;
     sheetSizeB: number;
     sheetArea: number;
@@ -696,6 +696,7 @@ interface CalculatedValues {
     totalBoxWeight: number;
     paperRate: number;
     paperCost: number;
+    transportCost: number;
 }
 
 export interface CostReportItem {

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -87,6 +88,7 @@ const CostingTableRow = React.memo(({
 }: any) => {
     // Calculate total cost for this row (Main Item + all its Accessories)
     const totalRowCost = (item.calculated?.paperCost || 0) + 
+        (item.calculated?.transportCost || 0) +
         (item.accessories || []).reduce((sum: number, acc: any) => sum + (acc.calculated?.paperCost || 0), 0);
 
     return (
@@ -175,6 +177,7 @@ const CostingTableRow = React.memo(({
                 <TableCell className="text-center font-medium bg-muted/20 border-r">{item.calculated?.totalGsm.toFixed(0)}</TableCell>
                 <TableCell className="text-center font-medium bg-muted/20 border-r">{item.calculated?.paperWeight.toFixed(1)}</TableCell>
                 <TableCell className="text-center font-bold border-r bg-primary/5">Rs. {item.calculated?.paperCost.toFixed(2)}</TableCell>
+                <TableCell className="text-center font-bold border-r bg-primary/5">Rs. {item.calculated?.transportCost.toFixed(2)}</TableCell>
                 <TableCell className="text-right font-bold pr-6 bg-primary/10">Rs. {totalRowCost.toFixed(2)}</TableCell>
                 <TableCell className="px-2">
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => onRemoveItem(item.id)}><Trash2 className="h-4 w-4" /></Button>
@@ -233,6 +236,7 @@ const CostingTableRow = React.memo(({
                     <TableCell className="text-center bg-muted/20 border-r">{acc.calculated?.totalGsm.toFixed(0)}</TableCell>
                     <TableCell className="text-center bg-muted/20 border-r">{acc.calculated?.paperWeight.toFixed(1)}</TableCell>
                     <TableCell className="text-center border-r">Rs. {acc.calculated?.paperCost.toFixed(2)}</TableCell>
+                    <TableCell className="text-center border-r"></TableCell>
                     <TableCell className="text-right pr-6"></TableCell>
                     <TableCell className="px-2">
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive/70" onClick={() => onItemChange(index, 'acc_remove', aIdx)}><X className="h-3.5 w-3.5" /></Button>
@@ -279,7 +283,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
 
   const calculateItemCost = useCallback((item: any, globalK: any, globalV: number, globalC: number, globalT: number, tType: string, isAcc = false): CalculatedValues => {
     const l = parseFloat(item.l) || 0, b = parseFloat(item.b) || 0, h = parseFloat(item.h) || 0, pcs = parseInt(item.noOfPcs, 10) || 1;
-    if (l <= 0 || b <= 0) return { sheetSizeL: 0, sheetSizeB: 0, sheetArea: 0, totalGsm: 0, paperWeight: 0, totalBoxWeight: 0, paperRate: 0, paperCost: 0 };
+    if (l <= 0 || b <= 0) return { sheetSizeL: 0, sheetSizeB: 0, sheetArea: 0, totalGsm: 0, paperWeight: 0, totalBoxWeight: 0, paperRate: 0, paperCost: 0, transportCost: 0 };
     
     const isBox = h > 0;
     let sL = 0, sB = 0;
@@ -318,14 +322,16 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
     const finalRate = pRate + (isAcc ? Number(accessoryConversionCost) || 0 : globalC);
     
     let paperCost = (tBWt / 1000) * finalRate;
-    if (tType === 'Per Piece') {
-        paperCost += globalT * pcs;
+    let tCost = 0;
+    if (tType === 'Per Piece' && !isAcc) {
+        tCost = globalT * pcs;
     }
     
     return { 
         sheetSizeL: sL, sheetSizeB: sB, sheetArea: sArea, totalGsm: tGsm, 
         paperWeight: pWt, totalBoxWeight: tBWt, paperRate: finalRate, 
-        paperCost: paperCost
+        paperCost: paperCost,
+        transportCost: tCost
     };
   }, [accessoryConversionCost]);
 
@@ -473,7 +479,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
         flute4Gsm: '',
         liner4Gsm: '',
         wastagePercent: '2.5',
-        calculated: { sheetSizeL: 0, sheetSizeB: 0, sheetArea: 0, totalGsm: 0, paperWeight: 0, totalBoxWeight: 0, paperRate: 0, paperCost: 0 }
+        calculated: { sheetSizeL: 0, sheetSizeB: 0, sheetArea: 0, totalGsm: 0, paperWeight: 0, totalBoxWeight: 0, paperRate: 0, paperCost: 0, transportCost: 0 }
     };
     newAcc.calculated = calculateItemCost(newAcc, kraftPaperCosts, Number(virginPaperCost) || 0, Number(conversionCost) || 0, Number(transportCost) || 0, transportCostType, true);
     const next = [...items];
@@ -558,7 +564,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
             transportCostType,
             termsAndConditions,
             items: items.map(({ calculated, ...rest }) => rest),
-            totalCost: items.reduce((sum, i) => sum + i.calculated.paperCost + (i.accessories?.reduce((aSum, a) => aSum + a.calculated.paperCost, 0) || 0), 0) + (transportCostType === 'Per Consignment' ? (Number(transportCost) || 0) : 0),
+            totalCost: items.reduce((sum, i) => sum + i.calculated.paperCost + i.calculated.transportCost + (i.accessories?.reduce((aSum, a) => aSum + a.calculated.paperCost, 0) || 0), 0) + (transportCostType === 'Per Consignment' ? (Number(transportCost) || 0) : 0),
             createdBy: user.username
         };
         await addCostReport(reportData);
@@ -619,7 +625,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
         reportNumber,
         reportDate,
         party: parties.find(p => p.id === selectedPartyId),
-        items: items.filter(i => selectedForPrint.has(i.id)).map(i => ({...i, totalItemCost: i.calculated.paperCost + (i.accessories?.reduce((sum, a) => sum + a.calculated.paperCost, 0) || 0)})),
+        items: items.filter(i => selectedForPrint.has(i.id)).map(i => ({...i, totalItemCost: i.calculated.paperCost + i.calculated.transportCost + (i.accessories?.reduce((sum, a) => sum + a.calculated.paperCost, 0) || 0)})),
         termsAndConditions,
         transportCost: Number(transportCost) || 0,
         transportCostType: transportCostType
@@ -793,7 +799,8 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
                                     <TableHead colSpan={maxPly} className="text-center border-x font-bold text-black bg-orange-50/50">GSM Composition</TableHead>
                                     <TableHead rowSpan={2} className="text-center min-w-[90px] border-r bg-muted/20">T.GSM</TableHead>
                                     <TableHead rowSpan={2} className="text-center min-w-[100px] border-r bg-muted/20">Weight (g)</TableHead>
-                                    <TableHead rowSpan={2} className="text-center min-w-[120px] border-r bg-primary/5 font-bold">Paper Cost</TableHead>
+                                    <TableHead rowSpan={2} className="text-center min-w-[120px] border-r bg-primary/5 font-bold">Gross</TableHead>
+                                    <TableHead rowSpan={2} className="text-center min-w-[120px] border-r bg-primary/5 font-bold">Transport</TableHead>
                                     <TableHead rowSpan={2} className="text-right min-w-[140px] pr-6 bg-primary/10 font-bold">Total NPR</TableHead>
                                     <TableHead rowSpan={2} className="w-20"></TableHead>
                                 </TableRow>
@@ -842,10 +849,6 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
                                 <span>Rs. {(Number(transportCost) || 0).toLocaleString()}</span>
                             </div>
                         )}
-                        <div className="flex justify-between text-lg font-bold text-primary">
-                            <span>Estimated Total</span>
-                            <span>Rs. {items.reduce((sum, i) => sum + i.calculated.paperCost + (i.accessories?.reduce((aSum, a) => aSum + a.calculated.paperCost, 0) || 0), 0 + (transportCostType === 'Per Consignment' ? (Number(transportCost) || 0) : 0)).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
-                        </div>
                     </div>
                 </div>
             </CardContent>
@@ -1009,10 +1012,11 @@ export default function CostReportPage() {
             let pRate = item.paperType === 'VIRGIN' ? vCost : (kCosts[normalizeBF(item.paperBf)] || 0);
             const finalRate = pRate + (isAcc ? aCCost : cCost);
             let paperCost = (tBWt / 1000) * finalRate;
-            if (tType === 'Per Piece') {
-                paperCost += tCost * pcs;
+            let tAmount = 0;
+            if (tType === 'Per Piece' && !isAcc) {
+                tAmount = tCost * pcs;
             }
-            return { paperCost: paperCost };
+            return { paperCost: paperCost, transportCost: tAmount };
         };
 
         const itemsWithCost = report.items.map((item: any) => {
@@ -1024,7 +1028,7 @@ export default function CostReportPage() {
             return {
                 ...item,
                 accessories,
-                totalItemCost: (calculated.paperCost || 0) + accessories.reduce((sum: number, a: any) => sum + (a.calculated?.paperCost || 0), 0)
+                totalItemCost: (calculated.paperCost || 0) + (calculated.transportCost || 0) + accessories.reduce((sum: number, a: any) => sum + (a.calculated?.paperCost || 0), 0)
             };
         });
 
