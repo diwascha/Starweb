@@ -86,9 +86,12 @@ const CostingTableRow = React.memo(({
     selectedForPrint,
     onAddProductQuickly
 }: any) => {
-    // Calculate total cost for this row (Main Item + all its Accessories)
-    const totalRowCost = (item.calculated?.paperCost || 0) + 
-        (item.calculated?.transportCost || 0) +
+    // Safety check for calculation values
+    const calc = item.calculated || { paperCost: 0, transportCost: 0, totalGsm: 0, paperWeight: 0 };
+    
+    // Calculate total cost for this row (Main Item Gross + Main Item Transport + all its Accessories Gross)
+    const totalRowCost = (calc.paperCost || 0) + 
+        (calc.transportCost || 0) +
         (item.accessories || []).reduce((sum: number, acc: any) => sum + (acc.calculated?.paperCost || 0), 0);
 
     return (
@@ -174,75 +177,78 @@ const CostingTableRow = React.memo(({
                     </>
                 )}
                 <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={item.bottomGsm ?? ''} onChange={e => onItemChange(index, 'bottomGsm', e.target.value)} className="h-14 text-center px-0 w-full border-none focus-visible:ring-0 rounded-none bg-transparent" /></TableCell>
-                <TableCell className="text-center font-medium bg-muted/20 border-r">{item.calculated?.totalGsm.toFixed(0)}</TableCell>
-                <TableCell className="text-center font-medium bg-muted/20 border-r">{item.calculated?.paperWeight.toFixed(1)}</TableCell>
-                <TableCell className="text-center font-bold border-r bg-primary/5">Rs. {item.calculated?.paperCost.toFixed(2)}</TableCell>
-                <TableCell className="text-center font-bold border-r bg-primary/5">Rs. {item.calculated?.transportCost.toFixed(2)}</TableCell>
+                <TableCell className="text-center font-medium bg-muted/20 border-r">{(calc.totalGsm || 0).toFixed(0)}</TableCell>
+                <TableCell className="text-center font-medium bg-muted/20 border-r">{(calc.paperWeight || 0).toFixed(1)}</TableCell>
+                <TableCell className="text-center font-bold border-r bg-primary/5">Rs. {(calc.paperCost || 0).toFixed(2)}</TableCell>
+                <TableCell className="text-center font-bold border-r bg-primary/5">Rs. {(calc.transportCost || 0).toFixed(2)}</TableCell>
                 <TableCell className="text-right font-bold pr-6 bg-primary/10">Rs. {totalRowCost.toFixed(2)}</TableCell>
                 <TableCell className="px-2">
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => onRemoveItem(item.id)}><Trash2 className="h-4 w-4" /></Button>
                 </TableCell>
             </TableRow>
-            {(item.accessories || []).map((acc: any, aIdx: number) => (
-                <TableRow key={acc.id} className="h-12 bg-muted/10 border-b border-dashed">
-                    <TableCell></TableCell>
-                    <TableCell className="border-r pr-2 pl-6">
-                        <Input value={acc.name} onChange={e => onItemChange(index, 'acc_name', { aIdx, v: e.target.value })} className="h-8 text-[10px] w-full bg-white font-semibold" placeholder="Accessory name..." />
-                    </TableCell>
-                    <TableCell className="border-r p-0"><Input type="number" value={acc.l ?? ''} onChange={e => onItemChange(index, 'acc_l', { aIdx, v: e.target.value })} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
-                    <TableCell className="border-r p-0"><Input type="number" value={acc.b ?? ''} onChange={e => onItemChange(index, 'acc_b', { aIdx, v: e.target.value })} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
-                    <TableCell className="border-r p-0 bg-muted/20"><Input readOnly value="0" className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
-                    <TableCell className="border-r p-0"><Input type="number" value={acc.noOfPcs ?? ''} onChange={e => onItemChange(index, 'acc_noOfPcs', { aIdx, v: e.target.value })} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
-                    <TableCell className="border-r px-2">
-                        <Select value={acc.ply ?? '3'} onValueChange={v => onItemChange(index, 'acc_ply', { aIdx, v })}>
-                            <SelectTrigger className="h-8 text-center px-1"><SelectValue/></SelectTrigger>
-                            <SelectContent>{PLY_OPTIONS.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
-                        </Select>
-                    </TableCell>
-                    <TableCell className="border-r px-2">
-                        <Select value={acc.paperType ?? 'KRAFT'} onValueChange={v => onItemChange(index, 'acc_paperType', { aIdx, v })}>
-                            <SelectTrigger className="h-8 px-2 text-[10px]"><SelectValue/></SelectTrigger>
-                            <SelectContent><SelectItem value="KRAFT">Kraft (K)</SelectItem><SelectItem value="VIRGIN">Virgin (V)</SelectItem></SelectContent>
-                        </Select>
-                    </TableCell>
-                    <TableCell className="border-r px-2">
-                        <Select value={normalizeBF(acc.paperBf)} onValueChange={v => onItemChange(index, 'acc_paperBf', { aIdx, v })}>
-                            <SelectTrigger className="h-8 px-2"><SelectValue/></SelectTrigger>
-                            <SelectContent>{BF_OPTIONS.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
-                        </Select>
-                    </TableCell>
-                    <TableCell className="border-r p-0"><Input type="number" value={acc.wastagePercent ?? ''} onChange={e => onItemChange(index, 'acc_wastagePercent', { aIdx, v: e.target.value })} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
-                    <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.topGsm ?? ''} onChange={e => onItemChange(index, 'acc_topGsm', { aIdx, v: e.target.value })} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
-                    <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.flute1Gsm ?? ''} onChange={e => onItemChange(index, 'acc_flute1Gsm', { aIdx, v: e.target.value })} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
-                    {maxPly >= 5 && (
-                        <>
-                            <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.middleGsm ?? ''} onChange={e => onItemChange(index, 'acc_middleGsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 5 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 5} /></TableCell>
-                            <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.flute2Gsm ?? ''} onChange={e => onItemChange(index, 'acc_flute2Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 5 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 5} /></TableCell>
-                        </>
-                    )}
-                    {maxPly >= 7 && (
-                        <>
-                            <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.liner2Gsm ?? ''} onChange={e => onItemChange(index, 'acc_liner2Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 7 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 7} /></TableCell>
-                            <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.flute3Gsm ?? ''} onChange={e => onItemChange(index, 'acc_flute3Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 7 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 7} /></TableCell>
-                        </>
-                    )}
-                    {maxPly >= 9 && (
-                        <>
-                            <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.liner3Gsm ?? ''} onChange={e => onItemChange(index, 'acc_liner3Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 9 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 9} /></TableCell>
-                            <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.flute4Gsm ?? ''} onChange={e => onItemChange(index, 'acc_flute4Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 9 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 9} /></TableCell>
-                        </>
-                    )}
-                    <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.bottomGsm ?? ''} onChange={e => onItemChange(index, 'acc_bottomGsm', { aIdx, v: e.target.value })} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
-                    <TableCell className="text-center bg-muted/20 border-r">{acc.calculated?.totalGsm.toFixed(0)}</TableCell>
-                    <TableCell className="text-center bg-muted/20 border-r">{acc.calculated?.paperWeight.toFixed(1)}</TableCell>
-                    <TableCell className="text-center border-r">Rs. {acc.calculated?.paperCost.toFixed(2)}</TableCell>
-                    <TableCell className="text-center border-r"></TableCell>
-                    <TableCell className="text-right pr-6"></TableCell>
-                    <TableCell className="px-2">
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive/70" onClick={() => onItemChange(index, 'acc_remove', aIdx)}><X className="h-3.5 w-3.5" /></Button>
-                    </TableCell>
-                </TableRow>
-            ))}
+            {(item.accessories || []).map((acc: any, aIdx: number) => {
+                const accCalc = acc.calculated || { paperCost: 0, transportCost: 0, totalGsm: 0, paperWeight: 0 };
+                return (
+                    <TableRow key={acc.id} className="h-12 bg-muted/10 border-b border-dashed">
+                        <TableCell></TableCell>
+                        <TableCell className="border-r pr-2 pl-6">
+                            <Input value={acc.name} onChange={e => onItemChange(index, 'acc_name', { aIdx, v: e.target.value })} className="h-8 text-[10px] w-full bg-white font-semibold" placeholder="Accessory name..." />
+                        </TableCell>
+                        <TableCell className="border-r p-0"><Input type="number" value={acc.l ?? ''} onChange={e => onItemChange(index, 'acc_l', { aIdx, v: e.target.value })} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
+                        <TableCell className="border-r p-0"><Input type="number" value={acc.b ?? ''} onChange={e => onItemChange(index, 'acc_b', { aIdx, v: e.target.value })} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
+                        <TableCell className="border-r p-0 bg-muted/20"><Input readOnly value="0" className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
+                        <TableCell className="border-r p-0"><Input type="number" value={acc.noOfPcs ?? ''} onChange={e => onItemChange(index, 'acc_noOfPcs', { aIdx, v: e.target.value })} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
+                        <TableCell className="border-r px-2">
+                            <Select value={acc.ply ?? '3'} onValueChange={v => onItemChange(index, 'acc_ply', { aIdx, v })}>
+                                <SelectTrigger className="h-8 text-center px-1"><SelectValue/></SelectTrigger>
+                                <SelectContent>{PLY_OPTIONS.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
+                            </Select>
+                        </TableCell>
+                        <TableCell className="border-r px-2">
+                            <Select value={acc.paperType ?? 'KRAFT'} onValueChange={v => onItemChange(index, 'acc_paperType', { aIdx, v })}>
+                                <SelectTrigger className="h-8 px-2 text-[10px]"><SelectValue/></SelectTrigger>
+                                <SelectContent><SelectItem value="KRAFT">Kraft (K)</SelectItem><SelectItem value="VIRGIN">Virgin (V)</SelectItem></SelectContent>
+                            </Select>
+                        </TableCell>
+                        <TableCell className="border-r px-2">
+                            <Select value={normalizeBF(acc.paperBf)} onValueChange={v => onItemChange(index, 'acc_paperBf', { aIdx, v })}>
+                                <SelectTrigger className="h-8 px-2"><SelectValue/></SelectTrigger>
+                                <SelectContent>{BF_OPTIONS.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
+                            </Select>
+                        </TableCell>
+                        <TableCell className="border-r p-0"><Input type="number" value={acc.wastagePercent ?? ''} onChange={e => onItemChange(index, 'acc_wastagePercent', { aIdx, v: e.target.value })} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
+                        <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.topGsm ?? ''} onChange={e => onItemChange(index, 'acc_topGsm', { aIdx, v: e.target.value })} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
+                        <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.flute1Gsm ?? ''} onChange={e => onItemChange(index, 'acc_flute1Gsm', { aIdx, v: e.target.value })} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
+                        {maxPly >= 5 && (
+                            <>
+                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.middleGsm ?? ''} onChange={e => onItemChange(index, 'acc_middleGsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 5 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 5} /></TableCell>
+                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.flute2Gsm ?? ''} onChange={e => onItemChange(index, 'acc_flute2Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 5 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 5} /></TableCell>
+                            </>
+                        )}
+                        {maxPly >= 7 && (
+                            <>
+                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.liner2Gsm ?? ''} onChange={e => onItemChange(index, 'acc_liner2Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 7 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 7} /></TableCell>
+                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.flute3Gsm ?? ''} onChange={e => onItemChange(index, 'acc_flute3Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 7 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 7} /></TableCell>
+                            </>
+                        )}
+                        {maxPly >= 9 && (
+                            <>
+                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.liner3Gsm ?? ''} onChange={e => onItemChange(index, 'acc_liner3Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 9 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 9} /></TableCell>
+                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.flute4Gsm ?? ''} onChange={e => onItemChange(index, 'acc_flute4Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 9 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 9} /></TableCell>
+                            </>
+                        )}
+                        <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.bottomGsm ?? ''} onChange={e => onItemChange(index, 'acc_bottomGsm', { aIdx, v: e.target.value })} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
+                        <TableCell className="text-center bg-muted/20 border-r">{(accCalc.totalGsm || 0).toFixed(0)}</TableCell>
+                        <TableCell className="text-center bg-muted/20 border-r">{(accCalc.paperWeight || 0).toFixed(1)}</TableCell>
+                        <TableCell className="text-center border-r">Rs. {(accCalc.paperCost || 0).toFixed(2)}</TableCell>
+                        <TableCell className="text-center border-r"></TableCell>
+                        <TableCell className="text-right pr-6"></TableCell>
+                        <TableCell className="px-2">
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive/70" onClick={() => onItemChange(index, 'acc_remove', aIdx)}><X className="h-3.5 w-3.5" /></Button>
+                        </TableCell>
+                    </TableRow>
+                );
+            })}
         </React.Fragment>
     );
 });
@@ -282,8 +288,14 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
   const { user } = useAuth();
 
   const calculateItemCost = useCallback((item: any, globalK: any, globalV: number, globalC: number, globalT: number, tType: string, isAcc = false): CalculatedValues => {
-    const l = parseFloat(item.l) || 0, b = parseFloat(item.b) || 0, h = parseFloat(item.h) || 0, pcs = parseInt(item.noOfPcs, 10) || 1;
-    if (l <= 0 || b <= 0) return { sheetSizeL: 0, sheetSizeB: 0, sheetArea: 0, totalGsm: 0, paperWeight: 0, totalBoxWeight: 0, paperRate: 0, paperCost: 0, transportCost: 0 };
+    const l = parseFloat(item.l) || 0;
+    const b = parseFloat(item.b) || 0;
+    const h = parseFloat(item.h) || 0;
+    const pcs = parseInt(item.noOfPcs, 10) || 1;
+    
+    if (l <= 0 || b <= 0) {
+        return { sheetSizeL: 0, sheetSizeB: 0, sheetArea: 0, totalGsm: 0, paperWeight: 0, totalBoxWeight: 0, paperRate: 0, paperCost: 0, transportCost: 0 };
+    }
     
     const isBox = h > 0;
     let sL = 0, sB = 0;
