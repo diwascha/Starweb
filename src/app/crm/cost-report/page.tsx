@@ -210,7 +210,7 @@ const CostingTableRow = React.memo(({
                     </TableCell>
                     <TableCell className="border-r p-0"><Input type="number" value={acc.wastagePercent ?? ''} onChange={e => onItemChange(index, 'acc_wastagePercent', { aIdx, v: e.target.value })} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
                     <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.topGsm ?? ''} onChange={e => onItemChange(index, 'acc_topGsm', { aIdx, v: e.target.value })} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
-                    <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.topGsm ?? ''} onChange={e => onItemChange(index, 'acc_topGsm', { aIdx, v: e.target.value })} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
+                    <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.flute1Gsm ?? ''} onChange={e => onItemChange(index, 'acc_flute1Gsm', { aIdx, v: e.target.value })} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
                     {maxPly >= 5 && (
                         <>
                             <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.middleGsm ?? ''} onChange={e => onItemChange(index, 'acc_middleGsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 5 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 5} /></TableCell>
@@ -620,7 +620,9 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
         reportDate,
         party: parties.find(p => p.id === selectedPartyId),
         items: items.filter(i => selectedForPrint.has(i.id)).map(i => ({...i, totalItemCost: i.calculated.paperCost + (i.accessories?.reduce((sum, a) => sum + a.calculated.paperCost, 0) || 0)})),
-        termsAndConditions
+        termsAndConditions,
+        transportCost: Number(transportCost) || 0,
+        transportCostType: transportCostType
     });
   };
 
@@ -832,6 +834,20 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
                         <ScrollBar orientation="vertical" />
                     </div>
                 </ScrollArea>
+                <div className="p-6 bg-muted/10 border-t flex justify-end">
+                    <div className="space-y-2 w-64">
+                         {transportCostType === 'Per Consignment' && (
+                            <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">Transport Charges</span>
+                                <span>Rs. {(Number(transportCost) || 0).toLocaleString()}</span>
+                            </div>
+                        )}
+                        <div className="flex justify-between text-lg font-bold text-primary">
+                            <span>Estimated Total</span>
+                            <span>Rs. {items.reduce((sum, i) => sum + i.calculated.paperCost + (i.accessories?.reduce((aSum, a) => aSum + a.calculated.paperCost, 0) || 0), 0 + (transportCostType === 'Per Consignment' ? (Number(transportCost) || 0) : 0)).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                        </div>
+                    </div>
+                </div>
             </CardContent>
         </Card>
 
@@ -1017,7 +1033,9 @@ export default function CostReportPage() {
             reportDate: new Date(report.reportDate),
             party: { id: report.partyId, name: report.partyName },
             items: itemsWithCost,
-            termsAndConditions: report.termsAndConditions || []
+            termsAndConditions: report.termsAndConditions || [],
+            transportCost: report.transportCost || 0,
+            transportCostType: report.transportCostType || 'Per Consignment'
         });
         setIsPreviewOpen(true);
     };
@@ -1098,6 +1116,8 @@ export default function CostReportPage() {
                     products={products}
                     termsAndConditions={previewData?.termsAndConditions}
                     companyProfile={companyProfile}
+                    transportCost={previewData?.transportCost}
+                    transportCostType={previewData?.transportCostType}
                 />
             </React.Suspense>
         </div>

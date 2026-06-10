@@ -5,7 +5,7 @@ import type { Party, Product, CostReportTerm, CompanyProfile } from '@/lib/types
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Printer, Image as ImageIcon, FileDown, Loader2, Settings2, CheckCircle2 } from 'lucide-react';
 import { toNepaliDate, normalizeBF } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -26,9 +26,23 @@ interface QuotationPreviewDialogProps {
   products: Product[];
   termsAndConditions?: CostReportTerm[];
   companyProfile: CompanyProfile;
+  transportCost?: number;
+  transportCostType?: 'Per Piece' | 'Per Consignment';
 }
 
-export function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, reportDate, party, items, products, termsAndConditions = [], companyProfile }: QuotationPreviewDialogProps) {
+export function QuotationPreviewDialog({ 
+  isOpen, 
+  onOpenChange, 
+  reportNumber, 
+  reportDate, 
+  party, 
+  items, 
+  products, 
+  termsAndConditions = [], 
+  companyProfile,
+  transportCost = 0,
+  transportCostType = 'Per Consignment'
+}: QuotationPreviewDialogProps) {
   const printRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
   
@@ -37,7 +51,7 @@ export function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, rep
     showSize: true,
     showPly: true,
     showPaperGrade: true,
-    showGSM: false,
+    showGSM: true,
     showAccessories: true,
     showRate: true,
     showTerms: true,
@@ -50,6 +64,23 @@ export function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, rep
     const product = products.find(p => p.id === productId);
     return product ? (product.materialCode ? `${product.name} (${product.materialCode})` : product.name) : 'Custom Item';
   };
+
+  const getGsmComposition = (item: any) => {
+    const p = parseInt(item.ply || '3', 10);
+    let layers: (string | number | undefined)[] = [];
+    if (p === 3) layers = [item.topGsm, item.flute1Gsm, item.bottomGsm];
+    else if (p === 5) layers = [item.topGsm, item.flute1Gsm, item.middleGsm, item.flute2Gsm, item.bottomGsm];
+    else if (p === 7) layers = [item.topGsm, item.flute1Gsm, item.middleGsm, item.flute2Gsm, item.liner2Gsm, item.flute3Gsm, item.bottomGsm];
+    else if (p === 9) layers = [item.topGsm, item.flute1Gsm, item.middleGsm, item.flute2Gsm, item.liner2Gsm, item.flute3Gsm, item.liner3Gsm, item.flute4Gsm, item.bottomGsm];
+    
+    const display = layers.filter(l => l !== undefined && l !== null && String(l).trim() !== '').join('/');
+    return display || 'N/A';
+  };
+
+  const grandTotal = useMemo(() => {
+    const itemsTotal = items.reduce((sum, i) => sum + (i.totalItemCost || 0), 0);
+    return transportCostType === 'Per Consignment' ? itemsTotal + transportCost : itemsTotal;
+  }, [items, transportCost, transportCostType]);
 
   const handlePrint = () => {
     const printableArea = printRef.current;
@@ -103,7 +134,9 @@ export function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, rep
         doc.setFontSize(8);
         doc.text(`(${format(reportDate, "MMMM do, yyyy")})`, pageWidth - 14, 67, { align: 'right' });
 
-        const tableHeaders = ['S.N.', 'Particulars / Specifications'];
+        const tableHeaders = [];
+        if (options.showSN) tableHeaders.push('S.N.');
+        tableHeaders.push('Particulars / Specifications');
         if (options.showSize) tableHeaders.push('Size (mm)');
         if (options.showPly) tableHeaders.push('Ply');
         if (options.showPaperGrade) tableHeaders.push('Paper Grade');
@@ -112,28 +145,41 @@ export function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, rep
 
         const tableData = items.flatMap((item, index) => {
             const row = [];
-            if (options.showSN) row.push(index + 1); else row.push('');
+            if (options.showSN) row.push(index + 1);
             row.push(getProductDisplayName(item.productId));
             if (options.showSize) row.push(`${item.l}x${item.b}x${item.h}`);
             if (options.showPly) row.push(`${item.ply} Ply`);
             if (options.showPaperGrade) row.push(`${item.paperType} ${normalizeBF(item.paperBf)}`);
-            if (options.showGSM) row.push(item.calculated?.totalGsm?.toFixed(0) || '');
+            if (options.showGSM) row.push(getGsmComposition(item));
             if (options.showRate) row.push(`Rs. ${item.totalItemCost.toFixed(2)}`);
 
             const accs = options.showAccessories ? (item.accessories || []).map((acc: any) => {
                 const accRow = [];
-                accRow.push('');
+                if (options.showSN) accRow.push('');
                 accRow.push(`-- ${acc.name}`);
                 if (options.showSize) accRow.push(`${acc.l}x${acc.b}x${acc.h}`);
                 if (options.showPly) accRow.push(`${acc.ply} Ply`);
                 if (options.showPaperGrade) accRow.push(`${acc.paperType} ${normalizeBF(acc.paperBf)}`);
-                if (options.showGSM) accRow.push(acc.calculated?.totalGsm?.toFixed(0) || '');
-                if (options.showRate) accRow.push(`Rs. ${acc.calculated?.paperCost.toFixed(2)}`);
+                if (options.showGSM) accRow.push(getGsmComposition(acc));
+                if (options.showRate) accRow.push(''); // Accessories hidden rate per user request
                 return accRow;
             }) : [];
 
             return [row, ...accs];
         });
+
+        // Add Transport if lump sum
+        if (transportCostType === 'Per Consignment' && transportCost > 0) {
+            const transportRow = [];
+            if (options.showSN) transportRow.push('');
+            transportRow.push('Transportation Charges');
+            if (options.showSize) transportRow.push('');
+            if (options.showPly) transportRow.push('');
+            if (options.showPaperGrade) transportRow.push('');
+            if (options.showGSM) transportRow.push('');
+            if (options.showRate) transportRow.push(`Rs. ${transportCost.toFixed(2)}`);
+            tableData.push(transportRow);
+        }
 
         autoTable(doc, {
             startY: Math.max(infoY + 10, 80),
@@ -190,10 +236,6 @@ export function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, rep
     }
   };
 
-  const getGsmDisplay = (item: any) => {
-      return item.calculated?.totalGsm?.toFixed(0) || 'N/A';
-  };
-  
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[95vw] w-full h-[95vh] p-0 flex flex-col overflow-hidden">
@@ -266,8 +308,8 @@ export function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, rep
             </div>
             
             <div className="p-4 bg-primary/5 rounded-lg border border-primary/10">
-                <p className="text-[10px] text-muted-foreground leading-relaxed">
-                    Note: Rates displayed are calculated based on the technical specs and wastage percentage provided in the calculator.
+                <p className="text-[10px] text-muted-foreground leading-relaxed italic">
+                    Note: "NPR Rate" for main items includes the cost of all its associated accessories. Accessory rows do not show separate rates to avoid duplication.
                 </p>
             </div>
           </aside>
@@ -277,6 +319,7 @@ export function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, rep
             <div ref={printRef} className="w-[210mm] mx-auto bg-white p-12 text-black shadow-lg ring-1 ring-black/5 min-h-[297mm]">
                <header className="text-center space-y-1 mb-10">
                     <h1 className="text-2xl font-bold uppercase tracking-tight">{companyProfile.nameEn}</h1>
+                    <h2 className="text-lg font-semibold">{companyProfile.nameNp}</h2>
                     <p className="text-base uppercase tracking-wide">{companyProfile.address}</p>
                     <h2 className="text-xl font-bold underline mt-6">QUOTATION</h2>
                 </header>
@@ -316,7 +359,7 @@ export function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, rep
                                     {options.showSize && <TableCell className="text-center">{item.l}x{item.b}x{item.h}</TableCell>}
                                     {options.showPly && <TableCell className="text-center">{item.ply} Ply</TableCell>}
                                     {options.showPaperGrade && <TableCell className="text-center">{item.paperType} {normalizeBF(item.paperBf)}</TableCell>}
-                                    {options.showGSM && <TableCell className="text-center">{getGsmDisplay(item)}</TableCell>}
+                                    {options.showGSM && <TableCell className="text-center">{getGsmComposition(item)}</TableCell>}
                                     {options.showRate && <TableCell className="text-right font-bold">Rs. {item.totalItemCost.toFixed(2)}</TableCell>}
                                 </TableRow>
                             );
@@ -327,13 +370,30 @@ export function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, rep
                                     {options.showSize && <TableCell className="text-center text-muted-foreground">{acc.l}x{acc.b}x{acc.h}</TableCell>}
                                     {options.showPly && <TableCell className="text-center text-muted-foreground">{acc.ply} Ply</TableCell>}
                                     {options.showPaperGrade && <TableCell className="text-center text-muted-foreground">{acc.paperType} {normalizeBF(acc.paperBf)}</TableCell>}
-                                    {options.showGSM && <TableCell className="text-center text-muted-foreground">{getGsmDisplay(acc)}</TableCell>}
-                                    {options.showRate && <TableCell className="text-right text-muted-foreground">Rs. {acc.calculated?.paperCost.toFixed(2)}</TableCell>}
+                                    {options.showGSM && <TableCell className="text-center text-muted-foreground">{getGsmComposition(acc)}</TableCell>}
+                                    {options.showRate && <TableCell className="text-right text-muted-foreground"></TableCell>}
                                 </TableRow>
                             )) : [];
                             return [mainRow, ...accRows];
                         })}
+                        {transportCostType === 'Per Consignment' && transportCost > 0 && options.showRate && (
+                            <TableRow className="border-t border-black/10 hover:bg-transparent">
+                                {options.showSN && <TableCell></TableCell>}
+                                <TableCell colSpan={options.showSize ? 1 : 0} className="font-medium py-3">Transportation Charges</TableCell>
+                                {options.showSize && <TableCell></TableCell>}
+                                {options.showPly && <TableCell></TableCell>}
+                                {options.showPaperGrade && <TableCell></TableCell>}
+                                {options.showGSM && <TableCell></TableCell>}
+                                <TableCell className="text-right font-bold">Rs. {transportCost.toFixed(2)}</TableCell>
+                            </TableRow>
+                        )}
                     </TableBody>
+                    <TableFooter className="bg-muted/5">
+                        <TableRow className="hover:bg-transparent">
+                            <TableCell colSpan={options.showSN ? (options.showSize ? 6 : 5) : (options.showSize ? 5 : 4)} className="text-right font-bold py-3">Grand Total (Estimated)</TableCell>
+                            <TableCell className="text-right font-bold text-lg">Rs. {grandTotal.toFixed(2)}</TableCell>
+                        </TableRow>
+                    </TableFooter>
                 </Table>
 
                 {options.showTerms && selectedTerms.length > 0 && (
@@ -350,9 +410,9 @@ export function QuotationPreviewDialog({ isOpen, onOpenChange, reportNumber, rep
                         <p>Valid for: 15 Days</p>
                         <p>Issued by: {companyProfile.nameEn}</p>
                     </div>
-                    <div className="text-center">
-                        <div className="w-32 border-b border-black mb-1"></div>
-                        <p className="text-[10px] font-bold uppercase">Authorized Signatory</p>
+                    <div className="text-right text-[9px] text-muted-foreground italic max-w-[200px] leading-tight">
+                        <p>This is a computer-generated document and does not require a physical signature.</p>
+                        <p className="font-bold text-black uppercase mt-1">Digitally Prepared via STARWEB</p>
                     </div>
                 </footer>
             </div>
