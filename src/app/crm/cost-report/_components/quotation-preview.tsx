@@ -144,9 +144,9 @@ export function QuotationPreviewDialog({
             row.push(getProductDisplayName(item.productId));
             if (options.showSpecs) row.push(`${item.l}x${item.b}x${item.h}\n${item.ply} Ply`);
             if (options.showComposition) row.push(`${getGsmComposition(item)}\n${item.paperType} ${normalizeBF(item.paperBf)}`);
-            if (options.showGross) row.push(`Rs. ${item.calculated?.paperCost.toFixed(2)}`);
-            if (options.showTransport) row.push(`Rs. ${item.calculated?.transportCost.toFixed(2)}`);
-            if (options.showRate) row.push(`Rs. ${item.totalItemCost.toFixed(2)}`);
+            if (options.showGross) row.push(`Rs. ${item.calculated?.paperCost?.toFixed(2) || '0.00'}`);
+            if (options.showTransport) row.push(`Rs. ${item.calculated?.transportCost?.toFixed(2) || '0.00'}`);
+            if (options.showRate) row.push(`Rs. ${item.totalItemCost?.toFixed(2) || '0.00'}`);
 
             const accs = options.showAccessories ? (item.accessories || []).map((acc: any) => {
                 const accRow = [];
@@ -154,7 +154,7 @@ export function QuotationPreviewDialog({
                 accRow.push(`-- ${acc.name}`);
                 if (options.showSpecs) accRow.push(`${acc.l}x${acc.b}x${acc.h}\n${acc.ply} Ply`);
                 if (options.showComposition) accRow.push(`${getGsmComposition(acc)}\n${acc.paperType} ${normalizeBF(acc.paperBf)}`);
-                if (options.showGross) accRow.push(`Rs. ${acc.calculated?.paperCost.toFixed(2)}`);
+                if (options.showGross) accRow.push(`Rs. ${acc.calculated?.paperCost?.toFixed(2) || '0.00'}`);
                 if (options.showTransport) accRow.push('');
                 if (options.showRate) accRow.push('');
                 return accRow;
@@ -365,9 +365,9 @@ export function QuotationPreviewDialog({
                                             <span className="text-[10px] text-muted-foreground font-normal">{item.paperType} {normalizeBF(item.paperBf)}</span>
                                         </TableCell>
                                     )}
-                                    {options.showGross && <TableCell className="text-center">Rs. {item.calculated?.paperCost.toFixed(2)}</TableCell>}
-                                    {options.showTransport && <TableCell className="text-center">Rs. {item.calculated?.transportCost.toFixed(2)}</TableCell>}
-                                    {options.showRate && <TableCell className="text-right font-bold">Rs. {item.totalItemCost.toFixed(2)}</TableCell>}
+                                    {options.showGross && <TableCell className="text-center">Rs. {item.calculated?.paperCost?.toFixed(2) || '0.00'}</TableCell>}
+                                    {options.showTransport && <TableCell className="text-center">Rs. {item.calculated?.transportCost?.toFixed(2) || '0.00'}</TableCell>}
+                                    {options.showRate && <TableCell className="text-right font-bold">Rs. {item.totalItemCost?.toFixed(2) || '0.00'}</TableCell>}
                                 </TableRow>
                             );
                             const accRows = options.showAccessories ? (item.accessories || []).map((acc: any) => (
@@ -386,7 +386,7 @@ export function QuotationPreviewDialog({
                                             <span className="text-[9px] font-normal">{acc.paperType} {normalizeBF(acc.paperBf)}</span>
                                         </TableCell>
                                     )}
-                                    {options.showGross && <TableCell className="text-center text-muted-foreground">Rs. {acc.calculated?.paperCost.toFixed(2)}</TableCell>}
+                                    {options.showGross && <TableCell className="text-center text-muted-foreground">Rs. {acc.calculated?.paperCost?.toFixed(2) || '0.00'}</TableCell>}
                                     {options.showTransport && <TableCell className="text-center"></TableCell>}
                                     {options.showRate && <TableCell className="text-right text-muted-foreground"></TableCell>}
                                 </TableRow>

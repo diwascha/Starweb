@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -234,7 +233,7 @@ const CostingTableRow = React.memo(({
                         {maxPly >= 9 && (
                             <>
                                 <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.liner3Gsm ?? ''} onChange={e => onItemChange(index, 'acc_liner3Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 9 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 9} /></TableCell>
-                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.flute4Gsm ?? ''} onChange={e => onItemChange(index, 'acc_flute4Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 9 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 9} /></TableCell>
+                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.flute4Gsm ?? ''} onChange={e => onItemChange(index, 'flute4Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 9 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 9} /></TableCell>
                             </>
                         )}
                         <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.bottomGsm ?? ''} onChange={e => onItemChange(index, 'acc_bottomGsm', { aIdx, v: e.target.value })} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
@@ -637,7 +636,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
         reportNumber,
         reportDate,
         party: parties.find(p => p.id === selectedPartyId),
-        items: items.filter(i => selectedForPrint.has(i.id)).map(i => ({...i, totalItemCost: i.calculated.paperCost + i.calculated.transportCost + (i.accessories?.reduce((sum, a) => sum + a.calculated.paperCost, 0) || 0)})),
+        items: items.filter(i => selectedForPrint.has(i.id)).map(i => ({...i, totalItemCost: (i.calculated.paperCost || 0) + (i.calculated.transportCost || 0) + (i.accessories?.reduce((sum: number, a: any) => sum + (a.calculated?.paperCost || 0), 0) || 0)})),
         termsAndConditions,
         transportCost: Number(transportCost) || 0,
         transportCostType: transportCostType
@@ -1040,6 +1039,7 @@ export default function CostReportPage() {
             return {
                 ...item,
                 accessories,
+                calculated,
                 totalItemCost: (calculated.paperCost || 0) + (calculated.transportCost || 0) + accessories.reduce((sum: number, a: any) => sum + (a.calculated?.paperCost || 0), 0)
             };
         });
