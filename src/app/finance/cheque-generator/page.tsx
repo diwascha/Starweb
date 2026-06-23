@@ -429,7 +429,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                             onPrintVoucher={handlePrintRequest}
                             onMarkAsPaid={(c, id) => { setSplitToPay({cheque: c, splitId: id}); setIsPaidDialogOpen(true); }}
                             onMarkAsCanceled={(c, id) => { setSplitToCancel({cheque: c, splitId: id}); setIsCancelDialogOpen(true); }}
-                            onMarkAsDue={handleStatusUpdate}
+                            onMarkAsDue={(c, id) => handleStatusUpdate(c, id, 'Due')}
                             onDeleteVoucher={handleDelete}
                         />
                     ))
@@ -458,6 +458,58 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+            )}
+
+            {isPaidDialogOpen && (
+                <Dialog open={isPaidDialogOpen} onOpenChange={setIsPaidDialogOpen}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Mark as Paid</DialogTitle>
+                            <DialogDescription>Are you sure you want to mark this cheque as paid? This will record a full payment for the remaining balance.</DialogDescription>
+                        </DialogHeader>
+                        <div className="py-4">
+                            <Label htmlFor="paid-remark">Remark (Optional)</Label>
+                            <Input id="paid-remark" value={paidRemark} onChange={(e) => setPaidRemark(e.target.value)} placeholder="e.g. Cleared at bank" />
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsPaidDialogOpen(false)}>Cancel</Button>
+                            <Button onClick={() => {
+                                if (splitToPay) {
+                                    handleStatusUpdate(splitToPay.cheque, splitToPay.splitId, 'Paid', paidRemark);
+                                    setIsPaidDialogOpen(false);
+                                    setPaidRemark('');
+                                    setSplitToPay(null);
+                                }
+                            }}>Confirm Paid</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            )}
+
+            {isCancelDialogOpen && (
+                <Dialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Cancel Cheque</DialogTitle>
+                            <DialogDescription>Please provide a reason for canceling this cheque.</DialogDescription>
+                        </DialogHeader>
+                        <div className="py-4">
+                            <Label htmlFor="cancel-reason">Reason</Label>
+                            <Textarea id="cancel-reason" value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder="e.g. Incorrect amount, Party requested hold" />
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsCancelDialogOpen(false)}>Go Back</Button>
+                            <Button variant="destructive" onClick={() => {
+                                if (splitToCancel) {
+                                    handleStatusUpdate(splitToCancel.cheque, splitToCancel.splitId, 'Canceled', cancelReason);
+                                    setIsCancelDialogOpen(false);
+                                    setCancelReason('');
+                                    setSplitToCancel(null);
+                                }
+                            }}>Cancel Cheque</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             )}
 
             {isPaymentDialogOpen && (
@@ -545,7 +597,7 @@ function SavedChequesList({ onEdit }: { onEdit: (cheque: Cheque) => void }) {
 
 export default function ChequeGeneratorPage() {
     const [activeTab, setActiveTab] = useState('generator');
-    const [chequeToEdit, setCheckToEdit] = useState<Cheque | null>(null);
+    const [chequeToEdit, setCheckToEdit] = useState<Check | null>(null);
 
     const handleEditCheque = useCallback((cheque: Cheque) => {
         setCheckToEdit(cheque);
