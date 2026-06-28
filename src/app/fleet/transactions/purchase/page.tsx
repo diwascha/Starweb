@@ -9,6 +9,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
 import { cn, toNepaliDate } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
 import { onTransactionsUpdate, deleteTransaction } from '@/services/transaction-service';
@@ -111,8 +112,8 @@ export default function PurchaseLogsPage() {
                  aVal = partiesById.get(a.partyId!) || '';
                  bVal = partiesById.get(b.partyId!) || '';
             } else {
-                aVal = a[sortConfig.key as keyof Transaction] || '';
-                bVal = b[sortConfig.key as keyof Transaction] || '';
+                aVal = (a[sortConfig.key as keyof Transaction] || '').toString();
+                bVal = (b[sortConfig.key as keyof Transaction] || '').toString();
             }
 
             if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
