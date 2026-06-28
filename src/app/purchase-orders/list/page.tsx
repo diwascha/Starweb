@@ -239,14 +239,14 @@ export default function PurchaseOrdersListPage() {
     return filtered;
   }, [purchaseOrders, sortConfig, searchQuery, selectedBsYear, selectedBsMonth, selectedCompany, selectedStatus]);
 
-  const getStatusBadgeVariant = (status: PurchaseOrderStatus) => {
+  const renderStatusBadge = (status: PurchaseOrderStatus) => {
     switch (status) {
-      case 'Ordered': return 'default';
-      case 'Amended': return 'secondary';
-      case 'Delivered': return 'outline';
-      case 'Canceled': return 'destructive';
-      case 'Draft': return 'secondary';
-      default: return 'default';
+      case 'Ordered': return <Badge variant="default" className="bg-blue-600 hover:bg-blue-700">Ordered</Badge>;
+      case 'Amended': return <Badge variant="default" className="bg-amber-500 text-black hover:bg-amber-600">Amended</Badge>;
+      case 'Delivered': return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Delivered</Badge>;
+      case 'Canceled': return <Badge variant="destructive">Canceled</Badge>;
+      case 'Draft': return <Badge variant="secondary">Draft</Badge>;
+      default: return <Badge variant="outline">{status}</Badge>;
     }
   };
 
@@ -300,7 +300,7 @@ export default function PurchaseOrdersListPage() {
                     </Button>
                 </TableHead>
                 <TableHead>
-                    <Button variant="ghost" onClick={() => requestSort('status')}>
+                    <Button variant="ghost" onClick={() => requestSort('status')} className="font-bold text-primary">
                     Status <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
                 </TableHead>
@@ -321,7 +321,7 @@ export default function PurchaseOrdersListPage() {
                         <TableCell>{toNepaliDate(po.poDate)}</TableCell>
                         <TableCell>{po.companyName}</TableCell>
                         <TableCell>
-                            <Badge variant={getStatusBadgeVariant(po.status)}>{po.status}</Badge>
+                            {renderStatusBadge(po.status)}
                         </TableCell>
                         <TableCell>
                             <TooltipProvider>

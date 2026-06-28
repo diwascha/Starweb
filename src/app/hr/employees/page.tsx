@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -315,14 +314,14 @@ export default function EmployeesPage() {
     return filtered;
   }, [employees, sortConfig, searchQuery]);
 
-  const getStatusBadgeVariant = (status?: EmployeeStatus) => {
-    const currentStatus = status || 'Working';
-    switch (currentStatus) {
-      case 'Working': return 'default';
-      case 'Long Leave': return 'secondary';
-      case 'Resigned': return 'outline';
-      case 'Dismissed': return 'destructive';
-      default: return 'secondary';
+  const renderStatusBadge = (status?: EmployeeStatus) => {
+    const s = status || 'Working';
+    switch (s) {
+      case 'Working': return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Working</Badge>;
+      case 'Long Leave': return <Badge variant="default" className="bg-amber-500 text-black hover:bg-amber-600">Long Leave</Badge>;
+      case 'Resigned': return <Badge variant="outline">Resigned</Badge>;
+      case 'Dismissed': return <Badge variant="destructive">Dismissed</Badge>;
+      default: return <Badge variant="secondary">{s}</Badge>;
     }
   };
 
@@ -357,7 +356,7 @@ export default function EmployeesPage() {
           <TableHeader>
             <TableRow>
               <TableHead><Button variant="ghost" onClick={() => requestSort('name')}>Employee Name <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-              <TableHead><Button variant="ghost" onClick={() => requestSort('status')}>Status <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+              <TableHead><Button variant="ghost" onClick={() => requestSort('status')} className="font-bold text-primary">Status <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('department')}>Department <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('position')}>Position <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
               <TableHead><Button variant="ghost" onClick={() => requestSort('joiningDate')}>Joining Date <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
@@ -381,7 +380,7 @@ export default function EmployeesPage() {
                     </div>
                 </TableCell>
                 <TableCell>
-                  <Badge variant={getStatusBadgeVariant(employee.status)}>{employee.status || 'Working'}</Badge>
+                  {renderStatusBadge(employee.status)}
                 </TableCell>
                  <TableCell>{employee.department || 'N/A'}</TableCell>
                 <TableCell>{employee.position || 'N/A'}</TableCell>

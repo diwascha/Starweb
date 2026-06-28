@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -37,6 +36,8 @@ import { onVehiclesUpdate, addVehicle, updateVehicle, deleteVehicle } from '@/se
 import { onDriversUpdate } from '@/services/driver-service';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { format } from 'date-fns';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 
 const vehicleStatuses: VehicleStatus[] = ['Active', 'In Maintenance', 'Decommissioned'];
@@ -199,6 +200,14 @@ export default function VehiclesClientPage({
         return augmentedVehicles;
     }, [vehicles, searchQuery, sortConfig, driversById]);
 
+    const renderStatusBadge = (status: VehicleStatus) => {
+        switch (status) {
+          case 'Active': return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Active</Badge>;
+          case 'In Maintenance': return <Badge variant="default" className="bg-amber-500 text-black hover:bg-amber-600">In Maintenance</Badge>;
+          case 'Decommissioned': return <Badge variant="destructive">Decommissioned</Badge>;
+          default: return <Badge variant="secondary">{status}</Badge>;
+        }
+    };
 
     const renderContent = () => {
         if (isLoading) {
@@ -233,7 +242,7 @@ export default function VehiclesClientPage({
                             <TableHead><Button variant="ghost" onClick={() => requestSort('make')}>Make <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('model')}>Model <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('driverName')}>Assigned Driver <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('status')}>Status <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('status')} className="font-bold text-primary">Status <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('authorship')}>Authorship <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
@@ -245,7 +254,7 @@ export default function VehiclesClientPage({
                                 <TableCell>{vehicle.make}</TableCell>
                                 <TableCell>{vehicle.model}</TableCell>
                                 <TableCell>{vehicle.driverName}</TableCell>
-                                <TableCell>{vehicle.status}</TableCell>
+                                <TableCell>{renderStatusBadge(vehicle.status)}</TableCell>
                                 <TableCell>
                                     <TooltipProvider>
                                         <Tooltip>
@@ -272,7 +281,7 @@ export default function VehiclesClientPage({
                                 </TableCell>
                                 <TableCell className="text-right">
                                     <DropdownMenu>
-                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="ml-2 h-4 w-4" /></Button></DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
                                             {hasPermission('fleet', 'edit') && <DropdownMenuItem onSelect={() => handleOpenDialog(vehicle)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>}
                                             {hasPermission('fleet', 'delete') && <DropdownMenuSeparator />}
