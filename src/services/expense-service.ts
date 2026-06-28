@@ -1,9 +1,10 @@
+
 /**
  * @fileOverview Expense service for recording truck-related costs.
  */
 
 import { getFirebase } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, deleteDoc, query, orderBy } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, deleteDoc, query, orderBy, getDocs } from 'firebase/firestore';
 import type { Expense } from '@/lib/expense-types';
 import { COLLECTIONS } from '@/lib/constants';
 import { addTransaction } from './transaction-service';
@@ -25,12 +26,27 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Expense =
         partyId: data.partyId || undefined,
         accountId: data.accountId || undefined,
         itemId: data.itemId || undefined,
+        destination: data.destination || undefined,
         amount: data.amount,
         paymentMode: data.paymentMode,
         remarks: data.remarks || undefined,
         createdBy: data.createdBy,
         createdAt: data.createdAt,
     };
+};
+
+/**
+ * Fetches all expenses (standard getter).
+ */
+export const getExpenses = async (): Promise<Expense[]> => {
+    try {
+        const q = query(getExpensesCollection(), orderBy('createdAt', 'desc'));
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(fromFirestore);
+    } catch (error) {
+        logServiceError('getExpenses', error);
+        return [];
+    }
 };
 
 /**
@@ -63,6 +79,7 @@ export const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>)
         paymentMode: expenseData.paymentMode,
         partyId: expenseData.partyId || null,
         accountId: expenseData.accountId || null,
+        destination: expenseData.destination || null,
         remarks: expenseData.remarks || null,
         createdBy: expenseData.createdBy,
         createdAt: now,
@@ -82,8 +99,8 @@ export const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>)
         category: expenseRecord.expenseType,
         partyId: expenseRecord.partyId,
         accountId: expenseRecord.accountId,
-        remarks: `Expense Sync: ${expenseRecord.expenseType}${expenseRecord.remarks ? ` - ${expenseRecord.remarks}` : ''}`,
-        items: [{ particular: `${expenseRecord.expenseType} Fee`, quantity: 1, rate: expenseRecord.amount }],
+        remarks: `Expense Sync: ${expenseRecord.expenseType}${expenseRecord.destination ? ` (${expenseRecord.destination})` : ''}${expenseRecord.remarks ? ` - ${expenseRecord.remarks}` : ''}`,
+        items: [{ particular: `${expenseRecord.expenseType}${expenseRecord.destination ? ` to ${expenseRecord.destination}` : ''}`, quantity: 1, rate: expenseRecord.amount }],
         createdBy: expenseRecord.createdBy,
         // Set empty optional fields to null to avoid undefined keys
         invoiceNumber: null,
