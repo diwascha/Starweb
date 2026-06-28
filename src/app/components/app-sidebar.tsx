@@ -162,17 +162,32 @@ export function AppSidebar() {
                 <div className="ml-4">
                     {hasPermission('reports', 'create') && (
                         <SidebarMenuItem>
-                            <SidebarMenuButton asChild isActive={getIsActive('/report/new', true)}><Link href="/report/new"><PlusCircle /><span>New QT Reports</span></Link></SidebarMenuButton>
+                            <SidebarMenuButton asChild isActive={getIsActive('/report/new', true)}>
+                                <Link href="/report/new">
+                                    <PlusCircle />
+                                    <span>New QT Reports</span>
+                                </Link>
+                            </SidebarMenuButton>
                         </SidebarMenuItem>
                     )}
                     {hasPermission('reports', 'view') && (
                         <SidebarMenuItem>
-                            <SidebarMenuButton asChild isActive={getIsActive('/reports/list')}><Link href="/reports/list"><FileSpreadsheet /><span>QT Reports Database</span></Link></SidebarMenuButton>
+                            <SidebarMenuButton asChild isActive={getIsActive('/reports/list')}>
+                                <Link href="/reports/list">
+                                    <FileSpreadsheet />
+                                    <span>QT Reports Database</span>
+                                </Link>
+                            </SidebarMenuButton>
                         </SidebarMenuItem>
                     )}
                     {hasPermission('products', 'view') && (
                         <SidebarMenuItem>
-                            <SidebarMenuButton asChild isActive={getIsActive('/products')}><Link href="/products"><Package /><span>QT Products</span></Link></SidebarMenuButton>
+                            <SidebarMenuButton asChild isActive={getIsActive('/products')}>
+                                <Link href="/products">
+                                    <Package />
+                                    <span>QT Products</span>
+                                </Link>
+                            </SidebarMenuButton>
                         </SidebarMenuItem>
                     )}
                 </div>
@@ -193,12 +208,22 @@ export function AppSidebar() {
                 <div className="ml-4">
                     {hasPermission('purchaseOrders', 'view') && (
                         <SidebarMenuItem>
-                            <SidebarMenuButton asChild isActive={getIsActive('/purchase-orders/list')}><Link href="/purchase-orders/list"><FileSpreadsheet /><span>Purchase Orders</span></Link></SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={getIsActive('/purchase-orders/list')}>
+                                <Link href="/purchase-orders/list">
+                                    <FileSpreadsheet />
+                                    <span>Purchase Orders</span>
+                                </Link>
+                            </SidebarMenuButton>
                         </SidebarMenuItem>
                     )}
                     {hasPermission('rawMaterials', 'view') && (
                         <SidebarMenuItem>
-                            <SidebarMenuButton asChild isActive={getIsActive('/raw-materials')}><Link href="/raw-materials"><Wrench /><span>Raw Materials</span></Link></SidebarMenuButton>
+                            <SidebarMenuButton asChild isActive={getIsActive('/raw-materials')}>
+                                <Link href="/raw-materials">
+                                    <Wrench />
+                                    <span>Raw Materials</span>
+                                </Link>
+                            </SidebarMenuButton>
                         </SidebarMenuItem>
                     )}
                 </div>
@@ -218,10 +243,20 @@ export function AppSidebar() {
                 </SidebarMenuItem>
                 <div className="ml-4">
                     <SidebarMenuItem>
-                        <SidebarMenuButton asChild isActive={getIsActive('/crm/cost-report')}><Link href="/crm/cost-report"><Calculator /><span>Cost Report</span></Link></SidebarMenuButton>
+                        <SidebarMenuButton asChild isActive={getIsActive('/crm/cost-report')}>
+                            <Link href="/crm/cost-report">
+                                <Calculator />
+                                <span>Cost Report</span>
+                            </Link>
+                        </SidebarMenuButton>
                     </SidebarMenuItem>
                     <SidebarMenuItem>
-                        <SidebarMenuButton asChild isActive={getIsActive('/crm/pack-spec')}><Link href="/crm/pack-spec"><FileText /><span>PackSpec</span></Link></SidebarMenuButton>
+                        <SidebarMenuButton asChild isActive={getIsActive('/crm/pack-spec')}>
+                            <Link href="/crm/pack-spec">
+                                <FileText />
+                                <span>PackSpec</span>
+                            </Link>
+                        </SidebarMenuButton>
                     </SidebarMenuItem>
                 </div>
             </SidebarMenu>
@@ -267,10 +302,38 @@ export function AppSidebar() {
                     {hasPermission('fleet', 'create') && (
                       <div className="space-y-1">
                         <SidebarGroupLabel className="px-0 py-1 text-[10px] uppercase text-muted-foreground font-bold">Data Entry</SidebarGroupLabel>
-                        <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/purchase/new')}><Link href="/fleet/transactions/purchase/new"><ShoppingCart /><span>Purchase Entry</span></Link></SidebarMenuButton></SidebarMenuItem>
-                        <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/expenses/new')}><Link href="/fleet/transactions/expenses/new"><Wallet /><span>Daily Expense Entry</span></Link></SidebarMenuButton></SidebarMenuItem>
-                        <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/payment-receipt/new')}><Link href="/fleet/transactions/payment-receipt/new"><ArrowRightLeft /><span>Payment / Receipt</span></Link></SidebarMenuButton></SidebarMenuItem>
-                        <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/trip-sheets/new')}><Link href="/fleet/trip-sheets/new"><TrendingUp /><span>Sales Entry</span></Link></SidebarMenuButton></SidebarMenuItem>
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={getIsActive('/fleet/trip-sheets/new')}>
+                                <Link href="/fleet/trip-sheets/new">
+                                    <TrendingUp />
+                                    <span>Sales Entry</span>
+                                </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/purchase/new')}>
+                                <Link href="/fleet/transactions/purchase/new">
+                                    <ShoppingCart />
+                                    <span>Purchase Entry</span>
+                                </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/expenses/new')}>
+                                <Link href="/fleet/transactions/expenses/new">
+                                    <Wallet />
+                                    <span>Daily Expense Entry</span>
+                                </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/payment-receipt/new')}>
+                                <Link href="/fleet/transactions/payment-receipt/new">
+                                    <ArrowRightLeft />
+                                    <span>Payment / Receipt</span>
+                                </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
                       </div>
                     )}
 
@@ -278,7 +341,7 @@ export function AppSidebar() {
                       <SidebarGroupLabel className="px-0 py-1 text-[10px] uppercase text-muted-foreground font-bold">Logs & History</SidebarGroupLabel>
                       <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/trip-sheets', true)}><Link href="/fleet/trip-sheets"><FileText /><span>Sales Logs</span></Link></SidebarMenuButton></SidebarMenuItem>
                       <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/purchase', true)}><Link href="/fleet/transactions/purchase"><ShoppingCart /><span>Purchase Logs</span></Link></SidebarMenuButton></SidebarMenuItem>
-                      <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions', true)}><Link href="/fleet/transactions"><CreditCard /><span>Account Logs</span></Link></SidebarMenuButton></SidebarMenuItem>
+                      <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions', true)}><Link href="/fleet/transactions"><CreditCard /><span>Account Logs</span></Link></SidebarMenuItem>
                     </div>
                 </div>
             </SidebarMenu>
