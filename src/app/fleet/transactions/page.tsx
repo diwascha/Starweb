@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { Transaction, Vehicle, Party } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Search, ArrowUpDown, MoreHorizontal, View, Trash2, CalendarIcon, Download, X, FileSpreadsheet, FileText, Loader2, TrendingUp, TrendingDown, Info } from 'lucide-react';
+import { PlusCircle, Search, ArrowUpDown, MoreHorizontal, View, Trash2, CalendarIcon, Download, X, FileSpreadsheet, FileText, Loader2, TrendingUp, TrendingDown, Info, Link as LinkIcon } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
@@ -126,11 +126,22 @@ export default function FinancialHistoryPage() {
     };
 
     const sortedAndFilteredTransactions = useMemo(() => {
-        let augmented = transactions.map(t => ({
-            ...t,
-            vehicleName: vehiclesById.get(t.vehicleId) || 'N/A',
-            partyName: t.partyId ? partiesById.get(t.partyId) || 'N/A' : 'N/A',
-        }));
+        let augmented = transactions.map(t => {
+            // Determine a "source reference" for the entry
+            let sourceRef = '';
+            if (t.purchaseNumber) sourceRef = t.purchaseNumber;
+            else if (t.type === 'Sales') sourceRef = 'Trip Sheet';
+            else if (t.voucherId && t.items?.[0]?.particular) {
+                 sourceRef = t.items[0].particular.split(' ')[0]; // Extract voucher number
+            }
+
+            return {
+                ...t,
+                vehicleName: vehiclesById.get(t.vehicleId) || 'N/A',
+                partyName: t.partyId ? partiesById.get(t.partyId) || 'N/A' : 'N/A',
+                sourceRef
+            };
+        });
 
         if (activeTab !== 'All') {
             augmented = augmented.filter(t => t.type === activeTab);
@@ -142,7 +153,8 @@ export default function FinancialHistoryPage() {
                 t.vehicleName.toLowerCase().includes(query) ||
                 t.partyName.toLowerCase().includes(query) ||
                 (t.remarks || '').toLowerCase().includes(query) ||
-                (t.category || '').toLowerCase().includes(query)
+                (t.category || '').toLowerCase().includes(query) ||
+                (t.sourceRef || '').toLowerCase().includes(query)
             );
         }
 
@@ -220,6 +232,7 @@ export default function FinancialHistoryPage() {
                 'Date (BS)': toNepaliDate(t.date),
                 'Vehicle': t.vehicleName,
                 'Type': t.type,
+                'Reference': t.sourceRef || 'N/A',
                 'Category': t.category || 'N/A',
                 'Ledger': t.partyName,
                 'Mode': t.billingType,
@@ -242,14 +255,14 @@ export default function FinancialHistoryPage() {
                 toNepaliDate(t.date),
                 t.vehicleName,
                 t.type,
-                t.category || 'N/A',
+                `${t.category || ''} (${t.sourceRef || 'N/A'})`,
                 t.partyName,
                 (['Purchase', 'Payment'].includes(t.type) ? -t.amount : t.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })
             ]);
 
             autoTable(doc, {
                 startY: 30,
-                head: [['Date (BS)', 'Vehicle', 'Type', 'Category', 'Ledger', 'Amount (NPR)']],
+                head: [['Date (BS)', 'Vehicle', 'Type', 'Category/Ref', 'Ledger', 'Amount (NPR)']],
                 body: tableData,
                 theme: 'grid',
                 headStyles: { fillColor: [71, 85, 105] }
@@ -264,7 +277,7 @@ export default function FinancialHistoryPage() {
             <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Account Logs</h1>
-                    <p className="text-muted-foreground">Comprehensive financial history for Sijan Dhuwani Sewa.</p>
+                    <p className="text-muted-foreground">Consolidated financial ledger for Sales, Purchases, and Settlements.</p>
                 </div>
                 <div className="flex items-center gap-2">
                     <div className="relative">
@@ -280,7 +293,7 @@ export default function FinancialHistoryPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Card className="bg-emerald-50 border-emerald-200">
                     <CardHeader className="py-3 px-4 flex flex-row items-center justify-between space-y-0">
-                        <CardTitle className="text-[10px] uppercase font-bold text-emerald-800 tracking-wider">Total Inflow</CardTitle>
+                        <CardTitle className="text-[10px] uppercase font-bold text-emerald-800 tracking-wider">Total Inflow (Revenue)</CardTitle>
                         <TrendingUp className="h-3 w-3 text-emerald-600" />
                     </CardHeader>
                     <CardContent className="px-4 pb-3">
@@ -290,7 +303,7 @@ export default function FinancialHistoryPage() {
                 </Card>
                 <Card className="bg-red-50 border-red-200">
                     <CardHeader className="py-3 px-4 flex flex-row items-center justify-between space-y-0">
-                        <CardTitle className="text-[10px] uppercase font-bold text-red-800 tracking-wider">Total Outflow</CardTitle>
+                        <CardTitle className="text-[10px] uppercase font-bold text-red-800 tracking-wider">Total Outflow (Costs)</CardTitle>
                         <TrendingDown className="h-3 w-3 text-red-600" />
                     </CardHeader>
                     <CardContent className="px-4 pb-3">
@@ -303,7 +316,7 @@ export default function FinancialHistoryPage() {
                     (financialSummary.totalInflow - financialSummary.totalOutflow) >= 0 ? "bg-blue-50 border-blue-200" : "bg-orange-50 border-orange-200"
                 )}>
                     <CardHeader className="py-3 px-4 flex flex-row items-center justify-between space-y-0">
-                        <CardTitle className="text-[10px] uppercase font-bold tracking-wider">Net Accounting Balance</CardTitle>
+                        <CardTitle className="text-[10px] uppercase font-bold tracking-wider">Net Financial Balance</CardTitle>
                         <Info className="h-3 w-3 opacity-50" />
                     </CardHeader>
                     <CardContent className="px-4 pb-3">
@@ -313,7 +326,7 @@ export default function FinancialHistoryPage() {
                         )}>
                             Rs. {(financialSummary.totalInflow - financialSummary.totalOutflow).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </div>
-                        <p className="text-[10px] opacity-70">Impact for filtered period</p>
+                        <p className="text-[10px] opacity-70">Filtered Period Result</p>
                     </CardContent>
                 </Card>
             </div>
@@ -401,7 +414,7 @@ export default function FinancialHistoryPage() {
 
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
                 <TabsList>
-                    <TabsTrigger value="All">All Entries</TabsTrigger>
+                    <TabsTrigger value="All">All Transactions</TabsTrigger>
                     <TabsTrigger value="Payment">Payments</TabsTrigger>
                     <TabsTrigger value="Receipt">Receipts</TabsTrigger>
                     <TabsTrigger value="Purchase">Purchases</TabsTrigger>
@@ -415,7 +428,7 @@ export default function FinancialHistoryPage() {
                                     <TableHead><Button variant="ghost" onClick={() => requestSort('date')} className="-ml-4">Date <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
                                     <TableHead><Button variant="ghost" onClick={() => requestSort('vehicleName')} className="-ml-4">Vehicle <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
                                     <TableHead><Button variant="ghost" onClick={() => requestSort('type')} className="-ml-4">Type <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
-                                    <TableHead><Button variant="ghost" onClick={() => requestSort('category')} className="-ml-4">Category <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                                    <TableHead><Button variant="ghost" onClick={() => requestSort('category')} className="-ml-4">Category / Reference <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
                                     <TableHead><Button variant="ghost" onClick={() => requestSort('partyName')} className="-ml-4">Ledger (A/C) <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
                                     <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('amount')} className="-ml-4 w-full text-right">Amount <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
@@ -434,7 +447,17 @@ export default function FinancialHistoryPage() {
                                                 ['Receipt', 'Sales'].includes(txn.type) ? 'text-green-600 border-green-200 bg-green-50' : 'text-red-600 border-red-200 bg-red-50'
                                             )}>{txn.type}</Badge>
                                         </TableCell>
-                                        <TableCell><span className="text-[10px] text-muted-foreground uppercase font-bold">{txn.category || 'N/A'}</span></TableCell>
+                                        <TableCell>
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] text-muted-foreground uppercase font-bold">{txn.category || 'N/A'}</span>
+                                                {txn.sourceRef && (
+                                                    <span className="text-[9px] text-blue-600 flex items-center gap-1">
+                                                        <LinkIcon className="h-2 w-2" />
+                                                        {txn.sourceRef}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </TableCell>
                                         <TableCell className="text-xs">{txn.partyName}</TableCell>
                                         <TableCell className={cn("text-right font-mono font-bold text-xs", ['Purchase', 'Payment'].includes(txn.type) ? 'text-red-600' : 'text-green-600')}>
                                             {['Purchase', 'Payment'].includes(txn.type) && '-'}{txn.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
