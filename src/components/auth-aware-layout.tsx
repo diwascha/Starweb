@@ -1,10 +1,14 @@
 'use client';
+/**
+ * @fileOverview Shell layout that handles auth state and fault isolation for main content.
+ */
 
 import { useAuth, AuthRedirect } from "@/hooks/use-auth";
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "./ui/sidebar";
 import { AppSidebar } from "./app-sidebar";
 import { usePathname } from "next/navigation";
 import { Separator } from "./ui/separator";
+import { ErrorBoundary } from "./error-boundary";
 
 export default function AuthAwareLayout({ children }: { children: React.ReactNode }) {
     const { user, loading } = useAuth();
@@ -17,7 +21,7 @@ export default function AuthAwareLayout({ children }: { children: React.ReactNod
     if (loading) {
          return (
             <div className="flex h-screen items-center justify-center">
-                <p>Loading application...</p>
+                <p className="text-sm text-muted-foreground font-medium">Restoring Session...</p>
             </div>
         );
     }
@@ -37,7 +41,14 @@ export default function AuthAwareLayout({ children }: { children: React.ReactNod
                         <span className="font-semibold text-sm">STARWEB</span>
                     </header>
                     <main className="p-4 sm:px-6 sm:py-4 md:p-8">
-                        {children}
+                        {/* 
+                            Isolate component-level render crashes within the main content area.
+                            This prevents a bug in a specific module from crashing the entire app shell
+                            (sidebar, header, navigation).
+                        */}
+                        <ErrorBoundary moduleName="Main Content">
+                            {children}
+                        </ErrorBoundary>
                     </main>
                 </SidebarInset>
             </SidebarProvider>

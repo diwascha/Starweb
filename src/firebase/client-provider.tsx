@@ -1,10 +1,13 @@
-
 'use client';
+/**
+ * @fileOverview Root Firebase Client Provider with error listener integration.
+ */
 
 import { useState, useEffect, ReactNode } from 'react';
 import { FirebaseProvider } from './provider';
 import { getFirebase } from '@/lib/firebase';
 import { Toaster } from '@/components/ui/toaster';
+import { FirebaseErrorListener } from '@/components/firebase-error-listener';
 
 export function FirebaseClientProvider({ children }: { children: ReactNode }) {
     const [isClient, setIsClient] = useState(false);
@@ -19,13 +22,17 @@ export function FirebaseClientProvider({ children }: { children: ReactNode }) {
     if (!isClient || !firebaseServices) {
         return (
             <div className="flex h-screen items-center justify-center">
-                <p>Loading application...</p>
+                <div className="flex flex-col items-center gap-2">
+                    <p className="text-sm font-medium animate-pulse">Initializing Services...</p>
+                </div>
             </div>
         );
     }
 
     return (
         <FirebaseProvider {...firebaseServices}>
+            {/* The listener re-throws errors to be caught by Next.js error segments or ErrorBoundary */}
+            <FirebaseErrorListener />
             {children}
             <Toaster />
         </FirebaseProvider>
