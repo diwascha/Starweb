@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useFieldArray } from 'react-hook-form';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { Account, Party, Vehicle, Transaction, PartyType, UnitOfMeasurement, AccountOwnership, BankAccountType } from '@/lib/types';
@@ -14,7 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { CalendarIcon, ChevronsUpDown, Check, Plus, Trash2, X } from 'lucide-react';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { format } from 'date-fns';
-import { cn, toNepaliDate } from '@/lib/utils';
+import { cn, toNepaliDate, normalizeBF } from '@/lib/utils';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAuth } from '@/hooks/use-auth';
@@ -295,7 +295,7 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
                                         </CommandItem>)}
                                     </CommandGroup></CommandList>
                                 </Command></PopoverContent></Popover>
-                                <Button type="button" size="icon" variant="outline" onClick={() => handleOpenPartyDialog(null, 'Vendor')}><Plus className="h-4 w-4"/></Button>
+                                <Button type="button" size="icon" variant="outline" onClick={() => setIsPartyDialogOpen(true)}><Plus className="h-4 w-4"/></Button>
                                 </div><FormMessage/></FormItem>
                              )}/>
                         </div>
@@ -488,7 +488,7 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
             </div>
             <DialogFooter>
                 <Button variant="outline" onClick={() => setIsPartyDialogOpen(false)}>Cancel</Button>
-                <Button onClick={handlePartySubmit}>Add Supplier</Button>
+                <Button onClick={handleSubmitParty}>Add Supplier</Button>
             </DialogFooter>
         </DialogContent>
       </Dialog>
