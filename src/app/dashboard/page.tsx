@@ -15,7 +15,8 @@ import {
   ClipboardList,
   MousePointerClick,
   Clock,
-  ArrowRightLeft
+  ArrowRightLeft,
+  Wallet
 } from 'lucide-react';
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -113,6 +114,13 @@ export default function DashboardPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           {hasPermission('fleet', 'create') && (
+            <Button asChild size="sm" variant="default" className="bg-emerald-600 hover:bg-emerald-700">
+              <Link href="/fleet/transactions/expenses/new">
+                <Wallet className="mr-2 h-4 w-4" /> New Expense Entry
+              </Link>
+            </Button>
+          )}
+          {hasPermission('fleet', 'create') && (
             <Button asChild size="sm" variant="default" className="bg-blue-600 hover:bg-blue-700">
               <Link href="/fleet/transactions/payment-receipt/new">
                 <ArrowRightLeft className="mr-2 h-4 w-4" /> New Payment/Receipt
@@ -123,13 +131,6 @@ export default function DashboardPage() {
             <Button asChild size="sm">
               <Link href="/report/new">
                 <PlusCircle className="mr-2 h-4 w-4" /> New QT Report
-              </Link>
-            </Button>
-          )}
-          {hasPermission('purchaseOrders', 'create') && (
-            <Button asChild variant="outline" size="sm">
-              <Link href="/purchase-orders/new">
-                <ShoppingCart className="mr-2 h-4 w-4" /> New PO
               </Link>
             </Button>
           )}
@@ -255,7 +256,18 @@ export default function DashboardPage() {
             Quick Access Modules
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-             <Link href="/fleet/transactions/payment-receipt/new">
+             <Link href="/fleet/transactions/expenses/new">
+              <Card className="hover:bg-accent transition-colors cursor-pointer h-full border-emerald-200 border-2 border-dashed">
+                <CardHeader className="p-4">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Wallet className="h-4 w-4 text-emerald-600" />
+                    Daily Expense Entry
+                  </CardTitle>
+                  <CardDescription className="text-xs">Quick entry for maintenance, fuel, and trip advances</CardDescription>
+                </CardHeader>
+              </Card>
+            </Link>
+            <Link href="/fleet/transactions/payment-receipt/new">
               <Card className="hover:bg-accent transition-colors cursor-pointer h-full border-blue-200 border-2 border-dashed">
                 <CardHeader className="p-4">
                   <CardTitle className="text-base flex items-center gap-2">
@@ -263,28 +275,6 @@ export default function DashboardPage() {
                     Fleet Payment/Receipt
                   </CardTitle>
                   <CardDescription className="text-xs">Quick entry for fleet vouchers and trip settlements</CardDescription>
-                </CardHeader>
-              </Card>
-            </Link>
-            <Link href="/crm/cost-report">
-              <Card className="hover:bg-accent transition-colors cursor-pointer h-full border-dashed">
-                <CardHeader className="p-4">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Calculator className="h-4 w-4 text-blue-600" />
-                    Cost Report Generator
-                  </CardTitle>
-                  <CardDescription className="text-xs">Advanced board & weight calculations</CardDescription>
-                </CardHeader>
-              </Card>
-            </Link>
-            <Link href="/finance/estimate-invoice">
-              <Card className="hover:bg-accent transition-colors cursor-pointer h-full border-dashed">
-                <CardHeader className="p-4">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-purple-600" />
-                    Estimate Invoice
-                  </CardTitle>
-                  <CardDescription className="text-xs">Generate pro-forma VAT documents</CardDescription>
                 </CardHeader>
               </Card>
             </Link>
