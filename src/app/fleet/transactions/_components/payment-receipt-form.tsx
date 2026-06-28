@@ -22,14 +22,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-const prvCategories = [
-    'Advance (Peski)',
-    'Settlement',
-    'Loan Payment',
-    'Reimbursement',
-    'Other'
-];
-
 const voucherItemSchema = z.object({
   ledgerId: z.string().min(1, "General Ledger is required."),
   vehicleId: z.string().min(1, "Vehicle is required."),
@@ -42,7 +34,6 @@ const voucherSchema = z.object({
   voucherNo: z.string().min(1, "Voucher number is required."),
   date: z.date(),
   billingType: z.string().min(1, "Billing type is required."),
-  category: z.string().min(1, "Category is required."),
   accountId: z.string().optional(),
   chequeNo: z.string().optional(),
   chequeDate: z.date().optional().nullable(),
@@ -96,7 +87,6 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
     resolver: zodResolver(voucherSchema),
     defaultValues: {
       billingType: 'Cash',
-      category: 'Advance (Peski)',
       voucherNo: 'PRV-001',
       date: new Date(),
       items: [{ ledgerId: '', vehicleId: '', recAmount: 0, payAmount: 0, narration: '' }],
@@ -156,7 +146,7 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
         <Card className="bg-blue-50 border-blue-200 p-6 shadow-sm">
           <CardContent className="p-0">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-end">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-end">
               <FormField control={form.control} name="voucherNo" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Voucher No.</FormLabel>
@@ -181,23 +171,6 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
                   <FormMessage/>
                 </FormItem>
               )}/>
-              
-              <FormField control={form.control} name="category" render={({ field }) => (
-                <FormItem>
-                    <FormLabel>Voucher Category</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                            <SelectTrigger className="bg-white">
-                                <SelectValue placeholder="Select category" />
-                            </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                            {prvCategories.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                    <FormMessage />
-                </FormItem>
-              )} />
               
               <FormField control={form.control} name="billingType" render={({ field }) => (
                 <FormItem>

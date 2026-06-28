@@ -100,7 +100,7 @@ export const saveVoucher = async (voucherData: any, createdBy: string) => {
                 partyId: ledgerId,
                 amount: amount,
                 remarks: narration || voucherData.remarks || null,
-                category: voucherData.category || null,
+                category: 'Settlement', // Default category for payment/receipt vouchers
                 invoiceType: 'Normal', // Default for payments/receipts
                 items: [{ particular: `${voucherData.voucherNo}-${type}`, quantity: 1, rate: amount }],
                 accountId: voucherData.accountId || null,
@@ -245,7 +245,7 @@ export const updateVoucher = async (voucherId: string, voucherData: any, modifie
                 partyId: ledgerId,
                 amount: amount,
                 remarks: narration || voucherData.remarks || '',
-                category: voucherData.category || null,
+                category: 'Settlement',
                 invoiceType: 'Normal',
                 items: [{ particular: `${voucherData.voucherNo}-${type}`, quantity: 1, rate: amount }],
                 accountId: voucherData.accountId || null,
