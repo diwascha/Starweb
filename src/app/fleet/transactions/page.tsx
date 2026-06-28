@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { Transaction, Vehicle, Party } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Search, ArrowUpDown, MoreHorizontal, View, Trash2, CalendarIcon, Download, X, FileSpreadsheet, FileText, Loader2 } from 'lucide-react';
+import { PlusCircle, Search, ArrowUpDown, MoreHorizontal, View, Trash2, CalendarIcon, Download, X, FileSpreadsheet, FileText, Loader2, TrendingUp, TrendingDown, Info } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
@@ -181,6 +181,15 @@ export default function FinancialHistoryPage() {
         return augmented;
     }, [transactions, searchQuery, sortConfig, vehiclesById, partiesById, dateRange, activeTab, filterPartyId, filterVehicleId, selectedBsYear, selectedBsMonth]);
     
+    const financialSummary = useMemo(() => {
+        return sortedAndFilteredTransactions.reduce((acc, t) => {
+            const isInflow = ['Receipt', 'Sales'].includes(t.type);
+            if (isInflow) acc.totalInflow += t.amount;
+            else acc.totalOutflow += t.amount;
+            return acc;
+        }, { totalInflow: 0, totalOutflow: 0 });
+    }, [sortedAndFilteredTransactions]);
+
     const isFiltered = useMemo(() => {
         const currentNepaliDate = new NepaliDate();
         const currentYear = currentNepaliDate.getYear();
@@ -267,6 +276,47 @@ export default function FinancialHistoryPage() {
                     </Button>
                 </div>
             </header>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card className="bg-emerald-50 border-emerald-200">
+                    <CardHeader className="py-3 px-4 flex flex-row items-center justify-between space-y-0">
+                        <CardTitle className="text-[10px] uppercase font-bold text-emerald-800 tracking-wider">Total Inflow</CardTitle>
+                        <TrendingUp className="h-3 w-3 text-emerald-600" />
+                    </CardHeader>
+                    <CardContent className="px-4 pb-3">
+                        <div className="text-lg font-bold text-emerald-900">Rs. {financialSummary.totalInflow.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                        <p className="text-[10px] text-emerald-600">Sales + Receipts</p>
+                    </CardContent>
+                </Card>
+                <Card className="bg-red-50 border-red-200">
+                    <CardHeader className="py-3 px-4 flex flex-row items-center justify-between space-y-0">
+                        <CardTitle className="text-[10px] uppercase font-bold text-red-800 tracking-wider">Total Outflow</CardTitle>
+                        <TrendingDown className="h-3 w-3 text-red-600" />
+                    </CardHeader>
+                    <CardContent className="px-4 pb-3">
+                        <div className="text-lg font-bold text-red-900">Rs. {financialSummary.totalOutflow.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                        <p className="text-[10px] text-red-600">Purchases + Payments</p>
+                    </CardContent>
+                </Card>
+                <Card className={cn(
+                    "border-2 border-dashed",
+                    (financialSummary.totalInflow - financialSummary.totalOutflow) >= 0 ? "bg-blue-50 border-blue-200" : "bg-orange-50 border-orange-200"
+                )}>
+                    <CardHeader className="py-3 px-4 flex flex-row items-center justify-between space-y-0">
+                        <CardTitle className="text-[10px] uppercase font-bold tracking-wider">Net Accounting Balance</CardTitle>
+                        <Info className="h-3 w-3 opacity-50" />
+                    </CardHeader>
+                    <CardContent className="px-4 pb-3">
+                        <div className={cn(
+                            "text-lg font-black",
+                            (financialSummary.totalInflow - financialSummary.totalOutflow) >= 0 ? "text-blue-900" : "text-orange-900"
+                        )}>
+                            Rs. {(financialSummary.totalInflow - financialSummary.totalOutflow).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </div>
+                        <p className="text-[10px] opacity-70">Impact for filtered period</p>
+                    </CardContent>
+                </Card>
+            </div>
 
             <div className="flex flex-col gap-4 bg-muted/20 p-4 rounded-lg border border-dashed">
                 <div className="flex flex-wrap gap-4 items-end">
@@ -415,9 +465,9 @@ export default function FinancialHistoryPage() {
                                         <TableCell colSpan={5} className="text-right text-xs">Net Balance for Filtered Period</TableCell>
                                         <TableCell className={cn(
                                             "text-right font-mono text-xs",
-                                            sortedAndFilteredTransactions.reduce((sum, t) => sum + (['Purchase', 'Payment'].includes(t.type) ? -t.amount : t.amount), 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                                            (financialSummary.totalInflow - financialSummary.totalOutflow) >= 0 ? 'text-green-600' : 'text-red-600'
                                         )}>
-                                            Rs. {sortedAndFilteredTransactions.reduce((sum, t) => sum + (['Purchase', 'Payment'].includes(t.type) ? -t.amount : t.amount), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                            Rs. {(financialSummary.totalInflow - financialSummary.totalOutflow).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                         </TableCell>
                                         <TableCell></TableCell>
                                     </TableRow>
