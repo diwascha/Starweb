@@ -341,7 +341,7 @@ export function AppSidebar() {
                       <SidebarGroupLabel className="px-0 py-1 text-[10px] uppercase text-muted-foreground font-bold">Logs & History</SidebarGroupLabel>
                       <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/trip-sheets', true)}><Link href="/fleet/trip-sheets"><FileText /><span>Sales Logs</span></Link></SidebarMenuButton></SidebarMenuItem>
                       <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/purchase', true)}><Link href="/fleet/transactions/purchase"><ShoppingCart /><span>Purchase Logs</span></Link></SidebarMenuButton></SidebarMenuItem>
-                      <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions', true)}><Link href="/fleet/transactions"><CreditCard /><span>Account Logs</span></Link></SidebarMenuItem>
+                      <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions', true)}><Link href="/fleet/transactions"><CreditCard /><span>Account Logs</span></Link></SidebarMenuButton></SidebarMenuItem>
                     </div>
                 </div>
             </SidebarMenu>
