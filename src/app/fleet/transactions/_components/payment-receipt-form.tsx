@@ -78,11 +78,12 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
 
   const form = useForm<VoucherFormValues>({
     resolver: zodResolver(voucherSchema),
-    defaultValues: initialValues || {
+    defaultValues: {
       billingType: 'Cash',
-      voucherNo: '001', // Placeholder
+      voucherNo: '001',
       date: new Date(),
       items: [{ ledgerId: '', vehicleId: '', recAmount: 0, payAmount: 0, narration: '' }],
+      ...initialValues
     },
   });
 
@@ -91,7 +92,7 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
     name: "items"
   });
   
-  const watchedItems = form.watch("items");
+  const watchedItems = form.watch("items") || [];
   const watchedBillingType = form.watch("billingType");
   
   const totalRec = watchedItems.reduce((sum, item) => sum + (Number(item.recAmount) || 0), 0);
@@ -315,7 +316,7 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
 
         <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
-            <Button type="submit">{initialValues ? 'Save Changes' : 'Ok'}</Button>
+            <Button type="submit">{initialValues?.items ? 'Save Changes' : 'Ok'}</Button>
         </div>
       </form>
     </Form>
