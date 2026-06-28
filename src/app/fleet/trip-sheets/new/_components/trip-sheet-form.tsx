@@ -211,8 +211,8 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
         }
     }, [tripToEdit, form, defaultValues, trips]);
 
-    const vendors = useMemo(() => parties.filter(p => p.type === 'Vendor' || p.type === 'Both'), [parties]);
-    const customers = useMemo(() => parties.filter(p => p.type === 'Customer' || p.type === 'Both'), [parties]);
+    const vendors = useMemo(() => parties.filter(p => (p.type === 'Vendor' || p.type === 'Both') && (p.ownership === 'Sijan' || p.ownership === 'Both')), [parties]);
+    const customers = useMemo(() => parties.filter(p => (p.type === 'Customer' || p.type === 'Both') && (p.ownership === 'Sijan' || p.ownership === 'Both')), [parties]);
     
     const watchedFormValues = form.watch();
     const finalDestinationName = watchedFormValues.destinations?.[0]?.name;

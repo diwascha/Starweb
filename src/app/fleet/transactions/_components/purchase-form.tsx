@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -291,7 +290,7 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
                                 </FormControl></PopoverTrigger><PopoverContent className="p-0"><Command>
                                     <CommandInput placeholder="Search supplier..." />
                                     <CommandList><CommandEmpty>No supplier found.</CommandEmpty><CommandGroup>
-                                        {parties.filter(p => p.type === 'Vendor' || p.type === 'Both').map(party => <CommandItem key={party.id} value={party.name} onSelect={() => field.onChange(party.id)}>
+                                        {parties.filter(p => (p.type === 'Vendor' || p.type === 'Both') && (p.ownership === 'Sijan' || p.ownership === 'Both')).map(party => <CommandItem key={party.id} value={party.name} onSelect={() => field.onChange(party.id)}>
                                             <Check className={cn("mr-2 h-4 w-4", field.value === party.id ? "opacity-100" : "opacity-0")} />{party.name}
                                         </CommandItem>)}
                                     </CommandGroup></CommandList>

@@ -34,6 +34,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
 import NepaliDate from 'nepali-date-converter';
 import { NEPALI_MONTHS } from '@/lib/constants';
 
@@ -323,7 +324,7 @@ export default function FinancialHistoryPage() {
                             <SelectTrigger className="bg-white"><SelectValue placeholder="All" /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="All">All Parties</SelectItem>
-                                {parties.filter(p => p.ownership !== 'Shivam').map(p => (
+                                {parties.filter(p => p.ownership === 'Sijan' || p.ownership === 'Both').map(p => (
                                     <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                                 ))}
                             </SelectContent>

@@ -299,7 +299,7 @@ export default function PurchaseLogsPage() {
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="All">All Parties</SelectItem>
-                                {parties.filter(p => p.type === 'Vendor' || p.type === 'Both').map(p => (
+                                {parties.filter(p => (p.type === 'Vendor' || p.type === 'Both') && (p.ownership === 'Sijan' || p.ownership === 'Both')).map(p => (
                                     <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                                 ))}
                             </SelectContent>

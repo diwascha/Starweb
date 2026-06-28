@@ -420,7 +420,7 @@ export default function TripSheetsPage() {
                                     <MoreHorizontal className="ml-2 h-4 w-4" />
                                 </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
+                            <DropdownContent align="end">
                                 {hasPermission('fleet', 'view') && (
                                     <DropdownMenuItem onSelect={() => router.push(`/fleet/trip-sheets/${trip.id}`)}>
                                         <View className="mr-2 h-4 w-4" /> View
@@ -457,7 +457,7 @@ export default function TripSheetsPage() {
                                         </AlertDialogContent>
                                     </AlertDialog>
                                 )}
-                            </DropdownMenuContent>
+                            </DropdownContent>
                         </DropdownMenu>
                     </TableCell>
                 </TableRow>
@@ -558,7 +558,7 @@ export default function TripSheetsPage() {
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="All">All Customers</SelectItem>
-                            {parties.filter(p => p.type === 'Customer' || p.type === 'Both').map(p => (
+                            {parties.filter(p => (p.type === 'Customer' || p.type === 'Both') && (p.ownership === 'Sijan' || p.ownership === 'Both')).map(p => (
                                 <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                             ))}
                         </SelectContent>
