@@ -326,7 +326,17 @@ export default function TripSheetsPage() {
     setFilterPartyId('All');
   };
 
-  const isFiltered = searchQuery !== '' || !!dateRange || selectedBsYear !== 'All' || selectedBsMonth !== 'All' || filterVehicleId !== 'All' || filterPartyId !== 'All';
+  const isFiltered = useMemo(() => {
+    const currentYear = new NepaliDate().getYear();
+    // Only show "Clear All Filters" if the user has narrowed down results 
+    // beyond the default organizational filter (which is the current year).
+    return searchQuery !== '' || 
+           !!dateRange || 
+           (selectedBsYear !== String(currentYear) && selectedBsYear !== 'All') || 
+           selectedBsMonth !== 'All' || 
+           filterVehicleId !== 'All' || 
+           filterPartyId !== 'All';
+  }, [searchQuery, dateRange, selectedBsYear, selectedBsMonth, filterVehicleId, filterPartyId]);
 
   const renderContent = () => {
     if (isLoading) {
