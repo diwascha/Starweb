@@ -1,6 +1,7 @@
 import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs } from 'firebase/firestore';
 import type { PolicyOrMembership } from '@/lib/types';
+import { addExpense } from './expense-service';
 
 const getPoliciesCollection = () => {
     const { db } = getFirebase();
@@ -39,6 +40,24 @@ export const addPolicy = async (policy: Omit<PolicyOrMembership, 'id'>): Promise
         ...policy,
         createdAt: new Date().toISOString(),
     });
+
+    // Automatically record an expense if there is a cost associated with this policy/membership
+    if (policy.cost > 0) {
+        try {
+            await addExpense({
+                date: policy.startDate, // Use the policy start date as the transaction/payment date
+                vehicleId: policy.memberType === 'Vehicle' ? policy.memberId : '', // Tied to vehicle if applicable
+                expenseType: 'Purchase', // Using Purchase type for accounting sync
+                amount: policy.cost,
+                paymentMode: 'Cash', // Default to cash payment
+                remarks: `Policy Auto-Entry: ${policy.type} - ${policy.policyNumber} (${policy.provider})`,
+                createdBy: policy.createdBy,
+            });
+        } catch (error) {
+            console.error("Auto-expense failed for policy:", error);
+        }
+    }
+
     return docRef.id;
 };
 
