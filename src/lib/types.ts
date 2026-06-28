@@ -464,6 +464,7 @@ export interface Destination {
     id: string;
     name: string;
     standardAdvanceAmount?: number; // Added to store default routes advance
+    remarks?: string; // Optional notes about the route
     createdBy: string;
     createdAt: string; // ISO string
     lastModifiedBy?: string;

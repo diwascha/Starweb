@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -111,7 +110,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
         name: '', type: 'Vendor', ownership: 'Sijan', address: '' 
     });
     const [isDestDialogOpen, setIsDestDialogOpen] = useState(false);
-    const [destForm, setDestForm] = useState({ name: '', standardAdvance: 0 });
+    const [destForm, setDestForm] = useState({ name: '', standardAdvance: 0, remarks: '' });
     const [editingDestination, setEditingDestination] = useState<Destination | null>(null);
 
     const form = useForm<z.infer<typeof expenseSchema>>({
@@ -209,11 +208,12 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
             setEditingDestination(destination);
             setDestForm({ 
                 name: destination.name, 
-                standardAdvance: destination.standardAdvanceAmount || 0 
+                standardAdvance: destination.standardAdvanceAmount || 0,
+                remarks: destination.remarks || ''
             });
         } else {
             setEditingDestination(null);
-            setDestForm({ name: destSearch, standardAdvance: 0 });
+            setDestForm({ name: destSearch, standardAdvance: 0, remarks: '' });
         }
         setIsDestDialogOpen(true);
     };
@@ -225,6 +225,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
                 await updateDestination(editingDestination.id, { 
                     name: destForm.name.trim(), 
                     standardAdvanceAmount: Number(destForm.standardAdvance) || 0,
+                    remarks: destForm.remarks.trim(),
                     lastModifiedBy: user.username 
                 });
                 toast({ title: 'Destination Updated' });
@@ -232,13 +233,14 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
                 await addDestination({ 
                     name: destForm.name.trim(), 
                     standardAdvanceAmount: Number(destForm.standardAdvance) || 0,
+                    remarks: destForm.remarks.trim(),
                     createdBy: user.username 
                 });
                 form.setValue('destination', destForm.name.trim());
                 toast({ title: 'Destination Added' });
             }
             setIsDestDialogOpen(false);
-            setDestForm({ name: '', standardAdvance: 0 });
+            setDestForm({ name: '', standardAdvance: 0, remarks: '' });
             setEditingDestination(null);
         } catch {
             toast({ title: 'Error saving destination', variant: 'destructive' });
@@ -252,7 +254,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
             toast({ title: 'Destination Deleted' });
             setIsDestDialogOpen(false);
             setEditingDestination(null);
-            setDestForm({ name: '', standardAdvance: 0 });
+            setDestForm({ name: '', standardAdvance: 0, remarks: '' });
         } catch {
             toast({ title: 'Error deleting destination', variant: 'destructive' });
         }
@@ -694,6 +696,15 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
                                 placeholder="Normal Peski amount for this route"
                             />
                             <p className="text-[10px] text-muted-foreground">This amount will be suggested automatically when this route is selected.</p>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Remarks / Route Notes</Label>
+                            <Textarea 
+                                value={destForm.remarks} 
+                                onChange={e => setDestForm({...destForm, remarks: e.target.value})} 
+                                placeholder="Optional notes about this route..."
+                                className="min-h-[80px]"
+                            />
                         </div>
                     </div>
                     <DialogFooter className="flex justify-between items-center sm:justify-between w-full">
