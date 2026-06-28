@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -16,7 +15,8 @@ import {
   Download, 
   CalendarIcon, 
   FileSpreadsheet, 
-  FileText 
+  FileText,
+  Printer
 } from 'lucide-react';
 import type { Trip, Vehicle, Party } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -65,6 +65,7 @@ import type { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { Label } from '@/components/ui/label';
 
 type SortKey = 'date' | 'vehicleName' | 'customerName' | 'finalDestination' | 'netAmount' | 'authorship';
 type SortDirection = 'asc' | 'desc';
@@ -304,7 +305,7 @@ export default function TripSheetsPage() {
     return (
         <Card className="border shadow-sm">
             <Table>
-            <TableHeader className="bg-muted/50">
+            <TableHeader>
                 <TableRow>
                 <TableHead><Button variant="ghost" onClick={() => requestSort('date')} className="-ml-4">Date <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
                 <TableHead><Button variant="ghost" onClick={() => requestSort('vehicleName')} className="-ml-4">Vehicle <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
