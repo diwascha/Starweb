@@ -291,6 +291,20 @@ export default function PurchaseLogsPage() {
                         <Label className="text-[10px] uppercase font-bold text-muted-foreground">Vehicle</Label>
                         <Select value={filterVehicleId} onValueChange={setFilterVehicleId}><SelectTrigger className="bg-white"><SelectValue placeholder="All" /></SelectTrigger><SelectContent><SelectItem value="All">All Vehicles</SelectItem>{vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}</SelectContent></Select>
                     </div>
+                    <div className="space-y-1.5 w-full md:w-[220px]">
+                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Party / Service Provider</Label>
+                        <Select value={filterPartyId} onValueChange={setFilterPartyId}>
+                            <SelectTrigger className="bg-white">
+                                <SelectValue placeholder="All" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="All">All Parties</SelectItem>
+                                {parties.filter(p => p.type === 'Vendor' || p.type === 'Both').map(p => (
+                                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
                 
                 <div className="flex gap-2 w-full md:w-auto items-center pt-2 border-t border-dashed">

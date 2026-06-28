@@ -4,7 +4,6 @@ import { useState, useEffect, useMemo } from 'react';
 import type { Transaction, Vehicle, Party } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Search, ArrowUpDown, MoreHorizontal, View, Trash2, CalendarIcon, Download, X, FileSpreadsheet, FileText, Loader2 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
@@ -318,12 +317,12 @@ export default function FinancialHistoryPage() {
                             </SelectContent>
                         </Select>
                     </div>
-                    <div className="space-y-1.5 w-full md:w-[180px]">
-                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Ledger</Label>
+                    <div className="space-y-1.5 w-full md:w-[220px]">
+                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Party / Service Provider</Label>
                         <Select value={filterPartyId} onValueChange={setFilterPartyId}>
                             <SelectTrigger className="bg-white"><SelectValue placeholder="All" /></SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="All">All Ledgers</SelectItem>
+                                <SelectItem value="All">All Parties</SelectItem>
                                 {parties.filter(p => p.ownership !== 'Shivam').map(p => (
                                     <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                                 ))}
