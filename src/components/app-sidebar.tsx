@@ -270,7 +270,8 @@ export function AppSidebar() {
                 </SidebarMenuItem>
                 <div className="ml-4">
                     <SidebarMenuItem>
-                        <SidebarMenuButton asChild isActive={getIsActive('/crm/cost-report')}><Link href="/crm/cost-report"><Calculator /><span>Cost Report</span></Link></SidebarMenuItem>
+                        <SidebarMenuButton asChild isActive={getIsActive('/crm/cost-report')}><Link href="/crm/cost-report"><Calculator /><span>Cost Report</span></Link></SidebarMenuButton>
+                    </SidebarMenuItem>
                     <SidebarMenuItem>
                         <SidebarMenuButton asChild isActive={getIsActive('/crm/pack-spec')}><Link href="/crm/pack-spec"><FileText /><span>PackSpec</span></Link></SidebarMenuButton>
                     </SidebarMenuItem>
@@ -318,10 +319,10 @@ export function AppSidebar() {
                     {hasPermission('fleet', 'create') && (
                       <div className="space-y-1">
                         <SidebarGroupLabel className="px-0 py-1 text-[10px] uppercase text-muted-foreground font-bold">Data Entry</SidebarGroupLabel>
-                        <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/trip-sheets/new')}><Link href="/fleet/trip-sheets/new"><TrendingUp /><span>Sales Entry</span></Link></SidebarMenuButton></SidebarMenuItem>
                         <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/purchase/new')}><Link href="/fleet/transactions/purchase/new"><ShoppingCart /><span>Purchase Entry</span></Link></SidebarMenuButton></SidebarMenuItem>
                         <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/expenses/new')}><Link href="/fleet/transactions/expenses/new"><Wallet /><span>Daily Expense Entry</span></Link></SidebarMenuButton></SidebarMenuItem>
                         <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/payment-receipt/new')}><Link href="/fleet/transactions/payment-receipt/new"><ArrowRightLeft /><span>Payment / Receipt</span></Link></SidebarMenuButton></SidebarMenuItem>
+                        <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/trip-sheets/new')}><Link href="/fleet/trip-sheets/new"><TrendingUp /><span>Sales Entry</span></Link></SidebarMenuButton></SidebarMenuItem>
                       </div>
                     )}
 
