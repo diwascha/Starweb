@@ -275,6 +275,15 @@ export default function TripSheetsPage() {
     }
   };
 
+  const handleClearFilters = () => {
+    setSearchQuery('');
+    setDateRange(undefined);
+    setFilterVehicleId('All');
+    setFilterPartyId('All');
+  };
+
+  const isFiltered = searchQuery !== '' || !!dateRange || filterVehicleId !== 'All' || filterPartyId !== 'All';
+
   const renderContent = () => {
     if (isLoading) {
       return (
@@ -431,6 +440,11 @@ export default function TripSheetsPage() {
                 </Select>
             </div>
             <div className="flex gap-2 w-full md:w-auto ml-auto">
+                {isFiltered && (
+                    <Button variant="ghost" size="sm" onClick={handleClearFilters} className="text-muted-foreground hover:text-foreground">
+                        <X className="mr-2 h-4 w-4" /> Clear Filters
+                    </Button>
+                )}
                 <Button variant="outline" size="sm" onClick={handleExportExcel} className="flex-1 md:flex-none">
                     <FileSpreadsheet className="mr-2 h-4 w-4 text-emerald-600" /> Export Excel
                 </Button>
