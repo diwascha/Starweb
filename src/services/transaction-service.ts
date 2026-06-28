@@ -1,4 +1,3 @@
-
 import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, writeBatch, query, where, getDoc } from 'firebase/firestore';
 import type { Transaction } from '@/lib/types';
@@ -29,6 +28,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
         remarks: data.remarks,
         tripId: data.tripId,
         type: data.type,
+        category: data.category,
         voucherId: data.voucherId,
         createdBy: data.createdBy,
         createdAt: data.createdAt,
@@ -100,6 +100,7 @@ export const saveVoucher = async (voucherData: any, createdBy: string) => {
                 partyId: ledgerId,
                 amount: amount,
                 remarks: narration || voucherData.remarks || null,
+                category: voucherData.category || null,
                 invoiceType: 'Normal', // Default for payments/receipts
                 items: [{ particular: `${voucherData.voucherNo}-${type}`, quantity: 1, rate: amount }],
                 accountId: voucherData.accountId || null,
@@ -244,6 +245,7 @@ export const updateVoucher = async (voucherId: string, voucherData: any, modifie
                 partyId: ledgerId,
                 amount: amount,
                 remarks: narration || voucherData.remarks || '',
+                category: voucherData.category || null,
                 invoiceType: 'Normal',
                 items: [{ particular: `${voucherData.voucherNo}-${type}`, quantity: 1, rate: amount }],
                 accountId: voucherData.accountId || null,

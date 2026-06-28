@@ -1,10 +1,9 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import type { Transaction, Vehicle, Party } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, MoreHorizontal, ArrowUpDown, Search, CalendarIcon, ArrowRightLeft, Landmark, Wrench, User, ChevronLeft, ChevronRight, ChevronsUpDown, Check, ShoppingCart, TrendingUp, X, Download } from 'lucide-react';
+import { PlusCircle, Search, ArrowUpDown, MoreHorizontal, View, Trash2, CalendarIcon, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -24,23 +23,23 @@ import {
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/hooks/use-auth';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { format, isWithinInterval, startOfDay, endOfDay, differenceInDays } from 'date-fns';
+import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { cn, toNepaliDate } from '@/lib/utils';
 import type { DateRange } from 'react-day-picker';
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
-import { onTransactionsUpdate, deleteTransaction } from '@/services/transaction-service';
+import { onTransactionsUpdate, deleteVoucher } from '@/services/transaction-service';
 import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onPartiesUpdate } from '@/services/party-service';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
-import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
-type TransactionSortKey = 'date' | 'vehicleName' | 'type' | 'partyName' | 'amount' | 'authorship' | 'dueDate';
+type TransactionSortKey = 'date' | 'vehicleName' | 'type' | 'partyName' | 'amount' | 'category';
 type SortDirection = 'asc' | 'desc';
-type TransactionFilterType = 'All' | 'Sales' | 'Purchase' | 'Payment' | 'Receipt';
+type TransactionFilterType = 'All' | 'Payment' | 'Receipt' | 'Sales' | 'Purchase';
 
-export default function TransactionsPage() {
+export default function FinancialHistoryPage() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [parties, setParties] = useState<Party[]>([]);
@@ -53,7 +52,6 @@ export default function TransactionsPage() {
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [activeTab, setActiveTab] = useState<TransactionFilterType>('All');
     const [filterPartyId, setFilterPartyId] = useState<string>('All');
-    const [filterVehicleId, setFilterVehicleId] = useState<string>('All');
     
     const { toast } = useToast();
     const { hasPermission, user } = useAuth();
@@ -77,21 +75,21 @@ export default function TransactionsPage() {
         }
     }, []);
 
-    const handleDelete = async (id: string) => {
+    const handleDeleteVoucher = async (voucherId?: string) => {
+        if (!voucherId) return;
         try {
-            await deleteTransaction(id);
-            toast({ title: 'Success', description: 'Transaction deleted.' });
+            await deleteVoucher(voucherId);
+            toast({ title: 'Voucher Deleted', description: 'All associated entries have been removed.' });
         } catch (error) {
-             toast({ title: 'Error', description: 'Failed to delete transaction.', variant: 'destructive' });
+             toast({ title: 'Error', description: 'Failed to delete entries.', variant: 'destructive' });
         }
     };
     
     const requestSort = (key: TransactionSortKey) => {
-        let direction: SortDirection = 'asc';
-        if (sortConfig.key === key && sortConfig.direction === 'asc') {
-            direction = 'desc';
-        }
-        setSortConfig({ key, direction });
+        setSortConfig(prev => ({
+            key,
+            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+        }));
     };
 
     const sortedAndFilteredTransactions = useMemo(() => {
@@ -106,186 +104,159 @@ export default function TransactionsPage() {
         }
         
         if (searchQuery) {
-            const lowercasedQuery = searchQuery.toLowerCase();
+            const query = searchQuery.toLowerCase();
             augmented = augmented.filter(t =>
-                t.vehicleName.toLowerCase().includes(lowercasedQuery) ||
-                t.partyName.toLowerCase().includes(lowercasedQuery) ||
-                (t.remarks || '').toLowerCase().includes(lowercasedQuery) ||
-                t.type.toLowerCase().includes(lowercasedQuery)
+                t.vehicleName.toLowerCase().includes(query) ||
+                t.partyName.toLowerCase().includes(query) ||
+                (t.remarks || '').toLowerCase().includes(query) ||
+                (t.category || '').toLowerCase().includes(query)
             );
         }
 
         if (dateRange?.from) {
-            const interval = {
-                start: startOfDay(dateRange.from),
-                end: endOfDay(dateRange.to || dateRange.from),
-            };
+            const interval = { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to || dateRange.from) };
             augmented = augmented.filter(t => isWithinInterval(new Date(t.date), interval));
         }
         
-        if (filterPartyId !== 'All') {
-            augmented = augmented.filter(t => t.partyId === filterPartyId);
-        }
-        
-        if (filterVehicleId !== 'All') {
-            augmented = augmented.filter(t => t.vehicleId === filterVehicleId);
-        }
+        if (filterPartyId !== 'All') augmented = augmented.filter(t => t.partyId === filterPartyId);
         
         augmented.sort((a, b) => {
-            const aVal = a[sortConfig.key];
-            const bVal = b[sortConfig.key];
-            if (aVal === null || aVal === undefined) return 1;
-            if (bVal === null || bVal === undefined) return -1;
+            const aVal = (a[sortConfig.key] || '').toString();
+            const bVal = (b[sortConfig.key] || '').toString();
             if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
             if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
             return 0;
         });
         
         return augmented;
-    }, [transactions, searchQuery, sortConfig, vehiclesById, partiesById, dateRange, activeTab, filterPartyId, filterVehicleId]);
+    }, [transactions, searchQuery, sortConfig, vehiclesById, partiesById, dateRange, activeTab, filterPartyId]);
     
      const handleExport = async () => {
         const XLSX = (await import('xlsx'));
         const dataToExport = sortedAndFilteredTransactions.map(t => ({
-            'Date (BS)': toNepaliDate(t.date),
-            'Date (AD)': format(new Date(t.date), 'yyyy-MM-dd'),
+            'Date': toNepaliDate(t.date),
             'Vehicle': t.vehicleName,
             'Type': t.type,
-            'Party': t.partyName,
+            'Category': t.category || 'N/A',
+            'Ledger': t.partyName,
+            'Mode': t.billingType,
             'Amount': ['Purchase', 'Payment'].includes(t.type) ? -t.amount : t.amount,
-            'Billing Type': t.billingType,
-            'Due Date': t.dueDate ? toNepaliDate(t.dueDate) : '',
             'Remarks': t.remarks,
         }));
-        
         const worksheet = XLSX.utils.json_to_sheet(dataToExport);
         const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Transactions");
-        XLSX.writeFile(workbook, `Transactions-${new Date().toISOString().split('T')[0]}.xlsx`);
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Financial Logs");
+        XLSX.writeFile(workbook, `Fleet_Accounting_Logs_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
     };
 
-    if (isLoading) {
-        return (
-            <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
-              <h3 className="text-2xl font-bold tracking-tight">Loading...</h3>
-            </div>
-        );
-    }
-    
-    const renderContent = () => {
-        if (transactions.length === 0) {
-            return (
-                <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
-                  <div className="flex flex-col items-center gap-1 text-center">
-                    <h3 className="text-2xl font-bold tracking-tight">No transactions found</h3>
-                    <p className="text-sm text-muted-foreground">Get started by creating a new transaction.</p>
-                  </div>
-                </div>
-            );
-        }
-
-        return (
-            <Card>
-                <Table><TableHeader><TableRow>
-                    <TableHead><Button variant="ghost" onClick={() => requestSort('date')}>Date</Button></TableHead>
-                    <TableHead><Button variant="ghost" onClick={() => requestSort('vehicleName')}>Vehicle</Button></TableHead>
-                    <TableHead><Button variant="ghost" onClick={() => requestSort('type')}>Type</Button></TableHead>
-                    <TableHead><Button variant="ghost" onClick={() => requestSort('partyName')}>Party</Button></TableHead>
-                    <TableHead><Button variant="ghost" onClick={() => requestSort('amount')}>Amount</Button></TableHead>
-                     <TableHead><Button variant="ghost" onClick={() => requestSort('dueDate')}>Due In</Button></TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                </TableRow></TableHeader>
-                <TableBody>
-                    {sortedAndFilteredTransactions.map(txn => {
-                        const dueDate = txn.dueDate ? new Date(txn.dueDate) : null;
-                        const daysDue = dueDate ? differenceInDays(dueDate, new Date()) : null;
-                        return (
-                        <TableRow key={txn.id}>
-                            <TableCell>{toNepaliDate(txn.date)}</TableCell>
-                            <TableCell>{txn.vehicleName}</TableCell>
-                            <TableCell><Badge variant="outline">{txn.type}</Badge></TableCell>
-                            <TableCell>{txn.partyName}</TableCell>
-                            <TableCell className={cn(['Purchase', 'Payment'].includes(txn.type) ? 'text-red-600' : 'text-green-600')}>{txn.amount.toLocaleString()}</TableCell>
-                            <TableCell>
-                                {daysDue !== null && (
-                                    <Badge variant={daysDue < 0 ? 'destructive' : 'secondary'}>
-                                        {daysDue < 0 ? `Overdue ${-daysDue}d` : `${daysDue}d`}
-                                    </Badge>
-                                )}
-                            </TableCell>
-                            <TableCell className="text-right"><DropdownMenu>
-                                <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                    {hasPermission('fleet', 'delete') && (
-                                        <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()}><Trash2 className="mr-2 h-4 w-4 text-destructive" /> <span className="text-destructive">Delete</span></DropdownMenuItem></AlertDialogTrigger>
-                                        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the transaction.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(txn.id)}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
-                                    )}
-                                </DropdownMenuContent>
-                            </DropdownMenu></TableCell>
-                        </TableRow>
-                    )})}
-                </TableBody></Table>
-            </Card>
-        );
-    }
-    
     return (
         <div className="flex flex-col gap-8">
-            <header>
-                <h1 className="text-3xl font-bold tracking-tight">Fleet Accounting</h1>
-                <p className="text-muted-foreground">Manage your fleet's financial transactions and view summaries.</p>
+            <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight">Account Logs</h1>
+                    <p className="text-muted-foreground">Comprehensive financial history for Sijan Dhuwani Sewa.</p>
+                </div>
+                <div className="flex gap-2">
+                    <Button variant="outline" onClick={handleExport}><Download className="mr-2 h-4 w-4" /> Export All</Button>
+                    <Button onClick={() => router.push('/fleet/transactions/payment-receipt/new')}>
+                        <PlusCircle className="mr-2 h-4 w-4" /> New Voucher
+                    </Button>
+                </div>
             </header>
-            <section>
-                <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TransactionFilterType)}>
-                    <div className="flex flex-col gap-4 mb-4">
-                         <div className="flex flex-col md:flex-row gap-2">
-                             <div className="relative flex-1">
-                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input type="search" placeholder="Search..." className="pl-8 w-full" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
-                            </div>
-                            <Popover><PopoverTrigger asChild>
-                                <Button id="date" variant={"outline"} className={cn("w-full md:w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {dateRange?.from ? (dateRange.to ? (`${format(dateRange.from, "LLL dd, y")} - ${format(dateRange.to, "LLL dd, y")}`) : format(dateRange.from, "LLL dd, y")) : (<span>Pick a date range</span>)}
-                                </Button>
-                            </PopoverTrigger><PopoverContent className="w-auto p-0" align="end"><DualDateRangePicker selected={dateRange} onSelect={setDateRange} /></PopoverContent></Popover>
-                             <Select value={filterPartyId} onValueChange={setFilterPartyId}>
-                                <SelectTrigger className="w-full md:w-[180px]">
-                                    <SelectValue placeholder="All Parties" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="All">All Parties</SelectItem>
-                                    {parties.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                            <Select value={filterVehicleId} onValueChange={setFilterVehicleId}>
-                                <SelectTrigger className="w-full md:w-[180px]">
-                                    <SelectValue placeholder="All Vehicles" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="All">All Vehicles</SelectItem>
-                                    {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                            <Button variant="outline" onClick={handleExport}>
-                                <Download className="mr-2 h-4 w-4" /> Export
-                            </Button>
-                        </div>
-                        <div>
-                           <TabsList className="grid w-full grid-cols-3 md:w-auto md:grid-cols-5">
-                                <TabsTrigger value="All">All</TabsTrigger>
-                                <TabsTrigger value="Sales">Sales</TabsTrigger>
-                                <TabsTrigger value="Purchase">Purchase</TabsTrigger>
-                                <TabsTrigger value="Payment">Payments</TabsTrigger>
-                                <TabsTrigger value="Receipt">Receipts</TabsTrigger>
-                            </TabsList>
-                        </div>
+
+            <div className="flex flex-col gap-4">
+                <div className="flex flex-col md:flex-row gap-2">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input placeholder="Search logs..." className="pl-8" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                     </div>
-                     <TabsContent value={activeTab} className="mt-4">
-                        {renderContent()}
-                     </TabsContent>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button variant="outline" className={cn("w-full md:w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {dateRange?.from ? (dateRange.to ? (`${format(dateRange.from, "LLL dd, y")} - ${format(dateRange.to, "LLL dd, y")}`) : format(dateRange.from, "LLL dd, y")) : (<span>Pick a date range</span>)}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="end">
+                            <DualDateRangePicker selected={dateRange} onSelect={setDateRange} />
+                        </PopoverContent>
+                    </Popover>
+                    <Select value={filterPartyId} onValueChange={setFilterPartyId}>
+                        <SelectTrigger className="w-full md:w-[180px]">
+                            <SelectValue placeholder="All Ledgers" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="All">All Ledgers</SelectItem>
+                            {parties.filter(p => p.ownership !== 'Shivam').map(p => (
+                                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
+                    <TabsList>
+                        <TabsTrigger value="All">All Entries</TabsTrigger>
+                        <TabsTrigger value="Payment">Payments</TabsTrigger>
+                        <TabsTrigger value="Receipt">Receipts</TabsTrigger>
+                        <TabsTrigger value="Purchase">Purchases</TabsTrigger>
+                        <TabsTrigger value="Sales">Sales</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value={activeTab} className="mt-4">
+                        <Card>
+                            <Table>
+                                <TableHeader className="bg-muted/50">
+                                    <TableRow>
+                                        <TableHead><Button variant="ghost" onClick={() => requestSort('date')} className="-ml-4">Date <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                                        <TableHead><Button variant="ghost" onClick={() => requestSort('vehicleName')} className="-ml-4">Vehicle <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                                        <TableHead><Button variant="ghost" onClick={() => requestSort('type')} className="-ml-4">Type <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                                        <TableHead><Button variant="ghost" onClick={() => requestSort('category')} className="-ml-4">Category <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                                        <TableHead><Button variant="ghost" onClick={() => requestSort('partyName')} className="-ml-4">Ledger (A/C) <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                                        <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('amount')} className="-ml-4 w-full text-right">Amount <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                                        <TableHead className="text-right">Actions</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {sortedAndFilteredTransactions.map(txn => (
+                                        <TableRow key={txn.id} className="hover:bg-muted/30">
+                                            <TableCell className="font-medium text-xs whitespace-nowrap">{toNepaliDate(txn.date)}</TableCell>
+                                            <TableCell className="font-semibold text-xs">{txn.vehicleName}</TableCell>
+                                            <TableCell>
+                                                <Badge variant="outline" className={cn(
+                                                    "text-[10px] uppercase",
+                                                    ['Receipt', 'Sales'].includes(txn.type) ? 'text-green-600 border-green-200 bg-green-50' : 'text-red-600 border-red-200 bg-red-50'
+                                                )}>{txn.type}</Badge>
+                                            </TableCell>
+                                            <TableCell><span className="text-[10px] text-muted-foreground uppercase font-bold">{txn.category || 'N/A'}</span></TableCell>
+                                            <TableCell className="text-xs">{txn.partyName}</TableCell>
+                                            <TableCell className={cn("text-right font-mono font-bold", ['Purchase', 'Payment'].includes(txn.type) ? 'text-red-600' : 'text-green-600')}>
+                                                {['Purchase', 'Payment'].includes(txn.type) && '-'}{txn.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuItem onSelect={() => router.push(txn.voucherId ? `/fleet/transactions/payment-receipt?voucherId=${txn.voucherId}` : `/fleet/transactions/view?id=${txn.id}`)}><View className="mr-2 h-4 w-4" /> View Voucher</DropdownMenuItem>
+                                                        {hasPermission('fleet', 'edit') && (
+                                                            <DropdownMenuItem onSelect={() => router.push(txn.voucherId ? `/fleet/transactions/payment-receipt/edit?voucherId=${txn.voucherId}` : `/fleet/transactions/edit?id=${txn.id}`)}><Edit className="mr-2 h-4 w-4" /> Edit Entry</DropdownMenuItem>
+                                                        )}
+                                                        <DropdownMenuSeparator />
+                                                        {hasPermission('fleet', 'delete') && (
+                                                            <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem></AlertDialogTrigger>
+                                                            <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete Financial Entry?</AlertDialogTitle><AlertDialogDescription>This will permanently remove the transaction record. If this was part of a group voucher, all associated entries will be deleted.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteVoucher(txn.voucherId || txn.id)}>Delete Everything</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+                                                        )}
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                    {sortedAndFilteredTransactions.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">No financial logs found.</TableCell></TableRow>}
+                                </TableBody>
+                            </Table>
+                        </Card>
+                    </TabsContent>
                 </Tabs>
-            </section>
+            </div>
         </div>
     );
 }

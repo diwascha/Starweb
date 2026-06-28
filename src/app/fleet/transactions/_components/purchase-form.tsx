@@ -32,6 +32,15 @@ import { Loader2, Edit } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { addUom } from '@/services/uom-service';
 
+const purchaseCategories = [
+    'Fuel',
+    'Maintenance',
+    'Membership Renewal',
+    'Spare Parts',
+    'Taxes / Fees',
+    'Other'
+];
+
 const transactionItemSchema = z.object({
     particular: z.string().min(1, 'Particular is required.'),
     quantity: z.number().min(0, 'Quantity must be positive.'),
@@ -43,6 +52,7 @@ const transactionSchema = z.object({
     purchaseNumber: z.string().optional(),
     vehicleId: z.string().min(1, 'Vehicle is required.'),
     date: z.date({ required_error: 'Posting date is required.' }),
+    category: z.string().min(1, 'Category is required.'),
     invoiceNumber: z.string().optional(),
     invoiceDate: z.date().optional().nullable(),
     invoiceType: z.enum(['Taxable', 'Normal']),
@@ -102,18 +112,20 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
 
 
     // Form states
-    const [partyForm, setPartyForm] = React.useState<{name: string, type: PartyType, ownership: AccountOwnership}>({name: '', type: 'Supplier', ownership: 'Both'});
+    const [partyForm, setPartyForm] = React.useState<{name: string, type: PartyType, ownership: AccountOwnership}>({name: '', type: 'Vendor', ownership: 'Both'});
     const [accountForm, setAccountForm] = React.useState({ name: '', type: 'Cash' as 'Cash' | 'Bank', ownership: 'Both' as AccountOwnership, accountNumber: '', bankName: '', branch: '', bankAccountType: 'Saving' as BankAccountType });
     const [editingAccount, setEditingAccount] = React.useState<Account | null>(null);
 
     const form = useForm<TransactionFormValues>({
         resolver: zodResolver(transactionSchema),
-        defaultValues: initialValues || {
+        defaultValues: {
             date: new Date(),
             invoiceType: 'Taxable',
             billingType: 'Cash',
+            category: 'Fuel',
             items: [{ particular: '', quantity: 0, uom: '', rate: 0 }],
             type: 'Purchase',
+            ...initialValues
         }
     });
 
@@ -152,7 +164,7 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
             form.setValue('partyId', newPartyId);
             toast({title: 'Success', description: 'New party added.'});
             setIsPartyDialogOpen(false);
-            setPartyForm({name: '', type: 'Supplier', ownership: 'Both'});
+            setPartyForm({name: '', type: 'Vendor', ownership: 'Both'});
         } catch {
              toast({title: 'Error', description: 'Failed to add party.', variant: 'destructive'});
         }
@@ -227,12 +239,11 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
             <Card>
                 <CardHeader>
-                    <CardTitle>Purchase Details</CardTitle>
+                    <CardTitle>Purchase Entry</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <ScrollArea className="max-h-[70vh] p-1">
-                    <div className="grid gap-6 py-4 px-2">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid gap-6 py-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                              <FormField control={form.control} name="purchaseNumber" render={({ field }) => (
                                 <FormItem><FormLabel>Purchase Number</FormLabel><FormControl><Input {...field} readOnly className="bg-muted/50" /></FormControl><FormMessage/></FormItem>
                             )}/>
@@ -246,6 +257,24 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
                                 <FormMessage/>
                                 </FormItem>
                             )}/>
+                            <FormField control={form.control} name="category" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Purchase Category</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                        <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select category" />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            {purchaseCategories.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )} />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             <FormField control={form.control} name="vehicleId" render={({ field }) => (
                                 <FormItem><FormLabel>Vehicle</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select vehicle" /></SelectTrigger></FormControl>
                                     <SelectContent>{vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}</SelectContent>
@@ -256,26 +285,26 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
                                 <div className="flex gap-2">
                                 <Popover><PopoverTrigger asChild><FormControl>
                                     <Button variant="outline" role="combobox" className="w-full justify-between">
-                                        {field.value ? partiesById.get(field.value) : "Select party..."}<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                        {field.value ? partiesById.get(field.value) : "Select supplier..."}<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                     </Button>
                                 </FormControl></PopoverTrigger><PopoverContent className="p-0"><Command>
-                                    <CommandInput placeholder="Search party..." />
-                                    <CommandList><CommandEmpty>No party found.</CommandEmpty><CommandGroup>
-                                        {parties.map(party => <CommandItem key={party.id} value={party.name} onSelect={() => field.onChange(party.id)}>
+                                    <CommandInput placeholder="Search supplier..." />
+                                    <CommandList><CommandEmpty>No supplier found.</CommandEmpty><CommandGroup>
+                                        {parties.filter(p => p.type === 'Vendor' || p.type === 'Both').map(party => <CommandItem key={party.id} value={party.name} onSelect={() => field.onChange(party.id)}>
                                             <Check className={cn("mr-2 h-4 w-4", field.value === party.id ? "opacity-100" : "opacity-0")} />{party.name}
                                         </CommandItem>)}
                                     </CommandGroup></CommandList>
                                 </Command></PopoverContent></Popover>
-                                <Button type="button" size="icon" variant="outline" onClick={() => setIsPartyDialogOpen(true)}><Plus className="h-4 w-4"/></Button>
+                                <Button type="button" size="icon" variant="outline" onClick={() => handleOpenPartyDialog(null, 'Vendor')}><Plus className="h-4 w-4"/></Button>
                                 </div><FormMessage/></FormItem>
                              )}/>
                         </div>
-                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             <FormField control={form.control} name="invoiceNumber" render={({ field }) => (
-                                <FormItem><FormLabel>Invoice Number (Optional)</FormLabel><FormControl><Input {...field} value={field.value ?? ''} /></FormControl><FormMessage/></FormItem>
+                                <FormItem><FormLabel>Supplier Invoice #</FormLabel><FormControl><Input {...field} value={field.value ?? ''} /></FormControl><FormMessage/></FormItem>
                             )}/>
                             <FormField control={form.control} name="invoiceDate" render={({ field }) => (
-                                <FormItem><FormLabel>Invoice Date (Optional)</FormLabel>
+                                <FormItem><FormLabel>Invoice Date</FormLabel>
                                  <Popover><PopoverTrigger asChild><FormControl>
                                     <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}>
                                         <CalendarIcon className="mr-2 h-4 w-4" />{field.value ? `${toNepaliDate(field.value.toISOString())} BS (${format(field.value, "PPP")})` : <span>Pick a date</span>}
@@ -286,18 +315,18 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
                              <FormField control={form.control} name="invoiceType" render={({ field }) => (
                                 <FormItem className="space-y-3"><FormLabel>Invoice Type</FormLabel><FormControl>
                                     <RadioGroup onValueChange={field.onChange} value={field.value} className="flex items-center space-x-4">
-                                        <FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="Taxable" /></FormControl><FormLabel className="font-normal">Taxable</FormLabel></FormItem>
-                                        <FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="Normal" /></FormControl><FormLabel className="font-normal">Normal</FormLabel></FormItem>
+                                        <FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="Taxable" /></FormControl><FormLabel className="font-normal">Taxable (13%)</FormLabel></FormItem>
+                                        <FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="Normal" /></FormControl><FormLabel className="font-normal">Non-Taxable</FormLabel></FormItem>
                                     </RadioGroup>
                                 </FormControl><FormMessage/></FormItem>
                             )}/>
                          </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4 border-t border-dashed">
                             <FormField control={form.control} name="billingType" render={({ field }) => (
-                                <FormItem><FormLabel>Billing</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select billing type" /></SelectTrigger></FormControl>
+                                <FormItem><FormLabel>Payment Mode</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select billing type" /></SelectTrigger></FormControl>
                                     <SelectContent>
                                         <SelectItem value="Cash">Cash</SelectItem><SelectItem value="Bank">Bank</SelectItem>
-                                        <SelectItem value="Credit">Credit</SelectItem>
+                                        <SelectItem value="Credit">On Account (Credit)</SelectItem>
                                     </SelectContent>
                                 </Select><FormMessage/></FormItem>
                             )}/>
@@ -323,28 +352,28 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
                                         </div>
                                      <FormMessage/></FormItem>
                                  )}/>
-                                 <FormField control={form.control} name="chequeNumber" render={({ field }) => (<FormItem><FormLabel>Cheque Number</FormLabel><FormControl><Input {...field} value={field.value ?? ''} /></FormControl><FormMessage/></FormItem>)}/>
+                                 <FormField control={form.control} name="chequeNumber" render={({ field }) => (<FormItem><FormLabel>Cheque / Ref No.</FormLabel><FormControl><Input {...field} value={field.value ?? ''} /></FormControl><FormMessage/></FormItem>)}/>
                                  <FormField control={form.control} name="chequeDate" render={({ field }) => (<FormItem><FormLabel>Cheque Date</FormLabel><Popover><PopoverTrigger asChild><FormControl>
                                         <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button>
                                 </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value ?? undefined} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage/></FormItem>)}/>
                                 </>
                             )}
                              {watchedFormValues.billingType === 'Credit' && (
-                                <FormField control={form.control} name="dueDate" render={({ field }) => (<FormItem><FormLabel>Due Date</FormLabel><Popover><PopoverTrigger asChild><FormControl>
+                                <FormField control={form.control} name="dueDate" render={({ field }) => (<FormItem><FormLabel>Payment Due Date</FormLabel><Popover><PopoverTrigger asChild><FormControl>
                                         <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button>
                                 </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value ?? undefined} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage/></FormItem>)}/>
                              )}
                         </div>
-                        <div>
-                        <Label className="text-base font-medium">Particulars</Label>
-                        <Table><TableHeader><TableRow>
-                            <TableHead>Particular</TableHead><TableHead>Quantity</TableHead><TableHead>UOM</TableHead><TableHead>Rate</TableHead><TableHead>Amount</TableHead><TableHead/>
+                        <div className="pt-6">
+                        <Label className="text-base font-bold uppercase tracking-wider text-muted-foreground">Itemized Particulars</Label>
+                        <Table className="mt-2"><TableHeader className="bg-muted/50"><TableRow>
+                            <TableHead>Particular / Description</TableHead><TableHead className="w-[120px]">Quantity</TableHead><TableHead className="w-[100px]">UOM</TableHead><TableHead className="w-[150px]">Rate</TableHead><TableHead className="w-[150px] text-right">Amount</TableHead><TableHead className="w-[50px]"/>
                         </TableRow></TableHeader>
                         <TableBody>
                         {fields.map((item, index) => (
                             <TableRow key={item.id}>
-                                <TableCell><FormField control={form.control} name={`items.${index}.particular`} render={({ field }) => <Input {...field} />} /></TableCell>
-                                <TableCell><FormField control={form.control} name={`items.${index}.quantity`} render={({ field }) => <Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />} /></TableCell>
+                                <TableCell><FormField control={form.control} name={`items.${index}.particular`} render={({ field }) => <Input {...field} className="h-9" placeholder="e.g. Engine Oil, Policy Fee" />} /></TableCell>
+                                <TableCell><FormField control={form.control} name={`items.${index}.quantity`} render={({ field }) => <Input type="number" className="h-9" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />} /></TableCell>
                                 <TableCell>
                                     <FormField
                                     control={form.control}
@@ -353,8 +382,8 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
                                         <Popover>
                                         <PopoverTrigger asChild>
                                             <FormControl>
-                                            <Button variant="outline" role="combobox" className="w-[100px] justify-between font-normal">
-                                                {field.value || "..."}
+                                            <Button variant="outline" role="combobox" className="w-full justify-between font-normal h-9 text-xs">
+                                                {field.value || "Unit"}
                                                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                             </Button>
                                             </FormControl>
@@ -364,11 +393,7 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
                                             <CommandInput placeholder="Search unit..." onValueChange={setUomSearch} />
                                             <CommandList>
                                                 <CommandEmpty>
-                                                    <button type="button" className="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none"
-                                                        onSelect={() => {
-                                                            handleAddUom(uomSearch);
-                                                            field.onChange(uomSearch);
-                                                        }}
+                                                    <button type="button" className="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-muted"
                                                          onClick={() => {
                                                             handleAddUom(uomSearch);
                                                             field.onChange(uomSearch);
@@ -396,83 +421,79 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
                                     )}
                                     />
                                 </TableCell>
-                                <TableCell><FormField control={form.control} name={`items.${index}.rate`} render={({ field }) => <Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />} /></TableCell>
-                                <TableCell>{((watchedFormValues.items?.[index]?.quantity || 0) * (watchedFormValues.items?.[index]?.rate || 0)).toLocaleString()}</TableCell>
-                                <TableCell><Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}><X className="h-4 w-4 text-destructive"/></Button></TableCell>
+                                <TableCell><FormField control={form.control} name={`items.${index}.rate`} render={({ field }) => <Input type="number" className="h-9" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />} /></TableCell>
+                                <TableCell className="text-right font-medium">{((watchedFormValues.items?.[index]?.quantity || 0) * (watchedFormValues.items?.[index]?.rate || 0)).toLocaleString()}</TableCell>
+                                <TableCell><Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => remove(index)}><X className="h-4 w-4"/></Button></TableCell>
                             </TableRow>
                         ))}
                         </TableBody></Table>
                         <Button type="button" size="sm" variant="outline" className="mt-2" onClick={() => append({ particular: '', quantity: 0, uom: '', rate: 0 })}>
-                            <Plus className="mr-2 h-4 w-4"/> Add Row
+                            <Plus className="mr-2 h-4 w-4"/> Add Entry Row
                         </Button>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label>Calculation</Label>
-                                <div className="p-4 border rounded-md space-y-2">
-                                    <div className="flex justify-between text-sm"><span>Subtotal</span><span>{subtotal.toLocaleString(undefined, {maximumFractionDigits: 2})}</span></div>
-                                    {watchedFormValues.invoiceType === 'Taxable' && <div className="flex justify-between text-sm"><span>VAT (13%)</span><span>{vatAmount.toLocaleString(undefined, {maximumFractionDigits: 2})}</span></div>}
-                                    <div className="flex justify-between font-bold"><span>Grand Total</span><span>{totalAmount.toLocaleString(undefined, {maximumFractionDigits: 2})}</span></div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t">
+                            <FormField control={form.control} name="remarks" render={({ field }) => (
+                                <FormItem><FormLabel>General Remarks / Narration</FormLabel><FormControl><Textarea className="min-h-[110px]" {...field} value={field.value ?? ''} placeholder="Provide any additional details..." /></FormControl><FormMessage/></FormItem>
+                            )}/>
+                            <div className="space-y-4">
+                                <Label className="font-bold uppercase text-xs">Summary Breakdown</Label>
+                                <div className="p-4 border rounded-lg space-y-3 bg-muted/20">
+                                    <div className="flex justify-between text-sm"><span>Subtotal</span><span className="font-mono">{subtotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
+                                    {watchedFormValues.invoiceType === 'Taxable' && <div className="flex justify-between text-sm text-muted-foreground italic"><span>VAT (13%)</span><span className="font-mono">{vatAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>}
+                                    <Separator />
+                                    <div className="flex justify-between font-black text-xl"><span>Grand Total</span><span className="font-mono">Rs. {totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
                                 </div>
                             </div>
-                            <FormField control={form.control} name="remarks" render={({ field }) => (
-                                <FormItem><FormLabel>Remarks</FormLabel><FormControl><Textarea className="min-h-[110px]" {...field} value={field.value ?? ''} /></FormControl><FormMessage/></FormItem>
-                            )}/>
                         </div>
                     </div>
-                    </ScrollArea>
                 </CardContent>
             </Card>
 
-            <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
-                <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : (initialValues ? 'Save Changes' : 'Save Transaction')}
+            <div className="flex justify-end gap-3 pt-4">
+                <Button type="button" variant="outline" className="h-11 px-8" onClick={onCancel}>Cancel</Button>
+                <Button type="submit" className="h-11 px-12 font-bold" disabled={isSubmitting}>
+                    {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : (initialValues ? 'Update Transaction' : 'Post Transaction')}
                 </Button>
             </div>
         </form>
-    </Form>
-    <Dialog open={isPartyDialogOpen} onOpenChange={setIsPartyDialogOpen}>
+      </Form>
+      
+      <Dialog open={isPartyDialogOpen} onOpenChange={setIsPartyDialogOpen}>
         <DialogContent className="sm:max-w-sm">
-            <DialogHeader><DialogTitle>Add New Party</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>Add New Supplier</DialogTitle></DialogHeader>
             <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="party-type">Party Type</Label>
-                        <Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm(p => ({...p, type: v}))}>
-                            <SelectTrigger id="party-type"><SelectValue/></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="Supplier">Supplier</SelectItem>
-                                <SelectItem value="Customer">Customer</SelectItem>
-                                <SelectItem value="Both">Both</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="party-ownership">Ownership</Label>
-                        <Select value={partyForm.ownership} onValueChange={(v: AccountOwnership) => setPartyForm(p => ({...p, ownership: v}))}>
-                            <SelectTrigger id="party-ownership"><SelectValue/></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="Sijan">Sijan Dhuwani</SelectItem>
-                                <SelectItem value="Shivam">Shivam Packaging</SelectItem>
-                                <SelectItem value="Both">Both</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
+                <div className="space-y-2">
+                    <Label htmlFor="party-name">Supplier Name</Label>
+                    <Input id="party-name" value={partyForm.name} onChange={(e) => setPartyForm(prev => ({...prev, name: e.target.value}))}/>
+                </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="party-ownership">Ownership</Label>
+                    <Select value={partyForm.ownership} onValueChange={(v: AccountOwnership) => setPartyForm(p => ({...p, ownership: v}))}>
+                        <SelectTrigger id="party-ownership"><SelectValue/></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="Sijan">Sijan Dhuwani</SelectItem>
+                            <SelectItem value="Shivam">Shivam Packaging</SelectItem>
+                            <SelectItem value="Both">Both</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
                 <div className="space-y-2">
-                    <Label htmlFor="party-name">Party Name</Label>
-                    <Input id="party-name" value={partyForm.name} onChange={e => setPartyForm(p => ({...p, name: e.target.value}))} />
+                    <Label htmlFor="party-pan">PAN Number (Optional)</Label>
+                    <Input id="party-pan" value={partyForm.panNumber || ''} onChange={(e) => setPartyForm(prev => ({...prev, panNumber: e.target.value}))}/>
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="party-address">Address</Label>
+                    <Textarea id="party-address" value={partyForm.address} onChange={(e) => setPartyForm(prev => ({...prev, address: e.target.value}))}/>
                 </div>
             </div>
             <DialogFooter>
                 <Button variant="outline" onClick={() => setIsPartyDialogOpen(false)}>Cancel</Button>
-                <Button onClick={handleSubmitParty}>Add Party</Button>
+                <Button onClick={handlePartySubmit}>Add Supplier</Button>
             </DialogFooter>
         </DialogContent>
-    </Dialog>
+      </Dialog>
 
-    <Dialog open={isAccountDialogOpen} onOpenChange={setIsAccountDialogOpen}>
+      <Dialog open={isAccountDialogOpen} onOpenChange={setIsAccountDialogOpen}>
         <DialogContent className="sm:max-w-md">
             <DialogHeader><DialogTitle>{editingAccount ? 'Edit Account' : 'Add New Account'}</DialogTitle></DialogHeader>
             <div className="grid gap-4 py-4">
@@ -522,7 +543,7 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
                 <Button onClick={handleSubmitAccount}>{editingAccount ? 'Save Changes' : 'Add Account'}</Button>
             </DialogFooter>
         </DialogContent>
-    </Dialog>
+      </Dialog>
     </>
   );
 }
