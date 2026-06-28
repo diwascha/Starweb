@@ -106,8 +106,8 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
     
     // Quick Add States
     const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
-    const [partyForm, setPartyForm] = useState<{name: string, type: PartyType, ownership: AccountOwnership, address: string}>({ 
-        name: '', type: 'Vendor', ownership: 'Sijan', address: '' 
+    const [partyForm, setPartyForm] = useState<{name: string, type: PartyType, ownership: AccountOwnership, address: string, panNumber: string}>({ 
+        name: '', type: 'Vendor', ownership: 'Sijan', address: '', panNumber: ''
     });
     const [isDestDialogOpen, setIsDestDialogOpen] = useState(false);
     const [destForm, setDestForm] = useState({ name: '', standardAdvance: 0, remarks: '' });
@@ -196,7 +196,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
             const id = await addParty({ ...partyForm, createdBy: user.username });
             form.setValue('partyId', id);
             setIsPartyDialogOpen(false);
-            setPartyForm({ name: '', type: 'Vendor', ownership: 'Sijan', address: '' });
+            setPartyForm({ name: '', type: 'Vendor', ownership: 'Sijan', address: '', panNumber: '' });
             toast({ title: 'Party Added' });
         } catch {
             toast({ title: 'Error adding party', variant: 'destructive' });
@@ -659,6 +659,10 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
                                     </SelectContent>
                                 </Select>
                             </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>PAN Number</Label>
+                            <Input value={partyForm.panNumber} onChange={e => setPartyForm({...partyForm, panNumber: e.target.value})} placeholder="Tax Identification Number" />
                         </div>
                         <div className="space-y-2">
                             <Label>Address</Label>
