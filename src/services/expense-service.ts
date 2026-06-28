@@ -1,4 +1,3 @@
-
 /**
  * @fileOverview Expense service for recording truck-related costs.
  */
@@ -8,7 +7,7 @@ import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, do
 import type { Expense } from '@/lib/expense-types';
 import { COLLECTIONS } from '@/lib/constants';
 import { addTransaction } from './transaction-service';
-import type { Transaction } from '@/lib/types';
+import type { Transaction, TransactionItem } from '@/lib/types';
 import { createTimestamp, logServiceError } from '@/lib/service-utils';
 
 const getExpensesCollection = () => {
@@ -28,6 +27,8 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Expense =
         itemId: data.itemId || undefined,
         destination: data.destination || undefined,
         amount: data.amount,
+        extraAmount: data.extraAmount || undefined,
+        extraRemarks: data.extraRemarks || undefined,
         paymentMode: data.paymentMode,
         remarks: data.remarks || undefined,
         createdBy: data.createdBy,
@@ -76,6 +77,8 @@ export const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>)
         vehicleId: expenseData.vehicleId,
         expenseType: expenseData.expenseType,
         amount: Number(expenseData.amount) || 0,
+        extraAmount: Number(expenseData.extraAmount) || 0,
+        extraRemarks: expenseData.extraRemarks || null,
         paymentMode: expenseData.paymentMode,
         partyId: expenseData.partyId || null,
         accountId: expenseData.accountId || null,
@@ -89,18 +92,36 @@ export const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>)
     const docRef = await addDoc(getExpensesCollection(), expenseRecord);
 
     // 2. Automatically sync to Main Transactions for accounting
+    const totalAmount = expenseRecord.amount + expenseRecord.extraAmount;
+    
+    const items: TransactionItem[] = [
+        { 
+            particular: `${expenseRecord.expenseType}${expenseRecord.destination ? ` to ${expenseRecord.destination}` : ''}`, 
+            quantity: 1, 
+            rate: expenseRecord.amount 
+        }
+    ];
+
+    if (expenseRecord.extraAmount > 0) {
+        items.push({
+            particular: expenseRecord.extraRemarks || 'Extra Trip Charge',
+            quantity: 1,
+            rate: expenseRecord.extraAmount
+        });
+    }
+
     const txnData: Omit<Transaction, 'id' | 'createdAt' | 'lastModifiedAt'> = {
         date: expenseRecord.date,
         vehicleId: expenseRecord.vehicleId,
         type: 'Purchase', // Daily expenses are categorized as vehicle-specific purchases
-        amount: expenseRecord.amount,
+        amount: totalAmount,
         billingType: expenseRecord.paymentMode,
         invoiceType: 'Normal',
         category: expenseRecord.expenseType,
         partyId: expenseRecord.partyId,
         accountId: expenseRecord.accountId,
         remarks: `Expense Sync: ${expenseRecord.expenseType}${expenseRecord.destination ? ` (${expenseRecord.destination})` : ''}${expenseRecord.remarks ? ` - ${expenseRecord.remarks}` : ''}`,
-        items: [{ particular: `${expenseRecord.expenseType}${expenseRecord.destination ? ` to ${expenseRecord.destination}` : ''}`, quantity: 1, rate: expenseRecord.amount }],
+        items: items,
         createdBy: expenseRecord.createdBy,
         // Set empty optional fields to null to avoid undefined keys
         invoiceNumber: null,

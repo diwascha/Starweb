@@ -31,7 +31,9 @@ import {
     PlusCircle,
     Lightbulb,
     Edit,
-    Trash2
+    Trash2,
+    DollarSign,
+    PlusIcon
 } from 'lucide-react';
 import { cn, toNepaliDate } from '@/lib/utils';
 import type { Vehicle, Party, Account, AccountOwnership, PartyType, Transaction, Destination } from '@/lib/types';
@@ -46,6 +48,7 @@ import { Badge } from '@/components/ui/badge';
 import { onDestinationsUpdate, addDestination, updateDestination, deleteDestination } from '@/services/destination-service';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Separator } from '@/components/ui/separator';
 
 const expenseTypes: { type: ExpenseType; label: string; sub: string; icon: any; color: string }[] = [
     { type: 'Advance', label: 'Advance / Peski', sub: 'Trip advance', icon: Wallet, color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
@@ -59,6 +62,8 @@ const expenseSchema = z.object({
     vehicleId: z.string().min(1, "Truck is required."),
     expenseType: z.enum(['Advance', 'Maintenance', 'Purchase', 'Loan Repayment']),
     amount: z.number().min(1, "Amount must be positive."),
+    extraAmount: z.number().optional().default(0),
+    extraRemarks: z.string().optional(),
     paymentMode: z.enum(['Cash', 'Bank']),
     partyId: z.string().optional(),
     accountId: z.string().optional(),
@@ -96,8 +101,8 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
     
     // Additional Master Data
     const [destinations, setDestinations] = useState<Destination[]>([]);
-    const [allExpenses, setAllExpenses] = useState<Expense[]>([]);
     const [destSearch, setDestSearch] = useState('');
+    const [showExtraFields, setShowExtraFields] = useState(false);
     
     // Quick Add States
     const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
@@ -105,7 +110,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
         name: '', type: 'Vendor', ownership: 'Sijan', address: '' 
     });
     const [isDestDialogOpen, setIsDestDialogOpen] = useState(false);
-    const [newDestName, setNewDestName] = useState('');
+    const [destForm, setDestForm] = useState({ name: '', standardAdvance: 0 });
     const [editingDestination, setEditingDestination] = useState<Destination | null>(null);
 
     const form = useForm<z.infer<typeof expenseSchema>>({
@@ -115,6 +120,8 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
             expenseType: 'Advance',
             paymentMode: 'Cash',
             amount: 0,
+            extraAmount: 0,
+            extraRemarks: '',
             remarks: '',
         }
     });
@@ -122,29 +129,24 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
     const watchedType = form.watch('expenseType');
     const watchedMode = form.watch('paymentMode');
     const watchedPartyId = form.watch('partyId');
-    const watchedDestination = form.watch('destination');
+    const watchedDestinationName = form.watch('destination');
+    const watchedAmount = form.watch('amount');
+    const watchedExtraAmount = form.watch('extraAmount');
 
     useEffect(() => {
         const unsubDest = onDestinationsUpdate(setDestinations);
-        const unsubExp = onExpensesUpdate(setAllExpenses);
-        return () => { unsubDest(); unsubExp(); };
+        return () => unsubDest();
     }, []);
 
     const sijanParties = parties.filter(p => p.ownership === 'Sijan' || p.ownership === 'Both');
     const sijanAccounts = accounts.filter(a => (a.ownership === 'Sijan' || a.ownership === 'Both') && (a.type === 'Bank' || a.type === 'Cash'));
 
-    // Historical Advance Lookup
-    const suggestedAdvance = useMemo(() => {
-        if (watchedType !== 'Advance' || !watchedDestination) return null;
-        const previousAdvances = allExpenses.filter(e => 
-            e.expenseType === 'Advance' && 
-            e.destination?.toLowerCase() === watchedDestination.toLowerCase() &&
-            e.amount > 0
-        );
-        if (previousAdvances.length === 0) return null;
-        // Get the most recent amount
-        return previousAdvances[0].amount;
-    }, [watchedType, watchedDestination, allExpenses]);
+    // Master Data Suggestion logic (Route Base)
+    const routeStandardAmount = useMemo(() => {
+        if (watchedType !== 'Advance' || !watchedDestinationName) return null;
+        const dest = destinations.find(d => d.name === watchedDestinationName);
+        return dest?.standardAdvanceAmount || null;
+    }, [watchedType, watchedDestinationName, destinations]);
 
     const partyBalance = useMemo(() => {
         if (!watchedPartyId) return null;
@@ -172,11 +174,14 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
             form.reset({
                 ...form.getValues(),
                 amount: 0,
+                extraAmount: 0,
+                extraRemarks: '',
                 remarks: '',
                 partyId: '',
                 destination: '',
             });
             setDestSearch('');
+            setShowExtraFields(false);
         } catch (error: any) {
             console.error("Expense Save Failure:", error);
             toast({ title: 'Save Failed', description: error.message || 'Check connection and try again.', variant: 'destructive' });
@@ -201,30 +206,38 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
     const handleOpenDestinationDialog = (destination: Destination | null = null) => {
         if (destination) {
             setEditingDestination(destination);
-            setNewDestName(destination.name);
+            setDestForm({ 
+                name: destination.name, 
+                standardAdvance: destination.standardAdvanceAmount || 0 
+            });
         } else {
             setEditingDestination(null);
-            setNewDestName(destSearch);
+            setDestForm({ name: destSearch, standardAdvance: 0 });
         }
         setIsDestDialogOpen(true);
     };
 
     const handleQuickAddDest = async () => {
-        if (!user || !newDestName.trim()) return;
+        if (!user || !destForm.name.trim()) return;
         try {
             if (editingDestination) {
                 await updateDestination(editingDestination.id, { 
-                    name: newDestName.trim(), 
+                    name: destForm.name.trim(), 
+                    standardAdvanceAmount: Number(destForm.standardAdvance) || 0,
                     lastModifiedBy: user.username 
                 });
                 toast({ title: 'Destination Updated' });
             } else {
-                await addDestination({ name: newDestName.trim(), createdBy: user.username });
-                form.setValue('destination', newDestName.trim());
+                await addDestination({ 
+                    name: destForm.name.trim(), 
+                    standardAdvanceAmount: Number(destForm.standardAdvance) || 0,
+                    createdBy: user.username 
+                });
+                form.setValue('destination', destForm.name.trim());
                 toast({ title: 'Destination Added' });
             }
             setIsDestDialogOpen(false);
-            setNewDestName('');
+            setDestForm({ name: '', standardAdvance: 0 });
             setEditingDestination(null);
         } catch {
             toast({ title: 'Error saving destination', variant: 'destructive' });
@@ -238,7 +251,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
             toast({ title: 'Destination Deleted' });
             setIsDestDialogOpen(false);
             setEditingDestination(null);
-            setNewDestName('');
+            setDestForm({ name: '', standardAdvance: 0 });
         } catch {
             toast({ title: 'Error deleting destination', variant: 'destructive' });
         }
@@ -254,7 +267,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
                             <Popover>
                                 <PopoverTrigger asChild>
                                     <FormControl>
-                                        <Button variant="outline" className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                        <Button variant="outline" className={cn("pl-3 text-left font-normal h-12", !field.value && "text-muted-foreground")}>
                                             <CalendarIcon className="mr-2 h-4 w-4" />
                                             {field.value ? `${toNepaliDate(field.value.toISOString())} (${format(field.value, "PP")})` : <span>Pick a date</span>}
                                         </Button>
@@ -273,7 +286,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
                             <FormLabel>Truck (Vehicle) <span className="text-destructive">*</span></FormLabel>
                             <Select onValueChange={field.onChange} value={field.value}>
                                 <FormControl>
-                                    <SelectTrigger>
+                                    <SelectTrigger className="h-12">
                                         <SelectValue placeholder="Select a truck" />
                                     </SelectTrigger>
                                 </FormControl>
@@ -314,7 +327,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
                 {watchedType === 'Advance' && (
                     <FormField control={form.control} name="destination" render={({ field }) => (
                         <FormItem className="flex flex-col">
-                            <FormLabel>Destination (Location) <span className="text-destructive">*</span></FormLabel>
+                            <FormLabel>Destination Route <span className="text-destructive">*</span></FormLabel>
                             <div className="flex gap-2">
                                 <Popover>
                                     <PopoverTrigger asChild>
@@ -347,7 +360,12 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
                                                         >
                                                             <div className="flex items-center">
                                                                 <Check className={cn("mr-2 h-4 w-4", field.value === d.name ? "opacity-100" : "opacity-0")} />
-                                                                {d.name}
+                                                                <div className="flex flex-col">
+                                                                    <span>{d.name}</span>
+                                                                    {d.standardAdvanceAmount && (
+                                                                        <span className="text-[10px] text-muted-foreground uppercase font-bold">Standard: Rs. {d.standardAdvanceAmount.toLocaleString()}</span>
+                                                                    )}
+                                                                </div>
                                                             </div>
                                                             <Button 
                                                                 variant="ghost" 
@@ -378,25 +396,25 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
 
                 <div className={cn(
                     "flex items-center gap-4 p-3 rounded-lg border bg-blue-50/50 text-blue-800 text-sm",
-                    watchedType === 'Advance' && !suggestedAdvance && "hidden"
+                    watchedType === 'Advance' && !routeStandardAmount && "hidden"
                 )}>
                     <Info className="h-4 w-4 shrink-0" />
                     <span className="flex-1">
                         {watchedType === 'Maintenance' && "Maintenance selected • Select the party who provided the service."}
                         {watchedType === 'Purchase' && "Purchase selected • Select the supplier for the item."}
                         {watchedType === 'Loan Repayment' && "Loan Repayment selected • Select the bank account where the EMI was paid."}
-                        {watchedType === 'Advance' && suggestedAdvance && (
+                        {watchedType === 'Advance' && routeStandardAmount && (
                             <div className="flex items-center gap-2">
                                 <Lightbulb className="h-4 w-4 text-amber-600" />
-                                <span>Previous advance to <b>{watchedDestination}</b> was <b>Rs. {suggestedAdvance.toLocaleString()}</b>.</span>
+                                <span>The standard advance for <b>{watchedDestinationName}</b> is <b>Rs. {routeStandardAmount.toLocaleString()}</b>.</span>
                                 <Button 
                                     type="button" 
                                     variant="link" 
                                     size="sm" 
                                     className="h-auto p-0 font-bold underline"
-                                    onClick={() => form.setValue('amount', suggestedAdvance)}
+                                    onClick={() => form.setValue('amount', routeStandardAmount)}
                                 >
-                                    Use this amount
+                                    Use standard amount
                                 </Button>
                             </div>
                         )}
@@ -462,53 +480,125 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
                     )} />
                 )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
-                    <FormField control={form.control} name="amount" render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Amount (Rs.) <span className="text-destructive">*</span></FormLabel>
-                            <FormControl>
-                                <div className="relative">
-                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">Rs.</span>
-                                    <Input 
-                                        type="number" 
-                                        className="pl-10 h-12 text-lg font-bold" 
-                                        {...field} 
-                                        onChange={e => field.onChange(parseFloat(e.target.value) || 0)} 
-                                    />
-                                </div>
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )} />
+                <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
+                        <FormField control={form.control} name="amount" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>{watchedType === 'Advance' ? 'Advance Amount / Peski (NPR)' : 'Base Amount'} <span className="text-destructive">*</span></FormLabel>
+                                <FormControl>
+                                    <div className="relative">
+                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-bold">Rs.</span>
+                                        <Input 
+                                            type="number" 
+                                            className="pl-10 h-12 text-lg font-bold" 
+                                            {...field} 
+                                            onChange={e => field.onChange(parseFloat(e.target.value) || 0)} 
+                                        />
+                                    </div>
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
 
-                    <FormField control={form.control} name="paymentMode" render={({ field }) => (
-                        <FormItem className="space-y-2">
-                            <FormLabel>Payment Mode</FormLabel>
-                            <div className="flex gap-2">
-                                <Button
-                                    type="button"
-                                    variant={field.value === 'Cash' ? 'default' : 'outline'}
-                                    className="flex-1 h-12"
-                                    onClick={() => field.onChange('Cash')}
+                        <FormField control={form.control} name="paymentMode" render={({ field }) => (
+                            <FormItem className="space-y-2">
+                                <FormLabel>Payment Mode</FormLabel>
+                                <div className="flex gap-2">
+                                    <Button
+                                        type="button"
+                                        variant={field.value === 'Cash' ? 'default' : 'outline'}
+                                        className="flex-1 h-12"
+                                        onClick={() => field.onChange('Cash')}
+                                    >
+                                        <Wallet className="mr-2 h-4 w-4" /> Cash
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant={field.value === 'Bank' ? 'default' : 'outline'}
+                                        className="flex-1 h-12"
+                                        onClick={() => field.onChange('Bank')}
+                                    >
+                                        <Building2 className="mr-2 h-4 w-4" /> Bank
+                                    </Button>
+                                </div>
+                            </FormItem>
+                        )} />
+                    </div>
+
+                    {watchedType === 'Advance' && (
+                        <div className="bg-muted/30 p-4 rounded-xl border border-dashed space-y-4">
+                            {!showExtraFields ? (
+                                <Button 
+                                    type="button" 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className="h-8 text-[10px] uppercase font-bold tracking-wider"
+                                    onClick={() => setShowExtraFields(true)}
                                 >
-                                    <Wallet className="mr-2 h-4 w-4" /> Cash
+                                    <PlusIcon className="mr-1 h-3 w-3" /> Add Extra Combined Expense
                                 </Button>
-                                <Button
-                                    type="button"
-                                    variant={field.value === 'Bank' ? 'default' : 'outline'}
-                                    className="flex-1 h-12"
-                                    onClick={() => field.onChange('Bank')}
-                                >
-                                    <Building2 className="mr-2 h-4 w-4" /> Bank
-                                </Button>
-                            </div>
-                        </FormItem>
-                    )} />
+                            ) : (
+                                <div className="animate-in fade-in slide-in-from-top-2">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <h4 className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest flex items-center gap-2">
+                                            <DollarSign className="h-3 w-3" /> Combined Extra Charge
+                                        </h4>
+                                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => {
+                                            setShowExtraFields(false);
+                                            form.setValue('extraAmount', 0);
+                                            form.setValue('extraRemarks', '');
+                                        }}>
+                                            <X className="h-3 w-3" />
+                                        </Button>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <FormField control={form.control} name="extraAmount" render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel className="text-xs">Extra Amount</FormLabel>
+                                                <FormControl>
+                                                    <Input 
+                                                        type="number" 
+                                                        className="h-9 font-semibold" 
+                                                        {...field} 
+                                                        onChange={e => field.onChange(parseFloat(e.target.value) || 0)} 
+                                                    />
+                                                </FormControl>
+                                            </FormItem>
+                                        )} />
+                                        <FormField control={form.control} name="extraRemarks" render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel className="text-xs">Charge Description</FormLabel>
+                                                <FormControl>
+                                                    <Input 
+                                                        placeholder="e.g. Unplanned Repair, Road Tax" 
+                                                        className="h-9 text-xs" 
+                                                        {...field} 
+                                                    />
+                                                </FormControl>
+                                            </FormItem>
+                                        )} />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                <div className="p-4 bg-primary/5 rounded-xl border border-primary/20">
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Total Settlement</p>
+                            <h3 className="text-2xl font-black tabular-nums">Rs. {(watchedAmount + watchedExtraAmount).toLocaleString(undefined, {minimumFractionDigits: 2})}</h3>
+                        </div>
+                        <Badge variant="outline" className="h-fit bg-white px-3 py-1 font-mono">
+                            {watchedMode.toUpperCase()}
+                        </Badge>
+                    </div>
                 </div>
 
                 <FormField control={form.control} name="remarks" render={({ field }) => (
                     <FormItem>
-                        <FormLabel>Remarks <span className="text-muted-foreground font-normal">(optional)</span></FormLabel>
+                        <FormLabel>General Remarks <span className="text-muted-foreground font-normal">(optional)</span></FormLabel>
                         <FormControl>
                             <div className="relative">
                                 <Textarea 
@@ -526,10 +616,10 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
                 )} />
 
                 <div className="flex items-center gap-3 pt-4 border-t">
-                    <Button type="submit" size="lg" className="px-10 h-12" disabled={isSubmitting}>
+                    <Button type="submit" size="lg" className="px-10 h-12 font-bold" disabled={isSubmitting}>
                         {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : <><Save className="mr-2 h-4 w-4" /> Save Expense</>}
                     </Button>
-                    <Button type="button" variant="outline" size="lg" className="h-12" onClick={() => form.reset()}>
+                    <Button type="button" variant="outline" size="lg" className="h-12" onClick={() => { form.reset(); setShowExtraFields(false); }}>
                         <X className="mr-2 h-4 w-4" /> Clear
                     </Button>
                 </div>
@@ -588,11 +678,21 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
                         <div className="space-y-2">
                             <Label>Destination Name</Label>
                             <Input 
-                                value={newDestName} 
-                                onChange={e => setNewDestName(e.target.value)} 
+                                value={destForm.name} 
+                                onChange={e => setDestForm({...destForm, name: e.target.value})} 
                                 placeholder="e.g. BIRTAMODE"
                                 onKeyDown={e => e.key === 'Enter' && handleQuickAddDest()}
                             />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Standard Advance Amount (Rs.)</Label>
+                            <Input 
+                                type="number"
+                                value={destForm.standardAdvance} 
+                                onChange={e => setDestForm({...destForm, standardAdvance: Number(e.target.value) || 0})} 
+                                placeholder="Normal Peski amount for this route"
+                            />
+                            <p className="text-[10px] text-muted-foreground">This amount will be suggested automatically when this route is selected.</p>
                         </div>
                     </div>
                     <DialogFooter className="flex justify-between items-center sm:justify-between w-full">

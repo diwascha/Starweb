@@ -1,4 +1,3 @@
-
 export type ExpenseType = 'Advance' | 'Maintenance' | 'Purchase' | 'Loan Repayment' | 'Membership Renewal';
 
 export interface Expense {
@@ -11,6 +10,8 @@ export interface Expense {
     itemId?: string; // Optional for Purchase
     destination?: string; // For Advance/Peski tracking
     amount: number;
+    extraAmount?: number; // Added for combined payments (e.g. 5k peski + 1k maintenance)
+    extraRemarks?: string; // Added to explain extra amounts
     paymentMode: 'Cash' | 'Bank';
     remarks?: string;
     createdBy: string;

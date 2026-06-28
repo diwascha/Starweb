@@ -463,6 +463,7 @@ export interface ExtraExpense {
 export interface Destination {
     id: string;
     name: string;
+    standardAdvanceAmount?: number; // Added to store default routes advance
     createdBy: string;
     createdAt: string; // ISO string
     lastModifiedBy?: string;
