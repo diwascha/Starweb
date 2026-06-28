@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -8,7 +7,7 @@ import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { Account, Party, Vehicle, Transaction } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -24,7 +23,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-
+import { Badge } from '@/components/ui/badge';
 
 const voucherItemSchema = z.object({
   ledgerId: z.string().min(1, "General Ledger is required."),
@@ -200,34 +199,33 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
               )}/>
               
               {watchedBillingType === 'Bank' && (
-                <FormField control={form.control} name="accountId" render={({ field }) => (
-                    <FormItem><FormLabel>Bank Account</FormLabel>
-                        <Popover><PopoverTrigger asChild><FormControl>
-                            <Button variant="outline" role="combobox" className="w-full justify-between bg-white text-xs">
-                                {field.value ? cashAndBankAccounts.find(a => a.id === field.value)?.name : "Select account..."}<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                        </FormControl></PopoverTrigger><PopoverContent className="p-0 w-[--radix-popover-trigger-width]"><Command>
-                            <CommandInput placeholder="Search accounts..." />
-                            <CommandList><CommandEmpty>No accounts found.</CommandEmpty><CommandGroup>
-                                {cashAndBankAccounts.map(account => <CommandItem key={account.id} value={account.name} onSelect={() => field.onChange(account.id)}>
-                                    <Check className={cn("mr-2 h-4 w-4", field.value === account.id ? "opacity-100" : "opacity-0")} />
-                                    <div className="flex flex-col text-[10px]">
-                                        <span>{account.bankName ? `${account.bankName} - ${account.accountNumber}`: account.name}</span>
-                                        <span className="text-muted-foreground uppercase">{account.ownership}</span>
-                                    </div>
-                                </CommandItem>)}
-                            </CommandGroup></CommandList>
-                        </Command></PopoverContent></Popover><FormMessage/></FormItem>
-                  )}
-              
-              {watchedBillingType === 'Bank' && (
                 <>
+                  <FormField control={form.control} name="accountId" render={({ field }) => (
+                      <FormItem><FormLabel>Bank Account</FormLabel>
+                          <Popover><PopoverTrigger asChild><FormControl>
+                              <Button variant="outline" role="combobox" className="w-full justify-between bg-white text-xs">
+                                  {field.value ? cashAndBankAccounts.find(a => a.id === field.value)?.name : "Select account..."}<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                          </FormControl></PopoverTrigger><PopoverContent className="p-0 w-[--radix-popover-trigger-width]"><Command>
+                              <CommandInput placeholder="Search accounts..." />
+                              <CommandList><CommandEmpty>No accounts found.</CommandEmpty><CommandGroup>
+                                  {cashAndBankAccounts.map(account => <CommandItem key={account.id} value={account.name} onSelect={() => field.onChange(account.id)}>
+                                      <Check className={cn("mr-2 h-4 w-4", field.value === account.id ? "opacity-100" : "opacity-0")} />
+                                      <div className="flex flex-col text-[10px]">
+                                          <span>{account.bankName ? `${account.bankName} - ${account.accountNumber}`: account.name}</span>
+                                          <span className="text-muted-foreground uppercase">{account.ownership}</span>
+                                      </div>
+                                  </CommandItem>)}
+                              </CommandGroup></CommandList>
+                          </Command></PopoverContent></Popover><FormMessage/></FormItem>
+                    )}
+                  />
                   <FormField control={form.control} name="chequeNo" render={({ field }) => (
                     <FormItem><FormLabel>Cheque No.</FormLabel><FormControl><Input {...field} value={field.value ?? ''} className="bg-white"/></FormControl><FormMessage /></FormItem>
                   )}/>
                   <FormField control={form.control} name="chequeDate" render={({ field }) => (
                     <FormItem><FormLabel>Cheque Date</FormLabel><Popover><PopoverTrigger asChild><FormControl>
-                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal bg-white", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button>
+                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal bg-white", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PP") : <span>Pick a date</span>}</Button>
                     </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value ?? undefined} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage/></FormItem>
                   )}/>
                 </>
