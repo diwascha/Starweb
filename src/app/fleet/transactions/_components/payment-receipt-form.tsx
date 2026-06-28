@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -155,16 +154,16 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
                 <FormItem><FormLabel>Voucher No.</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
               )}/>
               <FormField control={form.control} name="date" render={({ field }) => (
-                  <FormItem><FormLabel>Date</FormLabel>
-                  <Popover><PopoverTrigger asChild><FormControl>
-                      <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal bg-white", !field.value && "text-muted-foreground")}>
-                          <CalendarIcon className="mr-2 h-4 w-4" />{field.value ? `${toNepaliDate(field.value.toISOString())} (${format(field.value, "PP")})` : <span>Pick a date</span>}
-                      </Button>
-                  </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><DualCalendar selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover>
-                  <FormMessage/>
-                  </FormItem>
+                <FormItem><FormLabel>Date</FormLabel>
+                <Popover><PopoverTrigger asChild><FormControl>
+                    <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal bg-white", !field.value && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />{field.value ? `${toNepaliDate(field.value.toISOString())} (${format(field.value, "PP")})` : <span>Pick a date</span>}
+                    </Button>
+                </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><DualCalendar selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover>
+                <FormMessage/>
+                </FormItem>
               )}/>
-               <FormField control={form.control} name="billingType" render={({ field }) => (
+              <FormField control={form.control} name="billingType" render={({ field }) => (
                 <FormItem><FormLabel>Billing</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select billing type" /></SelectTrigger></FormControl>
                     <SelectContent>
                         <SelectItem value="Cash">Cash</SelectItem><SelectItem value="Bank">Bank</SelectItem>
@@ -190,12 +189,12 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
                         </Command></PopoverContent></Popover><FormMessage/></FormItem>
                   )}/>
                   <FormField control={form.control} name="chequeNo" render={({ field }) => (
-                      <FormItem><FormLabel>Cheque No.</FormLabel><FormControl><Input {...field} value={field.value ?? ''} className="bg-white"/></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Cheque No.</FormLabel><FormControl><Input {...field} value={field.value ?? ''} className="bg-white"/></FormControl><FormMessage /></FormItem>
                   )}/>
                   <FormField control={form.control} name="chequeDate" render={({ field }) => (
-                      <FormItem><FormLabel>Cheque Date</FormLabel><Popover><PopoverTrigger asChild><FormControl>
-                          <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal bg-white", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button>
-                      </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value ?? undefined} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage/></FormItem>
+                    <FormItem><FormLabel>Cheque Date</FormLabel><Popover><PopoverTrigger asChild><FormControl>
+                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal bg-white", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button>
+                    </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value ?? undefined} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage/></FormItem>
                   )}/>
                 </>
               )}
@@ -207,8 +206,8 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
           <TableHeader>
             <TableRow>
               <TableHead className="w-[50px]">S.No</TableHead>
-              <TableHead>General Ledger</TableHead>
               <TableHead>Vehicle</TableHead>
+              <TableHead>General Ledger</TableHead>
               <TableHead>Rec Amount</TableHead>
               <TableHead>Pay Amount</TableHead>
               <TableHead>Narration</TableHead>
@@ -219,6 +218,13 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
             {fields.map((item, index) => (
               <TableRow key={item.id}>
                 <TableCell>{index + 1}</TableCell>
+                <TableCell>
+                  <FormField control={form.control} name={`items.${index}.vehicleId`} render={({ field }) => (
+                    <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select vehicle" /></SelectTrigger></FormControl>
+                        <SelectContent>{vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}</SelectContent>
+                    </Select>
+                  )}/>
+                </TableCell>
                 <TableCell>
                   <FormField control={form.control} name={`items.${index}.ledgerId`} render={({ field }) => (
                     <Popover><PopoverTrigger asChild><FormControl>
@@ -233,13 +239,6 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
                             </CommandItem>)}
                         </CommandGroup></CommandList>
                     </Command></PopoverContent></Popover>
-                  )}/>
-                </TableCell>
-                <TableCell>
-                  <FormField control={form.control} name={`items.${index}.vehicleId`} render={({ field }) => (
-                    <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select vehicle" /></SelectTrigger></FormControl>
-                        <SelectContent>{vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}</SelectContent>
-                    </Select>
                   )}/>
                 </TableCell>
                 <TableCell>
@@ -272,8 +271,8 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
                             <TableHeader>
                               <TableRow>
                                 <TableHead className="w-[50px]">S.No</TableHead>
-                                <TableHead>Ledger</TableHead>
                                 <TableHead>Vehicle</TableHead>
+                                <TableHead>Ledger</TableHead>
                                 <TableHead>A/C Receivable</TableHead>
                                 <TableHead>A/C Payable</TableHead>
                               </TableRow>
@@ -282,8 +281,8 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
                               {summaryData.map((item, index) => (
                                   <TableRow key={index}>
                                     <TableCell>{index + 1}</TableCell>
-                                    <TableCell>{item.ledgerName}</TableCell>
                                     <TableCell>{item.vehicleName}</TableCell>
+                                    <TableCell>{item.ledgerName}</TableCell>
                                     <TableCell>{item.receivable.toLocaleString()}</TableCell>
                                     <TableCell>{item.payable.toLocaleString()}</TableCell>
                                   </TableRow>
