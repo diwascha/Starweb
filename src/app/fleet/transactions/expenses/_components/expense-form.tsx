@@ -26,7 +26,8 @@ import {
     Plus, 
     Loader2, 
     Info,
-    X
+    X,
+    Save
 } from 'lucide-react';
 import { cn, toNepaliDate } from '@/lib/utils';
 import type { Vehicle, Party, Account, AccountOwnership, PartyType } from '@/lib/types';
