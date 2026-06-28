@@ -19,10 +19,6 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAuth } from '@/hooks/use-auth';
 import { Textarea } from '@/components/ui/textarea';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
-import { Calendar } from '@/components/ui/calendar';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 
 const voucherItemSchema = z.object({
@@ -152,50 +148,65 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
           <CardContent className="p-0">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-end">
               <FormField control={form.control} name="voucherNo" render={({ field }) => (
-                <FormItem><FormLabel>Voucher No.</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem>
+                  <FormLabel>Voucher No.</FormLabel>
+                  <FormControl><Input {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
               )}/>
               <FormField control={form.control} name="date" render={({ field }) => (
-                <FormItem><FormLabel>Date</FormLabel>
-                <Popover><PopoverTrigger asChild><FormControl>
-                    <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal bg-white", !field.value && "text-muted-foreground")}>
-                        <CalendarIcon className="mr-2 h-4 w-4" />{field.value ? `${toNepaliDate(field.value.toISOString())} (${format(field.value, "PP")})` : <span>Pick a date</span>}
-                    </Button>
-                </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><DualCalendar selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover>
-                <FormMessage/>
+                <FormItem>
+                  <FormLabel>Date</FormLabel>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal bg-white", !field.value && "text-muted-foreground")}>
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {field.value ? `${toNepaliDate(field.value.toISOString())} (${format(field.value, "PP")})` : <span>Pick a date</span>}
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0"><DualCalendar selected={field.value} onSelect={field.onChange} /></PopoverContent>
+                  </Popover>
+                  <FormMessage/>
                 </FormItem>
               )}/>
               
               <FormField control={form.control} name="billingType" render={({ field }) => (
-                <FormItem><FormLabel>Billing (Mode)</FormLabel>
-                <Popover>
-                    <PopoverTrigger asChild><FormControl>
+                <FormItem>
+                  <FormLabel>Billing (Mode)</FormLabel>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <FormControl>
                         <Button variant="outline" role="combobox" className="w-full justify-between bg-white">
-                            {field.value || "Select billing..."}
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          {field.value || "Select billing..."}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
-                    </FormControl></PopoverTrigger>
+                      </FormControl>
+                    </PopoverTrigger>
                     <PopoverContent className="p-0">
-                        <Command>
-                            <CommandInput placeholder="Search or add mode..." onValueChange={setBillingSearch} />
-                            <CommandList>
-                                <CommandEmpty>
-                                    <button type="button" className="p-2 text-xs w-full text-left hover:bg-muted" onClick={() => field.onChange(billingSearch)}>
-                                        Add "{billingSearch}"
-                                    </button>
-                                </CommandEmpty>
-                                <CommandGroup>
-                                    <CommandItem value="Cash" onSelect={() => field.onChange("Cash")}>
-                                        <Check className={cn("mr-2 h-4 w-4", field.value === "Cash" ? "opacity-100" : "opacity-0")} /> Cash
-                                    </CommandItem>
-                                    <CommandItem value="Bank" onSelect={() => field.onChange("Bank")}>
-                                        <Check className={cn("mr-2 h-4 w-4", field.value === "Bank" ? "opacity-100" : "opacity-0")} /> Bank
-                                    </CommandItem>
-                                </CommandGroup>
-                            </CommandList>
-                        </Command>
+                      <Command>
+                        <CommandInput placeholder="Search or add mode..." onValueChange={setBillingSearch} />
+                        <CommandList>
+                          <CommandEmpty>
+                            <button type="button" className="p-2 text-xs w-full text-left hover:bg-muted" onClick={() => field.onChange(billingSearch)}>
+                              Add "{billingSearch}"
+                            </button>
+                          </CommandEmpty>
+                          <CommandGroup>
+                            <CommandItem value="Cash" onSelect={() => field.onChange("Cash")}>
+                              <Check className={cn("mr-2 h-4 w-4", field.value === "Cash" ? "opacity-100" : "opacity-0")} /> Cash
+                            </CommandItem>
+                            <CommandItem value="Bank" onSelect={() => field.onChange("Bank")}>
+                              <Check className={cn("mr-2 h-4 w-4", field.value === "Bank" ? "opacity-100" : "opacity-0")} /> Bank
+                            </CommandItem>
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
                     </PopoverContent>
-                </Popover>
-                <FormMessage/></FormItem>
+                  </Popover>
+                  <FormMessage/>
+                </FormItem>
               )}/>
               
               {watchedBillingType === 'Bank' && (
@@ -209,8 +220,11 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
                         <Popover>
                           <PopoverTrigger asChild>
                             <FormControl>
-                              <Button variant="outline" role="combobox" className="w-full justify-between bg-white text-xs">
-                                {field.value ? cashAndBankAccounts.find(a => a.id === field.value)?.name : "Select account..."}
+                              <Button variant="outline" role="combobox" className="w-full justify-between bg-white text-xs truncate">
+                                {field.value ? (() => {
+                                  const a = cashAndBankAccounts.find(acc => acc.id === field.value);
+                                  return a ? (a.bankName ? `${a.bankName} - ${a.accountNumber}` : a.name) : "Select account...";
+                                })() : "Select account..."}
                                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                               </Button>
                             </FormControl>
@@ -224,7 +238,7 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
                                   {cashAndBankAccounts.map(account => (
                                     <CommandItem 
                                       key={account.id} 
-                                      value={account.name} 
+                                      value={`${account.name} ${account.bankName || ''} ${account.accountNumber || ''} ${account.ownership} ${account.id}`}
                                       onSelect={() => field.onChange(account.id)}
                                     >
                                       <Check className={cn("mr-2 h-4 w-4", field.value === account.id ? "opacity-100" : "opacity-0")} />
@@ -272,7 +286,7 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
                             </FormControl>
                           </PopoverTrigger>
                           <PopoverContent className="w-auto p-0">
-                            <Calendar mode="single" selected={field.value ?? undefined} onSelect={field.onChange} />
+                            <DualCalendar selected={field.value ?? undefined} onSelect={field.onChange} />
                           </PopoverContent>
                         </Popover>
                         <FormMessage/>
@@ -318,7 +332,7 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
                         </FormControl></PopoverTrigger><PopoverContent className="p-0 w-[--radix-popover-trigger-width]"><Command>
                             <CommandInput placeholder="Search ledger..." />
                             <CommandList><CommandEmpty>No ledger found.</CommandEmpty><CommandGroup>
-                                {generalLedgers.map(party => <CommandItem key={party.id} value={party.name} onSelect={() => field.onChange(party.id)}>
+                                {generalLedgers.map(party => <CommandItem key={party.id} value={`${party.name} ${party.ownership} ${party.id}`} onSelect={() => field.onChange(party.id)}>
                                     <Check className={cn("mr-2 h-4 w-4", field.value === party.id ? "opacity-100" : "opacity-0")} />{party.name}
                                 </CommandItem>)}
                             </CommandGroup></CommandList>
