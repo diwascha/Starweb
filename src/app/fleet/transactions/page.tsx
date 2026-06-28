@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { Transaction, Vehicle, Party } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Search, ArrowUpDown, MoreHorizontal, View, Trash2, CalendarIcon, Download, X, FileSpreadsheet, FileText, Loader2, TrendingUp, TrendingDown, Info, Link as LinkIcon } from 'lucide-react';
+import { PlusCircle, Search, ArrowUpDown, MoreHorizontal, Eye, Edit, Trash2, CalendarIcon, Download, X, FileSpreadsheet, FileText, Loader2, TrendingUp, TrendingDown, Info, Link as LinkIcon } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
@@ -466,7 +466,7 @@ export default function FinancialHistoryPage() {
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem onSelect={() => router.push(txn.voucherId ? `/fleet/transactions/payment-receipt?voucherId=${txn.voucherId}` : `/fleet/transactions/view?id=${txn.id}`)}><View className="mr-2 h-4 w-4" /> View Voucher</DropdownMenuItem>
+                                                    <DropdownMenuItem onSelect={() => router.push(txn.voucherId ? `/fleet/transactions/payment-receipt?voucherId=${txn.voucherId}` : `/fleet/transactions/view?id=${txn.id}`)}><Eye className="mr-2 h-4 w-4" /> View Voucher</DropdownMenuItem>
                                                     {hasPermission('fleet', 'edit') && (
                                                         <DropdownMenuItem onSelect={() => router.push(txn.voucherId ? `/fleet/transactions/payment-receipt/edit?voucherId=${txn.voucherId}` : `/fleet/transactions/edit?id=${txn.id}`)}><Edit className="mr-2 h-4 w-4" /> Edit Entry</DropdownMenuItem>
                                                     )}
