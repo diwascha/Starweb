@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -30,7 +29,9 @@ import {
     ChevronsUpDown,
     Check,
     PlusCircle,
-    Lightbulb
+    Lightbulb,
+    Edit,
+    Trash2
 } from 'lucide-react';
 import { cn, toNepaliDate } from '@/lib/utils';
 import type { Vehicle, Party, Account, AccountOwnership, PartyType, Transaction, Destination } from '@/lib/types';
@@ -40,10 +41,11 @@ import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { addParty } from '@/services/party-service';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { onDestinationsUpdate, addDestination } from '@/services/destination-service';
+import { onDestinationsUpdate, addDestination, updateDestination, deleteDestination } from '@/services/destination-service';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 const expenseTypes: { type: ExpenseType; label: string; sub: string; icon: any; color: string }[] = [
     { type: 'Advance', label: 'Advance / Peski', sub: 'Trip advance', icon: Wallet, color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
@@ -104,6 +106,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
     });
     const [isDestDialogOpen, setIsDestDialogOpen] = useState(false);
     const [newDestName, setNewDestName] = useState('');
+    const [editingDestination, setEditingDestination] = useState<Destination | null>(null);
 
     const form = useForm<z.infer<typeof expenseSchema>>({
         resolver: zodResolver(expenseSchema),
@@ -195,16 +198,49 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
         }
     };
 
+    const handleOpenDestinationDialog = (destination: Destination | null = null) => {
+        if (destination) {
+            setEditingDestination(destination);
+            setNewDestName(destination.name);
+        } else {
+            setEditingDestination(null);
+            setNewDestName(destSearch);
+        }
+        setIsDestDialogOpen(true);
+    };
+
     const handleQuickAddDest = async () => {
         if (!user || !newDestName.trim()) return;
         try {
-            await addDestination({ name: newDestName.trim(), createdBy: user.username });
-            form.setValue('destination', newDestName.trim());
+            if (editingDestination) {
+                await updateDestination(editingDestination.id, { 
+                    name: newDestName.trim(), 
+                    lastModifiedBy: user.username 
+                });
+                toast({ title: 'Destination Updated' });
+            } else {
+                await addDestination({ name: newDestName.trim(), createdBy: user.username });
+                form.setValue('destination', newDestName.trim());
+                toast({ title: 'Destination Added' });
+            }
             setIsDestDialogOpen(false);
             setNewDestName('');
-            toast({ title: 'Destination Added' });
+            setEditingDestination(null);
         } catch {
-            toast({ title: 'Error adding destination', variant: 'destructive' });
+            toast({ title: 'Error saving destination', variant: 'destructive' });
+        }
+    };
+
+    const handleDeleteDest = async () => {
+        if (!editingDestination) return;
+        try {
+            await deleteDestination(editingDestination.id);
+            toast({ title: 'Destination Deleted' });
+            setIsDestDialogOpen(false);
+            setEditingDestination(null);
+            setNewDestName('');
+        } catch {
+            toast({ title: 'Error deleting destination', variant: 'destructive' });
         }
     };
 
@@ -297,15 +333,33 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
                                             <CommandInput placeholder="Search location..." onValueChange={setDestSearch} />
                                             <CommandList>
                                                 <CommandEmpty>
-                                                    <Button variant="ghost" className="w-full justify-start text-xs" onClick={() => { setNewDestName(destSearch); setIsDestDialogOpen(true); }}>
+                                                    <Button variant="ghost" className="w-full justify-start text-xs" onClick={() => handleOpenDestinationDialog()}>
                                                         <PlusCircle className="mr-2 h-4 w-4" /> Add "{destSearch}"
                                                     </Button>
                                                 </CommandEmpty>
                                                 <CommandGroup>
                                                     {destinations.map(d => (
-                                                        <CommandItem key={d.id} value={d.name} onSelect={() => field.onChange(d.name)}>
-                                                            <Check className={cn("mr-2 h-4 w-4", field.value === d.name ? "opacity-100" : "opacity-0")} />
-                                                            {d.name}
+                                                        <CommandItem 
+                                                            key={d.id} 
+                                                            value={d.name} 
+                                                            onSelect={() => field.onChange(d.name)}
+                                                            className="flex justify-between items-center"
+                                                        >
+                                                            <div className="flex items-center">
+                                                                <Check className={cn("mr-2 h-4 w-4", field.value === d.name ? "opacity-100" : "opacity-0")} />
+                                                                {d.name}
+                                                            </div>
+                                                            <Button 
+                                                                variant="ghost" 
+                                                                size="icon" 
+                                                                className="h-6 w-6" 
+                                                                onClick={(e) => { 
+                                                                    e.stopPropagation(); 
+                                                                    handleOpenDestinationDialog(d); 
+                                                                }}
+                                                            >
+                                                                <Edit className="h-4 w-4" />
+                                                            </Button>
                                                         </CommandItem>
                                                     ))}
                                                 </CommandGroup>
@@ -313,7 +367,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
                                         </Command>
                                     </PopoverContent>
                                 </Popover>
-                                <Button type="button" variant="outline" size="icon" className="h-12 w-12 shrink-0" onClick={() => setIsDestDialogOpen(true)}>
+                                <Button type="button" variant="outline" size="icon" className="h-12 w-12 shrink-0" onClick={() => handleOpenDestinationDialog()}>
                                     <Plus className="h-5 w-5" />
                                 </Button>
                             </div>
@@ -527,7 +581,9 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
 
             <Dialog open={isDestDialogOpen} onOpenChange={setIsDestDialogOpen}>
                 <DialogContent className="sm:max-w-sm">
-                    <DialogHeader><DialogTitle>Quick Add Destination</DialogTitle></DialogHeader>
+                    <DialogHeader>
+                        <DialogTitle>{editingDestination ? 'Edit Destination' : 'Add New Destination'}</DialogTitle>
+                    </DialogHeader>
                     <div className="py-4 space-y-4">
                         <div className="space-y-2">
                             <Label>Destination Name</Label>
@@ -539,9 +595,32 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
                             />
                         </div>
                     </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsDestDialogOpen(false)}>Cancel</Button>
-                        <Button onClick={handleQuickAddDest}>Add Location</Button>
+                    <DialogFooter className="flex justify-between items-center sm:justify-between w-full">
+                        {editingDestination && (
+                             <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="text-destructive">
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Delete Destination?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This will permanently remove "{editingDestination.name}" from your selection list.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={handleDeleteDest} className="bg-destructive text-destructive-foreground">Delete</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        )}
+                        <div className="flex gap-2 ml-auto">
+                            <Button variant="outline" onClick={() => setIsDestDialogOpen(false)}>Cancel</Button>
+                            <Button onClick={handleQuickAddDest}>{editingDestination ? 'Update' : 'Add Location'}</Button>
+                        </div>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
