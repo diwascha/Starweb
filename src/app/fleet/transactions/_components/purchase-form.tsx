@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -6,10 +5,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useFieldArray } from 'react-hook-form';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { Account, Party, Vehicle, Transaction, PartyType, UnitOfMeasurement } from '@/lib/types';
+import type { Account, Party, Vehicle, Transaction, PartyType, UnitOfMeasurement, AccountOwnership, BankAccountType } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, ChevronsUpDown, Check, Plus, Trash2, X } from 'lucide-react';
@@ -103,8 +102,8 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
 
 
     // Form states
-    const [partyForm, setPartyForm] = React.useState<{name: string, type: PartyType}>({name: '', type: 'Supplier'});
-    const [accountForm, setAccountForm] = React.useState({ name: '', type: 'Cash' as 'Cash' | 'Bank', accountNumber: '', bankName: '', branch: '' });
+    const [partyForm, setPartyForm] = React.useState<{name: string, type: PartyType, ownership: AccountOwnership}>({name: '', type: 'Supplier', ownership: 'Both'});
+    const [accountForm, setAccountForm] = React.useState({ name: '', type: 'Cash' as 'Cash' | 'Bank', ownership: 'Both' as AccountOwnership, accountNumber: '', bankName: '', branch: '', bankAccountType: 'Saving' as BankAccountType });
     const [editingAccount, setEditingAccount] = React.useState<Account | null>(null);
 
     const form = useForm<TransactionFormValues>({
@@ -144,8 +143,8 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
 
     const handleSubmitParty = async () => {
         if(!user) return;
-        if(!partyForm.name || !partyForm.type) {
-            toast({title: 'Error', description: 'Party name and type are required.', variant: 'destructive'});
+        if(!partyForm.name || !partyForm.type || !partyForm.ownership) {
+            toast({title: 'Error', description: 'Name, Type, and Ownership are mandatory.', variant: 'destructive'});
             return;
         }
         try {
@@ -153,7 +152,7 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
             form.setValue('partyId', newPartyId);
             toast({title: 'Success', description: 'New party added.'});
             setIsPartyDialogOpen(false);
-            setPartyForm({name: '', type: 'Supplier'});
+            setPartyForm({name: '', type: 'Supplier', ownership: 'Both'});
         } catch {
              toast({title: 'Error', description: 'Failed to add party.', variant: 'destructive'});
         }
@@ -162,18 +161,26 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
     const handleOpenAccountDialog = (account: Account | null = null) => {
         if (account) {
             setEditingAccount(account);
-            setAccountForm({ name: account.name, type: account.type, accountNumber: account.accountNumber || '', bankName: account.bankName || '', branch: account.branch || '' });
+            setAccountForm({ 
+                name: account.name, 
+                type: account.type, 
+                ownership: account.ownership || 'Both',
+                accountNumber: account.accountNumber || '', 
+                bankName: account.bankName || '', 
+                branch: account.branch || '',
+                bankAccountType: account.bankAccountType || 'Saving'
+            });
         } else {
             setEditingAccount(null);
-            setAccountForm({ name: '', type: 'Cash', accountNumber: '', bankName: '', branch: '' });
+            setAccountForm({ name: '', type: 'Cash', ownership: 'Both', accountNumber: '', bankName: '', branch: '', bankAccountType: 'Saving' });
         }
         setIsAccountDialogOpen(true);
     };
 
     const handleSubmitAccount = async () => {
         if(!user) return;
-        if(!accountForm.name || !accountForm.type) {
-            toast({title: 'Error', description: 'Account name and type are required.', variant: 'destructive'});
+        if(!accountForm.name || !accountForm.type || !accountForm.ownership) {
+            toast({title: 'Error', description: 'Name, Type, and Ownership are mandatory.', variant: 'destructive'});
             return;
         }
          if (accountForm.type === 'Bank' && (!accountForm.bankName || !accountForm.accountNumber)) {
@@ -429,20 +436,33 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
         <DialogContent className="sm:max-w-sm">
             <DialogHeader><DialogTitle>Add New Party</DialogTitle></DialogHeader>
             <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="party-type">Party Type</Label>
+                        <Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm(p => ({...p, type: v}))}>
+                            <SelectTrigger id="party-type"><SelectValue/></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Supplier">Supplier</SelectItem>
+                                <SelectItem value="Customer">Customer</SelectItem>
+                                <SelectItem value="Both">Both</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="party-ownership">Ownership</Label>
+                        <Select value={partyForm.ownership} onValueChange={(v: AccountOwnership) => setPartyForm(p => ({...p, ownership: v}))}>
+                            <SelectTrigger id="party-ownership"><SelectValue/></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Sijan">Sijan Dhuwani</SelectItem>
+                                <SelectItem value="Shivam">Shivam Packaging</SelectItem>
+                                <SelectItem value="Both">Both</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
                 <div className="space-y-2">
                     <Label htmlFor="party-name">Party Name</Label>
                     <Input id="party-name" value={partyForm.name} onChange={e => setPartyForm(p => ({...p, name: e.target.value}))} />
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="party-type">Party Type</Label>
-                    <Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm(p => ({...p, type: v}))}>
-                        <SelectTrigger id="party-type"><SelectValue/></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="Supplier">Supplier</SelectItem>
-                            <SelectItem value="Customer">Customer</SelectItem>
-                            <SelectItem value="Both">Both</SelectItem>
-                        </SelectContent>
-                    </Select>
                 </div>
             </div>
             <DialogFooter>
@@ -456,12 +476,25 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
         <DialogContent className="sm:max-w-md">
             <DialogHeader><DialogTitle>{editingAccount ? 'Edit Account' : 'Add New Account'}</DialogTitle></DialogHeader>
             <div className="grid gap-4 py-4">
-                <div className="space-y-2">
-                    <Label htmlFor="account-type">Account Type</Label>
-                    <Select value={accountForm.type} onValueChange={(v: 'Cash' | 'Bank') => setAccountForm(p => ({...p, type: v}))}>
-                        <SelectTrigger id="account-type"><SelectValue/></SelectTrigger>
-                        <SelectContent><SelectItem value="Cash">Cash</SelectItem><SelectItem value="Bank">Bank</SelectItem></SelectContent>
-                    </Select>
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="account-type">Account Type</Label>
+                        <Select value={accountForm.type} onValueChange={(v: 'Cash' | 'Bank') => setAccountForm(p => ({...p, type: v}))}>
+                            <SelectTrigger id="account-type"><SelectValue/></SelectTrigger>
+                            <SelectContent><SelectItem value="Cash">Cash</SelectItem><SelectItem value="Bank">Bank</SelectItem></SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="account-ownership">Ownership</Label>
+                        <Select value={accountForm.ownership} onValueChange={(v: AccountOwnership) => setAccountForm(p => ({...p, ownership: v}))}>
+                            <SelectTrigger id="account-ownership"><SelectValue/></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Sijan">Sijan Dhuwani</SelectItem>
+                                <SelectItem value="Shivam">Shivam Packaging</SelectItem>
+                                <SelectItem value="Both">Both</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
                  <div className="space-y-2">
                     <Label htmlFor="account-name">{accountForm.type === 'Bank' ? 'Account Holder Name' : 'Account Name'}</Label>
@@ -485,7 +518,7 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
                 )}
             </div>
             <DialogFooter>
-                <Button variant="outline" onClick={() => { setIsAccountDialogOpen(false); setAccountForm({ name: '', type: 'Cash', accountNumber: '', bankName: '', branch: '' });}}>Cancel</Button>
+                <Button variant="outline" onClick={() => { setIsAccountDialogOpen(false); setAccountForm({ name: '', type: 'Cash', ownership: 'Both', accountNumber: '', bankName: '', branch: '', bankAccountType: 'Saving' });}}>Cancel</Button>
                 <Button onClick={handleSubmitAccount}>{editingAccount ? 'Save Changes' : 'Add Account'}</Button>
             </DialogFooter>
         </DialogContent>

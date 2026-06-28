@@ -1,14 +1,13 @@
-
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useFieldArray } from 'react-hook-form';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import type { Vehicle, Party, Trip, Destination, PartyType, TripDestination, ExtraExpense, FuelEntry, ReturnTrip } from '@/lib/types';
+import type { Vehicle, Party, Trip, Destination, PartyType, TripDestination, ExtraExpense, FuelEntry, ReturnTrip, AccountOwnership } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
@@ -111,7 +110,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
     const [isDetentionDialogOpen, setIsDetentionDialogOpen] = useState(false);
     const [detentionDateRange, setDetentionDateRange] = useState<DateRange | undefined>(undefined);
     const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
-    const [partyForm, setPartyForm] = useState<{name: string, type: PartyType, address?: string, panNumber?: string}>({name: '', type: 'Customer', address: '', panNumber: ''});
+    const [partyForm, setPartyForm] = useState<{name: string, type: PartyType, ownership: AccountOwnership, address?: string, panNumber?: string}>({name: '', type: 'Customer', ownership: 'Both', address: '', panNumber: ''});
     const [editingParty, setEditingParty] = useState<Party | null>(null);
     const [partySearch, setPartySearch] = useState('');
     
@@ -406,8 +405,8 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
 
     const handleSubmitParty = async () => {
         if(!user) return;
-        if(!partyForm.name || !partyForm.type) {
-            toast({title: 'Error', description: 'Party name and type are required.', variant: 'destructive'});
+        if(!partyForm.name || !partyForm.type || !partyForm.ownership) {
+            toast({title: 'Error', description: 'Name, Type, and Ownership are mandatory.', variant: 'destructive'});
             return;
         }
         try {
@@ -419,7 +418,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                 toast({title: 'Success', description: 'New party added.'});
             }
             setIsPartyDialogOpen(false);
-            setPartyForm({name: '', type: 'Customer', address: '', panNumber: ''});
+            setPartyForm({name: '', type: 'Customer', ownership: 'Both', address: '', panNumber: ''});
             setEditingParty(null);
         } catch {
              toast({title: 'Error', description: 'Failed to save party.', variant: 'destructive'});
@@ -429,10 +428,10 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
     const handleOpenPartyDialog = (party: Party | null = null, type: PartyType, searchName: string = '') => {
         if (party) {
             setEditingParty(party);
-            setPartyForm({ name: party.name, type: party.type, address: party.address || '', panNumber: party.panNumber || '' });
+            setPartyForm({ name: party.name, type: party.type, ownership: party.ownership || 'Both', address: party.address || '', panNumber: party.panNumber || '' });
         } else {
             setEditingParty(null);
-            setPartyForm({ name: searchName, type, address: '', panNumber: '' });
+            setPartyForm({ name: searchName, type, ownership: 'Both', address: '', panNumber: '' });
         }
         setIsPartyDialogOpen(true);
     };
@@ -1039,16 +1038,29 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                         <DialogTitle>{editingParty ? 'Edit Party' : 'Add New Party'}</DialogTitle>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
-                         <div className="space-y-2">
-                            <Label htmlFor="party-type">Party Type</Label>
-                             <Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm(p => ({...p, type: v}))}>
-                                <SelectTrigger id="party-type"><SelectValue/></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Customer">Customer</SelectItem>
-                                    <SelectItem value="Vendor">Vendor</SelectItem>
-                                    <SelectItem value="Both">Both</SelectItem>
-                                </SelectContent>
-                            </Select>
+                         <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="party-type">Party Type</Label>
+                                <Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm(p => ({...p, type: v}))}>
+                                    <SelectTrigger id="party-type"><SelectValue/></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Customer">Customer</SelectItem>
+                                        <SelectItem value="Vendor">Vendor</SelectItem>
+                                        <SelectItem value="Both">Both</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="party-ownership">Ownership</Label>
+                                <Select value={partyForm.ownership} onValueChange={(v: AccountOwnership) => setPartyForm(p => ({...p, ownership: v}))}>
+                                    <SelectTrigger id="party-ownership"><SelectValue/></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Sijan">Sijan Dhuwani</SelectItem>
+                                        <SelectItem value="Shivam">Shivam Packaging</SelectItem>
+                                        <SelectItem value="Both">Both</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="party-name">Party Name</Label>

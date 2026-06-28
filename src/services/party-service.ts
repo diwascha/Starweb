@@ -1,5 +1,3 @@
-
-
 import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDoc, getDocs, query, where, writeBatch, limit } from 'firebase/firestore';
 import type { Party } from '@/lib/types';
@@ -16,6 +14,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
         id: snapshot.id,
         name: data.name,
         type: data.type,
+        ownership: data.ownership || 'Both', // Categorization
         address: data.address,
         panNumber: data.panNumber,
         createdBy: data.createdBy,

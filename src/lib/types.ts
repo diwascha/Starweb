@@ -1,4 +1,3 @@
-
 export interface RateHistoryEntry {
   rate: number;
   date: string; // ISO string when the rate was set
@@ -371,10 +370,15 @@ export type TransactionType = typeof transactionTypes[number];
 
 export type PartyType = 'Supplier' | 'Customer' | 'Vendor' | 'Both';
 
+export type AccountType = 'Cash' | 'Bank';
+export type BankAccountType = 'Saving' | 'Current' | 'Over Draft';
+export type AccountOwnership = 'Sijan' | 'Shivam' | 'Both';
+
 export interface Party {
     id: string;
     name: string;
     type: PartyType;
+    ownership: AccountOwnership; // Added categorization
     address?: string;
     panNumber?: string;
     createdBy: string;
@@ -382,10 +386,6 @@ export interface Party {
     lastModifiedBy?: string;
     lastModifiedAt?: string; // ISO string
 }
-
-export type AccountType = 'Cash' | 'Bank';
-export type BankAccountType = 'Saving' | 'Current' | 'Over Draft';
-export type AccountOwnership = 'Sijan' | 'Shivam' | 'Both';
 
 export interface Account {
     id: string;

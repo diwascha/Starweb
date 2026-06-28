@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -239,7 +238,7 @@ export default function SettingsPage() {
   const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
   const [isMergeDialogOpen, setIsMergeDialogOpen] = useState(false);
   const [editingParty, setEditingParty] = useState<Party | null>(null);
-  const [partyForm, setPartyForm] = useState<{name: string, type: PartyType, address?: string, panNumber?: string}>({name: '', type: 'Vendor', address: '', panNumber: ''});
+  const [partyForm, setPartyForm] = useState<{name: string, type: PartyType, ownership: AccountOwnership, address?: string, panNumber?: string}>({name: '', type: 'Vendor', ownership: 'Both', address: '', panNumber: ''});
 
   // Account Dialog State
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
@@ -435,18 +434,18 @@ export default function SettingsPage() {
   const openPartyDialog = (party: Party | null = null) => {
     if (party) {
         setEditingParty(party);
-        setPartyForm({ name: party.name, type: party.type, address: party.address || '', panNumber: party.panNumber || '' });
+        setPartyForm({ name: party.name, type: party.type, ownership: party.ownership || 'Both', address: party.address || '', panNumber: party.panNumber || '' });
     } else {
         setEditingParty(null);
-        setPartyForm({ name: '', type: 'Vendor', address: '', panNumber: '' });
+        setPartyForm({ name: '', type: 'Vendor', ownership: 'Both', address: '', panNumber: '' });
     }
     setIsPartyDialogOpen(true);
   };
   
   const handlePartySubmit = async () => {
     if(!user) return;
-    if(!partyForm.name || !partyForm.type) {
-        toast({title: 'Error', description: 'Party name and type are required.', variant: 'destructive'});
+    if(!partyForm.name || !partyForm.type || !partyForm.ownership) {
+        toast({title: 'Error', description: 'Name, Type, and Ownership are mandatory.', variant: 'destructive'});
         return;
     }
     try {
@@ -1024,11 +1023,21 @@ export default function SettingsPage() {
                     </CardHeader>
                     <CardContent>
                         <Table><TableHeader><TableRow>
-                            <TableHead>Name</TableHead><TableHead>Type</TableHead><TableHead>Address</TableHead><TableHead>PAN</TableHead><TableHead className="text-right">Actions</TableHead>
+                            <TableHead>Name</TableHead><TableHead>Type</TableHead><TableHead>Ownership</TableHead><TableHead>Address</TableHead><TableHead>PAN</TableHead><TableHead className="text-right">Actions</TableHead>
                         </TableRow></TableHeader><TableBody>
                         {filteredParties.map(party => (
                             <TableRow key={party.id}>
-                                <TableCell>{party.name}</TableCell><TableCell>{party.type}</TableCell><TableCell>{party.address}</TableCell><TableCell>{party.panNumber}</TableCell>
+                                <TableCell className="font-medium">{party.name}</TableCell>
+                                <TableCell><Badge variant="outline">{party.type}</Badge></TableCell>
+                                <TableCell>
+                                    <Badge variant={party.ownership === 'Both' ? 'secondary' : 'default'} className={cn(
+                                        party.ownership === 'Sijan' && 'bg-blue-100 text-blue-800 border-blue-200',
+                                        party.ownership === 'Shivam' && 'bg-green-100 text-green-800 border-green-200'
+                                    )}>
+                                        {party.ownership}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell>{party.address}</TableCell><TableCell>{party.panNumber}</TableCell>
                                 <TableCell className="text-right">
                                     <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
@@ -1316,12 +1325,25 @@ export default function SettingsPage() {
                         <Label htmlFor="party-name">Party Name</Label>
                         <Input id="party-name" value={partyForm.name} onChange={e => setPartyForm(p => ({...p, name: e.target.value}))} />
                     </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="party-type">Party Type</Label>
-                        <Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm(p => ({...p, type: v}))}>
-                            <SelectTrigger id="party-type"><SelectValue/></SelectTrigger>
-                            <SelectContent><SelectItem value="Vendor">Vendor</SelectItem><SelectItem value="Customer">Customer</SelectItem><SelectItem value="Both">Both</SelectItem></SelectContent>
-                        </Select>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="party-type">Party Type</Label>
+                            <Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm(p => ({...p, type: v}))}>
+                                <SelectTrigger id="party-type"><SelectValue/></SelectTrigger>
+                                <SelectContent><SelectItem value="Vendor">Vendor</SelectItem><SelectItem value="Customer">Customer</SelectItem><SelectItem value="Both">Both</SelectItem></SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="party-ownership">Ownership</Label>
+                            <Select value={partyForm.ownership} onValueChange={(v: AccountOwnership) => setPartyForm(p => ({...p, ownership: v}))}>
+                                <SelectTrigger id="party-ownership"><SelectValue/></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Sijan">Sijan Dhuwani</SelectItem>
+                                    <SelectItem value="Shivam">Shivam Packaging</SelectItem>
+                                    <SelectItem value="Both">Both</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="party-address">Address</Label>

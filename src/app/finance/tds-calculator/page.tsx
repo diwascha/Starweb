@@ -37,7 +37,7 @@ import html2canvas from 'html2canvas';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { onTdsCalculationsUpdate, addTdsCalculation, getTdsPrefix, deleteTdsCalculation, updateTdsCalculation } from '@/services/tds-service';
-import type { TdsCalculation, TdsRate, Party, PartyType, CompanyProfile } from '@/lib/types';
+import type { TdsCalculation, TdsRate, Party, PartyType, CompanyProfile, AccountOwnership } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { onPartiesUpdate, addParty } from '@/services/party-service';
@@ -421,7 +421,7 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
   const [editingRate, setEditingRate] = useState<TdsRate | null>(null);
 
   const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
-  const [partyForm, setPartyForm] = useState<{ name: string, type: PartyType, address?: string; panNumber?: string; }>({ name: '', type: 'Vendor', address: '', panNumber: '' });
+  const [partyForm, setPartyForm] = useState<{ name: string, type: PartyType, ownership: AccountOwnership, address?: string; panNumber?: string; }>({ name: '', type: 'Vendor', ownership: 'Both', address: '', panNumber: '' });
   const [partySearch, setPartySearch] = useState('');
   const [isPartyPopoverOpen, setIsPartyPopoverOpen] = useState(false);
 
@@ -665,8 +665,8 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
 
   const handleSubmitParty = async () => {
     if(!user) return;
-    if(!partyForm.name || !partyForm.type) {
-        toast({title: 'Error', description: 'Party name and type are required.', variant: 'destructive'});
+    if(!partyForm.name || !partyForm.type || !partyForm.ownership) {
+        toast({title: 'Error', description: 'Name, Type, and Ownership are mandatory.', variant: 'destructive'});
         return;
     }
     try {
@@ -674,7 +674,7 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
         setPartyName(partyForm.name);
         toast({title: 'Success', description: 'New party added.'});
         setIsPartyDialogOpen(false);
-        setPartyForm({name: '', type: 'Vendor', address: '', panNumber: ''});
+        setPartyForm({name: '', type: 'Vendor', ownership: 'Both', address: '', panNumber: ''});
     } catch {
          toast({title: 'Error', description: 'Failed to add party.', variant: 'destructive'});
     }
@@ -754,7 +754,7 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
                                                         variant="ghost"
                                                         className="w-full justify-start"
                                                         onClick={() => {
-                                                            setPartyForm(prev => ({ ...prev, name: partySearch, type: 'Vendor' }));
+                                                            setPartyForm(prev => ({ ...prev, name: partySearch, type: 'Vendor', ownership: 'Both' }));
                                                             setIsPartyPopoverOpen(false);
                                                             setIsPartyDialogOpen(true);
                                                         }}
@@ -948,16 +948,29 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
                             <Label htmlFor="party-name-dialog">Party Name</Label>
                             <Input id="party-name-dialog" value={partyForm.name} onChange={e => setPartyForm(p => ({...p, name: e.target.value}))} />
                         </div>
-                         <div className="space-y-2">
-                            <Label htmlFor="party-type-dialog">Party Type</Label>
-                            <Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm(p => ({...p, type: v}))}>
-                                <SelectTrigger id="party-type-dialog"><SelectValue/></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Vendor">Vendor</SelectItem>
-                                    <SelectItem value="Customer">Customer</SelectItem>
-                                    <SelectItem value="Both">Both</SelectItem>
-                                </SelectContent>
-                            </Select>
+                         <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="party-type-dialog">Party Type</Label>
+                                <Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm(p => ({...p, type: v}))}>
+                                    <SelectTrigger id="party-type-dialog"><SelectValue/></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Vendor">Vendor</SelectItem>
+                                        <SelectItem value="Customer">Customer</SelectItem>
+                                        <SelectItem value="Both">Both</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="party-ownership-dialog">Ownership</Label>
+                                <Select value={partyForm.ownership} onValueChange={(v: AccountOwnership) => setPartyForm(p => ({...p, ownership: v}))}>
+                                    <SelectTrigger id="party-ownership-dialog"><SelectValue/></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Sijan">Sijan Dhuwani</SelectItem>
+                                        <SelectItem value="Shivam">Shivam Packaging</SelectItem>
+                                        <SelectItem value="Both">Both</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="party-pan-dialog">PAN Number</Label>

@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { Product, Party, ProductSpecification } from '@/lib/types';
-import { onPartiesUpdate } from '@/services/party-service';
+import type { Product, Party, ProductSpecification, AccountOwnership } from '@/lib/types';
+import { onPartiesUpdate, addParty } from '@/services/party-service';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,9 @@ import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { normalizeBF } from '@/lib/utils';
 import { PLY_OPTIONS, BF_OPTIONS } from '@/lib/constants';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { PlusCircle } from 'lucide-react';
+import { useAuth } from '@/hooks/use-auth';
 
 interface ProductFormProps {
     productToEdit?: Product | null;
@@ -29,7 +32,10 @@ export function ProductForm({ productToEdit, onSaveSuccess }: ProductFormProps) 
     });
     const [dim, setDim] = useState({ l: '', b: '', h: '' });
     const [parties, setParties] = useState<Party[]>([]);
+    const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
+    const [partyForm, setPartyForm] = useState<{name: string, ownership: AccountOwnership, address?: string}>({name: '', ownership: 'Both', address: ''});
     const { toast } = useToast();
+    const { user } = useAuth();
 
     useEffect(() => { onPartiesUpdate(setParties); }, []);
     
@@ -61,6 +67,28 @@ export function ProductForm({ productToEdit, onSaveSuccess }: ProductFormProps) 
         });
     };
 
+    const handleQuickAddParty = async () => {
+        if (!user) return;
+        if (!partyForm.name || !partyForm.ownership) {
+            toast({ title: 'Error', description: 'Name and Ownership are mandatory.' });
+            return;
+        }
+        try {
+            const newId = await addParty({ 
+                name: partyForm.name, 
+                type: 'Customer', 
+                ownership: partyForm.ownership,
+                address: partyForm.address || '',
+                createdBy: user.username 
+            });
+            setForm({ ...form, partyId: newId });
+            setIsPartyDialogOpen(false);
+            toast({ title: 'Success', description: 'Party added.' });
+        } catch {
+            toast({ title: 'Error', description: 'Failed to add party.' });
+        }
+    };
+
     const updateSpec = (f: string, v: string) => setForm((p: any) => ({ ...p, specification: { ...p.specification, [f]: v } }));
 
     const p = parseInt(form.specification.ply, 10);
@@ -71,11 +99,15 @@ export function ProductForm({ productToEdit, onSaveSuccess }: ProductFormProps) 
                 <div className="space-y-4">
                     <h3 className="text-xs font-bold uppercase border-b pb-1 text-muted-foreground">General Info</h3>
                     <div className="space-y-2"><Label>Product Name</Label><Input value={form.name ?? ''} onChange={e => setForm({...form, name: e.target.value})} /></div>
-                    <div className="space-y-2"><Label>Party (Customer)</Label>
-                        <Select value={form.partyId ?? ''} onValueChange={v => setForm({...form, partyId: v})}>
-                            <SelectTrigger><SelectValue placeholder="Select party..." /></SelectTrigger>
-                            <SelectContent>{parties.sort((a,b)=>a.name.localeCompare(b.name)).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
-                        </Select>
+                    <div className="space-y-2">
+                        <Label>Party (Customer)</Label>
+                        <div className="flex gap-2">
+                            <Select value={form.partyId ?? ''} onValueChange={v => setForm({...form, partyId: v})}>
+                                <SelectTrigger><SelectValue placeholder="Select party..." /></SelectTrigger>
+                                <SelectContent>{parties.sort((a,b)=>a.name.localeCompare(b.name)).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+                            </Select>
+                            <Button variant="outline" size="icon" onClick={() => setIsPartyDialogOpen(true)}><PlusCircle className="h-4 w-4"/></Button>
+                        </div>
                     </div>
                 </div>
                 <div className="space-y-4">
@@ -133,6 +165,37 @@ export function ProductForm({ productToEdit, onSaveSuccess }: ProductFormProps) 
             <div className="pt-4">
                 <Button className="w-full h-11" onClick={handleSave}>Save Product Record</Button>
             </div>
+
+            <Dialog open={isPartyDialogOpen} onOpenChange={setIsPartyDialogOpen}>
+                <DialogContent className="sm:max-w-sm">
+                    <DialogHeader><DialogTitle>Quick Add Customer</DialogTitle></DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="party-name">Party Name</Label>
+                            <Input id="party-name" value={partyForm.name} onChange={e => setPartyForm({...partyForm, name: e.target.value})} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="party-ownership">Ownership</Label>
+                            <Select value={partyForm.ownership} onValueChange={(v: AccountOwnership) => setPartyForm({...partyForm, ownership: v})}>
+                                <SelectTrigger id="party-ownership"><SelectValue/></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Sijan">Sijan Dhuwani</SelectItem>
+                                    <SelectItem value="Shivam">Shivam Packaging</SelectItem>
+                                    <SelectItem value="Both">Both</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="party-address">Address</Label>
+                            <Input id="party-address" value={partyForm.address} onChange={e => setPartyForm({...partyForm, address: e.target.value})} />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsPartyDialogOpen(false)}>Cancel</Button>
+                        <Button onClick={handleQuickAddParty}>Add Customer</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

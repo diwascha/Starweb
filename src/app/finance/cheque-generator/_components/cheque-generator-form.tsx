@@ -10,7 +10,7 @@ import { cn, toWords, generateNextVoucherNumber, toNepaliDate, generateId } from
 import { format, addDays, parseISO } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { onPartiesUpdate, addParty } from '@/services/party-service';
-import type { Party, PartyType, Cheque, ChequeSplit, ChequeStatus, Account, BankAccountType } from '@/lib/types';
+import type { Party, PartyType, Cheque, ChequeSplit, ChequeStatus, Account, BankAccountType, AccountOwnership } from '@/lib/types';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { useAuth } from '@/hooks/use-auth';
@@ -57,8 +57,8 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
     // Dialog States
     const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
     const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
-    const [partyForm, setPartyForm] = useState<{ name: string, type: PartyType, address?: string; panNumber?: string; }>({ name: '', type: 'Vendor', address: '', panNumber: '' });
-    const [accountForm, setAccountForm] = useState({ name: '', type: 'Bank' as 'Cash' | 'Bank', accountNumber: '', bankName: '', branch: '', bankAccountType: 'Saving' as BankAccountType });
+    const [partyForm, setPartyForm] = useState<{ name: string, type: PartyType, ownership: AccountOwnership, address?: string; panNumber?: string; }>({ name: '', type: 'Vendor', ownership: 'Both', address: '', panNumber: '' });
+    const [accountForm, setAccountForm] = useState({ name: '', type: 'Bank' as 'Cash' | 'Bank', ownership: 'Both' as AccountOwnership, accountNumber: '', bankName: '', branch: '', bankAccountType: 'Saving' as BankAccountType });
     const [partySearch, setPartySearch] = useState('');
     const [isPartyPopoverOpen, setIsPartyPopoverOpen] = useState(false);
 
@@ -187,8 +187,8 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
     
     const handleSubmitParty = async () => {
         if(!user) return;
-        if(!partyForm.name || !partyForm.type) {
-            toast({title: 'Error', description: 'Party name and type are required.', variant: 'destructive'});
+        if(!partyForm.name || !partyForm.type || !partyForm.ownership) {
+            toast({title: 'Error', description: 'Name, Type, and Ownership are mandatory.', variant: 'destructive'});
             return;
         }
         try {
@@ -196,7 +196,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
             handlePartySelect(partyForm.name);
             toast({title: 'Success', description: 'New party added.'});
             setIsPartyDialogOpen(false);
-            setPartyForm({name: '', type: 'Vendor', address: '', panNumber: ''});
+            setPartyForm({name: '', type: 'Vendor', ownership: 'Both', address: '', panNumber: ''});
         } catch {
             toast({title: 'Error', description: 'Failed to add party.', variant: 'destructive'});
         }
@@ -204,14 +204,15 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
     
     const handleAccountSubmit = async () => {
         if (!user) return;
-        if (!accountForm.name || !accountForm.bankName || !accountForm.accountNumber) {
-            toast({ title: 'Error', description: 'All bank account fields are required.', variant: 'destructive' });
+        if (!accountForm.name || !accountForm.bankName || !accountForm.accountNumber || !accountForm.ownership) {
+            toast({ title: 'Error', description: 'All mandatory bank account fields are required.', variant: 'destructive' });
             return;
         }
         try {
             const newAccountId = await addAccountService({
                 name: accountForm.name,
                 type: 'Bank',
+                ownership: accountForm.ownership,
                 bankName: accountForm.bankName,
                 accountNumber: accountForm.accountNumber,
                 branch: accountForm.branch,
@@ -487,7 +488,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                                         variant="ghost"
                                         className="w-full justify-start"
                                         onClick={() => {
-                                            setPartyForm(prev => ({ ...prev, name: partySearch, type: 'Vendor' }));
+                                            setPartyForm(prev => ({ ...prev, name: partySearch, type: 'Vendor', ownership: 'Both' }));
                                             setIsPartyPopoverOpen(false);
                                             setIsPartyDialogOpen(true);
                                         }}
@@ -634,16 +635,29 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                             <Label htmlFor="party-name-dialog">Party Name</Label>
                             <Input id="party-name-dialog" value={partyForm.name} onChange={e => setPartyForm(p => ({...p, name: e.target.value}))} />
                         </div>
-                         <div className="space-y-2">
-                            <Label htmlFor="party-type-dialog">Party Type</Label>
-                            <Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm(p => ({...p, type: v}))}>
-                                <SelectTrigger id="party-type-dialog"><SelectValue/></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Vendor">Vendor</SelectItem>
-                                    <SelectItem value="Customer">Customer</SelectItem>
-                                    <SelectItem value="Both">Both</SelectItem>
-                                </SelectContent>
-                            </Select>
+                         <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="party-type-dialog">Party Type</Label>
+                                <Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm(p => ({...p, type: v}))}>
+                                    <SelectTrigger id="party-type-dialog"><SelectValue/></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Vendor">Vendor</SelectItem>
+                                        <SelectItem value="Customer">Customer</SelectItem>
+                                        <SelectItem value="Both">Both</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="party-ownership-dialog">Ownership</Label>
+                                <Select value={partyForm.ownership} onValueChange={(v: AccountOwnership) => setPartyForm(p => ({...p, ownership: v}))}>
+                                    <SelectTrigger id="party-ownership-dialog"><SelectValue/></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Sijan">Sijan Dhuwani</SelectItem>
+                                        <SelectItem value="Shivam">Shivam Packaging</SelectItem>
+                                        <SelectItem value="Both">Both</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="party-pan-dialog">PAN Number</Label>
@@ -665,6 +679,30 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                 <DialogContent className="sm:max-w-md">
                 <DialogHeader><DialogTitle>Add New Bank Account</DialogTitle></DialogHeader>
                 <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="account-ownership">Ownership</Label>
+                            <Select value={accountForm.ownership} onValueChange={(v: AccountOwnership) => setAccountForm(p => ({...p, ownership: v}))}>
+                                <SelectTrigger id="account-ownership"><SelectValue/></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Sijan">Sijan Dhuwani</SelectItem>
+                                    <SelectItem value="Shivam">Shivam Packaging</SelectItem>
+                                    <SelectItem value="Both">Both</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="bankAccountType">Account Type</Label>
+                            <Select value={accountForm.bankAccountType} onValueChange={(v: BankAccountType) => setAccountForm(p => ({ ...p, bankAccountType: v }))}>
+                                <SelectTrigger id="bankAccountType"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Saving">Saving</SelectItem>
+                                    <SelectItem value="Current">Current</SelectItem>
+                                    <SelectItem value="Over Draft">Over Draft</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
                     <div className="space-y-2">
                         <Label htmlFor="account-holder-name">Account Holder Name</Label>
                         <Input id="account-holder-name" value={accountForm.name} onChange={e => setAccountForm(p => ({...p, name: e.target.value}))} />
@@ -680,17 +718,6 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                     <div className="space-y-2">
                         <Label htmlFor="branch">Branch</Label>
                         <Input id="branch" value={accountForm.branch} onChange={e => setAccountForm(p => ({...p, branch: e.target.value}))} />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="bankAccountType">Account Type</Label>
-                        <Select value={accountForm.bankAccountType} onValueChange={(v: BankAccountType) => setAccountForm(p => ({ ...p, bankAccountType: v }))}>
-                            <SelectTrigger id="bankAccountType"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="Saving">Saving</SelectItem>
-                                <SelectItem value="Current">Current</SelectItem>
-                                <SelectItem value="Over Draft">Over Draft</SelectItem>
-                            </SelectContent>
-                        </Select>
                     </div>
                 </div>
                 <DialogFooter>

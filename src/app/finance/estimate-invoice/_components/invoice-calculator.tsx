@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import type { Party, PartyType, Product, EstimateInvoiceItem, EstimatedInvoice } from '@/lib/types';
+import type { Party, PartyType, Product, EstimateInvoiceItem, EstimatedInvoice, AccountOwnership } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -54,7 +54,7 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
     const router = useRouter();
 
     const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
-    const [partyForm, setPartyForm] = useState<{ name: string, type: PartyType, address?: string; panNumber?: string; }>({ name: '', type: 'Customer', address: '', panNumber: '' });
+    const [partyForm, setPartyForm] = useState<{ name: string, type: PartyType, ownership: AccountOwnership, address?: string; panNumber?: string; }>({ name: '', type: 'Customer', ownership: 'Both', address: '', panNumber: '' });
     const [editingParty, setEditingParty] = useState<Party | null>(null);
     const [partySearch, setPartySearch] = useState('');
     const [isSaving, setIsSaving] = useState(false);
@@ -95,7 +95,7 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
             setParty(existingParty);
           } else {
              // Handle case where party might not exist anymore
-             setParty({ id: '', name: invoiceToEdit.partyName, type: 'Customer', createdBy: '', createdAt: '' });
+             setParty({ id: '', name: invoiceToEdit.partyName, type: 'Customer', ownership: 'Both', createdBy: '', createdAt: '' });
           }
         } else {
           const nextNumber = await generateNextEstimateInvoiceNumber(allInvoices);
@@ -120,10 +120,10 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
     const handleOpenPartyDialog = (partyToEdit: Party | null = null, searchName: string = '') => {
         if (partyToEdit) {
             setEditingParty(partyToEdit);
-            setPartyForm({ name: partyToEdit.name, type: partyToEdit.type, address: partyToEdit.address || '', panNumber: partyToEdit.panNumber || '' });
+            setPartyForm({ name: partyToEdit.name, type: partyToEdit.type, ownership: partyToEdit.ownership || 'Both', address: partyToEdit.address || '', panNumber: partyToEdit.panNumber || '' });
         } else {
             setEditingParty(null);
-            setPartyForm({ name: searchName, type: 'Customer', address: '', panNumber: '' });
+            setPartyForm({ name: searchName, type: 'Customer', ownership: 'Both', address: '', panNumber: '' });
         }
         setIsPartyPopoverOpen(false);
         setIsPartyDialogOpen(true);
@@ -131,8 +131,8 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
 
     const handleSubmitParty = async () => {
         if (!user) return;
-        if (!partyForm.name) {
-            toast({ title: 'Error', description: 'Party name is required.', variant: 'destructive' });
+        if (!partyForm.name || !partyForm.type || !partyForm.ownership) {
+            toast({ title: 'Error', description: 'Name, Type, and Ownership are mandatory.', variant: 'destructive' });
             return;
         }
         try {
@@ -622,16 +622,29 @@ export function InvoiceCalculator({ invoiceToEdit, onSaveSuccess }: InvoiceCalcu
                             <Label htmlFor="party-name-dialog">Party Name</Label>
                             <Input id="party-name-dialog" value={partyForm.name} onChange={e => setPartyForm(p => ({...p, name: e.target.value}))} />
                         </div>
-                         <div className="space-y-2">
-                            <Label htmlFor="party-type-dialog">Party Type</Label>
-                            <Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm(p => ({...p, type: v}))}>
-                                <SelectTrigger id="party-type-dialog"><SelectValue/></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Vendor">Vendor</SelectItem>
-                                    <SelectItem value="Customer">Customer</SelectItem>
-                                    <SelectItem value="Both">Both</SelectItem>
-                                </SelectContent>
-                            </Select>
+                         <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="party-type-dialog">Party Type</Label>
+                                <Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm(p => ({...p, type: v}))}>
+                                    <SelectTrigger id="party-type-dialog"><SelectValue/></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Vendor">Vendor</SelectItem>
+                                        <SelectItem value="Customer">Customer</SelectItem>
+                                        <SelectItem value="Both">Both</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="party-ownership-dialog">Ownership</Label>
+                                <Select value={partyForm.ownership} onValueChange={(v: AccountOwnership) => setPartyForm(p => ({...p, ownership: v}))}>
+                                    <SelectTrigger id="party-ownership-dialog"><SelectValue/></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Sijan">Sijan Dhuwani</SelectItem>
+                                        <SelectItem value="Shivam">Shivam Packaging</SelectItem>
+                                        <SelectItem value="Both">Both</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="party-pan-dialog">PAN Number</Label>
