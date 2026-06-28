@@ -1,10 +1,17 @@
+
 'use client';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Truck, RotateCcw } from 'lucide-react';
+import { useEffect } from 'react';
+import { logError } from '@/services/log-service';
 
-export default function FleetError({ reset }: { reset: () => void }) {
+export default function FleetError({ error, reset }: { error: Error, reset: () => void }) {
+  useEffect(() => {
+    logError(error, 'Fleet Module');
+  }, [error]);
+
   return (
     <div className="p-8">
         <Card className="border-blue-200 bg-blue-50/20">
@@ -21,7 +28,7 @@ export default function FleetError({ reset }: { reset: () => void }) {
             </CardHeader>
             <CardContent className="space-y-4">
                 <p className="text-sm">
-                    We were unable to load the fleet data. This usually happens due to a temporary connection drop or a data formatting issue.
+                    We were unable to load the fleet data. This incident has been automatically recorded in the system logs for investigation.
                 </p>
                 <div className="flex gap-2">
                     <Button onClick={() => reset()}>

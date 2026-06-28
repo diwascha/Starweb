@@ -1,3 +1,4 @@
+
 'use client';
 /**
  * @fileOverview Root error handler for Next.js route segments.
@@ -7,6 +8,7 @@ import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { AlertCircle, RotateCcw, Home } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { logError } from '@/services/log-service';
 
 export default function GlobalError({
   error,
@@ -16,7 +18,8 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    // Log critical failure
+    // Log critical failure to Firestore for auditing
+    logError(error, 'Global App Segment', { digest: error.digest });
     console.error('Critical Application Failure:', error);
   }, [error]);
 
@@ -38,7 +41,7 @@ export default function GlobalError({
             {error.digest && <p className="mt-2 opacity-50">Log Reference: {error.digest}</p>}
           </div>
           <p className="text-xs text-center text-muted-foreground px-6">
-            Fault isolation is active. Other parts of the system may still be operational.
+            The crash has been reported. Fault isolation is active. Other parts of the system may still be operational.
           </p>
         </CardContent>
         <CardFooter className="flex flex-col gap-2 pt-2">

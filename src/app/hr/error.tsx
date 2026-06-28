@@ -1,10 +1,17 @@
+
 'use client';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Users, AlertTriangle } from 'lucide-react';
+import { useEffect } from 'react';
+import { logError } from '@/services/log-service';
 
-export default function HrError({ reset }: { reset: () => void }) {
+export default function HrError({ error, reset }: { error: Error, reset: () => void }) {
+  useEffect(() => {
+    logError(error, 'HR Module');
+  }, [error]);
+
   return (
     <div className="p-8">
         <Card className="border-amber-200 bg-amber-50/20">
@@ -22,7 +29,7 @@ export default function HrError({ reset }: { reset: () => void }) {
             <CardContent className="space-y-4">
                 <div className="flex gap-2 p-3 bg-white border border-amber-200 rounded text-xs">
                     <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
-                    <p>An unexpected error occurred in the personnel management module. You may try to reload the specific view.</p>
+                    <p>An unexpected error occurred in the personnel management module. The crash report has been sent to the system administrator.</p>
                 </div>
                 <Button onClick={() => reset()} variant="secondary">
                     Reload HR Module

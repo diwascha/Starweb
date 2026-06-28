@@ -1,3 +1,4 @@
+
 'use client';
 /**
  * @fileOverview A resilient React Error Boundary component for component-level fault isolation.
@@ -7,6 +8,7 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { logError } from '@/services/log-service';
 
 interface Props {
   children?: ReactNode;
@@ -29,7 +31,8 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // In a production app, we would log this to a service like Sentry or LogRocket here.
+    // Structural logging of the crash
+    logError(error, this.props.moduleName || 'Isolated Component', { errorInfo });
     console.error(`Isolated Component Error [${this.props.moduleName || 'Component'}]:`, error, errorInfo);
   }
 
@@ -45,7 +48,7 @@ export class ErrorBoundary extends Component<Props, State> {
           </CardHeader>
           <CardContent>
             <p className="text-xs text-muted-foreground">
-              We encountered a glitch while loading this section.
+              We encountered a glitch while loading this section. This issue has been reported automatically for resolution.
             </p>
             <div className="mt-2 p-2 bg-black/5 rounded text-[10px] font-mono overflow-auto max-h-24 whitespace-pre-wrap">
               {this.state.error?.message}

@@ -1,3 +1,4 @@
+
 /**
  * Centralized constants for the application to ensure consistency and DRY principles.
  */
@@ -26,6 +27,7 @@ export const COLLECTIONS = {
   ESTIMATED_INVOICES: 'estimatedInvoices',
   CHEQUES: 'cheques',
   EXPENSES: 'expenses',
+  LOGS: 'logs',
 } as const;
 
 export const NEPALI_MONTHS = [

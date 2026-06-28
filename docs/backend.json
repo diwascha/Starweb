@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -58,6 +59,22 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["date", "vehicleId", "expenseType", "amount", "paymentMode", "createdBy"]
+    },
+    "SystemLog": {
+      "title": "System Log",
+      "description": "Captures application crashes and events for debugging.",
+      "type": "object",
+      "properties": {
+        "timestamp": { "type": "string", "format": "date-time" },
+        "level": { "type": "string", "enum": ["error", "warn", "info"] },
+        "module": { "type": "string" },
+        "message": { "type": "string" },
+        "stack": { "type": "string" },
+        "username": { "type": "string" },
+        "userId": { "type": "string" },
+        "context": { "type": "object" }
+      },
+      "required": ["timestamp", "level", "message"]
     }
   },
   "auth": {
@@ -71,6 +88,10 @@
     "/expenses/{expenseId}": {
       "schema": { "$ref": "#/entities/Expense" },
       "description": "Stores daily operational expenses for fleet management."
+    },
+    "/logs/{logId}": {
+      "schema": { "$ref": "#/entities/SystemLog" },
+      "description": "Historical audit log of system exceptions and events."
     }
   }
 }

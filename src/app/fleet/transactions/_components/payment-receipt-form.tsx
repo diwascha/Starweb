@@ -1,3 +1,4 @@
+
 'use client';
 
 import React from 'react';
@@ -7,6 +8,7 @@ import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { Account, Party, Vehicle, Transaction, AccountOwnership, PartyType } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -325,7 +327,7 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
 
         <div className="border rounded-lg overflow-hidden shadow-sm">
             <Table>
-            <TableHeader className="bg-muted/50">
+            <TableHeader>
                 <TableRow>
                 <TableHead className="w-[50px] text-center">S.No</TableHead>
                 <TableHead>Vehicle</TableHead>

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -25,6 +26,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -56,7 +58,9 @@ import {
   ArrowUpDown, 
   TrendingDown, 
   TrendingUp,
-  Loader2
+  Loader2,
+  Eye,
+  AlertCircle
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -70,6 +74,7 @@ import { onAccountsUpdate, addAccount, updateAccount, deleteAccount } from '@/se
 import { onUomsUpdate, addUom, updateUom, deleteUom } from '@/services/uom-service';
 import { onSettingUpdate, setSetting } from '@/services/settings-service';
 import { onPageVisitsUpdate } from '@/services/usage-service';
+import { onLogsUpdate, type SystemLog } from '@/services/log-service';
 import { 
     DropdownMenu, 
     DropdownMenuContent, 
@@ -208,8 +213,9 @@ export default function SettingsPage() {
   const [isImporting, setIsImporting] = useState(false);
   const importFileRef = useRef<HTMLInputElement>(null);
 
-  // Usage Analytics State
+  // Usage & Log Analytics State
   const [pageVisits, setPageVisits] = useState<PageVisit[]>([]);
+  const [logs, setLogs] = useState<SystemLog[]>([]);
   const [usageSearch, setUsageSearch] = useState('');
   const [usageSortConfig, setUsageSortConfig] = useState<{ key: 'count' | 'path' | 'lastVisited', dir: 'asc' | 'desc' }>({ key: 'count', dir: 'desc' });
   const [usageFilterMonth, setUsageFilterMonth] = useState<string>('All');
@@ -280,6 +286,7 @@ export default function SettingsPage() {
     const unsubCompanyProfile = onSettingUpdate('companyProfile', (setting) => setCompanyProfile(setting?.value || DEFAULT_COMPANY_PROFILE));
     const unsubFleetProfile = onSettingUpdate('fleetCompanyProfile', (setting) => setFleetProfile(setting?.value || DEFAULT_FLEET_PROFILE));
     const unsubUsage = onPageVisitsUpdate(setPageVisits);
+    const unsubLogs = onLogsUpdate(setLogs);
     
     getPayrollYears().then(years => {
         const currentYear = new NepaliDate().getYear();
@@ -303,6 +310,7 @@ export default function SettingsPage() {
         unsubCompanyProfile();
         unsubFleetProfile();
         unsubUsage();
+        unsubLogs();
         window.removeEventListener('storage', handleStorageChange);
     }
   }, []);
@@ -453,7 +461,7 @@ export default function SettingsPage() {
             await updateParty(editingParty.id, { ...partyForm, lastModifiedBy: user.username });
             toast({title: 'Success', description: 'Party updated.'});
         } else {
-            await addParty({...partyForm, createdBy: user.username});
+            const newPartyId = await addParty({...partyForm, createdBy: user.username});
             toast({title: 'Success', description: 'New party added.'});
         }
         setIsPartyDialogOpen(false);
@@ -701,6 +709,7 @@ export default function SettingsPage() {
     { value: "document-numbering", label: "Document Numbering" },
     { value: "payroll-settings", label: "Payroll Settings" },
     { value: "usage-analytics", label: "System Usage" },
+    { value: "system-logs", label: "System Logs" },
   ];
 
   const usageStats = useMemo(() => {
@@ -1055,7 +1064,7 @@ export default function SettingsPage() {
                 </Card>
             </TabsContent>
             <TabsContent value="accounts">
-                 <Card>
+                <Card>
                     <CardHeader className="flex flex-row items-center justify-between">
                         <div>
                             <CardTitle>Accounts</CardTitle>
@@ -1314,6 +1323,62 @@ export default function SettingsPage() {
                         </CardContent>
                     </Card>
                 </div>
+            </TabsContent>
+            <TabsContent value="system-logs">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>System Error Logs</CardTitle>
+                        <CardDescription>Real-time report of application crashes and exceptions for debugging.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Time</TableHead>
+                                    <TableHead>Module</TableHead>
+                                    <TableHead>User</TableHead>
+                                    <TableHead>Message</TableHead>
+                                    <TableHead className="text-right">Action</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {logs.map(log => (
+                                    <TableRow key={log.id}>
+                                        <TableCell className="text-xs">{new Date(log.timestamp).toLocaleString()}</TableCell>
+                                        <TableCell><Badge variant="outline">{log.module}</Badge></TableCell>
+                                        <TableCell className="text-xs">{log.username}</TableCell>
+                                        <TableCell className="text-xs font-mono max-w-md truncate">{log.message}</TableCell>
+                                        <TableCell className="text-right">
+                                            <Dialog>
+                                                <DialogTrigger asChild><Button variant="ghost" size="sm"><Eye className="mr-1 h-3 w-3" /> Details</Button></DialogTrigger>
+                                                <DialogContent className="max-w-2xl">
+                                                    <DialogHeader><DialogTitle className="flex items-center gap-2"><AlertCircle className="h-5 w-5 text-destructive" /> Error Context: {log.module}</DialogTitle></DialogHeader>
+                                                    <div className="space-y-4 py-4">
+                                                        <div className="p-4 bg-muted rounded font-mono text-[10px] overflow-auto max-h-96 border">
+                                                            <p className="font-bold text-destructive mb-2 uppercase tracking-widest">{log.message}</p>
+                                                            <Separator className="my-2" />
+                                                            <p className="whitespace-pre-wrap">{log.stack || 'No stack trace available.'}</p>
+                                                        </div>
+                                                        {log.context && (
+                                                            <div className="space-y-2">
+                                                                <Label className="text-xs font-bold uppercase text-muted-foreground">Captured State / Data</Label>
+                                                                <pre className="text-[10px] p-3 bg-black/5 rounded border border-dashed">{JSON.stringify(log.context, null, 2)}</pre>
+                                                            </div>
+                                                        )}
+                                                        <div className="text-[10px] text-muted-foreground pt-2 border-t">
+                                                            User: {log.username} ({log.userId}) | Recorded: {new Date(log.timestamp).toISOString()}
+                                                        </div>
+                                                    </div>
+                                                </DialogContent>
+                                            </Dialog>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                                {logs.length === 0 && <TableRow><TableCell colSpan={5} className="text-center py-12 text-muted-foreground">No system errors recorded.</TableCell></TableRow>}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
             </TabsContent>
         </Tabs>
         
