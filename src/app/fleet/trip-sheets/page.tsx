@@ -1,12 +1,26 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
-import { PlusCircle, MoreHorizontal, Edit, Trash2, View, ArrowUpDown, Search, User, X } from 'lucide-react';
+import { 
+  PlusCircle, 
+  MoreHorizontal, 
+  Edit, 
+  Trash2, 
+  View, 
+  ArrowUpDown, 
+  Search, 
+  User, 
+  X, 
+  Download, 
+  CalendarIcon, 
+  FileSpreadsheet, 
+  FileText 
+} from 'lucide-react';
 import type { Trip, Vehicle, Party } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,17 +47,24 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { useRouter } from 'next/navigation';
 import { toNepaliDate } from '@/lib/utils';
-import { format, differenceInDays } from 'date-fns';
+import { format, differenceInDays, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
 import { onTripsUpdate, deleteTrip } from '@/services/trip-service';
 import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onPartiesUpdate } from '@/services/party-service';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
+import type { DateRange } from 'react-day-picker';
+import { cn } from '@/lib/utils';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 type SortKey = 'date' | 'vehicleName' | 'customerName' | 'finalDestination' | 'netAmount' | 'authorship';
 type SortDirection = 'asc' | 'desc';
@@ -63,8 +84,12 @@ export default function TripSheetsPage() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [parties, setParties] = useState<Party[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
   
+  // Filtering & Sorting State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [filterVehicleId, setFilterVehicleId] = useState<string>('All');
+  const [filterPartyId, setFilterPartyId] = useState<string>('All');
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({
     key: 'date',
     direction: 'desc',
@@ -137,7 +162,6 @@ export default function TripSheetsPage() {
       setIsCalcDialogOpen(true);
   };
 
-
   const augmentedTrips = useMemo(() => {
       return trips.map(trip => {
           const { netPay } = calculateTripFinances(trip);
@@ -148,7 +172,7 @@ export default function TripSheetsPage() {
               vehicleName: vehiclesById.get(trip.vehicleId) || 'N/A',
               customerName: partiesById.get(trip.partyId) || 'N/A',
               finalDestination,
-              netAmount: netPay, // This is the customer payable amount
+              netAmount: netPay,
           }
       });
   }, [trips, vehiclesById, partiesById]);
@@ -161,8 +185,25 @@ export default function TripSheetsPage() {
         filtered = filtered.filter(trip =>
             (trip.vehicleName || '').toLowerCase().includes(lowercasedQuery) ||
             (trip.customerName || '').toLowerCase().includes(lowercasedQuery) ||
-            (trip.finalDestination || '').toLowerCase().includes(lowercasedQuery)
+            (trip.finalDestination || '').toLowerCase().includes(lowercasedQuery) ||
+            (trip.tripNumber || '').toLowerCase().includes(lowercasedQuery)
         );
+    }
+
+    if (dateRange?.from) {
+        const interval = { 
+            start: startOfDay(dateRange.from), 
+            end: endOfDay(dateRange.to || dateRange.from) 
+        };
+        filtered = filtered.filter(trip => isWithinInterval(new Date(trip.date), interval));
+    }
+
+    if (filterVehicleId !== 'All') {
+        filtered = filtered.filter(trip => trip.vehicleId === filterVehicleId);
+    }
+
+    if (filterPartyId !== 'All') {
+        filtered = filtered.filter(trip => trip.partyId === filterPartyId);
     }
     
     filtered.sort((a, b) => {
@@ -175,14 +216,69 @@ export default function TripSheetsPage() {
     });
     
     return filtered;
-  }, [augmentedTrips, sortConfig, searchQuery]);
+  }, [augmentedTrips, sortConfig, searchQuery, dateRange, filterVehicleId, filterPartyId]);
 
+  const handleExportExcel = async () => {
+    try {
+        const XLSX = await import('xlsx');
+        const data = filteredAndSortedTrips.map(trip => ({
+            'Date (BS)': toNepaliDate(trip.date),
+            'Date (AD)': format(new Date(trip.date), 'yyyy-MM-dd'),
+            'Trip #': trip.tripNumber,
+            'Vehicle': trip.vehicleName,
+            'Customer': trip.customerName,
+            'Destination': trip.finalDestination,
+            'Net Bank Pay (NPR)': trip.netAmount.toFixed(2),
+            'Posted By': trip.lastModifiedBy || trip.createdBy
+        }));
+
+        const worksheet = XLSX.utils.json_to_sheet(data);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Sales Trips");
+        XLSX.writeFile(workbook, `Sales_Trips_Export_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+        toast({ title: 'Export Successful', description: 'Sales trip data exported to Excel.' });
+    } catch (error) {
+        toast({ title: 'Export Failed', description: 'Could not export to Excel.', variant: 'destructive' });
+    }
+  };
+
+  const handleExportPdf = () => {
+    try {
+        const doc = new jsPDF();
+        doc.text("Sales - Trip Sheets Report", 14, 15);
+        doc.setFontSize(10);
+        doc.text(`Generated on: ${format(new Date(), 'PPP')}`, 14, 22);
+
+        const tableData = filteredAndSortedTrips.map(trip => [
+            toNepaliDate(trip.date),
+            trip.tripNumber,
+            trip.vehicleName,
+            trip.customerName,
+            trip.finalDestination,
+            trip.netAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })
+        ]);
+
+        autoTable(doc, {
+            startY: 30,
+            head: [['Date (BS)', 'Trip #', 'Vehicle', 'Customer', 'Destination', 'Net Pay (NPR)']],
+            body: tableData,
+            theme: 'grid',
+            headStyles: { fillColor: [71, 85, 105] }
+        });
+
+        doc.save(`Sales_Trips_Report_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+        toast({ title: 'Export Successful', description: 'Sales trip report saved as PDF.' });
+    } catch (error) {
+        toast({ title: 'Export Failed', description: 'Could not generate PDF.', variant: 'destructive' });
+    }
+  };
 
   const renderContent = () => {
     if (isLoading) {
       return (
         <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
-          <h3 className="text-2xl font-bold tracking-tight">Loading...</h3>
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <h3 className="ml-2 text-xl font-bold tracking-tight">Loading...</h3>
         </div>
       );
     }
@@ -206,36 +302,37 @@ export default function TripSheetsPage() {
       }
 
     return (
-        <Card>
+        <Card className="border shadow-sm">
             <Table>
-            <TableHeader><TableRow>
-                <TableHead><Button variant="ghost" onClick={() => requestSort('date')}>Date</Button></TableHead>
-                <TableHead><Button variant="ghost" onClick={() => requestSort('vehicleName')}>Vehicle</Button></TableHead>
-                <TableHead><Button variant="ghost" onClick={() => requestSort('customerName')}>Customer</Button></TableHead>
-                <TableHead><Button variant="ghost" onClick={() => requestSort('finalDestination')}>Destination</Button></TableHead>
-                <TableHead><Button variant="ghost" onClick={() => requestSort('netAmount')}>Net Bank Pay</Button></TableHead>
-                <TableHead><Button variant="ghost" onClick={() => requestSort('authorship')}>Authorship</Button></TableHead>
+            <TableHeader className="bg-muted/50">
+                <TableRow>
+                <TableHead><Button variant="ghost" onClick={() => requestSort('date')} className="-ml-4">Date <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                <TableHead><Button variant="ghost" onClick={() => requestSort('vehicleName')} className="-ml-4">Vehicle <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                <TableHead><Button variant="ghost" onClick={() => requestSort('customerName')} className="-ml-4">Customer <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                <TableHead><Button variant="ghost" onClick={() => requestSort('finalDestination')} className="-ml-4">Destination <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                <TableHead><Button variant="ghost" onClick={() => requestSort('netAmount')} className="-ml-4">Net Bank Pay <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                <TableHead><Button variant="ghost" onClick={() => requestSort('authorship')} className="-ml-4">Authorship <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
                 <TableHead className="text-right">Actions</TableHead>
             </TableRow></TableHeader>
             <TableBody>
                 {filteredAndSortedTrips.map(trip => (
-                <TableRow key={trip.id}>
-                    <TableCell className="font-medium">{toNepaliDate(trip.date)}</TableCell>
-                    <TableCell>{trip.vehicleName}</TableCell>
-                    <TableCell>{trip.customerName}</TableCell>
-                    <TableCell>{trip.finalDestination}</TableCell>
+                <TableRow key={trip.id} className="hover:bg-muted/30">
+                    <TableCell className="font-medium text-xs whitespace-nowrap">{toNepaliDate(trip.date)}</TableCell>
+                    <TableCell className="font-semibold text-xs">{trip.vehicleName}</TableCell>
+                    <TableCell className="text-xs">{trip.customerName}</TableCell>
+                    <TableCell className="text-xs uppercase text-muted-foreground">{trip.finalDestination}</TableCell>
                     <TableCell>
-                        <Button variant="link" className="p-0 h-auto" onClick={() => openCalcDialog(trip)}>
-                            {trip.netAmount.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })}
+                        <Button variant="link" className="p-0 h-auto font-bold text-xs" onClick={() => openCalcDialog(trip)}>
+                            Rs. {trip.netAmount.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })}
                         </Button>
                     </TableCell>
                     <TableCell>
-                        <TooltipProvider><Tooltip><TooltipTrigger className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-default">
-                            {trip.lastModifiedBy ? <Edit className="h-4 w-4" /> : <User className="h-4 w-4" />}
+                        <TooltipProvider><Tooltip><TooltipTrigger className="flex items-center gap-1.5 text-[10px] text-muted-foreground cursor-default uppercase font-bold">
+                            {trip.lastModifiedBy ? <Edit className="h-3 w-3" /> : <User className="h-3 w-3" />}
                             <span>{trip.lastModifiedBy || trip.createdBy}</span>
                         </TooltipTrigger><TooltipContent>
-                            <p>Created by: {trip.createdBy}{trip.createdAt ? ` on ${format(new Date(trip.createdAt), "PP")}` : ''}</p>
-                            {trip.lastModifiedBy && trip.lastModifiedAt && (<p>Modified by: {trip.lastModifiedBy}{trip.lastModifiedAt ? ` on ${format(new Date(trip.lastModifiedAt), "PP")}` : ''}</p>)}
+                            <p className="text-xs">Created by: {trip.createdBy}{trip.createdAt ? ` on ${format(new Date(trip.createdAt), "PP")}` : ''}</p>
+                            {trip.lastModifiedBy && trip.lastModifiedAt && (<p className="text-xs">Modified by: {trip.lastModifiedBy}{trip.lastModifiedAt ? ` on ${format(new Date(trip.lastModifiedAt), "PP")}` : ''}</p>)}
                         </TooltipContent></Tooltip></TooltipProvider>
                     </TableCell>
                     <TableCell className="text-right"><DropdownMenu>
@@ -243,6 +340,7 @@ export default function TripSheetsPage() {
                         <DropdownMenuContent align="end">
                         {hasPermission('fleet', 'view') && (<DropdownMenuItem onSelect={() => router.push(`/fleet/trip-sheets/${trip.id}`)}><View className="mr-2 h-4 w-4" /> View</DropdownMenuItem>)}
                         {hasPermission('fleet', 'edit') && (<DropdownMenuItem onClick={() => router.push(`/fleet/trip-sheets/edit?id=${trip.id}`)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>)}
+                        <DropdownMenuItem onSelect={() => window.open(`/fleet/trip-sheets/view?id=${trip.id}`, '_blank')}><Printer className="mr-2 h-4 w-4" /> Print</DropdownMenuItem>
                         {hasPermission('fleet', 'delete') && <DropdownMenuSeparator />}
                         {hasPermission('fleet', 'delete') && (
                             <AlertDialog>
@@ -255,7 +353,7 @@ export default function TripSheetsPage() {
                                 <AlertDialogContent>
                                     <AlertDialogHeader>
                                         <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                        <AlertDialogDescription>This action cannot be undone. This will permanently delete the trip sheet.</AlertDialogDescription>
+                                        <AlertDialogDescription>This action cannot be undone. This will permanently delete the trip sheet and associated transactions.</AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
                                         <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -277,7 +375,7 @@ export default function TripSheetsPage() {
   return (
     <>
     <div className="flex flex-col gap-8">
-      <header className="flex items-center justify-between">
+      <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
             <h1 className="text-3xl font-bold tracking-tight">Sales - Trip Sheets</h1>
             <p className="text-muted-foreground">Manage sales trips and track their profitability.</p>
@@ -292,6 +390,54 @@ export default function TripSheetsPage() {
             )}
         </div>
       </header>
+
+      <div className="flex flex-col md:flex-row gap-4 items-end bg-muted/20 p-4 rounded-lg border border-dashed">
+            <div className="space-y-1.5 w-full md:w-[250px]">
+                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Date Range</Label>
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button variant="outline" className={cn("w-full justify-start text-left font-normal bg-white", !dateRange && "text-muted-foreground")}>
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {dateRange?.from ? (dateRange.to ? (`${format(dateRange.from, "LLL dd, y")} - ${format(dateRange.to, "LLL dd, y")}`) : format(dateRange.from, "LLL dd, y")) : (<span>Pick a date range</span>)}
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                        <DualDateRangePicker selected={dateRange} onSelect={setDateRange} />
+                    </PopoverContent>
+                </Popover>
+            </div>
+            <div className="space-y-1.5 w-full md:w-[180px]">
+                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Vehicle</Label>
+                <Select value={filterVehicleId} onValueChange={setFilterVehicleId}>
+                    <SelectTrigger className="bg-white"><SelectValue placeholder="All Vehicles" /></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="All">All Vehicles</SelectItem>
+                        {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
+                    </SelectContent>
+                </Select>
+            </div>
+            <div className="space-y-1.5 w-full md:w-[220px]">
+                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Customer</Label>
+                <Select value={filterPartyId} onValueChange={setFilterPartyId}>
+                    <SelectTrigger className="bg-white"><SelectValue placeholder="All Customers" /></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="All">All Customers</SelectItem>
+                        {parties.filter(p => p.type === 'Customer' || p.type === 'Both').map(p => (
+                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+            <div className="flex gap-2 w-full md:w-auto ml-auto">
+                <Button variant="outline" size="sm" onClick={handleExportExcel} className="flex-1 md:flex-none">
+                    <FileSpreadsheet className="mr-2 h-4 w-4 text-emerald-600" /> Export Excel
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleExportPdf} className="flex-1 md:flex-none">
+                    <FileText className="mr-2 h-4 w-4 text-red-600" /> Export PDF
+                </Button>
+            </div>
+      </div>
+
       {renderContent()}
     </div>
      <Dialog open={isCalcDialogOpen} onOpenChange={setIsCalcDialogOpen}>
