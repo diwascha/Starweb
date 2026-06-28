@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -23,6 +24,7 @@ import type { DateRange } from 'react-day-picker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
 
 type SortKey = 'date' | 'vehicleName' | 'partyName' | 'amount' | 'authorship' | 'category';
 type SortDirection = 'asc' | 'desc';
@@ -72,7 +74,6 @@ export default function PurchaseLogsPage() {
 
     const vehiclesById = useMemo(() => new Map(vehicles.map(v => [v.id, v.name])), [vehicles]);
     const partiesById = useMemo(() => new Map(parties.map(p => [p.id, p.name])), [parties]);
-    const suppliers = useMemo(() => parties.filter(p => p.type === 'Vendor' || p.type === 'Both'), [parties]);
 
     const filteredAndSortedPurchases = useMemo(() => {
         let filtered = transactions.filter(t => t.type === 'Purchase');
@@ -217,9 +218,3 @@ export default function PurchaseLogsPage() {
         </div>
     );
 }
-
-function useToast() {
-  const { toast } = useToastHook();
-  return { toast };
-}
-import { useToast as useToastHook } from '@/hooks/use-toast';
