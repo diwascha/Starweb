@@ -70,8 +70,18 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
   const { user } = useAuth();
   const [billingSearch, setBillingSearch] = React.useState('');
   
-  const cashAndBankAccounts = React.useMemo(() => accounts.filter(a => a.type === 'Cash' || a.type === 'Bank'), [accounts]);
-  const generalLedgers = parties;
+  // Filter for Sijan related accounts only
+  const cashAndBankAccounts = React.useMemo(() => 
+    accounts.filter(a => 
+      (a.type === 'Cash' || a.type === 'Bank') && 
+      (a.ownership === 'Sijan' || a.ownership === 'Both')
+    ), [accounts]);
+
+  // Filter for Sijan related ledgers (parties) only
+  const generalLedgers = React.useMemo(() => 
+    parties.filter(p => 
+        p.ownership === 'Sijan' || p.ownership === 'Both'
+    ), [parties]);
 
   const form = useForm<VoucherFormValues>({
     resolver: zodResolver(voucherSchema),
@@ -211,7 +221,7 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
               )}/>
               
               {watchedBillingType === 'Bank' && (
-                <>
+                <React.Fragment>
                   <FormField 
                     control={form.control} 
                     name="accountId" 
@@ -294,7 +304,7 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
                       </FormItem>
                     )}
                   />
-                </>
+                </React.Fragment>
               )}
             </div>
           </CardContent>
