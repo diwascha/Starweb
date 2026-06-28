@@ -136,17 +136,21 @@ export default function TripSheetsPage() {
     return Array.from(years).sort((a, b) => b - a);
   }, [trips]);
 
-  // Set default year on load if not set
+  // Set default year and month on load if not set
   useEffect(() => {
-    if (availableYears.length > 0 && selectedBsYear === 'All') {
-        const currentYear = new NepaliDate().getYear();
+    if (availableYears.length > 0 && selectedBsYear === 'All' && selectedBsMonth === 'All') {
+        const currentNepaliDate = new NepaliDate();
+        const currentYear = currentNepaliDate.getYear();
+        const currentMonth = currentNepaliDate.getMonth();
+
         if (availableYears.includes(currentYear)) {
             setSelectedBsYear(String(currentYear));
         } else {
             setSelectedBsYear(String(availableYears[0]));
         }
+        setSelectedBsMonth(String(currentMonth));
     }
-  }, [availableYears, selectedBsYear]);
+  }, [availableYears, selectedBsYear, selectedBsMonth]);
   
   const handleDeleteTrip = async (id: string) => {
     try {
@@ -320,20 +324,22 @@ export default function TripSheetsPage() {
   const handleClearFilters = () => {
     setSearchQuery('');
     setDateRange(undefined);
-    setSelectedBsYear('All');
-    setSelectedBsMonth('All');
+    const currentNepaliDate = new NepaliDate();
+    setSelectedBsYear(String(currentNepaliDate.getYear()));
+    setSelectedBsMonth(String(currentNepaliDate.getMonth()));
     setFilterVehicleId('All');
     setFilterPartyId('All');
   };
 
   const isFiltered = useMemo(() => {
-    const currentYear = new NepaliDate().getYear();
-    // Only show "Clear All Filters" if the user has narrowed down results 
-    // beyond the default organizational filter (which is the current year).
+    const currentNepaliDate = new NepaliDate();
+    const currentYear = currentNepaliDate.getYear();
+    const currentMonth = currentNepaliDate.getMonth();
+
     return searchQuery !== '' || 
            !!dateRange || 
            (selectedBsYear !== String(currentYear) && selectedBsYear !== 'All') || 
-           selectedBsMonth !== 'All' || 
+           (selectedBsMonth !== String(currentMonth) && selectedBsMonth !== 'All') || 
            filterVehicleId !== 'All' || 
            filterPartyId !== 'All';
   }, [searchQuery, dateRange, selectedBsYear, selectedBsMonth, filterVehicleId, filterPartyId]);
@@ -392,43 +398,68 @@ export default function TripSheetsPage() {
                         </Button>
                     </TableCell>
                     <TableCell>
-                        <TooltipProvider><Tooltip><TooltipTrigger className="flex items-center gap-1.5 text-[10px] text-muted-foreground cursor-default uppercase font-bold">
-                            {trip.lastModifiedBy ? <Edit className="h-3 w-3" /> : <User className="h-3 w-3" />}
-                            <span>{trip.lastModifiedBy || trip.createdBy}</span>
-                        </TooltipTrigger><TooltipContent>
-                            <p className="text-xs">Created by: {trip.createdBy}{trip.createdAt ? ` on ${format(new Date(trip.createdAt), "PP")}` : ''}</p>
-                            {trip.lastModifiedBy && trip.lastModifiedAt && (<p className="text-xs">Modified by: {trip.lastModifiedBy}{trip.lastModifiedAt ? ` on ${format(new Date(trip.lastModifiedAt), "PP")}` : ''}</p>)}
-                        </TooltipContent></Tooltip></TooltipProvider>
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger className="flex items-center gap-1.5 text-[10px] text-muted-foreground cursor-default uppercase font-bold">
+                                    {trip.lastModifiedBy ? <Edit className="h-3 w-3" /> : <User className="h-3 w-3" />}
+                                    <span>{trip.lastModifiedBy || trip.createdBy}</span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p className="text-xs">Created by: {trip.createdBy}{trip.createdAt ? ` on ${format(new Date(trip.createdAt), "PP")}` : ''}</p>
+                                    {trip.lastModifiedBy && trip.lastModifiedAt && (
+                                        <p className="text-xs">Modified by: {trip.lastModifiedBy}{trip.lastModifiedAt ? ` on ${format(new Date(trip.lastModifiedAt), "PP")}` : ''}</p>
+                                    )}
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
                     </TableCell>
-                    <TableCell className="text-right"><DropdownMenu>
-                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="ml-2 h-4 w-4" /></Button></DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                        {hasPermission('fleet', 'view') && (<DropdownMenuItem onSelect={() => router.push(`/fleet/trip-sheets/${trip.id}`)}><View className="mr-2 h-4 w-4" /> View</DropdownMenuItem>)}
-                        {hasPermission('fleet', 'edit') && (<DropdownMenuItem onClick={() => router.push(`/fleet/trip-sheets/edit?id=${trip.id}`)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>)}
-                        <DropdownMenuItem onSelect={() => window.open(`/fleet/trip-sheets/view?id=${trip.id}`, '_blank')}><Printer className="mr-2 h-4 w-4" /> Print</DropdownMenuItem>
-                        {hasPermission('fleet', 'delete') && <DropdownMenuSeparator />}
-                        {hasPermission('fleet', 'delete') && (
-                            <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <DropdownMenuItem onSelect={e => e.preventDefault()}>
-                                        <Trash2 className="mr-2 h-4 w-4 text-destructive" />
-                                        <span className="text-destructive">Delete</span>
+                    <TableCell className="text-right">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                    <MoreHorizontal className="ml-2 h-4 w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                {hasPermission('fleet', 'view') && (
+                                    <DropdownMenuItem onSelect={() => router.push(`/fleet/trip-sheets/${trip.id}`)}>
+                                        <View className="mr-2 h-4 w-4" /> View
                                     </DropdownMenuItem>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                        <AlertDialogDescription>This action cannot be undone. This will permanently delete the trip sheet and associated transactions.</AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => handleDeleteTrip(trip.id)}>Delete</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                        )}
-                        </DropdownMenuContent>
-                    </DropdownMenu></TableCell>
+                                )}
+                                {hasPermission('fleet', 'edit') && (
+                                    <DropdownMenuItem onClick={() => router.push(`/fleet/trip-sheets/edit?id=${trip.id}`)}>
+                                        <Edit className="mr-2 h-4 w-4" /> Edit
+                                    </DropdownMenuItem>
+                                )}
+                                <DropdownMenuItem onSelect={() => window.open(`/fleet/trip-sheets/view?id=${trip.id}`, '_blank')}>
+                                    <Printer className="mr-2 h-4 w-4" /> Print
+                                </DropdownMenuItem>
+                                {hasPermission('fleet', 'delete') && <DropdownMenuSeparator />}
+                                {hasPermission('fleet', 'delete') && (
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                                                <Trash2 className="mr-2 h-4 w-4 text-destructive" />
+                                                <span className="text-destructive">Delete</span>
+                                            </DropdownMenuItem>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    This action cannot be undone. This will permanently delete the trip sheet and associated transactions.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => handleDeleteTrip(trip.id)}>Delete</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                )}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </TableCell>
                 </TableRow>
                 ))}
             </TableBody>
@@ -458,7 +489,11 @@ export default function TripSheetsPage() {
                 <Input type="search" placeholder="Search trips..." className="pl-8 sm:w-[300px]" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
             </div>
             {hasPermission('fleet', 'create') && (
-                <Button asChild><Link href="/fleet/trip-sheets/new"><PlusCircle className="mr-2 h-4 w-4" /> New Sales - Trip Sheet</Link></Button>
+                <Button asChild>
+                    <Link href="/fleet/trip-sheets/new">
+                        <PlusCircle className="mr-2 h-4 w-4" /> New Sales - Trip Sheet
+                    </Link>
+                </Button>
             )}
         </div>
       </header>
@@ -468,7 +503,9 @@ export default function TripSheetsPage() {
                 <div className="space-y-1.5">
                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Year (BS)</Label>
                     <Select value={selectedBsYear} onValueChange={setSelectedBsYear}>
-                        <SelectTrigger className="w-[120px] bg-white"><SelectValue placeholder="All Years" /></SelectTrigger>
+                        <SelectTrigger className="w-[120px] bg-white">
+                            <SelectValue placeholder="All Years" />
+                        </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="All">All Years</SelectItem>
                             {availableYears.map(year => <SelectItem key={year} value={String(year)}>{year}</SelectItem>)}
@@ -478,7 +515,9 @@ export default function TripSheetsPage() {
                 <div className="space-y-1.5">
                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Month (BS)</Label>
                     <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth}>
-                        <SelectTrigger className="w-[150px] bg-white"><SelectValue placeholder="All Months" /></SelectTrigger>
+                        <SelectTrigger className="w-[150px] bg-white">
+                            <SelectValue placeholder="All Months" />
+                        </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="All">All Months</SelectItem>
                             {NEPALI_MONTHS.map(month => <SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>)}
@@ -502,7 +541,9 @@ export default function TripSheetsPage() {
                 <div className="space-y-1.5 w-full md:w-[180px]">
                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Vehicle</Label>
                     <Select value={filterVehicleId} onValueChange={setFilterVehicleId}>
-                        <SelectTrigger className="bg-white"><SelectValue placeholder="All Vehicles" /></SelectTrigger>
+                        <SelectTrigger className="bg-white">
+                            <SelectValue placeholder="All Vehicles" />
+                        </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="All">All Vehicles</SelectItem>
                             {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
@@ -512,7 +553,9 @@ export default function TripSheetsPage() {
                 <div className="space-y-1.5 w-full md:w-[220px]">
                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Customer</Label>
                     <Select value={filterPartyId} onValueChange={setFilterPartyId}>
-                        <SelectTrigger className="bg-white"><SelectValue placeholder="All Customers" /></SelectTrigger>
+                        <SelectTrigger className="bg-white">
+                            <SelectValue placeholder="All Customers" />
+                        </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="All">All Customers</SelectItem>
                             {parties.filter(p => p.type === 'Customer' || p.type === 'Both').map(p => (
