@@ -13,6 +13,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Destinati
     return {
         id: snapshot.id,
         name: data.name,
+        standardAdvanceAmount: data.standardAdvanceAmount || 0,
         createdBy: data.createdBy,
         createdAt: data.createdAt,
         lastModifiedBy: data.lastModifiedBy,
