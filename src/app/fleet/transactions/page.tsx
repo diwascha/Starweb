@@ -428,7 +428,7 @@ export default function FinancialHistoryPage() {
                                     <TableHead><Button variant="ghost" onClick={() => requestSort('date')} className="-ml-4">Date <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
                                     <TableHead><Button variant="ghost" onClick={() => requestSort('vehicleName')} className="-ml-4">Vehicle <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
                                     <TableHead><Button variant="ghost" onClick={() => requestSort('type')} className="-ml-4">Type <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
-                                    <TableHead><Button variant="ghost" onClick={() => requestSort('category')} className="-ml-4">Category / Reference <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                                    <TableHead><Button variant="ghost" onClick={() => requestSort('category')} className="-ml-4 font-bold text-primary">Category / Reference <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
                                     <TableHead><Button variant="ghost" onClick={() => requestSort('partyName')} className="-ml-4">Ledger (A/C) <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
                                     <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('amount')} className="-ml-4 w-full text-right">Amount <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
@@ -448,8 +448,18 @@ export default function FinancialHistoryPage() {
                                             )}>{txn.type}</Badge>
                                         </TableCell>
                                         <TableCell>
-                                            <div className="flex flex-col">
-                                                <span className="text-[10px] text-muted-foreground uppercase font-bold">{txn.category || 'N/A'}</span>
+                                            <div className="flex flex-col gap-1">
+                                                <Badge variant="outline" className={cn(
+                                                    "text-[9px] uppercase font-bold w-fit",
+                                                    txn.category === 'Fuel' && "border-blue-200 bg-blue-50 text-blue-700",
+                                                    txn.category === 'Maintenance' && "border-amber-200 bg-amber-50 text-amber-700",
+                                                    txn.category === 'Advance' && "border-emerald-200 bg-emerald-50 text-emerald-700",
+                                                    txn.category === 'Loan Repayment' && "border-orange-200 bg-orange-50 text-orange-700",
+                                                    txn.category === 'Membership Renewal' && "border-purple-200 bg-purple-50 text-purple-700",
+                                                    !txn.category && "border-slate-200 bg-slate-50 text-slate-700"
+                                                )}>
+                                                    {txn.category || 'Other'}
+                                                </Badge>
                                                 {txn.sourceRef && (
                                                     <span className="text-[9px] text-blue-600 flex items-center gap-1">
                                                         <LinkIcon className="h-2 w-2" />

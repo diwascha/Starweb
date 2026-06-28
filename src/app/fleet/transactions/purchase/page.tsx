@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Transaction, Vehicle, Party } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Search, ArrowUpDown, MoreHorizontal, View, Edit, Trash2, User, Download, CalendarIcon, X, FileSpreadsheet, FileText, Loader2 } from 'lucide-react';
+import { PlusCircle, Search, ArrowUpDown, MoreHorizontal, View, Edit, Trash2, User, Download, CalendarIcon, X, FileSpreadsheet, FileText, Loader2, Eye } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
@@ -330,7 +330,7 @@ export default function PurchaseLogsPage() {
                         <TableRow>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('date')} className="-ml-4">Date <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('vehicleName')} className="-ml-4">Vehicle <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('category')} className="-ml-4">Category <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('category')} className="-ml-4 font-bold text-primary">Category <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('partyName')} className="-ml-4">Supplier <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('amount')} className="-ml-4">Amount <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
                             <TableHead>Author</TableHead>
@@ -344,7 +344,19 @@ export default function PurchaseLogsPage() {
                             <TableRow key={txn.id} className="hover:bg-muted/30">
                                 <TableCell className="font-medium text-xs whitespace-nowrap">{toNepaliDate(txn.date)}</TableCell>
                                 <TableCell className="font-semibold text-xs">{vehiclesById.get(txn.vehicleId) || 'N/A'}</TableCell>
-                                <TableCell><Badge variant="secondary" className="text-[10px]">{txn.category || 'N/A'}</Badge></TableCell>
+                                <TableCell>
+                                    <Badge variant="outline" className={cn(
+                                        "text-[9px] uppercase font-bold",
+                                        txn.category === 'Fuel' && "border-blue-200 bg-blue-50 text-blue-700",
+                                        txn.category === 'Maintenance' && "border-amber-200 bg-amber-50 text-amber-700",
+                                        txn.category === 'Advance' && "border-emerald-200 bg-emerald-50 text-emerald-700",
+                                        txn.category === 'Loan Repayment' && "border-orange-200 bg-orange-50 text-orange-700",
+                                        txn.category === 'Membership Renewal' && "border-purple-200 bg-purple-50 text-purple-700",
+                                        !txn.category && "border-slate-200 bg-slate-50 text-slate-700"
+                                    )}>
+                                        {txn.category || 'Other'}
+                                    </Badge>
+                                </TableCell>
                                 <TableCell className="text-xs">{partiesById.get(txn.partyId!) || 'N/A'}</TableCell>
                                 <TableCell className="text-red-600 font-mono font-bold text-xs">-{txn.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                 <TableCell>
@@ -354,7 +366,7 @@ export default function PurchaseLogsPage() {
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
-                                            <DropdownMenuItem onSelect={() => router.push(`/fleet/transactions/purchase/view?id=${txn.id}`)}><View className="mr-2 h-4 w-4" /> View Details</DropdownMenuItem>
+                                            <DropdownMenuItem onSelect={() => router.push(`/fleet/transactions/purchase/view?id=${txn.id}`)}><Eye className="mr-2 h-4 w-4" /> View Details</DropdownMenuItem>
                                             <DropdownMenuItem onSelect={() => router.push(`/fleet/transactions/purchase/edit?id=${txn.id}`)}><Edit className="mr-2 h-4 w-4" /> Edit Record</DropdownMenuItem>
                                             <DropdownMenuSeparator />
                                             <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem></AlertDialogTrigger>
