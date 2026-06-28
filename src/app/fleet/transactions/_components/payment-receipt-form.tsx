@@ -8,10 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { Account, Party, Vehicle, Transaction, AccountOwnership } from '@/lib/types';
+import type { Account, Party, Vehicle, Transaction, AccountOwnership, PartyType } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, ChevronsUpDown, Check, Plus, Trash2 } from 'lucide-react';
+import { CalendarIcon, ChevronsUpDown, Check, Plus, Trash2, PlusCircle } from 'lucide-react';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { format } from 'date-fns';
 import { cn, toNepaliDate } from '@/lib/utils';
@@ -21,6 +21,8 @@ import { useAuth } from '@/hooks/use-auth';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { addParty } from '@/services/party-service';
 
 const voucherItemSchema = z.object({
   ledgerId: z.string().min(1, "General Ledger is required."),
@@ -70,6 +72,11 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
   const { user } = useAuth();
   const [billingSearch, setBillingSearch] = React.useState('');
   
+  // Quick Add Party State
+  const [isPartyDialogOpen, setIsPartyDialogOpen] = React.useState(false);
+  const [partyForm, setPartyForm] = React.useState<{name: string, type: PartyType, ownership: AccountOwnership, address: string}>({ name: '', type: 'Vendor', ownership: 'Sijan', address: '' });
+  const [currentRowIndex, setCurrentRowIndex] = React.useState<number | null>(null);
+
   // Filter for Sijan related accounts only
   const cashAndBankAccounts = React.useMemo(() => 
     accounts.filter(a => 
@@ -141,7 +148,24 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
     onFormSubmit(values);
   };
   
+  const handleQuickAddParty = async () => {
+    if (!user || !partyForm.name || !partyForm.ownership) return;
+    try {
+        const id = await addParty({ ...partyForm, createdBy: user.username });
+        if (currentRowIndex !== null) {
+            form.setValue(`items.${currentRowIndex}.ledgerId`, id);
+        }
+        setIsPartyDialogOpen(false);
+        setPartyForm({ name: '', type: 'Vendor', ownership: 'Sijan', address: '' });
+        setCurrentRowIndex(null);
+        toast({ title: 'Party Added' });
+    } catch {
+        toast({ title: 'Error adding party', variant: 'destructive' });
+    }
+  };
+  
   return (
+    <>
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
         <Card className="bg-blue-50 border-blue-200 p-6 shadow-sm">
@@ -332,18 +356,27 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
                     </TableCell>
                     <TableCell>
                     <FormField control={form.control} name={`items.${index}.ledgerId`} render={({ field }) => (
+                        <div className="flex gap-2">
                         <Popover><PopoverTrigger asChild><FormControl>
                             <Button variant="outline" role="combobox" className="w-full justify-between h-9 font-normal">
                                 {field.value ? generalLedgers.find(p => p.id === field.value)?.name : "Select ledger..."}<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                             </Button>
                         </FormControl></PopoverTrigger><PopoverContent className="p-0 w-[--radix-popover-trigger-width]"><Command>
                             <CommandInput placeholder="Search ledger..." />
-                            <CommandList><CommandEmpty>No ledger found.</CommandEmpty><CommandGroup>
+                            <CommandList>
+                                <CommandEmpty>
+                                    <Button variant="ghost" className="w-full justify-start text-xs" onClick={() => { setCurrentRowIndex(index); setIsPartyDialogOpen(true); }}>
+                                        <PlusCircle className="mr-2 h-4 w-4" /> Add New Party
+                                    </Button>
+                                </CommandEmpty>
+                                <CommandGroup>
                                 {generalLedgers.map(party => <CommandItem key={party.id} value={`${party.name} ${party.ownership} ${party.id}`} onSelect={() => field.onChange(party.id)}>
                                     <Check className={cn("mr-2 h-4 w-4", field.value === party.id ? "opacity-100" : "opacity-0")} />{party.name}
                                 </CommandItem>)}
                             </CommandGroup></CommandList>
                         </Command></PopoverContent></Popover>
+                        <Button type="button" size="icon" variant="outline" className="h-9 w-9 shrink-0" onClick={() => { setCurrentRowIndex(index); setIsPartyDialogOpen(true); }}><Plus className="h-4 w-4"/></Button>
+                        </div>
                     )}/>
                     </TableCell>
                     <TableCell>
@@ -428,5 +461,50 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
         </div>
       </form>
     </Form>
+
+    <Dialog open={isPartyDialogOpen} onOpenChange={setIsPartyDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+            <DialogHeader><DialogTitle>Quick Add Party</DialogTitle></DialogHeader>
+            <div className="grid gap-4 py-4">
+                <div className="space-y-2">
+                    <Label>Party Name</Label>
+                    <Input value={partyForm.name} onChange={e => setPartyForm({...partyForm, name: e.target.value})} />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label>Category</Label>
+                        <Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm({...partyForm, type: v})}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Vendor">Vendor</SelectItem>
+                                <SelectItem value="Customer">Customer</SelectItem>
+                                <SelectItem value="Both">Both</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Ownership</Label>
+                        <Select value={partyForm.ownership} onValueChange={(v: AccountOwnership) => setPartyForm({...partyForm, ownership: v})}>
+                            <SelectTrigger><SelectValue/></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Sijan">Sijan Dhuwani</SelectItem>
+                                <SelectItem value="Shivam">Shivam Packaging</SelectItem>
+                                <SelectItem value="Both">Both</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+                <div className="space-y-2">
+                    <Label>Address</Label>
+                    <Input value={partyForm.address} onChange={e => setPartyForm({...partyForm, address: e.target.value})} />
+                </div>
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setIsPartyDialogOpen(false)}>Cancel</Button>
+                <Button onClick={handleQuickAddParty}>Add Party</Button>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
+    </>
   );
 }

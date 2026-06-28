@@ -80,7 +80,12 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
     const [isSubmitting, setIsSubmitting] = useState(false);
     
     const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
-    const [partyForm, setPartyForm] = useState({ name: '', type: 'Vendor' as PartyType, address: '' });
+    const [partyForm, setPartyForm] = useState<{name: string, type: PartyType, ownership: AccountOwnership, address: string}>({ 
+        name: '', 
+        type: 'Vendor', 
+        ownership: 'Sijan', 
+        address: '' 
+    });
 
     const form = useForm<z.infer<typeof expenseSchema>>({
         resolver: zodResolver(expenseSchema),
@@ -141,12 +146,12 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
     };
 
     const handleQuickAddParty = async () => {
-        if (!user || !partyForm.name) return;
+        if (!user || !partyForm.name || !partyForm.ownership) return;
         try {
-            const id = await addParty({ ...partyForm, ownership: 'Sijan', createdBy: user.username });
+            const id = await addParty({ ...partyForm, createdBy: user.username });
             form.setValue('partyId', id);
             setIsPartyDialogOpen(false);
-            setPartyForm({ name: '', type: 'Vendor', address: '' });
+            setPartyForm({ name: '', type: 'Vendor', ownership: 'Sijan', address: '' });
             toast({ title: 'Party Added' });
         } catch {
             toast({ title: 'Error adding party', variant: 'destructive' });
@@ -372,16 +377,29 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
                             <Label>Supplier Name</Label>
                             <Input value={partyForm.name} onChange={e => setPartyForm({...partyForm, name: e.target.value})} />
                         </div>
-                        <div className="space-y-2">
-                            <Label>Category</Label>
-                            <Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm({...partyForm, type: v})}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Vendor">Service Provider / Vendor</SelectItem>
-                                    <SelectItem value="Customer">Client / RT Customer</SelectItem>
-                                    <SelectItem value="Both">Both</SelectItem>
-                                </SelectContent>
-                            </Select>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Category</Label>
+                                <Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm({...partyForm, type: v})}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Vendor">Service Provider / Vendor</SelectItem>
+                                        <SelectItem value="Customer">Client / RT Customer</SelectItem>
+                                        <SelectItem value="Both">Both</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Ownership</Label>
+                                <Select value={partyForm.ownership} onValueChange={(v: AccountOwnership) => setPartyForm({...partyForm, ownership: v})}>
+                                    <SelectTrigger><SelectValue/></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Sijan">Sijan Dhuwani</SelectItem>
+                                        <SelectItem value="Shivam">Shivam Packaging</SelectItem>
+                                        <SelectItem value="Both">Both</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
                         <div className="space-y-2">
                             <Label>Address</Label>
