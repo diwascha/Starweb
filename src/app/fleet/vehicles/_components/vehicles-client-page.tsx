@@ -44,7 +44,15 @@ const vehicleStatuses: VehicleStatus[] = ['Active', 'In Maintenance', 'Decommiss
 type VehicleSortKey = 'name' | 'make' | 'model' | 'status' | 'driverName' | 'authorship';
 type SortDirection = 'asc' | 'desc';
 
-export default function VehiclesClientPage() {
+interface VehiclesClientPageProps {
+    title?: string;
+    subtitle?: string;
+}
+
+export default function VehiclesClientPage({ 
+    title = "Vehicles", 
+    subtitle = "Manage your fleet of vehicles and driver assignments." 
+}: VehiclesClientPageProps) {
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [drivers, setDrivers] = useState<Driver[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -293,8 +301,8 @@ export default function VehiclesClientPage() {
             <div className="flex flex-col gap-8">
                 <header className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold tracking-tight">Vehicles</h1>
-                        <p className="text-muted-foreground">Manage your fleet of vehicles and driver assignments.</p>
+                        <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
+                        <p className="text-muted-foreground">{subtitle}</p>
                     </div>
                     <div className="flex items-center gap-2">
                         {vehicles.length > 0 && (
@@ -303,7 +311,7 @@ export default function VehiclesClientPage() {
                                 <Input
                                     type="search"
                                     placeholder="Search vehicles..."
-                                    className="pl-8 sm:w-[300px]"
+                                    className="pl-8 sm:w-[200px]"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />

@@ -46,7 +46,15 @@ import Image from 'next/image';
 type DriverSortKey = 'name' | 'nickname' | 'licenseNumber' | 'contactNumber' | 'dateOfBirth' | 'authorship';
 type SortDirection = 'asc' | 'desc';
 
-export default function DriversClientPage() {
+interface DriversClientPageProps {
+    title?: string;
+    subtitle?: string;
+}
+
+export default function DriversClientPage({ 
+    title = "Drivers", 
+    subtitle = "Manage your driver records." 
+}: DriversClientPageProps) {
     const [drivers, setDrivers] = useState<Driver[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     
@@ -330,10 +338,10 @@ export default function DriversClientPage() {
     return (
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <div className="flex flex-col gap-8">
-                <header className="flex flex-col md:flex-row md:items-center md:justify-between">
-                    <div className="mb-4 md:mb-0">
-                        <h1 className="text-3xl font-bold tracking-tight">Drivers</h1>
-                        <p className="text-muted-foreground">Manage your driver records.</p>
+                <header className="flex items-center justify-between">
+                    <div>
+                        <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
+                        <p className="text-muted-foreground">{subtitle}</p>
                     </div>
                     <div className="flex items-center gap-2">
                         {drivers.length > 0 && (
@@ -342,7 +350,7 @@ export default function DriversClientPage() {
                                 <Input
                                     type="search"
                                     placeholder="Search drivers..."
-                                    className="pl-8 sm:w-[200px] md:w-[300px]"
+                                    className="pl-8 sm:w-[200px]"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />

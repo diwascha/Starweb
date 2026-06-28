@@ -12,6 +12,7 @@ import {
   SidebarSeparator,
   SidebarContent,
   useSidebar,
+  SidebarGroupLabel,
 } from '@/components/ui/sidebar';
 import { FileText, LayoutDashboard, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users, Calendar, Award, Wallet, Building2, PlusCircle, Truck, ShieldCheck, CreditCard, ArrowRightLeft, TrendingUp, BarChart2, Notebook, Download, Calculator, PanelLeft, PanelRight, Receipt, Briefcase } from 'lucide-react';
 import Link from 'next/link';
@@ -258,24 +259,27 @@ export function AppSidebar() {
                     </Link>
                     </SidebarMenuButton>
                 </SidebarMenuItem>
-                <div className="ml-4">
-                    <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/vehicles')}><Link href="/fleet/vehicles"><Truck /><span>Vehicles</span></Link></SidebarMenuButton></SidebarMenuItem>
-                    <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/drivers')}><Link href="/fleet/drivers"><Users /><span>Drivers</span></Link></SidebarMenuButton></SidebarMenuItem>
-                    <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/policies')}><Link href="/fleet/policies"><ShieldCheck /><span>Policies & Memberships</span></Link></SidebarMenuButton></SidebarMenuItem>
-                    <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions')}><Link href="/fleet/transactions"><CreditCard /><span>Transactions</span></Link></SidebarMenuButton></SidebarMenuItem>
-                    <div className="ml-4">
-                        <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/trip-sheets')}><Link href="/fleet/trip-sheets"><FileText /><span>Sales - Trip Sheet</span></Link></SidebarMenuButton></SidebarMenuItem>
-                        {hasPermission('fleet', 'create') && (
-                            <div className="ml-4">
-                                <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/trip-sheets/new')}><Link href="/fleet/trip-sheets/new"><TrendingUp /><span>Sales Entry</span></Link></SidebarMenuButton></SidebarMenuItem>
-                            </div>
-                        )}
-                        {hasPermission('fleet', 'create') && (
-                            <>
-                                <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/purchase/new')}><Link href="/fleet/transactions/purchase/new"><ShoppingCart /><span>Purchase</span></Link></SidebarMenuButton></SidebarMenuItem>
-                                <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/payment-receipt/new')}><Link href="/fleet/transactions/payment-receipt/new"><ArrowRightLeft /><span>Payment / Receipt</span></Link></SidebarMenuButton></SidebarMenuItem>
-                            </>
-                        )}
+                <div className="ml-4 space-y-4">
+                    <div className="space-y-1">
+                      <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/registry')}><Link href="/fleet/registry"><Truck /><span>Vehicles & Drivers</span></Link></SidebarMenuButton></SidebarMenuItem>
+                      <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/policies')}><Link href="/fleet/policies"><ShieldCheck /><span>Policies & Memberships</span></Link></SidebarMenuButton></SidebarMenuItem>
+                    </div>
+
+                    {hasPermission('fleet', 'create') && (
+                      <div className="space-y-1">
+                        <SidebarGroupLabel className="px-0 py-1 text-[10px] uppercase text-muted-foreground font-bold">Data Entry</SidebarGroupLabel>
+                        <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/trip-sheets/new')}><Link href="/fleet/trip-sheets/new"><TrendingUp /><span>Sales Entry</span></Link></SidebarMenuButton></SidebarMenuItem>
+                        <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/expenses/new')}><Link href="/fleet/transactions/expenses/new"><Wallet /><span>Daily Expense Entry</span></Link></SidebarMenuButton></SidebarMenuItem>
+                        <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/purchase/new')}><Link href="/fleet/transactions/purchase/new"><ShoppingCart /><span>Supplier Purchase Invoice</span></Link></SidebarMenuButton></SidebarMenuItem>
+                        <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/payment-receipt/new')}><Link href="/fleet/transactions/payment-receipt/new"><ArrowRightLeft /><span>Payment / Receipt</span></Link></SidebarMenuButton></SidebarMenuItem>
+                      </div>
+                    )}
+
+                    <div className="space-y-1">
+                      <SidebarGroupLabel className="px-0 py-1 text-[10px] uppercase text-muted-foreground font-bold">Logs & History</SidebarGroupLabel>
+                      <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/trip-sheets', true)}><Link href="/fleet/trip-sheets"><FileText /><span>Sales Logs</span></Link></SidebarMenuButton></SidebarMenuItem>
+                      <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/purchase', true)}><Link href="/fleet/transactions/purchase"><ShoppingCart /><span>Purchase Logs</span></Link></SidebarMenuButton></SidebarMenuItem>
+                      <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions', true)}><Link href="/fleet/transactions"><CreditCard /><span>Account Logs</span></Link></SidebarMenuButton></SidebarMenuItem>
                     </div>
                 </div>
             </SidebarMenu>

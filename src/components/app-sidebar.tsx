@@ -313,8 +313,7 @@ export function AppSidebar() {
                 </SidebarMenuItem>
                 <div className="ml-4 space-y-4">
                     <div className="space-y-1">
-                      <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/vehicles')}><Link href="/fleet/vehicles"><Truck /><span>Vehicles</span></Link></SidebarMenuButton></SidebarMenuItem>
-                      <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/drivers')}><Link href="/fleet/drivers"><Users /><span>Drivers</span></Link></SidebarMenuButton></SidebarMenuItem>
+                      <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/registry')}><Link href="/fleet/registry"><Truck /><span>Vehicles & Drivers</span></Link></SidebarMenuButton></SidebarMenuItem>
                       <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/policies')}><Link href="/fleet/policies"><ShieldCheck /><span>Policies & Memberships</span></Link></SidebarMenuButton></SidebarMenuItem>
                     </div>
 
