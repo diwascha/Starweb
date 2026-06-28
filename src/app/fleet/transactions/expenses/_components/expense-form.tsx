@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -12,7 +12,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { format } from 'date-fns';
 import { 
@@ -81,7 +80,6 @@ export function ExpenseForm({ vehicles, parties, accounts }: ExpenseFormProps) {
     const router = useRouter();
     const [isSubmitting, setIsSubmitting] = useState(false);
     
-    // Quick Add Party Dialog
     const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
     const [partyForm, setPartyForm] = useState({ name: '', type: 'Vendor' as PartyType, address: '' });
 
@@ -99,7 +97,6 @@ export function ExpenseForm({ vehicles, parties, accounts }: ExpenseFormProps) {
     const watchedType = form.watch('expenseType');
     const watchedMode = form.watch('paymentMode');
 
-    // Filter relevant data (Sijan only)
     const sijanParties = parties.filter(p => p.ownership === 'Sijan' || p.ownership === 'Both');
     const sijanAccounts = accounts.filter(a => (a.ownership === 'Sijan' || a.ownership === 'Both') && a.type === 'Bank');
 
@@ -112,16 +109,16 @@ export function ExpenseForm({ vehicles, parties, accounts }: ExpenseFormProps) {
                 date: values.date.toISOString(),
                 createdBy: user.username,
             });
-            toast({ title: 'Success', description: 'Expense recorded and transaction synced.' });
+            toast({ title: 'Success', description: 'Expense recorded successfully.' });
             form.reset({
                 ...form.getValues(),
                 amount: 0,
                 remarks: '',
                 partyId: '',
-                accountId: watchedMode === 'Cash' ? '' : form.getValues('accountId'),
             });
-        } catch (error) {
-            toast({ title: 'Error', description: 'Failed to save expense.', variant: 'destructive' });
+        } catch (error: any) {
+            console.error("Expense Save Failure:", error);
+            toast({ title: 'Save Failed', description: error.message || 'Check connection and try again.', variant: 'destructive' });
         } finally {
             setIsSubmitting(false);
         }

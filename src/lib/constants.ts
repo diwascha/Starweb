@@ -25,6 +25,7 @@ export const COLLECTIONS = {
   TDS_CALCULATIONS: 'tdsCalculations',
   ESTIMATED_INVOICES: 'estimatedInvoices',
   CHEQUES: 'cheques',
+  EXPENSES: 'expenses',
 } as const;
 
 export const NEPALI_MONTHS = [

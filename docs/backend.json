@@ -1,4 +1,3 @@
-
 {
   "entities": {
     "User": {
@@ -42,60 +41,23 @@
       },
       "required": ["userId"]
     },
-    "PurchaseOrderItem": {
-      "title": "Purchase Order Item",
+    "Expense": {
+      "title": "Expense",
+      "description": "A daily operational expense related to a vehicle.",
       "type": "object",
       "properties": {
-        "rawMaterialId": { "type": "string" },
-        "rawMaterialName": { "type": "string" },
-        "rawMaterialType": { "type": "string" },
-        "size": { "type": "string" },
-        "gsm": { "type": "string" },
-        "bf": { "type": "string" },
-        "quantity": { "type": "string" },
-        "unit": { "type": "string" }
-      }
-    },
-    "PurchaseOrderVersion": {
-      "title": "Purchase Order Version",
-      "description": "Represents a snapshot of a purchase order before an edit.",
-      "type": "object",
-      "properties": {
-        "versionId": { "type": "string" },
-        "replacedAt": { "type": "string", "format": "date-time" },
-        "replacedBy": { "type": "string" },
-        "data": {
-          "type": "object",
-          "properties": {
-            "poDate": { "type": "string", "format": "date-time" },
-            "items": { "type": "array", "items": { "$ref": "#/entities/PurchaseOrderItem" } },
-            "companyName": { "type": "string" },
-            "companyAddress": { "type": "string" },
-            "panNumber": { "type": "string" },
-            "status": { "type": "string" }
-          }
-        }
-      }
-    },
-    "CostReportTerm": {
-      "title": "Cost Report Term",
-      "type": "object",
-      "properties": {
-        "text": { "type": "string" },
-        "isSelected": { "boolean": "boolean" }
+        "date": { "type": "string", "format": "date-time" },
+        "vehicleId": { "type": "string" },
+        "expenseType": { "type": "string", "enum": ["Advance", "Maintenance", "Purchase", "Loan Repayment", "Membership Renewal"] },
+        "amount": { "type": "number" },
+        "paymentMode": { "type": "string", "enum": ["Cash", "Bank"] },
+        "partyId": { "type": "string" },
+        "accountId": { "type": "string" },
+        "remarks": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["text", "isSelected"]
-    },
-    "PageVisit": {
-      "title": "Page Visit",
-      "description": "Tracks the number of visits to a specific page path.",
-      "type": "object",
-      "properties": {
-        "path": { "type": "string" },
-        "count": { "type": "number" },
-        "lastVisited": { "type": "string", "format": "date-time" }
-      },
-      "required": ["path", "count"]
+      "required": ["date", "vehicleId", "expenseType", "amount", "paymentMode", "createdBy"]
     }
   },
   "auth": {
@@ -106,26 +68,9 @@
       "schema": { "$ref": "#/entities/UserProfile" },
       "description": "Stores public profiles for users."
     },
-    "/purchaseOrders/{poId}": {
-      "schema": {
-        "type": "object",
-        "properties": {
-          "versions": { "type": "array", "items": { "$ref": "#/entities/PurchaseOrderVersion" } }
-        }
-      },
-      "description": "Stores purchase orders with version history snapshots."
-    },
-    "/costReports/{reportId}": {
-      "schema": {
-        "type": "object",
-        "properties": {
-          "termsAndConditions": { "type": "array", "items": { "$ref": "#/entities/CostReportTerm" } }
-        }
-      }
-    },
-    "/pageVisits/{pathId}": {
-      "schema": { "$ref": "#/entities/PageVisit" },
-      "description": "Usage analytics for page traffic."
+    "/expenses/{expenseId}": {
+      "schema": { "$ref": "#/entities/Expense" },
+      "description": "Stores daily operational expenses for fleet management."
     }
   }
 }

@@ -1,14 +1,18 @@
+/**
+ * @fileOverview Expense service for recording truck-related costs.
+ */
 
 import { getFirebase } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs, query, orderBy, writeBatch } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, deleteDoc, query, orderBy } from 'firebase/firestore';
 import type { Expense } from '@/lib/expense-types';
 import { COLLECTIONS } from '@/lib/constants';
 import { addTransaction } from './transaction-service';
 import type { Transaction } from '@/lib/types';
+import { createTimestamp, logServiceError } from '@/lib/service-utils';
 
 const getExpensesCollection = () => {
     const { db } = getFirebase();
-    return collection(db, 'expenses');
+    return collection(db, COLLECTIONS.EXPENSES);
 };
 
 const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Expense => {
@@ -18,57 +22,98 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Expense =
         date: data.date,
         vehicleId: data.vehicleId,
         expenseType: data.expenseType,
-        partyId: data.partyId,
-        accountId: data.accountId,
-        itemId: data.itemId,
+        partyId: data.partyId || undefined,
+        accountId: data.accountId || undefined,
+        itemId: data.itemId || undefined,
         amount: data.amount,
         paymentMode: data.paymentMode,
-        remarks: data.remarks,
+        remarks: data.remarks || undefined,
         createdBy: data.createdBy,
         createdAt: data.createdAt,
     };
 };
 
+/**
+ * Listens for real-time updates to the expenses collection.
+ */
 export const onExpensesUpdate = (callback: (expenses: Expense[]) => void): () => void => {
     const q = query(getExpensesCollection(), orderBy('createdAt', 'desc'));
-    return onSnapshot(q, (snapshot) => {
-        callback(snapshot.docs.map(fromFirestore));
-    });
+    return onSnapshot(q, 
+        (snapshot) => {
+            callback(snapshot.docs.map(fromFirestore));
+        },
+        (error) => {
+            logServiceError('onExpensesUpdate', error);
+        }
+    );
 };
 
-export const addExpense = async (expense: Omit<Expense, 'id' | 'createdAt'>): Promise<string> => {
-    const { db } = getFirebase();
-    const now = new Date().toISOString();
+/**
+ * Adds a new expense record and automatically syncs it to the general accounting ledger.
+ */
+export const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>): Promise<string> => {
+    const now = createTimestamp();
     
-    // 1. Save to Expenses Collection
-    const docRef = await addDoc(getExpensesCollection(), {
-        ...expense,
+    // Explicitly construct the record to avoid passing 'undefined' to Firestore
+    const expenseRecord = {
+        date: expenseData.date,
+        vehicleId: expenseData.vehicleId,
+        expenseType: expenseData.expenseType,
+        amount: Number(expenseData.amount) || 0,
+        paymentMode: expenseData.paymentMode,
+        partyId: expenseData.partyId || null,
+        accountId: expenseData.accountId || null,
+        remarks: expenseData.remarks || null,
+        createdBy: expenseData.createdBy,
         createdAt: now,
-    });
-
-    // 2. Automatically sync to Main Transactions for accounting
-    const transactionType = expense.paymentMode === 'Cash' ? 'Payment' : 'Payment';
-    const txnData: Omit<Transaction, 'id' | 'createdAt' | 'lastModifiedAt'> = {
-        date: expense.date,
-        vehicleId: expense.vehicleId,
-        type: 'Purchase', // Expenses are recorded as vehicle-specific purchases
-        amount: expense.amount,
-        billingType: expense.paymentMode,
-        invoiceType: 'Normal',
-        category: expense.expenseType,
-        partyId: expense.partyId || null,
-        accountId: expense.accountId || null,
-        remarks: `Auto-synced from Expense Entry: ${expense.remarks || ''}`,
-        items: [{ particular: `${expense.expenseType} Fee`, quantity: 1, rate: expense.amount }],
-        createdBy: expense.createdBy,
     };
 
-    await addTransaction(txnData);
+    // 1. Save to Expenses Collection
+    const docRef = await addDoc(getExpensesCollection(), expenseRecord);
+
+    // 2. Automatically sync to Main Transactions for accounting
+    const txnData: Omit<Transaction, 'id' | 'createdAt' | 'lastModifiedAt'> = {
+        date: expenseRecord.date,
+        vehicleId: expenseRecord.vehicleId,
+        type: 'Purchase', // Daily expenses are categorized as vehicle-specific purchases
+        amount: expenseRecord.amount,
+        billingType: expenseRecord.paymentMode,
+        invoiceType: 'Normal',
+        category: expenseRecord.expenseType,
+        partyId: expenseRecord.partyId,
+        accountId: expenseRecord.accountId,
+        remarks: `Expense Sync: ${expenseRecord.expenseType}${expenseRecord.remarks ? ` - ${expenseRecord.remarks}` : ''}`,
+        items: [{ particular: `${expenseRecord.expenseType} Fee`, quantity: 1, rate: expenseRecord.amount }],
+        createdBy: expenseRecord.createdBy,
+        // Set empty optional fields to null to avoid undefined keys
+        invoiceNumber: null,
+        invoiceDate: null,
+        chequeNumber: null,
+        chequeDate: null,
+        dueDate: null,
+        tripId: null,
+        voucherId: null,
+    };
+
+    try {
+        await addTransaction(txnData);
+    } catch (error) {
+        logServiceError('addExpense-transactionSync', error);
+        // We don't throw here to allow the primary expense save to be considered successful
+    }
 
     return docRef.id;
 };
 
+/**
+ * Deletes an expense record. Note: This does not automatically remove the synced transaction.
+ */
 export const deleteExpense = async (id: string): Promise<void> => {
-    const docRef = doc(getExpensesCollection(), id);
-    await deleteDoc(docRef);
+    try {
+        const docRef = doc(getExpensesCollection(), id);
+        await deleteDoc(docRef);
+    } catch (error) {
+        logServiceError('deleteExpense', error);
+        throw error;
+    }
 };
