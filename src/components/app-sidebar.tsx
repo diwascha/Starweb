@@ -50,6 +50,7 @@ import { exportData } from '@/services/backup-service';
 import { Loader2 } from 'lucide-react';
 import { useConnectionStatus } from '@/firebase';
 import { useState } from 'react';
+import { getNormalizedPath } from '@/lib/utils';
 
 function SidebarCollapseButton() {
     const { state, toggleSidebar } = useSidebar();
@@ -131,8 +132,12 @@ export function AppSidebar() {
   };
 
   const getIsActive = (path: string, exact: boolean = false) => {
-    if (exact) return pathname === path;
-    return pathname.startsWith(path) && (pathname[path.length] === '/' || pathname.length === path.length);
+    const normalizedPath = getNormalizedPath(pathname);
+    const normalizedTarget = getNormalizedPath(path);
+
+    if (exact) return normalizedPath === normalizedTarget;
+    return normalizedPath.startsWith(normalizedTarget) && 
+           (normalizedPath[normalizedTarget.length] === '/' || normalizedPath.length === normalizedTarget.length);
   };
   
   if (!user) {

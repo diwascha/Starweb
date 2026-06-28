@@ -9,13 +9,14 @@ import { AppSidebar } from "./app-sidebar";
 import { usePathname } from "next/navigation";
 import { Separator } from "./ui/separator";
 import { ErrorBoundary } from "./error-boundary";
+import { getNormalizedPath } from "@/lib/utils";
 
 export default function AuthAwareLayout({ children }: { children: React.ReactNode }) {
     const { user, loading } = useAuth();
     const pathname = usePathname();
     
     // Normalize path to handle trailing slashes for auth state check
-    const normalizedPath = pathname.replace(/\/$/, '') || '/';
+    const normalizedPath = getNormalizedPath(pathname);
     const isAuthPage = normalizedPath === '/login';
 
     if (loading) {

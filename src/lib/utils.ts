@@ -22,8 +22,10 @@ export const generateId = (): string => {
 
 /**
  * Normalizes a path by removing trailing slashes.
+ * Ensures consistent behavior for logging and active states.
  */
 export const getNormalizedPath = (path: string): string => {
+  if (!path) return '/';
   return path.replace(/\/$/, '') || '/';
 };
 

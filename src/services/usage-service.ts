@@ -1,9 +1,9 @@
-
 'use client';
 
 import { getFirebase } from '@/lib/firebase';
 import { collection, doc, setDoc, onSnapshot, increment, serverTimestamp, query, orderBy, getDocs, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import type { PageVisit } from '@/lib/types';
+import { getNormalizedPath } from '@/lib/utils';
 
 const getUsageCollection = () => {
     const { db } = getFirebase();
@@ -22,12 +22,16 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): PageVisit
 
 export const trackPageVisit = async (path: string) => {
     const { db } = getFirebase();
+    
+    // Double-ensure normalization for storage consistency
+    const normalizedPath = getNormalizedPath(path);
+    
     // Use encoded path as ID to avoid issues with slashes, but keep path field readable
-    const pathId = path.replace(/\//g, '_') || 'home';
+    const pathId = normalizedPath.replace(/\//g, '_') || 'home';
     const docRef = doc(getUsageCollection(), pathId);
     
     await setDoc(docRef, {
-        path: path,
+        path: normalizedPath,
         count: increment(1),
         lastVisited: serverTimestamp()
     }, { merge: true });
