@@ -420,7 +420,7 @@ export default function TripSheetsPage() {
                                     <MoreHorizontal className="ml-2 h-4 w-4" />
                                 </Button>
                             </DropdownMenuTrigger>
-                            <DropdownContent align="end">
+                            <DropdownMenuContent align="end">
                                 {hasPermission('fleet', 'view') && (
                                     <DropdownMenuItem onSelect={() => router.push(`/fleet/trip-sheets/${trip.id}`)}>
                                         <View className="mr-2 h-4 w-4" /> View
@@ -457,7 +457,7 @@ export default function TripSheetsPage() {
                                         </AlertDialogContent>
                                     </AlertDialog>
                                 )}
-                            </DropdownContent>
+                            </DropdownMenuContent>
                         </DropdownMenu>
                     </TableCell>
                 </TableRow>
@@ -541,9 +541,7 @@ export default function TripSheetsPage() {
                 <div className="space-y-1.5 w-full md:w-[180px]">
                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Vehicle</Label>
                     <Select value={filterVehicleId} onValueChange={setFilterVehicleId}>
-                        <SelectTrigger className="bg-white">
-                            <SelectValue placeholder="All Vehicles" />
-                        </SelectTrigger>
+                        <SelectTrigger className="bg-white"><SelectValue placeholder="All Vehicles" /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="All">All Vehicles</SelectItem>
                             {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
@@ -573,10 +571,10 @@ export default function TripSheetsPage() {
                     </Button>
                 )}
                 <div className="ml-auto flex gap-2">
-                    <Button variant="outline" size="sm" onClick={handleExportExcel}>
+                    <Button variant="outline" size="sm" onClick={() => handleExportExcel}>
                         <FileSpreadsheet className="mr-2 h-4 w-4 text-emerald-600" /> Export Excel
                     </Button>
-                    <Button variant="outline" size="sm" onClick={handleExportPdf}>
+                    <Button variant="outline" size="sm" onClick={() => handleExportPdf}>
                         <FileText className="mr-2 h-4 w-4 text-red-600" /> Export PDF
                     </Button>
                 </div>
