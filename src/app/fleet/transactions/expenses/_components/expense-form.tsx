@@ -1,6 +1,7 @@
+
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -29,7 +30,7 @@ import {
     Save
 } from 'lucide-react';
 import { cn, toNepaliDate } from '@/lib/utils';
-import type { Vehicle, Party, Account, AccountOwnership, PartyType } from '@/lib/types';
+import type { Vehicle, Party, Account, AccountOwnership, PartyType, Transaction } from '@/lib/types';
 import type { ExpenseType } from '@/lib/expense-types';
 import { addExpense } from '@/services/expense-service';
 import { useAuth } from '@/hooks/use-auth';
@@ -37,6 +38,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { addParty } from '@/services/party-service';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
 
 const expenseTypes: { type: ExpenseType; label: string; sub: string; icon: any; color: string }[] = [
     { type: 'Advance', label: 'Advance / Peski', sub: 'Trip advance', icon: Wallet, color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
@@ -72,9 +74,10 @@ interface ExpenseFormProps {
     vehicles: Vehicle[];
     parties: Party[];
     accounts: Account[];
+    transactions: Transaction[];
 }
 
-export function ExpenseForm({ vehicles, parties, accounts }: ExpenseFormProps) {
+export function ExpenseForm({ vehicles, parties, accounts, transactions }: ExpenseFormProps) {
     const { user } = useAuth();
     const { toast } = useToast();
     const router = useRouter();
@@ -96,9 +99,26 @@ export function ExpenseForm({ vehicles, parties, accounts }: ExpenseFormProps) {
 
     const watchedType = form.watch('expenseType');
     const watchedMode = form.watch('paymentMode');
+    const watchedPartyId = form.watch('partyId');
 
     const sijanParties = parties.filter(p => p.ownership === 'Sijan' || p.ownership === 'Both');
     const sijanAccounts = accounts.filter(a => (a.ownership === 'Sijan' || a.ownership === 'Both') && a.type === 'Bank');
+
+    const partyBalance = useMemo(() => {
+        if (!watchedPartyId) return null;
+        
+        const filteredTxns = transactions.filter(t => t.partyId === watchedPartyId);
+        
+        const balance = filteredTxns.reduce((acc, t) => {
+            if (t.type === 'Sales') acc.receivables += t.amount;
+            if (t.type === 'Receipt') acc.receivables -= t.amount;
+            if (t.type === 'Purchase') acc.payables += t.amount;
+            if (t.type === 'Payment') acc.payables -= t.amount;
+            return acc;
+        }, { receivables: 0, payables: 0 });
+
+        return balance;
+    }, [watchedPartyId, transactions]);
 
     const onSubmit = async (values: z.infer<typeof expenseSchema>) => {
         if (!user) return;
@@ -238,6 +258,20 @@ export function ExpenseForm({ vehicles, parties, accounts }: ExpenseFormProps) {
                                     {sijanParties.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                                 </SelectContent>
                             </Select>
+                            {partyBalance && (
+                                <div className="flex gap-4 mt-1.5 px-1">
+                                    {partyBalance.payables !== 0 && (
+                                        <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-800 border-amber-200">
+                                            Current Payable: Rs. {partyBalance.payables.toLocaleString()}
+                                        </Badge>
+                                    )}
+                                    {partyBalance.receivables !== 0 && (
+                                        <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-800 border-emerald-200">
+                                            Current Receivable: Rs. {partyBalance.receivables.toLocaleString()}
+                                        </Badge>
+                                    )}
+                                </div>
+                            )}
                             <FormMessage />
                         </FormItem>
                     )} />
