@@ -385,12 +385,13 @@ export interface Party {
 
 export type AccountType = 'Cash' | 'Bank';
 export type BankAccountType = 'Saving' | 'Current' | 'Over Draft';
-
+export type AccountOwnership = 'Sijan' | 'Shivam' | 'Both';
 
 export interface Account {
     id: string;
     name: string; // Account holder name or "Cash Account"
     type: AccountType;
+    ownership: AccountOwnership; // Mandatory ownership tag
     accountNumber?: string;
     bankName?: string;
     branch?: string;
@@ -408,7 +409,7 @@ export interface TransactionItem {
     rate: number;
 }
 
-export type BillingType = 'Cash' | 'Bank' | 'Credit';
+export type BillingType = 'Cash' | 'Bank' | 'Credit' | string;
 export type InvoiceType = 'Taxable' | 'Normal';
 
 export interface Transaction {

@@ -14,7 +14,8 @@ import {
   Package, 
   ClipboardList,
   MousePointerClick,
-  Clock
+  Clock,
+  ArrowRightLeft
 } from 'lucide-react';
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -111,6 +112,13 @@ export default function DashboardPage() {
           <p className="text-sm text-muted-foreground mt-1">Welcome back, {user?.username} • {companyProfile.address}</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {hasPermission('fleet', 'create') && (
+            <Button asChild size="sm" variant="default" className="bg-blue-600 hover:bg-blue-700">
+              <Link href="/fleet/transactions/payment-receipt/new">
+                <ArrowRightLeft className="mr-2 h-4 w-4" /> New Payment/Receipt
+              </Link>
+            </Button>
+          )}
           {hasPermission('reports', 'create') && (
             <Button asChild size="sm">
               <Link href="/report/new">
@@ -247,6 +255,17 @@ export default function DashboardPage() {
             Quick Access Modules
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+             <Link href="/fleet/transactions/payment-receipt/new">
+              <Card className="hover:bg-accent transition-colors cursor-pointer h-full border-blue-200 border-2 border-dashed">
+                <CardHeader className="p-4">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <ArrowRightLeft className="h-4 w-4 text-blue-600" />
+                    Fleet Payment/Receipt
+                  </CardTitle>
+                  <CardDescription className="text-xs">Quick entry for fleet vouchers and trip settlements</CardDescription>
+                </CardHeader>
+              </Card>
+            </Link>
             <Link href="/crm/cost-report">
               <Card className="hover:bg-accent transition-colors cursor-pointer h-full border-dashed">
                 <CardHeader className="p-4">

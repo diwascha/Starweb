@@ -1,5 +1,4 @@
 
-
 import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import type { Account } from '@/lib/types';
@@ -15,6 +14,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Account =
         id: snapshot.id,
         name: data.name,
         type: data.type,
+        ownership: data.ownership || 'Both', // Default for legacy data
         accountNumber: data.accountNumber,
         bankName: data.bankName,
         branch: data.branch,

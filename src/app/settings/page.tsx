@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -14,7 +15,8 @@ import type {
   DocumentPrefixes, 
   BankAccountType, 
   PageVisit, 
-  CompanyProfile 
+  CompanyProfile,
+  AccountOwnership
 } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -242,7 +244,15 @@ export default function SettingsPage() {
   // Account Dialog State
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
-  const [accountForm, setAccountForm] = useState({ name: '', type: 'Cash' as AccountType, accountNumber: '', bankName: '', branch: '', bankAccountType: 'Saving' as BankAccountType | undefined});
+  const [accountForm, setAccountForm] = useState({ 
+    name: '', 
+    type: 'Cash' as AccountType, 
+    ownership: 'Both' as AccountOwnership, 
+    accountNumber: '', 
+    bankName: '', 
+    branch: '', 
+    bankAccountType: 'Saving' as BankAccountType | undefined
+  });
   
   // UoM Dialog State
   const [isUomDialogOpen, setIsUomDialogOpen] = useState(false);
@@ -483,18 +493,26 @@ export default function SettingsPage() {
   const openAccountDialog = (account: Account | null = null) => {
     if (account) {
         setEditingAccount(account);
-        setAccountForm({ name: account.name, type: account.type, accountNumber: account.accountNumber || '', bankName: account.bankName || '', branch: account.branch || '', bankAccountType: account.bankAccountType || 'Saving' });
+        setAccountForm({ 
+            name: account.name, 
+            type: account.type, 
+            ownership: account.ownership || 'Both',
+            accountNumber: account.accountNumber || '', 
+            bankName: account.bankName || '', 
+            branch: account.branch || '', 
+            bankAccountType: account.bankAccountType || 'Saving' 
+        });
     } else {
         setEditingAccount(null);
-        setAccountForm({ name: '', type: 'Cash' as AccountType, accountNumber: '', bankName: '', branch: '', bankAccountType: 'Saving' });
+        setAccountForm({ name: '', type: 'Cash' as AccountType, ownership: 'Both', accountNumber: '', bankName: '', branch: '', bankAccountType: 'Saving' });
     }
     setIsAccountDialogOpen(true);
   };
   
   const handleAccountSubmit = async () => {
       if(!user) return;
-      if(!accountForm.name || !accountForm.type) {
-          toast({title: 'Error', description: 'Account name and type are required.', variant: 'destructive'});
+      if(!accountForm.name || !accountForm.type || !accountForm.ownership) {
+          toast({title: 'Error', description: 'Name, Type, and Ownership are mandatory.', variant: 'destructive'});
           return;
       }
        if (accountForm.type === 'Bank' && (!accountForm.bankName || !accountForm.accountNumber)) {
@@ -1032,17 +1050,27 @@ export default function SettingsPage() {
                     <CardHeader className="flex flex-row items-center justify-between">
                         <div>
                             <CardTitle>Accounts</CardTitle>
-                            <CardDescription>A list of all cash and bank accounts.</CardDescription>
+                            <CardDescription>Manage cash and bank accounts with mandatory ownership tagging (Sijan/Shivam).</CardDescription>
                         </div>
                         <Button onClick={() => openAccountDialog()}><Plus className="mr-2 h-4 w-4" /> Add Account</Button>
                     </CardHeader>
                     <CardContent>
                          <Table><TableHeader><TableRow>
-                            <TableHead>Name</TableHead><TableHead>Type</TableHead><TableHead>Bank</TableHead><TableHead>Account Number</TableHead><TableHead>Account Type</TableHead><TableHead className="text-right">Actions</TableHead>
+                            <TableHead>Name</TableHead><TableHead>Type</TableHead><TableHead>Ownership</TableHead><TableHead>Bank</TableHead><TableHead>Account Number</TableHead><TableHead className="text-right">Actions</TableHead>
                         </TableRow></TableHeader><TableBody>
                         {filteredAccounts.map(acc => (
                             <TableRow key={acc.id}>
-                                <TableCell>{acc.name}</TableCell><TableCell>{acc.type}</TableCell><TableCell>{acc.bankName || 'N/A'}</TableCell><TableCell>{acc.accountNumber || 'N/A'}</TableCell><TableCell>{acc.bankAccountType || 'N/A'}</TableCell>
+                                <TableCell className="font-medium">{acc.name}</TableCell>
+                                <TableCell><Badge variant="outline">{acc.type}</Badge></TableCell>
+                                <TableCell>
+                                    <Badge variant={acc.ownership === 'Both' ? 'secondary' : 'default'} className={cn(
+                                        acc.ownership === 'Sijan' && 'bg-blue-100 text-blue-800 border-blue-200',
+                                        acc.ownership === 'Shivam' && 'bg-green-100 text-green-800 border-green-200'
+                                    )}>
+                                        {acc.ownership}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell>{acc.bankName || 'N/A'}</TableCell><TableCell>{acc.accountNumber || 'N/A'}</TableCell>
                                 <TableCell className="text-right">
                                      <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
@@ -1322,12 +1350,25 @@ export default function SettingsPage() {
             <DialogContent className="sm:max-w-md">
                 <DialogHeader><DialogTitle>{editingAccount ? 'Edit Account' : 'Add New Account'}</DialogTitle></DialogHeader>
                 <div className="grid gap-4 py-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="account-type">Account Type</Label>
-                        <Select value={accountForm.type} onValueChange={(v: AccountType) => setAccountForm(p => ({...p, type: v}))}>
-                            <SelectTrigger id="account-type"><SelectValue/></SelectTrigger>
-                            <SelectContent><SelectItem value="Cash">Cash</SelectItem><SelectItem value="Bank">Bank</SelectItem></SelectContent>
-                        </Select>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="account-type">Account Type</Label>
+                            <Select value={accountForm.type} onValueChange={(v: AccountType) => setAccountForm(p => ({...p, type: v}))}>
+                                <SelectTrigger id="account-type"><SelectValue/></SelectTrigger>
+                                <SelectContent><SelectItem value="Cash">Cash</SelectItem><SelectItem value="Bank">Bank</SelectItem></SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="account-ownership">Account Ownership</Label>
+                            <Select value={accountForm.ownership} onValueChange={(v: AccountOwnership) => setAccountForm(p => ({...p, ownership: v}))}>
+                                <SelectTrigger id="account-ownership"><SelectValue/></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Sijan">Sijan Dhuwani</SelectItem>
+                                    <SelectItem value="Shivam">Shivam Packaging</SelectItem>
+                                    <SelectItem value="Both">Both</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="account-name">{accountForm.type === 'Bank' ? 'Account Holder Name' : 'Account Name'}</Label>
