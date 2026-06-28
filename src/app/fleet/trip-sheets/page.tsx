@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { 
   PlusCircle, 
@@ -30,13 +30,6 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog';
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -47,6 +40,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
@@ -67,6 +67,8 @@ import { cn } from '@/lib/utils';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Label } from '@/components/ui/label';
+import NepaliDate from 'nepali-date-converter';
+import { NEPALI_MONTHS } from '@/lib/constants';
 
 type SortKey = 'date' | 'vehicleName' | 'customerName' | 'finalDestination' | 'netAmount' | 'authorship';
 type SortDirection = 'asc' | 'desc';
@@ -90,6 +92,8 @@ export default function TripSheetsPage() {
   // Filtering & Sorting State
   const [searchQuery, setSearchQuery] = useState('');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [selectedBsYear, setSelectedBsYear] = useState<string>('All');
+  const [selectedBsMonth, setSelectedBsMonth] = useState<string>('All');
   const [filterVehicleId, setFilterVehicleId] = useState<string>('All');
   const [filterPartyId, setFilterPartyId] = useState<string>('All');
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({
@@ -121,6 +125,28 @@ export default function TripSheetsPage() {
         unsubParties();
     };
   }, []);
+
+  const availableYears = useMemo(() => {
+    const years = new Set<number>();
+    trips.forEach(trip => {
+        try {
+            years.add(new NepaliDate(new Date(trip.date)).getYear());
+        } catch {}
+    });
+    return Array.from(years).sort((a, b) => b - a);
+  }, [trips]);
+
+  // Set default year on load if not set
+  useEffect(() => {
+    if (availableYears.length > 0 && selectedBsYear === 'All') {
+        const currentYear = new NepaliDate().getYear();
+        if (availableYears.includes(currentYear)) {
+            setSelectedBsYear(String(currentYear));
+        } else {
+            setSelectedBsYear(String(availableYears[0]));
+        }
+    }
+  }, [availableYears, selectedBsYear]);
   
   const handleDeleteTrip = async (id: string) => {
     try {
@@ -200,6 +226,22 @@ export default function TripSheetsPage() {
         filtered = filtered.filter(trip => isWithinInterval(new Date(trip.date), interval));
     }
 
+    if (selectedBsYear !== 'All') {
+        filtered = filtered.filter(trip => {
+            try {
+                return new NepaliDate(new Date(trip.date)).getYear() === parseInt(selectedBsYear);
+            } catch { return false; }
+        });
+    }
+
+    if (selectedBsMonth !== 'All') {
+        filtered = filtered.filter(trip => {
+            try {
+                return new NepaliDate(new Date(trip.date)).getMonth() === parseInt(selectedBsMonth);
+            } catch { return false; }
+        });
+    }
+
     if (filterVehicleId !== 'All') {
         filtered = filtered.filter(trip => trip.vehicleId === filterVehicleId);
     }
@@ -218,7 +260,7 @@ export default function TripSheetsPage() {
     });
     
     return filtered;
-  }, [augmentedTrips, sortConfig, searchQuery, dateRange, filterVehicleId, filterPartyId]);
+  }, [augmentedTrips, sortConfig, searchQuery, dateRange, selectedBsYear, selectedBsMonth, filterVehicleId, filterPartyId]);
 
   const handleExportExcel = async () => {
     try {
@@ -278,11 +320,13 @@ export default function TripSheetsPage() {
   const handleClearFilters = () => {
     setSearchQuery('');
     setDateRange(undefined);
+    setSelectedBsYear('All');
+    setSelectedBsMonth('All');
     setFilterVehicleId('All');
     setFilterPartyId('All');
   };
 
-  const isFiltered = searchQuery !== '' || !!dateRange || filterVehicleId !== 'All' || filterPartyId !== 'All';
+  const isFiltered = searchQuery !== '' || !!dateRange || selectedBsYear !== 'All' || selectedBsMonth !== 'All' || filterVehicleId !== 'All' || filterPartyId !== 'All';
 
   const renderContent = () => {
     if (isLoading) {
@@ -378,6 +422,13 @@ export default function TripSheetsPage() {
                 </TableRow>
                 ))}
             </TableBody>
+            <TableFooter>
+                <TableRow className="bg-muted/50 font-bold">
+                    <TableCell colSpan={4} className="text-right">Total for Filtered Period ({filteredAndSortedTrips.length} Trips)</TableCell>
+                    <TableCell>Rs. {filteredAndSortedTrips.reduce((sum, t) => sum + t.netAmount, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                    <TableCell colSpan={2}></TableCell>
+                </TableRow>
+            </TableFooter>
             </Table>
         </Card>
     );
@@ -402,55 +453,80 @@ export default function TripSheetsPage() {
         </div>
       </header>
 
-      <div className="flex flex-col md:flex-row gap-4 items-end bg-muted/20 p-4 rounded-lg border border-dashed">
-            <div className="space-y-1.5 w-full md:w-[250px]">
-                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Date Range</Label>
-                <Popover>
-                    <PopoverTrigger asChild>
-                        <Button variant="outline" className={cn("w-full justify-start text-left font-normal bg-white", !dateRange && "text-muted-foreground")}>
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {dateRange?.from ? (dateRange.to ? (`${format(dateRange.from, "LLL dd, y")} - ${format(dateRange.to, "LLL dd, y")}`) : format(dateRange.from, "LLL dd, y")) : (<span>Pick a date range</span>)}
-                        </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                        <DualDateRangePicker selected={dateRange} onSelect={setDateRange} />
-                    </PopoverContent>
-                </Popover>
+      <div className="flex flex-col gap-4 bg-muted/20 p-4 rounded-lg border border-dashed">
+            <div className="flex flex-wrap gap-4 items-end">
+                <div className="space-y-1.5">
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Year (BS)</Label>
+                    <Select value={selectedBsYear} onValueChange={setSelectedBsYear}>
+                        <SelectTrigger className="w-[120px] bg-white"><SelectValue placeholder="All Years" /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="All">All Years</SelectItem>
+                            {availableYears.map(year => <SelectItem key={year} value={String(year)}>{year}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div className="space-y-1.5">
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Month (BS)</Label>
+                    <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth}>
+                        <SelectTrigger className="w-[150px] bg-white"><SelectValue placeholder="All Months" /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="All">All Months</SelectItem>
+                            {NEPALI_MONTHS.map(month => <SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div className="space-y-1.5 w-full md:w-[250px]">
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Custom AD Range</Label>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button variant="outline" className={cn("w-full justify-start text-left font-normal bg-white", !dateRange && "text-muted-foreground")}>
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {dateRange?.from ? (dateRange.to ? (`${format(dateRange.from, "LLL dd, y")} - ${format(dateRange.to, "LLL dd, y")}`) : format(dateRange.from, "LLL dd, y")) : (<span>Pick a date range</span>)}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                            <DualDateRangePicker selected={dateRange} onSelect={setDateRange} />
+                        </PopoverContent>
+                    </Popover>
+                </div>
+                <div className="space-y-1.5 w-full md:w-[180px]">
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Vehicle</Label>
+                    <Select value={filterVehicleId} onValueChange={setFilterVehicleId}>
+                        <SelectTrigger className="bg-white"><SelectValue placeholder="All Vehicles" /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="All">All Vehicles</SelectItem>
+                            {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div className="space-y-1.5 w-full md:w-[220px]">
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Customer</Label>
+                    <Select value={filterPartyId} onValueChange={setFilterPartyId}>
+                        <SelectTrigger className="bg-white"><SelectValue placeholder="All Customers" /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="All">All Customers</SelectItem>
+                            {parties.filter(p => p.type === 'Customer' || p.type === 'Both').map(p => (
+                                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
             </div>
-            <div className="space-y-1.5 w-full md:w-[180px]">
-                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Vehicle</Label>
-                <Select value={filterVehicleId} onValueChange={setFilterVehicleId}>
-                    <SelectTrigger className="bg-white"><SelectValue placeholder="All Vehicles" /></SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="All">All Vehicles</SelectItem>
-                        {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
-                    </SelectContent>
-                </Select>
-            </div>
-            <div className="space-y-1.5 w-full md:w-[220px]">
-                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Customer</Label>
-                <Select value={filterPartyId} onValueChange={setFilterPartyId}>
-                    <SelectTrigger className="bg-white"><SelectValue placeholder="All Customers" /></SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="All">All Customers</SelectItem>
-                        {parties.filter(p => p.type === 'Customer' || p.type === 'Both').map(p => (
-                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-            </div>
-            <div className="flex gap-2 w-full md:w-auto ml-auto">
+            
+            <div className="flex gap-2 w-full md:w-auto items-center pt-2 border-t border-dashed">
                 {isFiltered && (
                     <Button variant="ghost" size="sm" onClick={handleClearFilters} className="text-muted-foreground hover:text-foreground">
-                        <X className="mr-2 h-4 w-4" /> Clear Filters
+                        <X className="mr-2 h-4 w-4" /> Clear All Filters
                     </Button>
                 )}
-                <Button variant="outline" size="sm" onClick={handleExportExcel} className="flex-1 md:flex-none">
-                    <FileSpreadsheet className="mr-2 h-4 w-4 text-emerald-600" /> Export Excel
-                </Button>
-                <Button variant="outline" size="sm" onClick={handleExportPdf} className="flex-1 md:flex-none">
-                    <FileText className="mr-2 h-4 w-4 text-red-600" /> Export PDF
-                </Button>
+                <div className="ml-auto flex gap-2">
+                    <Button variant="outline" size="sm" onClick={handleExportExcel}>
+                        <FileSpreadsheet className="mr-2 h-4 w-4 text-emerald-600" /> Export Excel
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={handleExportPdf}>
+                        <FileText className="mr-2 h-4 w-4 text-red-600" /> Export PDF
+                    </Button>
+                </div>
             </div>
       </div>
 
