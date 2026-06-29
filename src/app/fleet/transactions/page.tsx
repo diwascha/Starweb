@@ -1,9 +1,8 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Transaction, Vehicle, Party } from '@/lib/types';
+import type { Transaction, Vehicle, Party, Account } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { 
   PlusCircle, 
@@ -53,6 +52,7 @@ import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 import { onTransactionsUpdate, deleteVoucher } from '@/services/transaction-service';
 import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onPartiesUpdate } from '@/services/party-service';
+import { onAccountsUpdate } from '@/services/account-service';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
@@ -80,6 +80,7 @@ export default function FleetTransactionsPage() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [parties, setParties] = useState<Party[]>([]);
+    const [accounts, setAccounts] = useState<Account[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
     const { toast } = useToast();
@@ -97,6 +98,7 @@ export default function FleetTransactionsPage() {
     // Search Filters
     const [filterVehicleId, setFilterVehicleId] = useState<string>('All');
     const [filterPartyId, setFilterPartyId] = useState<string>('All');
+    const [filterAccountId, setFilterAccountId] = useState<string>('All');
     const [filterCategory, setFilterCategory] = useState<string>('All');
     const [filterStatus, setFilterStatus] = useState<string>('All');
     const [filterDirection, setFilterDirection] = useState<'All' | 'Income' | 'Expense'>('All');
@@ -109,7 +111,8 @@ export default function FleetTransactionsPage() {
         const unsubs = [
             onTransactionsUpdate(setTransactions),
             onVehiclesUpdate(setVehicles),
-            onPartiesUpdate(setParties)
+            onPartiesUpdate(setParties),
+            onAccountsUpdate(setAccounts)
         ];
         setIsLoading(false);
         return () => unsubs.forEach(u => u());
@@ -117,6 +120,7 @@ export default function FleetTransactionsPage() {
 
     const vehiclesById = useMemo(() => new Map(vehicles.map(v => [v.id, v.name])), [vehicles]);
     const partiesById = useMemo(() => new Map(parties.map(p => [p.id, p.name])), [parties]);
+    const accountsById = useMemo(() => new Map(accounts.map(a => [a.id, a.bankName ? `${a.bankName} - ${a.accountNumber}` : a.name])), [accounts]);
 
     const availableYears = useMemo(() => {
         const years = new Set<number>();
@@ -232,8 +236,16 @@ export default function FleetTransactionsPage() {
         if (filterStatus === 'Outstanding') filtered = filtered.filter(t => t.status !== 'Paid');
         else if (filterStatus !== 'All') filtered = filtered.filter(t => t.status === filterStatus);
 
+        if (filterAccountId !== 'All') {
+            if (filterAccountId === 'CashOnly') {
+                filtered = filtered.filter(t => t.billingType === 'Cash');
+            } else {
+                filtered = filtered.filter(t => t.accountId === filterAccountId);
+            }
+        }
+
         return filtered;
-    }, [processedData, searchQuery, dateRange, selectedBsYear, selectedBsMonth, filterVehicleId, filterPartyId, filterCategory, filterDirection, filterStatus]);
+    }, [processedData, searchQuery, dateRange, selectedBsYear, selectedBsMonth, filterVehicleId, filterPartyId, filterCategory, filterDirection, filterStatus, filterAccountId]);
 
     const stats = useMemo(() => {
         let income = 0;
@@ -311,6 +323,7 @@ export default function FleetTransactionsPage() {
         setSelectedBsMonth(String(nowBS.getMonth()));
         setFilterVehicleId('All');
         setFilterPartyId('All');
+        setFilterAccountId('All');
         setFilterCategory('All');
         setFilterStatus('All');
         setFilterDirection('All');
@@ -387,7 +400,7 @@ export default function FleetTransactionsPage() {
                 <Button variant="outline" role="combobox" className={cn("justify-between h-10 bg-white", className)}>
                     <div className="flex items-center gap-2">
                         <Truck className="h-4 w-4 text-muted-foreground" />
-                        {filterVehicleId === 'All' ? "Search Vehicle..." : vehiclesById.get(filterVehicleId)}
+                        {filterVehicleId === 'All' ? "All Vehicles" : vehiclesById.get(filterVehicleId)}
                     </div>
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
@@ -464,6 +477,24 @@ export default function FleetTransactionsPage() {
                                 <SelectContent>
                                     <SelectItem value="All">All</SelectItem>
                                     {NEPALI_MONTHS.map(m => <SelectItem key={m.value} value={String(m.value)}>{m.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Account / Source</Label>
+                            <Select value={filterAccountId} onValueChange={setFilterAccountId}>
+                                <SelectTrigger className="w-[180px] h-10 bg-white text-xs">
+                                    <SelectValue placeholder="All Accounts" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="All">All Sources</SelectItem>
+                                    <SelectItem value="CashOnly">Cash (General)</SelectItem>
+                                    {accounts.filter(a => a.ownership === 'Sijan' || a.ownership === 'Both').map(acc => (
+                                        <SelectItem key={acc.id} value={acc.id}>
+                                            {acc.bankName ? `${acc.bankName} - ${acc.accountNumber}` : acc.name}
+                                        </SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         </div>
