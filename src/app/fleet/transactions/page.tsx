@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import type { Transaction, Vehicle, Party } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Search, ArrowUpDown, MoreHorizontal, Eye, Edit, Trash2, CalendarIcon, Download, X, FileSpreadsheet, FileText, Loader2, TrendingUp, TrendingDown, Info, Link as LinkIcon, FilterX } from 'lucide-react';
@@ -13,10 +14,10 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
@@ -29,10 +30,9 @@ import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 import { onTransactionsUpdate, deleteVoucher } from '@/services/transaction-service';
 import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onPartiesUpdate } from '@/services/party-service';
-import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import NepaliDate from 'nepali-date-converter';
@@ -126,14 +126,13 @@ export default function FinancialHistoryPage() {
         }));
     };
 
-    const sortedAndFilteredTransactions = useMemo(() => {
-        let augmented = transactions.map(t => {
-            // Determine a "source reference" for the entry
+    const baseFilteredTransactions = useMemo(() => {
+        let filtered = transactions.map(t => {
             let sourceRef = '';
             if (t.purchaseNumber) sourceRef = t.purchaseNumber;
             else if (t.type === 'Sales') sourceRef = 'Trip Sheet';
             else if (t.voucherId && t.items?.[0]?.particular) {
-                 sourceRef = t.items[0].particular.split(' ')[0]; // Extract voucher number
+                 sourceRef = t.items[0].particular.split(' ')[0];
             }
 
             return {
@@ -144,13 +143,9 @@ export default function FinancialHistoryPage() {
             };
         });
 
-        if (activeTab !== 'All') {
-            augmented = augmented.filter(t => t.type === activeTab);
-        }
-        
         if (searchQuery) {
             const query = searchQuery.toLowerCase();
-            augmented = augmented.filter(t =>
+            filtered = filtered.filter(t =>
                 t.vehicleName.toLowerCase().includes(query) ||
                 t.partyName.toLowerCase().includes(query) ||
                 (t.remarks || '').toLowerCase().includes(query) ||
@@ -161,11 +156,11 @@ export default function FinancialHistoryPage() {
 
         if (dateRange?.from) {
             const interval = { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to || dateRange.from) };
-            augmented = augmented.filter(t => isWithinInterval(new Date(t.date), interval));
+            filtered = filtered.filter(t => isWithinInterval(new Date(t.date), interval));
         }
 
         if (selectedBsYear !== 'All') {
-            augmented = augmented.filter(t => {
+            filtered = filtered.filter(t => {
                 try {
                     return new NepaliDate(new Date(t.date)).getYear() === parseInt(selectedBsYear);
                 } catch { return false; }
@@ -173,17 +168,38 @@ export default function FinancialHistoryPage() {
         }
 
         if (selectedBsMonth !== 'All') {
-            augmented = augmented.filter(t => {
+            filtered = filtered.filter(t => {
                 try {
                     return new NepaliDate(new Date(t.date)).getMonth() === parseInt(selectedBsMonth);
                 } catch { return false; }
             });
         }
         
-        if (filterPartyId !== 'All') augmented = augmented.filter(t => t.partyId === filterPartyId);
-        if (filterVehicleId !== 'All') augmented = augmented.filter(t => t.vehicleId === filterVehicleId);
+        if (filterPartyId !== 'All') filtered = filtered.filter(t => t.partyId === filterPartyId);
+        if (filterVehicleId !== 'All') filtered = filtered.filter(t => t.vehicleId === filterVehicleId);
         
-        augmented.sort((a, b) => {
+        return filtered;
+    }, [transactions, searchQuery, vehiclesById, partiesById, dateRange, filterPartyId, filterVehicleId, selectedBsYear, selectedBsMonth]);
+
+    const tabCounts = useMemo(() => {
+        const counts = { All: 0, Payment: 0, Receipt: 0, Sales: 0, Purchase: 0 };
+        baseFilteredTransactions.forEach(t => {
+            counts.All++;
+            if (t.type in counts) {
+                counts[t.type as keyof typeof counts]++;
+            }
+        });
+        return counts;
+    }, [baseFilteredTransactions]);
+
+    const sortedAndFilteredTransactions = useMemo(() => {
+        let filtered = [...baseFilteredTransactions];
+
+        if (activeTab !== 'All') {
+            filtered = filtered.filter(t => t.type === activeTab);
+        }
+        
+        filtered.sort((a, b) => {
             const aVal = (a[sortConfig.key] || '').toString();
             const bVal = (b[sortConfig.key] || '').toString();
             if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
@@ -191,8 +207,8 @@ export default function FinancialHistoryPage() {
             return 0;
         });
         
-        return augmented;
-    }, [transactions, searchQuery, sortConfig, vehiclesById, partiesById, dateRange, activeTab, filterPartyId, filterVehicleId, selectedBsYear, selectedBsMonth]);
+        return filtered;
+    }, [baseFilteredTransactions, activeTab, sortConfig]);
     
     const financialSummary = useMemo(() => {
         return sortedAndFilteredTransactions.reduce((acc, t) => {
@@ -385,11 +401,11 @@ export default function FinancialHistoryPage() {
 
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
                 <TabsList className="w-full justify-start overflow-x-auto h-auto p-1 bg-muted/50 no-scrollbar">
-                    <TabsTrigger value="All" className="text-xs py-1.5">All</TabsTrigger>
-                    <TabsTrigger value="Payment" className="text-xs py-1.5">Payments</TabsTrigger>
-                    <TabsTrigger value="Receipt" className="text-xs py-1.5">Receipts</TabsTrigger>
-                    <TabsTrigger value="Sales" className="text-xs py-1.5">Sales</TabsTrigger>
-                    <TabsTrigger value="Purchase" className="text-xs py-1.5">Purchases</TabsTrigger>
+                    <TabsTrigger value="All" className="text-xs py-1.5 px-3">All ({tabCounts.All})</TabsTrigger>
+                    <TabsTrigger value="Payment" className="text-xs py-1.5 px-3">Payments ({tabCounts.Payment})</TabsTrigger>
+                    <TabsTrigger value="Receipt" className="text-xs py-1.5 px-3">Receipts ({tabCounts.Receipt})</TabsTrigger>
+                    <TabsTrigger value="Sales" className="text-xs py-1.5 px-3">Sales ({tabCounts.Sales})</TabsTrigger>
+                    <TabsTrigger value="Purchase" className="text-xs py-1.5 px-3">Purchases ({tabCounts.Purchase})</TabsTrigger>
                 </TabsList>
                 <TabsContent value={activeTab} className="mt-4">
                     <div className="border rounded-lg overflow-hidden bg-card">
@@ -462,12 +478,12 @@ export default function FinancialHistoryPage() {
                                             </TableCell>
                                         </TableRow>
                                     ))}
-                                    {!isLoading && sortedAndFilteredTransactions.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">No records found.</TableCell></TableRow>}
+                                    {!isLoading && sortedAndFilteredTransactions.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">No records found for this tab.</TableCell></TableRow>}
                                 </TableBody>
                                 {!isLoading && sortedAndFilteredTransactions.length > 0 && (
                                     <TableFooter>
                                         <TableRow className="bg-muted/50 font-bold">
-                                            <TableCell colSpan={5} className="text-right text-[11px] md:text-xs">Net Result</TableCell>
+                                            <TableCell colSpan={5} className="text-right text-[11px] md:text-xs">Tab Net Result</TableCell>
                                             <TableCell className={cn(
                                                 "text-right font-mono text-[11px] md:text-xs",
                                                 (financialSummary.totalInflow - financialSummary.totalOutflow) >= 0 ? 'text-green-600' : 'text-red-600'
