@@ -3,7 +3,6 @@
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Truck, Users, ShieldCheck, CreditCard, ArrowRight, TrendingUp, TrendingDown, AlertTriangle, ImageIcon } from 'lucide-react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
 import { useState, useEffect, useMemo } from 'react';
 import type { Vehicle, Driver, PolicyOrMembership, Transaction, CompanyProfile } from '@/lib/types';
@@ -164,14 +163,13 @@ export default function FleetDashboardPage() {
                 <div className="flex items-center gap-4">
                     <div className="w-20 h-20 rounded-xl bg-white shadow-md flex items-center justify-center overflow-hidden border">
                         {companyProfile.logoURL ? (
-                            <Image 
+                            <img 
                                 key={companyProfile.logoURL}
                                 src={companyProfile.logoURL} 
-                                width={80} 
-                                height={80} 
+                                width="80" 
+                                height="80" 
                                 alt="Fleet Logo"
                                 className="object-contain"
-                                unoptimized
                             />
                         ) : (
                             <ImageIcon className="h-8 w-8 text-muted-foreground opacity-20" />

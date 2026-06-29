@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -155,14 +154,13 @@ export default function LoginPage() {
          <div className="flex flex-col justify-center items-center gap-4 mb-8 text-center">
             <div className="w-28 h-28 rounded-2xl bg-white shadow-xl flex items-center justify-center overflow-hidden border">
                 {appBranding.appLogoURL ? (
-                    <Image 
+                    <img 
                         key={appBranding.appLogoURL}
                         src={appBranding.appLogoURL} 
-                        width={112} 
-                        height={112} 
+                        width="112" 
+                        height="112" 
                         alt="App Logo"
                         className="object-contain"
-                        unoptimized
                     />
                 ) : (
                     <ImageIcon className="h-12 w-12 text-muted-foreground opacity-10" />

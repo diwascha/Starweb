@@ -371,8 +371,8 @@ export default function SettingsPage() {
           const path = `branding/${type}-logo-${timestamp}`;
           const url = await uploadFile(file, path);
           
-          // Append timestamp to URL to force immediate browser refresh
-          const finalUrl = `${url}?t=${timestamp}`;
+          // Append timestamp correctly handling existing query params
+          const finalUrl = url.includes('?') ? `${url}&t=${timestamp}` : `${url}?t=${timestamp}`;
           
           if (type === 'main') {
               const updated = { ...companyProfile, logoURL: finalUrl };
@@ -705,6 +705,11 @@ export default function SettingsPage() {
     setIsUserDialogOpen(false);
   };
 
+  const filteredUsers = useMemo(() => {
+    const allUsers = getUsers();
+    return allUsers.filter(u => u.username.toLowerCase().includes(searchQuery.toLowerCase()));
+  }, [users, searchQuery]);
+
   const handleDeleteUser = (id: string) => {
       const updatedUsers = getUsers().filter(u => u.id !== id);
       setUsers(updatedUsers);
@@ -873,7 +878,9 @@ export default function SettingsPage() {
                             </CardHeader>
                             <CardContent>
                                 <Table><TableHeader><TableRow>
-                                    <TableHead>Username</TableHead><TableHead>Permissions</TableHead><TableHead className="text-right">Actions</TableHead>
+                                    <TableHead>Username</TableHead>
+                                    <TableHead>Permissions</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
                                 </TableRow></TableHeader><TableBody>
                                 {filteredUsers.map(u => (
                                     <TableRow key={u.id}>
@@ -881,7 +888,7 @@ export default function SettingsPage() {
                                         <TableCell className="max-w-md">
                                             <div className="flex flex-wrap gap-1">
                                             {Object.entries(u.permissions).flatMap(([module, actions]) => 
-                                                actions.map(action => <Badge key={`${module}-${action}`} variant="secondary">{`${module}: ${action}`}</Badge>)
+                                                (actions || []).map(action => <Badge key={`${module}-${action}`} variant="secondary">{`${module}: ${action}`}</Badge>)
                                             )}
                                             </div>
                                         </TableCell>
@@ -1348,7 +1355,7 @@ export default function SettingsPage() {
                                 <CardTitle className="text-sm font-medium">Total Page Visits</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold">{usageStats.total.toLocaleString()}</div>
+                                <div className="text-2xl font-bold">{(usageStats.total || 0).toLocaleString()}</div>
                                 <p className="text-xs text-muted-foreground">Lifetime interactions</p>
                             </CardContent>
                         </Card>

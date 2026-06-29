@@ -42,7 +42,6 @@ import {
   Briefcase 
 } from 'lucide-react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from './ui/button';
@@ -160,14 +159,13 @@ export function AppSidebar() {
       <SidebarHeader>
         <div className="flex items-center gap-3 px-2 py-4">
             {appBranding.appLogoURL ? (
-                <Image 
+                <img 
                     key={appBranding.appLogoURL}
                     src={appBranding.appLogoURL} 
-                    width={32} 
-                    height={32} 
+                    width="32" 
+                    height="32" 
                     alt="Logo"
                     className="rounded-lg group-data-[collapsible=icon]:mx-auto object-contain bg-white"
-                    unoptimized
                 />
             ) : (
                 <div className="h-8 w-8 rounded-lg bg-primary/20 flex items-center justify-center text-primary font-bold group-data-[collapsible=icon]:mx-auto">
