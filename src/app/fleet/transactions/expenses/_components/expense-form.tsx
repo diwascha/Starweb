@@ -33,7 +33,8 @@ import {
     Edit,
     Trash2,
     DollarSign,
-    PlusIcon
+    PlusIcon,
+    ShieldCheck
 } from 'lucide-react';
 import { cn, toNepaliDate } from '@/lib/utils';
 import type { Vehicle, Party, Account, AccountOwnership, PartyType, Transaction, Destination } from '@/lib/types';
@@ -54,13 +55,14 @@ const expenseTypes: { type: ExpenseType; label: string; sub: string; icon: any; 
     { type: 'Advance', label: 'Advance / Peski', sub: 'Trip advance', icon: Wallet, color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
     { type: 'Maintenance', label: 'Maintenance Fee', sub: 'Repair / Service', icon: Wrench, color: 'text-blue-600 bg-blue-50 border-blue-200' },
     { type: 'Loan Repayment', label: 'Loan Repayment', sub: 'Bank / EMI', icon: Building2, color: 'text-orange-600 bg-orange-50 border-orange-200' },
-    { type: 'Purchase', label: 'Purchase / Payment', sub: 'Oil, tyre, resole, etc.', icon: ShoppingCart, color: 'text-cyan-600 bg-cyan-50 border-cyan-200' },
+    { type: 'Membership Renewal', label: 'Renewal', sub: 'Policy / Tax', icon: ShieldCheck, color: 'text-purple-600 bg-purple-50 border-purple-200' },
+    { type: 'Purchase', label: 'Cash Purchase', sub: 'Oil, spares, etc.', icon: ShoppingCart, color: 'text-cyan-600 bg-cyan-50 border-cyan-200' },
 ];
 
 const expenseSchema = z.object({
     date: z.date(),
     vehicleId: z.string().min(1, "Truck is required."),
-    expenseType: z.enum(['Advance', 'Maintenance', 'Purchase', 'Loan Repayment']),
+    expenseType: z.enum(['Advance', 'Maintenance', 'Purchase', 'Loan Repayment', 'Membership Renewal']),
     amount: z.number().min(1, "Amount must be positive."),
     extraAmount: z.number().optional().default(0),
     extraRemarks: z.string().optional(),
@@ -70,7 +72,7 @@ const expenseSchema = z.object({
     destination: z.string().optional(),
     remarks: z.string().max(200).optional(),
 }).refine(data => {
-    if (['Maintenance', 'Purchase'].includes(data.expenseType)) return !!data.partyId;
+    if (['Maintenance', 'Purchase', 'Membership Renewal'].includes(data.expenseType)) return !!data.partyId;
     return true;
 }, { message: "Party / Supplier is required.", path: ['partyId'] })
 .refine(data => {
@@ -304,23 +306,23 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
 
                 <div className="space-y-3">
                     <FormLabel>Expense Type <span className="text-destructive">*</span></FormLabel>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                         {expenseTypes.map((item) => (
                             <button
                                 key={item.type}
                                 type="button"
                                 onClick={() => form.setValue('expenseType', item.type as any)}
                                 className={cn(
-                                    "flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all text-center gap-2",
+                                    "flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all text-center gap-1.5",
                                     watchedType === item.type 
                                         ? cn("ring-2 ring-primary border-primary", item.color)
                                         : "border-muted bg-white hover:bg-muted/50"
                                 )}
                             >
-                                <item.icon className={cn("h-8 w-8", watchedType === item.type ? "" : "text-muted-foreground")} />
+                                <item.icon className={cn("h-6 w-6", watchedType === item.type ? "" : "text-muted-foreground")} />
                                 <div>
-                                    <p className="text-xs font-bold leading-tight">{item.label}</p>
-                                    <p className="text-[10px] opacity-60 mt-0.5">{item.sub}</p>
+                                    <p className="text-[10px] font-bold leading-tight">{item.label}</p>
+                                    <p className="text-[8px] opacity-60 mt-0.5">{item.sub}</p>
                                 </div>
                             </button>
                         ))}
@@ -406,6 +408,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
                         {watchedType === 'Maintenance' && "Maintenance selected • Select the party who provided the service."}
                         {watchedType === 'Purchase' && "Purchase selected • Select the supplier for the item."}
                         {watchedType === 'Loan Repayment' && "Loan Repayment selected • Select the bank account where the EMI was paid."}
+                        {watchedType === 'Membership Renewal' && "Renewal selected • Select the authority or agency paid."}
                         {watchedType === 'Advance' && routeStandardAmount && (
                             <div className="flex items-center gap-2">
                                 <Lightbulb className="h-4 w-4 text-amber-600" />
@@ -422,14 +425,14 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
                             </div>
                         )}
                     </span>
-                    {['Maintenance', 'Purchase'].includes(watchedType) && (
+                    {['Maintenance', 'Purchase', 'Membership Renewal'].includes(watchedType) && (
                         <Button type="button" variant="outline" size="sm" onClick={() => setIsPartyDialogOpen(true)} className="bg-white">
                             <Plus className="mr-1 h-3 w-3" /> Add New Party
                         </Button>
                     )}
                 </div>
 
-                {['Maintenance', 'Purchase'].includes(watchedType) && (
+                {['Maintenance', 'Purchase', 'Membership Renewal'].includes(watchedType) && (
                     <FormField control={form.control} name="partyId" render={({ field }) => (
                         <FormItem>
                             <FormLabel>

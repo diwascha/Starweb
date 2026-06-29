@@ -410,7 +410,7 @@ export default function FinancialHistoryPage() {
                 <TabsContent value={activeTab} className="mt-4">
                     <div className="border rounded-lg overflow-hidden bg-card">
                         <ScrollArea className="w-full">
-                            <Table className="text-xs md:text-sm">
+                            <Table className="text-xs md:text-sm min-w-[900px]">
                                 <TableHeader className="bg-muted/40">
                                     <TableRow>
                                         <TableHead className="w-[100px]"><Button variant="ghost" onClick={() => requestSort('date')} className="h-8 px-1">Date <ArrowUpDown className="ml-1 h-3 w-3" /></Button></TableHead>

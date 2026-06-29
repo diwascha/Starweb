@@ -47,7 +47,7 @@ export const addPolicy = async (policy: Omit<PolicyOrMembership, 'id'>): Promise
             await addExpense({
                 date: policy.startDate, // Use the policy start date as the transaction/payment date
                 vehicleId: policy.memberType === 'Vehicle' ? policy.memberId : '', // Tied to vehicle if applicable
-                expenseType: 'Purchase', // Using Purchase type for accounting sync
+                expenseType: 'Membership Renewal', // Correct type for renewals
                 amount: policy.cost,
                 paymentMode: 'Cash', // Default to cash payment
                 remarks: `Policy Auto-Entry: ${policy.type} - ${policy.policyNumber} (${policy.provider})`,

@@ -113,7 +113,7 @@ export const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>)
     const txnData: Omit<Transaction, 'id' | 'createdAt' | 'lastModifiedAt'> = {
         date: expenseRecord.date,
         vehicleId: expenseRecord.vehicleId,
-        type: 'Payment', // Daily expenses represent cash/bank outflows (Payments)
+        type: 'Payment', // Daily expenses represent cash/bank outflows (Payments), not Purchases
         amount: totalAmount,
         billingType: expenseRecord.paymentMode,
         invoiceType: 'Normal',
