@@ -1,8 +1,9 @@
 'use client';
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Truck, Users, ShieldCheck, CreditCard, ArrowRight, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
+import { Truck, Users, ShieldCheck, CreditCard, ArrowRight, TrendingUp, TrendingDown, AlertTriangle, ImageIcon } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
 import { useState, useEffect, useMemo } from 'react';
 import type { Vehicle, Driver, PolicyOrMembership, Transaction, CompanyProfile } from '@/lib/types';
@@ -37,7 +38,7 @@ const defaultFleetProfile: CompanyProfile = {
 };
 
 export default function FleetDashboardPage() {
-    const { hasPermission } = useAuth();
+    const { user, hasPermission } = useAuth();
     const [isLoading, setIsLoading] = useState(true);
     const { toast } = useToast();
 
@@ -159,11 +160,33 @@ export default function FleetDashboardPage() {
 
     return (
         <div className="flex flex-col gap-8">
-            <header>
-                <h1 className="text-3xl font-bold tracking-tight uppercase">{companyProfile.nameEn}</h1>
-                <h2 className="text-xl font-semibold text-muted-foreground">{companyProfile.nameNp}</h2>
-                <p className="text-sm text-muted-foreground uppercase">{companyProfile.address}</p>
-                <p className="text-xs text-muted-foreground">PAN: {companyProfile.pan}</p>
+            <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div className="flex items-center gap-4">
+                    <div className="w-20 h-20 rounded-xl bg-white shadow-md flex items-center justify-center overflow-hidden border">
+                        {companyProfile.logoURL ? (
+                            <Image 
+                                key={companyProfile.logoURL}
+                                src={companyProfile.logoURL} 
+                                width={80} 
+                                height={80} 
+                                alt="Fleet Logo"
+                                className="object-contain"
+                                unoptimized
+                            />
+                        ) : (
+                            <ImageIcon className="h-8 w-8 text-muted-foreground opacity-20" />
+                        )}
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-bold tracking-tight uppercase">{companyProfile.nameEn}</h1>
+                        <h2 className="text-lg font-semibold text-muted-foreground">{companyProfile.nameNp}</h2>
+                        <p className="text-sm text-muted-foreground uppercase">{companyProfile.address}</p>
+                    </div>
+                </div>
+                <div className="text-right hidden md:block">
+                    <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest">PAN: {companyProfile.pan}</p>
+                    <p className="text-[10px] text-muted-foreground mt-1 italic">Welcome, {user?.username}</p>
+                </div>
             </header>
             
             <div className="grid gap-6 md:grid-cols-3">

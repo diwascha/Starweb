@@ -156,11 +156,13 @@ export default function LoginPage() {
             <div className="w-28 h-28 rounded-2xl bg-white shadow-xl flex items-center justify-center overflow-hidden border">
                 {appBranding.appLogoURL ? (
                     <Image 
+                        key={appBranding.appLogoURL}
                         src={appBranding.appLogoURL} 
                         width={112} 
                         height={112} 
                         alt="App Logo"
                         className="object-contain"
+                        unoptimized
                     />
                 ) : (
                     <ImageIcon className="h-12 w-12 text-muted-foreground opacity-10" />

@@ -105,11 +105,13 @@ export default function DashboardPage() {
             <div className="w-20 h-20 rounded-xl bg-white shadow-md flex items-center justify-center overflow-hidden border">
                 {companyProfile.logoURL ? (
                     <Image 
+                        key={companyProfile.logoURL}
                         src={companyProfile.logoURL} 
                         width={80} 
                         height={80} 
                         alt="Company Logo"
                         className="object-contain"
+                        unoptimized
                     />
                 ) : (
                     <ImageIcon className="h-8 w-8 text-muted-foreground opacity-20" />
