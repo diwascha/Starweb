@@ -294,7 +294,7 @@ export default function FleetTransactionsPage() {
                 </div>
                 <div className="flex items-center gap-2">
                     <Button onClick={() => router.push('/fleet/transactions/payment-receipt/new')} size="sm">
-                        <PlusCircle className="mr-2 h-4 w-4" /> New Voucher
+                        <PlusCircle className="mr-2 h-4 w-4" /> Pmt. / Rcd. Voucher
                     </Button>
                     <Button onClick={() => router.push('/fleet/transactions/expenses/new')} size="sm" variant="secondary">
                         <Wallet className="mr-2 h-4 w-4" /> Daily Expense
