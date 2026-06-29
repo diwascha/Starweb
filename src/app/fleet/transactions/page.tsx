@@ -285,6 +285,40 @@ export default function FleetTransactionsPage() {
         }
     };
 
+    const VehicleSearchPopover = ({ className }: { className?: string }) => (
+        <Popover open={isVehicleSearchOpen} onOpenChange={setIsVehicleSearchOpen}>
+            <PopoverTrigger asChild>
+                <Button variant="outline" role="combobox" className={cn("justify-between h-10 bg-white", className)}>
+                    <div className="flex items-center gap-2">
+                        <Truck className="h-4 w-4 text-muted-foreground" />
+                        {filterVehicleId === 'All' ? "Search Vehicle..." : vehiclesById.get(filterVehicleId)}
+                    </div>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
+                <Command>
+                    <CommandInput placeholder="Type number (e.g. 1175)..." />
+                    <CommandList>
+                        <CommandEmpty>No vehicle found.</CommandEmpty>
+                        <CommandGroup>
+                            <CommandItem value="All" onSelect={() => { setFilterVehicleId('All'); setIsVehicleSearchOpen(false); }}>
+                                <Check className={cn("mr-2 h-4 w-4", filterVehicleId === 'All' ? "opacity-100" : "opacity-0")} />
+                                All Vehicles
+                            </CommandItem>
+                            {vehicles.map(v => (
+                                <CommandItem key={v.id} value={v.name} onSelect={() => { setFilterVehicleId(v.id); setIsVehicleSearchOpen(false); }}>
+                                    <Check className={cn("mr-2 h-4 w-4", filterVehicleId === v.id ? "opacity-100" : "opacity-0")} />
+                                    {v.name}
+                                </CommandItem>
+                            ))}
+                        </CommandGroup>
+                    </CommandList>
+                </Command>
+            </PopoverContent>
+        </Popover>
+    );
+
     return (
         <div className="flex flex-col gap-6">
             <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -305,41 +339,6 @@ export default function FleetTransactionsPage() {
             <Card className="sticky top-0 z-20 shadow-md bg-background/95 backdrop-blur border-primary/20">
                 <CardContent className="p-4 space-y-4">
                     <div className="flex flex-wrap gap-3 items-end">
-                        <div className="space-y-1.5 min-w-[220px]">
-                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Select Vehicle</Label>
-                            <Popover open={isVehicleSearchOpen} onOpenChange={setIsVehicleSearchOpen}>
-                                <PopoverTrigger asChild>
-                                    <Button variant="outline" role="combobox" className="w-full justify-between h-10 bg-white">
-                                        <div className="flex items-center gap-2">
-                                            <Truck className="h-4 w-4 text-muted-foreground" />
-                                            {filterVehicleId === 'All' ? "All Vehicles" : vehiclesById.get(filterVehicleId)}
-                                        </div>
-                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
-                                    <Command>
-                                        <CommandInput placeholder="Search vehicle (e.g. 1175)..." />
-                                        <CommandList>
-                                            <CommandEmpty>No vehicle found.</CommandEmpty>
-                                            <CommandGroup>
-                                                <CommandItem value="All" onSelect={() => { setFilterVehicleId('All'); setIsVehicleSearchOpen(false); }}>
-                                                    <Check className={cn("mr-2 h-4 w-4", filterVehicleId === 'All' ? "opacity-100" : "opacity-0")} />
-                                                    All Vehicles
-                                                </CommandItem>
-                                                {vehicles.map(v => (
-                                                    <CommandItem key={v.id} value={v.name} onSelect={() => { setFilterVehicleId(v.id); setIsVehicleSearchOpen(false); }}>
-                                                        <Check className={cn("mr-2 h-4 w-4", filterVehicleId === v.id ? "opacity-100" : "opacity-0")} />
-                                                        {v.name}
-                                                    </CommandItem>
-                                                ))}
-                                            </CommandGroup>
-                                        </CommandList>
-                                    </Command>
-                                </PopoverContent>
-                            </Popover>
-                        </div>
-
                         <div className="space-y-1.5">
                             <Label className="text-[10px] uppercase font-bold text-muted-foreground">Year (BS)</Label>
                             <Select value={selectedBsYear} onValueChange={setSelectedBsYear}>
@@ -376,25 +375,6 @@ export default function FleetTransactionsPage() {
                             <Select value={filterCategory} onValueChange={setFilterCategory}>
                                 <SelectTrigger className="w-[160px] h-10 bg-white text-xs"><SelectValue placeholder="All Categories" /></SelectTrigger>
                                 <SelectContent><SelectItem value="All">All Categories</SelectItem>{allCategories.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}</SelectContent>
-                            </Select>
-                        </div>
-
-                        <div className="space-y-1.5">
-                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Partner</Label>
-                            <Select value={filterPartyId} onValueChange={setFilterPartyId}>
-                                <SelectTrigger className="w-[180px] h-10 bg-white text-xs"><SelectValue placeholder="All Partners" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="All">All Partners</SelectItem>
-                                    {parties
-                                        .filter(p => p.ownership === 'Sijan' || p.ownership === 'Both')
-                                        .sort((a, b) => a.name.localeCompare(b.name))
-                                        .map(p => (
-                                            <SelectItem key={p.id} value={p.id}>
-                                                {p.name}
-                                            </SelectItem>
-                                        ))
-                                    }
-                                </SelectContent>
                             </Select>
                         </div>
 
@@ -488,9 +468,12 @@ export default function FleetTransactionsPage() {
                 <TabsContent value="vehicle" className="mt-6 space-y-6">
                     {filterVehicleId === 'All' ? (
                         <Card>
-                            <CardHeader className="py-4 border-b">
-                                <CardTitle className="text-lg">Fleet Summary Table</CardTitle>
-                                <CardDescription>Overview of all trucks. Click a truck to view detailed ledger.</CardDescription>
+                            <CardHeader className="py-4 border-b flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                                <div className="space-y-1">
+                                    <CardTitle className="text-lg">Fleet Summary Table</CardTitle>
+                                    <CardDescription>Overview of all trucks. Use the search to jump to a truck's detail.</CardDescription>
+                                </div>
+                                <VehicleSearchPopover className="w-full sm:w-[280px]" />
                             </CardHeader>
                             <CardContent className="p-0">
                                 <Table>
@@ -530,14 +513,15 @@ export default function FleetTransactionsPage() {
                         </Card>
                     ) : (
                         <Card>
-                            <CardHeader className="flex flex-row items-center justify-between border-b bg-muted/20 py-3">
+                            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b bg-muted/20 py-3 gap-4">
                                 <div className="flex items-center gap-2">
                                     <Button variant="ghost" size="icon" onClick={() => setFilterVehicleId('All')} className="h-8 w-8">
                                         <X className="h-4 w-4" />
                                     </Button>
                                     <CardTitle className="text-lg">Ledger for {vehiclesById.get(filterVehicleId)}</CardTitle>
+                                    <Badge variant="outline" className="font-mono ml-2">{filteredTransactions.length} Transactions</Badge>
                                 </div>
-                                <Badge variant="outline" className="font-mono">{filteredTransactions.length} Transactions</Badge>
+                                <VehicleSearchPopover className="w-full sm:w-[220px] h-9 text-xs" />
                             </CardHeader>
                             <CardContent className="p-0">
                                 <ScrollArea className="w-full">
@@ -617,9 +601,32 @@ export default function FleetTransactionsPage() {
 
                 <TabsContent value="history" className="mt-6 space-y-6">
                     <Card>
-                        <CardHeader className="py-4 border-b">
-                            <CardTitle className="text-lg">Partner Ledger Report</CardTitle>
-                            <CardDescription>Breakdown of billing and settlements for each vendor or customer.</CardDescription>
+                        <CardHeader className="py-4 border-b flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                            <div className="space-y-1">
+                                <CardTitle className="text-lg">Partner Ledger Report</CardTitle>
+                                <CardDescription>Breakdown of billing and settlements for each vendor or customer.</CardDescription>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Label className="text-[10px] uppercase font-bold text-muted-foreground hidden sm:block">Find Partner:</Label>
+                                <Select value={filterPartyId} onValueChange={setFilterPartyId}>
+                                    <SelectTrigger className="w-full sm:w-[220px] h-10 bg-white text-xs">
+                                        <div className="flex items-center gap-2">
+                                            <Users className="h-3.5 w-3.5 opacity-70" />
+                                            <SelectValue placeholder="All Partners" />
+                                        </div>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="All">All Partners</SelectItem>
+                                        {parties
+                                            .filter(p => p.ownership === 'Sijan' || p.ownership === 'Both')
+                                            .sort((a, b) => a.name.localeCompare(b.name))
+                                            .map(p => (
+                                                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                                            ))
+                                        }
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </CardHeader>
                         <CardContent className="p-0">
                              <Table className="text-xs">
@@ -633,7 +640,7 @@ export default function FleetTransactionsPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {Array.from(new Map(parties.filter(p => p.ownership === 'Sijan' || p.ownership === 'Both').map(p => [p.id, p.name])).entries()).map(([pId, pName]) => {
+                                    {Array.from(new Map(parties.filter(p => (p.ownership === 'Sijan' || p.ownership === 'Both') && (filterPartyId === 'All' || p.id === filterPartyId)).map(p => [p.id, p.name])).entries()).map(([pId, pName]) => {
                                         const pItems = processedData.filter(t => t.partyId === pId);
                                         const billing = pItems.reduce((sum, t) => sum + t.amount, 0);
                                         const settled = pItems.reduce((sum, t) => sum + t.paidAmount, 0);
