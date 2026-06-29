@@ -1,23 +1,20 @@
-
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { 
   PlusCircle, 
   ShoppingCart, 
-  Calculator, 
   FileText, 
-  Receipt, 
   Truck, 
   TrendingUp, 
-  Package, 
   ClipboardList,
   MousePointerClick,
   Clock,
   ArrowRightLeft,
-  Wallet
+  Wallet,
+  ImageIcon
 } from 'lucide-react';
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -30,19 +27,10 @@ import { onEstimatedInvoicesUpdate } from '@/services/estimate-invoice-service';
 import { onPageVisitsUpdate } from '@/services/usage-service';
 import { onSettingUpdate } from '@/services/settings-service';
 import { onChequesUpdate } from '@/services/cheque-service';
-import type { PolicyOrMembership, PurchaseOrder, EstimatedInvoice, PageVisit, CompanyProfile, Cheque } from '@/lib/types';
+import type { PolicyOrMembership, PurchaseOrder, EstimatedInvoice, PageVisit, CompanyProfile, Cheque, AppBranding } from '@/lib/types';
 import { differenceInDays, startOfToday, startOfMonth } from 'date-fns';
-import { cn, toNepaliDate } from '@/lib/utils';
-import placeholders from '@/app/lib/placeholder-images.json';
-
-const defaultCompanyProfile: CompanyProfile = {
-  nameEn: "SHIVAM PACKAGING INDUSTRIES PVT LTD.",
-  nameNp: "शिवम प्याकेजिङ्ग इन्डस्ट्रिज प्रा.लि.",
-  address: "Hetauda 08, Nepal",
-  phone: "N/A",
-  email: "N/A",
-  pan: "N/A"
-};
+import { cn } from '@/lib/utils';
+import { DEFAULT_COMPANY_PROFILE } from '@/lib/constants';
 
 export default function DashboardPage() {
   const { user, hasPermission } = useAuth();
@@ -51,7 +39,8 @@ export default function DashboardPage() {
   const [invoices, setInvoices] = useState<EstimatedInvoice[]>([]);
   const [pageVisits, setPageVisits] = useState<PageVisit[]>([]);
   const [cheques, setCheques] = useState<Cheque[]>([]);
-  const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(defaultCompanyProfile);
+  const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE);
+  const [appBranding, setAppBranding] = useState<AppBranding>({ appName: 'StarSutra', appMotto: '' });
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -64,6 +53,9 @@ export default function DashboardPage() {
       onChequesUpdate(setCheques),
       onSettingUpdate('companyProfile', (s) => {
           if (s?.value) setCompanyProfile(s.value);
+      }),
+      onSettingUpdate('appBranding', (s) => {
+        if (s?.value) setAppBranding(s.value);
       })
     ];
 
@@ -110,14 +102,19 @@ export default function DashboardPage() {
     <div className="flex flex-col gap-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-4">
-            <Image 
-                src={placeholders.logo.url} 
-                width={80} 
-                height={80} 
-                alt={placeholders.logo.alt}
-                className="rounded-xl shadow-md hidden sm:block"
-                data-ai-hint="brand logo"
-            />
+            <div className="w-20 h-20 rounded-xl bg-white shadow-md flex items-center justify-center overflow-hidden border">
+                {companyProfile.logoURL ? (
+                    <Image 
+                        src={companyProfile.logoURL} 
+                        width={80} 
+                        height={80} 
+                        alt="Company Logo"
+                        className="object-contain"
+                    />
+                ) : (
+                    <ImageIcon className="h-8 w-8 text-muted-foreground opacity-20" />
+                )}
+            </div>
             <div>
               <h1 className="text-2xl font-bold tracking-tight uppercase">{companyProfile.nameEn}</h1>
               <h2 className="text-lg font-semibold text-muted-foreground">{companyProfile.nameNp}</h2>

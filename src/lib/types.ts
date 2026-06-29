@@ -795,6 +795,13 @@ export interface CompanyProfile {
   phone: string;
   email: string;
   pan: string;
+  logoURL?: string;
   lastModifiedBy?: string;
   lastModifiedAt?: string;
+}
+
+export interface AppBranding {
+  appName: string;
+  appMotto: string;
+  appLogoURL?: string;
 }

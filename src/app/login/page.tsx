@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -12,14 +11,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ImageIcon } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { exportData } from '@/services/backup-service';
 import { format } from 'date-fns';
 import { signInWithEmailAndPassword, AuthErrorCodes } from 'firebase/auth';
 import { useAuthService } from '@/firebase';
 import { getAdminCredentials, getUsers } from '@/services/user-service';
-import placeholders from '@/app/lib/placeholder-images.json';
+import { onSettingUpdate } from '@/services/settings-service';
+import type { AppBranding } from '@/lib/types';
 
 
 const loginSchema = z.object({
@@ -35,6 +35,7 @@ export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { user, login, loading: authLoading } = useAuth();
   const auth = useAuthService();
+  const [appBranding, setAppBranding] = useState<AppBranding>({ appName: 'StarSutra', appMotto: '' });
 
   const {
     register,
@@ -49,6 +50,13 @@ export default function LoginPage() {
       router.replace('/dashboard');
     }
   }, [user, authLoading, router]);
+
+  useEffect(() => {
+    const unsubBranding = onSettingUpdate('appBranding', (s) => {
+        if (s?.value) setAppBranding(s.value);
+    });
+    return () => unsubBranding();
+  }, []);
 
   const handleDailyBackup = async () => {
     const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
@@ -145,15 +153,25 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-md">
          <div className="flex flex-col justify-center items-center gap-4 mb-8 text-center">
-            <Image 
-                src={placeholders.logo.url} 
-                width={120} 
-                height={120} 
-                alt={placeholders.logo.alt}
-                className="rounded-2xl shadow-xl"
-                data-ai-hint="company logo"
-            />
-            <h1 className="text-4xl font-black tracking-tight">StarSutra</h1>
+            <div className="w-28 h-28 rounded-2xl bg-white shadow-xl flex items-center justify-center overflow-hidden border">
+                {appBranding.appLogoURL ? (
+                    <Image 
+                        src={appBranding.appLogoURL} 
+                        width={112} 
+                        height={112} 
+                        alt="App Logo"
+                        className="object-contain"
+                    />
+                ) : (
+                    <ImageIcon className="h-12 w-12 text-muted-foreground opacity-10" />
+                )}
+            </div>
+            <div className="space-y-1">
+                <h1 className="text-4xl font-black tracking-tight">{appBranding.appName}</h1>
+                {appBranding.appMotto && (
+                    <p className="text-sm font-medium text-muted-foreground italic uppercase tracking-wider">{appBranding.appMotto}</p>
+                )}
+            </div>
         </div>
         <Card className="shadow-2xl border-primary/20">
           <CardHeader>

@@ -15,7 +15,8 @@ import type {
   BankAccountType, 
   PageVisit, 
   CompanyProfile,
-  AccountOwnership
+  AccountOwnership,
+  AppBranding
 } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -59,7 +60,9 @@ import {
   TrendingUp,
   Loader2,
   Eye,
-  AlertCircle
+  AlertCircle,
+  X,
+  Image as ImageIcon
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -118,6 +121,8 @@ import {
     CommandList 
 } from '@/components/ui/command';
 import { NEPALI_MONTHS, DEFAULT_COMPANY_PROFILE, DEFAULT_FLEET_PROFILE } from '@/lib/constants';
+import { uploadFile } from '@/services/storage-service';
+import Image from 'next/image';
 
 function MergePartiesDialog({ open, onOpenChange, parties, onMerge }: { open: boolean, onOpenChange: (open: boolean) => void, parties: Party[], onMerge: (sourceId: string, destinationId: string) => void }) {
     const [sourceId, setSourceId] = useState<string>('');
@@ -229,10 +234,17 @@ export default function SettingsPage() {
   // Company Profile States
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const mainLogoInputRef = useRef<HTMLInputElement>(null);
 
   // Fleet Profile States
   const [fleetProfile, setFleetProfile] = useState<CompanyProfile>(DEFAULT_FLEET_PROFILE);
   const [isSavingFleetProfile, setIsSavingFleetProfile] = useState(false);
+  const fleetLogoInputRef = useRef<HTMLInputElement>(null);
+
+  // App Branding States
+  const [appBranding, setAppBranding] = useState<AppBranding>({ appName: 'StarSutra', appMotto: '' });
+  const [isSavingBranding, setIsSavingBranding] = useState(false);
+  const appLogoInputRef = useRef<HTMLInputElement>(null);
 
   // Payroll Lock State
   const [payrollLocks, setPayrollLocks] = useState<Record<string, boolean>>({});
@@ -285,6 +297,7 @@ export default function SettingsPage() {
     const unsubPayrollLocks = onSettingUpdate('payrollLocks', (setting) => setPayrollLocks(setting?.value || {}));
     const unsubCompanyProfile = onSettingUpdate('companyProfile', (setting) => setCompanyProfile(setting?.value || DEFAULT_COMPANY_PROFILE));
     const unsubFleetProfile = onSettingUpdate('fleetCompanyProfile', (setting) => setFleetProfile(setting?.value || DEFAULT_FLEET_PROFILE));
+    const unsubAppBranding = onSettingUpdate('appBranding', (setting) => setAppBranding(setting?.value || { appName: 'StarSutra', appMotto: '' }));
     const unsubUsage = onPageVisitsUpdate(setPageVisits);
     const unsubLogs = onLogsUpdate(setLogs);
     
@@ -309,6 +322,7 @@ export default function SettingsPage() {
         unsubPayrollLocks();
         unsubCompanyProfile();
         unsubFleetProfile();
+        unsubAppBranding();
         unsubUsage();
         unsubLogs();
         window.removeEventListener('storage', handleStorageChange);
@@ -349,6 +363,39 @@ export default function SettingsPage() {
     } finally {
         setIsSavingFleetProfile(false);
     }
+  };
+
+  const handleSaveAppBranding = async () => {
+    if (!user) return;
+    setIsSavingBranding(true);
+    try {
+        await setSetting('appBranding', appBranding);
+        toast({ title: 'Success', description: 'Application branding updated.' });
+    } catch {
+        toast({ title: 'Error', description: 'Failed to update branding.', variant: 'destructive' });
+    } finally {
+        setIsSavingBranding(false);
+    }
+  };
+
+  const handleLogoUpload = async (file: File, type: 'main' | 'fleet' | 'app') => {
+      if (!user) return;
+      try {
+          const path = `branding/${type}-logo-${Date.now()}`;
+          const url = await uploadFile(file, path);
+          
+          if (type === 'main') {
+              setCompanyProfile(prev => ({ ...prev, logoURL: url }));
+          } else if (type === 'fleet') {
+              setFleetProfile(prev => ({ ...prev, logoURL: url }));
+          } else if (type === 'app') {
+              setAppBranding(prev => ({ ...prev, appLogoURL: url }));
+          }
+          
+          toast({ title: "Logo Uploaded", description: "Save the profile to persist changes." });
+      } catch (error) {
+          toast({ title: "Upload Failed", description: "Check file type and try again.", variant: 'destructive' });
+      }
   };
 
   const handleOpenPrefixDialog = (key: keyof DocumentPrefixes) => {
@@ -702,6 +749,7 @@ export default function SettingsPage() {
   };
   
   const otherTabs = [
+    { value: "app-branding", label: "App Customization" },
     { value: "company-details", label: "Company Profile" },
     { value: "parties", label: "Vendors & Suppliers" },
     { value: "accounts", label: "Accounts" },
@@ -913,13 +961,56 @@ export default function SettingsPage() {
                     )}
                 </div>
             </TabsContent>
+            <TabsContent value="app-branding">
+                 <Card>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                        <div className="space-y-1">
+                            <CardTitle>System Identity</CardTitle>
+                            <CardDescription>Customize the core application name, motto, and logo.</CardDescription>
+                        </div>
+                        <Button onClick={handleSaveAppBranding} disabled={isSavingBranding}>
+                            {isSavingBranding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                            Save Branding
+                        </Button>
+                    </CardHeader>
+                    <CardContent className="space-y-8">
+                        <div className="flex flex-col md:flex-row gap-8 items-start">
+                             <div className="space-y-4">
+                                <Label>Application Logo</Label>
+                                <div className="w-32 h-32 rounded-xl border border-dashed flex items-center justify-center bg-muted/30 overflow-hidden group relative">
+                                    {appBranding.appLogoURL ? (
+                                        <Image src={appBranding.appLogoURL} alt="App Logo" width={128} height={128} className="object-contain" />
+                                    ) : (
+                                        <ImageIcon className="h-12 w-12 text-muted-foreground opacity-20" />
+                                    )}
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                        <Button variant="secondary" size="sm" className="h-8 text-[10px]" onClick={() => appLogoInputRef.current?.click()}>Change Logo</Button>
+                                    </div>
+                                </div>
+                                <input type="file" ref={appLogoInputRef} className="hidden" accept="image/*" onChange={e => e.target.files?.[0] && handleLogoUpload(e.target.files[0], 'app')} />
+                                <p className="text-[10px] text-muted-foreground uppercase font-bold text-center">System Primary Icon</p>
+                            </div>
+                            <div className="flex-1 space-y-6 w-full">
+                                <div className="space-y-2">
+                                    <Label htmlFor="app-name">Application Name</Label>
+                                    <Input id="app-name" value={appBranding.appName} onChange={e => setAppBranding(prev => ({ ...prev, appName: e.target.value }))} className="h-12 text-lg font-bold" />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="app-motto">App Tagline / Motto</Label>
+                                    <Input id="app-motto" value={appBranding.appMotto} onChange={e => setAppBranding(prev => ({ ...prev, appMotto: e.target.value }))} placeholder="e.g. Empowering Business with Precision" />
+                                </div>
+                            </div>
+                        </div>
+                    </CardContent>
+                 </Card>
+            </TabsContent>
             <TabsContent value="company-details">
                 <div className="space-y-8">
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between">
                             <div className="space-y-1">
                                 <CardTitle>Main Company Profile (Production)</CardTitle>
-                                <CardDescription>Used for Reports, Payslips, CRM, and Finance.</CardDescription>
+                                <CardDescription>Branding used for Reports, Payslips, CRM, and Finance.</CardDescription>
                             </div>
                             <Button onClick={handleSaveCompanyProfile} disabled={isSavingProfile}>
                                 {isSavingProfile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
@@ -927,40 +1018,56 @@ export default function SettingsPage() {
                             </Button>
                         </CardHeader>
                         <CardContent className="space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="space-y-2">
-                                    <Label htmlFor="co-name-en">Company Name (English)</Label>
-                                    <Input 
-                                        id="co-name-en" 
-                                        value={companyProfile.nameEn} 
-                                        onChange={e => setCompanyProfile(prev => ({...prev, nameEn: e.target.value}))} 
-                                    />
+                            <div className="flex flex-col md:flex-row gap-8">
+                                <div className="space-y-4">
+                                    <Label>Shivam Packaging Logo</Label>
+                                    <div className="w-40 h-40 rounded-lg border border-dashed flex items-center justify-center bg-muted/30 overflow-hidden group relative">
+                                        {companyProfile.logoURL ? (
+                                            <Image src={companyProfile.logoURL} alt="Shivam Logo" width={160} height={160} className="object-contain" />
+                                        ) : (
+                                            <ImageIcon className="h-16 w-16 text-muted-foreground opacity-20" />
+                                        )}
+                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                            <Button variant="secondary" size="sm" onClick={() => mainLogoInputRef.current?.click()}>Upload Logo</Button>
+                                        </div>
+                                    </div>
+                                    <input type="file" ref={mainLogoInputRef} className="hidden" accept="image/*" onChange={e => e.target.files?.[0] && handleLogoUpload(e.target.files[0], 'main')} />
                                 </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="co-name-np">Company Name (Nepali Unicode)</Label>
-                                    <Input 
-                                        id="co-name-np" 
-                                        value={companyProfile.nameNp} 
-                                        onChange={e => setCompanyProfile(prev => ({...prev, nameNp: e.target.value}))} 
-                                        className="font-body" 
-                                        placeholder="Manually type company name in Nepali"
-                                    />
-                                </div>
-                                <div className="space-y-2 md:col-span-2">
-                                    <Label htmlFor="co-address">Business Address</Label>
-                                    <Input id="co-address" value={companyProfile.address} onChange={e => setCompanyProfile(prev => ({...prev, address: e.target.value}))} />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="co-phone">Contact Phone</Label>
-                                    <Input id="co-phone" value={companyProfile.phone} onChange={e => setCompanyProfile(prev => ({...prev, phone: e.target.value}))} />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="co-email">Contact Email</Label>
-                                    <Input id="co-email" type="email" value={companyProfile.email} onChange={e => setCompanyProfile(prev => ({...prev, email: e.target.value}))} />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="co-pan">PAN Number</Label>
-                                    <Input id="co-pan" value={companyProfile.pan} onChange={e => setCompanyProfile(prev => ({...prev, pan: e.target.value}))} />
+                                <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="co-name-en">Company Name (English)</Label>
+                                        <Input 
+                                            id="co-name-en" 
+                                            value={companyProfile.nameEn} 
+                                            onChange={e => setCompanyProfile(prev => ({...prev, nameEn: e.target.value}))} 
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="co-name-np">Company Name (Nepali Unicode)</Label>
+                                        <Input 
+                                            id="co-name-np" 
+                                            value={companyProfile.nameNp} 
+                                            onChange={e => setCompanyProfile(prev => ({...prev, nameNp: e.target.value}))} 
+                                            className="font-body" 
+                                            placeholder="Manually type company name in Nepali"
+                                        />
+                                    </div>
+                                    <div className="space-y-2 md:col-span-2">
+                                        <Label htmlFor="co-address">Business Address</Label>
+                                        <Input id="co-address" value={companyProfile.address} onChange={e => setCompanyProfile(prev => ({...prev, address: e.target.value}))} />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="co-phone">Contact Phone</Label>
+                                        <Input id="co-phone" value={companyProfile.phone} onChange={e => setCompanyProfile(prev => ({...prev, phone: e.target.value}))} />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="co-email">Contact Email</Label>
+                                        <Input id="co-email" type="email" value={companyProfile.email} onChange={e => setCompanyProfile(prev => ({...prev, email: e.target.value}))} />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="co-pan">PAN Number</Label>
+                                        <Input id="co-pan" value={companyProfile.pan} onChange={e => setCompanyProfile(prev => ({...prev, pan: e.target.value}))} />
+                                    </div>
                                 </div>
                             </div>
                         </CardContent>
@@ -970,7 +1077,7 @@ export default function SettingsPage() {
                         <CardHeader className="flex flex-row items-center justify-between">
                             <div className="space-y-1">
                                 <CardTitle>Fleet Management Profile (Independent)</CardTitle>
-                                <CardDescription>Used exclusively for Fleet vouchers and reports.</CardDescription>
+                                <CardDescription>Used exclusively for Sijan Dhuwani vouchers and reports.</CardDescription>
                             </div>
                             <Button onClick={handleSaveFleetProfile} disabled={isSavingFleetProfile}>
                                 {isSavingFleetProfile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
@@ -978,40 +1085,56 @@ export default function SettingsPage() {
                             </Button>
                         </CardHeader>
                         <CardContent className="space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="space-y-2">
-                                    <Label htmlFor="fleet-name-en">Fleet Company Name (English)</Label>
-                                    <Input 
-                                        id="fleet-name-en" 
-                                        value={fleetProfile.nameEn} 
-                                        onChange={e => setFleetProfile(prev => ({...prev, nameEn: e.target.value}))} 
-                                    />
+                            <div className="flex flex-col md:flex-row gap-8">
+                                <div className="space-y-4">
+                                    <Label>Sijan Dhuwani Logo</Label>
+                                    <div className="w-40 h-40 rounded-lg border border-dashed flex items-center justify-center bg-muted/30 overflow-hidden group relative">
+                                        {fleetProfile.logoURL ? (
+                                            <Image src={fleetProfile.logoURL} alt="Sijan Logo" width={160} height={160} className="object-contain" />
+                                        ) : (
+                                            <ImageIcon className="h-16 w-16 text-muted-foreground opacity-20" />
+                                        )}
+                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                            <Button variant="secondary" size="sm" onClick={() => fleetLogoInputRef.current?.click()}>Upload Logo</Button>
+                                        </div>
+                                    </div>
+                                    <input type="file" ref={fleetLogoInputRef} className="hidden" accept="image/*" onChange={e => e.target.files?.[0] && handleLogoUpload(e.target.files[0], 'fleet')} />
                                 </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="fleet-name-np">Fleet Company Name (Nepali Unicode)</Label>
-                                    <Input 
-                                        id="fleet-name-np" 
-                                        value={fleetProfile.nameNp} 
-                                        onChange={e => setFleetProfile(prev => ({...prev, nameNp: e.target.value}))} 
-                                        className="font-body" 
-                                        placeholder="Manually type company name in Nepali"
-                                    />
-                                </div>
-                                <div className="space-y-2 md:col-span-2">
-                                    <Label htmlFor="fleet-address">Business Address</Label>
-                                    <Input id="fleet-address" value={fleetProfile.address} onChange={e => setFleetProfile(prev => ({...prev, address: e.target.value}))} />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="fleet-phone">Contact Phone</Label>
-                                    <Input id="fleet-phone" value={fleetProfile.phone} onChange={e => setFleetProfile(prev => ({...prev, phone: e.target.value}))} />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="fleet-email">Contact Email</Label>
-                                    <Input id="fleet-email" type="email" value={fleetProfile.email} onChange={e => setFleetProfile(prev => ({...prev, email: e.target.value}))} />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="fleet-pan">PAN Number</Label>
-                                    <Input id="fleet-pan" value={fleetProfile.pan} onChange={e => setFleetProfile(prev => ({...prev, pan: e.target.value}))} />
+                                <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="fleet-name-en">Fleet Company Name (English)</Label>
+                                        <Input 
+                                            id="fleet-name-en" 
+                                            value={fleetProfile.nameEn} 
+                                            onChange={e => setFleetProfile(prev => ({...prev, nameEn: e.target.value}))} 
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="fleet-name-np">Fleet Company Name (Nepali Unicode)</Label>
+                                        <Input 
+                                            id="fleet-name-np" 
+                                            value={fleetProfile.nameNp} 
+                                            onChange={e => setFleetProfile(prev => ({...prev, nameNp: e.target.value}))} 
+                                            className="font-body" 
+                                            placeholder="Manually type company name in Nepali"
+                                        />
+                                    </div>
+                                    <div className="space-y-2 md:col-span-2">
+                                        <Label htmlFor="fleet-address">Business Address</Label>
+                                        <Input id="fleet-address" value={fleetProfile.address} onChange={e => setFleetProfile(prev => ({...prev, address: e.target.value}))} />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="fleet-phone">Contact Phone</Label>
+                                        <Input id="fleet-phone" value={fleetProfile.phone} onChange={e => setFleetProfile(prev => ({...prev, phone: e.target.value}))} />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="fleet-email">Contact Email</Label>
+                                        <Input id="fleet-email" type="email" value={fleetProfile.email} onChange={e => setFleetProfile(prev => ({...prev, email: e.target.value}))} />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="fleet-pan">PAN Number</Label>
+                                        <Input id="fleet-pan" value={fleetProfile.pan} onChange={e => setFleetProfile(prev => ({...prev, pan: e.target.value}))} />
+                                    </div>
                                 </div>
                             </div>
                         </CardContent>

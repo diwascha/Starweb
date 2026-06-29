@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -51,9 +50,10 @@ import { useToast } from '@/hooks/use-toast';
 import { exportData } from '@/services/backup-service';
 import { Loader2 } from 'lucide-react';
 import { useConnectionStatus } from '@/firebase';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { getNormalizedPath } from '@/lib/utils';
-import placeholders from '@/app/lib/placeholder-images.json';
+import { onSettingUpdate } from '@/services/settings-service';
+import type { AppBranding } from '@/lib/types';
 
 function SidebarCollapseButton() {
     const { state, toggleSidebar } = useSidebar();
@@ -106,6 +106,14 @@ export function AppSidebar() {
   const { user, logout, hasPermission } = useAuth();
   const { toast } = useToast();
   const [isExporting, setIsExporting] = useState(false);
+  const [appBranding, setAppBranding] = useState<AppBranding>({ appName: 'StarSutra', appMotto: '' });
+
+  useEffect(() => {
+    const unsubBranding = onSettingUpdate('appBranding', (s) => {
+        if (s?.value) setAppBranding(s.value);
+    });
+    return () => unsubBranding();
+  }, []);
   
   const handleExportData = async () => {
     setIsExporting(true);
@@ -151,15 +159,22 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <div className="flex items-center gap-3 px-2 py-4">
-            <Image 
-                src={placeholders.logo.url} 
-                width={32} 
-                height={32} 
-                alt={placeholders.logo.alt}
-                className="rounded-lg group-data-[collapsible=icon]:mx-auto"
-                data-ai-hint="app logo"
-            />
-            <h1 className="text-xl font-bold tracking-tight group-data-[collapsible=icon]:hidden">StarSutra</h1>
+            {appBranding.appLogoURL ? (
+                <Image 
+                    src={appBranding.appLogoURL} 
+                    width={32} 
+                    height={32} 
+                    alt="Logo"
+                    className="rounded-lg group-data-[collapsible=icon]:mx-auto object-contain bg-white/10"
+                />
+            ) : (
+                <div className="h-8 w-8 rounded-lg bg-primary/20 flex items-center justify-center text-primary font-bold group-data-[collapsible=icon]:mx-auto">
+                    {appBranding.appName.charAt(0)}
+                </div>
+            )}
+            <h1 className="text-xl font-bold tracking-tight group-data-[collapsible=icon]:hidden truncate">
+                {appBranding.appName}
+            </h1>
         </div>
       </SidebarHeader>
       <SidebarContent>
