@@ -188,9 +188,9 @@ export default function PurchaseViewClient({
             <span className="font-semibold">In Words:</span> {toWords(totalAmount)}
         </div>
         
-         <div className="mt-8 grid grid-cols-2 gap-8 pt-16 text-xs">
-            <div className="text-center"><div className="border-t border-black w-36 mx-auto"></div><p className="font-semibold mt-1">Prepared By</p></div>
-            <div className="text-center"><div className="border-t border-black w-36 mx-auto"></div><p className="font-semibold mt-1">Approved By</p></div>
+         <div className="mt-8 text-center pt-12 text-xs text-gray-500 border-t border-gray-200">
+            <p>This is a computer-generated document and does not require a physical signature.</p>
+            <p className="font-bold mt-1 text-black uppercase">{companyProfile.nameEn}</p>
         </div>
 
       </div>

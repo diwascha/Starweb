@@ -1,15 +1,24 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
-import type { Transaction, Vehicle, Party, Account } from '@/lib/types';
+import type { Transaction, Vehicle, Party, Account, CompanyProfile } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Printer, Loader2, Save, ArrowLeft, Edit } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { toNepaliDate, toWords } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Table, TableBody, TableCell, TableRow, TableHeader, TableHead, TableFooter } from '@/components/ui/table';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { onSettingUpdate } from '@/services/settings-service';
+
+const defaultCompanyProfile: CompanyProfile = {
+  nameEn: "SIJAN DHUWANI SEWA",
+  nameNp: "सिजन ढुवानी सेवा",
+  address: "HETAUDA 16, BAGMATI PROVIENCE, NEPAL",
+  phone: "N/A",
+  email: "N/A",
+  pan: "304603712"
+};
 
 interface PurchaseViewClientProps {
   initialTransaction: Transaction;
@@ -26,6 +35,7 @@ export default function PurchaseViewClient({
 }: PurchaseViewClientProps) {
   const router = useRouter();
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(defaultCompanyProfile);
   
   const vehicle = vehicles.find(v => v.id === initialTransaction.vehicleId);
   const party = parties.find(p => p.id === initialTransaction.partyId);
@@ -34,6 +44,13 @@ export default function PurchaseViewClient({
   const subtotal = initialTransaction.items.reduce((sum, item) => sum + item.quantity * item.rate, 0);
   const vatAmount = initialTransaction.invoiceType === 'Taxable' ? subtotal * 0.13 : 0;
   const totalAmount = subtotal + vatAmount;
+
+  useEffect(() => {
+    const unsub = onSettingUpdate('fleetCompanyProfile', (s) => {
+        if (s?.value) setCompanyProfile(s.value);
+    });
+    return () => unsub();
+  }, []);
 
   const handlePrint = () => {
     setTimeout(() => {
@@ -169,9 +186,9 @@ export default function PurchaseViewClient({
             <span className="font-semibold">In Words:</span> {toWords(totalAmount)}
         </div>
         
-         <div className="mt-8 grid grid-cols-2 gap-8 pt-16 text-xs">
-            <div className="text-center"><div className="border-t border-black w-36 mx-auto"></div><p className="font-semibold mt-1">Prepared By</p></div>
-            <div className="text-center"><div className="border-t border-black w-36 mx-auto"></div><p className="font-semibold mt-1">Approved By</p></div>
+         <div className="mt-8 text-center pt-12 text-xs text-gray-500 border-t border-gray-200">
+            <p>This is a computer-generated document and does not require a physical signature.</p>
+            <p className="font-bold mt-1 text-black uppercase">{companyProfile.nameEn}</p>
         </div>
 
       </div>
