@@ -8,7 +8,7 @@ import { Printer, Loader2, Save, ArrowLeft, Edit } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { toNepaliDate, toWords } from '@/lib/utils';
 import { format } from 'date-fns';
-import { Table, TableBody, TableCell, TableRow, TableHeader, TableHead } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableRow, TableHeader, TableHead, TableFooter } from '@/components/ui/table';
 import { useRouter } from 'next/navigation';
 import { onSettingUpdate } from '@/services/settings-service';
 
