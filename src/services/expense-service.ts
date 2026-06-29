@@ -67,6 +67,7 @@ export const onExpensesUpdate = (callback: (expenses: Expense[]) => void): () =>
 
 /**
  * Adds a new expense record and automatically syncs it to the general accounting ledger.
+ * ARCHITECTURE: All entries from this form are categorized as "Payment" (Outflow).
  */
 export const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>): Promise<string> => {
     const { db } = getFirebase();
@@ -95,7 +96,7 @@ export const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>)
     await setDoc(doc(getExpensesCollection(), expenseId), expenseRecord);
 
     // 2. Automatically sync to Main Transactions for accounting
-    // Architecture: type: bucket, category: purpose, sourceRef: origin
+    // Architecture: type: "Payment", category: the expense type, sourceRef: origin
     const totalAmount = expenseRecord.amount + expenseRecord.extraAmount;
     
     const items: TransactionItem[] = [
@@ -117,7 +118,7 @@ export const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>)
     const txnData: Omit<Transaction, 'id' | 'createdAt' | 'lastModifiedAt'> = {
         date: expenseRecord.date,
         vehicleId: expenseRecord.vehicleId,
-        type: 'Payment', // Daily expenses are outflows (Payments)
+        type: 'Payment', // All entries from Daily Expense are Outflows
         amount: totalAmount,
         billingType: expenseRecord.paymentMode,
         invoiceType: 'Normal',
