@@ -104,25 +104,11 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } f
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
-import { 
-    Select, 
-    SelectContent, 
-    SelectItem, 
-    SelectTrigger, 
-    SelectValue 
-} from '@/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn, toNepaliDate } from '@/lib/utils';
-import { 
-    Command, 
-    CommandEmpty, 
-    CommandGroup, 
-    CommandInput, 
-    CommandItem, 
-    CommandList 
-} from '@/components/ui/command';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { NEPALI_MONTHS, DEFAULT_COMPANY_PROFILE, DEFAULT_FLEET_PROFILE } from '@/lib/constants';
 import { uploadFile } from '@/services/storage-service';
-import Image from 'next/image';
 
 function MergePartiesDialog({ open, onOpenChange, parties, onMerge }: { open: boolean, onOpenChange: (open: boolean) => void, parties: Party[], onMerge: (sourceId: string, destinationId: string) => void }) {
     const [sourceId, setSourceId] = useState<string>('');
@@ -381,19 +367,23 @@ export default function SettingsPage() {
   const handleLogoUpload = async (file: File, type: 'main' | 'fleet' | 'app') => {
       if (!user) return;
       try {
-          const path = `branding/${type}-logo-${Date.now()}`;
+          const timestamp = Date.now();
+          const path = `branding/${type}-logo-${timestamp}`;
           const url = await uploadFile(file, path);
           
+          // Append timestamp to URL to force immediate browser refresh
+          const finalUrl = `${url}?t=${timestamp}`;
+          
           if (type === 'main') {
-              const updated = { ...companyProfile, logoURL: url };
+              const updated = { ...companyProfile, logoURL: finalUrl };
               setCompanyProfile(updated);
               await setSetting('companyProfile', updated);
           } else if (type === 'fleet') {
-              const updated = { ...fleetProfile, logoURL: url };
+              const updated = { ...fleetProfile, logoURL: finalUrl };
               setFleetProfile(updated);
               await setSetting('fleetCompanyProfile', updated);
           } else if (type === 'app') {
-              const updated = { ...appBranding, appLogoURL: url };
+              const updated = { ...appBranding, appLogoURL: finalUrl };
               setAppBranding(updated);
               await setSetting('appBranding', updated);
           }
@@ -721,8 +711,6 @@ export default function SettingsPage() {
       toast({ title: 'Success', description: 'User deleted.' });
   };
   
-  const filteredUsers = users.filter(u => u.username.toLowerCase().includes(searchQuery.toLowerCase()));
-  
   const handleChangePassword = async () => {
     if (!user) return;
     if (newPassword !== confirmPassword) {
@@ -985,14 +973,11 @@ export default function SettingsPage() {
                                 <Label>Application Logo</Label>
                                 <div className="w-32 h-32 rounded-xl border border-dashed flex items-center justify-center bg-muted/30 overflow-hidden group relative">
                                     {appBranding.appLogoURL ? (
-                                        <Image 
+                                        <img 
                                             key={appBranding.appLogoURL}
                                             src={appBranding.appLogoURL} 
                                             alt="App Logo" 
-                                            width={128} 
-                                            height={128} 
-                                            className="object-contain" 
-                                            unoptimized
+                                            className="w-full h-full object-contain" 
                                         />
                                     ) : (
                                         <ImageIcon className="h-12 w-12 text-muted-foreground opacity-20" />
@@ -1037,14 +1022,11 @@ export default function SettingsPage() {
                                     <Label>Shivam Packaging Logo</Label>
                                     <div className="w-40 h-40 rounded-lg border border-dashed flex items-center justify-center bg-muted/30 overflow-hidden group relative">
                                         {companyProfile.logoURL ? (
-                                            <Image 
+                                            <img 
                                                 key={companyProfile.logoURL}
                                                 src={companyProfile.logoURL} 
                                                 alt="Shivam Logo" 
-                                                width={160} 
-                                                height={160} 
-                                                className="object-contain" 
-                                                unoptimized
+                                                className="w-full h-full object-contain" 
                                             />
                                         ) : (
                                             <ImageIcon className="h-16 w-16 text-muted-foreground opacity-20" />
@@ -1112,14 +1094,11 @@ export default function SettingsPage() {
                                     <Label>Sijan Dhuwani Logo</Label>
                                     <div className="w-40 h-40 rounded-lg border border-dashed flex items-center justify-center bg-muted/30 overflow-hidden group relative">
                                         {fleetProfile.logoURL ? (
-                                            <Image 
+                                            <img 
                                                 key={fleetProfile.logoURL}
                                                 src={fleetProfile.logoURL} 
                                                 alt="Sijan Logo" 
-                                                width={160} 
-                                                height={160} 
-                                                className="object-contain" 
-                                                unoptimized
+                                                className="w-full h-full object-contain" 
                                             />
                                         ) : (
                                             <ImageIcon className="h-16 w-16 text-muted-foreground opacity-20" />
@@ -1218,12 +1197,14 @@ export default function SettingsPage() {
             </TabsContent>
             <TabsContent value="accounts">
                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                        <div>
-                            <CardTitle>Accounts</CardTitle>
-                            <CardDescription>Manage cash and bank accounts with mandatory ownership tagging (Sijan/Shivam).</CardDescription>
+                    <CardHeader>
+                        <div className="flex flex-row items-center justify-between">
+                            <div>
+                                <CardTitle>Accounts</CardTitle>
+                                <CardDescription>Manage cash and bank accounts with mandatory ownership tagging (Sijan/Shivam).</CardDescription>
+                            </div>
+                            <Button onClick={() => openAccountDialog()}><Plus className="mr-2 h-4 w-4" /> Add Account</Button>
                         </div>
-                        <Button onClick={() => openAccountDialog()}><Plus className="mr-2 h-4 w-4" /> Add Account</Button>
                     </CardHeader>
                     <CardContent>
                          <Table><TableHeader><TableRow>
