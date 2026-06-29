@@ -113,7 +113,6 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
   
   const totalRec = watchedItems.reduce((sum, item) => sum + (Number(item.recAmount) || 0), 0);
   const totalPay = watchedItems.reduce((sum, item) => sum + (Number(item.payAmount) || 0), 0);
-  const netAmount = totalRec - totalPay;
   
   const summaryData = watchedItems.map(item => {
     const { ledgerId, vehicleId, recAmount = 0, payAmount = 0 } = item;
@@ -383,20 +382,7 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
                     <TableCell colSpan={3} className="text-right font-black uppercase text-[10px] tracking-widest text-muted-foreground">Voucher Totals</TableCell>
                     <TableCell className="font-mono font-black text-emerald-700">Rs. {totalRec.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
                     <TableCell className="font-mono font-black text-red-700">Rs. {totalPay.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
-                    <TableCell colSpan={2}>
-                        <div className="flex items-center gap-3">
-                            <span className="text-[10px] uppercase font-black text-blue-900 tracking-widest shrink-0">Net Settlement:</span>
-                            <div className="flex items-center gap-2">
-                                <span className="font-mono font-black text-blue-800">Rs. {Math.abs(netAmount).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
-                                <Badge variant="outline" className={cn(
-                                    "text-[9px] px-1.5 py-0 h-4 font-black uppercase border-transparent",
-                                    netAmount >= 0 ? "bg-emerald-600 text-white" : "bg-red-600 text-white"
-                                )}>
-                                    {netAmount >= 0 ? 'REC' : 'PAY'}
-                                </Badge>
-                            </div>
-                        </div>
-                    </TableCell>
+                    <TableCell colSpan={2}></TableCell>
                 </TableRow>
             </TableFooter>
             </Table>
