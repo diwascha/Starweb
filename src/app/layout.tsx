@@ -6,6 +6,7 @@ import AuthAwareLayout from '@/components/auth-aware-layout';
 import { Inter } from 'next/font/google';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { UsageTracker } from '@/components/usage-tracker';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 
 export const metadata: Metadata = {
@@ -35,6 +36,7 @@ export default function RootLayout({
                 </AuthAwareLayout>
             </AuthProvider>
           </FirebaseClientProvider>
+          <SpeedInsights />
       </body>
     </html>
   );
