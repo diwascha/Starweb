@@ -62,7 +62,7 @@ import {
   Eye,
   AlertCircle,
   X,
-  Image as ImageIcon
+  ImageIcon
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -110,7 +110,7 @@ import {
     SelectItem, 
     SelectTrigger, 
     SelectValue 
-} from '@/components/ui/select';
+} from '@/select';
 import { cn, toNepaliDate } from '@/lib/utils';
 import { 
     Command, 
@@ -242,7 +242,7 @@ export default function SettingsPage() {
   const fleetLogoInputRef = useRef<HTMLInputElement>(null);
 
   // App Branding States
-  const [appBranding, setAppBranding] = useState<AppBranding>({ appName: 'StarSutra', appMotto: '' });
+  const [appBranding, setAppBranding] = useState<AppBranding>({ appName: 'StarSutra', appMotto: '', appLogoURL: '' });
   const [isSavingBranding, setIsSavingBranding] = useState(false);
   const appLogoInputRef = useRef<HTMLInputElement>(null);
 
@@ -297,7 +297,7 @@ export default function SettingsPage() {
     const unsubPayrollLocks = onSettingUpdate('payrollLocks', (setting) => setPayrollLocks(setting?.value || {}));
     const unsubCompanyProfile = onSettingUpdate('companyProfile', (setting) => setCompanyProfile(setting?.value || DEFAULT_COMPANY_PROFILE));
     const unsubFleetProfile = onSettingUpdate('fleetCompanyProfile', (setting) => setFleetProfile(setting?.value || DEFAULT_FLEET_PROFILE));
-    const unsubAppBranding = onSettingUpdate('appBranding', (setting) => setAppBranding(setting?.value || { appName: 'StarSutra', appMotto: '' }));
+    const unsubAppBranding = onSettingUpdate('appBranding', (setting) => setAppBranding(setting?.value || { appName: 'StarSutra', appMotto: '', appLogoURL: '' }));
     const unsubUsage = onPageVisitsUpdate(setPageVisits);
     const unsubLogs = onLogsUpdate(setLogs);
     
