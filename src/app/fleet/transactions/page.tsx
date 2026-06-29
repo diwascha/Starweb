@@ -319,6 +319,13 @@ export default function FleetTransactionsPage() {
         </Popover>
     );
 
+    const CategorySelect = ({ className }: { className?: string }) => (
+        <Select value={filterCategory} onValueChange={setFilterCategory}>
+            <SelectTrigger className={cn("h-10 bg-white text-xs", className)}><SelectValue placeholder="All Categories" /></SelectTrigger>
+            <SelectContent><SelectItem value="All">All Categories</SelectItem>{allCategories.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}</SelectContent>
+        </Select>
+    );
+
     return (
         <div className="flex flex-col gap-6">
             <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -368,14 +375,6 @@ export default function FleetTransactionsPage() {
                         <div className="space-y-1.5">
                             <Label className="text-[10px] uppercase font-bold text-muted-foreground">AD Range</Label>
                             <Popover><PopoverTrigger asChild><Button variant="outline" className={cn("h-10 justify-start text-left font-normal bg-white text-xs min-w-[220px]", !dateRange && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{dateRange?.from ? (dateRange.to ? (`${format(dateRange.from, "LLL dd")} - ${format(dateRange.to, "LLL dd")}`) : format(dateRange.from, "LLL dd")) : (<span>Pick AD Range</span>)}</Button></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><DualDateRangePicker selected={dateRange} onSelect={setDateRange} /></PopoverContent></Popover>
-                        </div>
-
-                        <div className="space-y-1.5">
-                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Category</Label>
-                            <Select value={filterCategory} onValueChange={setFilterCategory}>
-                                <SelectTrigger className="w-[160px] h-10 bg-white text-xs"><SelectValue placeholder="All Categories" /></SelectTrigger>
-                                <SelectContent><SelectItem value="All">All Categories</SelectItem>{allCategories.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}</SelectContent>
-                            </Select>
                         </div>
 
                         <div className="space-y-1.5">
@@ -473,7 +472,10 @@ export default function FleetTransactionsPage() {
                                     <CardTitle className="text-lg">Fleet Summary Table</CardTitle>
                                     <CardDescription>Overview of all trucks. Use the search to jump to a truck's detail.</CardDescription>
                                 </div>
-                                <VehicleSearchPopover className="w-full sm:w-[280px]" />
+                                <div className="flex items-center gap-2">
+                                    <CategorySelect className="w-[180px]" />
+                                    <VehicleSearchPopover className="w-full sm:w-[280px]" />
+                                </div>
                             </CardHeader>
                             <CardContent className="p-0">
                                 <Table>
@@ -521,7 +523,10 @@ export default function FleetTransactionsPage() {
                                     <CardTitle className="text-lg">Ledger for {vehiclesById.get(filterVehicleId)}</CardTitle>
                                     <Badge variant="outline" className="font-mono ml-2">{filteredTransactions.length} Transactions</Badge>
                                 </div>
-                                <VehicleSearchPopover className="w-full sm:w-[220px] h-9 text-xs" />
+                                <div className="flex items-center gap-2">
+                                    <CategorySelect className="w-[160px] h-9" />
+                                    <VehicleSearchPopover className="w-full sm:w-[220px] h-9 text-xs" />
+                                </div>
                             </CardHeader>
                             <CardContent className="p-0">
                                 <ScrollArea className="w-full">
@@ -599,7 +604,7 @@ export default function FleetTransactionsPage() {
                     )}
                 </TabsContent>
 
-                <TabsContent value="history" className="mt-6 space-y-6">
+                <TabsContent value="party" className="mt-6 space-y-6">
                     <Card>
                         <CardHeader className="py-4 border-b flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                             <div className="space-y-1">
@@ -607,6 +612,7 @@ export default function FleetTransactionsPage() {
                                 <CardDescription>Breakdown of billing and settlements for each vendor or customer.</CardDescription>
                             </div>
                             <div className="flex items-center gap-2">
+                                <CategorySelect className="w-[180px]" />
                                 <Label className="text-[10px] uppercase font-bold text-muted-foreground hidden sm:block">Find Partner:</Label>
                                 <Select value={filterPartyId} onValueChange={setFilterPartyId}>
                                     <SelectTrigger className="w-full sm:w-[220px] h-10 bg-white text-xs">
