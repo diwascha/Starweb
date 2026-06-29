@@ -10,6 +10,12 @@ const transactionsCollection = () => {
 
 const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentData): Transaction => {
     const data = snapshot.data();
+    
+    // Normalize types for backward compatibility and strict tab logic
+    let type = data.type;
+    if (type === 'Expense') type = 'Payment';
+    if (type === 'Income') type = 'Receipt';
+
     return {
         id: snapshot.id,
         purchaseNumber: data.purchaseNumber,
@@ -28,7 +34,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
         amount: data.amount,
         remarks: data.remarks,
         tripId: data.tripId,
-        type: data.type,
+        type: type, // Use normalized type
         category: data.category,
         referenceType: data.referenceType || null,
         referenceId: data.referenceId || null,

@@ -4,7 +4,28 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Transaction, Vehicle, Party } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Search, ArrowUpDown, MoreHorizontal, Eye, Edit, Trash2, CalendarIcon, FileSpreadsheet, FileText, Loader2, TrendingUp, TrendingDown, Info, Link as LinkIcon, FilterX, Wallet, Receipt, ShoppingCart, TrendingUp as SalesIcon } from 'lucide-react';
+import { 
+  PlusCircle, 
+  Search, 
+  ArrowUpDown, 
+  MoreHorizontal, 
+  Eye, 
+  Edit, 
+  Trash2, 
+  CalendarIcon, 
+  FileSpreadsheet, 
+  FileText, 
+  Loader2, 
+  TrendingUp, 
+  TrendingDown, 
+  Info, 
+  Link as LinkIcon, 
+  FilterX, 
+  Wallet, 
+  Receipt, 
+  ShoppingCart, 
+  TrendingUp as SalesIcon 
+} from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
