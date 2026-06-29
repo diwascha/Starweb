@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -18,16 +19,19 @@ import {
   Loader2, 
   TrendingUp, 
   TrendingDown, 
-  Info, 
-  Link as LinkIcon, 
   FilterX, 
   Wallet, 
-  Receipt, 
-  ShoppingCart, 
-  TrendingUp as SalesIcon 
+  ArrowRightLeft,
+  ArrowUpRight,
+  ArrowDownLeft,
+  Truck,
+  Users,
+  AlertCircle,
+  CheckCircle2,
+  Clock
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
@@ -53,118 +57,149 @@ import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onPartiesUpdate } from '@/services/party-service';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import NepaliDate from 'nepali-date-converter';
 import { NEPALI_MONTHS } from '@/lib/constants';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { Checkbox } from '@/components/ui/checkbox';
 
-type TransactionSortKey = 'date' | 'vehicleName' | 'type' | 'partyName' | 'amount' | 'category';
-type SortDirection = 'asc' | 'desc';
-type TransactionFilterType = 'All' | 'Payment' | 'Receipt' | 'Sales' | 'Purchase';
+type LedgerView = 'history' | 'vehicle' | 'party';
 
-export default function FinancialHistoryPage() {
+interface ProcessedTransaction extends Transaction {
+    vehicleName: string;
+    partyName: string;
+    direction: 'Income' | 'Expense';
+    displayCategory: string;
+    reference: string;
+    paidAmount: number;
+    dueAmount: number;
+    status: 'Paid' | 'Partial' | 'Due';
+}
+
+export default function FleetTransactionsPage() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [parties, setParties] = useState<Party[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
-    
-    // Search & Filter
+    const { toast } = useToast();
+    const { hasPermission } = useAuth();
+
+    // UI States
+    const [activeView, setActiveView] = useState<LedgerView>('history');
     const [searchQuery, setSearchQuery] = useState('');
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [selectedBsYear, setSelectedBsYear] = useState<string>('All');
     const [selectedBsMonth, setSelectedBsMonth] = useState<string>('All');
-    const [activeTab, setActiveTab] = useState<TransactionFilterType>('All');
-    const [filterPartyId, setFilterPartyId] = useState<string>('All');
     const [filterVehicleId, setFilterVehicleId] = useState<string>('All');
-    const [sortConfig, setSortConfig] = useState<{ key: TransactionSortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
+    const [filterPartyId, setFilterPartyId] = useState<string>('All');
+    const [filterDirection, setFilterDirection] = useState<'All' | 'Income' | 'Expense'>('All');
+    const [filterOutstandingOnly, setFilterOutstandingOnly] = useState(false);
     
-    const { toast } = useToast();
-    const { hasPermission, user } = useAuth();
-    
+    useEffect(() => {
+        setIsLoading(true);
+        const unsubs = [
+            onTransactionsUpdate(setTransactions),
+            onVehiclesUpdate(setVehicles),
+            onPartiesUpdate(setParties)
+        ];
+        setIsLoading(false);
+        return () => unsubs.forEach(u => u());
+    }, []);
+
     const vehiclesById = useMemo(() => new Map(vehicles.map(v => [v.id, v.name])), [vehicles]);
     const partiesById = useMemo(() => new Map(parties.map(p => [p.id, p.name])), [parties]);
 
-    useEffect(() => {
-        setIsLoading(true);
-        const unsubTxns = onTransactionsUpdate(setTransactions);
-        const unsubVehicles = onVehiclesUpdate(setVehicles);
-        const unsubParties = onPartiesUpdate(setParties);
-        setIsLoading(false);
-
-        return () => {
-            unsubTxns();
-            unsubVehicles();
-            unsubParties();
-        }
-    }, []);
-
-    const { availableYears } = useMemo(() => {
+    const availableYears = useMemo(() => {
         const years = new Set<number>();
         transactions.forEach(t => {
             try {
                 years.add(new NepaliDate(new Date(t.date)).getYear());
             } catch {}
         });
-        return {
-            availableYears: Array.from(years).sort((a, b) => b - a),
-        };
+        return Array.from(years).sort((a, b) => b - a);
     }, [transactions]);
 
-    useEffect(() => {
-        if (availableYears.length > 0 && selectedBsYear === 'All' && selectedBsMonth === 'All') {
-            const currentNepaliDate = new NepaliDate();
-            setSelectedBsYear(String(currentNepaliDate.getYear()));
-            setSelectedBsMonth(String(currentNepaliDate.getMonth()));
-        }
-    }, [availableYears, selectedBsYear, selectedBsMonth]);
+    // Internal mapping logic: Pair Bills with Payments
+    const processedData = useMemo(() => {
+        // Map types to directions
+        const rawMapped = transactions.map(t => {
+            const direction = (t.type === 'Sales' || t.type === 'Receipt') ? 'Income' : 'Expense';
+            const vehicleName = vehiclesById.get(t.vehicleId) || 'N/A';
+            const partyName = t.partyId ? partiesById.get(t.partyId) || 'Unassigned' : 'Unassigned';
+            
+            let reference = '';
+            if (t.referenceType && t.referenceId) reference = `${t.referenceType}: ${t.referenceId}`;
+            else if (t.purchaseNumber) reference = `PO: ${t.purchaseNumber}`;
+            else if (t.tripId) reference = `Trip Sheet`;
+            else reference = 'Direct Entry';
 
-    const handleDeleteVoucher = async (voucherId?: string) => {
-        if (!voucherId) return;
-        try {
-            await deleteVoucher(voucherId);
-            toast({ title: 'Record Deleted', description: 'Entry removed successfully.' });
-        } catch (error) {
-             toast({ title: 'Error', description: 'Failed to delete entries.', variant: 'destructive' });
-        }
-    };
-    
-    const requestSort = (key: TransactionSortKey) => {
-        setSortConfig(prev => ({
-            key,
-            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
-        }));
-    };
-
-    const baseFilteredTransactions = useMemo(() => {
-        let filtered = transactions.map(t => {
-            let sourceRef = '';
-            if (t.referenceType && t.referenceId) {
-                sourceRef = `${t.referenceType}: ${t.referenceId}`;
-            } else if (t.purchaseNumber) {
-                sourceRef = `PO: ${t.purchaseNumber}`;
-            } else if (t.type === 'Sales') {
-                sourceRef = 'Trip Sheet';
-            }
-
-            return {
-                ...t,
-                vehicleName: vehiclesById.get(t.vehicleId) || 'N/A',
-                partyName: t.partyId ? partiesById.get(t.partyId) || 'N/A' : 'N/A',
-                sourceRef
-            };
+            return { ...t, direction, vehicleName, partyName, reference };
         });
 
+        // Grouping to calculate paid/due
+        // Strategy: Match by referenceId (PO or Trip) or voucherId
+        const processed: ProcessedTransaction[] = [];
+        const handledIds = new Set<string>();
+
+        rawMapped.forEach(t => {
+            if (handledIds.has(t.id)) return;
+
+            // If it's a Bill (Sales or Purchase), look for associated payments
+            if (t.type === 'Sales' || t.type === 'Purchase') {
+                const associatedPayments = rawMapped.filter(p => 
+                    p.id !== t.id && 
+                    (p.referenceId === t.referenceId || (t.type === 'Purchase' && p.purchaseNumber === t.purchaseNumber)) &&
+                    (p.type === 'Receipt' || p.type === 'Payment')
+                );
+
+                const paidAmount = associatedPayments.reduce((sum, p) => sum + p.amount, 0);
+                const dueAmount = Math.max(0, t.amount - paidAmount);
+                
+                let status: 'Paid' | 'Partial' | 'Due' = 'Due';
+                if (dueAmount <= 0) status = 'Paid';
+                else if (paidAmount > 0) status = 'Partial';
+
+                processed.push({
+                    ...t,
+                    displayCategory: t.category || (t.type === 'Sales' ? 'Freight' : 'Procurement'),
+                    paidAmount,
+                    dueAmount,
+                    status
+                });
+
+                associatedPayments.forEach(p => handledIds.add(p.id));
+                handledIds.add(t.id);
+            }
+        });
+
+        // Add remaining standalone payments/receipts (like Advances or orphaned vouchers)
+        rawMapped.forEach(t => {
+            if (!handledIds.has(t.id)) {
+                processed.push({
+                    ...t,
+                    displayCategory: t.category || t.type,
+                    paidAmount: t.amount,
+                    dueAmount: 0,
+                    status: 'Paid'
+                });
+            }
+        });
+
+        return processed.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }, [transactions, vehiclesById, partiesById]);
+
+    const filteredTransactions = useMemo(() => {
+        let filtered = [...processedData];
+
         if (searchQuery) {
-            const query = searchQuery.toLowerCase();
-            filtered = filtered.filter(t =>
-                t.vehicleName.toLowerCase().includes(query) ||
-                t.partyName.toLowerCase().includes(query) ||
-                (t.remarks || '').toLowerCase().includes(query) ||
-                (t.category || '').toLowerCase().includes(query) ||
-                (t.sourceRef || '').toLowerCase().includes(query)
+            const q = searchQuery.toLowerCase();
+            filtered = filtered.filter(t => 
+                t.vehicleName.toLowerCase().includes(q) || 
+                t.partyName.toLowerCase().includes(q) || 
+                t.displayCategory.toLowerCase().includes(q) ||
+                t.reference.toLowerCase().includes(q)
             );
         }
 
@@ -174,393 +209,402 @@ export default function FinancialHistoryPage() {
         }
 
         if (selectedBsYear !== 'All') {
-            filtered = filtered.filter(t => {
-                try {
-                    return new NepaliDate(new Date(t.date)).getYear() === parseInt(selectedBsYear);
-                } catch { return false; }
-            });
+            filtered = filtered.filter(t => new NepaliDate(new Date(t.date)).getYear() === parseInt(selectedBsYear));
         }
 
         if (selectedBsMonth !== 'All') {
-            filtered = filtered.filter(t => {
-                try {
-                    return new NepaliDate(new Date(t.date)).getMonth() === parseInt(selectedBsMonth);
-                } catch { return false; }
-            });
+            filtered = filtered.filter(t => new NepaliDate(new Date(t.date)).getMonth() === parseInt(selectedBsMonth));
         }
-        
-        if (filterPartyId !== 'All') filtered = filtered.filter(t => t.partyId === filterPartyId);
+
         if (filterVehicleId !== 'All') filtered = filtered.filter(t => t.vehicleId === filterVehicleId);
-        
-        return filtered;
-    }, [transactions, searchQuery, vehiclesById, partiesById, dateRange, filterPartyId, filterVehicleId, selectedBsYear, selectedBsMonth]);
+        if (filterPartyId !== 'All') filtered = filtered.filter(t => t.partyId === filterPartyId);
+        if (filterDirection !== 'All') filtered = filtered.filter(t => t.direction === filterDirection);
+        if (filterOutstandingOnly) filtered = filtered.filter(t => t.status !== 'Paid');
 
-    const tabCounts = useMemo(() => {
-        const counts = { All: 0, Payment: 0, Receipt: 0, Sales: 0, Purchase: 0 };
-        baseFilteredTransactions.forEach(t => {
-            counts.All++;
-            if (t.type in counts) {
-                counts[t.type as keyof typeof counts]++;
+        return filtered;
+    }, [processedData, searchQuery, dateRange, selectedBsYear, selectedBsMonth, filterVehicleId, filterPartyId, filterDirection, filterOutstandingOnly]);
+
+    const summary = useMemo(() => {
+        return filteredTransactions.reduce((acc, t) => {
+            if (t.direction === 'Income') {
+                acc.totalIncome += t.amount;
+                acc.totalReceivable += t.dueAmount;
+            } else {
+                acc.totalExpense += t.amount;
+                acc.totalPayable += t.dueAmount;
             }
-        });
-        return counts;
-    }, [baseFilteredTransactions]);
-
-    const sortedAndFilteredTransactions = useMemo(() => {
-        let filtered = [...baseFilteredTransactions];
-
-        if (activeTab !== 'All') {
-            filtered = filtered.filter(t => t.type === activeTab);
-        }
-        
-        filtered.sort((a, b) => {
-            const aVal = (a[sortConfig.key] || '').toString();
-            const bVal = (b[sortConfig.key] || '').toString();
-            if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-            if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
-            return 0;
-        });
-        
-        return filtered;
-    }, [baseFilteredTransactions, activeTab, sortConfig]);
-    
-    const financialSummary = useMemo(() => {
-        return sortedAndFilteredTransactions.reduce((acc, t) => {
-            const isInflow = ['Receipt', 'Sales'].includes(t.type);
-            if (isInflow) acc.totalInflow += t.amount;
-            else acc.totalOutflow += t.amount;
             return acc;
-        }, { totalInflow: 0, totalOutflow: 0 });
-    }, [sortedAndFilteredTransactions]);
-
-    const isFiltered = useMemo(() => {
-        const currentNepaliDate = new NepaliDate();
-        return searchQuery !== '' || 
-               !!dateRange || 
-               (selectedBsYear !== String(currentNepaliDate.getYear()) && selectedBsYear !== 'All') || 
-               (selectedBsMonth !== String(currentNepaliDate.getMonth()) && selectedBsMonth !== 'All') || 
-               filterVehicleId !== 'All' || 
-               filterPartyId !== 'All';
-    }, [searchQuery, dateRange, selectedBsYear, selectedBsMonth, filterVehicleId, filterPartyId]);
+        }, { totalIncome: 0, totalExpense: 0, totalReceivable: 0, totalPayable: 0 });
+    }, [filteredTransactions]);
 
     const handleClearFilters = () => {
         setSearchQuery('');
         setDateRange(undefined);
-        const currentNepaliDate = new NepaliDate();
-        setSelectedBsYear(String(currentNepaliDate.getYear()));
-        setSelectedBsMonth(String(currentNepaliDate.getMonth()));
+        setSelectedBsYear('All');
+        setSelectedBsMonth('All');
         setFilterVehicleId('All');
         setFilterPartyId('All');
+        setFilterDirection('All');
+        setFilterOutstandingOnly(false);
     };
 
-    const handleExport = async (formatType: 'excel' | 'pdf') => {
-        if (formatType === 'excel') {
-            const XLSX = (await import('xlsx'));
-            const dataToExport = sortedAndFilteredTransactions.map(t => ({
-                'Date (BS)': toNepaliDate(t.date),
-                'Vehicle': t.vehicleName,
-                'Type': t.type,
-                'Category': t.category || 'N/A',
-                'Reference': t.sourceRef || 'N/A',
-                'Ledger': t.partyName,
-                'Mode': t.billingType,
-                'Amount (NPR)': ['Purchase', 'Payment'].includes(t.type) ? -t.amount : t.amount,
-                'Remarks': t.remarks,
-            }));
-            const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, "Financial Logs");
-            XLSX.writeFile(workbook, `Fleet_Accounting_Logs_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
-        } else {
-            const { jsPDF } = await import('jspdf');
-            const { default: autoTable } = await import('jspdf-autotable');
-            const doc = new jsPDF();
-            doc.text("Account Logs Report", 14, 15);
-            doc.setFontSize(10);
-            doc.text(`Generated on: ${format(new Date(), 'PPP')}`, 14, 22);
-
-            const tableData = sortedAndFilteredTransactions.map(t => [
-                toNepaliDate(t.date),
-                t.vehicleName,
-                t.type,
-                t.category || 'N/A',
-                t.sourceRef || 'N/A',
-                t.partyName,
-                (['Purchase', 'Payment'].includes(t.type) ? -t.amount : t.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })
-            ]);
-
-            autoTable(doc, {
-                startY: 30,
-                head: [['Date (BS)', 'Vehicle', 'Type', 'Category', 'Ref', 'Ledger', 'Amount (NPR)']],
-                body: tableData,
-                theme: 'grid',
-                headStyles: { fillColor: [71, 85, 105] }
-            });
-
-            doc.save(`Account_Logs_Report_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+    const handleDelete = async (voucherId?: string) => {
+        if (!voucherId) return;
+        try {
+            await deleteVoucher(voucherId);
+            toast({ title: 'Record Deleted' });
+        } catch {
+             toast({ title: 'Error', variant: 'destructive' });
         }
     };
+
+    // Ledger View Logic
+    const vehicleGroups = useMemo(() => {
+        const groups = new Map<string, ProcessedTransaction[]>();
+        filteredTransactions.forEach(t => {
+            const list = groups.get(t.vehicleName) || [];
+            list.push(t);
+            groups.set(t.vehicleName, list);
+        });
+        return Array.from(groups.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+    }, [filteredTransactions]);
+
+    const partyGroups = useMemo(() => {
+        const groups = new Map<string, ProcessedTransaction[]>();
+        filteredTransactions.forEach(t => {
+            const list = groups.get(t.partyName) || [];
+            list.push(t);
+            groups.set(t.partyName, list);
+        });
+        return Array.from(groups.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+    }, [filteredTransactions]);
 
     return (
         <div className="flex flex-col gap-6">
             <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Account Logs</h1>
-                    <p className="text-xs md:text-sm text-muted-foreground">Consolidated financial ledger grouped by transaction type.</p>
+                    <h1 className="text-3xl font-bold tracking-tight">Fleet Ledger</h1>
+                    <p className="text-muted-foreground text-sm">Unified income and expense tracking for vehicles and parties.</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Button size="sm" onClick={() => router.push('/fleet/transactions/payment-receipt/new')}>
-                        <PlusCircle className="mr-2 h-4 w-4" /> <span className="hidden sm:inline">New Voucher</span><span className="sm:hidden">New</span>
+                    <Button onClick={() => router.push('/fleet/transactions/payment-receipt/new')} size="sm">
+                        <PlusCircle className="mr-2 h-4 w-4" /> New Voucher
+                    </Button>
+                    <Button onClick={() => router.push('/fleet/transactions/expenses/new')} size="sm" variant="secondary">
+                        <Wallet className="mr-2 h-4 w-4" /> Daily Expense
                     </Button>
                 </div>
             </header>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Summary Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 <Card className="bg-emerald-50 border-emerald-200">
-                    <CardHeader className="py-2 px-3 flex flex-row items-center justify-between space-y-0">
-                        <CardTitle className="text-[10px] uppercase font-bold text-emerald-800 tracking-wider">
-                            {activeTab === 'All' ? 'Total Inflow' : `${activeTab} Inflow`}
-                        </CardTitle>
+                    <CardHeader className="py-3 px-4 flex flex-row items-center justify-between space-y-0">
+                        <CardTitle className="text-[10px] uppercase font-bold text-emerald-800 tracking-wider">Total Income</CardTitle>
                         <TrendingUp className="h-3 w-3 text-emerald-600" />
                     </CardHeader>
-                    <CardContent className="px-3 pb-2">
-                        <div className="text-base md:text-lg font-bold text-emerald-900">Rs. {financialSummary.totalInflow.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                    <CardContent className="px-4 pb-3">
+                        <div className="text-lg font-black text-emerald-900">Rs. {summary.totalIncome.toLocaleString()}</div>
                     </CardContent>
                 </Card>
                 <Card className="bg-red-50 border-red-200">
-                    <CardHeader className="py-2 px-3 flex flex-row items-center justify-between space-y-0">
-                        <CardTitle className="text-[10px] uppercase font-bold text-red-800 tracking-wider">
-                            {activeTab === 'All' ? 'Total Outflow' : `${activeTab} Outflow`}
-                        </CardTitle>
+                    <CardHeader className="py-3 px-4 flex flex-row items-center justify-between space-y-0">
+                        <CardTitle className="text-[10px] uppercase font-bold text-red-800 tracking-wider">Total Expense</CardTitle>
                         <TrendingDown className="h-3 w-3 text-red-600" />
                     </CardHeader>
-                    <CardContent className="px-3 pb-2">
-                        <div className="text-base md:text-lg font-bold text-red-900">Rs. {financialSummary.totalOutflow.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                    <CardContent className="px-4 pb-3">
+                        <div className="text-lg font-black text-red-900">Rs. {summary.totalExpense.toLocaleString()}</div>
                     </CardContent>
                 </Card>
-                <Card className={cn(
-                    "border-2 border-dashed",
-                    (financialSummary.totalInflow - financialSummary.totalOutflow) >= 0 ? "bg-blue-50 border-blue-200" : "bg-orange-50 border-orange-200"
-                )}>
-                    <CardHeader className="py-2 px-3 flex flex-row items-center justify-between space-y-0">
-                        <CardTitle className="text-[10px] uppercase font-bold tracking-wider">Net Activity</CardTitle>
-                        <Info className="h-3 w-3 opacity-50" />
+                <Card className={cn("border-2 border-dashed", (summary.totalIncome - summary.totalExpense) >= 0 ? "bg-blue-50 border-blue-200" : "bg-orange-50 border-orange-200")}>
+                    <CardHeader className="py-3 px-4 flex flex-row items-center justify-between space-y-0">
+                        <CardTitle className="text-[10px] uppercase font-bold tracking-wider">Net Profit/Loss</CardTitle>
+                        <ArrowRightLeft className="h-3 w-3 opacity-50" />
                     </CardHeader>
-                    <CardContent className="px-3 pb-2">
-                        <div className={cn(
-                            "text-base md:text-lg font-black",
-                            (financialSummary.totalInflow - financialSummary.totalOutflow) >= 0 ? "text-blue-900" : "text-orange-900"
-                        )}>
-                            Rs. {(financialSummary.totalInflow - financialSummary.totalOutflow).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    <CardContent className="px-4 pb-3">
+                        <div className={cn("text-lg font-black", (summary.totalIncome - summary.totalExpense) >= 0 ? "text-blue-900" : "text-orange-900")}>
+                            Rs. {(summary.totalIncome - summary.totalExpense).toLocaleString()}
                         </div>
+                    </CardContent>
+                </Card>
+                <Card className="bg-orange-50 border-orange-200">
+                    <CardHeader className="py-3 px-4 flex flex-row items-center justify-between space-y-0">
+                        <CardTitle className="text-[10px] uppercase font-bold text-orange-800 tracking-wider">Receivables</CardTitle>
+                        <ArrowUpRight className="h-3 w-3 text-orange-600" />
+                    </CardHeader>
+                    <CardContent className="px-4 pb-3">
+                        <div className="text-lg font-black text-orange-900">Rs. {summary.totalReceivable.toLocaleString()}</div>
+                    </CardContent>
+                </Card>
+                <Card className="bg-orange-50 border-orange-200">
+                    <CardHeader className="py-3 px-4 flex flex-row items-center justify-between space-y-0">
+                        <CardTitle className="text-[10px] uppercase font-bold text-orange-800 tracking-wider">Payables</CardTitle>
+                        <ArrowDownLeft className="h-3 w-3 text-orange-600" />
+                    </CardHeader>
+                    <CardContent className="px-4 pb-3">
+                        <div className="text-lg font-black text-orange-900">Rs. {summary.totalPayable.toLocaleString()}</div>
                     </CardContent>
                 </Card>
             </div>
 
+            {/* Filter Bar */}
             <Card className="bg-muted/10 border-dashed">
                 <CardContent className="p-4 space-y-4">
-                    <div className="flex flex-wrap gap-2 md:gap-4 items-end">
+                    <div className="flex flex-wrap gap-3 items-end">
                         <div className="relative flex-1 min-w-[200px]">
                             <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                            <Input placeholder="Search ref, remarks, category..." className="pl-8 h-9 text-sm" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                            <Input placeholder="Search trucks, parties, categories..." className="pl-8 h-9 text-xs" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
                         </div>
                         <div className="flex gap-2">
-                            <Select value={selectedBsYear} onValueChange={setSelectedBsYear} disabled={isLoading || availableYears.length === 0}>
+                             <Select value={selectedBsYear} onValueChange={setSelectedBsYear}>
                                 <SelectTrigger className="w-[100px] h-9 bg-white text-xs"><SelectValue placeholder="Year" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="All">All Years</SelectItem>
-                                    {availableYears.map(year => <SelectItem key={year} value={String(year)}>{year}</SelectItem>)}
-                                </SelectContent>
+                                <SelectContent><SelectItem value="All">All Years</SelectItem>{availableYears.map(year => <SelectItem key={year} value={String(year)}>{year}</SelectItem>)}</SelectContent>
                             </Select>
-                            <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth} disabled={isLoading || availableYears.length === 0}>
+                            <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth}>
                                 <SelectTrigger className="w-[120px] h-9 bg-white text-xs"><SelectValue placeholder="Month" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="All">All Months</SelectItem>
-                                    {NEPALI_MONTHS.map(month => <SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>)}
-                                </SelectContent>
+                                <SelectContent><SelectItem value="All">All Months</SelectItem>{NEPALI_MONTHS.map(month => <SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>)}</SelectContent>
                             </Select>
                         </div>
                         <div className="hidden lg:block">
-                            <Popover><PopoverTrigger asChild><Button variant="outline" className={cn("h-9 justify-start text-left font-normal bg-white text-xs min-w-[200px]", !dateRange && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{dateRange?.from ? (dateRange.to ? (`${format(dateRange.from, "LLL dd")} - ${format(dateRange.to, "LLL dd")}`) : format(dateRange.from, "LLL dd")) : (<span>Pick AD dates</span>)}</Button></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><DualDateRangePicker selected={dateRange} onSelect={setDateRange} /></PopoverContent></Popover>
+                            <Popover><PopoverTrigger asChild><Button variant="outline" className={cn("h-9 justify-start text-left font-normal bg-white text-xs min-w-[200px]", !dateRange && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{dateRange?.from ? (dateRange.to ? (`${format(dateRange.from, "LLL dd")} - ${format(dateRange.to, "LLL dd")}`) : format(dateRange.from, "LLL dd")) : (<span>Pick AD Range</span>)}</Button></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><DualDateRangePicker selected={dateRange} onSelect={setDateRange} /></PopoverContent></Popover>
                         </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-2 md:gap-4 items-center">
-                        <Select value={filterVehicleId} onValueChange={setFilterVehicleId}>
-                            <SelectTrigger className="w-[140px] h-8 bg-white text-[11px]"><SelectValue placeholder="All Vehicles" /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="All">All Vehicles</SelectItem>
-                                {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                        <Select value={filterPartyId} onValueChange={setFilterPartyId}>
-                            <SelectTrigger className="w-[180px] h-8 bg-white text-[11px]"><SelectValue placeholder="All Ledgers" /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="All">All Ledgers</SelectItem>
-                                {parties.filter(p => p.ownership === 'Sijan' || p.ownership === 'Both').map(p => (
-                                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        {isFiltered && (
-                            <Button variant="ghost" size="sm" onClick={handleClearFilters} className="h-8 text-[11px] text-muted-foreground px-2">
-                                <FilterX className="mr-1 h-3 w-3" /> Clear
-                            </Button>
-                        )}
-                        <div className="ml-auto flex gap-1">
-                            <Button variant="outline" size="sm" onClick={() => handleExport('excel')} className="h-8 px-2"><FileSpreadsheet className="h-3.5 w-3.5 sm:mr-1 text-emerald-600" /> <span className="hidden sm:inline">Excel</span></Button>
-                            <Button variant="outline" size="sm" onClick={() => handleExport('pdf')} className="h-8 px-2"><FileText className="h-3.5 w-3.5 sm:mr-1 text-red-600" /> <span className="hidden sm:inline">PDF</span></Button>
+                    <div className="flex flex-wrap gap-4 items-center">
+                        <div className="flex items-center gap-2">
+                            <Select value={filterVehicleId} onValueChange={setFilterVehicleId}>
+                                <SelectTrigger className="w-[140px] h-8 bg-white text-[11px]"><SelectValue placeholder="All Vehicles" /></SelectTrigger>
+                                <SelectContent><SelectItem value="All">All Vehicles</SelectItem>{vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}</SelectContent>
+                            </Select>
+                            <Select value={filterPartyId} onValueChange={setFilterPartyId}>
+                                <SelectTrigger className="w-[180px] h-8 bg-white text-[11px]"><SelectValue placeholder="All Parties" /></SelectTrigger>
+                                <SelectContent><SelectItem value="All">All Parties</SelectItem>{parties.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+                            </Select>
+                            <Select value={filterDirection} onValueChange={(v: any) => setFilterDirection(v)}>
+                                <SelectTrigger className="w-[110px] h-8 bg-white text-[11px]"><SelectValue placeholder="Direction" /></SelectTrigger>
+                                <SelectContent><SelectItem value="All">Both Types</SelectItem><SelectItem value="Income">Income Only</SelectItem><SelectItem value="Expense">Expense Only</SelectItem></SelectContent>
+                            </Select>
                         </div>
+                        <div className="flex items-center space-x-2 border-l pl-4">
+                            <Checkbox id="filter-outstanding" checked={filterOutstandingOnly} onCheckedChange={(v: any) => setFilterOutstandingOnly(!!v)} />
+                            <Label htmlFor="filter-outstanding" className="text-[11px] cursor-pointer font-bold text-orange-600">Outstanding Only</Label>
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={handleClearFilters} className="h-8 text-[11px] text-muted-foreground ml-auto">
+                            <FilterX className="mr-1 h-3 w-3" /> Reset
+                        </Button>
                     </div>
                 </CardContent>
             </Card>
 
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
-                <TabsList className="w-full justify-start overflow-x-auto h-auto p-1 bg-muted/50 no-scrollbar">
-                    <TabsTrigger value="All" className="text-xs py-1.5 px-3">All ({tabCounts.All})</TabsTrigger>
-                    
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <TabsTrigger value="Payment" className="text-xs py-1.5 px-3 flex items-center gap-1.5">
-                                    <Wallet className="h-3 w-3" /> Payments ({tabCounts.Payment})
-                                </TabsTrigger>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom" className="max-w-[300px]">
-                                <p className="font-bold mb-1">Cash/Bank Outflows:</p>
-                                <ul className="list-disc pl-4 space-y-1">
-                                    <li>Advances (Peski)</li>
-                                    <li>Vendor Settlements (Vouchers)</li>
-                                    <li>Cash Maintenance & Purchases</li>
-                                    <li>Loan EMIs & Renewals</li>
-                                    <li>Salaries</li>
-                                </ul>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
-
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <TabsTrigger value="Receipt" className="text-xs py-1.5 px-3 flex items-center gap-1.5">
-                                    <Receipt className="h-3 w-3" /> Receipts ({tabCounts.Receipt})
-                                </TabsTrigger>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom">
-                                <p>Cash/Bank Inflows: Revenue collection and customer settlements.</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
-
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <TabsTrigger value="Sales" className="text-xs py-1.5 px-3 flex items-center gap-1.5">
-                                    <SalesIcon className="h-3 w-3" /> Sales ({tabCounts.Sales})
-                                </TabsTrigger>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom">
-                                <p>Revenue generation from Trip Sheets (Receivables).</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
-
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <TabsTrigger value="Purchase" className="text-xs py-1.5 px-3 flex items-center gap-1.5">
-                                    <ShoppingCart className="h-3 w-3" /> Purchases ({tabCounts.Purchase})
-                                </TabsTrigger>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom">
-                                <p>Bill/Credit procurement and vendor invoices (Payables).</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
+            {/* Main Ledger Content */}
+            <Tabs value={activeView} onValueChange={(v: any) => setActiveView(v)}>
+                <TabsList className="grid grid-cols-3 w-[450px]">
+                    <TabsTrigger value="history">General History</TabsTrigger>
+                    <TabsTrigger value="vehicle">Vehicle Ledger</TabsTrigger>
+                    <TabsTrigger value="party">Party Ledger</TabsTrigger>
                 </TabsList>
-                
-                <TabsContent value={activeTab} className="mt-4">
-                    <div className="border rounded-lg overflow-hidden bg-card">
+
+                <TabsContent value="history" className="mt-6">
+                    <Card>
                         <ScrollArea className="w-full">
-                            <Table className="text-xs md:text-sm min-w-[1000px]">
-                                <TableHeader className="bg-muted/40">
+                            <Table className="text-xs min-w-[1200px]">
+                                <TableHeader className="bg-muted/40 sticky top-0 z-10">
                                     <TableRow>
-                                        <TableHead className="w-[100px]"><Button variant="ghost" onClick={() => requestSort('date')} className="h-8 px-1">Date <ArrowUpDown className="ml-1 h-3 w-3" /></Button></TableHead>
-                                        <TableHead><Button variant="ghost" onClick={() => requestSort('vehicleName')} className="h-8 px-1">Vehicle <ArrowUpDown className="ml-1 h-3 w-3" /></Button></TableHead>
-                                        <TableHead className="hidden sm:table-cell">Type</TableHead>
-                                        <TableHead className="min-w-[200px]"><Button variant="ghost" onClick={() => requestSort('category')} className="h-8 px-1 font-bold text-primary">Category / Reference <ArrowUpDown className="ml-1 h-3 w-3" /></Button></TableHead>
-                                        <TableHead><Button variant="ghost" onClick={() => requestSort('partyName')} className="h-8 px-1">Ledger (A/C) <ArrowUpDown className="ml-1 h-3 w-3" /></Button></TableHead>
-                                        <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('amount')} className="h-8 px-1 w-full text-right">Amount (NPR) <ArrowUpDown className="ml-1 h-3 w-3" /></Button></TableHead>
-                                        <TableHead className="text-right px-4">Actions</TableHead>
+                                        <TableHead className="w-[100px]">Date (BS)</TableHead>
+                                        <TableHead className="w-[120px]">Vehicle</TableHead>
+                                        <TableHead className="w-[80px]">Type</TableHead>
+                                        <TableHead className="w-[150px]">Category</TableHead>
+                                        <TableHead>Party / Ledger</TableHead>
+                                        <TableHead className="w-[150px]">Reference</TableHead>
+                                        <TableHead className="text-right">Bill Amt</TableHead>
+                                        <TableHead className="text-right">Paid</TableHead>
+                                        <TableHead className="text-right">Due</TableHead>
+                                        <TableHead className="text-center">Status</TableHead>
+                                        <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {isLoading ? (
-                                        <TableRow><TableCell colSpan={7} className="text-center py-12"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
-                                    ) : sortedAndFilteredTransactions.map(txn => (
-                                        <TableRow key={txn.id} className="hover:bg-muted/30">
-                                            <TableCell className="font-medium text-[11px] md:text-xs whitespace-nowrap">{toNepaliDate(txn.date)}</TableCell>
-                                            <TableCell className="font-semibold text-[11px] md:text-xs">{txn.vehicleName}</TableCell>
-                                            <TableCell className="hidden sm:table-cell">
-                                                <Badge variant="outline" className={cn(
-                                                    "text-[9px] uppercase",
-                                                    ['Receipt', 'Sales'].includes(txn.type) ? 'text-green-600 border-green-200 bg-green-50' : 'text-red-600 border-red-200 bg-red-50'
-                                                )}>{txn.type}</Badge>
+                                    {filteredTransactions.map(t => (
+                                        <TableRow key={t.id} className="h-12 hover:bg-muted/30">
+                                            <TableCell className="font-medium whitespace-nowrap">{toNepaliDate(t.date)}</TableCell>
+                                            <TableCell className="font-bold">{t.vehicleName}</TableCell>
+                                            <TableCell>
+                                                <Badge variant="outline" className={cn("text-[9px] uppercase", t.direction === 'Income' ? "text-green-600 border-green-200 bg-green-50" : "text-red-600 border-red-200 bg-red-50")}>
+                                                    {t.direction}
+                                                </Badge>
                                             </TableCell>
                                             <TableCell>
-                                                <div className="flex flex-col gap-1">
-                                                    <Badge variant="outline" className={cn(
-                                                        "text-[9px] uppercase font-bold w-fit",
-                                                        txn.category === 'Fuel' && "border-blue-200 bg-blue-50 text-blue-700",
-                                                        txn.category === 'Maintenance' && "border-amber-200 bg-amber-50 text-amber-700",
-                                                        txn.category === 'Advance' && "border-emerald-200 bg-emerald-50 text-emerald-700",
-                                                        txn.category === 'Loan Repayment' && "border-orange-200 bg-orange-50 text-orange-700",
-                                                        txn.category === 'Membership Renewal' && "border-purple-200 bg-purple-50 text-purple-700",
-                                                        txn.category === 'Salary' && "border-pink-200 bg-pink-50 text-pink-700",
-                                                        !txn.category && "border-slate-200 bg-slate-50 text-slate-700"
-                                                    )}>
-                                                        {txn.category || 'Other'}
-                                                    </Badge>
-                                                    {txn.sourceRef && (
-                                                        <span className="text-[9px] text-blue-600 flex items-center gap-1">
-                                                            <LinkIcon className="h-2 w-2" />
-                                                            {txn.sourceRef}
-                                                        </span>
-                                                    )}
-                                                </div>
+                                                <Badge variant="secondary" className="text-[10px] uppercase tracking-tight">{t.displayCategory}</Badge>
                                             </TableCell>
-                                            <TableCell className="text-[11px] md:text-xs truncate max-w-[150px]">{txn.partyName}</TableCell>
-                                            <TableCell className={cn("text-right font-mono font-bold text-[11px] md:text-xs", ['Purchase', 'Payment'].includes(txn.type) ? 'text-red-600' : 'text-green-600')}>
-                                                {['Purchase', 'Payment'].includes(txn.type) && '-'}{txn.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                            <TableCell className="font-medium">{t.partyName}</TableCell>
+                                            <TableCell className="text-muted-foreground text-[10px] truncate max-w-[120px]">{t.reference}</TableCell>
+                                            <TableCell className="text-right font-mono font-bold">Rs. {t.amount.toLocaleString()}</TableCell>
+                                            <TableCell className="text-right font-mono text-muted-foreground">{t.paidAmount.toLocaleString()}</TableCell>
+                                            <TableCell className={cn("text-right font-mono font-black", t.dueAmount > 0 ? "text-orange-600" : "text-muted-foreground/30")}>
+                                                {t.dueAmount > 0 ? `Rs. ${t.dueAmount.toLocaleString()}` : '-'}
                                             </TableCell>
-                                            <TableCell className="text-right px-4">
+                                            <TableCell className="text-center">
+                                                <Badge variant="outline" className={cn(
+                                                    "text-[9px] uppercase",
+                                                    t.status === 'Paid' && "bg-blue-600 text-white border-blue-600",
+                                                    t.status === 'Partial' && "bg-orange-500 text-white border-orange-500",
+                                                    t.status === 'Due' && "bg-muted text-muted-foreground border-muted"
+                                                )}>
+                                                    {t.status}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="text-right">
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="h-3 w-3" /></Button></DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem onSelect={() => router.push(txn.voucherId ? `/fleet/transactions/payment-receipt?voucherId=${txn.voucherId}` : (txn.type === 'Purchase' ? `/fleet/transactions/purchase/view?id=${txn.id}` : `/fleet/transactions/view?id=${txn.id}`))}>
-                                                            <Eye className="mr-2 h-4 w-4" /> View Details
+                                                        <DropdownMenuItem onClick={() => router.push(t.voucherId ? `/fleet/transactions/payment-receipt?voucherId=${t.voucherId}` : `/fleet/transactions/purchase/view?id=${t.id}`)}>
+                                                            <Eye className="mr-2 h-4 w-4" /> View Source
                                                         </DropdownMenuItem>
-                                                        {hasPermission('fleet', 'edit') && (
-                                                            <DropdownMenuItem onSelect={() => router.push(txn.voucherId ? `/fleet/transactions/payment-receipt/edit?voucherId=${txn.voucherId}` : (txn.type === 'Purchase' ? `/fleet/transactions/purchase/edit?id=${txn.id}` : `/fleet/transactions/edit?id=${txn.id}`))}>
-                                                                <Edit className="mr-2 h-4 w-4" /> Edit Record
-                                                            </DropdownMenuItem>
-                                                        )}
-                                                        <DropdownMenuSeparator />
-                                                        {hasPermission('fleet', 'delete') && (
-                                                            <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem></AlertDialogTrigger>
-                                                            <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete Financial Entry?</AlertDialogTitle><AlertDialogDescription>This will permanently remove the record. If this was part of a group voucher, all associated entries will be deleted.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteVoucher(txn.voucherId || txn.id)}>Confirm Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
-                                                        )}
+                                                        <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem></AlertDialogTrigger>
+                                                        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete Record?</AlertDialogTitle><AlertDialogDescription>This will remove the entry and update associated ledger balances. Permanent action.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(t.voucherId || t.id)}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
                                             </TableCell>
                                         </TableRow>
                                     ))}
-                                    {!isLoading && sortedAndFilteredTransactions.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">No records found for this tab.</TableCell></TableRow>}
+                                    {filteredTransactions.length === 0 && (
+                                        <TableRow><TableCell colSpan={11} className="text-center py-20 text-muted-foreground">No records match your filters.</TableCell></TableRow>
+                                    )}
                                 </TableBody>
                             </Table>
                             <ScrollBar orientation="horizontal" />
                         </ScrollArea>
-                    </div>
+                    </Card>
+                </TabsContent>
+
+                <TabsContent value="vehicle" className="mt-6 space-y-6">
+                    {vehicleGroups.map(([vName, items]) => {
+                        const vIncome = items.filter(i => i.direction === 'Income').reduce((sum, i) => sum + i.amount, 0);
+                        const vExpense = items.filter(i => i.direction === 'Expense').reduce((sum, i) => sum + i.amount, 0);
+                        const vDue = items.reduce((sum, i) => sum + i.dueAmount, 0);
+                        
+                        return (
+                            <Card key={vName} className="overflow-hidden border-l-4 border-l-blue-600">
+                                <CardHeader className="bg-muted/20 py-3 px-6 flex flex-row items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-blue-100 rounded-lg text-blue-700"><Truck className="h-5 w-5" /></div>
+                                        <div>
+                                            <CardTitle className="text-lg">{vName}</CardTitle>
+                                            <CardDescription className="text-xs uppercase font-bold tracking-tight">Financial Performance</CardDescription>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-4">
+                                        <div className="text-right">
+                                            <p className="text-[10px] uppercase font-bold text-muted-foreground">Net Profit</p>
+                                            <p className={cn("text-base font-black", (vIncome - vExpense) >= 0 ? "text-emerald-600" : "text-red-600")}>Rs. {(vIncome - vExpense).toLocaleString()}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-[10px] uppercase font-bold text-muted-foreground">Outstanding</p>
+                                            <p className="text-base font-black text-orange-600">Rs. {vDue.toLocaleString()}</p>
+                                        </div>
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="p-0">
+                                    <Table className="text-xs">
+                                        <TableHeader className="bg-muted/10">
+                                            <TableRow>
+                                                <TableHead className="w-[100px]">Date (BS)</TableHead>
+                                                <TableHead>Category</TableHead>
+                                                <TableHead>Party / Ledger</TableHead>
+                                                <TableHead>Reference</TableHead>
+                                                <TableHead className="text-right">Income</TableHead>
+                                                <TableHead className="text-right">Expense</TableHead>
+                                                <TableHead className="text-right">Due</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {items.map(t => (
+                                                <TableRow key={t.id}>
+                                                    <TableCell>{toNepaliDate(t.date)}</TableCell>
+                                                    <TableCell><Badge variant="secondary">{t.displayCategory}</Badge></TableCell>
+                                                    <TableCell>{t.partyName}</TableCell>
+                                                    <TableCell className="text-muted-foreground">{t.reference}</TableCell>
+                                                    <TableCell className="text-right font-bold text-emerald-600">{t.direction === 'Income' ? t.amount.toLocaleString() : '-'}</TableCell>
+                                                    <TableCell className="text-right font-bold text-red-600">{t.direction === 'Expense' ? t.amount.toLocaleString() : '-'}</TableCell>
+                                                    <TableCell className="text-right font-mono font-black text-orange-600">{t.dueAmount > 0 ? t.dueAmount.toLocaleString() : '-'}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </CardContent>
+                            </Card>
+                        );
+                    })}
+                </TabsContent>
+
+                <TabsContent value="party" className="mt-6 space-y-6">
+                    {partyGroups.map(([pName, items]) => {
+                        const pBill = items.reduce((sum, i) => sum + i.amount, 0);
+                        const pPaid = items.reduce((sum, i) => sum + i.paidAmount, 0);
+                        const pDue = items.reduce((sum, i) => sum + i.dueAmount, 0);
+                        
+                        return (
+                            <Card key={pName} className="overflow-hidden border-l-4 border-l-orange-500">
+                                <CardHeader className="bg-muted/20 py-3 px-6 flex flex-row items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-orange-100 rounded-lg text-orange-700"><Users className="h-5 w-5" /></div>
+                                        <div>
+                                            <CardTitle className="text-lg">{pName}</CardTitle>
+                                            <CardDescription className="text-xs uppercase font-bold tracking-tight">Ledger Summary</CardDescription>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-8">
+                                        <div className="text-center">
+                                            <p className="text-[10px] uppercase font-bold text-muted-foreground">Total Bill</p>
+                                            <p className="text-base font-black">Rs. {pBill.toLocaleString()}</p>
+                                        </div>
+                                        <div className="text-center">
+                                            <p className="text-[10px] uppercase font-bold text-muted-foreground">Total Paid</p>
+                                            <p className="text-base font-black text-blue-600">Rs. {pPaid.toLocaleString()}</p>
+                                        </div>
+                                        <div className="text-center">
+                                            <p className="text-[10px] uppercase font-bold text-muted-foreground">Balance Due</p>
+                                            <p className="text-lg font-black text-orange-600">Rs. {pDue.toLocaleString()}</p>
+                                        </div>
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="p-0">
+                                    <Table className="text-xs">
+                                        <TableHeader className="bg-muted/10">
+                                            <TableRow>
+                                                <TableHead className="w-[100px]">Date (BS)</TableHead>
+                                                <TableHead>Vehicle</TableHead>
+                                                <TableHead>Category</TableHead>
+                                                <TableHead>Reference</TableHead>
+                                                <TableHead className="text-right">Bill Amount</TableHead>
+                                                <TableHead className="text-right">Paid</TableHead>
+                                                <TableHead className="text-right">Due</TableHead>
+                                                <TableHead className="text-center">Status</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {items.map(t => (
+                                                <TableRow key={t.id}>
+                                                    <TableCell>{toNepaliDate(t.date)}</TableCell>
+                                                    <TableCell className="font-bold">{t.vehicleName}</TableCell>
+                                                    <TableCell><Badge variant="outline" className="uppercase text-[9px]">{t.displayCategory}</Badge></TableCell>
+                                                    <TableCell className="text-muted-foreground">{t.reference}</TableCell>
+                                                    <TableCell className="text-right font-bold">Rs. {t.amount.toLocaleString()}</TableCell>
+                                                    <TableCell className="text-right text-blue-600 font-medium">{t.paidAmount.toLocaleString()}</TableCell>
+                                                    <TableCell className="text-right font-black text-orange-600">{t.dueAmount > 0 ? `Rs. ${t.dueAmount.toLocaleString()}` : '-'}</TableCell>
+                                                    <TableCell className="text-center">
+                                                        <Badge variant={t.status === 'Paid' ? 'default' : 'secondary'} className="text-[9px]">
+                                                            {t.status}
+                                                        </Badge>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </CardContent>
+                            </Card>
+                        );
+                    })}
                 </TabsContent>
             </Tabs>
         </div>
