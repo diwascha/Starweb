@@ -87,12 +87,17 @@ export default function PurchaseViewClient({
   return (
     <>
       <div className="flex justify-between items-center mb-8 print:hidden">
-        <div>
-          <h1 className="text-3xl font-bold">Purchase Details</h1>
-          <p className="text-muted-foreground">Purchase #{initialTransaction.purchaseNumber}</p>
+        <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => router.back()}>
+                <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold">Purchase Details</h1>
+              <p className="text-muted-foreground">Purchase #{initialTransaction.purchaseNumber}</p>
+            </div>
         </div>
         <div className="flex gap-2">
-            <Button variant="outline" onClick={() => router.push(`/fleet/transactions/purchase/edit/${initialTransaction.id}`)}>
+            <Button variant="outline" onClick={() => router.push(`/fleet/transactions/purchase/edit?id=${initialTransaction.id}`)}>
                 <Edit className="mr-2 h-4 w-4" /> Edit
             </Button>
             <Button variant="outline" onClick={handleSaveAsPdf} disabled={isGeneratingPdf}>
@@ -107,9 +112,10 @@ export default function PurchaseViewClient({
       
        <div className="printable-area space-y-4 p-4 border rounded-lg bg-white text-black">
         <header className="text-center space-y-1 mb-4">
-            <h1 className="text-xl font-bold">SIJAN DHUWANI SEWA</h1>
-            <p className="text-sm">HETAUDA 16, BAGMATI PROVIENCE, NEPAL</p>
-            <p className="text-xs">PAN: 304603712</p>
+            <h1 className="text-xl font-bold uppercase">{companyProfile.nameEn}</h1>
+            <h2 className="text-lg font-semibold">{companyProfile.nameNp}</h2>
+            <p className="text-sm">{companyProfile.address}</p>
+            <p className="text-xs">PAN: {companyProfile.pan}</p>
             <h2 className="text-lg font-semibold underline mt-1">PURCHASE VOUCHER</h2>
         </header>
 

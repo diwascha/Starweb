@@ -1,7 +1,5 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
 import type { Transaction, Vehicle, Party, Account, CompanyProfile } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Printer, Loader2, Save, ArrowLeft, Edit } from 'lucide-react';
@@ -9,6 +7,7 @@ import { Separator } from '@/components/ui/separator';
 import { toNepaliDate, toWords } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Table, TableBody, TableCell, TableRow, TableHeader, TableHead, TableFooter } from '@/components/ui/table';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { onSettingUpdate } from '@/services/settings-service';
 
@@ -88,12 +87,17 @@ export default function PurchaseViewClient({
   return (
     <>
       <div className="flex justify-between items-center mb-8 print:hidden">
-        <div>
-          <h1 className="text-3xl font-bold">Purchase Details</h1>
-          <p className="text-muted-foreground">Purchase #{initialTransaction.purchaseNumber}</p>
+        <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => router.back()}>
+                <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold">Purchase Details</h1>
+              <p className="text-muted-foreground">Purchase #{initialTransaction.purchaseNumber}</p>
+            </div>
         </div>
         <div className="flex gap-2">
-            <Button variant="outline" onClick={() => router.push(`/fleet/transactions/purchase/edit/${initialTransaction.id}`)}>
+            <Button variant="outline" onClick={() => router.push(`/fleet/transactions/purchase/edit?id=${initialTransaction.id}`)}>
                 <Edit className="mr-2 h-4 w-4" /> Edit
             </Button>
             <Button variant="outline" onClick={handleSaveAsPdf} disabled={isGeneratingPdf}>
