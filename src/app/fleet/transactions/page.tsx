@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -62,8 +63,9 @@ import NepaliDate from 'nepali-date-converter';
 import { NEPALI_MONTHS } from '@/lib/constants';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
-type LedgerView = 'history' | 'vehicle' | 'party';
+type LedgerView = 'vehicle' | 'party';
 
 interface ProcessedTransaction extends Transaction {
     vehicleName: string;
@@ -89,20 +91,19 @@ export default function FleetTransactionsPage() {
     const [activeView, setActiveView] = useState<LedgerView>('vehicle');
     const [searchQuery, setSearchQuery] = useState('');
     
-    // Default to undefined AD range to prioritize BS Month/Year filters
+    // Period Filters
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-    
-    // Default to current Nepali month and year
     const [selectedBsYear, setSelectedBsYear] = useState<string>(String(new NepaliDate().getYear()));
     const [selectedBsMonth, setSelectedBsMonth] = useState<string>(String(new NepaliDate().getMonth()));
     
+    // Search Filters
     const [filterVehicleId, setFilterVehicleId] = useState<string>('All');
     const [filterPartyId, setFilterPartyId] = useState<string>('All');
     const [filterCategory, setFilterCategory] = useState<string>('All');
     const [filterStatus, setFilterStatus] = useState<string>('All');
     const [filterDirection, setFilterDirection] = useState<'All' | 'Income' | 'Expense'>('All');
 
-    // Quick Search for Vehicle Command
+    // Command/Search Controls
     const [isVehicleSearchOpen, setIsVehicleSearchOpen] = useState(false);
     
     useEffect(() => {
@@ -121,7 +122,6 @@ export default function FleetTransactionsPage() {
 
     const availableYears = useMemo(() => {
         const years = new Set<number>();
-        // Add current year by default
         years.add(new NepaliDate().getYear());
         transactions.forEach(t => {
             try {
@@ -237,6 +237,29 @@ export default function FleetTransactionsPage() {
         return filtered;
     }, [processedData, searchQuery, dateRange, selectedBsYear, selectedBsMonth, filterVehicleId, filterPartyId, filterCategory, filterDirection, filterStatus]);
 
+    const stats = useMemo(() => {
+        let income = 0;
+        let expense = 0;
+        let receivable = 0;
+        let payable = 0;
+
+        filteredTransactions.forEach(t => {
+            if (t.direction === 'Income') income += t.amount;
+            else expense += t.amount;
+            
+            if (t.type === 'Sales') receivable += t.dueAmount;
+            if (t.type === 'Purchase') payable += t.dueAmount;
+        });
+
+        return {
+            income,
+            expense,
+            profit: income - expense,
+            receivable,
+            payable
+        };
+    }, [filteredTransactions]);
+
     const vehicleSummaryRows = useMemo(() => {
         const summaryMap = new Map<string, { id: string, name: string, income: number, expense: number, profit: number, due: number }>();
         
@@ -244,7 +267,19 @@ export default function FleetTransactionsPage() {
             summaryMap.set(v.id, { id: v.id, name: v.name, income: 0, expense: 0, profit: 0, due: 0 });
         });
 
-        filteredTransactions.forEach(t => {
+        // Use filteredTransactions but without the vehicle filter to get the table data for the current period/category
+        const periodFiltered = processedData.filter(t => {
+            if (dateRange?.from) {
+                const interval = { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to || dateRange.from) };
+                if (!isWithinInterval(new Date(t.date), interval)) return false;
+            }
+            if (selectedBsYear !== 'All' && new NepaliDate(new Date(t.date)).getYear() !== parseInt(selectedBsYear)) return false;
+            if (selectedBsMonth !== 'All' && new NepaliDate(new Date(t.date)).getMonth() !== parseInt(selectedBsMonth)) return false;
+            if (filterCategory !== 'All' && t.category !== filterCategory) return false;
+            return true;
+        });
+
+        periodFiltered.forEach(t => {
             const entry = summaryMap.get(t.vehicleId);
             if (entry) {
                 if (t.direction === 'Income') entry.income += t.amount;
@@ -254,13 +289,44 @@ export default function FleetTransactionsPage() {
             }
         });
 
-        return Array.from(summaryMap.values()).sort((a, b) => b.income - a.income);
-    }, [vehicles, filteredTransactions]);
+        return Array.from(summaryMap.values())
+            .filter(v => v.income > 0 || v.expense > 0 || v.id === filterVehicleId)
+            .sort((a, b) => b.income - a.income);
+    }, [vehicles, processedData, dateRange, selectedBsYear, selectedBsMonth, filterCategory, filterVehicleId]);
 
-    const selectedVehicleSummary = useMemo(() => {
-        if (filterVehicleId === 'All') return null;
-        return vehicleSummaryRows.find(v => v.id === filterVehicleId) || null;
-    }, [vehicleSummaryRows, filterVehicleId]);
+    const partnerSummaryRows = useMemo(() => {
+        const summaryMap = new Map<string, { id: string, name: string, billing: number, settled: number, balance: number }>();
+        
+        parties.filter(p => p.ownership === 'Sijan' || p.ownership === 'Both').forEach(p => {
+            summaryMap.set(p.id, { id: p.id, name: p.name, billing: 0, settled: 0, balance: 0 });
+        });
+
+        const periodFiltered = processedData.filter(t => {
+            if (dateRange?.from) {
+                const interval = { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to || dateRange.from) };
+                if (!isWithinInterval(new Date(t.date), interval)) return false;
+            }
+            if (selectedBsYear !== 'All' && new NepaliDate(new Date(t.date)).getYear() !== parseInt(selectedBsYear)) return false;
+            if (selectedBsMonth !== 'All' && new NepaliDate(new Date(t.date)).getMonth() !== parseInt(selectedBsMonth)) return false;
+            if (filterCategory !== 'All' && t.category !== filterCategory) return false;
+            return true;
+        });
+
+        periodFiltered.forEach(t => {
+            if (t.partyId) {
+                const entry = summaryMap.get(t.partyId);
+                if (entry) {
+                    if (t.type === 'Sales' || t.type === 'Purchase') entry.billing += t.amount;
+                    entry.settled += t.paidAmount;
+                    entry.balance += t.dueAmount;
+                }
+            }
+        });
+
+        return Array.from(summaryMap.values())
+            .filter(p => p.billing > 0 || p.settled > 0 || p.id === filterPartyId)
+            .sort((a, b) => b.billing - a.billing);
+    }, [parties, processedData, dateRange, selectedBsYear, selectedBsMonth, filterCategory, filterPartyId]);
 
     const handleClearFilters = () => {
         setSearchQuery('');
@@ -374,7 +440,7 @@ export default function FleetTransactionsPage() {
 
                         <div className="space-y-1.5">
                             <Label className="text-[10px] uppercase font-bold text-muted-foreground">AD Range</Label>
-                            <Popover><PopoverTrigger asChild><Button variant="outline" className={cn("h-10 justify-start text-left font-normal bg-white text-xs min-w-[220px]", !dateRange && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{dateRange?.from ? (dateRange.to ? (`${format(dateRange.from, "LLL dd")} - ${format(dateRange.to, "LLL dd")}`) : format(dateRange.from, "LLL dd")) : (<span>Pick AD Range</span>)}</Button></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><DualDateRangePicker selected={dateRange} onSelect={setDateRange} /></PopoverContent></Popover>
+                            <Popover><PopoverTrigger asChild><Button variant="outline" className={cn("h-10 justify-start text-left font-normal bg-white text-xs min-w-[220px]", !dateRange && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{dateRange?.from ? (dateRange.to ? (`${toNepaliDate(dateRange.from.toISOString())} - ${toNepaliDate(dateRange.to.toISOString())}`) : toNepaliDate(dateRange.from.toISOString())) : (<span>Pick AD Range</span>)}</Button></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><DualDateRangePicker selected={dateRange} onSelect={setDateRange} /></PopoverContent></Popover>
                         </div>
 
                         <div className="space-y-1.5">
@@ -405,54 +471,61 @@ export default function FleetTransactionsPage() {
                 </CardContent>
             </Card>
 
-            {selectedVehicleSummary && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in slide-in-from-top-4 duration-300">
-                    <Card className="bg-emerald-50 border-emerald-200 border-l-4 border-l-emerald-600">
-                        <CardHeader className="py-3 px-4 flex flex-row items-center justify-between space-y-0">
-                            <CardTitle className="text-[10px] uppercase font-bold text-emerald-800 tracking-wider">Total Income</CardTitle>
-                            <ArrowUpRight className="h-4 w-4 text-emerald-600" />
-                        </CardHeader>
-                        <CardContent className="px-4 pb-3">
-                            <div className="text-xl font-black text-emerald-950">Rs. {selectedVehicleSummary.income.toLocaleString()}</div>
-                        </CardContent>
-                    </Card>
-                    <Card className="bg-red-50 border-red-200 border-l-4 border-l-red-600">
-                        <CardHeader className="py-3 px-4 flex flex-row items-center justify-between space-y-0">
-                            <CardTitle className="text-[10px] uppercase font-bold text-red-800 tracking-wider">Total Expense</CardTitle>
-                            <ArrowDownLeft className="h-4 w-4 text-red-600" />
-                        </CardHeader>
-                        <CardContent className="px-4 pb-3">
-                            <div className="text-xl font-black text-red-950">Rs. {selectedVehicleSummary.expense.toLocaleString()}</div>
-                        </CardContent>
-                    </Card>
-                    <Card className={cn("border-l-4 shadow-sm", selectedVehicleSummary.profit >= 0 ? "bg-blue-50 border-blue-200 border-l-blue-600" : "bg-orange-50 border-orange-200 border-l-orange-600")}>
-                        <CardHeader className="py-3 px-4 flex flex-row items-center justify-between space-y-0">
-                            <CardTitle className="text-[10px] uppercase font-bold tracking-wider">Net Profit</CardTitle>
-                            <TrendingUp className="h-4 w-4 opacity-50" />
-                        </CardHeader>
-                        <CardContent className="px-4 pb-3">
-                            <div className={cn("text-xl font-black", selectedVehicleSummary.profit >= 0 ? "text-blue-950" : "text-orange-950")}>
-                                Rs. {selectedVehicleSummary.profit.toLocaleString()}
-                            </div>
-                        </CardContent>
-                    </Card>
-                    <Card className="bg-amber-50 border-amber-200 border-l-4 border-l-amber-600">
-                        <CardHeader className="py-3 px-4 flex flex-row items-center justify-between space-y-0">
-                            <CardTitle className="text-[10px] uppercase font-bold text-amber-800 tracking-wider">Outstanding Due</CardTitle>
-                            <Clock className="h-4 w-4 text-amber-600" />
-                        </CardHeader>
-                        <CardContent className="px-4 pb-3">
-                            <div className="text-xl font-black text-amber-950">Rs. {selectedVehicleSummary.due.toLocaleString()}</div>
-                        </CardContent>
-                    </Card>
-                </div>
-            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 animate-in fade-in slide-in-from-top-4 duration-300">
+                <Card className="bg-emerald-50 border-emerald-200 border-l-4 border-l-emerald-600">
+                    <CardHeader className="py-3 px-4 flex flex-row items-center justify-between space-y-0">
+                        <CardTitle className="text-[10px] uppercase font-bold text-emerald-800 tracking-wider">Total Income</CardTitle>
+                        <ArrowUpRight className="h-4 w-4 text-emerald-600" />
+                    </CardHeader>
+                    <CardContent className="px-4 pb-3">
+                        <div className="text-xl font-black text-emerald-950">Rs. {stats.income.toLocaleString()}</div>
+                    </CardContent>
+                </Card>
+                <Card className="bg-red-50 border-red-200 border-l-4 border-l-red-600">
+                    <CardHeader className="py-3 px-4 flex flex-row items-center justify-between space-y-0">
+                        <CardTitle className="text-[10px] uppercase font-bold text-red-800 tracking-wider">Total Expense</CardTitle>
+                        <ArrowDownLeft className="h-4 w-4 text-red-600" />
+                    </CardHeader>
+                    <CardContent className="px-4 pb-3">
+                        <div className="text-xl font-black text-red-950">Rs. {stats.expense.toLocaleString()}</div>
+                    </CardContent>
+                </Card>
+                <Card className={cn("border-l-4 shadow-sm", stats.profit >= 0 ? "bg-blue-50 border-blue-200 border-l-blue-600" : "bg-orange-50 border-orange-200 border-l-orange-600")}>
+                    <CardHeader className="py-3 px-4 flex flex-row items-center justify-between space-y-0">
+                        <CardTitle className="text-[10px] uppercase font-bold tracking-wider">Net Profit</CardTitle>
+                        <TrendingUp className="h-4 w-4 opacity-50" />
+                    </CardHeader>
+                    <CardContent className="px-4 pb-3">
+                        <div className={cn("text-xl font-black", stats.profit >= 0 ? "text-blue-950" : "text-orange-950")}>
+                            Rs. {stats.profit.toLocaleString()}
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card className="bg-amber-50 border-amber-200 border-l-4 border-l-amber-600">
+                    <CardHeader className="py-3 px-4 flex flex-row items-center justify-between space-y-0">
+                        <CardTitle className="text-[10px] uppercase font-bold text-amber-800 tracking-wider">Receivable</CardTitle>
+                        <ArrowUpRight className="h-4 w-4 text-amber-600" />
+                    </CardHeader>
+                    <CardContent className="px-4 pb-3">
+                        <div className="text-xl font-black text-amber-950">Rs. {stats.receivable.toLocaleString()}</div>
+                    </CardContent>
+                </Card>
+                <Card className="bg-orange-50 border-orange-200 border-l-4 border-l-orange-600">
+                    <CardHeader className="py-3 px-4 flex flex-row items-center justify-between space-y-0">
+                        <CardTitle className="text-[10px] uppercase font-bold text-orange-800 tracking-wider">Payable</CardTitle>
+                        <ArrowDownLeft className="h-4 w-4 text-orange-600" />
+                    </CardHeader>
+                    <CardContent className="px-4 pb-3">
+                        <div className="text-xl font-black text-orange-950">Rs. {stats.payable.toLocaleString()}</div>
+                    </CardContent>
+                </Card>
+            </div>
 
             <Tabs value={activeView} onValueChange={(v: any) => setActiveView(v)}>
                 <div className="flex items-center justify-between">
                     <TabsList className="grid grid-cols-2 w-[320px]">
                         <TabsTrigger value="vehicle">Vehicle Ledger</TabsTrigger>
-                        <TabsTrigger value="history">Partner Ledger</TabsTrigger>
+                        <TabsTrigger value="party">Partner Ledger</TabsTrigger>
                     </TabsList>
                     <div className="flex gap-2">
                         <Button variant="outline" size="sm" className="h-8 text-xs">
@@ -646,29 +719,27 @@ export default function FleetTransactionsPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {Array.from(new Map(parties.filter(p => (p.ownership === 'Sijan' || p.ownership === 'Both') && (filterPartyId === 'All' || p.id === filterPartyId)).map(p => [p.id, p.name])).entries()).map(([pId, pName]) => {
-                                        const pItems = processedData.filter(t => t.partyId === pId);
-                                        const billing = pItems.reduce((sum, t) => sum + t.amount, 0);
-                                        const settled = pItems.reduce((sum, t) => sum + t.paidAmount, 0);
-                                        const balance = billing - settled;
-                                        
-                                        if (billing === 0 && settled === 0) return null;
-
-                                        return (
-                                            <TableRow key={pId} className="h-14 hover:bg-muted/30">
-                                                <TableCell className="font-bold flex items-center gap-2">
-                                                    <div className="p-1.5 bg-orange-100 rounded text-orange-700"><Users className="h-4 w-4" /></div>
-                                                    {pName}
-                                                </TableCell>
-                                                <TableCell className="text-right font-mono">Rs. {billing.toLocaleString()}</TableCell>
-                                                <TableCell className="text-right font-mono text-blue-600">Rs. {settled.toLocaleString()}</TableCell>
-                                                <TableCell className={cn("text-right font-mono font-black", balance > 0 ? "text-orange-600" : "text-muted-foreground/30")}>
-                                                    Rs. {balance.toLocaleString()}
-                                                </TableCell>
-                                                <TableCell className="text-right"><Button variant="ghost" size="sm" onClick={() => { setFilterPartyId(pId); setActiveView('vehicle'); }}><Eye className="h-4 w-4" /></Button></TableCell>
-                                            </TableRow>
-                                        );
-                                    })}
+                                    {partnerSummaryRows.map(p => (
+                                        <TableRow key={p.id} className="h-14 hover:bg-muted/30">
+                                            <TableCell className="font-bold flex items-center gap-2">
+                                                <div className="p-1.5 bg-orange-100 rounded text-orange-700"><Users className="h-4 w-4" /></div>
+                                                {p.name}
+                                            </TableCell>
+                                            <TableCell className="text-right font-mono">Rs. {p.billing.toLocaleString()}</TableCell>
+                                            <TableCell className="text-right font-mono text-blue-600">Rs. {p.settled.toLocaleString()}</TableCell>
+                                            <TableCell className={cn("text-right font-mono font-bold", p.balance > 0 ? "text-orange-700" : "text-muted-foreground/30")}>
+                                                Rs. {p.balance.toLocaleString()}
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <Button variant="ghost" size="sm" onClick={() => { setFilterPartyId(p.id); setFilterVehicleId('All'); setActiveView('vehicle'); }}>
+                                                    <Eye className="h-4 w-4" />
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                    {partnerSummaryRows.length === 0 && (
+                                        <TableRow><TableCell colSpan={5} className="text-center py-20 text-muted-foreground">No partner records found matching your filters.</TableCell></TableRow>
+                                    )}
                                 </TableBody>
                              </Table>
                         </CardContent>
