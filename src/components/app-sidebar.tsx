@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -42,6 +43,7 @@ import {
   Briefcase 
 } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from './ui/button';
@@ -51,6 +53,7 @@ import { Loader2 } from 'lucide-react';
 import { useConnectionStatus } from '@/firebase';
 import { useState } from 'react';
 import { getNormalizedPath } from '@/lib/utils';
+import placeholders from '@/app/lib/placeholder-images.json';
 
 function SidebarCollapseButton() {
     const { state, toggleSidebar } = useSidebar();
@@ -147,8 +150,16 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
-        <div className="flex items-center gap-2">
-            <h1 className="text-xl font-semibold">StarSutra</h1>
+        <div className="flex items-center gap-3 px-2 py-4">
+            <Image 
+                src={placeholders.logo.url} 
+                width={32} 
+                height={32} 
+                alt={placeholders.logo.alt}
+                className="rounded-lg group-data-[collapsible=icon]:mx-auto"
+                data-ai-hint="app logo"
+            />
+            <h1 className="text-xl font-bold tracking-tight group-data-[collapsible=icon]:hidden">StarSutra</h1>
         </div>
       </SidebarHeader>
       <SidebarContent>

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -5,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,6 +19,7 @@ import { format } from 'date-fns';
 import { signInWithEmailAndPassword, AuthErrorCodes } from 'firebase/auth';
 import { useAuthService } from '@/firebase';
 import { getAdminCredentials, getUsers } from '@/services/user-service';
+import placeholders from '@/app/lib/placeholder-images.json';
 
 
 const loginSchema = z.object({
@@ -41,7 +44,6 @@ export default function LoginPage() {
     resolver: zodResolver(loginSchema),
   });
   
-  // Effect for redirecting after successful login
   useEffect(() => {
     if (user && !authLoading) {
       router.replace('/dashboard');
@@ -142,13 +144,21 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-md">
-         <div className="flex justify-center items-center gap-2 mb-6">
-            <h1 className="text-3xl font-semibold">StarSutra</h1>
+         <div className="flex flex-col justify-center items-center gap-4 mb-8 text-center">
+            <Image 
+                src={placeholders.logo.url} 
+                width={120} 
+                height={120} 
+                alt={placeholders.logo.alt}
+                className="rounded-2xl shadow-xl"
+                data-ai-hint="company logo"
+            />
+            <h1 className="text-4xl font-black tracking-tight">StarSutra</h1>
         </div>
-        <Card>
+        <Card className="shadow-2xl border-primary/20">
           <CardHeader>
-            <CardTitle className="text-2xl">Login</CardTitle>
-            <CardDescription>Enter your credentials to access your account.</CardDescription>
+            <CardTitle className="text-2xl font-bold">Account Access</CardTitle>
+            <CardDescription>Enter your credentials to manage your business operations.</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-4">
@@ -157,20 +167,27 @@ export default function LoginPage() {
                 <Input
                   id="username"
                   type="text"
-                  placeholder="Username"
+                  placeholder="e.g. administrator"
                   {...register('username')}
                   disabled={isSubmitting}
+                  className="h-12"
                 />
-                {errors.username && <p className="text-sm text-destructive">{errors.username.message}</p>}
+                {errors.username && <p className="text-sm text-destructive font-medium">{errors.username.message}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
-                <Input id="password" type="password" {...register('password')} disabled={isSubmitting}/>
-                {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
+                <Input 
+                  id="password" 
+                  type="password" 
+                  {...register('password')} 
+                  disabled={isSubmitting}
+                  className="h-12"
+                />
+                {errors.password && <p className="text-sm text-destructive font-medium">{errors.password.message}</p>}
               </div>
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isSubmitting ? 'Logging in...' : 'Login'}
+              <Button type="submit" className="w-full h-12 text-lg font-bold" disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
+                {isSubmitting ? 'Verifying...' : 'Sign In'}
               </Button>
             </form>
           </CardContent>

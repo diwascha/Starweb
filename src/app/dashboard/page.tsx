@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { 
   PlusCircle, 
   ShoppingCart, 
@@ -32,6 +33,7 @@ import { onChequesUpdate } from '@/services/cheque-service';
 import type { PolicyOrMembership, PurchaseOrder, EstimatedInvoice, PageVisit, CompanyProfile, Cheque } from '@/lib/types';
 import { differenceInDays, startOfToday, startOfMonth } from 'date-fns';
 import { cn, toNepaliDate } from '@/lib/utils';
+import placeholders from '@/app/lib/placeholder-images.json';
 
 const defaultCompanyProfile: CompanyProfile = {
   nameEn: "SHIVAM PACKAGING INDUSTRIES PVT LTD.",
@@ -107,28 +109,38 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight uppercase">{companyProfile.nameEn}</h1>
-          <h2 className="text-lg font-semibold text-muted-foreground">{companyProfile.nameNp}</h2>
-          <p className="text-sm text-muted-foreground mt-1">Welcome back, {user?.username} • {companyProfile.address}</p>
+        <div className="flex items-center gap-4">
+            <Image 
+                src={placeholders.logo.url} 
+                width={80} 
+                height={80} 
+                alt={placeholders.logo.alt}
+                className="rounded-xl shadow-md hidden sm:block"
+                data-ai-hint="brand logo"
+            />
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight uppercase">{companyProfile.nameEn}</h1>
+              <h2 className="text-lg font-semibold text-muted-foreground">{companyProfile.nameNp}</h2>
+              <p className="text-sm text-muted-foreground mt-1">Welcome back, {user?.username} • {companyProfile.address}</p>
+            </div>
         </div>
         <div className="flex flex-wrap gap-2">
           {hasPermission('fleet', 'create') && (
-            <Button asChild size="sm" variant="default" className="bg-emerald-600 hover:bg-emerald-700">
+            <Button asChild size="sm" variant="default" className="bg-emerald-600 hover:bg-emerald-700 h-10 px-4">
               <Link href="/fleet/transactions/expenses/new">
                 <Wallet className="mr-2 h-4 w-4" /> New Expense Entry
               </Link>
             </Button>
           )}
           {hasPermission('fleet', 'create') && (
-            <Button asChild size="sm" variant="default" className="bg-blue-600 hover:bg-blue-700">
+            <Button asChild size="sm" variant="default" className="bg-blue-600 hover:bg-blue-700 h-10 px-4">
               <Link href="/fleet/transactions/payment-receipt/new">
                 <ArrowRightLeft className="mr-2 h-4 w-4" /> New Payment/Receipt
               </Link>
             </Button>
           )}
           {hasPermission('reports', 'create') && (
-            <Button asChild size="sm">
+            <Button asChild size="sm" className="h-10 px-4">
               <Link href="/report/new">
                 <PlusCircle className="mr-2 h-4 w-4" /> New QT Report
               </Link>
