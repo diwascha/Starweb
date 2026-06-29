@@ -383,7 +383,18 @@ export default function FleetTransactionsPage() {
                             <Label className="text-[10px] uppercase font-bold text-muted-foreground">Partner</Label>
                             <Select value={filterPartyId} onValueChange={setFilterPartyId}>
                                 <SelectTrigger className="w-[180px] h-10 bg-white text-xs"><SelectValue placeholder="All Partners" /></SelectTrigger>
-                                <SelectContent><SelectItem value="All">All Partners</SelectItem>{parties.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+                                <SelectContent>
+                                    <SelectItem value="All">All Partners</SelectItem>
+                                    {parties
+                                        .filter(p => p.ownership === 'Sijan' || p.ownership === 'Both')
+                                        .sort((a, b) => a.name.localeCompare(b.name))
+                                        .map(p => (
+                                            <SelectItem key={p.id} value={p.id}>
+                                                {p.name}
+                                            </SelectItem>
+                                        ))
+                                    }
+                                </SelectContent>
                             </Select>
                         </div>
 
@@ -622,7 +633,7 @@ export default function FleetTransactionsPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {Array.from(new Map(parties.map(p => [p.id, p.name])).entries()).map(([pId, pName]) => {
+                                    {Array.from(new Map(parties.filter(p => p.ownership === 'Sijan' || p.ownership === 'Both').map(p => [p.id, p.name])).entries()).map(([pId, pName]) => {
                                         const pItems = processedData.filter(t => t.partyId === pId);
                                         const billing = pItems.reduce((sum, t) => sum + t.amount, 0);
                                         const settled = pItems.reduce((sum, t) => sum + t.paidAmount, 0);
