@@ -17,7 +17,7 @@ import { DualCalendar } from '@/components/ui/dual-calendar';
 import { format } from 'date-fns';
 import { cn, toNepaliDate } from '@/lib/utils';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { useAuth } from '@/hooks/use-auth';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -179,7 +179,7 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
     <>
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-        <Card className="bg-blue-50 border-blue-200 p-6 shadow-sm">
+        <Card className="bg-blue-50/40 border-blue-100 p-6 shadow-sm">
           <CardContent className="p-0">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-end">
               <FormField control={form.control} name="voucherNo" render={({ field }) => (
@@ -309,7 +309,7 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
 
         <div className="border rounded-lg overflow-hidden shadow-sm">
             <Table>
-            <TableHeader>
+            <TableHeader className="bg-muted/30">
                 <TableRow>
                 <TableHead className="w-[50px] text-center">S.No</TableHead>
                 <TableHead>Vehicle</TableHead>
@@ -378,81 +378,80 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
                 </TableRow>
                 ))}
             </TableBody>
+            <TableFooter className="bg-muted/50 border-t-2 border-muted">
+                <TableRow className="h-14 hover:bg-transparent">
+                    <TableCell colSpan={3} className="text-right font-black uppercase text-[10px] tracking-widest text-muted-foreground">Voucher Totals</TableCell>
+                    <TableCell className="font-mono font-black text-emerald-700">Rs. {totalRec.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                    <TableCell className="font-mono font-black text-red-700">Rs. {totalPay.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                    <TableCell colSpan={2}>
+                        <div className="flex items-center gap-3">
+                            <span className="text-[10px] uppercase font-black text-blue-900 tracking-widest shrink-0">Net Settlement:</span>
+                            <div className="flex items-center gap-2">
+                                <span className="font-mono font-black text-blue-800">Rs. {Math.abs(netAmount).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                                <Badge variant="outline" className={cn(
+                                    "text-[9px] px-1.5 py-0 h-4 font-black uppercase border-transparent",
+                                    netAmount >= 0 ? "bg-emerald-600 text-white" : "bg-red-600 text-white"
+                                )}>
+                                    {netAmount >= 0 ? 'REC' : 'PAY'}
+                                </Badge>
+                            </div>
+                        </div>
+                    </TableCell>
+                </TableRow>
+            </TableFooter>
             </Table>
         </div>
         <Button type="button" size="sm" variant="outline" className="mt-2" onClick={() => append({ ledgerId: '', vehicleId: '', recAmount: 0, payAmount: 0, narration: '' })}>
             <Plus className="mr-2 h-4 w-4"/> Add Entry Row
         </Button>
         
-        <div className="space-y-4 mt-8">
-            {/* Horizontal Settlement Summary Bar */}
-            <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-4 px-6 flex flex-col lg:flex-row items-center justify-between gap-6">
-                <div className="flex flex-wrap items-center gap-10">
-                    <div className="flex items-center gap-3">
-                        <span className="text-[10px] uppercase font-black text-muted-foreground tracking-widest">Total Receipt</span>
-                        <span className="text-lg font-mono font-bold">Rs. {totalRec.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <span className="text-[10px] uppercase font-black text-muted-foreground tracking-widest">Total Payment</span>
-                        <span className="text-lg font-mono font-bold">Rs. {totalPay.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
-                    </div>
-                    <div className="flex items-center gap-4 border-l border-blue-200 pl-10">
-                        <span className="text-[10px] uppercase font-black text-blue-900 tracking-widest">Net Settlement</span>
-                        <div className="flex items-center gap-2">
-                            <span className="text-xl font-mono font-black text-blue-800">Rs. {Math.abs(netAmount).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
-                            <Badge variant="outline" className={cn(
-                                "text-[9px] px-2 py-0.5 h-5 font-black uppercase border-transparent",
-                                netAmount >= 0 ? "bg-emerald-600 text-white" : "bg-red-600 text-white"
-                            )}>
-                                {netAmount >= 0 ? 'RECEIVABLE' : 'PAYABLE'}
-                            </Badge>
-                        </div>
-                    </div>
-                </div>
-                
-                <div className="w-full lg:max-w-sm">
+        <div className="space-y-6 mt-8">
+            <Card className="bg-muted/5 border shadow-none">
+                <CardHeader className="py-3 px-4 border-b bg-muted/10"><CardTitle className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Final Voucher Details</CardTitle></CardHeader>
+                <CardContent className="p-4 space-y-6">
                     <FormField control={form.control} name="remarks" render={({ field }) => (
-                        <FormItem className="space-y-0">
+                        <FormItem>
+                            <FormLabel>General Voucher Remarks / Narration</FormLabel>
                             <FormControl>
-                                <Input 
+                                <Textarea 
                                     {...field} 
                                     value={field.value ?? ''} 
-                                    className="bg-white border-blue-200 h-9 text-xs shadow-none" 
-                                    placeholder="Add general voucher remarks..."
+                                    className="bg-white min-h-[80px] text-sm resize-none" 
+                                    placeholder="Provide context for this entire voucher (optional)..."
                                 />
                             </FormControl>
                             <FormMessage />
                         </FormItem>
                     )}/>
-                </div>
-            </div>
 
-            <Card className="bg-muted/10 border-dashed shadow-none">
-                <CardHeader className="py-3 px-4 border-b bg-muted/5"><CardTitle className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Balance Summary Impact</CardTitle></CardHeader>
-                <CardContent className="p-0">
-                    <Table className="text-xs">
-                    <TableHeader>
-                        <TableRow>
-                        <TableHead className="w-[50px] text-center">S.No</TableHead>
-                        <TableHead>Vehicle</TableHead>
-                        <TableHead>Ledger (A/C)</TableHead>
-                        <TableHead className="text-right">Estimated Receivable</TableHead>
-                        <TableHead className="text-right">Estimated Payable</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {summaryData.map((item, index) => (
-                            <TableRow key={index} className="h-10">
-                            <TableCell className="text-center">{index + 1}</TableCell>
-                            <TableCell>{item.vehicleName}</TableCell>
-                            <TableCell>{item.ledgerName}</TableCell>
-                            <TableCell className="text-right font-mono">{item.receivable.toLocaleString()}</TableCell>
-                            <TableCell className="text-right font-mono">{item.payable.toLocaleString()}</TableCell>
-                            </TableRow>
-                        ))}
-                        {summaryData.length === 0 && <TableRow><TableCell colSpan={5} className="text-center py-4 text-muted-foreground">Add items to see impact summary.</TableCell></TableRow>}
-                    </TableBody>
-                    </Table>
+                    <div className="space-y-3">
+                        <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Ledger Balance Impact Summary</Label>
+                        <div className="border rounded-md overflow-hidden bg-white">
+                            <Table className="text-xs">
+                            <TableHeader className="bg-muted/20">
+                                <TableRow>
+                                <TableHead className="w-[50px] text-center">S.No</TableHead>
+                                <TableHead>Vehicle</TableHead>
+                                <TableHead>Ledger (A/C)</TableHead>
+                                <TableHead className="text-right">Estimated Receivable</TableHead>
+                                <TableHead className="text-right">Estimated Payable</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {summaryData.map((item, index) => (
+                                    <TableRow key={index} className="h-10">
+                                    <TableCell className="text-center">{index + 1}</TableCell>
+                                    <TableCell>{item.vehicleName}</TableCell>
+                                    <TableCell>{item.ledgerName}</TableCell>
+                                    <TableCell className="text-right font-mono">{item.receivable.toLocaleString()}</TableCell>
+                                    <TableCell className="text-right font-mono">{item.payable.toLocaleString()}</TableCell>
+                                    </TableRow>
+                                ))}
+                                {summaryData.length === 0 && <TableRow><TableCell colSpan={5} className="text-center py-4 text-muted-foreground">Add items to see impact summary.</TableCell></TableRow>}
+                            </TableBody>
+                            </Table>
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
         </div>
