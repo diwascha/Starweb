@@ -39,12 +39,12 @@ import {
 import { cn, toNepaliDate } from '@/lib/utils';
 import type { Vehicle, Party, Account, AccountOwnership, PartyType, Transaction, Destination } from '@/lib/types';
 import type { Expense, ExpenseType } from '@/lib/expense-types';
-import { addExpense, onExpensesUpdate } from '@/services/expense-service';
+import { addExpense } from '@/services/expense-service';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { addParty } from '@/services/party-service';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { onDestinationsUpdate, addDestination, updateDestination, deleteDestination } from '@/services/destination-service';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
@@ -60,6 +60,7 @@ const expenseTypes: { type: ExpenseType; label: string; sub: string; icon: any; 
 ];
 
 const expenseSchema = z.object({
+    voucherNo: z.string().min(1, "Voucher No is required."),
     date: z.date(),
     vehicleId: z.string().min(1, "Truck is required."),
     expenseType: z.enum(['Advance', 'Maintenance', 'Purchase', 'Loan Repayment', 'Membership Renewal']),
@@ -93,9 +94,10 @@ interface ExpenseFormProps {
     parties: Party[];
     accounts: Account[];
     transactions: Transaction[];
+    initialVoucherNo: string;
 }
 
-export function ExpenseForm({ vehicles, parties, accounts, transactions }: ExpenseFormProps) {
+export function ExpenseForm({ vehicles, parties, accounts, transactions, initialVoucherNo }: ExpenseFormProps) {
     const { user } = useAuth();
     const { toast } = useToast();
     const router = useRouter();
@@ -118,6 +120,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
     const form = useForm<z.infer<typeof expenseSchema>>({
         resolver: zodResolver(expenseSchema),
         defaultValues: {
+            voucherNo: initialVoucherNo,
             date: new Date(),
             expenseType: 'Advance',
             paymentMode: 'Cash',
@@ -127,6 +130,12 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
             remarks: '',
         }
     });
+
+    useEffect(() => {
+        if (initialVoucherNo) {
+            form.setValue('voucherNo', initialVoucherNo);
+        }
+    }, [initialVoucherNo, form]);
 
     const watchedType = form.watch('expenseType');
     const watchedMode = form.watch('paymentMode');
@@ -143,7 +152,6 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
     const sijanParties = parties.filter(p => p.ownership === 'Sijan' || p.ownership === 'Both');
     const sijanAccounts = accounts.filter(a => (a.ownership === 'Sijan' || a.ownership === 'Both') && (a.type === 'Bank' || a.type === 'Cash'));
 
-    // Master Data Suggestion logic (Route Base)
     const routeStandardAmount = useMemo(() => {
         if (watchedType !== 'Advance' || !watchedDestinationName) return null;
         const dest = destinations.find(d => d.name === watchedDestinationName);
@@ -173,17 +181,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
                 createdBy: user.username,
             });
             toast({ title: 'Success', description: 'Expense recorded successfully.' });
-            form.reset({
-                ...form.getValues(),
-                amount: 0,
-                extraAmount: 0,
-                extraRemarks: '',
-                remarks: '',
-                partyId: '',
-                destination: '',
-            });
-            setDestSearch('');
-            setShowExtraFields(false);
+            router.push('/fleet/transactions');
         } catch (error: any) {
             console.error("Expense Save Failure:", error);
             toast({ title: 'Save Failed', description: error.message || 'Check connection and try again.', variant: 'destructive' });
@@ -265,7 +263,17 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions }: Expen
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <FormField control={form.control} name="voucherNo" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Voucher No.</FormLabel>
+                            <FormControl>
+                                <Input {...field} readOnly className="bg-muted/50 h-12 font-mono" />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )} />
+
                     <FormField control={form.control} name="date" render={({ field }) => (
                         <FormItem className="flex flex-col">
                             <FormLabel>Date</FormLabel>

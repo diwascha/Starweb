@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -10,7 +9,10 @@ import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onPartiesUpdate } from '@/services/party-service';
 import { onAccountsUpdate } from '@/services/account-service';
 import { onTransactionsUpdate } from '@/services/transaction-service';
+import { onExpensesUpdate } from '@/services/expense-service';
+import { generateNextExpenseNumber } from '@/lib/utils';
 import type { Vehicle, Party, Account, Transaction } from '@/lib/types';
+import type { Expense } from '@/lib/expense-types';
 
 export default function NewExpenseEntryPage() {
     const router = useRouter();
@@ -18,6 +20,8 @@ export default function NewExpenseEntryPage() {
     const [parties, setParties] = useState<Party[]>([]);
     const [accounts, setAccounts] = useState<Account[]>([]);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [expenses, setExpenses] = useState<Expense[]>([]);
+    const [nextVoucherNo, setNextVoucherNo] = useState('');
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
@@ -26,11 +30,16 @@ export default function NewExpenseEntryPage() {
             onVehiclesUpdate(setVehicles),
             onPartiesUpdate(setParties),
             onAccountsUpdate(setAccounts),
-            onTransactionsUpdate(setTransactions)
+            onTransactionsUpdate(setTransactions),
+            onExpensesUpdate(setExpenses)
         ];
         setIsLoading(false);
         return () => unsubs.forEach(u => u());
     }, []);
+
+    useEffect(() => {
+        generateNextExpenseNumber(expenses).then(setNextVoucherNo);
+    }, [expenses]);
 
     if (isLoading) {
         return <div className="p-12 text-center">Loading dependencies...</div>;
@@ -58,6 +67,7 @@ export default function NewExpenseEntryPage() {
                 parties={parties}
                 accounts={accounts}
                 transactions={transactions}
+                initialVoucherNo={nextVoucherNo}
             />
         </div>
     );

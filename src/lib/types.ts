@@ -1,4 +1,3 @@
-
 export interface RateHistoryEntry {
   rate: number;
   date: string; // ISO string when the rate was set
@@ -546,7 +545,7 @@ export interface AppSetting {
     value: any;
 }
 
-export const documentTypes = ['report', 'purchaseOrder', 'sales', 'purchase', 'paymentReceipt', 'tdsVoucher', 'estimateInvoice'] as const;
+export const documentTypes = ['report', 'purchaseOrder', 'sales', 'purchase', 'paymentReceipt', 'tdsVoucher', 'estimateInvoice', 'expense'] as const;
 export type DocumentType = typeof documentTypes[number];
 
 export interface DocumentPrefixes {
@@ -557,6 +556,7 @@ export interface DocumentPrefixes {
     paymentReceipt?: string;
     tdsVoucher?: string;
     estimateInvoice?: string;
+    expense?: string;
 }
 
 export const getDocumentName = (type: DocumentType): string => {
@@ -575,6 +575,8 @@ export const getDocumentName = (type: DocumentType): string => {
             return 'TDS Voucher';
         case 'estimateInvoice':
             return 'Estimate Invoice';
+        case 'expense':
+            return 'Expense Voucher';
         default:
             return 'Document';
     }

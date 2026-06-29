@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import type { Report, PurchaseOrder, PurchaseOrderStatus, AttendanceStatus, User, Transaction, DocumentPrefixes, Trip, TdsCalculation, EstimatedInvoice } from './types';
+import type { Expense } from './expense-types';
 import NepaliDate from 'nepali-date-converter';
 import { getSetting } from "@/services/settings-service";
 import { format, parse } from 'date-fns';
@@ -85,6 +86,9 @@ export const generateNextEstimateInvoiceNumber = (items: Pick<EstimatedInvoice, 
 
 export const generateNextSalesNumber = (items: Pick<Trip, 'tripNumber'>[]) =>
   generateNextNumber(items, 'tripNumber', 'sales', 'SALE-');
+
+export const generateNextExpenseNumber = (items: Pick<Expense, 'voucherNo'>[]) =>
+  generateNextNumber(items, 'voucherNo', 'expense', 'EXP-');
 
 export const generateNextVoucherNumber = async (items: TdsCalculation[] | Transaction[], prefix: string): Promise<string> => {
     let maxNumber = 0;

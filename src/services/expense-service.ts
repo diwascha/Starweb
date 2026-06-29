@@ -19,6 +19,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Expense =
     const data = snapshot.data();
     return {
         id: snapshot.id,
+        voucherNo: data.voucherNo || 'EXP-LEGACY',
         date: data.date,
         vehicleId: data.vehicleId,
         expenseType: data.expenseType,
@@ -77,6 +78,7 @@ export const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>)
     const expenseId = doc(getExpensesCollection()).id;
 
     const expenseRecord = {
+        voucherNo: expenseData.voucherNo,
         date: expenseData.date,
         vehicleId: expenseData.vehicleId,
         expenseType: expenseData.expenseType,
@@ -101,7 +103,7 @@ export const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>)
     
     const items: TransactionItem[] = [
         { 
-            particular: `${expenseRecord.expenseType}${expenseRecord.destination ? ` to ${expenseRecord.destination}` : ''}`, 
+            particular: `${expenseRecord.voucherNo}: ${expenseRecord.expenseType}${expenseRecord.destination ? ` to ${expenseRecord.destination}` : ''}`, 
             quantity: 1, 
             rate: expenseRecord.amount 
         }
@@ -127,7 +129,7 @@ export const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>)
         accountId: expenseRecord.accountId,
         remarks: `Expense Entry: ${expenseRecord.expenseType}${expenseRecord.destination ? ` (${expenseRecord.destination})` : ''}`,
         referenceType: "Expense Entry",
-        referenceId: expenseId,
+        referenceId: expenseRecord.voucherNo, // Synchronize using the readable Voucher Number
         items: items,
         createdBy: expenseRecord.createdBy,
         invoiceNumber: null,

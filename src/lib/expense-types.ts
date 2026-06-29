@@ -2,6 +2,7 @@ export type ExpenseType = 'Advance' | 'Maintenance' | 'Purchase' | 'Loan Repayme
 
 export interface Expense {
     id: string;
+    voucherNo: string; // Added for entry numbering
     date: string; // ISO string
     vehicleId: string;
     expenseType: ExpenseType;
