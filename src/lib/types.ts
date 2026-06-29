@@ -432,6 +432,8 @@ export interface Transaction {
     tripId?: string; // Link to the trip
     type: TransactionType;
     category?: string; // Category for easier auditing (Maintenance, Renewal, Peski, etc.)
+    referenceType?: string | null; // e.g. "Trip Sheet", "Expense Entry", "Voucher"
+    referenceId?: string | null; // The ID of the source document
     voucherId?: string; // To group payment/receipt transactions
     createdBy: string;
     createdAt: string; // ISO string

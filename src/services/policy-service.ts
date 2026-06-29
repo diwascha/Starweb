@@ -45,11 +45,11 @@ export const addPolicy = async (policy: Omit<PolicyOrMembership, 'id'>): Promise
     if (policy.cost > 0) {
         try {
             await addExpense({
-                date: policy.startDate, // Use the policy start date as the transaction/payment date
-                vehicleId: policy.memberType === 'Vehicle' ? policy.memberId : '', // Tied to vehicle if applicable
-                expenseType: 'Membership Renewal', // Correct type for renewals
+                date: policy.startDate, 
+                vehicleId: policy.memberType === 'Vehicle' ? policy.memberId : '', 
+                expenseType: 'Membership Renewal',
                 amount: policy.cost,
-                paymentMode: 'Cash', // Default to cash payment
+                paymentMode: 'Cash', 
                 remarks: `Policy Auto-Entry: ${policy.type} - ${policy.policyNumber} (${policy.provider})`,
                 createdBy: policy.createdBy,
             });
@@ -64,7 +64,8 @@ export const addPolicy = async (policy: Omit<PolicyOrMembership, 'id'>): Promise
 export const onPoliciesUpdate = (callback: (policies: PolicyOrMembership[]) => void): () => void => {
     return onSnapshot(getPoliciesCollection(), 
         (snapshot) => {
-            callback(snapshot.docs.map(fromFirestore));
+            const policies = snapshot.docs.map(fromFirestore);
+            callback(policies);
         },
         (error) => {
             console.error("FIREBASE FAIL MESSAGE (Policies):", error.message, error);

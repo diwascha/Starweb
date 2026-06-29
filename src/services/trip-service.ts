@@ -1,16 +1,16 @@
-
 import { getFirebase } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, doc, updateDoc, deleteDoc, getDoc, writeBatch, query, where } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, doc, updateDoc, deleteDoc, getDoc, writeBatch, query, where, setDoc } from 'firebase/firestore';
 import type { Trip, Transaction } from '@/lib/types';
 import { differenceInDays } from 'date-fns';
+import { COLLECTIONS } from '@/lib/constants';
 
 const getTripsCollection = () => {
     const { db } = getFirebase();
-    return collection(db, 'trips');
+    return collection(db, COLLECTIONS.TRIPS);
 }
 const getTransactionsCollection = () => {
     const { db } = getFirebase();
-    return collection(db, 'transactions');
+    return collection(db, COLLECTIONS.TRANSACTIONS);
 }
 
 const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentData): Trip => {
@@ -66,12 +66,12 @@ const calculateNetPay = (trip: Omit<Trip, 'id' | 'salesTransactionId' | 'created
     return grossAmount - tdsAmount;
 };
 
-const BATCH_LIMIT = 499; // Firestore batch limit is 500
+const BATCH_LIMIT = 499;
 
 const commitBatch = async (batch: ReturnType<typeof writeBatch>) => {
     const { db } = getFirebase();
     await batch.commit();
-    return writeBatch(db); // Return a new batch
+    return writeBatch(db);
 };
 
 
@@ -81,23 +81,36 @@ export const addTrip = async (trip: Omit<Trip, 'id' | 'createdAt' | 'salesTransa
     let writeCount = 0;
     const now = new Date().toISOString();
     
-    const tripRef = doc(collection(db, 'trips'));
+    const tripId = doc(getTripsCollection()).id;
+    const tripRef = doc(getTripsCollection(), tripId);
 
     const netPay = calculateNetPay(trip);
-    const salesTransactionRef = doc(collection(db, 'transactions'));
+    const salesTransactionRef = doc(getTransactionsCollection());
     
     const salesTransaction: Omit<Transaction, 'id'> = {
         vehicleId: trip.vehicleId,
         date: trip.date,
         type: 'Sales',
+        category: 'Freight',
         amount: netPay,
         items: [{ particular: `Sales from trip to ${trip.destinations[0]?.name || 'destination'}`, quantity: 1, rate: netPay }],
         partyId: trip.partyId,
-        tripId: tripRef.id,
+        tripId: tripId,
+        referenceType: "Trip Sheet",
+        referenceId: trip.tripNumber,
         createdBy: trip.createdBy,
         createdAt: now,
         billingType: 'Credit',
         invoiceType: 'Taxable',
+        lastModifiedAt: now,
+        lastModifiedBy: null,
+        invoiceDate: null,
+        invoiceNumber: null,
+        chequeDate: null,
+        chequeNumber: null,
+        dueDate: null,
+        accountId: null,
+        remarks: null,
     };
     batch.set(salesTransactionRef, salesTransaction);
     writeCount++;
@@ -108,7 +121,7 @@ export const addTrip = async (trip: Omit<Trip, 'id' | 'createdAt' | 'salesTransa
             batch = await commitBatch(batch);
             writeCount = 0;
         }
-        const purchaseTransactionRef = doc(collection(db, 'transactions'));
+        const purchaseTransactionRef = doc(getTransactionsCollection());
         const purchaseTx: Omit<Transaction, 'id'> = {
             vehicleId: trip.vehicleId,
             partyId: fuelEntry.partyId,
@@ -116,14 +129,23 @@ export const addTrip = async (trip: Omit<Trip, 'id' | 'createdAt' | 'salesTransa
             invoiceNumber: fuelEntry.invoiceNumber || null,
             invoiceDate: fuelEntry.invoiceDate || null,
             type: 'Purchase',
+            category: 'Fuel',
             billingType: 'Credit',
             invoiceType: 'Normal',
             amount: fuelEntry.amount,
             items: [{ particular: 'Fuel', quantity: fuelEntry.liters || 1, rate: fuelEntry.liters ? fuelEntry.amount / fuelEntry.liters : fuelEntry.amount }],
-            remarks: `Fuel for trip ${tripRef.id}`,
-            tripId: tripRef.id,
+            remarks: `Fuel for trip ${trip.tripNumber}`,
+            tripId: tripId,
+            referenceType: "Trip Sheet",
+            referenceId: trip.tripNumber,
             createdBy: trip.createdBy,
             createdAt: now,
+            lastModifiedAt: now,
+            lastModifiedBy: null,
+            chequeDate: null,
+            chequeNumber: null,
+            dueDate: null,
+            accountId: null,
         };
         batch.set(purchaseTransactionRef, purchaseTx);
         writeCount++;
@@ -145,7 +167,7 @@ export const addTrip = async (trip: Omit<Trip, 'id' | 'createdAt' | 'salesTransa
     writeCount++;
 
     await batch.commit();
-    return tripRef.id;
+    return tripId;
 };
 
 export const onTripsUpdate = (callback: (trips: Trip[]) => void): () => void => {
@@ -175,7 +197,7 @@ export const updateTrip = async (id: string, tripUpdate: Partial<Omit<Trip, 'id'
     const { db } = getFirebase();
     let batch = writeBatch(db);
     let writeCount = 0;
-    const tripRef = doc(db, 'trips', id);
+    const tripRef = doc(getTripsCollection(), id);
     const now = new Date().toISOString();
 
     const originalTrip = await getTrip(id);
@@ -186,12 +208,13 @@ export const updateTrip = async (id: string, tripUpdate: Partial<Omit<Trip, 'id'
     // 1. Update Sales Transaction
     const netPay = calculateNetPay(fullTripDataForCalc);
     if (fullTripDataForCalc.salesTransactionId) {
-        const transactionRef = doc(db, 'transactions', fullTripDataForCalc.salesTransactionId);
+        const transactionRef = doc(getTransactionsCollection(), fullTripDataForCalc.salesTransactionId);
         batch.update(transactionRef, {
             amount: netPay,
             date: fullTripDataForCalc.date,
             vehicleId: fullTripDataForCalc.vehicleId,
             partyId: fullTripDataForCalc.partyId,
+            referenceId: fullTripDataForCalc.tripNumber,
             lastModifiedBy: tripUpdate.lastModifiedBy,
             lastModifiedAt: now,
         });
@@ -210,7 +233,7 @@ export const updateTrip = async (id: string, tripUpdate: Partial<Omit<Trip, 'id'
                 batch = await commitBatch(batch);
                 writeCount = 0;
             }
-            batch.delete(doc(db, 'transactions', oldEntry.purchaseTransactionId));
+            batch.delete(doc(getTransactionsCollection(), oldEntry.purchaseTransactionId));
             writeCount++;
         }
     }
@@ -223,7 +246,7 @@ export const updateTrip = async (id: string, tripUpdate: Partial<Omit<Trip, 'id'
 
         if (fuelEntry.purchaseTransactionId) {
             // Update existing purchase transaction
-            const purchaseTxRef = doc(db, 'transactions', fuelEntry.purchaseTransactionId);
+            const purchaseTxRef = doc(getTransactionsCollection(), fuelEntry.purchaseTransactionId);
             batch.update(purchaseTxRef, {
                 vehicleId: fullTripDataForCalc.vehicleId,
                 partyId: fuelEntry.partyId,
@@ -231,6 +254,7 @@ export const updateTrip = async (id: string, tripUpdate: Partial<Omit<Trip, 'id'
                 invoiceNumber: fuelEntry.invoiceNumber || null,
                 invoiceDate: fuelEntry.invoiceDate || null,
                 amount: fuelEntry.amount,
+                referenceId: fullTripDataForCalc.tripNumber,
                 items: [{ particular: 'Fuel', quantity: fuelEntry.liters || 1, rate: fuelEntry.liters ? fuelEntry.amount / fuelEntry.liters : fuelEntry.amount }],
                 lastModifiedBy: tripUpdate.lastModifiedBy,
                 lastModifiedAt: now,
@@ -238,8 +262,8 @@ export const updateTrip = async (id: string, tripUpdate: Partial<Omit<Trip, 'id'
             writeCount++;
             fuelEntriesWithPurchaseIds.push(fuelEntry);
         } else {
-            // Create new purchase transaction for new fuel entry
-            const purchaseTransactionRef = doc(collection(db, 'transactions'));
+            // Create new purchase transaction
+            const purchaseTransactionRef = doc(getTransactionsCollection());
             const purchaseTx: Omit<Transaction, 'id'> = {
                 vehicleId: fullTripDataForCalc.vehicleId,
                 partyId: fuelEntry.partyId,
@@ -247,12 +271,15 @@ export const updateTrip = async (id: string, tripUpdate: Partial<Omit<Trip, 'id'
                 invoiceNumber: fuelEntry.invoiceNumber || null,
                 invoiceDate: fuelEntry.invoiceDate || null,
                 type: 'Purchase',
+                category: 'Fuel',
                 billingType: 'Credit',
                 invoiceType: 'Normal',
                 amount: fuelEntry.amount,
                 items: [{ particular: 'Fuel', quantity: fuelEntry.liters || 1, rate: fuelEntry.liters ? fuelEntry.amount / fuelEntry.liters : fuelEntry.amount }],
-                remarks: `Fuel for trip ${id}`,
+                remarks: `Fuel for trip ${fullTripDataForCalc.tripNumber}`,
                 tripId: id,
+                referenceType: "Trip Sheet",
+                referenceId: fullTripDataForCalc.tripNumber,
                 createdBy: tripUpdate.lastModifiedBy || originalTrip.createdBy,
                 createdAt: now,
                 lastModifiedBy: tripUpdate.lastModifiedBy,
@@ -269,7 +296,7 @@ export const updateTrip = async (id: string, tripUpdate: Partial<Omit<Trip, 'id'
         writeCount = 0;
     }
 
-    // 3. Update the Trip document itself
+    // 3. Update the Trip document
     batch.update(tripRef, {
         ...tripUpdate,
         fuelEntries: fuelEntriesWithPurchaseIds,
@@ -291,20 +318,17 @@ export const deleteTrip = async (id: string): Promise<void> => {
 
     const allRefsToDelete = [];
 
-    // Add associated sales transaction to delete list
     if (trip.salesTransactionId) {
-        allRefsToDelete.push(doc(db, 'transactions', trip.salesTransactionId));
+        allRefsToDelete.push(doc(getTransactionsCollection(), trip.salesTransactionId));
     }
     
-    // Add associated fuel purchase transactions to delete list
     for (const fuelEntry of trip.fuelEntries) {
         if (fuelEntry.purchaseTransactionId) {
-            allRefsToDelete.push(doc(db, 'transactions', fuelEntry.purchaseTransactionId));
+            allRefsToDelete.push(doc(getTransactionsCollection(), fuelEntry.purchaseTransactionId));
         }
     }
     
-    // Add the trip itself to delete list
-    allRefsToDelete.push(doc(db, 'trips', id));
+    allRefsToDelete.push(doc(getTripsCollection(), id));
 
     for (const docRef of allRefsToDelete) {
         if (writeCount >= BATCH_LIMIT) {

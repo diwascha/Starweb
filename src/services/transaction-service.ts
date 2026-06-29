@@ -1,10 +1,11 @@
 import { getFirebase } from '@/lib/firebase';
-import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, writeBatch, query, where, getDoc } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, writeBatch, query, where, getDoc, setDoc } from 'firebase/firestore';
 import type { Transaction } from '@/lib/types';
+import { COLLECTIONS } from '@/lib/constants';
 
 const transactionsCollection = () => {
     const { db } = getFirebase();
-    return collection(db, 'transactions');
+    return collection(db, COLLECTIONS.TRANSACTIONS);
 };
 
 const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentData): Transaction => {
@@ -29,6 +30,8 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
         tripId: data.tripId,
         type: data.type,
         category: data.category,
+        referenceType: data.referenceType || null,
+        referenceId: data.referenceId || null,
         voucherId: data.voucherId,
         createdBy: data.createdBy,
         createdAt: data.createdAt,
@@ -68,7 +71,7 @@ export const saveVoucher = async (voucherData: any, createdBy: string) => {
     let writeCount = 0;
     const BATCH_LIMIT = 499;
     const now = new Date().toISOString();
-    const voucherId = doc(collection(db, 'transactions')).id; // Generate a unique ID for the voucher group
+    const voucherId = doc(collection(db, COLLECTIONS.TRANSACTIONS)).id; 
 
     for (const item of voucherData.items) {
         if (writeCount >= BATCH_LIMIT) {
@@ -100,13 +103,15 @@ export const saveVoucher = async (voucherData: any, createdBy: string) => {
                 partyId: ledgerId,
                 amount: amount,
                 remarks: narration || voucherData.remarks || null,
-                category: 'Settlement', // Default category for payment/receipt vouchers
-                invoiceType: 'Normal', // Default for payments/receipts
+                category: 'Settlement', 
+                invoiceType: 'Normal', 
                 items: [{ particular: `${voucherData.voucherNo}-${type}`, quantity: 1, rate: amount }],
                 accountId: voucherData.accountId || null,
                 chequeNumber: voucherData.chequeNo || null,
                 chequeDate: voucherData.chequeDate ? voucherData.chequeDate.toISOString() : null,
                 voucherId: voucherId,
+                referenceType: "Voucher",
+                referenceId: voucherData.voucherNo,
                 createdBy: createdBy,
                 createdAt: now,
                 lastModifiedAt: now,
@@ -164,10 +169,10 @@ export const getVoucherTransactions = async (voucherId: string): Promise<Transac
         return querySnapshot.docs.map(fromFirestore);
     }
     
-    // Fallback for legacy vouchers without a voucherId
+    // Fallback for legacy vouchers
     const { db } = getFirebase();
     const legacyId = voucherId.replace('legacy-', '');
-    const docSnap = await getDoc(doc(db, 'transactions', legacyId));
+    const docSnap = await getDoc(doc(db, COLLECTIONS.TRANSACTIONS, legacyId));
     if (docSnap.exists()) {
         return [fromFirestore(docSnap)];
     }
@@ -204,7 +209,7 @@ export const updateVoucher = async (voucherId: string, voucherData: any, modifie
             batch = writeBatch(db);
             writeCount = 0;
         }
-        batch.delete(doc(db, 'transactions', txn.id));
+        batch.delete(doc(db, COLLECTIONS.TRANSACTIONS, txn.id));
         writeCount++;
     }
     if (writeCount > 0) {
@@ -252,6 +257,8 @@ export const updateVoucher = async (voucherId: string, voucherData: any, modifie
                 chequeNumber: voucherData.chequeNo || null,
                 chequeDate: voucherData.chequeDate ? voucherData.chequeDate.toISOString() : null,
                 voucherId: voucherId,
+                referenceType: "Voucher",
+                referenceId: voucherData.voucherNo,
                 lastModifiedBy: modifiedBy,
                 lastModifiedAt: now,
                 createdBy: existingTxns[0]?.createdBy || modifiedBy,
@@ -285,7 +292,7 @@ export const deleteVoucher = async (voucherId: string): Promise<void> => {
     
     if (voucherId.startsWith('legacy-')) {
         const docId = voucherId.replace('legacy-', '');
-        const docRef = doc(db, 'transactions', docId);
+        const docRef = doc(db, COLLECTIONS.TRANSACTIONS, docId);
         await deleteDoc(docRef);
     } else {
         const q = query(transactionsCollection(), where("voucherId", "==", voucherId));

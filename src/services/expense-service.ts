@@ -3,7 +3,7 @@
  */
 
 import { getFirebase } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, deleteDoc, query, orderBy, getDocs } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, deleteDoc, query, orderBy, getDocs, setDoc } from 'firebase/firestore';
 import type { Expense } from '@/lib/expense-types';
 import { COLLECTIONS } from '@/lib/constants';
 import { addTransaction } from './transaction-service';
@@ -69,9 +69,12 @@ export const onExpensesUpdate = (callback: (expenses: Expense[]) => void): () =>
  * Adds a new expense record and automatically syncs it to the general accounting ledger.
  */
 export const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>): Promise<string> => {
+    const { db } = getFirebase();
     const now = createTimestamp();
     
-    // Explicitly construct the record to avoid passing 'undefined' to Firestore
+    // Pre-generate expense ID to use for transaction reference
+    const expenseId = doc(getExpensesCollection()).id;
+
     const expenseRecord = {
         date: expenseData.date,
         vehicleId: expenseData.vehicleId,
@@ -89,9 +92,10 @@ export const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>)
     };
 
     // 1. Save to Expenses Collection
-    const docRef = await addDoc(getExpensesCollection(), expenseRecord);
+    await setDoc(doc(getExpensesCollection(), expenseId), expenseRecord);
 
     // 2. Automatically sync to Main Transactions for accounting
+    // Architecture: type: bucket, category: purpose, sourceRef: origin
     const totalAmount = expenseRecord.amount + expenseRecord.extraAmount;
     
     const items: TransactionItem[] = [
@@ -113,17 +117,18 @@ export const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>)
     const txnData: Omit<Transaction, 'id' | 'createdAt' | 'lastModifiedAt'> = {
         date: expenseRecord.date,
         vehicleId: expenseRecord.vehicleId,
-        type: 'Payment', // Daily expenses represent cash/bank outflows (Payments), not Purchases
+        type: 'Payment', // Daily expenses are outflows (Payments)
         amount: totalAmount,
         billingType: expenseRecord.paymentMode,
         invoiceType: 'Normal',
         category: expenseRecord.expenseType,
         partyId: expenseRecord.partyId,
         accountId: expenseRecord.accountId,
-        remarks: `Expense Sync: ${expenseRecord.expenseType}${expenseRecord.destination ? ` (${expenseRecord.destination})` : ''}${expenseRecord.remarks ? ` - ${expenseRecord.remarks}` : ''}`,
+        remarks: `Expense Entry: ${expenseRecord.expenseType}${expenseRecord.destination ? ` (${expenseRecord.destination})` : ''}`,
+        referenceType: "Expense Entry",
+        referenceId: expenseId,
         items: items,
         createdBy: expenseRecord.createdBy,
-        // Set empty optional fields to null to avoid undefined keys
         invoiceNumber: null,
         invoiceDate: null,
         chequeNumber: null,
@@ -137,14 +142,13 @@ export const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>)
         await addTransaction(txnData);
     } catch (error) {
         logServiceError('addExpense-transactionSync', error);
-        // We don't throw here to allow the primary expense save to be considered successful
     }
 
-    return docRef.id;
+    return expenseId;
 };
 
 /**
- * Deletes an expense record. Note: This does not automatically remove the synced transaction.
+ * Deletes an expense record.
  */
 export const deleteExpense = async (id: string): Promise<void> => {
     try {

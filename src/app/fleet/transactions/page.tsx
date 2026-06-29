@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Transaction, Vehicle, Party } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Search, ArrowUpDown, MoreHorizontal, Eye, Edit, Trash2, CalendarIcon, Download, X, FileSpreadsheet, FileText, Loader2, TrendingUp, TrendingDown, Info, Link as LinkIcon, FilterX } from 'lucide-react';
+import { PlusCircle, Search, ArrowUpDown, MoreHorizontal, Eye, Edit, Trash2, CalendarIcon, FileSpreadsheet, FileText, Loader2, TrendingUp, TrendingDown, Info, Link as LinkIcon, FilterX } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
@@ -63,11 +63,9 @@ export default function FinancialHistoryPage() {
     const { toast } = useToast();
     const { hasPermission, user } = useAuth();
     
-    // Memos for performance
     const vehiclesById = useMemo(() => new Map(vehicles.map(v => [v.id, v.name])), [vehicles]);
     const partiesById = useMemo(() => new Map(parties.map(p => [p.id, p.name])), [parties]);
 
-    // Data fetching
     useEffect(() => {
         setIsLoading(true);
         const unsubTxns = onTransactionsUpdate(setTransactions);
@@ -97,15 +95,8 @@ export default function FinancialHistoryPage() {
     useEffect(() => {
         if (availableYears.length > 0 && selectedBsYear === 'All' && selectedBsMonth === 'All') {
             const currentNepaliDate = new NepaliDate();
-            const currentYear = currentNepaliDate.getYear();
-            const currentMonth = currentNepaliDate.getMonth();
-
-            if (availableYears.includes(currentYear)) {
-                setSelectedBsYear(String(currentYear));
-            } else {
-                setSelectedBsYear(String(availableYears[0]));
-            }
-            setSelectedBsMonth(String(currentMonth));
+            setSelectedBsYear(String(currentNepaliDate.getYear()));
+            setSelectedBsMonth(String(currentNepaliDate.getMonth()));
         }
     }, [availableYears, selectedBsYear, selectedBsMonth]);
 
@@ -113,7 +104,7 @@ export default function FinancialHistoryPage() {
         if (!voucherId) return;
         try {
             await deleteVoucher(voucherId);
-            toast({ title: 'Voucher Deleted', description: 'All associated entries have been removed.' });
+            toast({ title: 'Record Deleted', description: 'Entry removed successfully.' });
         } catch (error) {
              toast({ title: 'Error', description: 'Failed to delete entries.', variant: 'destructive' });
         }
@@ -129,10 +120,12 @@ export default function FinancialHistoryPage() {
     const baseFilteredTransactions = useMemo(() => {
         let filtered = transactions.map(t => {
             let sourceRef = '';
-            if (t.purchaseNumber) sourceRef = t.purchaseNumber;
-            else if (t.type === 'Sales') sourceRef = 'Trip Sheet';
-            else if (t.voucherId && t.items?.[0]?.particular) {
-                 sourceRef = t.items[0].particular.split(' ')[0];
+            if (t.referenceType && t.referenceId) {
+                sourceRef = `${t.referenceType}: ${t.referenceId}`;
+            } else if (t.purchaseNumber) {
+                sourceRef = `PO: ${t.purchaseNumber}`;
+            } else if (t.type === 'Sales') {
+                sourceRef = 'Trip Sheet';
             }
 
             return {
@@ -221,13 +214,10 @@ export default function FinancialHistoryPage() {
 
     const isFiltered = useMemo(() => {
         const currentNepaliDate = new NepaliDate();
-        const currentYear = currentNepaliDate.getYear();
-        const currentMonth = currentNepaliDate.getMonth();
-
         return searchQuery !== '' || 
                !!dateRange || 
-               (selectedBsYear !== String(currentYear) && selectedBsYear !== 'All') || 
-               (selectedBsMonth !== String(currentMonth) && selectedBsMonth !== 'All') || 
+               (selectedBsYear !== String(currentNepaliDate.getYear()) && selectedBsYear !== 'All') || 
+               (selectedBsMonth !== String(currentNepaliDate.getMonth()) && selectedBsMonth !== 'All') || 
                filterVehicleId !== 'All' || 
                filterPartyId !== 'All';
     }, [searchQuery, dateRange, selectedBsYear, selectedBsMonth, filterVehicleId, filterPartyId]);
@@ -249,8 +239,8 @@ export default function FinancialHistoryPage() {
                 'Date (BS)': toNepaliDate(t.date),
                 'Vehicle': t.vehicleName,
                 'Type': t.type,
-                'Reference': t.sourceRef || 'N/A',
                 'Category': t.category || 'N/A',
+                'Reference': t.sourceRef || 'N/A',
                 'Ledger': t.partyName,
                 'Mode': t.billingType,
                 'Amount (NPR)': ['Purchase', 'Payment'].includes(t.type) ? -t.amount : t.amount,
@@ -272,14 +262,15 @@ export default function FinancialHistoryPage() {
                 toNepaliDate(t.date),
                 t.vehicleName,
                 t.type,
-                `${t.category || ''} (${t.sourceRef || 'N/A'})`,
+                t.category || 'N/A',
+                t.sourceRef || 'N/A',
                 t.partyName,
                 (['Purchase', 'Payment'].includes(t.type) ? -t.amount : t.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })
             ]);
 
             autoTable(doc, {
                 startY: 30,
-                head: [['Date (BS)', 'Vehicle', 'Type', 'Category/Ref', 'Ledger', 'Amount (NPR)']],
+                head: [['Date (BS)', 'Vehicle', 'Type', 'Category', 'Ref', 'Ledger', 'Amount (NPR)']],
                 body: tableData,
                 theme: 'grid',
                 headStyles: { fillColor: [71, 85, 105] }
@@ -294,7 +285,7 @@ export default function FinancialHistoryPage() {
             <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                     <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Account Logs</h1>
-                    <p className="text-xs md:text-sm text-muted-foreground">Consolidated financial ledger for Sales, Purchases, and Settlements.</p>
+                    <p className="text-xs md:text-sm text-muted-foreground">Consolidated financial ledger grouped by transaction type.</p>
                 </div>
                 <div className="flex items-center gap-2">
                     <Button size="sm" onClick={() => router.push('/fleet/transactions/payment-receipt/new')}>
@@ -306,7 +297,7 @@ export default function FinancialHistoryPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Card className="bg-emerald-50 border-emerald-200">
                     <CardHeader className="py-2 px-3 flex flex-row items-center justify-between space-y-0">
-                        <CardTitle className="text-[10px] uppercase font-bold text-emerald-800 tracking-wider">Inflow</CardTitle>
+                        <CardTitle className="text-[10px] uppercase font-bold text-emerald-800 tracking-wider">Tab Inflow</CardTitle>
                         <TrendingUp className="h-3 w-3 text-emerald-600" />
                     </CardHeader>
                     <CardContent className="px-3 pb-2">
@@ -315,7 +306,7 @@ export default function FinancialHistoryPage() {
                 </Card>
                 <Card className="bg-red-50 border-red-200">
                     <CardHeader className="py-2 px-3 flex flex-row items-center justify-between space-y-0">
-                        <CardTitle className="text-[10px] uppercase font-bold text-red-800 tracking-wider">Outflow</CardTitle>
+                        <CardTitle className="text-[10px] uppercase font-bold text-red-800 tracking-wider">Tab Outflow</CardTitle>
                         <TrendingDown className="h-3 w-3 text-red-600" />
                     </CardHeader>
                     <CardContent className="px-3 pb-2">
@@ -327,7 +318,7 @@ export default function FinancialHistoryPage() {
                     (financialSummary.totalInflow - financialSummary.totalOutflow) >= 0 ? "bg-blue-50 border-blue-200" : "bg-orange-50 border-orange-200"
                 )}>
                     <CardHeader className="py-2 px-3 flex flex-row items-center justify-between space-y-0">
-                        <CardTitle className="text-[10px] uppercase font-bold tracking-wider">Net Balance</CardTitle>
+                        <CardTitle className="text-[10px] uppercase font-bold tracking-wider">Tab Balance</CardTitle>
                         <Info className="h-3 w-3 opacity-50" />
                     </CardHeader>
                     <CardContent className="px-3 pb-2">
@@ -346,7 +337,7 @@ export default function FinancialHistoryPage() {
                     <div className="flex flex-wrap gap-2 md:gap-4 items-end">
                         <div className="relative flex-1 min-w-[200px]">
                             <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                            <Input placeholder="Search records..." className="pl-8 h-9 text-sm" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                            <Input placeholder="Search ref, remarks, category..." className="pl-8 h-9 text-sm" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                         </div>
                         <div className="flex gap-2">
                             <Select value={selectedBsYear} onValueChange={setSelectedBsYear} disabled={isLoading || availableYears.length === 0}>
@@ -365,7 +356,7 @@ export default function FinancialHistoryPage() {
                             </Select>
                         </div>
                         <div className="hidden lg:block">
-                            <Popover><PopoverTrigger asChild><Button variant="outline" className={cn("h-9 justify-start text-left font-normal bg-white text-xs min-w-[200px]", !dateRange && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{dateRange?.from ? (dateRange.to ? (`${format(dateRange.from, "LLL dd")} - ${format(dateRange.to, "LLL dd")}`) : format(dateRange.from, "LLL dd")) : (<span>Pick dates</span>)}</Button></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><DualDateRangePicker selected={dateRange} onSelect={setDateRange} /></PopoverContent></Popover>
+                            <Popover><PopoverTrigger asChild><Button variant="outline" className={cn("h-9 justify-start text-left font-normal bg-white text-xs min-w-[200px]", !dateRange && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{dateRange?.from ? (dateRange.to ? (`${format(dateRange.from, "LLL dd")} - ${format(dateRange.to, "LLL dd")}`) : format(dateRange.from, "LLL dd")) : (<span>Pick AD dates</span>)}</Button></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><DualDateRangePicker selected={dateRange} onSelect={setDateRange} /></PopoverContent></Popover>
                         </div>
                     </div>
 
@@ -410,15 +401,15 @@ export default function FinancialHistoryPage() {
                 <TabsContent value={activeTab} className="mt-4">
                     <div className="border rounded-lg overflow-hidden bg-card">
                         <ScrollArea className="w-full">
-                            <Table className="text-xs md:text-sm min-w-[900px]">
+                            <Table className="text-xs md:text-sm min-w-[1000px]">
                                 <TableHeader className="bg-muted/40">
                                     <TableRow>
                                         <TableHead className="w-[100px]"><Button variant="ghost" onClick={() => requestSort('date')} className="h-8 px-1">Date <ArrowUpDown className="ml-1 h-3 w-3" /></Button></TableHead>
                                         <TableHead><Button variant="ghost" onClick={() => requestSort('vehicleName')} className="h-8 px-1">Vehicle <ArrowUpDown className="ml-1 h-3 w-3" /></Button></TableHead>
-                                        <TableHead className="hidden sm:table-cell"><Button variant="ghost" onClick={() => requestSort('type')} className="h-8 px-1">Type <ArrowUpDown className="ml-1 h-3 w-3" /></Button></TableHead>
-                                        <TableHead><Button variant="ghost" onClick={() => requestSort('category')} className="h-8 px-1 font-bold text-primary">Category/Ref <ArrowUpDown className="ml-1 h-3 w-3" /></Button></TableHead>
-                                        <TableHead><Button variant="ghost" onClick={() => requestSort('partyName')} className="h-8 px-1">Ledger <ArrowUpDown className="ml-1 h-3 w-3" /></Button></TableHead>
-                                        <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('amount')} className="h-8 px-1 w-full text-right">Amount <ArrowUpDown className="ml-1 h-3 w-3" /></Button></TableHead>
+                                        <TableHead className="hidden sm:table-cell">Type</TableHead>
+                                        <TableHead className="min-w-[200px]"><Button variant="ghost" onClick={() => requestSort('category')} className="h-8 px-1 font-bold text-primary">Category / Reference <ArrowUpDown className="ml-1 h-3 w-3" /></Button></TableHead>
+                                        <TableHead><Button variant="ghost" onClick={() => requestSort('partyName')} className="h-8 px-1">Ledger (A/C) <ArrowUpDown className="ml-1 h-3 w-3" /></Button></TableHead>
+                                        <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('amount')} className="h-8 px-1 w-full text-right">Amount (NPR) <ArrowUpDown className="ml-1 h-3 w-3" /></Button></TableHead>
                                         <TableHead className="text-right px-4">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -449,14 +440,14 @@ export default function FinancialHistoryPage() {
                                                         {txn.category || 'Other'}
                                                     </Badge>
                                                     {txn.sourceRef && (
-                                                        <span className="text-[9px] text-blue-600 hidden sm:flex items-center gap-1">
+                                                        <span className="text-[9px] text-blue-600 flex items-center gap-1">
                                                             <LinkIcon className="h-2 w-2" />
                                                             {txn.sourceRef}
                                                         </span>
                                                     )}
                                                 </div>
                                             </TableCell>
-                                            <TableCell className="text-[11px] md:text-xs truncate max-w-[120px]">{txn.partyName}</TableCell>
+                                            <TableCell className="text-[11px] md:text-xs truncate max-w-[150px]">{txn.partyName}</TableCell>
                                             <TableCell className={cn("text-right font-mono font-bold text-[11px] md:text-xs", ['Purchase', 'Payment'].includes(txn.type) ? 'text-red-600' : 'text-green-600')}>
                                                 {['Purchase', 'Payment'].includes(txn.type) && '-'}{txn.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                             </TableCell>
@@ -464,14 +455,18 @@ export default function FinancialHistoryPage() {
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="h-3 w-3" /></Button></DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem onSelect={() => router.push(txn.voucherId ? `/fleet/transactions/payment-receipt?voucherId=${txn.voucherId}` : `/fleet/transactions/view?id=${txn.id}`)}><Eye className="mr-2 h-4 w-4" /> View</DropdownMenuItem>
+                                                        <DropdownMenuItem onSelect={() => router.push(txn.voucherId ? `/fleet/transactions/payment-receipt?voucherId=${txn.voucherId}` : (txn.type === 'Purchase' ? `/fleet/transactions/purchase/view?id=${txn.id}` : `/fleet/transactions/view?id=${txn.id}`))}>
+                                                            <Eye className="mr-2 h-4 w-4" /> View Details
+                                                        </DropdownMenuItem>
                                                         {hasPermission('fleet', 'edit') && (
-                                                            <DropdownMenuItem onSelect={() => router.push(txn.voucherId ? `/fleet/transactions/payment-receipt/edit?voucherId=${txn.voucherId}` : `/fleet/transactions/edit?id=${txn.id}`)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
+                                                            <DropdownMenuItem onSelect={() => router.push(txn.voucherId ? `/fleet/transactions/payment-receipt/edit?voucherId=${txn.voucherId}` : (txn.type === 'Purchase' ? `/fleet/transactions/purchase/edit?id=${txn.id}` : `/fleet/transactions/edit?id=${txn.id}`))}>
+                                                                <Edit className="mr-2 h-4 w-4" /> Edit Record
+                                                            </DropdownMenuItem>
                                                         )}
                                                         <DropdownMenuSeparator />
                                                         {hasPermission('fleet', 'delete') && (
                                                             <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem></AlertDialogTrigger>
-                                                            <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete Financial Entry?</AlertDialogTitle><AlertDialogDescription>This will permanently remove the transaction record. If this was part of a group voucher, all associated entries will be deleted.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteVoucher(txn.voucherId || txn.id)}>Delete Everything</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+                                                            <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete Financial Entry?</AlertDialogTitle><AlertDialogDescription>This will permanently remove the record. If this was part of a group voucher, all associated entries will be deleted.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteVoucher(txn.voucherId || txn.id)}>Confirm Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
                                                         )}
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
@@ -480,20 +475,6 @@ export default function FinancialHistoryPage() {
                                     ))}
                                     {!isLoading && sortedAndFilteredTransactions.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">No records found for this tab.</TableCell></TableRow>}
                                 </TableBody>
-                                {!isLoading && sortedAndFilteredTransactions.length > 0 && (
-                                    <TableFooter>
-                                        <TableRow className="bg-muted/50 font-bold">
-                                            <TableCell colSpan={5} className="text-right text-[11px] md:text-xs">Tab Net Result</TableCell>
-                                            <TableCell className={cn(
-                                                "text-right font-mono text-[11px] md:text-xs",
-                                                (financialSummary.totalInflow - financialSummary.totalOutflow) >= 0 ? 'text-green-600' : 'text-red-600'
-                                            )}>
-                                                Rs. {(financialSummary.totalInflow - financialSummary.totalOutflow).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                            </TableCell>
-                                            <TableCell></TableCell>
-                                        </TableRow>
-                                    </TableFooter>
-                                )}
                             </Table>
                             <ScrollBar orientation="horizontal" />
                         </ScrollArea>
