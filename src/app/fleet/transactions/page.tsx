@@ -47,7 +47,7 @@ import {
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/hooks/use-auth';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { format, isWithinInterval, startOfDay, endOfDay, startOfMonth } from 'date-fns';
+import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { cn, toNepaliDate } from '@/lib/utils';
 import type { DateRange } from 'react-day-picker';
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
@@ -297,7 +297,7 @@ export default function FleetTransactionsPage() {
                         <PlusCircle className="mr-2 h-4 w-4" /> Pmt. / Rcd. Voucher
                     </Button>
                     <Button onClick={() => router.push('/fleet/transactions/expenses/new')} size="sm" variant="secondary">
-                        <Wallet className="mr-2 h-4 w-4" /> Daily Expense
+                        <Wallet className="mr-2 h-4 w-4" /> Daily Exp. Entry
                     </Button>
                 </div>
             </header>
