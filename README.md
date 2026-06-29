@@ -1,4 +1,4 @@
-# STARWEB - Firebase Studio
+# StarSutra - Firebase Studio
 
 This is a NextJS application built for HRMS, Payroll, CRM, and Finance management.
 

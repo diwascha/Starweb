@@ -1,4 +1,3 @@
-
 import type {Metadata} from 'next';
 import './globals.css';
 import { AuthProvider } from '@/hooks/use-auth';
@@ -9,7 +8,7 @@ import { UsageTracker } from '@/components/usage-tracker';
 
 
 export const metadata: Metadata = {
-  title: 'STARWEB',
+  title: 'StarSutra',
   description: 'Generate test reports for multiple products.',
 };
 

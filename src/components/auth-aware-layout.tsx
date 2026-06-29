@@ -39,7 +39,7 @@ export default function AuthAwareLayout({ children }: { children: React.ReactNod
                     <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4 md:hidden sticky top-0 bg-background z-50">
                         <SidebarTrigger />
                         <Separator orientation="vertical" className="mr-2 h-4" />
-                        <span className="font-semibold text-sm">STARWEB</span>
+                        <span className="font-semibold text-sm">StarSutra</span>
                     </header>
                     <main className="p-4 sm:px-6 sm:py-4 md:p-8">
                         {/* 

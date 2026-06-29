@@ -7,7 +7,7 @@
     "withGlobalTauri": true
   },
   "package": {
-    "productName": "starweb",
+    "productName": "StarSutra",
     "version": "0.1.0"
   },
   "tauri": {
@@ -21,7 +21,7 @@
     "bundle": {
       "active": true,
       "targets": "all",
-      "identifier": "com.starweb.dev",
+      "identifier": "com.starsutra.dev",
       "icon": ["icons/icon.ico",
  	            "icons/icon.png"]
     },
@@ -33,7 +33,7 @@
         "fullscreen": false,
         "height": 720,
         "resizable": true,
-        "title": "STARWEB",
+        "title": "StarSutra",
         "width": 1280,
         "url": "index.html"
       }

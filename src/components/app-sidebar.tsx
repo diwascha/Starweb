@@ -111,7 +111,7 @@ export function AppSidebar() {
         const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(data, null, 2))}`;
         const link = document.createElement("a");
         link.href = jsonString;
-        link.download = `starweb-backup-${new Date().toISOString()}.json`;
+        link.download = `starsutra-backup-${new Date().toISOString()}.json`;
         link.click();
         toast({ title: 'Export Successful', description: 'Your data has been downloaded.' });
     } catch (error) {
@@ -148,7 +148,7 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <div className="flex items-center gap-2">
-            <h1 className="text-xl font-semibold">STARWEB</h1>
+            <h1 className="text-xl font-semibold">StarSutra</h1>
         </div>
       </SidebarHeader>
       <SidebarContent>

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -63,12 +62,12 @@ export default function LoginPage() {
             const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(data, null, 2))}`;
             const link = document.createElement("a");
             link.href = jsonString;
-            link.download = `starweb-autobackup-${today}.json`;
+            link.download = `starsutra-autobackup-${today}.json`;
             link.click();
             localStorage.setItem('lastAutoBackupDate', today);
             toast({
                 title: "Automatic Backup",
-                description: `Backup file "starweb-autobackup-${today}.json" saved to your Downloads.`,
+                description: `Backup file "starsutra-autobackup-${today}.json" saved to your Downloads.`,
                 duration: 8000
             });
         } catch (error) {
@@ -99,7 +98,7 @@ export default function LoginPage() {
         return;
     }
 
-    const email = `${data.username.toLowerCase()}@starweb.com`;
+    const email = `${data.username.toLowerCase()}@starsutra.com`;
 
     try {
       await signInWithEmailAndPassword(auth, email, data.password);
@@ -144,7 +143,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-md">
          <div className="flex justify-center items-center gap-2 mb-6">
-            <h1 className="text-3xl font-semibold">STARWEB</h1>
+            <h1 className="text-3xl font-semibold">StarSutra</h1>
         </div>
         <Card>
           <CardHeader>

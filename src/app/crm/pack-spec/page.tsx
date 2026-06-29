@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -226,7 +225,7 @@ export default function PackSpecPage() {
 
               <div className="mt-12 pt-8 border-t border-dashed">
                 <p className="text-[10px] text-center text-muted-foreground uppercase tracking-widest italic">
-                  End of Technical Data Sheet • Generated via STARWEB CRM
+                  End of Technical Data Sheet • Generated via StarSutra CRM
                 </p>
               </div>
             </div>
