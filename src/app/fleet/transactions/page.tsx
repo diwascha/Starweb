@@ -1,10 +1,11 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Transaction, Vehicle, Party } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Search, ArrowUpDown, MoreHorizontal, Eye, Edit, Trash2, CalendarIcon, FileSpreadsheet, FileText, Loader2, TrendingUp, TrendingDown, Info, Link as LinkIcon, FilterX } from 'lucide-react';
+import { PlusCircle, Search, ArrowUpDown, MoreHorizontal, Eye, Edit, Trash2, CalendarIcon, FileSpreadsheet, FileText, Loader2, TrendingUp, TrendingDown, Info, Link as LinkIcon, FilterX, Wallet, Receipt, ShoppingCart, TrendingUp as SalesIcon } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
@@ -297,7 +298,9 @@ export default function FinancialHistoryPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Card className="bg-emerald-50 border-emerald-200">
                     <CardHeader className="py-2 px-3 flex flex-row items-center justify-between space-y-0">
-                        <CardTitle className="text-[10px] uppercase font-bold text-emerald-800 tracking-wider">Tab Inflow</CardTitle>
+                        <CardTitle className="text-[10px] uppercase font-bold text-emerald-800 tracking-wider">
+                            {activeTab === 'All' ? 'Total Inflow' : `${activeTab} Inflow`}
+                        </CardTitle>
                         <TrendingUp className="h-3 w-3 text-emerald-600" />
                     </CardHeader>
                     <CardContent className="px-3 pb-2">
@@ -306,7 +309,9 @@ export default function FinancialHistoryPage() {
                 </Card>
                 <Card className="bg-red-50 border-red-200">
                     <CardHeader className="py-2 px-3 flex flex-row items-center justify-between space-y-0">
-                        <CardTitle className="text-[10px] uppercase font-bold text-red-800 tracking-wider">Tab Outflow</CardTitle>
+                        <CardTitle className="text-[10px] uppercase font-bold text-red-800 tracking-wider">
+                            {activeTab === 'All' ? 'Total Outflow' : `${activeTab} Outflow`}
+                        </CardTitle>
                         <TrendingDown className="h-3 w-3 text-red-600" />
                     </CardHeader>
                     <CardContent className="px-3 pb-2">
@@ -318,7 +323,7 @@ export default function FinancialHistoryPage() {
                     (financialSummary.totalInflow - financialSummary.totalOutflow) >= 0 ? "bg-blue-50 border-blue-200" : "bg-orange-50 border-orange-200"
                 )}>
                     <CardHeader className="py-2 px-3 flex flex-row items-center justify-between space-y-0">
-                        <CardTitle className="text-[10px] uppercase font-bold tracking-wider">Tab Balance</CardTitle>
+                        <CardTitle className="text-[10px] uppercase font-bold tracking-wider">Net Activity</CardTitle>
                         <Info className="h-3 w-3 opacity-50" />
                     </CardHeader>
                     <CardContent className="px-3 pb-2">
@@ -393,11 +398,67 @@ export default function FinancialHistoryPage() {
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
                 <TabsList className="w-full justify-start overflow-x-auto h-auto p-1 bg-muted/50 no-scrollbar">
                     <TabsTrigger value="All" className="text-xs py-1.5 px-3">All ({tabCounts.All})</TabsTrigger>
-                    <TabsTrigger value="Payment" className="text-xs py-1.5 px-3">Payments ({tabCounts.Payment})</TabsTrigger>
-                    <TabsTrigger value="Receipt" className="text-xs py-1.5 px-3">Receipts ({tabCounts.Receipt})</TabsTrigger>
-                    <TabsTrigger value="Sales" className="text-xs py-1.5 px-3">Sales ({tabCounts.Sales})</TabsTrigger>
-                    <TabsTrigger value="Purchase" className="text-xs py-1.5 px-3">Purchases ({tabCounts.Purchase})</TabsTrigger>
+                    
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <TabsTrigger value="Payment" className="text-xs py-1.5 px-3 flex items-center gap-1.5">
+                                    <Wallet className="h-3 w-3" /> Payments ({tabCounts.Payment})
+                                </TabsTrigger>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="max-w-[300px]">
+                                <p className="font-bold mb-1">Cash/Bank Outflows:</p>
+                                <ul className="list-disc pl-4 space-y-1">
+                                    <li>Advances (Peski)</li>
+                                    <li>Vendor Settlements (Vouchers)</li>
+                                    <li>Cash Maintenance & Purchases</li>
+                                    <li>Loan EMIs & Renewals</li>
+                                    <li>Salaries</li>
+                                </ul>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <TabsTrigger value="Receipt" className="text-xs py-1.5 px-3 flex items-center gap-1.5">
+                                    <Receipt className="h-3 w-3" /> Receipts ({tabCounts.Receipt})
+                                </TabsTrigger>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom">
+                                <p>Cash/Bank Inflows: Revenue collection and customer settlements.</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <TabsTrigger value="Sales" className="text-xs py-1.5 px-3 flex items-center gap-1.5">
+                                    <SalesIcon className="h-3 w-3" /> Sales ({tabCounts.Sales})
+                                </TabsTrigger>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom">
+                                <p>Revenue generation from Trip Sheets (Receivables).</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <TabsTrigger value="Purchase" className="text-xs py-1.5 px-3 flex items-center gap-1.5">
+                                    <ShoppingCart className="h-3 w-3" /> Purchases ({tabCounts.Purchase})
+                                </TabsTrigger>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom">
+                                <p>Bill/Credit procurement and vendor invoices (Payables).</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
                 </TabsList>
+                
                 <TabsContent value={activeTab} className="mt-4">
                     <div className="border rounded-lg overflow-hidden bg-card">
                         <ScrollArea className="w-full">
@@ -435,6 +496,7 @@ export default function FinancialHistoryPage() {
                                                         txn.category === 'Advance' && "border-emerald-200 bg-emerald-50 text-emerald-700",
                                                         txn.category === 'Loan Repayment' && "border-orange-200 bg-orange-50 text-orange-700",
                                                         txn.category === 'Membership Renewal' && "border-purple-200 bg-purple-50 text-purple-700",
+                                                        txn.category === 'Salary' && "border-pink-200 bg-pink-50 text-pink-700",
                                                         !txn.category && "border-slate-200 bg-slate-50 text-slate-700"
                                                     )}>
                                                         {txn.category || 'Other'}
