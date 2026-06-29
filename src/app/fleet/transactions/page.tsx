@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -18,19 +17,17 @@ import {
   FileText, 
   Loader2, 
   TrendingUp, 
-  TrendingDown, 
   FilterX, 
   Wallet, 
-  ArrowRightLeft,
   ArrowUpRight,
   ArrowDownLeft,
   Truck,
   Users,
-  AlertCircle,
-  CheckCircle2,
   Clock,
   ChevronRight,
-  X
+  X,
+  ChevronsUpDown,
+  Check
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
@@ -64,7 +61,6 @@ import { useToast } from '@/hooks/use-toast';
 import NepaliDate from 'nepali-date-converter';
 import { NEPALI_MONTHS } from '@/lib/constants';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 
 type LedgerView = 'history' | 'vehicle' | 'party';
@@ -137,7 +133,6 @@ export default function FleetTransactionsPage() {
         return Array.from(cats).sort();
     }, [transactions]);
 
-    // Internal mapping logic: Pair Bills with Payments
     const processedData = useMemo(() => {
         const rawMapped = transactions.map(t => {
             const direction = (t.type === 'Sales' || t.type === 'Receipt') ? 'Income' : 'Expense';
@@ -238,7 +233,6 @@ export default function FleetTransactionsPage() {
         return filtered;
     }, [processedData, searchQuery, dateRange, selectedBsYear, selectedBsMonth, filterVehicleId, filterPartyId, filterCategory, filterDirection, filterStatus]);
 
-    // Vehicle Summary Data (For All Vehicles View)
     const vehicleSummaryRows = useMemo(() => {
         const summaryMap = new Map<string, { id: string, name: string, income: number, expense: number, profit: number, due: number }>();
         
@@ -303,7 +297,6 @@ export default function FleetTransactionsPage() {
                 </div>
             </header>
 
-            {/* Global Filter Bar - Sticky */}
             <Card className="sticky top-0 z-20 shadow-md bg-background/95 backdrop-blur border-primary/20">
                 <CardContent className="p-4 space-y-4">
                     <div className="flex flex-wrap gap-3 items-end">
@@ -391,7 +384,6 @@ export default function FleetTransactionsPage() {
                 </CardContent>
             </Card>
 
-            {/* Vehicle Summary Drilled Down */}
             {selectedVehicleSummary && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in slide-in-from-top-4 duration-300">
                     <Card className="bg-emerald-50 border-emerald-200 border-l-4 border-l-emerald-600">
@@ -549,7 +541,7 @@ export default function FleetTransactionsPage() {
                                                         <Badge variant="outline" className={cn(
                                                             "text-[9px] uppercase font-black",
                                                             t.status === 'Paid' && "bg-blue-600 text-white border-blue-600",
-                                                            t.status === 'Partial' && "bg-orange-500 text-white border-orange-500",
+                                                            t.status === 'Partial' && "bg-orange-50 text-white border-orange-500",
                                                             t.status === 'Due' && "bg-muted text-muted-foreground border-muted"
                                                         )}>
                                                             {t.status}
