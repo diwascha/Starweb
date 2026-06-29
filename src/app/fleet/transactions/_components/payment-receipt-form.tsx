@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -72,7 +71,7 @@ interface PaymentReceiptFormProps {
 export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, onFormSubmit, onCancel, initialValues }: PaymentReceiptFormProps) {
   const { toast } = useToast();
   const { user } = useAuth();
-  const [billingSearch, setBillingSearch] = React.useState('');
+  const [isBillingPopoverOpen, setIsBillingPopoverOpen] = React.useState(false);
   
   // Quick Add Party State
   const [isPartyDialogOpen, setIsPartyDialogOpen] = React.useState(false);
@@ -80,9 +79,9 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
   const [currentRowIndex, setCurrentRowIndex] = React.useState<number | null>(null);
 
   // Filter for Sijan related accounts only
-  const cashAndBankAccounts = React.useMemo(() => 
+  const sijanAccounts = React.useMemo(() => 
     accounts.filter(a => 
-      (a.type === 'Cash' || a.type === 'Bank') && 
+      (a.type === 'Bank') && 
       (a.ownership === 'Sijan' || a.ownership === 'Both')
     ), [accounts]);
 
@@ -110,6 +109,7 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
   
   const watchedItems = form.watch("items") || [];
   const watchedBillingType = form.watch("billingType");
+  const watchedAccountId = form.watch("accountId");
   
   const totalRec = watchedItems.reduce((sum, item) => sum + (Number(item.recAmount) || 0), 0);
   const totalPay = watchedItems.reduce((sum, item) => sum + (Number(item.payAmount) || 0), 0);
@@ -144,6 +144,15 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
       payable: balances.payables - payAmount,
     };
   });
+
+  const getBillingLabel = () => {
+      if (watchedBillingType === 'Cash') return 'Cash';
+      if (watchedBillingType === 'Bank' && watchedAccountId) {
+          const account = sijanAccounts.find(a => a.id === watchedAccountId);
+          return account ? (account.bankName ? `${account.bankName} - ${account.accountNumber}` : account.name) : 'Bank Selected';
+      }
+      return 'Select billing source...';
+  };
 
 
   const handleSubmit = (values: VoucherFormValues) => {
@@ -198,100 +207,73 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
                 </FormItem>
               )}/>
               
-              <FormField control={form.control} name="billingType" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Billing Mode</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button variant="outline" role="combobox" className="w-full justify-between bg-white">
-                          {field.value || "Select mode..."}
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="p-0">
-                      <Command>
-                        <CommandInput placeholder="Search or add mode..." onValueChange={setBillingSearch} />
-                        <CommandList>
-                          <CommandEmpty>
-                            <button type="button" className="p-2 text-xs w-full text-left hover:bg-muted" onClick={() => field.onChange(billingSearch)}>
-                              Add "{billingSearch}"
-                            </button>
-                          </CommandEmpty>
-                          <CommandGroup>
-                            <CommandItem value="Cash" onSelect={() => field.onChange("Cash")}>
-                              <Check className={cn("mr-2 h-4 w-4", field.value === "Cash" ? "opacity-100" : "opacity-0")} /> Cash
+              <FormItem>
+                <FormLabel>Billing Source (Cash / Bank)</FormLabel>
+                <Popover open={isBillingPopoverOpen} onOpenChange={setIsBillingPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button variant="outline" role="combobox" className="w-full justify-between bg-white h-10 text-xs overflow-hidden">
+                        <span className="truncate">{getBillingLabel()}</span>
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
+                    <Command>
+                      <CommandInput placeholder="Search Cash or Bank..." />
+                      <CommandList>
+                        <CommandEmpty>No source found.</CommandEmpty>
+                        <CommandGroup heading="Available Sources">
+                          <CommandItem 
+                            value="Cash" 
+                            onSelect={() => {
+                                form.setValue("billingType", "Cash");
+                                form.setValue("accountId", undefined);
+                                setIsBillingPopoverOpen(false);
+                            }}
+                          >
+                            <Check className={cn("mr-2 h-4 w-4", watchedBillingType === "Cash" ? "opacity-100" : "opacity-0")} />
+                            <div className="flex flex-col">
+                                <span className="font-bold">General Cash</span>
+                                <span className="text-[10px] text-muted-foreground">Office Cash Account</span>
+                            </div>
+                          </CommandItem>
+                          {sijanAccounts.map(account => (
+                            <CommandItem 
+                              key={account.id} 
+                              value={`${account.name} ${account.bankName || ''} ${account.accountNumber || ''} ${account.id}`}
+                              onSelect={() => {
+                                  form.setValue("billingType", "Bank");
+                                  form.setValue("accountId", account.id);
+                                  setIsBillingPopoverOpen(false);
+                              }}
+                            >
+                              <Check className={cn("mr-2 h-4 w-4", watchedAccountId === account.id ? "opacity-100" : "opacity-0")} />
+                              <div className="flex flex-col">
+                                  <span className="font-bold text-xs">{account.bankName ? account.bankName : account.name}</span>
+                                  <span className="text-[10px] text-muted-foreground uppercase">{account.accountNumber ? `A/C: ${account.accountNumber}` : 'Bank Account'}</span>
+                              </div>
                             </CommandItem>
-                            <CommandItem value="Bank" onSelect={() => field.onChange("Bank")}>
-                              <Check className={cn("mr-2 h-4 w-4", field.value === "Bank" ? "opacity-100" : "opacity-0")} /> Bank
-                            </CommandItem>
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                  <FormMessage/>
-                </FormItem>
-              )}/>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                <FormMessage/>
+              </FormItem>
             </div>
             
             {watchedBillingType === 'Bank' && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end mt-6 pt-6 border-t border-blue-100">
-                  <FormField 
-                    control={form.control} 
-                    name="accountId" 
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Bank Account</FormLabel>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <FormControl>
-                              <Button variant="outline" role="combobox" className="w-full justify-between bg-white text-xs truncate">
-                                {field.value ? (() => {
-                                  const a = cashAndBankAccounts.find(acc => acc.id === field.value);
-                                  return a ? (a.bankName ? `${a.bankName} - ${a.accountNumber}` : a.name) : "Select account...";
-                                })() : "Select account..."}
-                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                              </Button>
-                            </FormControl>
-                          </PopoverTrigger>
-                          <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
-                            <Command>
-                              <CommandInput placeholder="Search accounts..." />
-                              <CommandList>
-                                <CommandEmpty>No accounts found.</CommandEmpty>
-                                <CommandGroup>
-                                  {cashAndBankAccounts.map(account => (
-                                    <CommandItem 
-                                      key={account.id} 
-                                      value={`${account.name} ${account.bankName || ''} ${account.accountNumber || ''} ${account.ownership} ${account.id}`}
-                                      onSelect={() => field.onChange(account.id)}
-                                    >
-                                      <Check className={cn("mr-2 h-4 w-4", field.value === account.id ? "opacity-100" : "opacity-0")} />
-                                      <div className="flex flex-col text-[10px]">
-                                          <span>{account.bankName ? `${account.bankName} - ${account.accountNumber}` : account.name}</span>
-                                          <span className="text-muted-foreground uppercase">{account.ownership}</span>
-                                      </div>
-                                    </CommandItem>
-                                  ))}
-                                </CommandGroup>
-                              </CommandList>
-                            </Command>
-                          </PopoverContent>
-                        </Popover>
-                        <FormMessage/>
-                      </FormItem>
-                    )}
-                  />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end mt-6 pt-6 border-t border-blue-100">
                   <FormField 
                     control={form.control} 
                     name="chequeNo" 
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Cheque / Ref No.</FormLabel>
+                        <FormLabel>Cheque / Reference Number</FormLabel>
                         <FormControl>
-                          <Input {...field} value={field.value ?? ''} className="bg-white"/>
+                          <Input {...field} value={field.value ?? ''} className="bg-white" placeholder="Enter cheque or transaction ID"/>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -302,7 +284,7 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
                     name="chequeDate" 
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Cheque Date</FormLabel>
+                        <FormLabel>Cheque / Transaction Date</FormLabel>
                         <Popover>
                           <PopoverTrigger asChild>
                             <FormControl>
