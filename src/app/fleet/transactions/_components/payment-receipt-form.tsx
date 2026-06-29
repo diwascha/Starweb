@@ -384,8 +384,8 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
             <Plus className="mr-2 h-4 w-4"/> Add Entry Row
         </Button>
         
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
-            <Card className="lg:col-span-2 bg-muted/20 border-dashed">
+        <div className="space-y-6 mt-8">
+            <Card className="bg-muted/20 border-dashed">
                 <CardHeader className="py-4"><CardTitle className="text-sm font-bold uppercase">Balance Summary Impact</CardTitle></CardHeader>
                 <CardContent className="p-0">
                     <Table className="text-xs">
@@ -415,26 +415,40 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
             </Card>
             
             <Card className="bg-blue-600 text-white shadow-lg">
-                <CardHeader className="py-4"><CardTitle className="text-sm font-bold uppercase">Final Settlement</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="flex justify-between items-center text-sm border-b border-white/20 pb-2">
-                        <span className="opacity-80">Total Receipt</span>
-                        <span className="font-mono font-bold">Rs. {totalRec.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                <CardContent className="p-6">
+                    <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
+                        <div className="flex flex-col sm:flex-row gap-8 sm:gap-12">
+                            <div className="space-y-1">
+                                <span className="text-[10px] uppercase font-bold opacity-70 tracking-widest">Total Receipt</span>
+                                <p className="text-xl font-mono font-bold">Rs. {totalRec.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+                            </div>
+                            <div className="space-y-1">
+                                <span className="text-[10px] uppercase font-bold opacity-70 tracking-widest">Total Payment</span>
+                                <p className="text-xl font-mono font-bold">Rs. {totalPay.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+                            </div>
+                            <div className="space-y-1">
+                                <span className="text-[10px] uppercase font-bold opacity-70 tracking-widest">Net Settlement</span>
+                                <div className="flex items-center gap-3">
+                                    <span className="text-2xl font-mono font-black">Rs. {Math.abs(netAmount).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                                    <Badge variant="outline" className="bg-white/10 text-white border-white/20 text-[10px] px-2 py-0.5 font-black uppercase">
+                                        {netAmount >= 0 ? 'NET RECEIVABLE' : 'NET PAYABLE'}
+                                    </Badge>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div className="w-full lg:max-w-md">
+                            <FormField control={form.control} name="remarks" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel className="text-white/80 text-xs font-bold uppercase tracking-wider">General Remarks</FormLabel>
+                                    <FormControl>
+                                        <Textarea {...field} value={field.value ?? ''} className="bg-white/10 text-white border-white/20 placeholder:text-white/40 min-h-[60px] text-sm" placeholder="Add extra details for this settlement..."/>
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}/>
+                        </div>
                     </div>
-                    <div className="flex justify-between items-center text-sm border-b border-white/20 pb-2">
-                        <span className="opacity-80">Total Payment</span>
-                        <span className="font-mono font-bold">Rs. {totalPay.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
-                    </div>
-                    <div className="flex flex-col gap-1 pt-2">
-                        <span className="text-[10px] uppercase font-bold opacity-70">Net Settlement Amount</span>
-                        <span className="text-3xl font-mono font-black">Rs. {Math.abs(netAmount).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
-                        <Badge variant="outline" className="w-fit text-[10px] bg-white/10 text-white border-white/20">
-                            {netAmount >= 0 ? 'NET RECEIVABLE' : 'NET PAYABLE'}
-                        </Badge>
-                    </div>
-                    <FormField control={form.control} name="remarks" render={({ field }) => (
-                        <FormItem className="mt-6"><FormLabel className="text-white/80">General Remarks / Narration</FormLabel><FormControl><Textarea {...field} value={field.value ?? ''} className="bg-white/10 text-white border-white/20 placeholder:text-white/40 min-h-[60px]" placeholder="Add any extra details here..."/></FormControl><FormMessage /></FormItem>
-                    )}/>
                 </CardContent>
             </Card>
         </div>
