@@ -11,7 +11,6 @@ import {
   ArrowUpDown, 
   MoreHorizontal, 
   Eye, 
-  Edit, 
   Trash2, 
   CalendarIcon, 
   FileSpreadsheet, 
@@ -24,11 +23,10 @@ import {
   ArrowDownLeft,
   Truck,
   Users,
-  Clock,
-  ChevronRight,
   X,
   ChevronsUpDown,
-  Check
+  Check,
+  ChevronRight
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
@@ -216,14 +214,14 @@ export default function FleetTransactionsPage() {
         if (dateRange?.from) {
             const interval = { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to || dateRange.from) };
             filtered = filtered.filter(t => isWithinInterval(new Date(t.date), interval));
-        }
+        } else {
+            if (selectedBsYear !== 'All') {
+                filtered = filtered.filter(t => new NepaliDate(new Date(t.date)).getYear() === parseInt(selectedBsYear));
+            }
 
-        if (selectedBsYear !== 'All') {
-            filtered = filtered.filter(t => new NepaliDate(new Date(t.date)).getYear() === parseInt(selectedBsYear));
-        }
-
-        if (selectedBsMonth !== 'All') {
-            filtered = filtered.filter(t => new NepaliDate(new Date(t.date)).getMonth() === parseInt(selectedBsMonth));
+            if (selectedBsMonth !== 'All') {
+                filtered = filtered.filter(t => new NepaliDate(new Date(t.date)).getMonth() === parseInt(selectedBsMonth));
+            }
         }
 
         if (filterVehicleId !== 'All') filtered = filtered.filter(t => t.vehicleId === filterVehicleId);
@@ -267,19 +265,7 @@ export default function FleetTransactionsPage() {
             summaryMap.set(v.id, { id: v.id, name: v.name, income: 0, expense: 0, profit: 0, due: 0 });
         });
 
-        // Use filteredTransactions but without the vehicle filter to get the table data for the current period/category
-        const periodFiltered = processedData.filter(t => {
-            if (dateRange?.from) {
-                const interval = { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to || dateRange.from) };
-                if (!isWithinInterval(new Date(t.date), interval)) return false;
-            }
-            if (selectedBsYear !== 'All' && new NepaliDate(new Date(t.date)).getYear() !== parseInt(selectedBsYear)) return false;
-            if (selectedBsMonth !== 'All' && new NepaliDate(new Date(t.date)).getMonth() !== parseInt(selectedBsMonth)) return false;
-            if (filterCategory !== 'All' && t.category !== filterCategory) return false;
-            return true;
-        });
-
-        periodFiltered.forEach(t => {
+        filteredTransactions.forEach(t => {
             const entry = summaryMap.get(t.vehicleId);
             if (entry) {
                 if (t.direction === 'Income') entry.income += t.amount;
@@ -292,7 +278,7 @@ export default function FleetTransactionsPage() {
         return Array.from(summaryMap.values())
             .filter(v => v.income > 0 || v.expense > 0 || v.id === filterVehicleId)
             .sort((a, b) => b.income - a.income);
-    }, [vehicles, processedData, dateRange, selectedBsYear, selectedBsMonth, filterCategory, filterVehicleId]);
+    }, [vehicles, filteredTransactions, filterVehicleId]);
 
     const partnerSummaryRows = useMemo(() => {
         const summaryMap = new Map<string, { id: string, name: string, billing: number, settled: number, balance: number }>();
@@ -301,18 +287,7 @@ export default function FleetTransactionsPage() {
             summaryMap.set(p.id, { id: p.id, name: p.name, billing: 0, settled: 0, balance: 0 });
         });
 
-        const periodFiltered = processedData.filter(t => {
-            if (dateRange?.from) {
-                const interval = { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to || dateRange.from) };
-                if (!isWithinInterval(new Date(t.date), interval)) return false;
-            }
-            if (selectedBsYear !== 'All' && new NepaliDate(new Date(t.date)).getYear() !== parseInt(selectedBsYear)) return false;
-            if (selectedBsMonth !== 'All' && new NepaliDate(new Date(t.date)).getMonth() !== parseInt(selectedBsMonth)) return false;
-            if (filterCategory !== 'All' && t.category !== filterCategory) return false;
-            return true;
-        });
-
-        periodFiltered.forEach(t => {
+        filteredTransactions.forEach(t => {
             if (t.partyId) {
                 const entry = summaryMap.get(t.partyId);
                 if (entry) {
@@ -326,7 +301,7 @@ export default function FleetTransactionsPage() {
         return Array.from(summaryMap.values())
             .filter(p => p.billing > 0 || p.settled > 0 || p.id === filterPartyId)
             .sort((a, b) => b.billing - a.billing);
-    }, [parties, processedData, dateRange, selectedBsYear, selectedBsMonth, filterCategory, filterPartyId]);
+    }, [parties, filteredTransactions, filterPartyId]);
 
     const handleClearFilters = () => {
         setSearchQuery('');
@@ -348,6 +323,61 @@ export default function FleetTransactionsPage() {
             toast({ title: 'Record Deleted' });
         } catch {
              toast({ title: 'Error', variant: 'destructive' });
+        }
+    };
+
+    const handleExport = async (formatType: 'excel' | 'pdf') => {
+        if (filteredTransactions.length === 0) {
+            toast({ title: 'No data to export', variant: 'destructive' });
+            return;
+        }
+
+        if (formatType === 'excel') {
+            const XLSX = await import('xlsx');
+            const data = filteredTransactions.map(t => ({
+                'Date (BS)': toNepaliDate(t.date),
+                'Vehicle': t.vehicleName,
+                'Flow': t.direction,
+                'Category': t.displayCategory,
+                'Partner': t.partyName,
+                'Ref': t.reference,
+                'Amount': t.amount,
+                'Paid': t.paidAmount,
+                'Due': t.dueAmount,
+                'Status': t.status
+            }));
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Transactions");
+            XLSX.writeFile(wb, `Fleet_Ledger_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+        } else {
+            const { jsPDF } = await import('jspdf');
+            const { default: autoTable } = await import('jspdf-autotable');
+            const doc = new jsPDF('l', 'mm', 'a4');
+            doc.text("Fleet Transaction Ledger", 14, 15);
+            
+            const tableData = filteredTransactions.map(t => [
+                toNepaliDate(t.date),
+                t.vehicleName,
+                t.direction,
+                t.displayCategory,
+                t.partyName,
+                t.reference,
+                t.amount.toLocaleString(),
+                t.paidAmount.toLocaleString(),
+                t.dueAmount.toLocaleString(),
+                t.status
+            ]);
+
+            autoTable(doc, {
+                startY: 25,
+                head: [['Date (BS)', 'Vehicle', 'Flow', 'Category', 'Partner', 'Ref', 'Amount', 'Paid', 'Due', 'Status']],
+                body: tableData,
+                theme: 'grid',
+                styles: { fontSize: 8 },
+                headStyles: { fillColor: [41, 128, 185] }
+            });
+            doc.save(`Fleet_Ledger_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
         }
     };
 
@@ -440,7 +470,7 @@ export default function FleetTransactionsPage() {
 
                         <div className="space-y-1.5">
                             <Label className="text-[10px] uppercase font-bold text-muted-foreground">AD Range</Label>
-                            <Popover><PopoverTrigger asChild><Button variant="outline" className={cn("h-10 justify-start text-left font-normal bg-white text-xs min-w-[220px]", !dateRange && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{dateRange?.from ? (dateRange.to ? (`${toNepaliDate(dateRange.from.toISOString())} - ${toNepaliDate(dateRange.to.toISOString())}`) : toNepaliDate(dateRange.from.toISOString())) : (<span>Pick AD Range</span>)}</Button></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><DualDateRangePicker selected={dateRange} onSelect={setDateRange} /></PopoverContent></Popover>
+                            <Popover><PopoverTrigger asChild><Button variant="outline" className={cn("h-10 justify-start text-left font-normal bg-white text-xs min-w-[220px]", !dateRange && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{dateRange?.from ? (dateRange.to ? (`${format(dateRange.from, 'PP')} - ${format(dateRange.to, 'PP')}`) : format(dateRange.from, 'PP')) : (<span>Pick AD Range</span>)}</Button></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><DualDateRangePicker selected={dateRange} onSelect={setDateRange} /></PopoverContent></Popover>
                         </div>
 
                         <div className="space-y-1.5">
@@ -522,16 +552,16 @@ export default function FleetTransactionsPage() {
             </div>
 
             <Tabs value={activeView} onValueChange={(v: any) => setActiveView(v)}>
-                <div className="flex items-center justify-between">
-                    <TabsList className="grid grid-cols-2 w-[320px]">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <TabsList className="grid grid-cols-2 w-full sm:w-[320px]">
                         <TabsTrigger value="vehicle">Vehicle Ledger</TabsTrigger>
                         <TabsTrigger value="party">Partner Ledger</TabsTrigger>
                     </TabsList>
-                    <div className="flex gap-2">
-                        <Button variant="outline" size="sm" className="h-8 text-xs">
+                    <div className="flex gap-2 w-full sm:w-auto">
+                        <Button variant="outline" size="sm" className="flex-1 sm:flex-initial h-8 text-xs" onClick={() => handleExport('excel')}>
                             <FileSpreadsheet className="mr-2 h-3.5 w-3.5 text-emerald-600" /> Export Excel
                         </Button>
-                        <Button variant="outline" size="sm" className="h-8 text-xs">
+                        <Button variant="outline" size="sm" className="flex-1 sm:flex-initial h-8 text-xs" onClick={() => handleExport('pdf')}>
                             <FileText className="mr-2 h-3.5 w-3.5 text-red-600" /> Export PDF
                         </Button>
                     </div>
@@ -608,10 +638,9 @@ export default function FleetTransactionsPage() {
                                             <TableRow>
                                                 <TableHead className="w-[100px]">Date (BS)</TableHead>
                                                 <TableHead>Category</TableHead>
-                                                <TableHead>Party / Partner</TableHead>
+                                                <TableHead>Partner</TableHead>
                                                 <TableHead>Reference</TableHead>
-                                                <TableHead className="text-right">Income</TableHead>
-                                                <TableHead className="text-right">Expense</TableHead>
+                                                <TableHead className="text-right">Amount</TableHead>
                                                 <TableHead className="text-right">Paid</TableHead>
                                                 <TableHead className="text-right">Due</TableHead>
                                                 <TableHead className="text-center">Status</TableHead>
@@ -629,11 +658,8 @@ export default function FleetTransactionsPage() {
                                                     </TableCell>
                                                     <TableCell className="font-medium">{t.partyName}</TableCell>
                                                     <TableCell className="text-[10px] text-muted-foreground truncate max-w-[120px]">{t.reference}</TableCell>
-                                                    <TableCell className="text-right font-mono font-bold text-emerald-600">
-                                                        {t.direction === 'Income' ? t.amount.toLocaleString() : '-'}
-                                                    </TableCell>
-                                                    <TableCell className="text-right font-mono font-bold text-red-600">
-                                                        {t.direction === 'Expense' ? t.amount.toLocaleString() : '-'}
+                                                    <TableCell className={cn("text-right font-mono font-bold", t.direction === 'Income' ? "text-emerald-600" : "text-red-600")}>
+                                                        {t.amount.toLocaleString()}
                                                     </TableCell>
                                                     <TableCell className="text-right font-mono text-muted-foreground">
                                                         {t.paidAmount > 0 ? t.paidAmount.toLocaleString() : '-'}
