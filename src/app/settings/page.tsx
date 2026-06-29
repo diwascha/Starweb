@@ -385,14 +385,20 @@ export default function SettingsPage() {
           const url = await uploadFile(file, path);
           
           if (type === 'main') {
-              setCompanyProfile(prev => ({ ...prev, logoURL: url }));
+              const updated = { ...companyProfile, logoURL: url };
+              setCompanyProfile(updated);
+              await setSetting('companyProfile', updated);
           } else if (type === 'fleet') {
-              setFleetProfile(prev => ({ ...prev, logoURL: url }));
+              const updated = { ...fleetProfile, logoURL: url };
+              setFleetProfile(updated);
+              await setSetting('fleetCompanyProfile', updated);
           } else if (type === 'app') {
-              setAppBranding(prev => ({ ...prev, appLogoURL: url }));
+              const updated = { ...appBranding, appLogoURL: url };
+              setAppBranding(updated);
+              await setSetting('appBranding', updated);
           }
           
-          toast({ title: "Logo Uploaded", description: "Save the profile to persist changes." });
+          toast({ title: "Logo Updated", description: "The branding has been successfully updated across the system." });
       } catch (error) {
           toast({ title: "Upload Failed", description: "Check file type and try again.", variant: 'destructive' });
       }
@@ -979,7 +985,15 @@ export default function SettingsPage() {
                                 <Label>Application Logo</Label>
                                 <div className="w-32 h-32 rounded-xl border border-dashed flex items-center justify-center bg-muted/30 overflow-hidden group relative">
                                     {appBranding.appLogoURL ? (
-                                        <Image src={appBranding.appLogoURL} alt="App Logo" width={128} height={128} className="object-contain" />
+                                        <Image 
+                                            key={appBranding.appLogoURL}
+                                            src={appBranding.appLogoURL} 
+                                            alt="App Logo" 
+                                            width={128} 
+                                            height={128} 
+                                            className="object-contain" 
+                                            unoptimized
+                                        />
                                     ) : (
                                         <ImageIcon className="h-12 w-12 text-muted-foreground opacity-20" />
                                     )}
@@ -1023,7 +1037,15 @@ export default function SettingsPage() {
                                     <Label>Shivam Packaging Logo</Label>
                                     <div className="w-40 h-40 rounded-lg border border-dashed flex items-center justify-center bg-muted/30 overflow-hidden group relative">
                                         {companyProfile.logoURL ? (
-                                            <Image src={companyProfile.logoURL} alt="Shivam Logo" width={160} height={160} className="object-contain" />
+                                            <Image 
+                                                key={companyProfile.logoURL}
+                                                src={companyProfile.logoURL} 
+                                                alt="Shivam Logo" 
+                                                width={160} 
+                                                height={160} 
+                                                className="object-contain" 
+                                                unoptimized
+                                            />
                                         ) : (
                                             <ImageIcon className="h-16 w-16 text-muted-foreground opacity-20" />
                                         )}
@@ -1090,7 +1112,15 @@ export default function SettingsPage() {
                                     <Label>Sijan Dhuwani Logo</Label>
                                     <div className="w-40 h-40 rounded-lg border border-dashed flex items-center justify-center bg-muted/30 overflow-hidden group relative">
                                         {fleetProfile.logoURL ? (
-                                            <Image src={fleetProfile.logoURL} alt="Sijan Logo" width={160} height={160} className="object-contain" />
+                                            <Image 
+                                                key={fleetProfile.logoURL}
+                                                src={fleetProfile.logoURL} 
+                                                alt="Sijan Logo" 
+                                                width={160} 
+                                                height={160} 
+                                                className="object-contain" 
+                                                unoptimized
+                                            />
                                         ) : (
                                             <ImageIcon className="h-16 w-16 text-muted-foreground opacity-20" />
                                         )}
