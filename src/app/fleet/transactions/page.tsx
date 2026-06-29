@@ -88,12 +88,14 @@ export default function FleetTransactionsPage() {
     // UI States
     const [activeView, setActiveView] = useState<LedgerView>('vehicle');
     const [searchQuery, setSearchQuery] = useState('');
-    const [dateRange, setDateRange] = useState<DateRange | undefined>({
-        from: startOfMonth(new Date()),
-        to: new Date()
-    });
-    const [selectedBsYear, setSelectedBsYear] = useState<string>('All');
-    const [selectedBsMonth, setSelectedBsMonth] = useState<string>('All');
+    
+    // Default to undefined AD range to prioritize BS Month/Year filters
+    const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+    
+    // Default to current Nepali month and year
+    const [selectedBsYear, setSelectedBsYear] = useState<string>(String(new NepaliDate().getYear()));
+    const [selectedBsMonth, setSelectedBsMonth] = useState<string>(String(new NepaliDate().getMonth()));
+    
     const [filterVehicleId, setFilterVehicleId] = useState<string>('All');
     const [filterPartyId, setFilterPartyId] = useState<string>('All');
     const [filterCategory, setFilterCategory] = useState<string>('All');
@@ -119,6 +121,8 @@ export default function FleetTransactionsPage() {
 
     const availableYears = useMemo(() => {
         const years = new Set<number>();
+        // Add current year by default
+        years.add(new NepaliDate().getYear());
         transactions.forEach(t => {
             try {
                 years.add(new NepaliDate(new Date(t.date)).getYear());
@@ -260,9 +264,10 @@ export default function FleetTransactionsPage() {
 
     const handleClearFilters = () => {
         setSearchQuery('');
-        setDateRange({ from: startOfMonth(new Date()), to: new Date() });
-        setSelectedBsYear('All');
-        setSelectedBsMonth('All');
+        setDateRange(undefined);
+        const nowBS = new NepaliDate();
+        setSelectedBsYear(String(nowBS.getYear()));
+        setSelectedBsMonth(String(nowBS.getMonth()));
         setFilterVehicleId('All');
         setFilterPartyId('All');
         setFilterCategory('All');
@@ -333,6 +338,32 @@ export default function FleetTransactionsPage() {
                                     </Command>
                                 </PopoverContent>
                             </Popover>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Year (BS)</Label>
+                            <Select value={selectedBsYear} onValueChange={setSelectedBsYear}>
+                                <SelectTrigger className="w-[100px] h-10 bg-white text-xs">
+                                    <SelectValue placeholder="Year" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="All">All</SelectItem>
+                                    {availableYears.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Month (BS)</Label>
+                            <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth}>
+                                <SelectTrigger className="w-[120px] h-10 bg-white text-xs">
+                                    <SelectValue placeholder="Month" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="All">All</SelectItem>
+                                    {NEPALI_MONTHS.map(m => <SelectItem key={m.value} value={String(m.value)}>{m.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
                         </div>
 
                         <div className="space-y-1.5">
