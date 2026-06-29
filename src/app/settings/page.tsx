@@ -376,7 +376,7 @@ export default function SettingsPage() {
         const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(data, null, 2))}`;
         const link = document.createElement("a");
         link.href = jsonString;
-        link.download = `starweb-backup-${new Date().toISOString()}.json`;
+        link.download = `starsutra-backup-${new Date().toISOString()}.json`;
         link.click();
         toast({ title: 'Export Successful', description: 'Your data has been downloaded.' });
     } catch (error) {
