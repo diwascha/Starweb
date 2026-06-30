@@ -7,7 +7,8 @@ import {
     DialogContent, 
     DialogHeader, 
     DialogTitle, 
-    DialogFooter 
+    DialogFooter,
+    DialogDescription
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
