@@ -49,7 +49,9 @@ import { useToast } from '@/hooks/use-toast';
 import { NEPALI_MONTHS, DEFAULT_FLEET_PROFILE } from '@/lib/constants';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { DualCalendar } from '@/components/ui/dual-calendar';
+import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
+import type { DateRange } from 'react-day-picker';
+import NepaliDate from 'nepali-date-converter';
 
 interface LedgerEntry extends Transaction {
     vehicleName: string;
@@ -149,8 +151,9 @@ export default function FleetTransactionsPage() {
     // ERP Filter State
     const [filterParties, setFilterParties] = useState<string[]>([]);
     const [filterVehicles, setFilterVehicles] = useState<string[]>([]);
-    const [filterFromDate, setFilterFromDate] = useState<Date | undefined>(undefined);
-    const [filterToDate, setFilterToDate] = useState<Date | undefined>(undefined);
+    const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+    const [selectedBsYear, setSelectedBsYear] = useState<string>('All');
+    const [selectedBsMonth, setSelectedBsMonth] = useState<string>('All');
     const [filterCategory, setFilterCategory] = useState('All');
     const [globalSearch, setUsageSearch] = useState('');
 
@@ -170,11 +173,22 @@ export default function FleetTransactionsPage() {
     const partiesById = useMemo(() => new Map(parties.map(p => [p.id, p.name])), [parties]);
     const categories = useMemo(() => Array.from(new Set(transactions.map(t => t.category || (t.type === 'Sales' ? 'Freight' : t.type)))).filter(Boolean).sort(), [transactions]);
 
+    const availableYears = useMemo(() => {
+        const years = new Set<number>();
+        transactions.forEach(t => {
+            try {
+                years.add(new NepaliDate(new Date(t.date)).getYear());
+            } catch {}
+        });
+        return Array.from(years).sort((a, b) => b - a);
+    }, [transactions]);
+
     const handleResetFilters = () => {
         setFilterParties([]);
         setFilterVehicles([]);
-        setFilterFromDate(undefined);
-        setFilterToDate(undefined);
+        setDateRange(undefined);
+        setSelectedBsYear('All');
+        setSelectedBsMonth('All');
         setFilterCategory('All');
         setUsageSearch('');
     };
@@ -182,10 +196,10 @@ export default function FleetTransactionsPage() {
     const ledgerData = useMemo(() => {
         const rawMapped = transactions.map(t => {
             // Accounting Logic for Partner Ledger:
-            // Payments (Dr): Settlements to partner
-            // Sales (Dr): Freight billing to partner
-            // Purchases (Cr): Procurement from partner
-            // Receipts (Cr): Inflows from partner
+            // Payments (Dr): Decreases liability (we paid them) or increases asset (advance)
+            // Sales (Dr): Increases receivable from partner (we billed them)
+            // Purchases (Cr): Increases liability (we owe them)
+            // Receipts (Cr): Decreases receivable (they paid us)
             const isDebit = t.type === 'Payment' || t.type === 'Sales';
             const isCredit = t.type === 'Purchase' || t.type === 'Receipt';
             
@@ -204,33 +218,68 @@ export default function FleetTransactionsPage() {
 
         rawMapped.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-        let openingBalance = 0;
-        if (filterFromDate) {
-            openingBalance = rawMapped
-                .filter(t => isBefore(new Date(t.date), startOfDay(filterFromDate!)))
-                .filter(t => filterParties.length === 0 || (t.partyId && filterParties.includes(t.partyId)))
-                .filter(t => filterVehicles.length === 0 || filterVehicles.includes(t.vehicleId))
-                .reduce((sum, t) => sum + (t.debit - t.credit), 0);
-        }
-
-        let filtered = rawMapped.filter(t => {
-            if (filterFromDate && isBefore(new Date(t.date), startOfDay(filterFromDate))) return false;
-            if (filterToDate && isBefore(endOfDay(filterToDate), new Date(t.date))) return false;
+        const matchesNonDateFilters = (t: any) => {
             if (filterParties.length > 0 && (!t.partyId || !filterParties.includes(t.partyId))) return false;
             if (filterVehicles.length > 0 && !filterVehicles.includes(t.vehicleId)) return false;
             if (filterCategory !== 'All' && t.categoryDisplay !== filterCategory.toUpperCase()) return false;
+            if (globalSearch) {
+                const q = globalSearch.toLowerCase();
+                if (!(t.vehicleName.toLowerCase().includes(q) || 
+                    t.partyName.toLowerCase().includes(q) || 
+                    t.refNo.toLowerCase().includes(q) || 
+                    (t.remarks || '').toLowerCase().includes(q) ||
+                    t.lineItemsSummary.toLowerCase().includes(q))) return false;
+            }
+            return true;
+        };
+
+        // Determine boundaries for filtration
+        let filtered = rawMapped.filter(t => {
+            if (!matchesNonDateFilters(t)) return false;
+            
+            const tDate = new Date(t.date);
+            
+            // BS Filter
+            if (selectedBsYear !== 'All') {
+                try {
+                    const nd = new NepaliDate(tDate);
+                    if (nd.getYear() !== parseInt(selectedBsYear)) return false;
+                    if (selectedBsMonth !== 'All' && nd.getMonth() !== parseInt(selectedBsMonth)) return false;
+                } catch { return false; }
+            }
+            
+            // AD Range Filter
+            if (dateRange?.from) {
+                if (isBefore(tDate, startOfDay(dateRange.from))) return false;
+            }
+            if (dateRange?.to) {
+                if (isBefore(endOfDay(dateRange.to), tDate)) return false;
+            }
+            
             return true;
         });
 
-        if (globalSearch) {
-            const q = globalSearch.toLowerCase();
-            filtered = filtered.filter(t => 
-                t.vehicleName.toLowerCase().includes(q) || 
-                t.partyName.toLowerCase().includes(q) || 
-                t.refNo.toLowerCase().includes(q) || 
-                (t.remarks || '').toLowerCase().includes(q) ||
-                t.lineItemsSummary.toLowerCase().includes(q)
-            );
+        // Determine Opening Balance
+        // Find the effective start date of the visible range to sum everything before it
+        let openingBalance = 0;
+        let earliestDateRequested: Date | null = null;
+
+        if (dateRange?.from) {
+            earliestDateRequested = startOfDay(dateRange.from);
+        }
+        if (selectedBsYear !== 'All') {
+            const m = selectedBsMonth !== 'All' ? parseInt(selectedBsMonth) : 0;
+            const ndStart = new NepaliDate(parseInt(selectedBsYear), m, 1).toJsDate();
+            if (!earliestDateRequested || isBefore(ndStart, earliestDateRequested)) {
+                earliestDateRequested = ndStart;
+            }
+        }
+
+        if (earliestDateRequested) {
+            openingBalance = rawMapped
+                .filter(matchesNonDateFilters)
+                .filter(t => isBefore(new Date(t.date), earliestDateRequested!))
+                .reduce((sum, t) => sum + (t.debit - t.credit), 0);
         }
 
         let runningBalance = openingBalance;
@@ -253,14 +302,14 @@ export default function FleetTransactionsPage() {
                 debit: totalDebit,
                 credit: totalCredit,
                 net: netBalance,
-                closing: openingBalance + netBalance,
+                closing: runningBalance,
                 count: processed.length
             }
         };
-    }, [transactions, filterParties, filterVehicles, filterFromDate, filterToDate, filterCategory, globalSearch, vehiclesById, partiesById]);
+    }, [transactions, filterParties, filterVehicles, selectedBsYear, selectedBsMonth, dateRange, filterCategory, globalSearch, vehiclesById, partiesById]);
 
     const handleExport = async (type: 'excel' | 'pdf') => {
-        const periodStr = filterFromDate ? `${toNepaliDate(filterFromDate.toISOString())} - ${filterToDate ? toNepaliDate(filterToDate.toISOString()) : 'Present'}` : 'All Time';
+        const periodStr = dateRange?.from ? `${toNepaliDate(dateRange.from.toISOString())} - ${dateRange.to ? toNepaliDate(dateRange.to.toISOString()) : 'Present'}` : 'All Time';
         
         if (type === 'excel') {
             const XLSX = await import('xlsx');
@@ -270,12 +319,12 @@ export default function FleetTransactionsPage() {
                 [`Period: ${periodStr}`],
                 [],
                 ['Date (BS)', 'Ref No.', 'Particulars', 'Vehicle', 'Category', 'Debit', 'Credit', 'Balance'],
-                ['', '', 'Balance B/F', '', '', '', '', ledgerData.stats.opening.toFixed(2)],
+                ['', '', 'Balance B/F', '', '', '', '', `${Math.abs(ledgerData.stats.opening).toFixed(2)} ${ledgerData.stats.opening >= 0 ? 'Dr' : 'Cr'}`],
                 ...ledgerData.entries.map(e => [
                     toNepaliDate(e.date), e.refNo, `${e.remarks || e.type} (${e.lineItemsSummary})`, e.vehicleName, e.categoryDisplay, 
-                    e.debit || '-', e.credit || '-', e.balance.toFixed(2)
+                    e.debit || '-', e.credit || '-', `${Math.abs(e.balance).toFixed(2)} ${e.balance >= 0 ? 'Dr' : 'Cr'}`
                 ]),
-                ['', '', 'Total', '', '', ledgerData.stats.debit.toFixed(2), ledgerData.stats.credit.toFixed(2), '']
+                ['', '', 'Total Period', '', '', ledgerData.stats.debit.toFixed(2), ledgerData.stats.credit.toFixed(2), '']
             ];
             const ws = XLSX.utils.aoa_to_sheet(data);
             const wb = XLSX.utils.book_new();
@@ -310,11 +359,12 @@ export default function FleetTransactionsPage() {
     const isFiltered = useMemo(() => {
         return filterParties.length > 0 || 
                filterVehicles.length > 0 || 
-               !!filterFromDate || 
-               !!filterToDate || 
+               !!dateRange || 
+               selectedBsYear !== 'All' || 
+               selectedBsMonth !== 'All' ||
                filterCategory !== 'All' || 
                globalSearch !== '';
-    }, [filterParties, filterVehicles, filterFromDate, filterToDate, filterCategory, globalSearch]);
+    }, [filterParties, filterVehicles, dateRange, selectedBsYear, selectedBsMonth, filterCategory, globalSearch]);
 
     return (
         <div className="flex flex-col gap-6 max-w-[1600px] mx-auto">
@@ -349,32 +399,54 @@ export default function FleetTransactionsPage() {
                         icon={Truck} 
                     />
                     
-                    <div className="space-y-1.5 flex-1 min-w-[150px]">
-                        <Label className="text-[11px] font-bold text-muted-foreground uppercase tracking-tight">From Date</Label>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button variant="outline" className="w-full justify-between h-10 bg-white border-gray-200 shadow-none font-normal">
-                                    <span className="text-sm">{filterFromDate ? toNepaliDate(filterFromDate.toISOString()) : 'YYYY/MM/DD'}</span>
-                                    <CalendarIcon className="h-4 w-4 opacity-50" />
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                                <DualCalendar selected={filterFromDate} onSelect={setFilterFromDate} />
-                            </PopoverContent>
-                        </Popover>
+                    <div className="space-y-1.5 flex-1 min-w-[120px]">
+                        <Label className="text-[11px] font-bold text-muted-foreground uppercase tracking-tight">Year (BS)</Label>
+                        <Select value={selectedBsYear} onValueChange={setSelectedBsYear}>
+                            <SelectTrigger className="h-10 bg-white border-gray-200">
+                                <SelectValue placeholder="Year" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="All">All Years</SelectItem>
+                                {availableYears.map(year => (
+                                    <SelectItem key={year} value={String(year)}>{year}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
 
-                    <div className="space-y-1.5 flex-1 min-w-[150px]">
-                        <Label className="text-[11px] font-bold text-muted-foreground uppercase tracking-tight">To Date</Label>
+                    <div className="space-y-1.5 flex-1 min-w-[140px]">
+                        <Label className="text-[11px] font-bold text-muted-foreground uppercase tracking-tight">Month (BS)</Label>
+                        <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth}>
+                            <SelectTrigger className="h-10 bg-white border-gray-200">
+                                <SelectValue placeholder="Month" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="All">All Months</SelectItem>
+                                {NEPALI_MONTHS.map(month => (
+                                    <SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="space-y-1.5 flex-1 min-w-[200px]">
+                        <Label className="text-[11px] font-bold text-muted-foreground uppercase tracking-tight">AD Range</Label>
                         <Popover>
                             <PopoverTrigger asChild>
                                 <Button variant="outline" className="w-full justify-between h-10 bg-white border-gray-200 shadow-none font-normal">
-                                    <span className="text-sm">{filterToDate ? toNepaliDate(filterToDate.toISOString()) : 'YYYY/MM/DD'}</span>
-                                    <CalendarIcon className="h-4 w-4 opacity-50" />
+                                    <div className="flex items-center gap-2">
+                                        <CalendarIcon className="h-4 w-4 opacity-50" />
+                                        <span className="text-sm">
+                                            {dateRange?.from ? (
+                                                dateRange.to ? `${format(dateRange.from, "MMM d")} - ${format(dateRange.to, "MMM d")}` : format(dateRange.from, "MMM d")
+                                            ) : 'Pick AD Range'}
+                                        </span>
+                                    </div>
+                                    <ChevronDown className="h-4 w-4 opacity-50" />
                                 </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0" align="start">
-                                <DualCalendar selected={filterToDate} onSelect={setFilterToDate} />
+                                <DualDateRangePicker selected={dateRange} onSelect={setDateRange} />
                             </PopoverContent>
                         </Popover>
                     </div>
