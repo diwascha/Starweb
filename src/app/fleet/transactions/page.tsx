@@ -326,15 +326,7 @@ export default function FleetTransactionsPage() {
         <div className="flex flex-col gap-6 max-w-[1600px] mx-auto">
             {/* Header Section */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-xl font-bold tracking-tight">
-                        <BookOpen className="h-6 w-6 text-primary" />
-                        <h1>Fleet Ledger</h1>
-                    </div>
-                    <nav className="flex items-center gap-1 text-[11px] text-muted-foreground font-medium uppercase tracking-widest">
-                        <span>Fleet Management</span> <ChevronRight className="h-3 w-3" /> <span className="text-foreground">Ledger</span>
-                    </nav>
-                </div>
+                <h1 className="text-2xl font-bold tracking-tight">Fleet Ledger</h1>
                 <div className="flex items-center gap-2">
                     <Button variant="outline" size="sm" className="h-9 gap-2 shadow-sm border-gray-200" onClick={() => handleExport('excel')}>
                         <FileSpreadsheet className="h-4 w-4 text-emerald-600" /> Export Excel
