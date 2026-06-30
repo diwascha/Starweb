@@ -59,7 +59,6 @@ interface LedgerEntry extends Transaction {
     balance: number;
     refNo: string;
     categoryDisplay: string;
-    status: 'PAID' | 'DUE' | 'PARTIAL';
 }
 
 const FilterSelect = ({ label, value, onSelect, items, placeholder }: any) => (
@@ -126,13 +125,12 @@ export default function FleetTransactionsPage() {
     const { toast } = useToast();
     const { user } = useAuth();
 
-    // ERP Filter State - Now driving logic directly for "automatic" filtering
+    // ERP Filter State
     const [filterParty, setFilterParty] = useState('All');
     const [filterVehicle, setFilterVehicle] = useState('All');
     const [filterFromDate, setFilterFromDate] = useState<Date | undefined>(undefined);
     const [filterToDate, setFilterToDate] = useState<Date | undefined>(undefined);
     const [filterCategory, setFilterCategory] = useState('All');
-    const [filterStatus, setFilterStatus] = useState('All');
     const [globalSearch, setUsageSearch] = useState('');
 
     useEffect(() => {
@@ -157,19 +155,11 @@ export default function FleetTransactionsPage() {
         setFilterFromDate(undefined);
         setFilterToDate(undefined);
         setFilterCategory('All');
-        setFilterStatus('All');
         setUsageSearch('');
     };
 
     const ledgerData = useMemo(() => {
-        // 1. Raw mapping with ERP standard partner accounting logic
         const rawMapped = transactions.map(t => {
-            // DIRECTIONAL LOGIC (Partner Perspective):
-            // - Purchase (Cr): Increases Liability (we owe them)
-            // - Receipt (Cr): Decreases Asset (they paid us)
-            // - Payment (Dr): Decreases Liability (we paid them)
-            // - Sales (Dr): Increases Asset (they owe us)
-            
             const isDebit = t.type === 'Payment' || t.type === 'Sales';
             const isCredit = t.type === 'Purchase' || t.type === 'Receipt';
             
@@ -185,10 +175,8 @@ export default function FleetTransactionsPage() {
             };
         });
 
-        // 2. Sort by date for chronological balance calculation
         rawMapped.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-        // 3. Calculate Opening Balance (Balance B/F)
         let openingBalance = 0;
         if (filterFromDate) {
             openingBalance = rawMapped
@@ -198,7 +186,6 @@ export default function FleetTransactionsPage() {
                 .reduce((sum, t) => sum + (t.debit - t.credit), 0);
         }
 
-        // 4. Filter current period entries
         let filtered = rawMapped.filter(t => {
             if (filterFromDate && isBefore(new Date(t.date), startOfDay(filterFromDate))) return false;
             if (filterToDate && isBefore(endOfDay(filterToDate), new Date(t.date))) return false;
@@ -208,7 +195,6 @@ export default function FleetTransactionsPage() {
             return true;
         });
 
-        // 5. Global Search
         if (globalSearch) {
             const q = globalSearch.toLowerCase();
             filtered = filtered.filter(t => 
@@ -219,18 +205,15 @@ export default function FleetTransactionsPage() {
             );
         }
 
-        // 6. Calculate Running Balances
         let runningBalance = openingBalance;
         const processed = filtered.map(t => {
             runningBalance += (t.debit - t.credit);
             return { 
                 ...t, 
-                balance: runningBalance,
-                status: (t.debit > 0 && t.credit > 0 ? 'PARTIAL' : (t.amount > 0 ? 'DUE' : 'PAID')) as any
+                balance: runningBalance
             };
         });
 
-        // 7. Summary Stats
         const totalDebit = processed.reduce((sum, t) => sum + t.debit, 0);
         const totalCredit = processed.reduce((sum, t) => sum + t.credit, 0);
         const netBalance = totalDebit - totalCredit;
@@ -246,7 +229,7 @@ export default function FleetTransactionsPage() {
                 count: processed.length
             }
         };
-    }, [transactions, filterParty, filterVehicle, filterFromDate, filterToDate, filterCategory, filterStatus, globalSearch, vehiclesById, partiesById]);
+    }, [transactions, filterParty, filterVehicle, filterFromDate, filterToDate, filterCategory, globalSearch, vehiclesById, partiesById]);
 
     const handleExport = async (type: 'excel' | 'pdf') => {
         const periodStr = filterFromDate ? `${toNepaliDate(filterFromDate.toISOString())} - ${filterToDate ? toNepaliDate(filterToDate.toISOString()) : 'Present'}` : 'All Time';
@@ -258,13 +241,13 @@ export default function FleetTransactionsPage() {
                 [fleetProfile.address],
                 [`Period: ${periodStr}`],
                 [],
-                ['Date (BS)', 'Ref No.', 'Particulars', 'Vehicle', 'Category', 'Debit', 'Credit', 'Balance', 'Status'],
-                ['', '', 'Balance B/F', '', '', '', '', ledgerData.stats.opening.toFixed(2), ''],
+                ['Date (BS)', 'Ref No.', 'Particulars', 'Vehicle', 'Category', 'Debit', 'Credit', 'Balance'],
+                ['', '', 'Balance B/F', '', '', '', '', ledgerData.stats.opening.toFixed(2)],
                 ...ledgerData.entries.map(e => [
                     toNepaliDate(e.date), e.refNo, e.remarks || e.type, e.vehicleName, e.categoryDisplay, 
-                    e.debit || '-', e.credit || '-', e.balance.toFixed(2), e.status
+                    e.debit || '-', e.credit || '-', e.balance.toFixed(2)
                 ]),
-                ['', '', 'Total', '', '', ledgerData.stats.debit.toFixed(2), ledgerData.stats.credit.toFixed(2), '', '']
+                ['', '', 'Total', '', '', ledgerData.stats.debit.toFixed(2), ledgerData.stats.credit.toFixed(2), '']
             ];
             const ws = XLSX.utils.aoa_to_sheet(data);
             const wb = XLSX.utils.book_new();
@@ -280,13 +263,13 @@ export default function FleetTransactionsPage() {
             
             autoTable(doc, {
                 startY: 35,
-                head: [['Date (BS)', 'Ref No.', 'Particulars', 'Vehicle', 'Category', 'Debit (Dr)', 'Credit (Cr)', 'Balance', 'Status']],
+                head: [['Date (BS)', 'Ref No.', 'Particulars', 'Vehicle', 'Category', 'Debit (Dr)', 'Credit (Cr)', 'Balance']],
                 body: [
-                    ['', '', 'Balance B/F', '-', '-', '-', '-', `${Math.abs(ledgerData.stats.opening).toLocaleString()} ${ledgerData.stats.opening >= 0 ? 'Dr' : 'Cr'}`, ''],
+                    ['', '', 'Balance B/F', '-', '-', '-', '-', `${Math.abs(ledgerData.stats.opening).toLocaleString()} ${ledgerData.stats.opening >= 0 ? 'Dr' : 'Cr'}`],
                     ...ledgerData.entries.map(e => [
                         toNepaliDate(e.date), e.refNo, e.remarks || e.type, e.vehicleName, e.categoryDisplay,
                         e.debit ? e.debit.toLocaleString() : '-', e.credit ? e.credit.toLocaleString() : '-',
-                        `${Math.abs(e.balance).toLocaleString()} ${e.balance >= 0 ? 'Dr' : 'Cr'}`, e.status
+                        `${Math.abs(e.balance).toLocaleString()} ${e.balance >= 0 ? 'Dr' : 'Cr'}`
                     ])
                 ],
                 theme: 'striped',
@@ -302,13 +285,11 @@ export default function FleetTransactionsPage() {
                !!filterFromDate || 
                !!filterToDate || 
                filterCategory !== 'All' || 
-               filterStatus !== 'All' ||
                globalSearch !== '';
-    }, [filterParty, filterVehicle, filterFromDate, filterToDate, filterCategory, filterStatus, globalSearch]);
+    }, [filterParty, filterVehicle, filterFromDate, filterToDate, filterCategory, globalSearch]);
 
     return (
         <div className="flex flex-col gap-6 max-w-[1600px] mx-auto">
-            {/* Header Section */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <h1 className="text-2xl font-bold tracking-tight">Fleet Ledger</h1>
                 <div className="flex items-center gap-2">
@@ -321,7 +302,6 @@ export default function FleetTransactionsPage() {
                 </div>
             </div>
 
-            {/* Filter Card - Automatic (No Apply Button) */}
             <Card className="shadow-sm border-gray-100 bg-white overflow-visible">
                 <CardContent className="p-5 flex flex-wrap items-end gap-4">
                     <SearchableSelect 
@@ -372,7 +352,6 @@ export default function FleetTransactionsPage() {
                     </div>
 
                     <FilterSelect label="Category" value={filterCategory} onSelect={setFilterCategory} items={categories} placeholder="Category" />
-                    <FilterSelect label="Status" value={filterStatus} onSelect={setFilterStatus} items={['Paid', 'Due', 'Partial']} placeholder="Status" />
 
                     <div className="flex gap-2 shrink-0">
                         {isFiltered && (
@@ -384,7 +363,6 @@ export default function FleetTransactionsPage() {
                 </CardContent>
             </Card>
 
-            {/* Summary Row */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                 {[
                     { label: 'Opening Balance', value: ledgerData.stats.opening, color: ledgerData.stats.opening >= 0 ? 'text-blue-600' : 'text-red-600' },
@@ -409,7 +387,6 @@ export default function FleetTransactionsPage() {
                 </Card>
             </div>
 
-            {/* Ledger Table Section */}
             <Card className="shadow-sm border-gray-100 bg-white">
                 <Tabs defaultValue="ledger" className="w-full">
                     <div className="flex flex-col sm:flex-row items-center justify-between border-b px-5 py-2 gap-4">
@@ -441,11 +418,9 @@ export default function FleetTransactionsPage() {
                                         <TableHead className="text-right w-[140px] font-bold text-blue-900">Debit (Dr)</TableHead>
                                         <TableHead className="text-right w-[140px] font-bold text-blue-900">Credit (Cr)</TableHead>
                                         <TableHead className="text-right w-[160px] font-bold text-blue-900">Balance</TableHead>
-                                        <TableHead className="text-center w-[100px] font-bold text-blue-900">Status</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody className="bg-white">
-                                    {/* Brought Forward Row */}
                                     <TableRow className="bg-gray-50/30 font-medium">
                                         <TableCell colSpan={2}></TableCell>
                                         <TableCell className="font-bold text-blue-700 italic">Balance B/F (Opening)</TableCell>
@@ -456,7 +431,6 @@ export default function FleetTransactionsPage() {
                                         <TableCell className="text-right font-black">
                                             {Math.abs(ledgerData.stats.opening).toLocaleString(undefined, { minimumFractionDigits: 2 })} {ledgerData.stats.opening >= 0 ? 'Dr' : 'Cr'}
                                         </TableCell>
-                                        <TableCell></TableCell>
                                     </TableRow>
 
                                     {ledgerData.entries.map((entry) => (
@@ -482,20 +456,12 @@ export default function FleetTransactionsPage() {
                                             <TableCell className="text-right font-black tabular-nums">
                                                 {Math.abs(entry.balance).toLocaleString(undefined, { minimumFractionDigits: 2 })} {entry.balance >= 0 ? 'Dr' : 'Cr'}
                                             </TableCell>
-                                            <TableCell className="text-center">
-                                                <Badge className={cn(
-                                                    "text-[9px] font-bold px-2",
-                                                    entry.status === 'PAID' ? "bg-green-100 text-green-700 hover:bg-green-100" : (entry.status === 'PARTIAL' ? "bg-blue-100 text-blue-700 hover:bg-blue-100" : "bg-orange-100 text-orange-700 hover:bg-orange-100")
-                                                )}>
-                                                    {entry.status}
-                                                </Badge>
-                                            </TableCell>
                                         </TableRow>
                                     ))}
 
                                     {!isLoading && ledgerData.entries.length === 0 && (
                                         <TableRow>
-                                            <TableCell colSpan={9} className="text-center py-24 text-muted-foreground italic">
+                                            <TableCell colSpan={8} className="text-center py-24 text-muted-foreground italic">
                                                 No transactions found matching your criteria.
                                             </TableCell>
                                         </TableRow>
@@ -506,7 +472,7 @@ export default function FleetTransactionsPage() {
                                         <TableCell colSpan={5} className="text-right font-bold text-gray-900 text-sm">Total Period Movement</TableCell>
                                         <TableCell className="text-right font-black text-red-600 text-sm">{ledgerData.stats.debit.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell className="text-right font-black text-emerald-700 text-sm">{ledgerData.stats.credit.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell colSpan={2} className="text-right pr-10 font-bold">
+                                        <TableCell colSpan={1} className="text-right pr-10 font-bold">
                                             Net: {Math.abs(ledgerData.stats.net).toLocaleString(undefined, { minimumFractionDigits: 2 })} {ledgerData.stats.net >= 0 ? 'Dr' : 'Cr'}
                                         </TableCell>
                                     </TableRow>
