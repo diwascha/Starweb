@@ -159,7 +159,7 @@ export function AppSidebar() {
       <SidebarHeader>
         <div className="flex items-center gap-3 px-2 py-4">
             <img 
-                src="/assets/logo.png" 
+                src="/assets/logo.ico" 
                 width="32" 
                 height="32" 
                 alt="Logo"

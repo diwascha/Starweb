@@ -154,7 +154,7 @@ export default function LoginPage() {
          <div className="flex flex-col justify-center items-center gap-4 mb-8 text-center">
             <div className="w-28 h-28 rounded-2xl bg-white shadow-xl flex items-center justify-center overflow-hidden border">
                 <img 
-                    src="/assets/logo.png" 
+                    src="/assets/logo.ico" 
                     width="112" 
                     height="112" 
                     alt="App Logo"
