@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
@@ -51,6 +52,7 @@ import {
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/hooks/use-auth';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { format, isWithinInterval, startOfDay, endOfDay, isBefore } from 'date-fns';
 import { cn, toNepaliDate, generateId } from '@/lib/utils';
 import { onTransactionsUpdate, deleteVoucher } from '@/services/transaction-service';
@@ -63,7 +65,6 @@ import { useToast } from '@/hooks/use-toast';
 import NepaliDate from 'nepali-date-converter';
 import { NEPALI_MONTHS, DEFAULT_FLEET_PROFILE } from '@/lib/constants';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 
@@ -196,14 +197,19 @@ export default function FleetTransactionsPage() {
     };
 
     const ledgerData = useMemo(() => {
-        // 1. Raw mapping with Dr/Cr logic
+        // 1. Raw mapping with correct Accounting Dr/Cr logic
         const rawMapped = transactions.map(t => {
-            const isDebit = t.type === 'Purchase' || t.type === 'Payment'; // Outflows
+            // Perspective: Standard Accounting Statement
+            // Debit (Dr): Payments (reduces payable), Sales (increases receivable)
+            // Credit (Cr): Purchases (increases payable), Receipts (reduces receivable)
+            const isDebit = t.type === 'Payment' || t.type === 'Sales';
+            const isCredit = t.type === 'Purchase' || t.type === 'Receipt';
+            
             const amount = Number(t.amount) || 0;
             return {
                 ...t,
                 debit: isDebit ? amount : 0,
-                credit: !isDebit ? amount : 0,
+                credit: isCredit ? amount : 0,
                 vehicleName: vehiclesById.get(t.vehicleId) || 'N/A',
                 partyName: t.partyId ? partiesById.get(t.partyId) || 'Unassigned' : 'Unassigned',
                 refNo: t.purchaseNumber || t.referenceId || (t.tripId ? 'Trip' : 'JV'),
@@ -215,6 +221,8 @@ export default function FleetTransactionsPage() {
         rawMapped.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
         // 3. Calculate Opening Balance (Balance B/F)
+        // Note: In ERPs, Dr is usually positive for assets, negative for liabilities.
+        // We use (Debit - Credit) as the signed value.
         let openingBalance = 0;
         if (appliedFilters.from) {
             openingBalance = rawMapped
@@ -312,7 +320,7 @@ export default function FleetTransactionsPage() {
                     ...ledgerData.entries.map(e => [
                         toNepaliDate(e.date), e.refNo, e.remarks || e.type, e.vehicleName, e.categoryDisplay,
                         e.debit ? e.debit.toLocaleString() : '-', e.credit ? e.credit.toLocaleString() : '-',
-                        e.balance.toLocaleString(), e.status
+                        `${Math.abs(e.balance).toLocaleString()} ${e.balance >= 0 ? 'Dr' : 'Cr'}`, e.status
                     ])
                 ],
                 theme: 'striped',
@@ -400,21 +408,22 @@ export default function FleetTransactionsPage() {
             {/* Summary Row */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                 {[
-                    { label: 'Opening Balance', value: ledgerData.stats.opening, color: 'text-gray-600' },
-                    { label: 'Total Debit', value: ledgerData.stats.debit, color: 'text-red-600' },
-                    { label: 'Total Credit', value: ledgerData.stats.credit, color: 'text-emerald-600' },
-                    { label: 'Net Balance', value: ledgerData.stats.net, color: 'text-red-600' },
+                    { label: 'Opening Balance', value: ledgerData.stats.opening, color: ledgerData.stats.opening >= 0 ? 'text-blue-600' : 'text-red-600' },
+                    { label: 'Total Debit', value: ledgerData.stats.debit, color: 'text-gray-900' },
+                    { label: 'Total Credit', value: ledgerData.stats.credit, color: 'text-gray-900' },
+                    { label: 'Net Period', value: ledgerData.stats.net, color: ledgerData.stats.net >= 0 ? 'text-blue-600' : 'text-red-600' },
                     { label: 'Total Transactions', value: ledgerData.stats.count, color: 'text-gray-900', suffix: '' },
                 ].map((stat, i) => (
                     <Card key={i} className="shadow-none border-gray-100 py-3 text-center bg-gray-50/30">
                         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">{stat.label}</p>
                         <p className={cn("text-sm font-black tabular-nums", stat.color)}>
-                            {stat.suffix !== '' ? 'NPR ' : ''}{Number(stat.value).toLocaleString(undefined, { minimumFractionDigits: stat.suffix === '' ? 0 : 2 })}
+                            {stat.suffix !== '' ? 'NPR ' : ''}{Math.abs(Number(stat.value)).toLocaleString(undefined, { minimumFractionDigits: stat.suffix === '' ? 0 : 2 })}
+                            {stat.suffix !== '' && (Number(stat.value) >= 0 ? ' Dr' : ' Cr')}
                         </p>
                     </Card>
                 ))}
                 <Card className="shadow-none border-red-100 py-3 text-center bg-red-50/40 border-l-4 border-l-red-500">
-                    <p className="text-[10px] font-bold text-red-600/70 uppercase tracking-wider mb-1">Balance As On {appliedFilters.to ? toNepaliDate(appliedFilters.to.toISOString()) : toNepaliDate(new Date().toISOString())}</p>
+                    <p className="text-[10px] font-bold text-red-600/70 uppercase tracking-wider mb-1">Closing Balance</p>
                     <p className="text-sm font-black text-red-600 tabular-nums">
                         NPR {Math.abs(ledgerData.stats.closing).toLocaleString(undefined, { minimumFractionDigits: 2 })} {ledgerData.stats.closing >= 0 ? 'Dr' : 'Cr'}
                     </p>
@@ -437,7 +446,6 @@ export default function FleetTransactionsPage() {
                                 value={globalSearch}
                                 onChange={(e) => setUsageSearch(e.target.value)}
                             />
-                            <Button variant="ghost" size="icon" className="absolute right-1 top-1 h-8 w-8"><Filter className="h-4 w-4 text-muted-foreground"/></Button>
                         </div>
                     </div>
 
@@ -451,9 +459,9 @@ export default function FleetTransactionsPage() {
                                         <TableHead className="min-w-[300px] font-bold text-blue-900">Particulars</TableHead>
                                         <TableHead className="w-[150px] font-bold text-blue-900">Vehicle</TableHead>
                                         <TableHead className="w-[140px] font-bold text-blue-900">Category</TableHead>
-                                        <TableHead className="text-right w-[140px] font-bold text-blue-900">Debit (NPR)</TableHead>
-                                        <TableHead className="text-right w-[140px] font-bold text-blue-900">Credit (NPR)</TableHead>
-                                        <TableHead className="text-right w-[160px] font-bold text-blue-900">Balance (NPR)</TableHead>
+                                        <TableHead className="text-right w-[140px] font-bold text-blue-900">Debit (Dr)</TableHead>
+                                        <TableHead className="text-right w-[140px] font-bold text-blue-900">Credit (Cr)</TableHead>
+                                        <TableHead className="text-right w-[160px] font-bold text-blue-900">Balance</TableHead>
                                         <TableHead className="text-center w-[100px] font-bold text-blue-900">Status</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -466,7 +474,9 @@ export default function FleetTransactionsPage() {
                                         <TableCell className="text-center">-</TableCell>
                                         <TableCell className="text-right">-</TableCell>
                                         <TableCell className="text-right">-</TableCell>
-                                        <TableCell className="text-right font-black">{ledgerData.stats.opening.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                        <TableCell className="text-right font-black">
+                                            {Math.abs(ledgerData.stats.opening).toLocaleString(undefined, { minimumFractionDigits: 2 })} {ledgerData.stats.opening >= 0 ? 'Dr' : 'Cr'}
+                                        </TableCell>
                                         <TableCell></TableCell>
                                     </TableRow>
 
@@ -514,24 +524,17 @@ export default function FleetTransactionsPage() {
                                 </TableBody>
                                 <TableFooter className="bg-gray-50/50">
                                     <TableRow className="h-12 border-t-2 border-gray-200 hover:bg-transparent">
-                                        <TableCell colSpan={5} className="text-right font-bold text-gray-900 text-sm">Total</TableCell>
+                                        <TableCell colSpan={5} className="text-right font-bold text-gray-900 text-sm">Total Period Movement</TableCell>
                                         <TableCell className="text-right font-black text-red-600 text-sm">{ledgerData.stats.debit.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell className="text-right font-black text-emerald-700 text-sm">{ledgerData.stats.credit.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell colSpan={2}></TableCell>
+                                        <TableCell colSpan={2} className="text-right pr-10 font-bold">
+                                            Net: {Math.abs(ledgerData.stats.net).toLocaleString()} {ledgerData.stats.net >= 0 ? 'Dr' : 'Cr'}
+                                        </TableCell>
                                     </TableRow>
                                 </TableFooter>
                             </Table>
                             <ScrollBar orientation="horizontal" />
                         </ScrollArea>
-                        
-                        <div className="flex items-center justify-between px-5 py-4 border-t text-xs text-muted-foreground">
-                            <span>Showing 1 to {ledgerData.entries.length} of {ledgerData.entries.length} entries</span>
-                            <div className="flex gap-1">
-                                <Button variant="outline" size="icon" className="h-8 w-8 disabled:opacity-30" disabled><ChevronRight className="h-4 w-4 rotate-180" /></Button>
-                                <Button size="icon" className="h-8 w-8 bg-blue-900 hover:bg-blue-800">1</Button>
-                                <Button variant="outline" size="icon" className="h-8 w-8 disabled:opacity-30" disabled><ChevronRight className="h-4 w-4" /></Button>
-                            </div>
-                        </div>
                     </TabsContent>
 
                     <TabsContent value="summary" className="p-10 text-center text-muted-foreground italic">
