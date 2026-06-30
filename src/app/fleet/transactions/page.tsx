@@ -412,7 +412,7 @@ export default function FleetTransactionsPage() {
                                     <TableRow className="hover:bg-transparent">
                                         <TableHead className="w-[120px] font-bold text-blue-900 h-12">Date (BS)</TableHead>
                                         <TableHead className="w-[120px] font-bold text-blue-900">Ref. No.</TableHead>
-                                        <TableHead className="min-w-[300px] font-bold text-blue-900">Particulars</TableHead>
+                                        <TableHead className="min-w-[300px] font-bold text-blue-900">Particulars / Description</TableHead>
                                         <TableHead className="w-[150px] font-bold text-blue-900">Vehicle</TableHead>
                                         <TableHead className="w-[140px] font-bold text-blue-900">Category</TableHead>
                                         <TableHead className="text-right w-[140px] font-bold text-blue-900">Debit (Dr)</TableHead>
@@ -441,7 +441,18 @@ export default function FleetTransactionsPage() {
                                                     {entry.refNo}
                                                 </Button>
                                             </TableCell>
-                                            <TableCell className="font-medium text-gray-800">{entry.remarks || entry.type}</TableCell>
+                                            <TableCell className="py-3">
+                                                <div className="flex flex-col gap-1">
+                                                    <span className="font-bold text-gray-900 leading-tight">
+                                                        {entry.remarks || entry.type}
+                                                    </span>
+                                                    {entry.items && entry.items.length > 0 && (
+                                                        <div className="text-[10px] text-muted-foreground italic leading-relaxed line-clamp-2 max-w-[400px]">
+                                                            {entry.items.map(i => i.particular).join(', ')}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </TableCell>
                                             <TableCell>{entry.vehicleName}</TableCell>
                                             <TableCell>
                                                 <Badge variant="outline" className={cn(
