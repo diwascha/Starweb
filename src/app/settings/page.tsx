@@ -62,7 +62,8 @@ import {
   Eye,
   AlertCircle,
   X,
-  ImageIcon
+  ImageIcon,
+  Link as LinkIcon
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -371,7 +372,6 @@ export default function SettingsPage() {
           const path = `branding/${type}-logo-${timestamp}`;
           const url = await uploadFile(file, path);
           
-          // Append timestamp correctly handling existing query params
           const finalUrl = url.includes('?') ? `${url}&t=${timestamp}` : `${url}?t=${timestamp}`;
           
           if (type === 'main') {
@@ -388,17 +388,11 @@ export default function SettingsPage() {
               await setSetting('appBranding', updated);
           }
           
-          toast({ title: "Logo Updated", description: "The branding has been successfully updated across the system." });
+          toast({ title: "Logo Updated", description: "The branding has been successfully updated." });
       } catch (error: any) {
           console.error("Logo upload error:", error);
           logError(error, "Settings - Logo Upload");
-          
-          let description = "Check your connection and file type.";
-          if (error.message && error.message.includes('CORS')) {
-              description = "Bucket CORS policy is blocking the upload. Please configure CORS in Firebase Console.";
-          }
-          
-          toast({ title: "Upload Failed", description, variant: 'destructive' });
+          toast({ title: "Upload Failed", description: "Try using the URL input instead if Storage is restricted.", variant: 'destructive' });
       }
   };
 
@@ -460,7 +454,7 @@ export default function SettingsPage() {
 
         } catch (error) {
             console.error("Import failed:", error);
-            toast({ title: 'Import Failed', description: 'Could not restore data from the selected file. Ensure it is a valid backup.', variant: 'destructive' });
+            toast({ title: 'Import Failed', description: 'Could not restore data from the selected file.', variant: 'destructive' });
             setIsImporting(false);
         }
     };
@@ -512,7 +506,7 @@ export default function SettingsPage() {
             await updateParty(editingParty.id, { ...partyForm, lastModifiedBy: user.username });
             toast({title: 'Success', description: 'Party updated.'});
         } else {
-            const newPartyId = await addParty({...partyForm, createdBy: user.username});
+            await addParty({...partyForm, createdBy: user.username});
             toast({title: 'Success', description: 'New party added.'});
         }
         setIsPartyDialogOpen(false);
@@ -533,16 +527,9 @@ export default function SettingsPage() {
   const handleMergeParties = async (sourceId: string, destinationId: string) => {
       try {
           await mergeParties(sourceId, destinationId);
-          toast({
-              title: "Merge Successful",
-              description: "The duplicate party has been merged and its records reassigned."
-          });
+          toast({ title: "Merge Successful" });
       } catch (error: any) {
-          toast({
-              title: "Merge Failed",
-              description: error.message || "An unexpected error occurred.",
-              variant: "destructive",
-          });
+          toast({ title: "Merge Failed", description: error.message, variant: "destructive" });
       }
   };
   
@@ -574,7 +561,7 @@ export default function SettingsPage() {
           return;
       }
        if (accountForm.type === 'Bank' && (!accountForm.bankName || !accountForm.accountNumber)) {
-          toast({ title: 'Error', description: 'Bank Name and Account Number are required for bank accounts.', variant: 'destructive' });
+          toast({ title: 'Error', description: 'Bank Name and Account Number are required.', variant: 'destructive' });
           return;
       }
       try {
@@ -585,7 +572,6 @@ export default function SettingsPage() {
               await addAccount({ ...accountForm, createdBy: user.username });
               toast({title: 'Success', description: 'New account added.'});
           }
-          
           setIsAccountDialogOpen(false);
       } catch {
            toast({title: 'Error', description: 'Failed to add account.', variant: 'destructive'});
@@ -746,7 +732,7 @@ export default function SettingsPage() {
                 updateUserPassword(currentUser.id, newPassword);
             }
         }
-        toast({ title: 'Success', description: 'Password updated successfully. Please log in again.' });
+        toast({ title: 'Success', description: 'Password updated. Please log in again.' });
         setIsChangePasswordDialogOpen(false);
         await logout();
 
@@ -771,26 +757,14 @@ export default function SettingsPage() {
     const total = pageVisits.reduce((sum, v) => sum + v.count, 0);
     const sorted = [...pageVisits].sort((a, b) => b.count - a.count);
     const top5 = sorted.slice(0, 5);
-    
     return { total, top5 };
   }, [pageVisits]);
 
   const filteredDetailedUsage = useMemo(() => {
     let filtered = [...pageVisits];
-    
-    if (usageSearch) {
-        const query = usageSearch.toLowerCase();
-        filtered = filtered.filter(v => v.path.toLowerCase().includes(query));
-    }
-    
-    if (usageFilterYear !== 'All') {
-        filtered = filtered.filter(v => new Date(v.lastVisited).getFullYear() === parseInt(usageFilterYear));
-    }
-    
-    if (usageFilterMonth !== 'All') {
-        filtered = filtered.filter(v => new Date(v.lastVisited).getMonth() === parseInt(usageFilterMonth));
-    }
-    
+    if (usageSearch) filtered = filtered.filter(v => v.path.toLowerCase().includes(usageSearch.toLowerCase()));
+    if (usageFilterYear !== 'All') filtered = filtered.filter(v => new Date(v.lastVisited).getFullYear() === parseInt(usageFilterYear));
+    if (usageFilterMonth !== 'All') filtered = filtered.filter(v => new Date(v.lastVisited).getMonth() === parseInt(usageFilterMonth));
     filtered.sort((a, b) => {
         const aVal = a[usageSortConfig.key];
         const bVal = b[usageSortConfig.key];
@@ -798,7 +772,6 @@ export default function SettingsPage() {
         if (aVal > bVal) return usageSortConfig.dir === 'asc' ? 1 : -1;
         return 0;
     });
-    
     return filtered;
   }, [pageVisits, usageSearch, usageSortConfig, usageFilterYear, usageFilterMonth]);
 
@@ -807,21 +780,14 @@ export default function SettingsPage() {
     return ['All', ...Array.from(years).sort((a, b) => b - a).map(String)];
   }, [pageVisits]);
 
-  const usageChartConfig: ChartConfig = {
-    count: { label: 'Visits', color: 'hsl(var(--primary))' },
-  };
-
   const handleUsageSort = (key: 'count' | 'path' | 'lastVisited') => {
-    setUsageSortConfig(prev => ({
-        key,
-        dir: prev.key === key && prev.dir === 'desc' ? 'asc' : 'desc'
-    }));
+    setUsageSortConfig(prev => ({ key, dir: prev.key === key && prev.dir === 'desc' ? 'asc' : 'desc' }));
   };
 
   if (isLoading) {
     return (
-      <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
-        <div className="flex flex-col items-center gap-1 text-center"><h3 className="text-2xl font-bold tracking-tight">Loading Settings...</h3></div>
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
   }
@@ -918,52 +884,26 @@ export default function SettingsPage() {
                         <Card>
                             <CardHeader>
                                 <CardTitle>Backup & Restore</CardTitle>
-                                <CardDescription>Export your application data or restore it from a backup file.</CardDescription>
+                                <CardDescription>Export your data or restore from a JSON file.</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
-                                <div>
-                                    <h3 className="font-medium">Export Data</h3>
-                                    <p className="text-sm text-muted-foreground mb-2">Download a complete backup of your database in JSON format. Keep this file in a safe place.</p>
-                                    <Button onClick={handleExportData} disabled={isExporting}>
-                                        {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-                                        {isExporting ? 'Exporting...' : 'Export All Data'}
-                                    </Button>
-                                </div>
-                                <div className="pt-4 border-t">
-                                    <h3 className="font-medium">Restore Data</h3>
-                                    <p className="text-sm text-muted-foreground mb-2">
-                                        Select a JSON backup file to restore your application's data.
-                                    </p>
-                                    <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                            <Button variant="destructive-outline" disabled={isImporting}>
-                                                {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                                                {isImporting ? 'Importing...' : 'Import from Backup'}
-                                            </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                                <AlertDialogDescription>
-                                                    This action cannot be undone. Restoring from a backup will <span className="font-bold text-destructive">completely overwrite all current data</span> in the application. Proceed with caution.
-                                                </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                <AlertDialogAction onClick={() => importFileRef.current?.click()}>
-                                                    Choose File & Continue
-                                                </AlertDialogAction>
-                                            </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
-                                    <Input
-                                        type="file"
-                                        ref={importFileRef}
-                                        className="hidden"
-                                        accept="application/json"
-                                        onChange={handleImportFileSelect}
-                                    />
-                                </div>
+                                <Button onClick={handleExportData} disabled={isExporting} className="gap-2">
+                                    {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                                    Export All Data
+                                </Button>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="destructive-outline" disabled={isImporting} className="ml-2 gap-2">
+                                            {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                                            Import from Backup
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader><AlertDialogTitle>Confirm Overwrite</AlertDialogTitle><AlertDialogDescription>Importing will overwrite all existing data. This cannot be reversed.</AlertDialogDescription></AlertDialogHeader>
+                                        <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => importFileRef.current?.click()}>Continue</AlertDialogAction></AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                                <input type="file" ref={importFileRef} className="hidden" accept=".json" onChange={handleImportFileSelect} />
                             </CardContent>
                         </Card>
                         </>
@@ -975,7 +915,7 @@ export default function SettingsPage() {
                     <CardHeader className="flex flex-row items-center justify-between">
                         <div className="space-y-1">
                             <CardTitle>System Identity</CardTitle>
-                            <CardDescription>Customize the core application name, motto, and logo.</CardDescription>
+                            <CardDescription>Configure core branding using URLs or direct uploads.</CardDescription>
                         </div>
                         <Button onClick={handleSaveAppBranding} disabled={isSavingBranding}>
                             {isSavingBranding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
@@ -988,22 +928,24 @@ export default function SettingsPage() {
                                 <Label>Application Logo</Label>
                                 <div className="w-32 h-32 rounded-xl border border-dashed flex items-center justify-center bg-muted/30 overflow-hidden group relative">
                                     {appBranding.appLogoURL ? (
-                                        <img 
-                                            key={appBranding.appLogoURL}
-                                            src={appBranding.appLogoURL} 
-                                            alt="App Logo" 
-                                            className="w-full h-full object-contain" 
-                                            crossOrigin="anonymous"
-                                        />
+                                        <img src={appBranding.appLogoURL} alt="App Logo" className="w-full h-full object-contain" crossOrigin="anonymous" />
                                     ) : (
                                         <ImageIcon className="h-12 w-12 text-muted-foreground opacity-20" />
                                     )}
                                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                                        <Button variant="secondary" size="sm" className="h-8 text-[10px]" onClick={() => appLogoInputRef.current?.click()}>Change Logo</Button>
+                                        <Button variant="secondary" size="sm" className="h-8 text-[10px]" onClick={() => appLogoInputRef.current?.click()}>Upload File</Button>
                                     </div>
                                 </div>
                                 <input type="file" ref={appLogoInputRef} className="hidden" accept="image/*" onChange={e => e.target.files?.[0] && handleLogoUpload(e.target.files[0], 'app')} />
-                                <p className="text-[10px] text-muted-foreground uppercase font-bold text-center">System Primary Icon</p>
+                                <div className="space-y-1">
+                                    <Label className="text-[10px] uppercase text-muted-foreground">Or Direct URL</Label>
+                                    <Input 
+                                        placeholder="https://..." 
+                                        className="h-8 text-[10px]" 
+                                        value={appBranding.appLogoURL} 
+                                        onChange={e => setAppBranding(prev => ({...prev, appLogoURL: e.target.value}))} 
+                                    />
+                                </div>
                             </div>
                             <div className="flex-1 space-y-6 w-full">
                                 <div className="space-y-2">
@@ -1012,7 +954,7 @@ export default function SettingsPage() {
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="app-motto">App Tagline / Motto</Label>
-                                    <Input id="app-motto" value={appBranding.appMotto} onChange={e => setAppBranding(prev => ({ ...prev, appMotto: e.target.value }))} placeholder="e.g. Empowering Business with Precision" />
+                                    <Input id="app-motto" value={appBranding.appMotto} onChange={e => setAppBranding(prev => ({ ...prev, appMotto: e.target.value }))} />
                                 </div>
                             </div>
                         </div>
@@ -1023,10 +965,7 @@ export default function SettingsPage() {
                 <div className="space-y-8">
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between">
-                            <div className="space-y-1">
-                                <CardTitle>Main Company Profile (Production)</CardTitle>
-                                <CardDescription>Branding used for Reports, Payslips, CRM, and Finance.</CardDescription>
-                            </div>
+                            <div className="space-y-1"><CardTitle>Production Company Profile</CardTitle><CardDescription>Branding for Reports, Payslips and CRM.</CardDescription></div>
                             <Button onClick={handleSaveCompanyProfile} disabled={isSavingProfile}>
                                 {isSavingProfile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                                 Save Profile
@@ -1035,60 +974,33 @@ export default function SettingsPage() {
                         <CardContent className="space-y-6">
                             <div className="flex flex-col md:flex-row gap-8">
                                 <div className="space-y-4">
-                                    <Label>Shivam Packaging Logo</Label>
+                                    <Label>Shivam Logo</Label>
                                     <div className="w-40 h-40 rounded-lg border border-dashed flex items-center justify-center bg-muted/30 overflow-hidden group relative">
                                         {companyProfile.logoURL ? (
-                                            <img 
-                                                key={companyProfile.logoURL}
-                                                src={companyProfile.logoURL} 
-                                                alt="Shivam Logo" 
-                                                className="w-full h-full object-contain" 
-                                                crossOrigin="anonymous"
-                                            />
+                                            <img src={companyProfile.logoURL} alt="Shivam Logo" className="w-full h-full object-contain" crossOrigin="anonymous" />
                                         ) : (
                                             <ImageIcon className="h-16 w-16 text-muted-foreground opacity-20" />
                                         )}
                                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                                            <Button variant="secondary" size="sm" onClick={() => mainLogoInputRef.current?.click()}>Upload Logo</Button>
+                                            <Button variant="secondary" size="sm" onClick={() => mainLogoInputRef.current?.click()}>Upload File</Button>
                                         </div>
                                     </div>
                                     <input type="file" ref={mainLogoInputRef} className="hidden" accept="image/*" onChange={e => e.target.files?.[0] && handleLogoUpload(e.target.files[0], 'main')} />
+                                    <div className="space-y-1">
+                                        <Label className="text-[10px] uppercase text-muted-foreground">Or Direct URL</Label>
+                                        <Input 
+                                            placeholder="https://..." 
+                                            className="h-8 text-[10px]" 
+                                            value={companyProfile.logoURL || ''} 
+                                            onChange={e => setCompanyProfile(prev => ({...prev, logoURL: e.target.value}))} 
+                                        />
+                                    </div>
                                 </div>
                                 <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="co-name-en">Company Name (English)</Label>
-                                        <Input 
-                                            id="co-name-en" 
-                                            value={companyProfile.nameEn} 
-                                            onChange={e => setCompanyProfile(prev => ({...prev, nameEn: e.target.value}))} 
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="co-name-np">Company Name (Nepali Unicode)</Label>
-                                        <Input 
-                                            id="co-name-np" 
-                                            value={companyProfile.nameNp} 
-                                            onChange={e => setCompanyProfile(prev => ({...prev, nameNp: e.target.value}))} 
-                                            className="font-body" 
-                                            placeholder="Manually type company name in Nepali"
-                                        />
-                                    </div>
-                                    <div className="space-y-2 md:col-span-2">
-                                        <Label htmlFor="co-address">Business Address</Label>
-                                        <Input id="co-address" value={companyProfile.address} onChange={e => setCompanyProfile(prev => ({...prev, address: e.target.value}))} />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="co-phone">Contact Phone</Label>
-                                        <Input id="co-phone" value={companyProfile.phone} onChange={e => setCompanyProfile(prev => ({...prev, phone: e.target.value}))} />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="co-email">Contact Email</Label>
-                                        <Input id="co-email" type="email" value={companyProfile.email} onChange={e => setCompanyProfile(prev => ({...prev, email: e.target.value}))} />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="co-pan">PAN Number</Label>
-                                        <Input id="co-pan" value={companyProfile.pan} onChange={e => setCompanyProfile(prev => ({...prev, pan: e.target.value}))} />
-                                    </div>
+                                    <div className="space-y-2"><Label>Name (EN)</Label><Input value={companyProfile.nameEn} onChange={e => setCompanyProfile(prev => ({...prev, nameEn: e.target.value}))} /></div>
+                                    <div className="space-y-2"><Label>Name (NP)</Label><Input value={companyProfile.nameNp} onChange={e => setCompanyProfile(prev => ({...prev, nameNp: e.target.value}))} className="font-body" /></div>
+                                    <div className="space-y-2 md:col-span-2"><Label>Address</Label><Input value={companyProfile.address} onChange={e => setCompanyProfile(prev => ({...prev, address: e.target.value}))} /></div>
+                                    <div className="space-y-2"><Label>PAN</Label><Input value={companyProfile.pan} onChange={e => setCompanyProfile(prev => ({...prev, pan: e.target.value}))} /></div>
                                 </div>
                             </div>
                         </CardContent>
@@ -1096,10 +1008,7 @@ export default function SettingsPage() {
 
                     <Card className="border-l-4 border-l-blue-500">
                         <CardHeader className="flex flex-row items-center justify-between">
-                            <div className="space-y-1">
-                                <CardTitle>Fleet Management Profile (Independent)</CardTitle>
-                                <CardDescription>Used exclusively for Sijan Dhuwani vouchers and reports.</CardDescription>
-                            </div>
+                            <div className="space-y-1"><CardTitle>Fleet Company Profile</CardTitle><CardDescription>Branding for Sijan Dhuwani.</CardDescription></div>
                             <Button onClick={handleSaveFleetProfile} disabled={isSavingFleetProfile}>
                                 {isSavingFleetProfile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                                 Save Fleet Profile
@@ -1108,60 +1017,33 @@ export default function SettingsPage() {
                         <CardContent className="space-y-6">
                             <div className="flex flex-col md:flex-row gap-8">
                                 <div className="space-y-4">
-                                    <Label>Sijan Dhuwani Logo</Label>
+                                    <Label>Sijan Logo</Label>
                                     <div className="w-40 h-40 rounded-lg border border-dashed flex items-center justify-center bg-muted/30 overflow-hidden group relative">
                                         {fleetProfile.logoURL ? (
-                                            <img 
-                                                key={fleetProfile.logoURL}
-                                                src={fleetProfile.logoURL} 
-                                                alt="Sijan Logo" 
-                                                className="w-full h-full object-contain" 
-                                                crossOrigin="anonymous"
-                                            />
+                                            <img src={fleetProfile.logoURL} alt="Sijan Logo" className="w-full h-full object-contain" crossOrigin="anonymous" />
                                         ) : (
                                             <ImageIcon className="h-16 w-16 text-muted-foreground opacity-20" />
                                         )}
                                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                                            <Button variant="secondary" size="sm" onClick={() => fleetLogoInputRef.current?.click()}>Upload Logo</Button>
+                                            <Button variant="secondary" size="sm" onClick={() => fleetLogoInputRef.current?.click()}>Upload File</Button>
                                         </div>
                                     </div>
                                     <input type="file" ref={fleetLogoInputRef} className="hidden" accept="image/*" onChange={e => e.target.files?.[0] && handleLogoUpload(e.target.files[0], 'fleet')} />
+                                    <div className="space-y-1">
+                                        <Label className="text-[10px] uppercase text-muted-foreground">Or Direct URL</Label>
+                                        <Input 
+                                            placeholder="https://..." 
+                                            className="h-8 text-[10px]" 
+                                            value={fleetProfile.logoURL || ''} 
+                                            onChange={e => setFleetProfile(prev => ({...prev, logoURL: e.target.value}))} 
+                                        />
+                                    </div>
                                 </div>
                                 <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="fleet-name-en">Fleet Company Name (English)</Label>
-                                        <Input 
-                                            id="fleet-name-en" 
-                                            value={fleetProfile.nameEn} 
-                                            onChange={e => setFleetProfile(prev => ({...prev, nameEn: e.target.value}))} 
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="fleet-name-np">Fleet Company Name (Nepali Unicode)</Label>
-                                        <Input 
-                                            id="fleet-name-np" 
-                                            value={fleetProfile.nameNp} 
-                                            onChange={e => setFleetProfile(prev => ({...prev, nameNp: e.target.value}))} 
-                                            className="font-body" 
-                                            placeholder="Manually type company name in Nepali"
-                                        />
-                                    </div>
-                                    <div className="space-y-2 md:col-span-2">
-                                        <Label htmlFor="fleet-address">Business Address</Label>
-                                        <Input id="fleet-address" value={fleetProfile.address} onChange={e => setFleetProfile(prev => ({...prev, address: e.target.value}))} />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="fleet-phone">Contact Phone</Label>
-                                        <Input id="fleet-phone" value={fleetProfile.phone} onChange={e => setFleetProfile(prev => ({...prev, phone: e.target.value}))} />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="fleet-email">Contact Email</Label>
-                                        <Input id="fleet-email" type="email" value={fleetProfile.email} onChange={e => setFleetProfile(prev => ({...prev, email: e.target.value}))} />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="fleet-pan">PAN Number</Label>
-                                        <Input id="fleet-pan" value={fleetProfile.pan} onChange={e => setFleetProfile(prev => ({...prev, pan: e.target.value}))} />
-                                    </div>
+                                    <div className="space-y-2"><Label>Name (EN)</Label><Input value={fleetProfile.nameEn} onChange={e => setFleetProfile(prev => ({...prev, nameEn: e.target.value}))} /></div>
+                                    <div className="space-y-2"><Label>Name (NP)</Label><Input value={fleetProfile.nameNp} onChange={e => setFleetProfile(prev => ({...prev, nameNp: e.target.value}))} className="font-body" /></div>
+                                    <div className="space-y-2 md:col-span-2"><Label>Address</Label><Input value={fleetProfile.address} onChange={e => setFleetProfile(prev => ({...prev, address: e.target.value}))} /></div>
+                                    <div className="space-y-2"><Label>PAN</Label><Input value={fleetProfile.pan} onChange={e => setFleetProfile(prev => ({...prev, pan: e.target.value}))} /></div>
                                 </div>
                             </div>
                         </CardContent>
@@ -1171,189 +1053,63 @@ export default function SettingsPage() {
             <TabsContent value="parties">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between">
-                        <div>
-                            <CardTitle>Vendors & Suppliers</CardTitle>
-                            <CardDescription>A list of all vendors and suppliers.</CardDescription>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Button variant="outline" onClick={() => setIsMergeDialogOpen(true)}><GitMerge className="mr-2 h-4 w-4"/> Merge Duplicates</Button>
-                            <Button onClick={() => openPartyDialog()}><Plus className="mr-2 h-4 w-4" /> Add Party</Button>
+                        <div><CardTitle>Vendors & Suppliers</CardTitle><CardDescription>Master list of partners.</CardDescription></div>
+                        <div className="flex gap-2">
+                            <Button variant="outline" onClick={() => setIsMergeDialogOpen(true)}><GitMerge className="mr-2 h-4 w-4"/> Merge</Button>
+                            <Button onClick={() => openPartyDialog()}><Plus className="mr-2 h-4 w-4" /> Add</Button>
                         </div>
                     </CardHeader>
                     <CardContent>
-                        <Table><TableHeader><TableRow>
-                            <TableHead>Name</TableHead><TableHead>Type</TableHead><TableHead>Ownership</TableHead><TableHead>Address</TableHead><TableHead>PAN</TableHead><TableHead className="text-right">Actions</TableHead>
-                        </TableRow></TableHeader><TableBody>
+                        <Table><TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Type</TableHead><TableHead>Ownership</TableHead><TableHead>Address</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>
                         {filteredParties.map(party => (
-                            <TableRow key={party.id}>
-                                <TableCell className="font-medium">{party.name}</TableCell>
-                                <TableCell><Badge variant="outline">{party.type}</Badge></TableCell>
-                                <TableCell>
-                                    <Badge variant={party.ownership === 'Both' ? 'secondary' : 'default'} className={cn(
-                                        party.ownership === 'Sijan' && 'bg-blue-100 text-blue-800 border-blue-200',
-                                        party.ownership === 'Shivam' && 'bg-green-100 text-green-800 border-green-200'
-                                    )}>
-                                        {party.ownership}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell>{party.address}</TableCell><TableCell>{party.panNumber}</TableCell>
-                                <TableCell className="text-right">
-                                    <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        <DropdownMenuItem onSelect={() => openPartyDialog(party)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
-                                        <DropdownMenuSeparator />
-                                        <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()}><Trash2 className="mr-2 h-4 w-4 text-destructive" /> <span className="text-destructive">Delete</span></DropdownMenuItem></AlertDialogTrigger>
-                                        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the party record.</AlertDialogDescription></AlertDialogHeader>
-                                        <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteParty(party.id)}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
-                                    </DropdownMenuContent></DropdownMenu>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                        </TableBody></Table>
+                            <TableRow key={party.id}><TableCell>{party.name}</TableCell><TableCell><Badge variant="outline">{party.type}</Badge></TableCell><TableCell><Badge>{party.ownership}</Badge></TableCell><TableCell>{party.address}</TableCell><TableCell className="text-right">
+                                <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onSelect={() => openPartyDialog(party)}>Edit</DropdownMenuItem>
+                                    <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive">Delete</DropdownMenuItem></AlertDialogTrigger><AlertDialogContent>
+                                        <AlertDialogHeader><AlertDialogTitle>Delete party?</AlertDialogTitle><AlertDialogDescription>This removes the record permanently.</AlertDialogDescription></AlertDialogHeader>
+                                        <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteParty(party.id)}>Delete</AlertDialogAction></AlertDialogFooter>
+                                    </AlertDialogContent></AlertDialog>
+                                </DropdownMenuContent></DropdownMenu>
+                            </TableCell></TableRow>
+                        ))}</TableBody></Table>
                     </CardContent>
                 </Card>
             </TabsContent>
             <TabsContent value="accounts">
                 <Card>
-                    <CardHeader>
-                        <div className="flex flex-row items-center justify-between">
-                            <div>
-                                <CardTitle>Accounts</CardTitle>
-                                <CardDescription>Manage cash and bank accounts with mandatory ownership tagging (Sijan/Shivam).</CardDescription>
-                            </div>
-                            <Button onClick={() => openAccountDialog()}><Plus className="mr-2 h-4 w-4" /> Add Account</Button>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                         <Table><TableHeader><TableRow>
-                            <TableHead>Name</TableHead><TableHead>Type</TableHead><TableHead>Ownership</TableHead><TableHead>Bank</TableHead><TableHead>Account Number</TableHead><TableHead className="text-right">Actions</TableHead>
-                        </TableRow></TableHeader><TableBody>
-                        {filteredAccounts.map(acc => (
-                            <TableRow key={acc.id}>
-                                <TableCell className="font-medium">{acc.name}</TableCell>
-                                <TableCell><Badge variant="outline">{acc.type}</Badge></TableCell>
-                                <TableCell>
-                                    <Badge variant={acc.ownership === 'Both' ? 'secondary' : 'default'} className={cn(
-                                        acc.ownership === 'Sijan' && 'bg-blue-100 text-blue-800 border-blue-200',
-                                        acc.ownership === 'Shivam' && 'bg-green-100 text-green-800 border-green-200'
-                                    )}>
-                                        {acc.ownership}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell>{acc.bankName || 'N/A'}</TableCell><TableCell>{acc.accountNumber || 'N/A'}</TableCell>
-                                <TableCell className="text-right">
-                                     <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        <DropdownMenuItem onSelect={() => openAccountDialog(acc)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
-                                        <DropdownMenuSeparator />
-                                        <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()}><Trash2 className="mr-2 h-4 w-4 text-destructive" /> <span className="text-destructive">Delete</span></DropdownMenuItem></AlertDialogTrigger>
-                                        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the account record.</AlertDialogDescription></AlertDialogHeader>
-                                        <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteAccount(acc.id)}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
-                                    </DropdownMenuContent></DropdownMenu>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                        </TableBody></Table>
-                    </CardContent>
-                </Card>
-            </TabsContent>
-            <TabsContent value="uom">
-                <Card>
                     <CardHeader className="flex flex-row items-center justify-between">
-                        <div>
-                            <CardTitle>Units of Measurement</CardTitle>
-                            <CardDescription>Manage UoMs used across the application.</CardDescription>
-                        </div>
-                        <Button onClick={() => openUomDialog()}><Plus className="mr-2 h-4 w-4" /> Add Unit</Button>
+                        <div><CardTitle>Accounts</CardTitle><CardDescription>Manage banking details.</CardDescription></div>
+                        <Button onClick={() => openAccountDialog()}><Plus className="mr-2 h-4 w-4" /> Add</Button>
                     </CardHeader>
                     <CardContent>
-                         <Table><TableHeader><TableRow>
-                            <TableHead>Name</TableHead><TableHead>Abbreviation</TableHead><TableHead className="text-right">Actions</TableHead>
-                        </TableRow></TableHeader><TableBody>
-                        {filteredUoms.map(uom => (
-                            <TableRow key={uom.id}>
-                                <TableCell>{uom.name}</TableCell><TableCell>{uom.abbreviation}</TableCell>
-                                <TableCell className="text-right">
-                                     <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        <DropdownMenuItem onSelect={() => openUomDialog(uom)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
-                                        <DropdownMenuSeparator />
-                                        <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()}><Trash2 className="mr-2 h-4 w-4 text-destructive" /> <span className="text-destructive">Delete</span></DropdownMenuItem></AlertDialogTrigger>
-                                        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the unit.</AlertDialogDescription></AlertDialogHeader>
-                                        <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteUom(uom.id)}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
-                                    </DropdownMenuContent></DropdownMenu>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                        </TableBody></Table>
+                        <Table><TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Type</TableHead><TableHead>Ownership</TableHead><TableHead>Account #</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>
+                        {filteredAccounts.map(acc => (
+                            <TableRow key={acc.id}><TableCell>{acc.name}</TableCell><TableCell>{acc.type}</TableCell><TableCell><Badge>{acc.ownership}</Badge></TableCell><TableCell>{acc.accountNumber || '-'}</TableCell><TableCell className="text-right">
+                                <Button variant="ghost" size="icon" onClick={() => openAccountDialog(acc)}><Edit className="h-4 w-4" /></Button>
+                                <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteAccount(acc.id)}><Trash2 className="h-4 w-4" /></Button>
+                            </TableCell></TableRow>
+                        ))}</TableBody></Table>
                     </CardContent>
                 </Card>
             </TabsContent>
+            <TabsContent value="uom"><Card><CardHeader className="flex flex-row items-center justify-between"><div><CardTitle>Units</CardTitle><CardDescription>UoM master list.</CardDescription></div><Button onClick={() => openUomDialog()}><Plus className="mr-2 h-4 w-4" /> Add</Button></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Abbr.</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{filteredUoms.map(u => (<TableRow key={u.id}><TableCell>{u.name}</TableCell><TableCell>{u.abbreviation}</TableCell><TableCell className="text-right"><Button variant="ghost" size="icon" onClick={() => openUomDialog(u)}><Edit className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteUom(u.id)}><Trash2 className="h-4 w-4" /></TableCell></TableRow>))}</TableBody></Table></CardContent></Card></TabsContent>
             <TabsContent value="document-numbering">
                 <Card>
-                    <CardHeader>
-                        <CardTitle>Document Numbering</CardTitle>
-                        <CardDescription>Configure prefixes for auto-generated document numbers.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Document Type</TableHead>
-                                    <TableHead>Prefix</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {documentTypes.map(type => (
-                                    <TableRow key={type}>
-                                        <TableCell>{getDocumentName(type)}</TableCell>
-                                        <TableCell>{prefixes[type] || 'Not Set'}</TableCell>
-                                        <TableCell className="text-right">
-                                            <Button variant="outline" size="sm" onClick={() => handleOpenPrefixDialog(type)}>
-                                                <Edit className="mr-2 h-4 w-4" /> Edit
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
+                    <CardHeader><CardTitle>Document Prefixes</CardTitle></CardHeader>
+                    <CardContent><Table><TableHeader><TableRow><TableHead>Document</TableHead><TableHead>Prefix</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>
+                        {documentTypes.map(t => (<TableRow key={t}><TableCell>{getDocumentName(t)}</TableCell><TableCell>{prefixes[t] || '-'}</TableCell><TableCell className="text-right"><Button variant="outline" size="sm" onClick={() => handleOpenPrefixDialog(t)}>Edit</Button></TableCell></TableRow>))}
+                    </TableBody></Table></CardContent>
                 </Card>
             </TabsContent>
             <TabsContent value="payroll-settings">
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>Payroll Settings</CardTitle>
-                        <CardDescription>Configure payroll calculation and data integrity settings.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="p-4 border rounded-lg">
-                            <h3 className="font-medium mb-2">Lock Payroll Data</h3>
-                            <p className="text-sm text-muted-foreground mb-4">
-                                Lock a specific month to prevent accidental recalculation or editing of historical payroll data. This ensures data integrity for past periods.
-                            </p>
-                            <div className="flex flex-col sm:flex-row items-center gap-2">
-                                <Select value={selectedLockYear} onValueChange={setSelectedLockYear} disabled={bsYears.length === 0}>
-                                    <SelectTrigger className="w-full sm:w-[120px]"><SelectValue placeholder="Year (BS)" /></SelectTrigger>
-                                    <SelectContent>{bsYears.map(year => <SelectItem key={year} value={String(year)}>{year}</SelectItem>)}</SelectContent>
-                                </Select>
-                                <Select value={selectedLockMonth} onValueChange={setSelectedLockMonth} disabled={bsYears.length === 0}>
-                                    <SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Month (BS)" /></SelectTrigger>
-                                    <SelectContent>{NEPALI_MONTHS.map(month => <SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>)}</SelectContent>
-                                </Select>
-                                <Button onClick={handleTogglePayrollLock} variant={isCurrentPeriodLocked ? 'destructive' : 'default'} className="w-full sm:w-auto">
-                                    {isCurrentPeriodLocked ? <><Unlock className="mr-2 h-4 w-4"/> Unlock Period</> : <><Lock className="mr-2 h-4 w-4"/> Lock Period</>}
-                                </Button>
-                            </div>
-                            {selectedLockYear && selectedLockMonth && (
-                                <p className="text-sm mt-2 font-semibold">
-                                    Status for {NEPALI_MONTHS.find(m => m.value.toString() === selectedLockMonth)?.name}, {selectedLockYear}: 
-                                    <span className={isCurrentPeriodLocked ? 'text-destructive' : 'text-green-600'}>
-                                        {isCurrentPeriodLocked ? ' Locked' : ' Unlocked'}
-                                    </span>
-                                </p>
-                            )}
+                <Card>
+                    <CardHeader><CardTitle>Lock Control</CardTitle><CardDescription>Prevent edits to closed periods.</CardDescription></CardHeader>
+                    <CardContent>
+                        <div className="flex gap-2">
+                            <Select value={selectedLockYear} onValueChange={setSelectedLockYear}><SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger><SelectContent>{bsYears.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent></Select>
+                            <Select value={selectedLockMonth} onValueChange={setSelectedLockMonth}><SelectTrigger className="w-[150px]"><SelectValue /></SelectTrigger><SelectContent>{NEPALI_MONTHS.map(m => <SelectItem key={m.value} value={String(m.value)}>{m.name}</SelectItem>)}</SelectContent></Select>
+                            <Button onClick={handleTogglePayrollLock} variant={isCurrentPeriodLocked ? 'destructive' : 'default'}>{isCurrentPeriodLocked ? 'Unlock' : 'Lock'}</Button>
                         </div>
                     </CardContent>
                 </Card>
@@ -1361,174 +1117,27 @@ export default function SettingsPage() {
             <TabsContent value="usage-analytics">
                 <div className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <Card>
-                            <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-medium">Total Page Visits</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold">{(usageStats.total || 0).toLocaleString()}</div>
-                                <p className="text-xs text-muted-foreground">Lifetime interactions</p>
-                            </CardContent>
-                        </Card>
+                        <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Total Visits</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{usageStats.total}</div></CardContent></Card>
                         <Card className="md:col-span-2">
-                            <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-medium">Top 5 Most Visited</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <ChartContainer config={usageChartConfig} className="h-[100px] w-full">
-                                    <BarChart data={usageStats.top5} layout="vertical" margin={{ left: 40 }}>
-                                        <XAxis type="number" hide />
-                                        <YAxis dataKey="path" type="category" width={100} tick={{ fontSize: 9 }} />
-                                        <Tooltip content={<ChartTooltipContent />} />
-                                        <Bar dataKey="count" fill="var(--color-count)" radius={[0, 4, 4, 0]} />
-                                    </BarChart>
-                                </ChartContainer>
+                            <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Detailed Engagement</CardTitle></CardHeader>
+                            <CardContent className="p-0">
+                                <Table className="text-[10px]"><TableHeader><TableRow><TableHead onClick={() => handleUsageSort('path')} className="cursor-pointer">Path</TableHead><TableHead onClick={() => handleUsageSort('count')} className="cursor-pointer text-right">Visits</TableHead><TableHead onClick={() => handleUsageSort('lastVisited')} className="cursor-pointer text-right">Last Visit</TableHead></TableRow></TableHeader><TableBody>
+                                    {filteredDetailedUsage.map(v => (<TableRow key={v.id}><TableCell className="font-mono">{v.path}</TableCell><TableCell className="text-right">{v.count}</TableCell><TableCell className="text-right">{format(new Date(v.lastVisited), 'MMM d, p')}</TableCell></TableRow>))}
+                                </TableBody></Table>
                             </CardContent>
                         </Card>
                     </div>
-
-                    <Card>
-                        <CardHeader>
-                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                                <div>
-                                    <CardTitle>Detailed Usage Report</CardTitle>
-                                    <CardDescription>Full listing of all application paths and their engagement levels.</CardDescription>
-                                </div>
-                                <div className="flex wrap items-center gap-2">
-                                    <div className="relative">
-                                        <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                                        <Input 
-                                            placeholder="Search path..." 
-                                            value={usageSearch}
-                                            onChange={e => setUsageSearch(e.target.value)}
-                                            className="pl-8 h-9 text-xs w-[180px]" 
-                                        />
-                                    </div>
-                                    <Select value={usageFilterYear} onValueChange={setUsageFilterYear}>
-                                        <SelectTrigger className="h-9 w-[100px] text-xs"><SelectValue placeholder="Year" /></SelectTrigger>
-                                        <SelectContent>
-                                            {usageYears.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                    <Select value={usageFilterMonth} onValueChange={setUsageFilterMonth}>
-                                        <SelectTrigger className="h-9 w-[120px] text-xs"><SelectValue placeholder="Month" /></SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="All">All Months</SelectItem>
-                                            {NEPALI_MONTHS.map(m => <SelectItem key={m.value} value={String(m.value)}>{m.name}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>
-                                            <Button variant="ghost" onClick={() => handleUsageSort('path')} className="h-8 text-xs px-2">
-                                                Path <ArrowUpDown className="ml-2 h-3 w-3" />
-                                            </Button>
-                                        </TableHead>
-                                        <TableHead>
-                                            <Button variant="ghost" onClick={() => handleUsageSort('count')} className="h-8 text-xs px-2">
-                                                Total Visits <ArrowUpDown className="ml-2 h-3 w-3" />
-                                            </Button>
-                                        </TableHead>
-                                        <TableHead>
-                                            <Button variant="ghost" onClick={() => handleUsageSort('lastVisited')} className="h-8 text-xs px-2">
-                                                Last Activity <ArrowUpDown className="ml-2 h-3 w-3" />
-                                            </Button>
-                                        </TableHead>
-                                        <TableHead className="text-right">Engagement</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {filteredDetailedUsage.map((v) => (
-                                        <TableRow key={v.id}>
-                                            <TableCell className="text-xs font-mono">{v.path}</TableCell>
-                                            <TableCell className="font-semibold">{v.count}</TableCell>
-                                            <TableCell className="text-xs text-muted-foreground">
-                                                {toNepaliDate(v.lastVisited)} ({format(new Date(v.lastVisited), 'PPp')})
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                {v.count < 10 ? (
-                                                    <Badge variant="destructive" className="text-[10px] gap-1">
-                                                        <TrendingDown className="h-3 w-3"/> Low Usage
-                                                    </Badge>
-                                                ) : (
-                                                    <Badge variant="outline" className="text-[10px] text-green-600 border-green-600 gap-1">
-                                                        <TrendingUp className="h-3 w-3"/> High Usage
-                                                    </Badge>
-                                                )}
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                    {filteredDetailedUsage.length === 0 && (
-                                        <TableRow>
-                                            <TableCell colSpan={4} className="text-center py-12 text-muted-foreground">
-                                                No usage data matches your filters.
-                                            </TableCell>
-                                        </TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </CardContent>
-                    </Card>
                 </div>
             </TabsContent>
             <TabsContent value="system-logs">
                 <Card>
-                    <CardHeader>
-                        <CardTitle>System Error Logs</CardTitle>
-                        <CardDescription>Real-time report of application crashes and exceptions for debugging.</CardDescription>
-                    </CardHeader>
+                    <CardHeader><CardTitle>Error Logs</CardTitle></CardHeader>
                     <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Time</TableHead>
-                                    <TableHead>Module</TableHead>
-                                    <TableHead>User</TableHead>
-                                    <TableHead>Message</TableHead>
-                                    <TableHead className="text-right">Action</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {logs.map(log => (
-                                    <TableRow key={log.id}>
-                                        <TableCell className="text-xs">{new Date(log.timestamp).toLocaleString()}</TableCell>
-                                        <TableCell><Badge variant="outline">{log.module}</Badge></TableCell>
-                                        <TableCell className="text-xs">{log.username}</TableCell>
-                                        <TableCell className="text-xs font-mono max-w-md truncate">{log.message}</TableCell>
-                                        <TableCell className="text-right">
-                                            <Dialog>
-                                                <DialogTrigger asChild><Button variant="ghost" size="sm"><Eye className="mr-1 h-3 w-3" /> Details</Button></DialogTrigger>
-                                                <DialogContent className="max-w-2xl">
-                                                    <DialogHeader><DialogTitle className="flex items-center gap-2"><AlertCircle className="h-5 w-5 text-destructive" /> Error Context: {log.module}</DialogTitle></DialogHeader>
-                                                    <div className="space-y-4 py-4">
-                                                        <div className="p-4 bg-muted rounded font-mono text-[10px] overflow-auto max-h-96 border">
-                                                            <p className="font-bold text-destructive mb-2 uppercase tracking-widest">{log.message}</p>
-                                                            <Separator className="my-2" />
-                                                            <p className="whitespace-pre-wrap">{log.stack || 'No stack trace available.'}</p>
-                                                        </div>
-                                                        {log.context && (
-                                                            <div className="space-y-2">
-                                                                <Label className="text-xs font-bold uppercase text-muted-foreground">Captured State / Data</Label>
-                                                                <pre className="text-[10px] p-3 bg-black/5 rounded border border-dashed">{JSON.stringify(log.context, null, 2)}</pre>
-                                                            </div>
-                                                        )}
-                                                        <div className="text-[10px] text-muted-foreground pt-2 border-t">
-                                                            User: {log.username} ({log.userId}) | Recorded: {new Date(log.timestamp).toISOString()}
-                                                        </div>
-                                                    </div>
-                                                </DialogContent>
-                                            </Dialog>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                                {logs.length === 0 && <TableRow><TableCell colSpan={5} className="text-center py-12 text-muted-foreground">No system errors recorded.</TableCell></TableRow>}
-                            </TableBody>
-                        </Table>
+                        <Table><TableHeader><TableRow><TableHead>Time</TableHead><TableHead>Module</TableHead><TableHead>Error</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader><TableBody>
+                        {logs.map(log => (<TableRow key={log.id}><TableCell className="text-xs">{format(new Date(log.timestamp), 'p')}</TableCell><TableCell><Badge variant="outline">{log.module}</Badge></TableCell><TableCell className="text-xs truncate max-w-xs">{log.message}</TableCell><TableCell className="text-right">
+                            <Dialog><DialogTrigger asChild><Button variant="ghost" size="sm">View</Button></DialogTrigger><DialogContent className="max-w-2xl"><DialogHeader><DialogTitle>Error Details</DialogTitle></DialogHeader><div className="space-y-4 py-4"><pre className="text-[10px] bg-muted p-4 rounded overflow-auto max-h-96">{log.stack || log.message}</pre></div></DialogContent></Dialog>
+                        </TableCell></TableRow>))}
+                        </TableBody></Table>
                     </CardContent>
                 </Card>
             </TabsContent>
@@ -1538,224 +1147,37 @@ export default function SettingsPage() {
             <DialogContent className="sm:max-w-md">
                 <DialogHeader><DialogTitle>{editingParty ? 'Edit Party' : 'Add New Party'}</DialogTitle></DialogHeader>
                 <div className="grid gap-4 py-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="party-name">Party Name</Label>
-                        <Input id="party-name" value={partyForm.name} onChange={e => setPartyForm(p => ({...p, name: e.target.value}))} />
-                    </div>
+                    <div className="space-y-2"><Label>Name</Label><Input value={partyForm.name} onChange={e => setPartyForm(p => ({...p, name: e.target.value}))} /></div>
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="party-type">Party Type</Label>
-                            <Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm(p => ({...p, type: v}))}>
-                                <SelectTrigger id="party-type"><SelectValue/></SelectTrigger>
-                                <SelectContent><SelectItem value="Vendor">Vendor</SelectItem><SelectItem value="Customer">Customer</SelectItem><SelectItem value="Both">Both</SelectItem></SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="party-ownership">Ownership</Label>
-                            <Select value={partyForm.ownership} onValueChange={(v: AccountOwnership) => setPartyForm(p => ({...p, ownership: v}))}>
-                                <SelectTrigger id="party-ownership"><SelectValue/></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Sijan">Sijan Dhuwani</SelectItem>
-                                    <SelectItem value="Shivam">Shivam Packaging</SelectItem>
-                                    <SelectItem value="Both">Both</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
+                        <div className="space-y-2"><Label>Type</Label><Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm(p => ({...p, type: v}))}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Vendor">Vendor</SelectItem><SelectItem value="Customer">Customer</SelectItem><SelectItem value="Both">Both</SelectItem></SelectContent></Select></div>
+                        <div className="space-y-2"><Label>Ownership</Label><Select value={partyForm.ownership} onValueChange={(v: AccountOwnership) => setPartyForm(p => ({...p, ownership: v}))}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Sijan">Sijan</SelectItem><SelectItem value="Shivam">Shivam</SelectItem><SelectItem value="Both">Both</SelectItem></SelectContent></Select></div>
                     </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="party-address">Address</Label>
-                        <Textarea id="party-address" value={partyForm.address} onChange={e => setPartyForm(p => ({...p, address: e.target.value}))} />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="party-pan">PAN Number</Label>
-                        <Input id="party-pan" value={partyForm.panNumber} onChange={e => setPartyForm(p => ({...p, panNumber: e.target.value}))} />
-                    </div>
+                    <div className="space-y-2"><Label>Address</Label><Textarea value={partyForm.address} onChange={e => setPartyForm(p => ({...p, address: e.target.value}))} /></div>
                 </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsPartyDialogOpen(false)}>Cancel</Button>
-                    <Button onClick={handlePartySubmit}>{editingParty ? 'Save Changes' : 'Add Party'}</Button>
-                </DialogFooter>
+                <DialogFooter><Button onClick={handlePartySubmit}>Save</Button></DialogFooter>
             </DialogContent>
         </Dialog>
 
-        <MergePartiesDialog
-            open={isMergeDialogOpen}
-            onOpenChange={setIsMergeDialogOpen}
-            parties={parties}
-            onMerge={handleMergeParties}
-        />
+        <MergePartiesDialog open={isMergeDialogOpen} onOpenChange={setIsMergeDialogOpen} parties={parties} onMerge={handleMergeParties} />
         
         <Dialog open={isAccountDialogOpen} onOpenChange={setIsAccountDialogOpen}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader><DialogTitle>{editingAccount ? 'Edit Account' : 'Add New Account'}</DialogTitle></DialogHeader>
                 <div className="grid gap-4 py-4">
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="account-type">Account Type</Label>
-                            <Select value={accountForm.type} onValueChange={(v: AccountType) => setAccountForm(p => ({...p, type: v}))}>
-                                <SelectTrigger id="account-type"><SelectValue/></SelectTrigger>
-                                <SelectContent><SelectItem value="Cash">Cash</SelectItem><SelectItem value="Bank">Bank</SelectItem></SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="account-ownership">Account Ownership</Label>
-                            <Select value={accountForm.ownership} onValueChange={(v: AccountOwnership) => setAccountForm(p => ({...p, ownership: v}))}>
-                                <SelectTrigger id="account-ownership"><SelectValue/></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Sijan">Sijan Dhuwani</SelectItem>
-                                    <SelectItem value="Shivam">Shivam Packaging</SelectItem>
-                                    <SelectItem value="Both">Both</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
+                        <div className="space-y-2"><Label>Type</Label><Select value={accountForm.type} onValueChange={(v: AccountType) => setAccountForm(p => ({...p, type: v}))}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Cash">Cash</SelectItem><SelectItem value="Bank">Bank</SelectItem></SelectContent></Select></div>
+                        <div className="space-y-2"><Label>Ownership</Label><Select value={accountForm.ownership} onValueChange={(v: AccountOwnership) => setAccountForm(p => ({...p, ownership: v}))}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Sijan">Sijan</SelectItem><SelectItem value="Shivam">Shivam</SelectItem><SelectItem value="Both">Both</SelectItem></SelectContent></Select></div>
                     </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="account-name">{accountForm.type === 'Bank' ? 'Account Holder Name' : 'Account Name'}</Label>
-                        <Input id="account-name" value={accountForm.name} onChange={e => setAccountForm(p => ({...p, name: e.target.value}))} />
-                    </div>
-                    {accountForm.type === 'Bank' && (
-                        <>
-                            <div className="space-y-2">
-                                <Label htmlFor="bank-name">Bank Name</Label>
-                                <Input id="bank-name" value={accountForm.bankName} onChange={e => setAccountForm(p => ({...p, bankName: e.target.value}))} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="account-number">Account Number</Label>
-                                <Input id="account-number" value={accountForm.accountNumber} onChange={e => setAccountForm(p => ({...p, accountNumber: e.target.value}))} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="branch">Branch</Label>
-                                <Input id="branch" value={accountForm.branch} onChange={e => setAccountForm(p => ({...p, branch: e.target.value}))} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="bankAccountType">Account Type</Label>
-                                <Select value={accountForm.bankAccountType} onValueChange={(v: BankAccountType) => setAccountForm(p => ({ ...p, bankAccountType: v }))}>
-                                    <SelectTrigger id="bankAccountType"><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="Saving">Saving</SelectItem>
-                                        <SelectItem value="Current">Current</SelectItem>
-                                        <SelectItem value="Over Draft">Over Draft</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </>
-                    )}
+                    <div className="space-y-2"><Label>Name</Label><Input value={accountForm.name} onChange={e => setAccountForm(p => ({...p, name: e.target.value}))} /></div>
+                    {accountForm.type === 'Bank' && (<><div className="space-y-2"><Label>Bank</Label><Input value={accountForm.bankName} onChange={e => setAccountForm(p => ({...p, bankName: e.target.value}))} /></div><div className="space-y-2"><Label>Account #</Label><Input value={accountForm.accountNumber} onChange={e => setAccountForm(p => ({...p, accountNumber: e.target.value}))} /></div></>)}
                 </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsAccountDialogOpen(false)}>Cancel</Button>
-                    <Button onClick={handleAccountSubmit}>{editingAccount ? 'Save Changes' : 'Add Account'}</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-        
-        <Dialog open={isUomDialogOpen} onOpenChange={setIsUomDialogOpen}>
-            <DialogContent className="sm:max-w-md">
-                <DialogHeader><DialogTitle>{editingUom ? 'Edit Unit' : 'Add New Unit'}</DialogTitle></DialogHeader>
-                <div className="grid gap-4 py-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="uom-name">Unit Name</Label>
-                        <Input id="uom-name" value={uomForm.name} onChange={e => setUomForm(prev => ({...prev, name: e.target.value}))} placeholder="e.g. Kilogram" />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="uom-abbr">Abbreviation</Label>
-                        <Input id="uom-abbr" value={uomForm.abbreviation} onChange={e => setUomForm(prev => ({...prev, abbreviation: e.target.value}))} placeholder="e.g. Kg" />
-                    </div>
-                </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsUomDialogOpen(false)}>Cancel</Button>
-                    <Button onClick={handleUomSubmit}>{editingUom ? 'Save Changes' : 'Add Unit'}</Button>
-                </DialogFooter>
+                <DialogFooter><Button onClick={handleAccountSubmit}>Save</Button></DialogFooter>
             </DialogContent>
         </Dialog>
 
-        <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
-            <DialogContent className="sm:max-w-2xl">
-                <DialogHeader><DialogTitle>{editingUser ? 'Edit User' : 'Add New User'}</DialogTitle></DialogHeader>
-                <div className="grid gap-6 py-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="username">Username</Label>
-                        <Input id="username" value={userForm.username} onChange={e => setUserForm(p => ({...p, username: e.target.value}))} disabled={!!editingUser} />
-                    </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="password">Password</Label>
-                        <Input id="password" type="password" value={userForm.password} onChange={e => setUserForm(p => ({...p, password: e.target.value}))} placeholder={editingUser ? 'Leave blank to keep current password' : ''} />
-                        {passwordError && <p className="text-sm text-destructive">{passwordError}</p>}
-                    </div>
-                    <div className="space-y-4">
-                        <Label>Permissions</Label>
-                        <div className="space-y-2">
-                            {modules.filter(m => m !== 'dashboard').map(module => (
-                                <div key={module} className="p-4 border rounded-md">
-                                    <h4 className="font-medium capitalize mb-2">{module.replace(/([A-Z])/g, ' $1')}</h4>
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                        {actions.map(action => (
-                                            <div key={action} className="flex items-center space-x-2">
-                                                <Checkbox
-                                                    id={`${module}-${action}`}
-                                                    checked={(userForm.permissions[module] || []).includes(action)}
-                                                    onCheckedChange={(checked) => handlePermissionChange(module, action, !!checked)}
-                                                />
-                                                <label htmlFor={`${module}-${action}`} className="text-sm font-medium capitalize">{action}</label>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsUserDialogOpen(false)}>Cancel</Button>
-                    <Button onClick={handleUserSubmit}>{editingUser ? 'Save Changes' : 'Add User'}</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-        
-        <Dialog open={isChangePasswordDialogOpen} onOpenChange={setIsChangePasswordDialogOpen}>
-            <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                    <DialogTitle>Change Password</DialogTitle>
-                    <DialogDescription>Enter a new password for your account.</DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="new-password">New Password</Label>
-                        <Input id="new-password" type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="confirm-password">Confirm New Password</Label>
-                        <Input id="confirm-password" type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
-                    </div>
-                    {changePasswordError && <p className="text-sm text-destructive">{changePasswordError}</p>}
-                </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsChangePasswordDialogOpen(false)}>Cancel</Button>
-                    <Button onClick={handleChangePassword}>Save Changes</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-
-        <Dialog open={isPrefixDialogOpen} onOpenChange={setIsPrefixDialogOpen}>
-            <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                    <DialogTitle>Edit Prefix for {editingPrefix ? getDocumentName(editingPrefix.key) : ''}</DialogTitle>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="prefix-input">Prefix</Label>
-                        <Input 
-                            id="prefix-input" 
-                            value={editingPrefix?.value || ''}
-                            onChange={(e) => setEditingPrefix(prev => prev ? { ...prev, value: e.target.value } : null)}
-                        />
-                    </div>
-                </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsPrefixDialogOpen(false)}>Cancel</Button>
-                    <Button onClick={handleSavePrefix}>Save Prefix</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+        <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}><DialogContent className="sm:max-w-2xl"><DialogHeader><DialogTitle>User Detail</DialogTitle></DialogHeader><div className="space-y-4"><div className="space-y-2"><Label>Username</Label><Input value={userForm.username} onChange={e => setUserForm(p => ({...p, username: e.target.value}))} disabled={!!editingUser} /></div><div className="space-y-2"><Label>Password</Label><Input type="password" value={userForm.password} onChange={e => setUserForm(p => ({...p, password: e.target.value}))} />{passwordError && <p className="text-xs text-destructive">{passwordError}</p>}</div>{modules.filter(m => m !== 'dashboard').map(m => (<div key={m} className="p-2 border rounded"><Label className="capitalize">{m}</Label><div className="flex gap-4 mt-2">{actions.map(a => (<div key={a} className="flex items-center gap-1"><Checkbox id={`${m}-${a}`} checked={userForm.permissions[m]?.includes(a)} onCheckedChange={v => handlePermissionChange(m, a, !!v)} /><label htmlFor={`${m}-${a}`} className="text-xs capitalize">{a}</label></div>))}</div></div>))}</div><DialogFooter><Button onClick={handleUserSubmit}>Save User</Button></DialogFooter></DialogContent></Dialog>
+        <Dialog open={isChangePasswordDialogOpen} onOpenChange={setIsChangePasswordDialogOpen}><DialogContent><DialogHeader><DialogTitle>Change Password</DialogTitle></DialogHeader><div className="space-y-4"><div className="space-y-2"><Label>New Password</Label><Input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} /></div><div className="space-y-2"><Label>Confirm</Label><Input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} /></div>{changePasswordError && <p className="text-xs text-destructive">{changePasswordError}</p>}</div><DialogFooter><Button onClick={handleChangePassword}>Update & Sign Out</Button></DialogFooter></DialogContent></Dialog>
+        <Dialog open={isPrefixDialogOpen} onOpenChange={setIsPrefixDialogOpen}><DialogContent><DialogHeader><DialogTitle>Prefix Control</DialogTitle></DialogHeader><div className="py-4"><Label>Prefix</Label><Input value={editingPrefix?.value || ''} onChange={e => setEditingPrefix(p => p ? {...p, value: e.target.value} : null)} /></div><DialogFooter><Button onClick={handleSavePrefix}>Apply</Button></DialogFooter></DialogContent></Dialog>
     </div>
   );
 }
