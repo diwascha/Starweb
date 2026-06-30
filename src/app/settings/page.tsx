@@ -63,7 +63,8 @@ import {
   AlertCircle,
   X,
   ImageIcon,
-  Link as LinkIcon
+  Link as LinkIcon,
+  ChevronsUpDown
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -101,12 +102,10 @@ import { exportData, importData } from '@/services/backup-service';
 import { useRouter } from 'next/navigation';
 import { getPayrollYears } from '@/services/payroll-service';
 import NepaliDate from 'nepali-date-converter';
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { cn, toNepaliDate } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { NEPALI_MONTHS, DEFAULT_COMPANY_PROFILE, DEFAULT_FLEET_PROFILE } from '@/lib/constants';
 import { uploadFile } from '@/services/storage-service';
@@ -1052,11 +1051,13 @@ export default function SettingsPage() {
             </TabsContent>
             <TabsContent value="parties">
                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                        <div><CardTitle>Vendors & Suppliers</CardTitle><CardDescription>Master list of partners.</CardDescription></div>
-                        <div className="flex gap-2">
-                            <Button variant="outline" onClick={() => setIsMergeDialogOpen(true)}><GitMerge className="mr-2 h-4 w-4"/> Merge</Button>
-                            <Button onClick={() => openPartyDialog()}><Plus className="mr-2 h-4 w-4" /> Add</Button>
+                    <CardHeader>
+                        <div className="flex flex-row items-center justify-between">
+                            <div><CardTitle>Vendors & Suppliers</CardTitle><CardDescription>Master list of partners.</CardDescription></div>
+                            <div className="flex gap-2">
+                                <Button variant="outline" onClick={() => setIsMergeDialogOpen(true)}><GitMerge className="mr-2 h-4 w-4"/> Merge</Button>
+                                <Button onClick={() => openPartyDialog()}><Plus className="mr-2 h-4 w-4" /> Add</Button>
+                            </div>
                         </div>
                     </CardHeader>
                     <CardContent>
@@ -1093,7 +1094,40 @@ export default function SettingsPage() {
                     </CardContent>
                 </Card>
             </TabsContent>
-            <TabsContent value="uom"><Card><CardHeader className="flex flex-row items-center justify-between"><div><CardTitle>Units</CardTitle><CardDescription>UoM master list.</CardDescription></div><Button onClick={() => openUomDialog()}><Plus className="mr-2 h-4 w-4" /> Add</Button></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Abbr.</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{filteredUoms.map(u => (<TableRow key={u.id}><TableCell>{u.name}</TableCell><TableCell>{u.abbreviation}</TableCell><TableCell className="text-right"><Button variant="ghost" size="icon" onClick={() => openUomDialog(u)}><Edit className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteUom(u.id)}><Trash2 className="h-4 w-4" /></TableCell></TableRow>))}</TableBody></Table></CardContent></Card></TabsContent>
+            <TabsContent value="uom">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle>Units</CardTitle>
+                    <CardDescription>UoM master list.</CardDescription>
+                  </div>
+                  <Button onClick={() => openUomDialog()}><Plus className="mr-2 h-4 w-4" /> Add</Button>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Abbr.</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredUoms.map(u => (
+                        <TableRow key={u.id}>
+                          <TableCell>{u.name}</TableCell>
+                          <TableCell>{u.abbreviation}</TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="icon" onClick={() => openUomDialog(u)}><Edit className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteUom(u.id)}><Trash2 className="h-4 w-4" /></Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </TabsContent>
             <TabsContent value="document-numbering">
                 <Card>
                     <CardHeader><CardTitle>Document Prefixes</CardTitle></CardHeader>
@@ -1175,9 +1209,31 @@ export default function SettingsPage() {
             </DialogContent>
         </Dialog>
 
-        <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}><DialogContent className="sm:max-w-2xl"><DialogHeader><DialogTitle>User Detail</DialogTitle></DialogHeader><div className="space-y-4"><div className="space-y-2"><Label>Username</Label><Input value={userForm.username} onChange={e => setUserForm(p => ({...p, username: e.target.value}))} disabled={!!editingUser} /></div><div className="space-y-2"><Label>Password</Label><Input type="password" value={userForm.password} onChange={e => setUserForm(p => ({...p, password: e.target.value}))} />{passwordError && <p className="text-xs text-destructive">{passwordError}</p>}</div>{modules.filter(m => m !== 'dashboard').map(m => (<div key={m} className="p-2 border rounded"><Label className="capitalize">{m}</Label><div className="flex gap-4 mt-2">{actions.map(a => (<div key={a} className="flex items-center gap-1"><Checkbox id={`${m}-${a}`} checked={userForm.permissions[m]?.includes(a)} onCheckedChange={v => handlePermissionChange(m, a, !!v)} /><label htmlFor={`${m}-${a}`} className="text-xs capitalize">{a}</label></div>))}</div></div>))}</div><DialogFooter><Button onClick={handleUserSubmit}>Save User</Button></DialogFooter></DialogContent></Dialog>
+        <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
+          <DialogContent className="sm:max-w-2xl">
+            <DialogHeader><DialogTitle>User Detail</DialogTitle></DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2"><Label>Username</Label><Input value={userForm.username} onChange={e => setUserForm(p => ({...p, username: e.target.value}))} disabled={!!editingUser} /></div>
+              <div className="space-y-2"><Label>Password</Label><Input type="password" value={userForm.password} onChange={e => setUserForm(p => ({...p, password: e.target.value}))} />{passwordError && <p className="text-xs text-destructive">{passwordError}</p>}</div>
+              {modules.filter(m => m !== 'dashboard').map(m => (
+                <div key={m} className="p-2 border rounded"><Label className="capitalize">{m}</Label>
+                  <div className="flex gap-4 mt-2">
+                    {actions.map(a => (
+                      <div key={a} className="flex items-center gap-1">
+                        <Checkbox id={`${m}-${a}`} checked={userForm.permissions[m]?.includes(a)} onCheckedChange={v => handlePermissionChange(m, a, !!v)} />
+                        <label htmlFor={`${m}-${a}`} className="text-xs capitalize">{a}</label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <DialogFooter><Button onClick={handleUserSubmit}>Save User</Button></DialogFooter>
+          </DialogContent>
+        </Dialog>
         <Dialog open={isChangePasswordDialogOpen} onOpenChange={setIsChangePasswordDialogOpen}><DialogContent><DialogHeader><DialogTitle>Change Password</DialogTitle></DialogHeader><div className="space-y-4"><div className="space-y-2"><Label>New Password</Label><Input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} /></div><div className="space-y-2"><Label>Confirm</Label><Input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} /></div>{changePasswordError && <p className="text-xs text-destructive">{changePasswordError}</p>}</div><DialogFooter><Button onClick={handleChangePassword}>Update & Sign Out</Button></DialogFooter></DialogContent></Dialog>
         <Dialog open={isPrefixDialogOpen} onOpenChange={setIsPrefixDialogOpen}><DialogContent><DialogHeader><DialogTitle>Prefix Control</DialogTitle></DialogHeader><div className="py-4"><Label>Prefix</Label><Input value={editingPrefix?.value || ''} onChange={e => setEditingPrefix(p => p ? {...p, value: e.target.value} : null)} /></div><DialogFooter><Button onClick={handleSavePrefix}>Apply</Button></DialogFooter></DialogContent></Dialog>
+        <Dialog open={isUomDialogOpen} onOpenChange={setIsUomDialogOpen}><DialogContent><DialogHeader><DialogTitle>{editingUom ? 'Edit Unit' : 'Add Unit'}</DialogTitle></DialogHeader><div className="space-y-4"><div className="space-y-2"><Label>Unit Name</Label><Input value={uomForm.name} onChange={e => setUomForm(p => ({...p, name: e.target.value}))} /></div><div className="space-y-2"><Label>Abbreviation</Label><Input value={uomForm.abbreviation} onChange={e => setUomForm(p => ({...p, abbreviation: e.target.value}))} /></div></div><DialogFooter><Button onClick={handleUomSubmit}>Save</Button></DialogFooter></DialogContent></Dialog>
     </div>
   );
 }
