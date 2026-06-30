@@ -26,7 +26,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -51,20 +50,11 @@ import {
   Download, 
   Upload, 
   ChevronDown, 
-  Lock, 
-  Unlock, 
   GitMerge, 
   Check, 
   ArrowUpDown, 
-  TrendingDown, 
-  TrendingUp,
   Loader2,
-  Eye,
-  AlertCircle,
-  X,
   ImageIcon,
-  Link as LinkIcon,
-  ChevronsUpDown
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -774,11 +764,6 @@ export default function SettingsPage() {
     return filtered;
   }, [pageVisits, usageSearch, usageSortConfig, usageFilterYear, usageFilterMonth]);
 
-  const usageYears = useMemo(() => {
-    const years = new Set(pageVisits.map(v => new Date(v.lastVisited).getFullYear()));
-    return ['All', ...Array.from(years).sort((a, b) => b - a).map(String)];
-  }, [pageVisits]);
-
   const handleUsageSort = (key: 'count' | 'path' | 'lastVisited') => {
     setUsageSortConfig(prev => ({ key, dir: prev.key === key && prev.dir === 'desc' ? 'asc' : 'desc' }));
   };
@@ -941,7 +926,7 @@ export default function SettingsPage() {
                                     <Input 
                                         placeholder="https://..." 
                                         className="h-8 text-[10px]" 
-                                        value={appBranding.appLogoURL} 
+                                        value={appBranding.appLogoURL || ''} 
                                         onChange={e => setAppBranding(prev => ({...prev, appLogoURL: e.target.value}))} 
                                     />
                                 </div>
@@ -949,11 +934,11 @@ export default function SettingsPage() {
                             <div className="flex-1 space-y-6 w-full">
                                 <div className="space-y-2">
                                     <Label htmlFor="app-name">Application Name</Label>
-                                    <Input id="app-name" value={appBranding.appName} onChange={e => setAppBranding(prev => ({ ...prev, appName: e.target.value }))} className="h-12 text-lg font-bold" />
+                                    <Input id="app-name" value={appBranding.appName || ''} onChange={e => setAppBranding(prev => ({ ...prev, appName: e.target.value }))} className="h-12 text-lg font-bold" />
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="app-motto">App Tagline / Motto</Label>
-                                    <Input id="app-motto" value={appBranding.appMotto} onChange={e => setAppBranding(prev => ({ ...prev, appMotto: e.target.value }))} />
+                                    <Input id="app-motto" value={appBranding.appMotto || ''} onChange={e => setAppBranding(prev => ({ ...prev, appMotto: e.target.value }))} />
                                 </div>
                             </div>
                         </div>
@@ -996,10 +981,10 @@ export default function SettingsPage() {
                                     </div>
                                 </div>
                                 <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-2"><Label>Name (EN)</Label><Input value={companyProfile.nameEn} onChange={e => setCompanyProfile(prev => ({...prev, nameEn: e.target.value}))} /></div>
-                                    <div className="space-y-2"><Label>Name (NP)</Label><Input value={companyProfile.nameNp} onChange={e => setCompanyProfile(prev => ({...prev, nameNp: e.target.value}))} className="font-body" /></div>
-                                    <div className="space-y-2 md:col-span-2"><Label>Address</Label><Input value={companyProfile.address} onChange={e => setCompanyProfile(prev => ({...prev, address: e.target.value}))} /></div>
-                                    <div className="space-y-2"><Label>PAN</Label><Input value={companyProfile.pan} onChange={e => setCompanyProfile(prev => ({...prev, pan: e.target.value}))} /></div>
+                                    <div className="space-y-2"><Label>Name (EN)</Label><Input value={companyProfile.nameEn || ''} onChange={e => setCompanyProfile(prev => ({...prev, nameEn: e.target.value}))} /></div>
+                                    <div className="space-y-2"><Label>Name (NP)</Label><Input value={companyProfile.nameNp || ''} onChange={e => setCompanyProfile(prev => ({...prev, nameNp: e.target.value}))} className="font-body" /></div>
+                                    <div className="space-y-2 md:col-span-2"><Label>Address</Label><Input value={companyProfile.address || ''} onChange={e => setCompanyProfile(prev => ({...prev, address: e.target.value}))} /></div>
+                                    <div className="space-y-2"><Label>PAN</Label><Input value={companyProfile.pan || ''} onChange={e => setCompanyProfile(prev => ({...prev, pan: e.target.value}))} /></div>
                                 </div>
                             </div>
                         </CardContent>
@@ -1039,10 +1024,10 @@ export default function SettingsPage() {
                                     </div>
                                 </div>
                                 <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-2"><Label>Name (EN)</Label><Input value={fleetProfile.nameEn} onChange={e => setFleetProfile(prev => ({...prev, nameEn: e.target.value}))} /></div>
-                                    <div className="space-y-2"><Label>Name (NP)</Label><Input value={fleetProfile.nameNp} onChange={e => setFleetProfile(prev => ({...prev, nameNp: e.target.value}))} className="font-body" /></div>
-                                    <div className="space-y-2 md:col-span-2"><Label>Address</Label><Input value={fleetProfile.address} onChange={e => setFleetProfile(prev => ({...prev, address: e.target.value}))} /></div>
-                                    <div className="space-y-2"><Label>PAN</Label><Input value={fleetProfile.pan} onChange={e => setFleetProfile(prev => ({...prev, pan: e.target.value}))} /></div>
+                                    <div className="space-y-2"><Label>Name (EN)</Label><Input value={fleetProfile.nameEn || ''} onChange={e => setFleetProfile(prev => ({...prev, nameEn: e.target.value}))} /></div>
+                                    <div className="space-y-2"><Label>Name (NP)</Label><Input value={fleetProfile.nameNp || ''} onChange={e => setFleetProfile(prev => ({...prev, nameNp: e.target.value}))} className="font-body" /></div>
+                                    <div className="space-y-2 md:col-span-2"><Label>Address</Label><Input value={fleetProfile.address || ''} onChange={e => setFleetProfile(prev => ({...prev, address: e.target.value}))} /></div>
+                                    <div className="space-y-2"><Label>PAN</Label><Input value={fleetProfile.pan || ''} onChange={e => setFleetProfile(prev => ({...prev, pan: e.target.value}))} /></div>
                                 </div>
                             </div>
                         </CardContent>
@@ -1181,12 +1166,12 @@ export default function SettingsPage() {
             <DialogContent className="sm:max-w-md">
                 <DialogHeader><DialogTitle>{editingParty ? 'Edit Party' : 'Add New Party'}</DialogTitle></DialogHeader>
                 <div className="grid gap-4 py-4">
-                    <div className="space-y-2"><Label>Name</Label><Input value={partyForm.name} onChange={e => setPartyForm(p => ({...p, name: e.target.value}))} /></div>
+                    <div className="space-y-2"><Label>Name</Label><Input value={partyForm.name || ''} onChange={e => setPartyForm(p => ({...p, name: e.target.value}))} /></div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2"><Label>Type</Label><Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm(p => ({...p, type: v}))}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Vendor">Vendor</SelectItem><SelectItem value="Customer">Customer</SelectItem><SelectItem value="Both">Both</SelectItem></SelectContent></Select></div>
                         <div className="space-y-2"><Label>Ownership</Label><Select value={partyForm.ownership} onValueChange={(v: AccountOwnership) => setPartyForm(p => ({...p, ownership: v}))}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Sijan">Sijan</SelectItem><SelectItem value="Shivam">Shivam</SelectItem><SelectItem value="Both">Both</SelectItem></SelectContent></Select></div>
                     </div>
-                    <div className="space-y-2"><Label>Address</Label><Textarea value={partyForm.address} onChange={e => setPartyForm(p => ({...p, address: e.target.value}))} /></div>
+                    <div className="space-y-2"><Label>Address</Label><Textarea value={partyForm.address || ''} onChange={e => setPartyForm(p => ({...p, address: e.target.value}))} /></div>
                 </div>
                 <DialogFooter><Button onClick={handlePartySubmit}>Save</Button></DialogFooter>
             </DialogContent>
@@ -1202,8 +1187,8 @@ export default function SettingsPage() {
                         <div className="space-y-2"><Label>Type</Label><Select value={accountForm.type} onValueChange={(v: AccountType) => setAccountForm(p => ({...p, type: v}))}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Cash">Cash</SelectItem><SelectItem value="Bank">Bank</SelectItem></SelectContent></Select></div>
                         <div className="space-y-2"><Label>Ownership</Label><Select value={accountForm.ownership} onValueChange={(v: AccountOwnership) => setAccountForm(p => ({...p, ownership: v}))}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Sijan">Sijan</SelectItem><SelectItem value="Shivam">Shivam</SelectItem><SelectItem value="Both">Both</SelectItem></SelectContent></Select></div>
                     </div>
-                    <div className="space-y-2"><Label>Name</Label><Input value={accountForm.name} onChange={e => setAccountForm(p => ({...p, name: e.target.value}))} /></div>
-                    {accountForm.type === 'Bank' && (<><div className="space-y-2"><Label>Bank</Label><Input value={accountForm.bankName} onChange={e => setAccountForm(p => ({...p, bankName: e.target.value}))} /></div><div className="space-y-2"><Label>Account #</Label><Input value={accountForm.accountNumber} onChange={e => setAccountForm(p => ({...p, accountNumber: e.target.value}))} /></div></>)}
+                    <div className="space-y-2"><Label>Name</Label><Input value={accountForm.name || ''} onChange={e => setAccountForm(p => ({...p, name: e.target.value}))} /></div>
+                    {accountForm.type === 'Bank' && (<><div className="space-y-2"><Label>Bank</Label><Input value={accountForm.bankName || ''} onChange={e => setAccountForm(p => ({...p, bankName: e.target.value}))} /></div><div className="space-y-2"><Label>Account #</Label><Input value={accountForm.accountNumber || ''} onChange={e => setAccountForm(p => ({...p, accountNumber: e.target.value}))} /></div></>)}
                 </div>
                 <DialogFooter><Button onClick={handleAccountSubmit}>Save</Button></DialogFooter>
             </DialogContent>
@@ -1213,8 +1198,8 @@ export default function SettingsPage() {
           <DialogContent className="sm:max-w-2xl">
             <DialogHeader><DialogTitle>User Detail</DialogTitle></DialogHeader>
             <div className="space-y-4">
-              <div className="space-y-2"><Label>Username</Label><Input value={userForm.username} onChange={e => setUserForm(p => ({...p, username: e.target.value}))} disabled={!!editingUser} /></div>
-              <div className="space-y-2"><Label>Password</Label><Input type="password" value={userForm.password} onChange={e => setUserForm(p => ({...p, password: e.target.value}))} />{passwordError && <p className="text-xs text-destructive">{passwordError}</p>}</div>
+              <div className="space-y-2"><Label>Username</Label><Input value={userForm.username || ''} onChange={e => setUserForm(p => ({...p, username: e.target.value}))} disabled={!!editingUser} /></div>
+              <div className="space-y-2"><Label>Password</Label><Input type="password" value={userForm.password || ''} onChange={e => setUserForm(p => ({...p, password: e.target.value}))} />{passwordError && <p className="text-xs text-destructive">{passwordError}</p>}</div>
               {modules.filter(m => m !== 'dashboard').map(m => (
                 <div key={m} className="p-2 border rounded"><Label className="capitalize">{m}</Label>
                   <div className="flex gap-4 mt-2">
@@ -1231,9 +1216,9 @@ export default function SettingsPage() {
             <DialogFooter><Button onClick={handleUserSubmit}>Save User</Button></DialogFooter>
           </DialogContent>
         </Dialog>
-        <Dialog open={isChangePasswordDialogOpen} onOpenChange={setIsChangePasswordDialogOpen}><DialogContent><DialogHeader><DialogTitle>Change Password</DialogTitle></DialogHeader><div className="space-y-4"><div className="space-y-2"><Label>New Password</Label><Input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} /></div><div className="space-y-2"><Label>Confirm</Label><Input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} /></div>{changePasswordError && <p className="text-xs text-destructive">{changePasswordError}</p>}</div><DialogFooter><Button onClick={handleChangePassword}>Update & Sign Out</Button></DialogFooter></DialogContent></Dialog>
+        <Dialog open={isChangePasswordDialogOpen} onOpenChange={setIsChangePasswordDialogOpen}><DialogContent><DialogHeader><DialogTitle>Change Password</DialogTitle></DialogHeader><div className="space-y-4"><div className="space-y-2"><Label>New Password</Label><Input type="password" value={newPassword || ''} onChange={e => setNewPassword(e.target.value)} /></div><div className="space-y-2"><Label>Confirm</Label><Input type="password" value={confirmPassword || ''} onChange={e => setConfirmPassword(e.target.value)} /></div>{changePasswordError && <p className="text-xs text-destructive">{changePasswordError}</p>}</div><DialogFooter><Button onClick={handleChangePassword}>Update & Sign Out</Button></DialogFooter></DialogContent></Dialog>
         <Dialog open={isPrefixDialogOpen} onOpenChange={setIsPrefixDialogOpen}><DialogContent><DialogHeader><DialogTitle>Prefix Control</DialogTitle></DialogHeader><div className="py-4"><Label>Prefix</Label><Input value={editingPrefix?.value || ''} onChange={e => setEditingPrefix(p => p ? {...p, value: e.target.value} : null)} /></div><DialogFooter><Button onClick={handleSavePrefix}>Apply</Button></DialogFooter></DialogContent></Dialog>
-        <Dialog open={isUomDialogOpen} onOpenChange={setIsUomDialogOpen}><DialogContent><DialogHeader><DialogTitle>{editingUom ? 'Edit Unit' : 'Add Unit'}</DialogTitle></DialogHeader><div className="space-y-4"><div className="space-y-2"><Label>Unit Name</Label><Input value={uomForm.name} onChange={e => setUomForm(p => ({...p, name: e.target.value}))} /></div><div className="space-y-2"><Label>Abbreviation</Label><Input value={uomForm.abbreviation} onChange={e => setUomForm(p => ({...p, abbreviation: e.target.value}))} /></div></div><DialogFooter><Button onClick={handleUomSubmit}>Save</Button></DialogFooter></DialogContent></Dialog>
+        <Dialog open={isUomDialogOpen} onOpenChange={setIsUomDialogOpen}><DialogContent><DialogHeader><DialogTitle>{editingUom ? 'Edit Unit' : 'Add Unit'}</DialogTitle></DialogHeader><div className="space-y-4"><div className="space-y-2"><Label>Unit Name</Label><Input value={uomForm.name || ''} onChange={e => setUomForm(p => ({...p, name: e.target.value}))} /></div><div className="space-y-2"><Label>Abbreviation</Label><Input value={uomForm.abbreviation || ''} onChange={e => setUomForm(p => ({...p, abbreviation: e.target.value}))} /></div></div><DialogFooter><Button onClick={handleUomSubmit}>Save</Button></DialogFooter></DialogContent></Dialog>
     </div>
   );
 }
