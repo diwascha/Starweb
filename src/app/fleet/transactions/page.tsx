@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
@@ -452,8 +451,6 @@ export default function FleetTransactionsPage() {
                         </Popover>
                     </div>
 
-                    <FilterSelect label="Category" value={filterCategory} onSelect={setFilterCategory} items={categories} placeholder="Category" />
-
                     <div className="flex gap-2 shrink-0">
                         {isFiltered && (
                             <Button variant="outline" className="h-10 px-4 text-muted-foreground hover:bg-gray-50 border-dashed" onClick={handleResetFilters}>
@@ -490,8 +487,21 @@ export default function FleetTransactionsPage() {
 
             <Card className="shadow-sm border-gray-100 bg-white">
                 <div className="flex flex-col sm:flex-row items-center justify-between border-b px-5 py-2 gap-4">
-                    <div className="h-10 flex items-center">
-                        <h3 className="font-bold text-sm text-gray-900 uppercase tracking-tight">Detailed Ledger Log</h3>
+                    <div className="h-10 flex items-center gap-4 flex-1">
+                        <h3 className="font-bold text-sm text-gray-900 uppercase tracking-tight whitespace-nowrap">Detailed Ledger Log</h3>
+                        <div className="w-[180px]">
+                            <Select value={filterCategory} onValueChange={setFilterCategory}>
+                                <SelectTrigger className="h-9 bg-gray-50 border-gray-200 shadow-none text-xs">
+                                    <SelectValue placeholder="Category" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="All">All Categories</SelectItem>
+                                    {categories.map((cat: any) => (
+                                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
                     <div className="relative w-full sm:w-[350px]">
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
