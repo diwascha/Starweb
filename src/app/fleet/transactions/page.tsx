@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
@@ -6,35 +5,20 @@ import { useRouter } from 'next/navigation';
 import type { Transaction, Vehicle, Party, Account, CompanyProfile } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { 
-  PlusCircle, 
   Search, 
   ArrowUpDown, 
   MoreHorizontal, 
-  Eye, 
-  Trash2, 
-  CalendarIcon, 
   FileSpreadsheet, 
   FileText, 
   Loader2, 
-  TrendingUp, 
+  CalendarIcon, 
   FilterX, 
-  Wallet, 
-  ArrowUpRight,
-  ArrowDownLeft,
   Truck,
   Users,
-  X,
-  ChevronsUpDown,
   Check,
-  ChevronRight,
   ChevronDown,
-  TrendingDown,
-  Scale,
-  RotateCcw,
-  BookOpen,
-  Filter
 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -62,7 +46,6 @@ import { onSettingUpdate } from '@/services/settings-service';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import NepaliDate from 'nepali-date-converter';
 import { NEPALI_MONTHS, DEFAULT_FLEET_PROFILE } from '@/lib/constants';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -143,18 +126,13 @@ export default function FleetTransactionsPage() {
     const { toast } = useToast();
     const { user } = useAuth();
 
-    // ERP Filter State
+    // ERP Filter State - Now driving logic directly for "automatic" filtering
     const [filterParty, setFilterParty] = useState('All');
     const [filterVehicle, setFilterVehicle] = useState('All');
     const [filterFromDate, setFilterFromDate] = useState<Date | undefined>(undefined);
     const [filterToDate, setFilterToDate] = useState<Date | undefined>(undefined);
     const [filterCategory, setFilterCategory] = useState('All');
     const [filterStatus, setFilterStatus] = useState('All');
-    
-    // Derived UI State
-    const [appliedFilters, setAppliedFilters] = useState({
-        party: 'All', vehicle: 'All', from: undefined as Date | undefined, to: undefined as Date | undefined, category: 'All', status: 'All'
-    });
     const [globalSearch, setUsageSearch] = useState('');
 
     useEffect(() => {
@@ -173,17 +151,6 @@ export default function FleetTransactionsPage() {
     const partiesById = useMemo(() => new Map(parties.map(p => [p.id, p.name])), [parties]);
     const categories = useMemo(() => Array.from(new Set(transactions.map(t => t.category || (t.type === 'Sales' ? 'Freight' : t.type)))).filter(Boolean).sort(), [transactions]);
 
-    const handleApplyFilters = () => {
-        setAppliedFilters({
-            party: filterParty,
-            vehicle: filterVehicle,
-            from: filterFromDate,
-            to: filterToDate,
-            category: filterCategory,
-            status: filterStatus
-        });
-    };
-
     const handleResetFilters = () => {
         setFilterParty('All');
         setFilterVehicle('All');
@@ -191,17 +158,18 @@ export default function FleetTransactionsPage() {
         setFilterToDate(undefined);
         setFilterCategory('All');
         setFilterStatus('All');
-        setAppliedFilters({
-            party: 'All', vehicle: 'All', from: undefined, to: undefined, category: 'All', status: 'All'
-        });
+        setUsageSearch('');
     };
 
     const ledgerData = useMemo(() => {
-        // 1. Raw mapping with correct Accounting Dr/Cr logic
+        // 1. Raw mapping with ERP standard partner accounting logic
         const rawMapped = transactions.map(t => {
-            // Perspective: Standard Accounting Statement
-            // Debit (Dr): Payments (reduces payable), Sales (increases receivable)
-            // Credit (Cr): Purchases (increases payable), Receipts (reduces receivable)
+            // DIRECTIONAL LOGIC (Partner Perspective):
+            // - Purchase (Cr): Increases Liability (we owe them)
+            // - Receipt (Cr): Decreases Asset (they paid us)
+            // - Payment (Dr): Decreases Liability (we paid them)
+            // - Sales (Dr): Increases Asset (they owe us)
+            
             const isDebit = t.type === 'Payment' || t.type === 'Sales';
             const isCredit = t.type === 'Purchase' || t.type === 'Receipt';
             
@@ -221,24 +189,22 @@ export default function FleetTransactionsPage() {
         rawMapped.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
         // 3. Calculate Opening Balance (Balance B/F)
-        // Note: In ERPs, Dr is usually positive for assets, negative for liabilities.
-        // We use (Debit - Credit) as the signed value.
         let openingBalance = 0;
-        if (appliedFilters.from) {
+        if (filterFromDate) {
             openingBalance = rawMapped
-                .filter(t => isBefore(new Date(t.date), startOfDay(appliedFilters.from!)))
-                .filter(t => appliedFilters.party === 'All' || t.partyId === appliedFilters.party)
-                .filter(t => appliedFilters.vehicle === 'All' || t.vehicleId === appliedFilters.vehicle)
+                .filter(t => isBefore(new Date(t.date), startOfDay(filterFromDate!)))
+                .filter(t => filterParty === 'All' || t.partyId === filterParty)
+                .filter(t => filterVehicle === 'All' || t.vehicleId === filterVehicle)
                 .reduce((sum, t) => sum + (t.debit - t.credit), 0);
         }
 
         // 4. Filter current period entries
         let filtered = rawMapped.filter(t => {
-            if (appliedFilters.from && isBefore(new Date(t.date), startOfDay(appliedFilters.from))) return false;
-            if (appliedFilters.to && isBefore(endOfDay(appliedFilters.to), new Date(t.date))) return false;
-            if (appliedFilters.party !== 'All' && t.partyId !== appliedFilters.party) return false;
-            if (appliedFilters.vehicle !== 'All' && t.vehicleId !== appliedFilters.vehicle) return false;
-            if (appliedFilters.category !== 'All' && t.categoryDisplay !== appliedFilters.category.toUpperCase()) return false;
+            if (filterFromDate && isBefore(new Date(t.date), startOfDay(filterFromDate))) return false;
+            if (filterToDate && isBefore(endOfDay(filterToDate), new Date(t.date))) return false;
+            if (filterParty !== 'All' && t.partyId !== filterParty) return false;
+            if (filterVehicle !== 'All' && t.vehicleId !== filterVehicle) return false;
+            if (filterCategory !== 'All' && t.categoryDisplay !== filterCategory.toUpperCase()) return false;
             return true;
         });
 
@@ -280,10 +246,10 @@ export default function FleetTransactionsPage() {
                 count: processed.length
             }
         };
-    }, [transactions, appliedFilters, globalSearch, vehiclesById, partiesById]);
+    }, [transactions, filterParty, filterVehicle, filterFromDate, filterToDate, filterCategory, filterStatus, globalSearch, vehiclesById, partiesById]);
 
     const handleExport = async (type: 'excel' | 'pdf') => {
-        const periodStr = appliedFilters.from ? `${toNepaliDate(appliedFilters.from.toISOString())} - ${appliedFilters.to ? toNepaliDate(appliedFilters.to.toISOString()) : 'Present'}` : 'All Time';
+        const periodStr = filterFromDate ? `${toNepaliDate(filterFromDate.toISOString())} - ${filterToDate ? toNepaliDate(filterToDate.toISOString()) : 'Present'}` : 'All Time';
         
         if (type === 'excel') {
             const XLSX = await import('xlsx');
@@ -314,9 +280,9 @@ export default function FleetTransactionsPage() {
             
             autoTable(doc, {
                 startY: 35,
-                head: [['Date (BS)', 'Ref No.', 'Particulars', 'Vehicle', 'Category', 'Debit', 'Credit', 'Balance', 'Status']],
+                head: [['Date (BS)', 'Ref No.', 'Particulars', 'Vehicle', 'Category', 'Debit (Dr)', 'Credit (Cr)', 'Balance', 'Status']],
                 body: [
-                    ['', '', 'Balance B/F', '-', '-', '-', '-', ledgerData.stats.opening.toLocaleString(), ''],
+                    ['', '', 'Balance B/F', '-', '-', '-', '-', `${Math.abs(ledgerData.stats.opening).toLocaleString()} ${ledgerData.stats.opening >= 0 ? 'Dr' : 'Cr'}`, ''],
                     ...ledgerData.entries.map(e => [
                         toNepaliDate(e.date), e.refNo, e.remarks || e.type, e.vehicleName, e.categoryDisplay,
                         e.debit ? e.debit.toLocaleString() : '-', e.credit ? e.credit.toLocaleString() : '-',
@@ -329,6 +295,16 @@ export default function FleetTransactionsPage() {
             doc.save(`Ledger_Report_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
         }
     };
+
+    const isFiltered = useMemo(() => {
+        return filterParty !== 'All' || 
+               filterVehicle !== 'All' || 
+               !!filterFromDate || 
+               !!filterToDate || 
+               filterCategory !== 'All' || 
+               filterStatus !== 'All' ||
+               globalSearch !== '';
+    }, [filterParty, filterVehicle, filterFromDate, filterToDate, filterCategory, filterStatus, globalSearch]);
 
     return (
         <div className="flex flex-col gap-6 max-w-[1600px] mx-auto">
@@ -345,7 +321,7 @@ export default function FleetTransactionsPage() {
                 </div>
             </div>
 
-            {/* Filter Card */}
+            {/* Filter Card - Automatic (No Apply Button) */}
             <Card className="shadow-sm border-gray-100 bg-white overflow-visible">
                 <CardContent className="p-5 flex flex-wrap items-end gap-4">
                     <SearchableSelect 
@@ -399,8 +375,11 @@ export default function FleetTransactionsPage() {
                     <FilterSelect label="Status" value={filterStatus} onSelect={setFilterStatus} items={['Paid', 'Due', 'Partial']} placeholder="Status" />
 
                     <div className="flex gap-2 shrink-0">
-                        <Button className="h-10 px-6 font-bold shadow-md shadow-primary/20" onClick={handleApplyFilters}>Apply Filter</Button>
-                        <Button variant="ghost" className="h-10 px-4 text-muted-foreground hover:bg-gray-50" onClick={handleResetFilters}>Reset</Button>
+                        {isFiltered && (
+                            <Button variant="outline" className="h-10 px-4 text-muted-foreground hover:bg-gray-50 border-dashed" onClick={handleResetFilters}>
+                                <FilterX className="mr-2 h-4 w-4" /> Reset
+                            </Button>
+                        )}
                     </div>
                 </CardContent>
             </Card>
@@ -469,7 +448,7 @@ export default function FleetTransactionsPage() {
                                     {/* Brought Forward Row */}
                                     <TableRow className="bg-gray-50/30 font-medium">
                                         <TableCell colSpan={2}></TableCell>
-                                        <TableCell className="font-bold">Balance B/F</TableCell>
+                                        <TableCell className="font-bold text-blue-700 italic">Balance B/F (Opening)</TableCell>
                                         <TableCell className="text-center">-</TableCell>
                                         <TableCell className="text-center">-</TableCell>
                                         <TableCell className="text-right">-</TableCell>
@@ -528,7 +507,7 @@ export default function FleetTransactionsPage() {
                                         <TableCell className="text-right font-black text-red-600 text-sm">{ledgerData.stats.debit.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell className="text-right font-black text-emerald-700 text-sm">{ledgerData.stats.credit.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell colSpan={2} className="text-right pr-10 font-bold">
-                                            Net: {Math.abs(ledgerData.stats.net).toLocaleString()} {ledgerData.stats.net >= 0 ? 'Dr' : 'Cr'}
+                                            Net: {Math.abs(ledgerData.stats.net).toLocaleString(undefined, { minimumFractionDigits: 2 })} {ledgerData.stats.net >= 0 ? 'Dr' : 'Cr'}
                                         </TableCell>
                                     </TableRow>
                                 </TableFooter>
