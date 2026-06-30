@@ -101,9 +101,6 @@ export default function DashboardPage() {
     <div className="flex flex-col gap-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-4">
-            <div className="w-20 h-20 rounded-xl bg-blue-50 flex items-center justify-center overflow-hidden border border-blue-100 text-blue-600">
-                <Building2 className="h-10 w-10" />
-            </div>
             <div>
               <h1 className="text-2xl font-bold tracking-tight uppercase">{companyProfile.nameEn}</h1>
               <h2 className="text-lg font-semibold text-muted-foreground">{companyProfile.nameNp}</h2>
