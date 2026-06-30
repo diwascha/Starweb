@@ -78,42 +78,63 @@ const FilterSelect = ({ label, value, onSelect, items, placeholder }: any) => (
     </div>
 );
 
-const SearchableSelect = ({ label, value, onSelect, items, placeholder, icon: Icon }: any) => (
-    <div className="space-y-1.5 flex-1 min-w-[200px]">
-        <Label className="text-[11px] font-bold text-muted-foreground uppercase tracking-tight">{label}</Label>
-        <Popover>
-            <PopoverTrigger asChild>
-                <Button variant="outline" className="w-full justify-between h-10 bg-white border-gray-200 shadow-none font-normal text-sm px-3">
-                    <div className="flex items-center gap-2 overflow-hidden">
-                        <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
-                        <span className="truncate">{value === 'All' ? `All ${placeholder}s` : (items.find((i: any) => i.id === value)?.name || `Select ${placeholder}`)}</span>
-                    </div>
-                    <ChevronDown className="h-4 w-4 opacity-50" />
-                </Button>
-            </PopoverTrigger>
-            <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
-                <Command>
-                    <CommandInput placeholder={`Search ${placeholder.toLowerCase()}...`} />
-                    <CommandList>
-                        <CommandEmpty>No results found.</CommandEmpty>
-                        <CommandGroup>
-                            <CommandItem value="All" onSelect={() => onSelect('All')}>
-                                <Check className={cn("mr-2 h-4 w-4", value === 'All' ? "opacity-100" : "opacity-0")} />
-                                All {placeholder}s
-                            </CommandItem>
-                            {items.map((item: any) => (
-                                <CommandItem key={item.id} value={item.name} onSelect={() => onSelect(item.id)}>
-                                    <Check className={cn("mr-2 h-4 w-4", value === item.id ? "opacity-100" : "opacity-0")} />
-                                    {item.name}
+const SearchableMultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }: any) => {
+    const isAll = values.length === 0;
+
+    const toggleItem = (id: string) => {
+        if (id === 'All') {
+            onSelect([]);
+            return;
+        }
+        const next = values.includes(id)
+            ? values.filter((v: string) => v !== id)
+            : [...values, id];
+        onSelect(next);
+    };
+
+    const displayText = isAll
+        ? `All ${placeholder}s`
+        : values.length === 1
+            ? items.find((i: any) => i.id === values[0])?.name || values[0]
+            : `${values.length} ${placeholder}s Selected`;
+
+    return (
+        <div className="space-y-1.5 flex-1 min-w-[200px]">
+            <Label className="text-[11px] font-bold text-muted-foreground uppercase tracking-tight">{label}</Label>
+            <Popover>
+                <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-between h-10 bg-white border-gray-200 shadow-none font-normal text-sm px-3">
+                        <div className="flex items-center gap-2 overflow-hidden">
+                            <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
+                            <span className="truncate">{displayText}</span>
+                        </div>
+                        <ChevronDown className="h-4 w-4 opacity-50" />
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
+                    <Command>
+                        <CommandInput placeholder={`Search ${placeholder.toLowerCase()}...`} />
+                        <CommandList>
+                            <CommandEmpty>No results found.</CommandEmpty>
+                            <CommandGroup>
+                                <CommandItem value="All" onSelect={() => toggleItem('All')}>
+                                    <Check className={cn("mr-2 h-4 w-4", isAll ? "opacity-100" : "opacity-0")} />
+                                    All {placeholder}s
                                 </CommandItem>
-                            ))}
-                        </CommandGroup>
-                    </CommandList>
-                </Command>
-            </PopoverContent>
-        </Popover>
-    </div>
-);
+                                {items.map((item: any) => (
+                                    <CommandItem key={item.id} value={item.name} onSelect={() => toggleItem(item.id)}>
+                                        <Check className={cn("mr-2 h-4 w-4", values.includes(item.id) ? "opacity-100" : "opacity-0")} />
+                                        {item.name}
+                                    </CommandItem>
+                                ))}
+                            </CommandGroup>
+                        </CommandList>
+                    </Command>
+                </PopoverContent>
+            </Popover>
+        </div>
+    );
+};
 
 export default function FleetTransactionsPage() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -126,8 +147,8 @@ export default function FleetTransactionsPage() {
     const { user } = useAuth();
 
     // ERP Filter State
-    const [filterParty, setFilterParty] = useState('All');
-    const [filterVehicle, setFilterVehicle] = useState('All');
+    const [filterParties, setFilterParties] = useState<string[]>([]);
+    const [filterVehicles, setFilterVehicles] = useState<string[]>([]);
     const [filterFromDate, setFilterFromDate] = useState<Date | undefined>(undefined);
     const [filterToDate, setFilterToDate] = useState<Date | undefined>(undefined);
     const [filterCategory, setFilterCategory] = useState('All');
@@ -150,8 +171,8 @@ export default function FleetTransactionsPage() {
     const categories = useMemo(() => Array.from(new Set(transactions.map(t => t.category || (t.type === 'Sales' ? 'Freight' : t.type)))).filter(Boolean).sort(), [transactions]);
 
     const handleResetFilters = () => {
-        setFilterParty('All');
-        setFilterVehicle('All');
+        setFilterParties([]);
+        setFilterVehicles([]);
         setFilterFromDate(undefined);
         setFilterToDate(undefined);
         setFilterCategory('All');
@@ -160,6 +181,11 @@ export default function FleetTransactionsPage() {
 
     const ledgerData = useMemo(() => {
         const rawMapped = transactions.map(t => {
+            // Accounting Logic for Partner Ledger:
+            // Payments (Dr): Settlements to partner
+            // Sales (Dr): Freight billing to partner
+            // Purchases (Cr): Procurement from partner
+            // Receipts (Cr): Inflows from partner
             const isDebit = t.type === 'Payment' || t.type === 'Sales';
             const isCredit = t.type === 'Purchase' || t.type === 'Receipt';
             
@@ -171,7 +197,8 @@ export default function FleetTransactionsPage() {
                 vehicleName: vehiclesById.get(t.vehicleId) || 'N/A',
                 partyName: t.partyId ? partiesById.get(t.partyId) || 'Unassigned' : 'Unassigned',
                 refNo: t.purchaseNumber || t.referenceId || (t.tripId ? 'Trip' : 'JV'),
-                categoryDisplay: (t.category || (t.type === 'Sales' ? 'Freight' : t.type)).toUpperCase()
+                categoryDisplay: (t.category || (t.type === 'Sales' ? 'Freight' : t.type)).toUpperCase(),
+                lineItemsSummary: (t.items || []).map(i => i.particular).join(', ')
             };
         });
 
@@ -181,16 +208,16 @@ export default function FleetTransactionsPage() {
         if (filterFromDate) {
             openingBalance = rawMapped
                 .filter(t => isBefore(new Date(t.date), startOfDay(filterFromDate!)))
-                .filter(t => filterParty === 'All' || t.partyId === filterParty)
-                .filter(t => filterVehicle === 'All' || t.vehicleId === filterVehicle)
+                .filter(t => filterParties.length === 0 || (t.partyId && filterParties.includes(t.partyId)))
+                .filter(t => filterVehicles.length === 0 || filterVehicles.includes(t.vehicleId))
                 .reduce((sum, t) => sum + (t.debit - t.credit), 0);
         }
 
         let filtered = rawMapped.filter(t => {
             if (filterFromDate && isBefore(new Date(t.date), startOfDay(filterFromDate))) return false;
             if (filterToDate && isBefore(endOfDay(filterToDate), new Date(t.date))) return false;
-            if (filterParty !== 'All' && t.partyId !== filterParty) return false;
-            if (filterVehicle !== 'All' && t.vehicleId !== filterVehicle) return false;
+            if (filterParties.length > 0 && (!t.partyId || !filterParties.includes(t.partyId))) return false;
+            if (filterVehicles.length > 0 && !filterVehicles.includes(t.vehicleId)) return false;
             if (filterCategory !== 'All' && t.categoryDisplay !== filterCategory.toUpperCase()) return false;
             return true;
         });
@@ -201,7 +228,8 @@ export default function FleetTransactionsPage() {
                 t.vehicleName.toLowerCase().includes(q) || 
                 t.partyName.toLowerCase().includes(q) || 
                 t.refNo.toLowerCase().includes(q) || 
-                (t.remarks || '').toLowerCase().includes(q)
+                (t.remarks || '').toLowerCase().includes(q) ||
+                t.lineItemsSummary.toLowerCase().includes(q)
             );
         }
 
@@ -229,7 +257,7 @@ export default function FleetTransactionsPage() {
                 count: processed.length
             }
         };
-    }, [transactions, filterParty, filterVehicle, filterFromDate, filterToDate, filterCategory, globalSearch, vehiclesById, partiesById]);
+    }, [transactions, filterParties, filterVehicles, filterFromDate, filterToDate, filterCategory, globalSearch, vehiclesById, partiesById]);
 
     const handleExport = async (type: 'excel' | 'pdf') => {
         const periodStr = filterFromDate ? `${toNepaliDate(filterFromDate.toISOString())} - ${filterToDate ? toNepaliDate(filterToDate.toISOString()) : 'Present'}` : 'All Time';
@@ -244,7 +272,7 @@ export default function FleetTransactionsPage() {
                 ['Date (BS)', 'Ref No.', 'Particulars', 'Vehicle', 'Category', 'Debit', 'Credit', 'Balance'],
                 ['', '', 'Balance B/F', '', '', '', '', ledgerData.stats.opening.toFixed(2)],
                 ...ledgerData.entries.map(e => [
-                    toNepaliDate(e.date), e.refNo, e.remarks || e.type, e.vehicleName, e.categoryDisplay, 
+                    toNepaliDate(e.date), e.refNo, `${e.remarks || e.type} (${e.lineItemsSummary})`, e.vehicleName, e.categoryDisplay, 
                     e.debit || '-', e.credit || '-', e.balance.toFixed(2)
                 ]),
                 ['', '', 'Total', '', '', ledgerData.stats.debit.toFixed(2), ledgerData.stats.credit.toFixed(2), '']
@@ -267,7 +295,7 @@ export default function FleetTransactionsPage() {
                 body: [
                     ['', '', 'Balance B/F', '-', '-', '-', '-', `${Math.abs(ledgerData.stats.opening).toLocaleString()} ${ledgerData.stats.opening >= 0 ? 'Dr' : 'Cr'}`],
                     ...ledgerData.entries.map(e => [
-                        toNepaliDate(e.date), e.refNo, e.remarks || e.type, e.vehicleName, e.categoryDisplay,
+                        toNepaliDate(e.date), e.refNo, `${e.remarks || e.type}\n${e.lineItemsSummary}`, e.vehicleName, e.categoryDisplay,
                         e.debit ? e.debit.toLocaleString() : '-', e.credit ? e.credit.toLocaleString() : '-',
                         `${Math.abs(e.balance).toLocaleString()} ${e.balance >= 0 ? 'Dr' : 'Cr'}`
                     ])
@@ -280,13 +308,13 @@ export default function FleetTransactionsPage() {
     };
 
     const isFiltered = useMemo(() => {
-        return filterParty !== 'All' || 
-               filterVehicle !== 'All' || 
+        return filterParties.length > 0 || 
+               filterVehicles.length > 0 || 
                !!filterFromDate || 
                !!filterToDate || 
                filterCategory !== 'All' || 
                globalSearch !== '';
-    }, [filterParty, filterVehicle, filterFromDate, filterToDate, filterCategory, globalSearch]);
+    }, [filterParties, filterVehicles, filterFromDate, filterToDate, filterCategory, globalSearch]);
 
     return (
         <div className="flex flex-col gap-6 max-w-[1600px] mx-auto">
@@ -304,18 +332,18 @@ export default function FleetTransactionsPage() {
 
             <Card className="shadow-sm border-gray-100 bg-white overflow-visible">
                 <CardContent className="p-5 flex flex-wrap items-end gap-4">
-                    <SearchableSelect 
-                        label="Party" 
-                        value={filterParty} 
-                        onSelect={setFilterParty} 
+                    <SearchableMultiSelect 
+                        label="Parties" 
+                        values={filterParties} 
+                        onSelect={setFilterParties} 
                         items={parties.filter(p => p.ownership === 'Sijan' || p.ownership === 'Both')} 
                         placeholder="Party" 
                         icon={Users} 
                     />
-                    <SearchableSelect 
-                        label="Vehicle" 
-                        value={filterVehicle} 
-                        onSelect={setFilterVehicle} 
+                    <SearchableMultiSelect 
+                        label="Vehicles" 
+                        values={filterVehicles} 
+                        onSelect={setFilterVehicles} 
                         items={vehicles} 
                         placeholder="Vehicle" 
                         icon={Truck} 
@@ -446,11 +474,9 @@ export default function FleetTransactionsPage() {
                                                     <span className="font-bold text-gray-900 leading-tight">
                                                         {entry.remarks || entry.type}
                                                     </span>
-                                                    {entry.items && entry.items.length > 0 && (
-                                                        <div className="text-[10px] text-muted-foreground italic leading-relaxed line-clamp-2 max-w-[400px]">
-                                                            {entry.items.map(i => i.particular).join(', ')}
-                                                        </div>
-                                                    )}
+                                                    <div className="text-[10px] text-muted-foreground italic leading-relaxed line-clamp-2 max-w-[400px]">
+                                                        {entry.lineItemsSummary}
+                                                    </div>
                                                 </div>
                                             </TableCell>
                                             <TableCell>{entry.vehicleName}</TableCell>
