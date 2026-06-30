@@ -12,18 +12,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { Account, Party, Vehicle, Transaction, AccountOwnership, PartyType } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, ChevronsUpDown, Check, Plus, Trash2, PlusCircle } from 'lucide-react';
+import { CalendarIcon, ChevronsUpDown, Check, Plus, Trash2, PlusCircle, Loader2 } from 'lucide-react';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { format } from 'date-fns';
-import { cn, toNepaliDate } from '@/lib/utils';
+import { cn, toNepaliDate, generateNextVoucherNumber } from '@/lib/utils';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { useAuth } from '@/hooks/use-auth';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { addParty } from '@/services/party-service';
+import { onTransactionsUpdate } from '@/services/transaction-service';
 
 const voucherItemSchema = z.object({
   ledgerId: z.string().min(1, "General Ledger is required."),
@@ -40,21 +38,12 @@ const voucherSchema = z.object({
   accountId: z.string().nullish(),
   chequeNo: z.string().nullish(),
   chequeDate: z.date().nullish(),
-  items: z.array(voucherItemSchema).min(1, "At least one ledger entry is required."),
+  items: z.array(voucherItemSchema).min(1, "At least one entry is required."),
   remarks: z.string().nullish(),
 }).refine(data => {
     if (data.billingType === 'Bank') return !!data.accountId;
     return true;
-}, { message: 'Bank Account is required for Bank billing.', path: ['accountId'] })
-.refine(data => {
-    if (data.billingType === 'Bank') return !!data.chequeNo && data.chequeNo.trim() !== '';
-    return true;
-}, { message: 'Cheque Number is required for Bank billing.', path: ['chequeNo'] })
-.refine(data => {
-    if (data.billingType === 'Bank') return !!data.chequeDate;
-    return true;
-}, { message: 'Cheque Date is required for Bank billing.', path: ['chequeDate'] });
-
+}, { message: 'Bank Account is required.', path: ['accountId'] });
 
 type VoucherFormValues = z.infer<typeof voucherSchema>;
 
@@ -71,25 +60,7 @@ interface PaymentReceiptFormProps {
 export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, onFormSubmit, onCancel, initialValues }: PaymentReceiptFormProps) {
   const { toast } = useToast();
   const { user } = useAuth();
-  const [isBillingPopoverOpen, setIsBillingPopoverOpen] = React.useState(false);
-  
-  // Quick Add Party State
-  const [isPartyDialogOpen, setIsPartyDialogOpen] = React.useState(false);
-  const [partyForm, setPartyForm] = React.useState<{name: string, type: PartyType, ownership: AccountOwnership, address: string}>({ name: '', type: 'Vendor', ownership: 'Sijan', address: '' });
-  const [currentRowIndex, setCurrentRowIndex] = React.useState<number | null>(null);
-
-  // Filter for Sijan related accounts only
-  const sijanAccounts = React.useMemo(() => 
-    accounts.filter(a => 
-      (a.type === 'Bank') && 
-      (a.ownership === 'Sijan' || a.ownership === 'Both')
-    ), [accounts]);
-
-  // Filter for Sijan related ledgers (parties) only
-  const generalLedgers = React.useMemo(() => 
-    parties.filter(p => 
-        p.ownership === 'Sijan' || p.ownership === 'Both'
-    ), [parties]);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const form = useForm<VoucherFormValues>({
     resolver: zodResolver(voucherSchema),
@@ -102,406 +73,88 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
     },
   });
 
-  const { fields, append, remove } = useFieldArray({
-    control: form.control,
-    name: "items"
-  });
-  
+  const { fields, append, remove } = useFieldArray({ control: form.control, name: "items" });
   const watchedItems = form.watch("items") || [];
   const watchedBillingType = form.watch("billingType");
-  const watchedAccountId = form.watch("accountId");
 
-  // Update voucher number reactively when initialValues change
   React.useEffect(() => {
-    if (initialValues?.voucherNo) {
-        const current = form.getValues('voucherNo');
-        if (!current || (current !== initialValues.voucherNo && !initialValues.id)) {
-            form.setValue('voucherNo', initialValues.voucherNo);
-        }
+    if (!initialValues?.voucherNo && !initialValues?.id) {
+        const unsub = onTransactionsUpdate(async (txns) => {
+            const pmtRcdTxns = txns.filter(t => t.type === 'Payment' || t.type === 'Receipt');
+            const nextNum = await generateNextVoucherNumber(pmtRcdTxns, 'PRV-');
+            form.setValue('voucherNo', nextNum);
+        });
+        return () => unsub();
     }
-  }, [initialValues?.voucherNo, initialValues?.id, form]);
-  
-  const totalRec = watchedItems.reduce((sum, item) => sum + (Number(item.recAmount) || 0), 0);
-  const totalPay = watchedItems.reduce((sum, item) => sum + (Number(item.payAmount) || 0), 0);
-  
-  const summaryData = watchedItems.map(item => {
-    const { ledgerId, vehicleId, recAmount = 0, payAmount = 0 } = item;
-    
-    if (!ledgerId && !vehicleId) {
-      return { ledgerName: 'N/A', vehicleName: 'N/A', receivable: 0, payable: 0 };
-    }
+  }, [initialValues, form]);
 
-    const filteredTxns = transactions.filter(t => {
-      const partyMatch = ledgerId ? t.partyId === ledgerId : false;
-      const vehicleMatch = vehicleId ? t.vehicleId === vehicleId : false;
-      if (ledgerId && vehicleId) return partyMatch && vehicleMatch;
-      return partyMatch || vehicleMatch;
-    });
+  const totals = React.useMemo(() => {
+      const rec = watchedItems.reduce((sum, item) => sum + (Number(item.recAmount) || 0), 0);
+      const pay = watchedItems.reduce((sum, item) => sum + (Number(item.payAmount) || 0), 0);
+      return { rec, pay };
+  }, [watchedItems]);
 
-    const balances = filteredTxns.reduce((acc, t) => {
-      if (t.type === 'Sales') acc.receivables += t.amount;
-      if (t.type === 'Receipt') acc.receivables -= t.amount;
-      if (t.type === 'Purchase') acc.payables += t.amount;
-      if (t.type === 'Payment') acc.payables -= t.amount;
-      return acc;
-    }, { receivables: 0, payables: 0 });
+  const sijanAccounts = React.useMemo(() => accounts.filter(a => a.type === 'Bank' && (a.ownership === 'Sijan' || a.ownership === 'Both')), [accounts]);
+  const generalLedgers = React.useMemo(() => parties.filter(p => p.ownership === 'Sijan' || p.ownership === 'Both'), [parties]);
 
-    return {
-      ledgerName: parties.find(p => p.id === ledgerId)?.name || 'N/A',
-      vehicleName: vehicles.find(v => v.id === vehicleId)?.name || 'N/A',
-      receivable: balances.receivables - recAmount,
-      payable: balances.payables - payAmount,
-    };
-  });
-
-  const getBillingLabel = () => {
-      if (watchedBillingType === 'Cash') return 'Cash';
-      if (watchedBillingType === 'Bank' && watchedAccountId) {
-          const account = sijanAccounts.find(a => a.id === watchedAccountId);
-          return account ? (account.bankName ? `${account.bankName} - ${account.accountNumber}` : account.name) : 'Bank Selected';
-      }
-      return 'Select billing source...';
+  const handleFormSubmitInternal = async (values: VoucherFormValues) => {
+      setIsSubmitting(true);
+      await onFormSubmit(values);
+      setIsSubmitting(false);
   };
 
-
-  const handleSubmit = (values: VoucherFormValues) => {
-    onFormSubmit(values);
-  };
-  
-  const handleQuickAddParty = async () => {
-    if (!user || !partyForm.name || !partyForm.ownership) return;
-    try {
-        const id = await addParty({ ...partyForm, createdBy: user.username });
-        if (currentRowIndex !== null) {
-            form.setValue(`items.${currentRowIndex}.ledgerId`, id);
-        }
-        setIsPartyDialogOpen(false);
-        setPartyForm({ name: '', type: 'Vendor', ownership: 'Sijan', address: '' });
-        setCurrentRowIndex(null);
-        toast({ title: 'Party Added' });
-    } catch {
-        toast({ title: 'Error adding party', variant: 'destructive' });
-    }
-  };
-  
   return (
-    <>
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-        <Card className="bg-blue-50/40 border-blue-100 p-6 shadow-sm">
-          <CardContent className="p-0">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-end">
-              <FormField control={form.control} name="voucherNo" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Voucher No.</FormLabel>
-                  <FormControl><Input {...field} value={field.value ?? ''} readOnly className="bg-muted/50 font-mono" /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}/>
-              <FormField control={form.control} name="date" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Date</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal bg-white", !field.value && "text-muted-foreground")}>
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {field.value ? `${toNepaliDate(field.value.toISOString())} (${format(field.value, "PP")})` : <span>Pick a date</span>}
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0"><DualCalendar selected={field.value} onSelect={field.onChange} /></PopoverContent>
-                  </Popover>
-                  <FormMessage/>
-                </FormItem>
-              )}/>
-              
-              <FormItem>
-                <FormLabel>Billing Source (Cash / Bank)</FormLabel>
-                <Popover open={isBillingPopoverOpen} onOpenChange={setIsBillingPopoverOpen}>
-                  <PopoverTrigger asChild>
-                    <FormControl>
-                      <Button variant="outline" role="combobox" className="w-full justify-between bg-white h-10 text-xs overflow-hidden">
-                        <span className="truncate">{getBillingLabel()}</span>
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </FormControl>
-                  </PopoverTrigger>
-                  <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
-                    <Command>
-                      <CommandInput placeholder="Search Cash or Bank..." />
-                      <CommandList>
-                        <CommandEmpty>No source found.</CommandEmpty>
-                        <CommandGroup heading="Available Sources">
-                          <CommandItem 
-                            value="Cash" 
-                            onSelect={() => {
-                                form.setValue("billingType", "Cash");
-                                form.setValue("accountId", undefined);
-                                setIsBillingPopoverOpen(false);
-                            }}
-                          >
-                            <Check className={cn("mr-2 h-4 w-4", watchedBillingType === "Cash" ? "opacity-100" : "opacity-0")} />
-                            <div className="flex flex-col">
-                                <span className="font-bold">General Cash</span>
-                                <span className="text-[10px] text-muted-foreground">Office Cash Account</span>
-                            </div>
-                          </CommandItem>
-                          {sijanAccounts.map(account => (
-                            <CommandItem 
-                              key={account.id} 
-                              value={`${account.name} ${account.bankName || ''} ${account.accountNumber || ''} ${account.id}`}
-                              onSelect={() => {
-                                  form.setValue("billingType", "Bank");
-                                  form.setValue("accountId", account.id);
-                                  setIsBillingPopoverOpen(false);
-                              }}
-                            >
-                              <Check className={cn("mr-2 h-4 w-4", watchedAccountId === account.id ? "opacity-100" : "opacity-0")} />
-                              <div className="flex flex-col">
-                                  <span className="font-bold text-xs">{account.bankName ? account.bankName : account.name}</span>
-                                  <span className="text-[10px] text-muted-foreground uppercase">{account.accountNumber ? `A/C: ${account.accountNumber}` : 'Bank Account'}</span>
-                              </div>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-                <FormMessage/>
-              </FormItem>
-            </div>
-            
-            {watchedBillingType === 'Bank' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end mt-6 pt-6 border-t border-blue-100">
-                  <FormField 
-                    control={form.control} 
-                    name="chequeNo" 
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Cheque / Reference Number</FormLabel>
-                        <FormControl>
-                          <Input {...field} value={field.value ?? ''} className="bg-white" placeholder="Enter cheque or transaction ID"/>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField 
-                    control={form.control} 
-                    name="chequeDate" 
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Cheque / Transaction Date</FormLabel>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <FormControl>
-                              <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal bg-white", !field.value && "text-muted-foreground")}>
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {field.value ? format(field.value, "PP") : <span>Pick a date</span>}
-                              </Button>
-                            </FormControl>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0">
-                            <DualCalendar selected={field.value ?? undefined} onSelect={field.onChange} />
-                          </PopoverContent>
-                        </Popover>
-                        <FormMessage/>
-                      </FormItem>
-                    )}
-                  />
+      <form onSubmit={form.handleSubmit(handleFormSubmitInternal)} className="space-y-6">
+        <Card className="bg-blue-50/40 p-6 shadow-sm border-blue-100">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <FormField control={form.control} name="voucherNo" render={({ field }) => (
+              <FormItem><FormLabel>Voucher No.</FormLabel><FormControl><Input {...field} readOnly className="bg-muted/50 font-mono" /></FormControl><FormMessage/></FormItem>
+            )}/>
+            <FormField control={form.control} name="date" render={({ field }) => (
+              <FormItem><FormLabel>Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className="w-full justify-start text-left font-normal bg-white"><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? toNepaliDate(field.value.toISOString()) : 'Select Date'}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><DualCalendar selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage/></FormItem>
+            )}/>
+            <FormField control={form.control} name="billingType" render={({ field }) => (
+              <FormItem><FormLabel>Source</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="bg-white"><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="Cash">Cash</SelectItem><SelectItem value="Bank">Bank</SelectItem></SelectContent></Select><FormMessage/></FormItem>
+            )}/>
+          </div>
+          {watchedBillingType === 'Bank' && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 pt-6 border-t border-blue-100">
+                  <FormField control={form.control} name="accountId" render={({ field }) => (
+                      <FormItem><FormLabel>Bank Account</FormLabel><Select onValueChange={field.onChange} value={field.value || ''}><FormControl><SelectTrigger className="bg-white"><SelectValue placeholder="Select Account"/></SelectTrigger></FormControl><SelectContent>{sijanAccounts.map(a => <SelectItem key={a.id} value={a.id}>{a.bankName} - {a.accountNumber}</SelectItem>)}</SelectContent></Select><FormMessage/></FormItem>
+                  )}/>
+                  <FormField control={form.control} name="chequeNo" render={({ field }) => (<FormItem><FormLabel>Cheque / Ref #</FormLabel><FormControl><Input {...field} value={field.value ?? ''} className="bg-white" /></FormControl></FormItem>)}/>
               </div>
-            )}
-          </CardContent>
+          )}
         </Card>
 
         <div className="border rounded-lg overflow-hidden shadow-sm">
             <Table>
-            <TableHeader className="bg-muted/30">
-                <TableRow>
-                <TableHead className="w-[50px] text-center">S.No</TableHead>
-                <TableHead>Vehicle</TableHead>
-                <TableHead>General Ledger (A/C)</TableHead>
-                <TableHead className="w-[140px]">Rec Amount</TableHead>
-                <TableHead className="w-[140px]">Pay Amount</TableHead>
-                <TableHead>Narration / Entry Remark</TableHead>
-                <TableHead className="w-[50px]"></TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                {fields.map((item, index) => (
-                <TableRow key={item.id} className="h-14">
-                    <TableCell className="text-center font-medium">{index + 1}</TableCell>
-                    <TableCell>
-                        <FormField control={form.control} name={`items.${index}.vehicleId`} render={({ field }) => (
-                            <Select onValueChange={field.onChange} value={field.value}>
-                                <FormControl>
-                                    <SelectTrigger className="h-9">
-                                        <SelectValue placeholder="Select vehicle" />
-                                    </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                        )}/>
-                    </TableCell>
-                    <TableCell>
-                    <FormField control={form.control} name={`items.${index}.ledgerId`} render={({ field }) => (
-                        <div className="flex gap-2">
-                        <Popover><PopoverTrigger asChild><FormControl>
-                            <Button variant="outline" role="combobox" className="w-full justify-between h-9 font-normal">
-                                {field.value ? generalLedgers.find(p => p.id === field.value)?.name : "Select ledger..."}<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                        </FormControl></PopoverTrigger><PopoverContent className="p-0 w-[--radix-popover-trigger-width]"><Command>
-                            <CommandInput placeholder="Search ledger..." />
-                            <CommandList>
-                                <CommandEmpty>
-                                    <Button variant="ghost" className="w-full justify-start text-xs" onClick={() => { setCurrentRowIndex(index); setIsPartyDialogOpen(true); }}>
-                                        <PlusCircle className="mr-2 h-4 w-4" /> Add New Party
-                                    </Button>
-                                </CommandEmpty>
-                                <CommandGroup>
-                                {generalLedgers.map(party => <CommandItem key={party.id} value={`${party.name} ${party.ownership} ${party.id}`} onSelect={() => field.onChange(party.id)}>
-                                    <Check className={cn("mr-2 h-4 w-4", field.value === party.id ? "opacity-100" : "opacity-0")} />{party.name}
-                                </CommandItem>)}
-                            </CommandGroup></CommandList>
-                        </Command></PopoverContent></Popover>
-                        <Button type="button" size="icon" variant="outline" className="h-9 w-9 shrink-0" onClick={() => { setCurrentRowIndex(index); setIsPartyDialogOpen(true); }}><Plus className="h-4 w-4"/></Button>
-                        </div>
-                    )}/>
-                    </TableCell>
-                    <TableCell>
-                    <FormField control={form.control} name={`items.${index}.recAmount`} render={({ field }) => <Input type="number" className="h-9" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />} />
-                    </TableCell>
-                    <TableCell>
-                    <FormField control={form.control} name={`items.${index}.payAmount`} render={({ field }) => <Input type="number" className="h-9" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />} />
-                    </TableCell>
-                    <TableCell>
-                    <FormField control={form.control} name={`items.${index}.narration`} render={({ field }) => <Input className="h-9" {...field} value={field.value ?? ''} />} />
-                    </TableCell>
-                    <TableCell>
-                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => remove(index)}><Trash2 className="h-4 w-4"/></Button>
-                    </TableCell>
-                </TableRow>
-                ))}
-            </TableBody>
-            <TableFooter className="bg-muted/50 border-t-2 border-muted">
-                <TableRow className="h-14 hover:bg-transparent">
-                    <TableCell colSpan={3} className="text-right font-black uppercase text-[10px] tracking-widest text-muted-foreground">Voucher Totals</TableCell>
-                    <TableCell className="font-mono font-black text-emerald-700">Rs. {totalRec.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
-                    <TableCell className="font-mono font-black text-red-700">Rs. {totalPay.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
-                    <TableCell colSpan={2}></TableCell>
-                </TableRow>
-            </TableFooter>
+                <TableHeader className="bg-muted/30"><TableRow><TableHead>Vehicle</TableHead><TableHead>Ledger</TableHead><TableHead className="w-32">Rec Amount</TableHead><TableHead className="w-32">Pay Amount</TableHead><TableHead>Narration</TableHead><TableHead className="w-10"></TableHead></TableRow></TableHeader>
+                <TableBody>
+                    {fields.map((item, index) => (
+                        <TableRow key={item.id}>
+                            <TableCell><FormField control={form.control} name={`items.${index}.vehicleId`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-9"><SelectValue placeholder="Select"/></SelectTrigger></FormControl><SelectContent>{vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}</SelectContent></Select>)}/> </TableCell>
+                            <TableCell><FormField control={form.control} name={`items.${index}.ledgerId`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-9"><SelectValue placeholder="Select Ledger"/></SelectTrigger></FormControl><SelectContent>{generalLedgers.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select>)}/> </TableCell>
+                            <TableCell><FormField control={form.control} name={`items.${index}.recAmount`} render={({ field }) => (<Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} className="h-9" />)}/></TableCell>
+                            <TableCell><FormField control={form.control} name={`items.${index}.payAmount`} render={({ field }) => (<Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} className="h-9" />)}/></TableCell>
+                            <TableCell><FormField control={form.control} name={`items.${index}.narration`} render={({ field }) => (<Input {...field} value={field.value ?? ''} className="h-9" />)}/></TableCell>
+                            <TableCell><Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}><Trash2 className="h-4 w-4"/></Button></TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+                <TableFooter className="bg-muted/50">
+                    <TableRow><TableCell colSpan={2} className="text-right font-bold">Totals</TableCell><TableCell className="font-mono font-bold text-emerald-600">{totals.rec.toLocaleString()}</TableCell><TableCell className="font-mono font-bold text-red-600">{totals.pay.toLocaleString()}</TableCell><TableCell colSpan={2}></TableCell></TableRow>
+                </TableFooter>
             </Table>
         </div>
-        <Button type="button" size="sm" variant="outline" className="mt-2" onClick={() => append({ ledgerId: '', vehicleId: '', recAmount: 0, payAmount: 0, narration: '' })}>
-            <Plus className="mr-2 h-4 w-4"/> Add Entry Row
-        </Button>
-        
-        <div className="space-y-6 mt-8">
-            <Card className="bg-muted/5 border shadow-none">
-                <CardHeader className="py-3 px-4 border-b bg-muted/10"><CardTitle className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Final Voucher Details</CardTitle></CardHeader>
-                <CardContent className="p-4 space-y-6">
-                    <FormField control={form.control} name="remarks" render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>General Voucher Remarks / Narration</FormLabel>
-                            <FormControl>
-                                <Textarea 
-                                    {...field} 
-                                    value={field.value ?? ''} 
-                                    className="bg-white min-h-[80px] text-sm resize-none" 
-                                    placeholder="Provide context for this entire voucher (optional)..."
-                                />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}/>
-
-                    <div className="space-y-3">
-                        <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Ledger Balance Impact Summary</Label>
-                        <div className="border rounded-md overflow-hidden bg-white">
-                            <Table className="text-xs">
-                            <TableHeader className="bg-muted/20">
-                                <TableRow>
-                                <TableHead className="w-[50px] text-center">S.No</TableHead>
-                                <TableHead>Vehicle</TableHead>
-                                <TableHead>Ledger (A/C)</TableHead>
-                                <TableHead className="text-right">Estimated Receivable</TableHead>
-                                <TableHead className="text-right">Estimated Payable</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {summaryData.map((item, index) => (
-                                    <TableRow key={index} className="h-10">
-                                    <TableCell className="text-center">{index + 1}</TableCell>
-                                    <TableCell>{item.vehicleName}</TableCell>
-                                    <TableCell>{item.ledgerName}</TableCell>
-                                    <TableCell className="text-right font-mono">{item.receivable.toLocaleString()}</TableCell>
-                                    <TableCell className="text-right font-mono">{item.payable.toLocaleString()}</TableCell>
-                                    </TableRow>
-                                ))}
-                                {summaryData.length === 0 && <TableRow><TableCell colSpan={5} className="text-center py-4 text-muted-foreground">Add items to see impact summary.</TableCell></TableRow>}
-                            </TableBody>
-                            </Table>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-        </div>
+        <Button type="button" variant="outline" size="sm" onClick={() => append({ ledgerId: '', vehicleId: '', recAmount: 0, payAmount: 0, narration: '' })}><Plus className="mr-2 h-4 w-4"/> Add Row</Button>
 
         <div className="flex justify-end gap-3 pt-6 border-t">
-            <Button type="button" variant="outline" className="h-11 px-8" onClick={onCancel}>Cancel</Button>
-            <Button type="submit" className="h-11 px-12 font-bold">{initialValues?.items ? 'Update Voucher' : 'Post Voucher'}</Button>
+            <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
+            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? <Loader2 className="animate-spin h-4 w-4 mr-2"/> : null}Save Voucher</Button>
         </div>
       </form>
     </Form>
-
-    <Dialog open={isPartyDialogOpen} onOpenChange={setIsPartyDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-            <DialogHeader><DialogTitle>Quick Add Party</DialogTitle></DialogHeader>
-            <div className="grid gap-4 py-4">
-                <div className="space-y-2">
-                    <Label>Party Name</Label>
-                    <Input value={partyForm.name} onChange={e => setPartyForm({...partyForm, name: e.target.value})} />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <Label>Category</Label>
-                        <Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm({...partyForm, type: v})}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="Vendor">Vendor</SelectItem>
-                                <SelectItem value="Customer">Customer</SelectItem>
-                                <SelectItem value="Both">Both</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Ownership</Label>
-                        <Select value={partyForm.ownership} onValueChange={(v: AccountOwnership) => setPartyForm({...partyForm, ownership: v})}>
-                            <SelectTrigger><SelectValue/></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="Sijan">Sijan Dhuwani</SelectItem>
-                                <SelectItem value="Shivam">Shivam Packaging</SelectItem>
-                                <SelectItem value="Both">Both</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </div>
-                <div className="space-y-2">
-                    <Label>Address</Label>
-                    <Input value={partyForm.address} onChange={e => setPartyForm({...partyForm, address: e.target.value})} />
-                </div>
-            </div>
-            <DialogFooter>
-                <Button variant="outline" onClick={() => setIsPartyDialogOpen(false)}>Cancel</Button>
-                <Button onClick={handleQuickAddParty}>Add Party</Button>
-            </DialogFooter>
-        </DialogContent>
-    </Dialog>
-    </>
   );
 }

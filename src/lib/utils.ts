@@ -35,19 +35,17 @@ export const getDirectImageUrl = (url: string | undefined | null): string => {
 };
 
 /**
- * Generates a unique ID. Uses crypto.randomUUID where available for security.
+ * Generates a unique ID.
  */
 export const generateId = (): string => {
   if (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID) {
     return window.crypto.randomUUID();
   }
-  // Fallback for older browsers or non-secure contexts
   return Math.random().toString(36).substring(2, 11);
 };
 
 /**
  * Normalizes a path by removing trailing slashes.
- * Ensures consistent behavior for logging and active states.
  */
 export const getNormalizedPath = (path: string): string => {
   if (!path) return '/';
@@ -128,26 +126,19 @@ export const generateNextVoucherNumber = async (items: (TdsCalculation | Transac
     const numberStrings = items.map(item => {
         if ('voucherNo' in item) return item.voucherNo;
         if ('referenceId' in item) return item.referenceId;
-        // Fallback for legacy transaction structures
         return item.items?.[0]?.particular?.replace(/ .*/, '');
     });
     
     return calculateNextSequence(numberStrings, prefix);
 };
 
-
 export const getStatusBadgeVariant = (status: PurchaseOrderStatus) => {
     switch (status) {
-      case 'Ordered':
-        return 'default';
-      case 'Amended':
-        return 'secondary';
-      case 'Delivered':
-        return 'outline';
-      case 'Canceled':
-        return 'destructive';
-      default:
-        return 'default';
+      case 'Ordered': return 'default';
+      case 'Amended': return 'secondary';
+      case 'Delivered': return 'outline';
+      case 'Canceled': return 'destructive';
+      default: return 'default';
     }
 };
 
@@ -175,20 +166,14 @@ export const toNepaliDate = (isoDate: string): string => {
 
 export const formatTimeForDisplay = (timeString: string | null | undefined): string => {
     if (!timeString) return '-';
-    if (/^\d{2}:\d{2}:\d{2}$/.test(timeString)) {
-        return timeString;
-    }
+    if (/^\d{2}:\d{2}:\d{2}$/.test(timeString)) return timeString;
     try {
         const date = new Date(timeString);
-        if (!isNaN(date.getTime())) {
-            return format(date, 'HH:mm:ss');
-        }
+        if (!isNaN(date.getTime())) return format(date, 'HH:mm:ss');
     } catch {
         try {
             const parsed = parse(timeString, 'HH:mm', new Date());
-            if (!isNaN(parsed.getTime())) {
-                return format(parsed, 'HH:mm:ss');
-            }
+            if (!isNaN(parsed.getTime())) return format(parsed, 'HH:mm:ss');
         } catch {
             return timeString;
         }
