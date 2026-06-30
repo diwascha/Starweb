@@ -250,68 +250,88 @@ export default function FleetTransactionsPage() {
     const stats = useMemo(() => {
         let income = 0;
         let expense = 0;
-        let receivable = 0;
-        let payable = 0;
+        let totalSales = 0;
+        let totalReceipts = 0;
+        let totalPurchases = 0;
+        let totalPayments = 0;
 
         filteredTransactions.forEach(t => {
-            if (t.direction === 'Income') income += t.amount;
-            else expense += t.amount;
-            
-            if (t.type === 'Sales') receivable += t.dueAmount;
-            if (t.type === 'Purchase') payable += t.dueAmount;
+            if (t.direction === 'Income') {
+                income += t.amount;
+                if (t.type === 'Sales') totalSales += t.amount;
+                totalReceipts += t.paidAmount;
+            } else {
+                expense += t.amount;
+                if (t.type === 'Purchase') totalPurchases += t.amount;
+                totalPayments += t.paidAmount;
+            }
         });
 
         return {
             income,
             expense,
             profit: income - expense,
-            receivable,
-            payable
+            receivable: Math.max(0, totalSales - totalReceipts),
+            payable: Math.max(0, totalPurchases - totalPayments)
         };
     }, [filteredTransactions]);
 
     const vehicleSummaryRows = useMemo(() => {
-        const summaryMap = new Map<string, { id: string, name: string, income: number, expense: number, profit: number, due: number }>();
+        const summaryMap = new Map<string, { id: string, name: string, income: number, expense: number, profit: number, billing: number, settled: number }>();
         
         vehicles.forEach(v => {
-            summaryMap.set(v.id, { id: v.id, name: v.name, income: 0, expense: 0, profit: 0, due: 0 });
+            summaryMap.set(v.id, { id: v.id, name: v.name, income: 0, expense: 0, profit: 0, billing: 0, settled: 0 });
         });
 
         filteredTransactions.forEach(t => {
             const entry = summaryMap.get(t.vehicleId);
             if (entry) {
-                if (t.direction === 'Income') entry.income += t.amount;
-                else entry.expense += t.amount;
-                entry.due += t.dueAmount;
+                if (t.direction === 'Income') {
+                    entry.income += t.amount;
+                    if (t.type === 'Sales') entry.billing += t.amount;
+                    entry.settled += t.paidAmount;
+                } else {
+                    entry.expense += t.amount;
+                }
                 entry.profit = entry.income - entry.expense;
             }
         });
 
         return Array.from(summaryMap.values())
+            .map(v => ({
+                ...v,
+                due: Math.max(0, v.billing - v.settled)
+            }))
             .filter(v => v.income > 0 || v.expense > 0 || v.id === filterVehicleId)
             .sort((a, b) => b.income - a.income);
     }, [vehicles, filteredTransactions, filterVehicleId]);
 
     const partnerSummaryRows = useMemo(() => {
-        const summaryMap = new Map<string, { id: string, name: string, billing: number, settled: number, balance: number }>();
+        const summaryMap = new Map<string, { id: string, name: string, billing: number, settled: number }>();
         
         parties.filter(p => p.ownership === 'Sijan' || p.ownership === 'Both').forEach(p => {
-            summaryMap.set(p.id, { id: p.id, name: p.name, billing: 0, settled: 0, balance: 0 });
+            summaryMap.set(p.id, { id: p.id, name: p.name, billing: 0, settled: 0 });
         });
 
         filteredTransactions.forEach(t => {
             if (t.partyId) {
                 const entry = summaryMap.get(t.partyId);
                 if (entry) {
-                    if (t.type === 'Sales' || t.type === 'Purchase') entry.billing += t.amount;
+                    if (t.type === 'Sales' || t.type === 'Purchase') {
+                        entry.billing += t.amount;
+                    }
+                    // Summing t.paidAmount correctly handles both linked items and standalone vouchers
                     entry.settled += t.paidAmount;
-                    entry.balance += t.dueAmount;
                 }
             }
         });
 
         return Array.from(summaryMap.values())
-            .filter(p => p.billing > 0 || p.settled > 0 || p.id === filterPartyId)
+            .map(p => ({
+                ...p,
+                balance: Math.max(0, p.billing - p.settled)
+            }))
+            .filter(p => p.billing !== 0 || p.settled !== 0 || p.id === filterPartyId)
             .sort((a, b) => b.billing - a.billing);
     }, [parties, filteredTransactions, filterPartyId]);
 
