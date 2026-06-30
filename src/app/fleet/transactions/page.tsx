@@ -300,7 +300,7 @@ export default function FleetTransactionsPage() {
         return Array.from(summaryMap.values())
             .map(v => ({
                 ...v,
-                due: Math.max(0, v.billing - v.settled)
+                due: v.billing - v.settled
             }))
             .filter(v => v.income > 0 || v.expense > 0 || v.id === filterVehicleId)
             .sort((a, b) => b.income - a.income);
@@ -320,7 +320,6 @@ export default function FleetTransactionsPage() {
                     if (t.type === 'Sales' || t.type === 'Purchase') {
                         entry.billing += t.amount;
                     }
-                    // Summing t.paidAmount correctly handles both linked items and standalone vouchers
                     entry.settled += t.paidAmount;
                 }
             }
@@ -329,7 +328,7 @@ export default function FleetTransactionsPage() {
         return Array.from(summaryMap.values())
             .map(p => ({
                 ...p,
-                balance: Math.max(0, p.billing - p.settled)
+                balance: p.billing - p.settled
             }))
             .filter(p => p.billing !== 0 || p.settled !== 0 || p.id === filterPartyId)
             .sort((a, b) => b.billing - a.billing);
@@ -659,7 +658,16 @@ export default function FleetTransactionsPage() {
                                                 <TableCell className={cn("text-right font-mono font-bold", v.profit >= 0 ? "text-blue-700" : "text-orange-700")}>
                                                     Rs. {v.profit.toLocaleString()}
                                                 </TableCell>
-                                                <TableCell className="text-right font-mono text-amber-600 font-bold">Rs. {v.due.toLocaleString()}</TableCell>
+                                                <TableCell className={cn("text-right font-mono font-bold", v.due > 0 ? "text-amber-600" : (v.due < 0 ? "text-blue-700" : "text-muted-foreground/30"))}>
+                                                    {v.due < 0 ? (
+                                                        <span className="flex items-center justify-end gap-1">
+                                                            <Badge variant="outline" className="text-[9px] bg-blue-50 text-blue-700 border-blue-200 uppercase px-1 h-4">Adv</Badge>
+                                                            Rs. {Math.abs(v.due).toLocaleString()}
+                                                        </span>
+                                                    ) : (
+                                                        `Rs. ${v.due.toLocaleString()}`
+                                                    )}
+                                                </TableCell>
                                                 <TableCell className="text-right text-muted-foreground"><ChevronRight className="h-4 w-4" /></TableCell>
                                             </TableRow>
                                         ))}
@@ -804,8 +812,15 @@ export default function FleetTransactionsPage() {
                                             </TableCell>
                                             <TableCell className="text-right font-mono">Rs. {p.billing.toLocaleString()}</TableCell>
                                             <TableCell className="text-right font-mono text-blue-600">Rs. {p.settled.toLocaleString()}</TableCell>
-                                            <TableCell className={cn("text-right font-mono font-bold", p.balance > 0 ? "text-orange-700" : "text-muted-foreground/30")}>
-                                                Rs. {p.balance.toLocaleString()}
+                                            <TableCell className={cn("text-right font-mono font-bold", p.balance > 0 ? "text-orange-700" : (p.balance < 0 ? "text-blue-700" : "text-muted-foreground/30"))}>
+                                                {p.balance < 0 ? (
+                                                    <span className="flex items-center justify-end gap-1">
+                                                        <Badge variant="outline" className="text-[9px] bg-blue-50 text-blue-700 border-blue-200 uppercase px-1 h-4">Adv</Badge>
+                                                        Rs. {Math.abs(p.balance).toLocaleString()}
+                                                    </span>
+                                                ) : (
+                                                    `Rs. ${p.balance.toLocaleString()}`
+                                                )}
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <Button variant="ghost" size="sm" onClick={() => { setFilterPartyId(p.id); setFilterVehicleId('All'); setActiveView('vehicle'); }}>
