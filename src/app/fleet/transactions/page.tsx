@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
@@ -48,7 +49,6 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { NEPALI_MONTHS, DEFAULT_FLEET_PROFILE } from '@/lib/constants';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 import type { DateRange } from 'react-day-picker';
 import NepaliDate from 'nepali-date-converter';
@@ -61,6 +61,7 @@ interface LedgerEntry extends Transaction {
     balance: number;
     refNo: string;
     categoryDisplay: string;
+    lineItemsSummary: string;
 }
 
 const FilterSelect = ({ label, value, onSelect, items, placeholder }: any) => (
@@ -488,113 +489,106 @@ export default function FleetTransactionsPage() {
             </div>
 
             <Card className="shadow-sm border-gray-100 bg-white">
-                <Tabs defaultValue="ledger" className="w-full">
-                    <div className="flex flex-col sm:flex-row items-center justify-between border-b px-5 py-2 gap-4">
-                        <TabsList className="bg-transparent border-none p-0 h-auto gap-6">
-                            <TabsTrigger value="ledger" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-10 px-0 font-bold text-sm">Ledger View</TabsTrigger>
-                            <TabsTrigger value="summary" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-10 px-0 font-bold text-sm">Summary View</TabsTrigger>
-                        </TabsList>
-                        <div className="relative w-full sm:w-[350px]">
-                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input 
-                                placeholder="Search narration, ref no..." 
-                                className="pl-9 h-10 bg-gray-50 border-gray-200 shadow-none focus-visible:bg-white text-sm"
-                                value={globalSearch}
-                                onChange={(e) => setUsageSearch(e.target.value)}
-                            />
-                        </div>
+                <div className="flex flex-col sm:flex-row items-center justify-between border-b px-5 py-2 gap-4">
+                    <div className="h-10 flex items-center">
+                        <h3 className="font-bold text-sm text-gray-900 uppercase tracking-tight">Detailed Ledger Log</h3>
                     </div>
+                    <div className="relative w-full sm:w-[350px]">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input 
+                            placeholder="Search narration, ref no..." 
+                            className="pl-9 h-10 bg-gray-50 border-gray-200 shadow-none focus-visible:bg-white text-sm"
+                            value={globalSearch}
+                            onChange={(e) => setUsageSearch(e.target.value)}
+                        />
+                    </div>
+                </div>
 
-                    <TabsContent value="ledger" className="p-0 m-0">
-                        <ScrollArea className="w-full">
-                            <Table className="text-[12px]">
-                                <TableHeader className="bg-blue-50/30">
-                                    <TableRow className="hover:bg-transparent">
-                                        <TableHead className="w-[120px] font-bold text-blue-900 h-12">Date (BS)</TableHead>
-                                        <TableHead className="w-[120px] font-bold text-blue-900">Ref. No.</TableHead>
-                                        <TableHead className="min-w-[300px] font-bold text-blue-900">Particulars / Description</TableHead>
-                                        <TableHead className="w-[150px] font-bold text-blue-900">Vehicle</TableHead>
-                                        <TableHead className="w-[140px] font-bold text-blue-900">Category</TableHead>
-                                        <TableHead className="text-right w-[140px] font-bold text-blue-900">Debit (Dr)</TableHead>
-                                        <TableHead className="text-right w-[140px] font-bold text-blue-900">Credit (Cr)</TableHead>
-                                        <TableHead className="text-right w-[160px] font-bold text-blue-900">Balance</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody className="bg-white">
-                                    <TableRow className="bg-gray-50/30 font-medium">
-                                        <TableCell colSpan={2}></TableCell>
-                                        <TableCell className="font-bold text-blue-700 italic">Balance B/F (Opening)</TableCell>
-                                        <TableCell className="text-center">-</TableCell>
-                                        <TableCell className="text-center">-</TableCell>
-                                        <TableCell className="text-right">-</TableCell>
-                                        <TableCell className="text-right">-</TableCell>
-                                        <TableCell className="text-right font-black">
-                                            {Math.abs(ledgerData.stats.opening).toLocaleString(undefined, { minimumFractionDigits: 2 })} {ledgerData.stats.opening >= 0 ? 'Dr' : 'Cr'}
+                <div className="p-0 m-0">
+                    <ScrollArea className="w-full">
+                        <Table className="text-[12px]">
+                            <TableHeader className="bg-blue-50/30">
+                                <TableRow className="hover:bg-transparent">
+                                    <TableHead className="w-[120px] font-bold text-blue-900 h-12">Date (BS)</TableHead>
+                                    <TableHead className="w-[120px] font-bold text-blue-900">Ref. No.</TableHead>
+                                    <TableHead className="min-w-[300px] font-bold text-blue-900">Particulars / Description</TableHead>
+                                    <TableHead className="w-[150px] font-bold text-blue-900">Vehicle</TableHead>
+                                    <TableHead className="w-[140px] font-bold text-blue-900">Category</TableHead>
+                                    <TableHead className="text-right w-[140px] font-bold text-blue-900">Debit (Dr)</TableHead>
+                                    <TableHead className="text-right w-[140px] font-bold text-blue-900">Credit (Cr)</TableHead>
+                                    <TableHead className="text-right w-[160px] font-bold text-blue-900">Balance</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody className="bg-white">
+                                <TableRow className="bg-gray-50/30 font-medium">
+                                    <TableCell colSpan={2}></TableCell>
+                                    <TableCell className="font-bold text-blue-700 italic">Balance B/F (Opening)</TableCell>
+                                    <TableCell className="text-center">-</TableCell>
+                                    <TableCell className="text-center">-</TableCell>
+                                    <TableCell className="text-right">-</TableCell>
+                                    <TableCell className="text-right">-</TableCell>
+                                    <TableCell className="text-right font-black">
+                                        {Math.abs(ledgerData.stats.opening).toLocaleString(undefined, { minimumFractionDigits: 2 })} {ledgerData.stats.opening >= 0 ? 'Dr' : 'Cr'}
+                                    </TableCell>
+                                </TableRow>
+
+                                {ledgerData.entries.map((entry) => (
+                                    <TableRow key={entry.id} className="h-12 border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
+                                        <TableCell className="text-gray-600">{toNepaliDate(entry.date)}</TableCell>
+                                        <TableCell>
+                                            <Button variant="link" className="p-0 h-auto font-bold text-blue-600" onClick={() => router.push(entry.voucherId ? `/fleet/transactions/payment-receipt?voucherId=${entry.voucherId}` : `/fleet/transactions/purchase/view?id=${entry.id}`)}>
+                                                {entry.refNo}
+                                            </Button>
                                         </TableCell>
-                                    </TableRow>
-
-                                    {ledgerData.entries.map((entry) => (
-                                        <TableRow key={entry.id} className="h-12 border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
-                                            <TableCell className="text-gray-600">{toNepaliDate(entry.date)}</TableCell>
-                                            <TableCell>
-                                                <Button variant="link" className="p-0 h-auto font-bold text-blue-600" onClick={() => router.push(entry.voucherId ? `/fleet/transactions/payment-receipt?voucherId=${entry.voucherId}` : `/fleet/transactions/purchase/view?id=${entry.id}`)}>
-                                                    {entry.refNo}
-                                                </Button>
-                                            </TableCell>
-                                            <TableCell className="py-3">
-                                                <div className="flex flex-col gap-1">
-                                                    <span className="font-bold text-gray-900 leading-tight">
-                                                        {entry.remarks || entry.type}
-                                                    </span>
-                                                    <div className="text-[10px] text-muted-foreground italic leading-relaxed line-clamp-2 max-w-[400px]">
-                                                        {entry.lineItemsSummary}
-                                                    </div>
+                                        <TableCell className="py-3">
+                                            <div className="flex flex-col gap-1">
+                                                <span className="font-bold text-gray-900 leading-tight">
+                                                    {entry.remarks || entry.type}
+                                                </span>
+                                                <div className="text-[10px] text-muted-foreground italic leading-relaxed line-clamp-2 max-w-[400px]">
+                                                    {entry.lineItemsSummary}
                                                 </div>
-                                            </TableCell>
-                                            <TableCell>{entry.vehicleName}</TableCell>
-                                            <TableCell>
-                                                <Badge variant="outline" className={cn(
-                                                    "text-[10px] font-black border-none px-2 py-0.5",
-                                                    entry.debit > 0 ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"
-                                                )}>
-                                                    {entry.categoryDisplay}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="text-right font-bold text-red-500">{entry.debit > 0 ? entry.debit.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '-'}</TableCell>
-                                            <TableCell className="text-right font-bold text-emerald-600">{entry.credit > 0 ? entry.credit.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '-'}</TableCell>
-                                            <TableCell className="text-right font-black tabular-nums">
-                                                {Math.abs(entry.balance).toLocaleString(undefined, { minimumFractionDigits: 2 })} {entry.balance >= 0 ? 'Dr' : 'Cr'}
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-
-                                    {!isLoading && ledgerData.entries.length === 0 && (
-                                        <TableRow>
-                                            <TableCell colSpan={8} className="text-center py-24 text-muted-foreground italic">
-                                                No transactions found matching your criteria.
-                                            </TableCell>
-                                        </TableRow>
-                                    )}
-                                </TableBody>
-                                <TableFooter className="bg-gray-50/50">
-                                    <TableRow className="h-12 border-t-2 border-gray-200 hover:bg-transparent">
-                                        <TableCell colSpan={5} className="text-right font-bold text-gray-900 text-sm">Total Period Movement</TableCell>
-                                        <TableCell className="text-right font-black text-red-600 text-sm">{ledgerData.stats.debit.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell className="text-right font-black text-emerald-700 text-sm">{ledgerData.stats.credit.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell colSpan={1} className="text-right pr-10 font-bold">
-                                            Net: {Math.abs(ledgerData.stats.net).toLocaleString(undefined, { minimumFractionDigits: 2 })} {ledgerData.stats.net >= 0 ? 'Dr' : 'Cr'}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>{entry.vehicleName}</TableCell>
+                                        <TableCell>
+                                            <Badge variant="outline" className={cn(
+                                                "text-[10px] font-black border-none px-2 py-0.5",
+                                                entry.debit > 0 ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"
+                                            )}>
+                                                {entry.categoryDisplay}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-right font-bold text-red-500">{entry.debit > 0 ? entry.debit.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '-'}</TableCell>
+                                        <TableCell className="text-right font-bold text-emerald-600">{entry.credit > 0 ? entry.credit.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '-'}</TableCell>
+                                        <TableCell className="text-right font-black tabular-nums">
+                                            {Math.abs(entry.balance).toLocaleString(undefined, { minimumFractionDigits: 2 })} {entry.balance >= 0 ? 'Dr' : 'Cr'}
                                         </TableCell>
                                     </TableRow>
-                                </TableFooter>
-                            </Table>
-                            <ScrollBar orientation="horizontal" />
-                        </ScrollArea>
-                    </TabsContent>
+                                ))}
 
-                    <TabsContent value="summary" className="p-10 text-center text-muted-foreground italic">
-                        Summary consolidation view is being generated...
-                    </TabsContent>
-                </Tabs>
+                                {!isLoading && ledgerData.entries.length === 0 && (
+                                    <TableRow>
+                                        <TableCell colSpan={8} className="text-center py-24 text-muted-foreground italic">
+                                            No transactions found matching your criteria.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                            <TableFooter className="bg-gray-50/50">
+                                <TableRow className="h-12 border-t-2 border-gray-200 hover:bg-transparent">
+                                    <TableCell colSpan={5} className="text-right font-bold text-gray-900 text-sm">Total Period Movement</TableCell>
+                                    <TableCell className="text-right font-black text-red-600 text-sm">{ledgerData.stats.debit.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                    <TableCell className="text-right font-black text-emerald-700 text-sm">{ledgerData.stats.credit.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                    <TableCell colSpan={1} className="text-right pr-10 font-bold">
+                                        Net: {Math.abs(ledgerData.stats.net).toLocaleString(undefined, { minimumFractionDigits: 2 })} {ledgerData.stats.net >= 0 ? 'Dr' : 'Cr'}
+                                    </TableCell>
+                                </TableRow>
+                            </TableFooter>
+                        </Table>
+                        <ScrollBar orientation="horizontal" />
+                    </ScrollArea>
+                </div>
             </Card>
         </div>
     );
