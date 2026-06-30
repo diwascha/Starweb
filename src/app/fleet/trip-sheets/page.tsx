@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { 
   PlusCircle, 
@@ -34,10 +34,10 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import {
@@ -108,6 +108,7 @@ export default function TripSheetsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const { hasPermission, user } = useAuth();
+  const hasSetInitialPeriod = useRef(false);
   
   const vehiclesById = useMemo(() => new Map(vehicles.map(v => [v.id, v.name])), [vehicles]);
   const partiesById = useMemo(() => new Map(parties.map(p => [p.id, p.name])), [parties]);
@@ -136,9 +137,9 @@ export default function TripSheetsPage() {
     return Array.from(years).sort((a, b) => b - a);
   }, [trips]);
 
-  // Set default year and month on load if not set
+  // Initialize period filter once
   useEffect(() => {
-    if (availableYears.length > 0 && selectedBsYear === 'All' && selectedBsMonth === 'All') {
+    if (availableYears.length > 0 && !hasSetInitialPeriod.current) {
         const currentNepaliDate = new NepaliDate();
         const currentYear = currentNepaliDate.getYear();
         const currentMonth = currentNepaliDate.getMonth();
@@ -149,8 +150,9 @@ export default function TripSheetsPage() {
             setSelectedBsYear(String(availableYears[0]));
         }
         setSelectedBsMonth(String(currentMonth));
+        hasSetInitialPeriod.current = true;
     }
-  }, [availableYears, selectedBsYear, selectedBsMonth]);
+  }, [availableYears]);
   
   const handleDeleteTrip = async (id: string) => {
     try {
@@ -504,10 +506,10 @@ export default function TripSheetsPage() {
                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Year (BS)</Label>
                     <Select value={selectedBsYear} onValueChange={setSelectedBsYear}>
                         <SelectTrigger className="w-[120px] bg-white">
-                            <SelectValue placeholder="All Years" />
+                            <SelectValue placeholder="Year" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="All">All Years</SelectItem>
+                            <SelectItem value="All">All Time</SelectItem>
                             {availableYears.map(year => <SelectItem key={year} value={String(year)}>{year}</SelectItem>)}
                         </SelectContent>
                     </Select>
@@ -516,7 +518,7 @@ export default function TripSheetsPage() {
                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Month (BS)</Label>
                     <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth}>
                         <SelectTrigger className="w-[150px] bg-white">
-                            <SelectValue placeholder="All Months" />
+                            <SelectValue placeholder="Month" />
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="All">All Months</SelectItem>
@@ -571,10 +573,10 @@ export default function TripSheetsPage() {
                     </Button>
                 )}
                 <div className="ml-auto flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => handleExportExcel}>
+                    <Button variant="outline" size="sm" onClick={handleExportExcel}>
                         <FileSpreadsheet className="mr-2 h-4 w-4 text-emerald-600" /> Export Excel
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => handleExportPdf}>
+                    <Button variant="outline" size="sm" onClick={handleExportPdf}>
                         <FileText className="mr-2 h-4 w-4 text-red-600" /> Export PDF
                     </Button>
                 </div>

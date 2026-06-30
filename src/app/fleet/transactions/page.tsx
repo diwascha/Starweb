@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Transaction, Vehicle, Party, Account, CompanyProfile } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -77,6 +77,67 @@ interface ProcessedTransaction extends Transaction {
     status: 'Paid' | 'Partial' | 'Due';
 }
 
+/**
+ * Filter Components moved outside of the main render body to prevent unnecessary re-creations
+ */
+const VehicleSearchPopover = ({ 
+    className, 
+    isOpen, 
+    onOpenChange, 
+    value, 
+    onSelect, 
+    vehicles, 
+    vehiclesById 
+}: { 
+    className?: string; 
+    isOpen: boolean; 
+    onOpenChange: (open: boolean) => void; 
+    value: string; 
+    onSelect: (id: string) => void;
+    vehicles: Vehicle[];
+    vehiclesById: Map<string, string>;
+}) => (
+    <Popover open={isOpen} onOpenChange={onOpenChange}>
+        <PopoverTrigger asChild>
+            <Button variant="outline" role="combobox" className={cn("justify-between h-10 bg-white", className)}>
+                <div className="flex items-center gap-2">
+                    <Truck className="h-4 w-4 text-muted-foreground" />
+                    {value === 'All' ? "All Vehicles" : vehiclesById.get(value)}
+                </div>
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+        </PopoverTrigger>
+        <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
+            <Command>
+                <CommandInput placeholder="Type number (e.g. 1175)..." />
+                <CommandList>
+                    <CommandEmpty>No vehicle found.</CommandEmpty>
+                    <CommandGroup>
+                        <CommandItem value="All" onSelect={() => { onSelect('All'); onOpenChange(false); }}>
+                            <Check className={cn("mr-2 h-4 w-4", value === 'All' ? "opacity-100" : "opacity-0")} />
+                            All Vehicles
+                        </CommandItem>
+                        {vehicles.map(v => (
+                            <CommandItem key={v.id} value={v.name} onSelect={() => { onSelect(v.id); onOpenChange(false); }}>
+                                <Check className={cn("mr-2 h-4 w-4", value === v.id ? "opacity-100" : "opacity-0")} />
+                                {v.name}
+                            </CommandItem>
+                        ))}
+                    </CommandGroup>
+                </CommandList>
+            </Command>
+        </PopoverContent>
+    </Popover>
+);
+
+const CategorySelect = ({ className, value, onValueChange, allCategories }: { className?: string; value: string; onValueChange: (v: string) => void; allCategories: string[] }) => (
+    <Select value={value} onValueChange={onValueChange}>
+        <SelectTrigger className={cn("h-10 bg-white text-xs", className)}><SelectValue placeholder="All Categories" /></SelectTrigger>
+        <SelectContent><SelectItem value="All">All Categories</SelectItem>{allCategories.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}</SelectContent>
+    </Select>
+);
+
+
 export default function FleetTransactionsPage() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -94,8 +155,8 @@ export default function FleetTransactionsPage() {
     
     // Period Filters
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-    const [selectedBsYear, setSelectedBsYear] = useState<string>(String(new NepaliDate().getYear()));
-    const [selectedBsMonth, setSelectedBsMonth] = useState<string>(String(new NepaliDate().getMonth()));
+    const [selectedBsYear, setSelectedBsYear] = useState<string>('All');
+    const [selectedBsMonth, setSelectedBsMonth] = useState<string>('All');
     
     // Search Filters
     const [filterVehicleId, setFilterVehicleId] = useState<string>('All');
@@ -108,6 +169,9 @@ export default function FleetTransactionsPage() {
     // Command/Search Controls
     const [isVehicleSearchOpen, setIsVehicleSearchOpen] = useState(false);
     
+    // Initializer Ref to avoid forced resets of "All Time" selections
+    const hasSetInitialPeriod = useRef(false);
+
     useEffect(() => {
         setIsLoading(true);
         const unsubs = [
@@ -137,6 +201,23 @@ export default function FleetTransactionsPage() {
         });
         return Array.from(years).sort((a, b) => b - a);
     }, [transactions]);
+
+    // Initialize period filter once when data arrives
+    useEffect(() => {
+        if (availableYears.length > 0 && !hasSetInitialPeriod.current) {
+            const currentNepaliDate = new NepaliDate();
+            const currentYear = currentNepaliDate.getYear();
+            const currentMonth = currentNepaliDate.getMonth();
+
+            if (availableYears.includes(currentYear)) {
+                setSelectedBsYear(String(currentYear));
+            } else {
+                setSelectedBsYear(String(availableYears[0]));
+            }
+            setSelectedBsMonth(String(currentMonth));
+            hasSetInitialPeriod.current = true;
+        }
+    }, [availableYears]);
 
     const allCategories = useMemo(() => {
         const cats = new Set<string>();
@@ -221,17 +302,19 @@ export default function FleetTransactionsPage() {
             );
         }
 
+        // Apply AD Date Range if set
         if (dateRange?.from) {
             const interval = { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to || dateRange.from) };
             filtered = filtered.filter(t => isWithinInterval(new Date(t.date), interval));
-        } else {
-            if (selectedBsYear !== 'All') {
-                filtered = filtered.filter(t => new NepaliDate(new Date(t.date)).getYear() === parseInt(selectedBsYear));
-            }
+        }
 
-            if (selectedBsMonth !== 'All') {
-                filtered = filtered.filter(t => new NepaliDate(new Date(t.date)).getMonth() === parseInt(selectedBsMonth));
-            }
+        // Apply BS Filters (Additive with AD if both set)
+        if (selectedBsYear !== 'All') {
+            filtered = filtered.filter(t => new NepaliDate(new Date(t.date)).getYear() === parseInt(selectedBsYear));
+        }
+
+        if (selectedBsMonth !== 'All') {
+            filtered = filtered.filter(t => new NepaliDate(new Date(t.date)).getMonth() === parseInt(selectedBsMonth));
         }
 
         if (filterVehicleId !== 'All') filtered = filtered.filter(t => t.vehicleId === filterVehicleId);
@@ -377,7 +460,7 @@ export default function FleetTransactionsPage() {
         if (formatType === 'excel') {
             const XLSX = await import('xlsx');
             
-            // SaaS Style Headers
+            // Branded SaaS Style Headers
             const header = [
                 [fleetProfile.nameEn],
                 [fleetProfile.address],
@@ -387,11 +470,9 @@ export default function FleetTransactionsPage() {
                 [`Period: ${period}`],
                 [`Generated by: ${user?.username} on ${format(new Date(), 'PPpp')}`],
                 [],
-                ['TRANSACTION LOGS'],
+                ['DATE (BS)', 'VEHICLE', 'FLOW', 'CATEGORY', 'PARTNER', 'REFERENCE', 'AMOUNT (NPR)', 'SETTLED', 'OUTSTANDING', 'STATUS'],
             ];
 
-            const tableHeaders = ['Date (BS)', 'Vehicle', 'Flow', 'Category', 'Partner', 'Reference', 'Amount', 'Settled', 'Outstanding', 'Status'];
-            
             const tableData = filteredTransactions.map(t => [
                 toNepaliDate(t.date),
                 t.vehicleName,
@@ -405,7 +486,7 @@ export default function FleetTransactionsPage() {
                 t.status
             ]);
 
-            const worksheet = XLSX.utils.aoa_to_sheet([...header, tableHeaders, ...tableData]);
+            const worksheet = XLSX.utils.aoa_to_sheet([...header, ...tableData]);
             
             // Adjust column widths
             worksheet['!cols'] = [
@@ -422,7 +503,7 @@ export default function FleetTransactionsPage() {
             const doc = new jsPDF('l', 'mm', 'a4');
             const pageWidth = doc.internal.pageSize.getWidth();
 
-            // Header
+            // Branded PDF Header
             doc.setFont('Helvetica', 'bold');
             doc.setFontSize(20);
             doc.text(fleetProfile.nameEn.toUpperCase(), pageWidth / 2, 15, { align: 'center' });
@@ -474,47 +555,6 @@ export default function FleetTransactionsPage() {
         }
     };
 
-    const VehicleSearchPopover = ({ className }: { className?: string }) => (
-        <Popover open={isVehicleSearchOpen} onOpenChange={setIsVehicleSearchOpen}>
-            <PopoverTrigger asChild>
-                <Button variant="outline" role="combobox" className={cn("justify-between h-10 bg-white", className)}>
-                    <div className="flex items-center gap-2">
-                        <Truck className="h-4 w-4 text-muted-foreground" />
-                        {filterVehicleId === 'All' ? "All Vehicles" : vehiclesById.get(filterVehicleId)}
-                    </div>
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-            </PopoverTrigger>
-            <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
-                <Command>
-                    <CommandInput placeholder="Type number (e.g. 1175)..." />
-                    <CommandList>
-                        <CommandEmpty>No vehicle found.</CommandEmpty>
-                        <CommandGroup>
-                            <CommandItem value="All" onSelect={() => { setFilterVehicleId('All'); setIsVehicleSearchOpen(false); }}>
-                                <Check className={cn("mr-2 h-4 w-4", filterVehicleId === 'All' ? "opacity-100" : "opacity-0")} />
-                                All Vehicles
-                            </CommandItem>
-                            {vehicles.map(v => (
-                                <CommandItem key={v.id} value={v.name} onSelect={() => { setFilterVehicleId(v.id); setIsVehicleSearchOpen(false); }}>
-                                    <Check className={cn("mr-2 h-4 w-4", filterVehicleId === v.id ? "opacity-100" : "opacity-0")} />
-                                    {v.name}
-                                </CommandItem>
-                            ))}
-                        </CommandGroup>
-                    </CommandList>
-                </Command>
-            </PopoverContent>
-        </Popover>
-    );
-
-    const CategorySelect = ({ className }: { className?: string }) => (
-        <Select value={filterCategory} onValueChange={setFilterCategory}>
-            <SelectTrigger className={cn("h-10 bg-white text-xs", className)}><SelectValue placeholder="All Categories" /></SelectTrigger>
-            <SelectContent><SelectItem value="All">All Categories</SelectItem>{allCategories.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}</SelectContent>
-        </Select>
-    );
-
     return (
         <div className="flex flex-col gap-6">
             <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -542,7 +582,7 @@ export default function FleetTransactionsPage() {
                                     <SelectValue placeholder="Year" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="All">All</SelectItem>
+                                    <SelectItem value="All">All Time</SelectItem>
                                     {availableYears.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
                                 </SelectContent>
                             </Select>
@@ -555,7 +595,7 @@ export default function FleetTransactionsPage() {
                                     <SelectValue placeholder="Month" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="All">All</SelectItem>
+                                    <SelectItem value="All">All Months</SelectItem>
                                     {NEPALI_MONTHS.map(m => <SelectItem key={m.value} value={String(m.value)}>{m.name}</SelectItem>)}
                                 </SelectContent>
                             </Select>
@@ -580,7 +620,7 @@ export default function FleetTransactionsPage() {
                         </div>
 
                         <div className="space-y-1.5">
-                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">AD Range</Label>
+                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">AD Range (Custom)</Label>
                             <Popover><PopoverTrigger asChild><Button variant="outline" className={cn("h-10 justify-start text-left font-normal bg-white text-xs min-w-[220px]", !dateRange && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{dateRange?.from ? (dateRange.to ? (`${format(dateRange.from, 'PP')} - ${format(dateRange.to, 'PP')}`) : format(dateRange.from, 'PP')) : (<span>Pick AD Range</span>)}</Button></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><DualDateRangePicker selected={dateRange} onSelect={setDateRange} /></PopoverContent></Popover>
                         </div>
 
@@ -687,8 +727,21 @@ export default function FleetTransactionsPage() {
                                     <CardDescription>Overview of all trucks. Use the search to jump to a truck's detail.</CardDescription>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <CategorySelect className="w-[180px]" />
-                                    <VehicleSearchPopover className="w-full sm:w-[280px]" />
+                                    <CategorySelect 
+                                        className="w-[180px]" 
+                                        value={filterCategory} 
+                                        onValueChange={setFilterCategory} 
+                                        allCategories={allCategories} 
+                                    />
+                                    <VehicleSearchPopover 
+                                        className="w-full sm:w-[280px]" 
+                                        isOpen={isVehicleSearchOpen}
+                                        onOpenChange={setIsVehicleSearchOpen}
+                                        value={filterVehicleId}
+                                        onSelect={setFilterVehicleId}
+                                        vehicles={vehicles}
+                                        vehiclesById={vehiclesById}
+                                    />
                                 </div>
                             </CardHeader>
                             <CardContent className="p-0">
@@ -747,8 +800,21 @@ export default function FleetTransactionsPage() {
                                     <Badge variant="outline" className="font-mono ml-2">{filteredTransactions.length} Transactions</Badge>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <CategorySelect className="w-[160px] h-9" />
-                                    <VehicleSearchPopover className="w-full sm:w-[220px] h-9 text-xs" />
+                                    <CategorySelect 
+                                        className="w-[160px] h-9" 
+                                        value={filterCategory} 
+                                        onValueChange={setFilterCategory} 
+                                        allCategories={allCategories} 
+                                    />
+                                    <VehicleSearchPopover 
+                                        className="w-full sm:w-[220px] h-9 text-xs" 
+                                        isOpen={isVehicleSearchOpen}
+                                        onOpenChange={setIsVehicleSearchOpen}
+                                        value={filterVehicleId}
+                                        onSelect={setFilterVehicleId}
+                                        vehicles={vehicles}
+                                        vehiclesById={vehiclesById}
+                                    />
                                 </div>
                             </CardHeader>
                             <CardContent className="p-0">
@@ -831,7 +897,12 @@ export default function FleetTransactionsPage() {
                                 <CardDescription>Breakdown of billing and settlements for each vendor or customer.</CardDescription>
                             </div>
                             <div className="flex items-center gap-2">
-                                <CategorySelect className="w-[180px]" />
+                                <CategorySelect 
+                                    className="w-[180px]" 
+                                    value={filterCategory} 
+                                    onValueChange={setFilterCategory} 
+                                    allCategories={allCategories} 
+                                />
                                 <Label className="text-[10px] uppercase font-bold text-muted-foreground hidden sm:block">Find Partner:</Label>
                                 <Select value={filterPartyId} onValueChange={setFilterPartyId}>
                                     <SelectTrigger className="w-full sm:w-[220px] h-10 bg-white text-xs">
