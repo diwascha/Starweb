@@ -78,10 +78,6 @@ const transactionSchema = z.object({
     return true;
 }, { message: 'Bank Account is required for Bank billing.', path: ['accountId'] })
 .refine(data => {
-    if (data.billingType === 'Credit') return !!data.dueDate;
-    return true;
-}, { message: 'Due Date is required for Credit billing.', path: ['dueDate'] })
-.refine(data => {
     if (['Credit', 'Purchase', 'Sales'].includes(data.billingType) || ['Purchase', 'Sales'].includes(data.type)) return !!data.partyId;
     return true;
 }, { message: 'Supplier/Party is required for this transaction type.', path: ['partyId'] });
@@ -245,7 +241,7 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
                     <div className="grid gap-6 py-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                              <FormField control={form.control} name="purchaseNumber" render={({ field }) => (
-                                <FormItem><FormLabel>Purchase Number</FormLabel><FormControl><Input {...field} readOnly className="bg-muted/50" /></FormControl><FormMessage/></FormItem>
+                                <FormItem><FormLabel>Purchase Number</FormLabel><FormControl><Input {...field} readOnly className="bg-muted/50 font-mono" /></FormControl><FormMessage/></FormItem>
                             )}/>
                             <FormField control={form.control} name="date" render={({ field }) => (
                                 <FormItem><FormLabel>Posting Date</FormLabel>
@@ -359,7 +355,7 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
                                 </>
                             )}
                              {watchedFormValues.billingType === 'Credit' && (
-                                <FormField control={form.control} name="dueDate" render={({ field }) => (<FormItem><FormLabel>Payment Due Date</FormLabel><Popover><PopoverTrigger asChild><FormControl>
+                                <FormField control={form.control} name="dueDate" render={({ field }) => (<FormItem><FormLabel>Payment Due Date (Optional)</FormLabel><Popover><PopoverTrigger asChild><FormControl>
                                         <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button>
                                 </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value ?? undefined} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage/></FormItem>)}/>
                              )}
