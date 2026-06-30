@@ -19,7 +19,7 @@ import { useAuthService } from '@/firebase';
 import { getAdminCredentials, getUsers } from '@/services/user-service';
 import { onSettingUpdate } from '@/services/settings-service';
 import type { AppBranding } from '@/lib/types';
-
+import logo from '../signup/StarSutra.png';
 
 const loginSchema = z.object({
   username: z.string().min(1, { message: 'Username is required' }),
@@ -154,7 +154,7 @@ export default function LoginPage() {
          <div className="flex flex-col justify-center items-center gap-4 mb-8 text-center">
             <div className="w-28 h-28 rounded-2xl bg-white shadow-xl flex items-center justify-center overflow-hidden border">
                 <img 
-                    src="/assets/StarSutra.png" 
+                    src={logo.src} 
                     width="112" 
                     height="112" 
                     alt="App Logo"

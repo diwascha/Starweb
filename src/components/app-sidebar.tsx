@@ -53,6 +53,7 @@ import { useState, useEffect } from 'react';
 import { getNormalizedPath } from '@/lib/utils';
 import { onSettingUpdate } from '@/services/settings-service';
 import type { AppBranding } from '@/lib/types';
+import logo from '@/app/signup/StarSutra.png';
 
 function SidebarCollapseButton() {
     const { state, toggleSidebar } = useSidebar();
@@ -159,7 +160,7 @@ export function AppSidebar() {
       <SidebarHeader>
         <div className="flex items-center gap-3 px-2 py-4">
             <img 
-                src="/assets/StarSutra.png" 
+                src={logo.src} 
                 width="32" 
                 height="32" 
                 alt="Logo"
@@ -392,8 +393,7 @@ export function AppSidebar() {
                                     <ShoppingCart />
                                     <span>Purchase Entry</span>
                                 </Link>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
+                            </SidebarMenuItem>
                         <SidebarMenuItem>
                             <SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/expenses/new')}>
                                 <Link href="/fleet/transactions/expenses/new">
