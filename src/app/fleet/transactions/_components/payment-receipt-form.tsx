@@ -95,7 +95,7 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
     resolver: zodResolver(voucherSchema),
     defaultValues: {
       billingType: 'Cash',
-      voucherNo: 'PRV-001',
+      voucherNo: '',
       date: new Date(),
       items: [{ ledgerId: '', vehicleId: '', recAmount: 0, payAmount: 0, narration: '' }],
       ...initialValues
@@ -110,6 +110,16 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
   const watchedItems = form.watch("items") || [];
   const watchedBillingType = form.watch("billingType");
   const watchedAccountId = form.watch("accountId");
+
+  // Update voucher number reactively when initialValues change
+  React.useEffect(() => {
+    if (initialValues?.voucherNo) {
+        const current = form.getValues('voucherNo');
+        if (!current || (current !== initialValues.voucherNo && !initialValues.id)) {
+            form.setValue('voucherNo', initialValues.voucherNo);
+        }
+    }
+  }, [initialValues?.voucherNo, initialValues?.id, form]);
   
   const totalRec = watchedItems.reduce((sum, item) => sum + (Number(item.recAmount) || 0), 0);
   const totalPay = watchedItems.reduce((sum, item) => sum + (Number(item.payAmount) || 0), 0);
@@ -184,7 +194,7 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
               <FormField control={form.control} name="voucherNo" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Voucher No.</FormLabel>
-                  <FormControl><Input {...field} /></FormControl>
+                  <FormControl><Input {...field} readOnly className="bg-muted/50 font-mono" /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}/>

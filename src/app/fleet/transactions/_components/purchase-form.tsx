@@ -142,6 +142,16 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
     
     const allUnits = React.useMemo(() => uoms.map(u => u.abbreviation), [uoms]);
 
+    // Update purchase number reactively when initialValues change (on fresh load/reset)
+    React.useEffect(() => {
+        if (initialValues?.purchaseNumber) {
+            const current = form.getValues('purchaseNumber');
+            // Only auto-update if it's empty or we're on a new entry
+            if (!current || (current !== initialValues.purchaseNumber && !initialValues.id)) {
+                form.setValue('purchaseNumber', initialValues.purchaseNumber);
+            }
+        }
+    }, [initialValues?.purchaseNumber, initialValues?.id, form]);
 
     const handleSubmit = async (values: TransactionFormValues) => {
         setIsSubmitting(true);
