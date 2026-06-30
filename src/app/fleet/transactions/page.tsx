@@ -329,10 +329,10 @@ export default function FleetTransactionsPage() {
                 <div className="space-y-1">
                     <div className="flex items-center gap-2 text-xl font-bold tracking-tight">
                         <BookOpen className="h-6 w-6 text-primary" />
-                        <h1>Party Ledger</h1>
+                        <h1>Fleet Ledger</h1>
                     </div>
                     <nav className="flex items-center gap-1 text-[11px] text-muted-foreground font-medium uppercase tracking-widest">
-                        <span>Dashboard</span> <ChevronRight className="h-3 w-3" /> <span>Ledger</span> <ChevronRight className="h-3 w-3" /> <span className="text-foreground">Party Ledger</span>
+                        <span>Fleet Management</span> <ChevronRight className="h-3 w-3" /> <span className="text-foreground">Ledger</span>
                     </nav>
                 </div>
                 <div className="flex items-center gap-2">
