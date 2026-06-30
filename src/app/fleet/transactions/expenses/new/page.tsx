@@ -37,6 +37,7 @@ export default function NewExpenseEntryPage() {
         return () => unsubs.forEach(u => u());
     }, []);
 
+    // Reactive Expense Voucher Number Generation
     useEffect(() => {
         generateNextExpenseNumber(expenses).then(setNextVoucherNo);
     }, [expenses]);

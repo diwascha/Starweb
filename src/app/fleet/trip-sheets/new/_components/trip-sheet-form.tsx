@@ -200,16 +200,26 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
         };
     }, []);
 
+    // Reactive Trip Number Generation
+    useEffect(() => {
+        if (!tripToEdit) {
+            generateNextSalesNumber(trips).then(num => {
+                const current = form.getValues('tripNumber');
+                if (current !== num) {
+                    form.setValue('tripNumber', num);
+                }
+            });
+        }
+    }, [trips, tripToEdit, form]);
+
     useEffect(() => {
         if (tripToEdit) {
             form.reset(defaultValues);
             if (tripToEdit.detentionStartDate) {
                 setDetentionDateRange({ from: new Date(tripToEdit.detentionStartDate), to: tripToEdit.detentionEndDate ? new Date(tripToEdit.detentionEndDate) : undefined });
             }
-        } else {
-            generateNextSalesNumber(trips).then(num => form.setValue('tripNumber', num));
         }
-    }, [tripToEdit, form, defaultValues, trips]);
+    }, [tripToEdit, form, defaultValues]);
 
     const vendors = useMemo(() => parties.filter(p => (p.type === 'Vendor' || p.type === 'Both') && (p.ownership === 'Sijan' || p.ownership === 'Both')), [parties]);
     const customers = useMemo(() => parties.filter(p => (p.type === 'Customer' || p.type === 'Both') && (p.ownership === 'Sijan' || p.ownership === 'Both')), [parties]);
@@ -220,7 +230,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
 
     useEffect(() => {
         if (finalDestinationName && !tripToEdit) { // Only auto-fill on new trips
-            const sortedTrips = trips.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            const sortedTrips = [...trips].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
             const lastTripToDestination = sortedTrips.find(trip => 
                 trip.destinations.length > 0 && trip.destinations[0].name.toLowerCase() === finalDestinationName.toLowerCase()
             );
@@ -233,7 +243,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
     
     useEffect(() => {
         if (selectedVehicleId && !tripToEdit) { // Only auto-fill on new trips
-            const lastTripForVehicle = trips
+            const lastTripForVehicle = [...trips]
                 .filter(trip => trip.vehicleId === selectedVehicleId && trip.odometerEnd)
                 .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
 
@@ -472,7 +482,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
     const handleDestinationSelect = (index: number, destinationName: string) => {
         form.setValue(`destinations.${index}.name`, destinationName);
         
-        const sortedTrips = trips.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        const sortedTrips = [...trips].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         let lastFreight: number | undefined;
 
         // Find the last trip where this destination was used in the same role (final vs. additional)
@@ -510,7 +520,7 @@ export function TripSheetForm({ tripToEdit }: TripSheetFormProps) {
                                 <CardHeader><CardTitle>Trip Details</CardTitle></CardHeader>
                                 <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <FormField control={form.control} name="tripNumber" render={({ field }) => (
-                                        <FormItem><FormLabel>Trip Sheet No.</FormLabel><FormControl><Input {...field} readOnly className="bg-muted/50" /></FormControl><FormMessage/></FormItem>
+                                        <FormItem><FormLabel>Trip Sheet No.</FormLabel><FormControl><Input {...field} readOnly className="bg-muted/50 font-mono" /></FormControl><FormMessage/></FormItem>
                                     )}/>
                                     <FormField control={form.control} name="date" render={({ field }) => (
                                         <FormItem className="flex flex-col"><FormLabel>Date</FormLabel>

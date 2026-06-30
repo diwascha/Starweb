@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
@@ -44,9 +43,10 @@ export default function NewPaymentReceiptPage() {
         return () => unsubs.forEach(u => u());
     }, []);
 
+    // Reactive Payment/Receipt Voucher Number Generation
     useEffect(() => {
-        const paymentReceipts = transactions.filter(t => t.type === 'Payment' || t.type === 'Receipt');
-        generateNextVoucherNumber(paymentReceipts, 'PRV-').then(setNextVoucherNum);
+        const pmtRcdTxns = transactions.filter(t => t.type === 'Payment' || t.type === 'Receipt');
+        generateNextVoucherNumber(pmtRcdTxns, 'PRV-').then(setNextVoucherNum);
     }, [transactions]);
 
     const handleFormSubmit = async (values: any) => {

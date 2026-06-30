@@ -68,7 +68,29 @@ export const normalizeBF = (val: any): string => {
 };
 
 /**
- * Generic helper to generate the next serial/document number.
+ * Pure helper to calculate the next sequence number from an array of strings.
+ */
+export const calculateNextSequence = (
+  numbers: (string | undefined | null)[],
+  prefix: string
+): string => {
+  let maxNumber = 0;
+  
+  numbers.forEach(num => {
+    if (num && typeof num === 'string' && num.startsWith(prefix)) {
+      const numPart = parseInt(num.substring(prefix.length), 10);
+      if (!isNaN(numPart) && numPart > maxNumber) {
+        maxNumber = numPart;
+      }
+    }
+  });
+  
+  const nextNumber = maxNumber + 1;
+  return `${prefix}${nextNumber.toString().padStart(3, '0')}`;
+};
+
+/**
+ * Async wrapper that fetches the prefix from settings and calculates the next number.
  */
 export const generateNextNumber = async (
   items: any[],
@@ -80,20 +102,8 @@ export const generateNextNumber = async (
   const prefixes = prefixSetting?.value as DocumentPrefixes || {};
   const prefix = prefixes[settingKey] || defaultPrefix;
   
-  let maxNumber = 0;
-  
-  items.forEach(item => {
-    const numberField = item[fieldName];
-    if (numberField && typeof numberField === 'string' && numberField.startsWith(prefix)) {
-      const numPart = parseInt(numberField.substring(prefix.length), 10);
-      if (!isNaN(numPart) && numPart > maxNumber) {
-        maxNumber = numPart;
-      }
-    }
-  });
-  
-  const nextNumber = maxNumber + 1;
-  return `${prefix}${nextNumber.toString().padStart(3, '0')}`;
+  const numberStrings = items.map(item => item[fieldName]);
+  return calculateNextSequence(numberStrings, prefix);
 };
 
 export const generateNextSerialNumber = (reports: Pick<Report, 'serialNumber'>[]) =>
@@ -114,27 +124,15 @@ export const generateNextSalesNumber = (items: Pick<Trip, 'tripNumber'>[]) =>
 export const generateNextExpenseNumber = (items: Pick<Expense, 'voucherNo'>[]) =>
   generateNextNumber(items, 'voucherNo', 'expense', 'EXP-');
 
-export const generateNextVoucherNumber = async (items: TdsCalculation[] | Transaction[], prefix: string): Promise<string> => {
-    let maxNumber = 0;
-
-    items.forEach(item => {
-        let voucherNo: string | undefined;
-        if ('voucherNo' in item) { // TdsCalculation
-            voucherNo = item.voucherNo;
-        } else if ('items' in item) { // Transaction
-            voucherNo = item.items?.[0]?.particular.replace(/ .*/, '');
-        }
-        
-        if (voucherNo && voucherNo.startsWith(prefix)) {
-            const numPart = parseInt(voucherNo.substring(prefix.length), 10);
-            if(!isNaN(numPart) && numPart > maxNumber) {
-                maxNumber = numPart;
-            }
-        }
+export const generateNextVoucherNumber = async (items: (TdsCalculation | Transaction)[], prefix: string): Promise<string> => {
+    const numberStrings = items.map(item => {
+        if ('voucherNo' in item) return item.voucherNo;
+        if ('referenceId' in item) return item.referenceId;
+        // Fallback for legacy transaction structures
+        return item.items?.[0]?.particular?.replace(/ .*/, '');
     });
     
-    const nextNumber = maxNumber + 1;
-    return `${prefix}${nextNumber.toString().padStart(3, '0')}`;
+    return calculateNextSequence(numberStrings, prefix);
 };
 
 

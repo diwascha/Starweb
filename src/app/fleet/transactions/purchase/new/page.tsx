@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import type { Vehicle, Party, Account, UnitOfMeasurement, Transaction } from '@/lib/types';
@@ -46,6 +46,7 @@ export default function NewPurchaseEntryPage() {
         return () => unsubs.forEach(u => u());
     }, []);
 
+    // Reactive Purchase Number Generation
     useEffect(() => {
         const purchaseTxns = transactions.filter(t => t.type === 'Purchase');
         generateNextPurchaseNumber(purchaseTxns).then(setNextPurchaseNum);
