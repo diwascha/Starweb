@@ -53,7 +53,7 @@ import { useState, useEffect } from 'react';
 import { getNormalizedPath } from '@/lib/utils';
 import { onSettingUpdate } from '@/services/settings-service';
 import type { AppBranding } from '@/lib/types';
-import logo from '@/app/signup/StarSutra.ico';
+import logo from '@/app/signup/StarSutra.png';
 
 function SidebarCollapseButton() {
     const { state, toggleSidebar } = useSidebar();
@@ -290,7 +290,7 @@ export function AppSidebar() {
                                     <FileSpreadsheet />
                                     <span>Purchase Orders</span>
                                 </Link>
-                            </SidebarMenuItem>
+                            </SidebarMenuButton>
                         </SidebarMenuItem>
                     )}
                     {hasPermission('rawMaterials', 'view') && (
@@ -300,7 +300,7 @@ export function AppSidebar() {
                                     <Wrench />
                                     <span>Raw Materials</span>
                                 </Link>
-                            </SidebarMenuItem>
+                            </SidebarMenuButton>
                         </SidebarMenuItem>
                     )}
                 </div>
@@ -393,7 +393,7 @@ export function AppSidebar() {
                                     <ShoppingCart />
                                     <span>Purchase Entry</span>
                                 </Link>
-                            </SidebarMenuItem>
+                            </SidebarMenuButton>
                         </SidebarMenuItem>
                         <SidebarMenuItem>
                             <SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/expenses/new')}>
@@ -401,7 +401,7 @@ export function AppSidebar() {
                                     <Wallet />
                                     <span>Daily Expense Entry</span>
                                 </Link>
-                            </SidebarMenuItem>
+                            </SidebarMenuButton>
                         </SidebarMenuItem>
                         <SidebarMenuItem>
                             <SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/payment-receipt/new')}>
@@ -409,7 +409,7 @@ export function AppSidebar() {
                                     <ArrowRightLeft />
                                     <span>Payment / Receipt</span>
                                 </Link>
-                            </SidebarMenuItem>
+                            </SidebarMenuButton>
                         </SidebarMenuItem>
                       </div>
                     )}

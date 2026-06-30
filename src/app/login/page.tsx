@@ -19,7 +19,7 @@ import { useAuthService } from '@/firebase';
 import { getAdminCredentials, getUsers } from '@/services/user-service';
 import { onSettingUpdate } from '@/services/settings-service';
 import type { AppBranding } from '@/lib/types';
-import logo from '@/app/signup/StarSutra.ico';
+import logo from '@/app/signup/StarSutra.png';
 
 const loginSchema = z.object({
   username: z.string().min(1, { message: 'Username is required' }),
@@ -113,7 +113,7 @@ export default function LoginPage() {
       await signInWithEmailAndPassword(auth, email, data.password);
       
       const localUsers = getUsers();
-      const localUser = localUsers.find(u => u.username.toLowerCase() === data.username.toLowerCase());
+      const localUser = localUsers.find(u => u.username.toLowerCase() === username.toLowerCase());
       if (localUser) {
         await login(localUser, false);
       }
@@ -152,7 +152,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-md">
          <div className="flex flex-col justify-center items-center gap-4 mb-8 text-center">
-            <div className="w-28 h-28 rounded-2xl bg-white shadow-xl flex items-center justify-center overflow-hidden border">
+            <div className="w-28 h-28 rounded-2xl bg-white shadow-xl flex items-center justify-center overflow-hidden border border-primary/20">
                 <img 
                     src={logo.src} 
                     width="112" 

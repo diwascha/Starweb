@@ -5,7 +5,7 @@ import AuthAwareLayout from '@/components/auth-aware-layout';
 import { Inter } from 'next/font/google';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { UsageTracker } from '@/components/usage-tracker';
-import icon from '@/app/signup/StarSutra.ico';
+import icon from '@/app/signup/StarSutra.png';
 
 export const metadata: Metadata = {
   title: 'StarSutra',
