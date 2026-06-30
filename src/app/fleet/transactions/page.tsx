@@ -17,6 +17,8 @@ import {
   Users,
   Check,
   ChevronDown,
+  Printer,
+  Eye,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
@@ -51,6 +53,7 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 import type { DateRange } from 'react-day-picker';
 import NepaliDate from 'nepali-date-converter';
+import { LedgerReportPreview } from './_components/ledger-report-preview';
 
 interface LedgerEntry extends Transaction {
     vehicleName: string;
@@ -62,23 +65,6 @@ interface LedgerEntry extends Transaction {
     categoryDisplay: string;
     lineItemsSummary: string;
 }
-
-const FilterSelect = ({ label, value, onSelect, items, placeholder }: any) => (
-    <div className="space-y-1.5 flex-1 min-w-[150px]">
-        <Label className="text-[11px] font-bold text-muted-foreground uppercase tracking-tight">{label}</Label>
-        <Select value={value} onValueChange={onSelect}>
-            <SelectTrigger className="h-10 bg-white shadow-none border-gray-200 text-sm">
-                <SelectValue placeholder={placeholder} />
-            </SelectTrigger>
-            <SelectContent>
-                <SelectItem value="All">All {placeholder}s</SelectItem>
-                {items.map((item: any) => (
-                    <SelectItem key={item.id || item} value={item.id || item}>{item.name || item}</SelectItem>
-                ))}
-            </SelectContent>
-        </Select>
-    </div>
-);
 
 const SearchableMultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }: any) => {
     const isAll = values.length === 0;
@@ -156,6 +142,9 @@ export default function FleetTransactionsPage() {
     const [selectedBsMonth, setSelectedBsMonth] = useState<string>('All');
     const [filterCategory, setFilterCategory] = useState('All');
     const [globalSearch, setUsageSearch] = useState('');
+    
+    // Reporting UI State
+    const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
     useEffect(() => {
         setIsLoading(true);
@@ -196,10 +185,10 @@ export default function FleetTransactionsPage() {
     const ledgerData = useMemo(() => {
         const rawMapped = transactions.map(t => {
             // Accounting Logic for Partner Ledger:
+            // Purchases (Cr): Increase our liability (what we owe them)
+            // Receipts (Cr): Decreases receivable (they paid us)
             // Payments (Dr): Decreases liability (we paid them) or increases asset (advance)
             // Sales (Dr): Increases receivable from partner (we billed them)
-            // Purchases (Cr): Increases liability (we owe them)
-            // Receipts (Cr): Decreases receivable (they paid us)
             const isDebit = t.type === 'Payment' || t.type === 'Sales';
             const isCredit = t.type === 'Purchase' || t.type === 'Receipt';
             
@@ -260,7 +249,6 @@ export default function FleetTransactionsPage() {
         });
 
         // Determine Opening Balance
-        // Find the effective start date of the visible range to sum everything before it
         let openingBalance = 0;
         let earliestDateRequested: Date | null = null;
 
@@ -310,23 +298,32 @@ export default function FleetTransactionsPage() {
 
     const handleExport = async (type: 'excel' | 'pdf') => {
         const periodStr = dateRange?.from ? `${toNepaliDate(dateRange.from.toISOString())} - ${dateRange.to ? toNepaliDate(dateRange.to.toISOString()) : 'Present'}` : 'All Time';
-        
+        const partyStr = filterParties.length === 0 ? 'All Parties' : filterParties.length === 1 ? partiesById.get(filterParties[0]) : `${filterParties.length} Parties`;
+        const vehicleStr = filterVehicles.length === 0 ? 'All Vehicles' : filterVehicles.length === 1 ? vehiclesById.get(filterVehicles[0]) : `${filterVehicles.length} Vehicles`;
+
         if (type === 'excel') {
             const XLSX = await import('xlsx');
             const data = [
                 [fleetProfile.nameEn.toUpperCase()],
                 [fleetProfile.address],
-                [`Period: ${periodStr}`],
+                [`PAN: ${fleetProfile.pan}`],
                 [],
-                ['Date (BS)', 'Ref No.', 'Particulars', 'Vehicle', 'Category', 'Debit', 'Credit', 'Balance'],
+                ['REPORT:', 'FLEET TRANSACTION LEDGER'],
+                ['PERIOD:', periodStr],
+                ['ENTITIES:', `${partyStr} | ${vehicleStr}`],
+                [],
+                ['Date (BS)', 'Ref No.', 'Particulars', 'Vehicle', 'Category', 'Debit (Dr)', 'Credit (Cr)', 'Balance'],
                 ['', '', 'Balance B/F', '', '', '', '', `${Math.abs(ledgerData.stats.opening).toFixed(2)} ${ledgerData.stats.opening >= 0 ? 'Dr' : 'Cr'}`],
                 ...ledgerData.entries.map(e => [
                     toNepaliDate(e.date), e.refNo, `${e.remarks || e.type} (${e.lineItemsSummary})`, e.vehicleName, e.categoryDisplay, 
-                    e.debit || '-', e.credit || '-', `${Math.abs(e.balance).toFixed(2)} ${e.balance >= 0 ? 'Dr' : 'Cr'}`
+                    e.debit || 0, e.credit || 0, `${Math.abs(e.balance).toFixed(2)} ${e.balance >= 0 ? 'Dr' : 'Cr'}`
                 ]),
-                ['', '', 'Total Period', '', '', ledgerData.stats.debit.toFixed(2), ledgerData.stats.credit.toFixed(2), '']
+                ['', '', 'Total Period', '', '', ledgerData.stats.debit.toFixed(2), ledgerData.stats.credit.toFixed(2), ''],
+                ['', '', 'Closing Balance', '', '', '', '', `${Math.abs(ledgerData.stats.closing).toFixed(2)} ${ledgerData.stats.closing >= 0 ? 'Dr' : 'Cr'}`]
             ];
             const ws = XLSX.utils.aoa_to_sheet(data);
+            
+            // Basic styling for a professional look (XLSX handles mostly structure)
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Ledger");
             XLSX.writeFile(wb, `Ledger_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
@@ -334,23 +331,45 @@ export default function FleetTransactionsPage() {
             const { jsPDF } = await import('jspdf');
             const { default: autoTable } = await import('jspdf-autotable');
             const doc = new jsPDF('l', 'mm', 'a4');
-            doc.setFontSize(18); doc.text(fleetProfile.nameEn.toUpperCase(), 14, 15);
-            doc.setFontSize(10); doc.text(fleetProfile.address, 14, 21);
-            doc.text(`Ledger Period: ${periodStr}`, 14, 27);
+            
+            // Header
+            doc.setFontSize(18); doc.setTextColor(0, 0, 0);
+            doc.text(fleetProfile.nameEn.toUpperCase(), 14, 15);
+            doc.setFontSize(9); doc.setTextColor(100);
+            doc.text(`${fleetProfile.address} | PAN: ${fleetProfile.pan}`, 14, 21);
+            
+            doc.setFontSize(12); doc.setTextColor(0);
+            doc.text('FLEET TRANSACTION LEDGER', 14, 30);
+            
+            doc.setFontSize(9); doc.setTextColor(100);
+            doc.text(`Period: ${periodStr}`, 14, 36);
+            doc.text(`Filters: ${partyStr} | ${vehicleStr} | Category: ${filterCategory}`, 14, 41);
             
             autoTable(doc, {
-                startY: 35,
-                head: [['Date (BS)', 'Ref No.', 'Particulars', 'Vehicle', 'Category', 'Debit (Dr)', 'Credit (Cr)', 'Balance']],
+                startY: 48,
+                head: [['Date (BS)', 'Ref No.', 'Particulars / Description', 'Vehicle', 'Category', 'Debit (Dr)', 'Credit (Cr)', 'Balance']],
                 body: [
-                    ['', '', 'Balance B/F', '-', '-', '-', '-', `${Math.abs(ledgerData.stats.opening).toLocaleString()} ${ledgerData.stats.opening >= 0 ? 'Dr' : 'Cr'}`],
+                    ['', '', 'Balance B/F (Opening)', '-', '-', '-', '-', `${Math.abs(ledgerData.stats.opening).toLocaleString(undefined, {minimumFractionDigits: 2})} ${ledgerData.stats.opening >= 0 ? 'Dr' : 'Cr'}`],
                     ...ledgerData.entries.map(e => [
                         toNepaliDate(e.date), e.refNo, `${e.remarks || e.type}\n${e.lineItemsSummary}`, e.vehicleName, e.categoryDisplay,
-                        e.debit ? e.debit.toLocaleString() : '-', e.credit ? e.credit.toLocaleString() : '-',
-                        `${Math.abs(e.balance).toLocaleString()} ${e.balance >= 0 ? 'Dr' : 'Cr'}`
+                        e.debit ? e.debit.toLocaleString(undefined, {minimumFractionDigits: 2}) : '-', e.credit ? e.credit.toLocaleString(undefined, {minimumFractionDigits: 2}) : '-',
+                        `${Math.abs(e.balance).toLocaleString(undefined, {minimumFractionDigits: 2})} ${e.balance >= 0 ? 'Dr' : 'Cr'}`
                     ])
                 ],
-                theme: 'striped',
-                headStyles: { fillColor: [44, 62, 80] }
+                theme: 'grid',
+                headStyles: { fillColor: [40, 40, 40], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
+                bodyStyles: { fontSize: 7, textColor: [0, 0, 0] },
+                alternateRowStyles: { fillColor: [245, 245, 245] },
+                columnStyles: {
+                    2: { cellWidth: 70 },
+                    5: { halign: 'right' },
+                    6: { halign: 'right' },
+                    7: { halign: 'right', fontStyle: 'bold' }
+                },
+                didDrawPage: (data) => {
+                    doc.setFontSize(7);
+                    doc.text(`Page ${doc.internal.getNumberOfPages()}`, doc.internal.pageSize.width - 20, doc.internal.pageSize.height - 10);
+                }
             });
             doc.save(`Ledger_Report_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
         }
@@ -371,12 +390,24 @@ export default function FleetTransactionsPage() {
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <h1 className="text-2xl font-bold tracking-tight">Fleet Ledger</h1>
                 <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" className="h-9 gap-2 shadow-sm border-gray-200" onClick={() => handleExport('excel')}>
-                        <FileSpreadsheet className="h-4 w-4 text-emerald-600" /> Export Excel
+                    <Button variant="outline" size="sm" className="h-9 gap-2 shadow-sm border-gray-200" onClick={() => setIsPreviewOpen(true)}>
+                        <Eye className="h-4 w-4 text-blue-600" /> Preview & Print
                     </Button>
-                    <Button variant="outline" size="sm" className="h-9 gap-2 shadow-sm border-gray-200" onClick={() => handleExport('pdf')}>
-                        <FileText className="h-4 w-4 text-red-600" /> Export PDF
-                    </Button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm" className="h-9 gap-2 shadow-sm border-gray-200">
+                                <Download className="h-4 w-4" /> Export Report <ChevronDown className="h-3 w-3 opacity-50" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onSelect={() => handleExport('excel')}>
+                                <FileSpreadsheet className="h-4 w-4 mr-2 text-emerald-600" /> Excel (.xlsx)
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => handleExport('pdf')}>
+                                <FileText className="h-4 w-4 mr-2 text-red-600" /> PDF (.pdf)
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
             </div>
 
@@ -402,7 +433,7 @@ export default function FleetTransactionsPage() {
                     <div className="space-y-1.5 flex-1 min-w-[120px]">
                         <Label className="text-[11px] font-bold text-muted-foreground uppercase tracking-tight">Year (BS)</Label>
                         <Select value={selectedBsYear} onValueChange={setSelectedBsYear}>
-                            <SelectTrigger className="h-10 bg-white border-gray-200">
+                            <SelectTrigger className="h-10 bg-white border-gray-200 shadow-none">
                                 <SelectValue placeholder="Year" />
                             </SelectTrigger>
                             <SelectContent>
@@ -417,7 +448,7 @@ export default function FleetTransactionsPage() {
                     <div className="space-y-1.5 flex-1 min-w-[140px]">
                         <Label className="text-[11px] font-bold text-muted-foreground uppercase tracking-tight">Month (BS)</Label>
                         <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth}>
-                            <SelectTrigger className="h-10 bg-white border-gray-200">
+                            <SelectTrigger className="h-10 bg-white border-gray-200 shadow-none">
                                 <SelectValue placeholder="Month" />
                             </SelectTrigger>
                             <SelectContent>
@@ -453,7 +484,7 @@ export default function FleetTransactionsPage() {
 
                     <div className="flex gap-2 shrink-0">
                         {isFiltered && (
-                            <Button variant="outline" className="h-10 px-4 text-muted-foreground hover:bg-gray-50 border-dashed" onClick={handleResetFilters}>
+                            <Button variant="ghost" className="h-10 px-4 text-muted-foreground hover:bg-gray-50 border-dashed" onClick={handleResetFilters}>
                                 <FilterX className="mr-2 h-4 w-4" /> Reset
                             </Button>
                         )}
@@ -600,6 +631,18 @@ export default function FleetTransactionsPage() {
                     </ScrollArea>
                 </div>
             </Card>
+
+            <LedgerReportPreview 
+                isOpen={isPreviewOpen}
+                onOpenChange={setIsPreviewOpen}
+                ledgerData={ledgerData}
+                fleetProfile={fleetProfile}
+                filters={{
+                    period: dateRange?.from ? `${toNepaliDate(dateRange.from.toISOString())} - ${dateRange.to ? toNepaliDate(dateRange.to.toISOString()) : 'Present'}` : 'All Time',
+                    parties: filterParties.length === 0 ? 'All' : filterParties.map(id => partiesById.get(id)).join(', '),
+                    vehicles: filterVehicles.length === 0 ? 'All' : filterVehicles.map(id => vehiclesById.get(id)).join(', '),
+                }}
+            />
         </div>
     );
 }
