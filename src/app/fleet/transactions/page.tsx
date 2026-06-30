@@ -173,6 +173,13 @@ export default function FleetTransactionsPage() {
     const vehiclesById = useMemo(() => new Map(vehicles.map(v => [v.id, v.name])), [vehicles]);
     const partiesById = useMemo(() => new Map(parties.map(p => [p.id, p.name])), [parties]);
 
+    // Filtered parties for fleet context: only 'Sijan' or 'Both'
+    const fleetParties = useMemo(() => {
+        return parties
+            .filter(p => p.ownership === 'Sijan' || p.ownership === 'Both')
+            .sort((a, b) => a.name.localeCompare(b.name));
+    }, [parties]);
+
     const availableYears = useMemo(() => {
         const years = new Set<number>();
         years.add(new NepaliDate().getYear());
@@ -367,7 +374,7 @@ export default function FleetTransactionsPage() {
                                 onOpenChange={setIsPartnerSearchOpen} 
                                 value={filterPartyId} 
                                 onSelect={setFilterPartyId} 
-                                items={parties} 
+                                items={fleetParties} 
                                 itemsMap={partiesById} 
                                 placeholder="Partner"
                                 icon={Users}
