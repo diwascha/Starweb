@@ -90,6 +90,7 @@ export function LedgerReportPreview({
     try {
         const doc = new jsPDF('l', 'mm', 'a4');
         const width = doc.internal.pageSize.getWidth();
+        const nowStr = format(new Date(), 'PPP p');
 
         // Professional Header
         doc.setFont('Helvetica', 'bold');
@@ -111,6 +112,7 @@ export function LedgerReportPreview({
         doc.text(`Period: ${filters.period}`, 14, 38);
         doc.text(`Parties: ${filters.parties}`, 14, 43);
         doc.text(`Vehicles: ${filters.vehicles}`, 14, 48);
+        doc.text(`Report Generated: ${nowStr}`, 14, 53);
 
         const body = [
             ['', '', 'Balance B/F (Opening)', '-', '-', '-', '-', `${Math.abs(ledgerData.stats.opening).toLocaleString(undefined, {minimumFractionDigits: 2})} ${ledgerData.stats.opening >= 0 ? 'Dr' : 'Cr'}`],
@@ -127,7 +129,7 @@ export function LedgerReportPreview({
         ];
 
         autoTable(doc, {
-            startY: 55,
+            startY: 60,
             head: [['Date (BS)', 'Ref No.', 'Particulars / Description', 'Vehicle', 'Category', 'Debit (Dr)', 'Credit (Cr)', 'Balance']],
             body: body,
             theme: 'grid',

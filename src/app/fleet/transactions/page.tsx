@@ -292,6 +292,7 @@ export default function FleetTransactionsPage() {
         const periodStr = dateRange?.from ? `${toNepaliDate(dateRange.from.toISOString())} - ${dateRange.to ? toNepaliDate(dateRange.to.toISOString()) : 'Present'}` : 'All Time';
         const partyStr = filterParties.length === 0 ? 'All Parties' : filterParties.length === 1 ? partiesById.get(filterParties[0]) : `${filterParties.length} Parties`;
         const vehicleStr = filterVehicles.length === 0 ? 'All Vehicles' : filterVehicles.length === 1 ? vehiclesById.get(filterVehicles[0]) : `${filterVehicles.length} Vehicles`;
+        const nowStr = format(new Date(), 'PPP p');
 
         if (type === 'excel') {
             const XLSX = await import('xlsx');
@@ -299,6 +300,7 @@ export default function FleetTransactionsPage() {
                 [fleetProfile.nameEn.toUpperCase()],
                 [fleetProfile.address],
                 [`PAN: ${fleetProfile.pan}`],
+                [`Report Generated: ${nowStr}`],
                 [],
                 ['REPORT:', 'FLEET TRANSACTION LEDGER'],
                 ['PERIOD:', periodStr],
@@ -334,9 +336,10 @@ export default function FleetTransactionsPage() {
             doc.setFontSize(9); doc.setTextColor(100);
             doc.text(`Period: ${periodStr}`, 14, 36);
             doc.text(`Filters: ${partyStr} | ${vehicleStr} | Category: ${filterCategory}`, 14, 41);
+            doc.text(`Report Generated: ${nowStr}`, 14, 46);
             
             autoTable(doc, {
-                startY: 48,
+                startY: 53,
                 head: [['Date (BS)', 'Ref No.', 'Particulars / Description', 'Vehicle', 'Category', 'Debit (Dr)', 'Credit (Cr)', 'Balance']],
                 body: [
                     ['', '', 'Balance B/F (Opening)', '-', '-', '-', '-', `${Math.abs(ledgerData.stats.opening).toLocaleString(undefined, {minimumFractionDigits: 2})} ${ledgerData.stats.opening >= 0 ? 'Dr' : 'Cr'}`],
