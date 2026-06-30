@@ -1,7 +1,7 @@
 'use client';
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Truck, Users, ShieldCheck, CreditCard, ArrowRight, TrendingUp, TrendingDown, AlertTriangle, ImageIcon } from 'lucide-react';
+import { Truck, Users, ShieldCheck, CreditCard, ArrowRight, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
 import { useState, useEffect, useMemo } from 'react';
@@ -161,19 +161,8 @@ export default function FleetDashboardPage() {
         <div className="flex flex-col gap-8">
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div className="flex items-center gap-4">
-                    <div className="w-20 h-20 rounded-xl bg-white shadow-md flex items-center justify-center overflow-hidden border">
-                        {companyProfile.logoURL ? (
-                            <img 
-                                key={companyProfile.logoURL}
-                                src={companyProfile.logoURL} 
-                                width="80" 
-                                height="80" 
-                                alt="Fleet Logo"
-                                className="object-contain"
-                            />
-                        ) : (
-                            <ImageIcon className="h-8 w-8 text-muted-foreground opacity-20" />
-                        )}
+                    <div className="w-20 h-20 rounded-xl bg-blue-50 flex items-center justify-center overflow-hidden border border-blue-100 text-blue-600">
+                        <Truck className="h-10 w-10" />
                     </div>
                     <div>
                         <h1 className="text-2xl font-bold tracking-tight uppercase">{companyProfile.nameEn}</h1>

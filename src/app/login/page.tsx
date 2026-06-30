@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ImageIcon } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { exportData } from '@/services/backup-service';
 import { format } from 'date-fns';
@@ -19,7 +19,6 @@ import { useAuthService } from '@/firebase';
 import { getAdminCredentials, getUsers } from '@/services/user-service';
 import { onSettingUpdate } from '@/services/settings-service';
 import type { AppBranding } from '@/lib/types';
-import { getDirectImageUrl } from '@/lib/utils';
 
 
 const loginSchema = z.object({
@@ -149,26 +148,18 @@ export default function LoginPage() {
     }
   };
 
-  const logoUrl = getDirectImageUrl(appBranding.appLogoURL);
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-md">
          <div className="flex flex-col justify-center items-center gap-4 mb-8 text-center">
             <div className="w-28 h-28 rounded-2xl bg-white shadow-xl flex items-center justify-center overflow-hidden border">
-                {logoUrl ? (
-                    <img 
-                        key={logoUrl}
-                        src={logoUrl} 
-                        width="112" 
-                        height="112" 
-                        alt="App Logo"
-                        className="object-contain"
-                        crossOrigin="anonymous"
-                    />
-                ) : (
-                    <ImageIcon className="h-12 w-12 text-muted-foreground opacity-10" />
-                )}
+                <img 
+                    src="/assets/logo.png" 
+                    width="112" 
+                    height="112" 
+                    alt="App Logo"
+                    className="object-contain"
+                />
             </div>
             <div className="space-y-1">
                 <h1 className="text-4xl font-black tracking-tight">{appBranding.appName}</h1>

@@ -13,7 +13,7 @@ import {
   Clock,
   ArrowRightLeft,
   Wallet,
-  ImageIcon
+  Building2
 } from 'lucide-react';
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -101,19 +101,8 @@ export default function DashboardPage() {
     <div className="flex flex-col gap-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-4">
-            <div className="w-20 h-20 rounded-xl bg-white shadow-md flex items-center justify-center overflow-hidden border">
-                {companyProfile.logoURL ? (
-                    <img 
-                        key={companyProfile.logoURL}
-                        src={companyProfile.logoURL} 
-                        width="80" 
-                        height="80" 
-                        alt="Company Logo"
-                        className="object-contain"
-                    />
-                ) : (
-                    <ImageIcon className="h-8 w-8 text-muted-foreground opacity-20" />
-                )}
+            <div className="w-20 h-20 rounded-xl bg-blue-50 flex items-center justify-center overflow-hidden border border-blue-100 text-blue-600">
+                <Building2 className="h-10 w-10" />
             </div>
             <div>
               <h1 className="text-2xl font-bold tracking-tight uppercase">{companyProfile.nameEn}</h1>

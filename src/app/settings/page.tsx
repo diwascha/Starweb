@@ -55,7 +55,6 @@ import {
   Check, 
   ArrowUpDown, 
   Loader2,
-  ImageIcon,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -96,10 +95,9 @@ import NepaliDate from 'nepali-date-converter';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { cn, getDirectImageUrl } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { NEPALI_MONTHS, DEFAULT_COMPANY_PROFILE, DEFAULT_FLEET_PROFILE } from '@/lib/constants';
-import { uploadFile } from '@/services/storage-service';
 
 function MergePartiesDialog({ open, onOpenChange, parties, onMerge }: { open: boolean, onOpenChange: (open: boolean) => void, parties: Party[], onMerge: (sourceId: string, destinationId: string) => void }) {
     const [sourceId, setSourceId] = useState<string>('');
@@ -211,17 +209,14 @@ export default function SettingsPage() {
   // Company Profile States
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
-  const mainLogoInputRef = useRef<HTMLInputElement>(null);
 
   // Fleet Profile States
   const [fleetProfile, setFleetProfile] = useState<CompanyProfile>(DEFAULT_FLEET_PROFILE);
   const [isSavingFleetProfile, setIsSavingFleetProfile] = useState(false);
-  const fleetLogoInputRef = useRef<HTMLInputElement>(null);
 
   // App Branding States
-  const [appBranding, setAppBranding] = useState<AppBranding>({ appName: 'StarSutra', appMotto: '', appLogoURL: '' });
+  const [appBranding, setAppBranding] = useState<AppBranding>({ appName: 'StarSutra', appMotto: '' });
   const [isSavingBranding, setIsSavingBranding] = useState(false);
-  const appLogoInputRef = useRef<HTMLInputElement>(null);
 
   // Payroll Lock State
   const [payrollLocks, setPayrollLocks] = useState<Record<string, boolean>>({});
@@ -274,7 +269,7 @@ export default function SettingsPage() {
     const unsubPayrollLocks = onSettingUpdate('payrollLocks', (setting) => setPayrollLocks(setting?.value || {}));
     const unsubCompanyProfile = onSettingUpdate('companyProfile', (setting) => setCompanyProfile(setting?.value || DEFAULT_COMPANY_PROFILE));
     const unsubFleetProfile = onSettingUpdate('fleetCompanyProfile', (setting) => setFleetProfile(setting?.value || DEFAULT_FLEET_PROFILE));
-    const unsubAppBranding = onSettingUpdate('appBranding', (setting) => setAppBranding(setting?.value || { appName: 'StarSutra', appMotto: '', appLogoURL: '' }));
+    const unsubAppBranding = onSettingUpdate('appBranding', (setting) => setAppBranding(setting?.value || { appName: 'StarSutra', appMotto: '' }));
     const unsubUsage = onPageVisitsUpdate(setPageVisits);
     const unsubLogs = onLogsUpdate(setLogs);
     
@@ -353,37 +348,6 @@ export default function SettingsPage() {
     } finally {
         setIsSavingBranding(false);
     }
-  };
-
-  const handleLogoUpload = async (file: File, type: 'main' | 'fleet' | 'app') => {
-      if (!user) return;
-      try {
-          const timestamp = Date.now();
-          const path = `branding/${type}-logo-${timestamp}`;
-          const url = await uploadFile(file, path);
-          
-          const finalUrl = url.includes('?') ? `${url}&t=${timestamp}` : `${url}?t=${timestamp}`;
-          
-          if (type === 'main') {
-              const updated = { ...companyProfile, logoURL: finalUrl };
-              setCompanyProfile(updated);
-              await setSetting('companyProfile', updated);
-          } else if (type === 'fleet') {
-              const updated = { ...fleetProfile, logoURL: finalUrl };
-              setFleetProfile(updated);
-              await setSetting('fleetCompanyProfile', updated);
-          } else if (type === 'app') {
-              const updated = { ...appBranding, appLogoURL: finalUrl };
-              setAppBranding(updated);
-              await setSetting('appBranding', updated);
-          }
-          
-          toast({ title: "Logo Updated", description: "The branding has been successfully updated." });
-      } catch (error: any) {
-          console.error("Logo upload error:", error);
-          logError(error, "Settings - Logo Upload");
-          toast({ title: "Upload Failed", description: "Try using the URL input instead if Storage is restricted.", variant: 'destructive' });
-      }
   };
 
   const handleOpenPrefixDialog = (key: keyof DocumentPrefixes) => {
@@ -691,7 +655,7 @@ export default function SettingsPage() {
 
   const filteredUsers = useMemo(() => {
     const allUsers = getUsers();
-    return allUsers.filter(u => u.username.toLowerCase().includes(searchQuery.toLowerCase()));
+    return allUsers.filter(u => (u.username || '').toLowerCase().includes(searchQuery.toLowerCase()));
   }, [users, searchQuery]);
 
   const handleDeleteUser = (id: string) => {
@@ -900,7 +864,7 @@ export default function SettingsPage() {
                     <CardHeader className="flex flex-row items-center justify-between">
                         <div className="space-y-1">
                             <CardTitle>System Identity</CardTitle>
-                            <CardDescription>Configure core branding using URLs or direct uploads.</CardDescription>
+                            <CardDescription>Configure core application naming.</CardDescription>
                         </div>
                         <Button onClick={handleSaveAppBranding} disabled={isSavingBranding}>
                             {isSavingBranding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
@@ -909,35 +873,6 @@ export default function SettingsPage() {
                     </CardHeader>
                     <CardContent className="space-y-8">
                         <div className="flex flex-col md:flex-row gap-8 items-start">
-                             <div className="space-y-4">
-                                <Label>Application Logo</Label>
-                                <div className="w-32 h-32 rounded-xl border border-dashed flex items-center justify-center bg-muted/30 overflow-hidden group relative">
-                                    {appBranding.appLogoURL ? (
-                                        <img 
-                                            key={appBranding.appLogoURL}
-                                            src={getDirectImageUrl(appBranding.appLogoURL)} 
-                                            alt="App Logo" 
-                                            className="w-full h-full object-contain" 
-                                            crossOrigin="anonymous" 
-                                        />
-                                    ) : (
-                                        <ImageIcon className="h-12 w-12 text-muted-foreground opacity-20" />
-                                    )}
-                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                                        <Button variant="secondary" size="sm" className="h-8 text-[10px]" onClick={() => appLogoInputRef.current?.click()}>Upload File</Button>
-                                    </div>
-                                </div>
-                                <input type="file" ref={appLogoInputRef} className="hidden" accept="image/*" onChange={e => e.target.files?.[0] && handleLogoUpload(e.target.files[0], 'app')} />
-                                <div className="space-y-1">
-                                    <Label className="text-[10px] uppercase text-muted-foreground">Or Direct URL (Supports Google Drive links)</Label>
-                                    <Input 
-                                        placeholder="Paste link here..." 
-                                        className="h-10" 
-                                        value={appBranding.appLogoURL || ''} 
-                                        onChange={e => setAppBranding(prev => ({...prev, appLogoURL: e.target.value}))} 
-                                    />
-                                </div>
-                            </div>
                             <div className="flex-1 space-y-6 w-full">
                                 <div className="space-y-2">
                                     <Label htmlFor="app-name">Application Name</Label>
@@ -956,98 +891,36 @@ export default function SettingsPage() {
                 <div className="space-y-8">
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between">
-                            <div className="space-y-1"><CardTitle>Production Company Profile</CardTitle><CardDescription>Branding for Reports, Payslips and CRM.</CardDescription></div>
+                            <div className="space-y-1"><CardTitle>Production Company Details</CardTitle><CardDescription>Information for Shivam Packaging Reports and Payslips.</CardDescription></div>
                             <Button onClick={handleSaveCompanyProfile} disabled={isSavingProfile}>
                                 {isSavingProfile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                                 Save Profile
                             </Button>
                         </CardHeader>
                         <CardContent className="space-y-6">
-                            <div className="flex flex-col md:flex-row gap-8">
-                                <div className="space-y-4">
-                                    <Label>Shivam Logo</Label>
-                                    <div className="w-40 h-40 rounded-lg border border-dashed flex items-center justify-center bg-muted/30 overflow-hidden group relative">
-                                        {companyProfile.logoURL ? (
-                                            <img 
-                                                key={companyProfile.logoURL}
-                                                src={getDirectImageUrl(companyProfile.logoURL)} 
-                                                alt="Shivam Logo" 
-                                                className="w-full h-full object-contain" 
-                                                crossOrigin="anonymous" 
-                                            />
-                                        ) : (
-                                            <ImageIcon className="h-16 w-16 text-muted-foreground opacity-20" />
-                                        )}
-                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                                            <Button variant="secondary" size="sm" onClick={() => mainLogoInputRef.current?.click()}>Upload File</Button>
-                                        </div>
-                                    </div>
-                                    <input type="file" ref={mainLogoInputRef} className="hidden" accept="image/*" onChange={e => e.target.files?.[0] && handleLogoUpload(e.target.files[0], 'main')} />
-                                    <div className="space-y-1">
-                                        <Label className="text-[10px] uppercase text-muted-foreground">Or Direct URL</Label>
-                                        <Input 
-                                            placeholder="Paste link here..." 
-                                            className="h-10" 
-                                            value={companyProfile.logoURL || ''} 
-                                            onChange={e => setCompanyProfile(prev => ({...prev, logoURL: e.target.value}))} 
-                                        />
-                                    </div>
-                                </div>
-                                <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-2"><Label>Name (EN)</Label><Input value={companyProfile.nameEn || ''} onChange={e => setCompanyProfile(prev => ({...prev, nameEn: e.target.value}))} /></div>
-                                    <div className="space-y-2"><Label>Name (NP)</Label><Input value={companyProfile.nameNp || ''} onChange={e => setCompanyProfile(prev => ({...prev, nameNp: e.target.value}))} className="font-body" /></div>
-                                    <div className="space-y-2 md:col-span-2"><Label>Address</Label><Input value={companyProfile.address || ''} onChange={e => setCompanyProfile(prev => ({...prev, address: e.target.value}))} /></div>
-                                    <div className="space-y-2"><Label>PAN</Label><Input value={companyProfile.pan || ''} onChange={e => setCompanyProfile(prev => ({...prev, pan: e.target.value}))} /></div>
-                                </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-2"><Label>Name (EN)</Label><Input value={companyProfile.nameEn || ''} onChange={e => setCompanyProfile(prev => ({...prev, nameEn: e.target.value}))} /></div>
+                                <div className="space-y-2"><Label>Name (NP)</Label><Input value={companyProfile.nameNp || ''} onChange={e => setCompanyProfile(prev => ({...prev, nameNp: e.target.value}))} className="font-body" /></div>
+                                <div className="space-y-2 md:col-span-2"><Label>Address</Label><Input value={companyProfile.address || ''} onChange={e => setCompanyProfile(prev => ({...prev, address: e.target.value}))} /></div>
+                                <div className="space-y-2"><Label>PAN</Label><Input value={companyProfile.pan || ''} onChange={e => setCompanyProfile(prev => ({...prev, pan: e.target.value}))} /></div>
                             </div>
                         </CardContent>
                     </Card>
 
                     <Card className="border-l-4 border-l-blue-500">
                         <CardHeader className="flex flex-row items-center justify-between">
-                            <div className="space-y-1"><CardTitle>Fleet Company Profile</CardTitle><CardDescription>Branding for Sijan Dhuwani.</CardDescription></div>
+                            <div className="space-y-1"><CardTitle>Fleet Company Details</CardTitle><CardDescription>Information for Sijan Dhuwani.</CardDescription></div>
                             <Button onClick={handleSaveFleetProfile} disabled={isSavingFleetProfile}>
                                 {isSavingFleetProfile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                                 Save Fleet Profile
                             </Button>
                         </CardHeader>
                         <CardContent className="space-y-6">
-                            <div className="flex flex-col md:flex-row gap-8">
-                                <div className="space-y-4">
-                                    <Label>Sijan Logo</Label>
-                                    <div className="w-40 h-40 rounded-lg border border-dashed flex items-center justify-center bg-muted/30 overflow-hidden group relative">
-                                        {fleetProfile.logoURL ? (
-                                            <img 
-                                                key={fleetProfile.logoURL}
-                                                src={getDirectImageUrl(fleetProfile.logoURL)} 
-                                                alt="Sijan Logo" 
-                                                className="w-full h-full object-contain" 
-                                                crossOrigin="anonymous" 
-                                            />
-                                        ) : (
-                                            <ImageIcon className="h-16 w-16 text-muted-foreground opacity-20" />
-                                        )}
-                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                                            <Button variant="secondary" size="sm" onClick={() => fleetLogoInputRef.current?.click()}>Upload File</Button>
-                                        </div>
-                                    </div>
-                                    <input type="file" ref={fleetLogoInputRef} className="hidden" accept="image/*" onChange={e => e.target.files?.[0] && handleLogoUpload(e.target.files[0], 'fleet')} />
-                                    <div className="space-y-1">
-                                        <Label className="text-[10px] uppercase text-muted-foreground">Or Direct URL</Label>
-                                        <Input 
-                                            placeholder="Paste link here..." 
-                                            className="h-10" 
-                                            value={fleetProfile.logoURL || ''} 
-                                            onChange={e => setFleetProfile(prev => ({...prev, logoURL: e.target.value}))} 
-                                        />
-                                    </div>
-                                </div>
-                                <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-2"><Label>Name (EN)</Label><Input value={fleetProfile.nameEn || ''} onChange={e => setFleetProfile(prev => ({...prev, nameEn: e.target.value}))} /></div>
-                                    <div className="space-y-2"><Label>Name (NP)</Label><Input value={fleetProfile.nameNp || ''} onChange={e => setFleetProfile(prev => ({...prev, nameNp: e.target.value}))} className="font-body" /></div>
-                                    <div className="space-y-2 md:col-span-2"><Label>Address</Label><Input value={fleetProfile.address || ''} onChange={e => setFleetProfile(prev => ({...prev, address: e.target.value}))} /></div>
-                                    <div className="space-y-2"><Label>PAN</Label><Input value={fleetProfile.pan || ''} onChange={e => setFleetProfile(prev => ({...prev, pan: e.target.value}))} /></div>
-                                </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-2"><Label>Name (EN)</Label><Input value={fleetProfile.nameEn || ''} onChange={e => setFleetProfile(prev => ({...prev, nameEn: e.target.value}))} /></div>
+                                <div className="space-y-2"><Label>Name (NP)</Label><Input value={fleetProfile.nameNp || ''} onChange={e => setFleetProfile(prev => ({...prev, nameNp: e.target.value}))} className="font-body" /></div>
+                                <div className="space-y-2 md:col-span-2"><Label>Address</Label><Input value={fleetProfile.address || ''} onChange={e => setFleetProfile(prev => ({...prev, address: e.target.value}))} /></div>
+                                <div className="space-y-2"><Label>PAN</Label><Input value={fleetProfile.pan || ''} onChange={e => setFleetProfile(prev => ({...prev, pan: e.target.value}))} /></div>
                             </div>
                         </CardContent>
                     </Card>
