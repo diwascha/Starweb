@@ -96,7 +96,7 @@ import NepaliDate from 'nepali-date-converter';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { cn } from '@/lib/utils';
+import { cn, getDirectImageUrl } from '@/lib/utils';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { NEPALI_MONTHS, DEFAULT_COMPANY_PROFILE, DEFAULT_FLEET_PROFILE } from '@/lib/constants';
 import { uploadFile } from '@/services/storage-service';
@@ -913,7 +913,13 @@ export default function SettingsPage() {
                                 <Label>Application Logo</Label>
                                 <div className="w-32 h-32 rounded-xl border border-dashed flex items-center justify-center bg-muted/30 overflow-hidden group relative">
                                     {appBranding.appLogoURL ? (
-                                        <img src={appBranding.appLogoURL} alt="App Logo" className="w-full h-full object-contain" crossOrigin="anonymous" />
+                                        <img 
+                                            key={appBranding.appLogoURL}
+                                            src={getDirectImageUrl(appBranding.appLogoURL)} 
+                                            alt="App Logo" 
+                                            className="w-full h-full object-contain" 
+                                            crossOrigin="anonymous" 
+                                        />
                                     ) : (
                                         <ImageIcon className="h-12 w-12 text-muted-foreground opacity-20" />
                                     )}
@@ -923,10 +929,10 @@ export default function SettingsPage() {
                                 </div>
                                 <input type="file" ref={appLogoInputRef} className="hidden" accept="image/*" onChange={e => e.target.files?.[0] && handleLogoUpload(e.target.files[0], 'app')} />
                                 <div className="space-y-1">
-                                    <Label className="text-[10px] uppercase text-muted-foreground">Or Direct URL</Label>
+                                    <Label className="text-[10px] uppercase text-muted-foreground">Or Direct URL (Supports Google Drive links)</Label>
                                     <Input 
-                                        placeholder="https://..." 
-                                        className="h-8 text-[10px]" 
+                                        placeholder="Paste link here..." 
+                                        className="h-10" 
                                         value={appBranding.appLogoURL || ''} 
                                         onChange={e => setAppBranding(prev => ({...prev, appLogoURL: e.target.value}))} 
                                     />
@@ -962,7 +968,13 @@ export default function SettingsPage() {
                                     <Label>Shivam Logo</Label>
                                     <div className="w-40 h-40 rounded-lg border border-dashed flex items-center justify-center bg-muted/30 overflow-hidden group relative">
                                         {companyProfile.logoURL ? (
-                                            <img src={companyProfile.logoURL} alt="Shivam Logo" className="w-full h-full object-contain" crossOrigin="anonymous" />
+                                            <img 
+                                                key={companyProfile.logoURL}
+                                                src={getDirectImageUrl(companyProfile.logoURL)} 
+                                                alt="Shivam Logo" 
+                                                className="w-full h-full object-contain" 
+                                                crossOrigin="anonymous" 
+                                            />
                                         ) : (
                                             <ImageIcon className="h-16 w-16 text-muted-foreground opacity-20" />
                                         )}
@@ -974,8 +986,8 @@ export default function SettingsPage() {
                                     <div className="space-y-1">
                                         <Label className="text-[10px] uppercase text-muted-foreground">Or Direct URL</Label>
                                         <Input 
-                                            placeholder="https://..." 
-                                            className="h-8 text-[10px]" 
+                                            placeholder="Paste link here..." 
+                                            className="h-10" 
                                             value={companyProfile.logoURL || ''} 
                                             onChange={e => setCompanyProfile(prev => ({...prev, logoURL: e.target.value}))} 
                                         />
@@ -1005,7 +1017,13 @@ export default function SettingsPage() {
                                     <Label>Sijan Logo</Label>
                                     <div className="w-40 h-40 rounded-lg border border-dashed flex items-center justify-center bg-muted/30 overflow-hidden group relative">
                                         {fleetProfile.logoURL ? (
-                                            <img src={fleetProfile.logoURL} alt="Sijan Logo" className="w-full h-full object-contain" crossOrigin="anonymous" />
+                                            <img 
+                                                key={fleetProfile.logoURL}
+                                                src={getDirectImageUrl(fleetProfile.logoURL)} 
+                                                alt="Sijan Logo" 
+                                                className="w-full h-full object-contain" 
+                                                crossOrigin="anonymous" 
+                                            />
                                         ) : (
                                             <ImageIcon className="h-16 w-16 text-muted-foreground opacity-20" />
                                         )}
@@ -1017,8 +1035,8 @@ export default function SettingsPage() {
                                     <div className="space-y-1">
                                         <Label className="text-[10px] uppercase text-muted-foreground">Or Direct URL</Label>
                                         <Input 
-                                            placeholder="https://..." 
-                                            className="h-8 text-[10px]" 
+                                            placeholder="Paste link here..." 
+                                            className="h-10" 
                                             value={fleetProfile.logoURL || ''} 
                                             onChange={e => setFleetProfile(prev => ({...prev, logoURL: e.target.value}))} 
                                         />

@@ -19,6 +19,7 @@ import { useAuthService } from '@/firebase';
 import { getAdminCredentials, getUsers } from '@/services/user-service';
 import { onSettingUpdate } from '@/services/settings-service';
 import type { AppBranding } from '@/lib/types';
+import { getDirectImageUrl } from '@/lib/utils';
 
 
 const loginSchema = z.object({
@@ -148,19 +149,22 @@ export default function LoginPage() {
     }
   };
 
+  const logoUrl = getDirectImageUrl(appBranding.appLogoURL);
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-md">
          <div className="flex flex-col justify-center items-center gap-4 mb-8 text-center">
             <div className="w-28 h-28 rounded-2xl bg-white shadow-xl flex items-center justify-center overflow-hidden border">
-                {appBranding.appLogoURL ? (
+                {logoUrl ? (
                     <img 
-                        key={appBranding.appLogoURL}
-                        src={appBranding.appLogoURL} 
+                        key={logoUrl}
+                        src={logoUrl} 
                         width="112" 
                         height="112" 
                         alt="App Logo"
                         className="object-contain"
+                        crossOrigin="anonymous"
                     />
                 ) : (
                     <ImageIcon className="h-12 w-12 text-muted-foreground opacity-10" />

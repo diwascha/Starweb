@@ -50,7 +50,7 @@ import { exportData } from '@/services/backup-service';
 import { Loader2 } from 'lucide-react';
 import { useConnectionStatus } from '@/firebase';
 import { useState, useEffect } from 'react';
-import { getNormalizedPath } from '@/lib/utils';
+import { getNormalizedPath, getDirectImageUrl } from '@/lib/utils';
 import { onSettingUpdate } from '@/services/settings-service';
 import type { AppBranding } from '@/lib/types';
 
@@ -154,18 +154,21 @@ export function AppSidebar() {
     return null;
   }
 
+  const logoUrl = getDirectImageUrl(appBranding.appLogoURL);
+
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <div className="flex items-center gap-3 px-2 py-4">
-            {appBranding.appLogoURL ? (
+            {logoUrl ? (
                 <img 
-                    key={appBranding.appLogoURL}
-                    src={appBranding.appLogoURL} 
+                    key={logoUrl}
+                    src={logoUrl} 
                     width="32" 
                     height="32" 
                     alt="Logo"
                     className="rounded-lg group-data-[collapsible=icon]:mx-auto object-contain bg-white"
+                    crossOrigin="anonymous"
                 />
             ) : (
                 <div className="h-8 w-8 rounded-lg bg-primary/20 flex items-center justify-center text-primary font-bold group-data-[collapsible=icon]:mx-auto">

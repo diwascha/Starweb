@@ -11,6 +11,30 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
+ * Converts common "viewer" links (Google Drive, Dropbox) into direct image links.
+ */
+export const getDirectImageUrl = (url: string | undefined | null): string => {
+    if (!url) return '';
+    
+    let processed = url.trim();
+
+    // Handle Google Drive
+    if (processed.includes('drive.google.com')) {
+        const match = processed.match(/\/d\/(.+?)\/(view|edit|preview)/) || processed.match(/id=(.+?)(&|$)/);
+        if (match && match[1]) {
+            return `https://drive.google.com/uc?export=view&id=${match[1]}`;
+        }
+    }
+
+    // Handle Dropbox
+    if (processed.includes('dropbox.com')) {
+        return processed.replace('www.dropbox.com', 'dl.dropboxusercontent.com').replace(/\?dl=0$/, '');
+    }
+
+    return processed;
+};
+
+/**
  * Generates a unique ID. Uses crypto.randomUUID where available for security.
  */
 export const generateId = (): string => {
