@@ -5,11 +5,14 @@ import AuthAwareLayout from '@/components/auth-aware-layout';
 import { Inter } from 'next/font/google';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { UsageTracker } from '@/components/usage-tracker';
-
+import icon from '@/app/signup/StarSutra.ico';
 
 export const metadata: Metadata = {
   title: 'StarSutra',
   description: 'Generate test reports for multiple products.',
+  icons: {
+    icon: icon.src,
+  },
 };
 
 const inter = Inter({

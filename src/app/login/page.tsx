@@ -19,7 +19,7 @@ import { useAuthService } from '@/firebase';
 import { getAdminCredentials, getUsers } from '@/services/user-service';
 import { onSettingUpdate } from '@/services/settings-service';
 import type { AppBranding } from '@/lib/types';
-import logo from '@/app/signup/StarSutra.png';
+import logo from '@/app/signup/StarSutra.ico';
 
 const loginSchema = z.object({
   username: z.string().min(1, { message: 'Username is required' }),
