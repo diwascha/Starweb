@@ -393,7 +393,8 @@ export function AppSidebar() {
                                     <ShoppingCart />
                                     <span>Purchase Entry</span>
                                 </Link>
-                            </SidebarMenuItem>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
                         <SidebarMenuItem>
                             <SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/expenses/new')}>
                                 <Link href="/fleet/transactions/expenses/new">

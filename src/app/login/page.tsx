@@ -19,7 +19,7 @@ import { useAuthService } from '@/firebase';
 import { getAdminCredentials, getUsers } from '@/services/user-service';
 import { onSettingUpdate } from '@/services/settings-service';
 import type { AppBranding } from '@/lib/types';
-import logo from '../signup/StarSutra.png';
+import logo from '@/app/signup/StarSutra.png';
 
 const loginSchema = z.object({
   username: z.string().min(1, { message: 'Username is required' }),
@@ -71,12 +71,12 @@ export default function LoginPage() {
             const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(data, null, 2))}`;
             const link = document.createElement("a");
             link.href = jsonString;
-            link.download = `starsutra-autobackup-${today}.json`;
+            link.download = `starsutra-backup-auto-${today}.json`;
             link.click();
             localStorage.setItem('lastAutoBackupDate', today);
             toast({
                 title: "Automatic Backup",
-                description: `Backup file "starsutra-autobackup-${today}.json" saved to your Downloads.`,
+                description: `Backup file "starsutra-backup-auto-${today}.json" saved to your Downloads.`,
                 duration: 8000
             });
         } catch (error) {
