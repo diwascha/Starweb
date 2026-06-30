@@ -1,7 +1,6 @@
-
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Transaction, Vehicle, Party, Account, CompanyProfile } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -27,6 +26,7 @@ import {
   ChevronsUpDown,
   Check,
   ChevronRight,
+  ChevronDown,
   TrendingDown,
   Scale,
   RotateCcw,
