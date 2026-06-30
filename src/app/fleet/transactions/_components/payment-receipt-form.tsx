@@ -30,18 +30,18 @@ const voucherItemSchema = z.object({
   vehicleId: z.string().min(1, "Vehicle is required."),
   recAmount: z.number().optional(),
   payAmount: z.number().optional(),
-  narration: z.string().optional(),
+  narration: z.string().nullish(),
 });
 
 const voucherSchema = z.object({
   voucherNo: z.string().min(1, "Voucher number is required."),
   date: z.date(),
   billingType: z.string().min(1, "Billing type is required."),
-  accountId: z.string().optional(),
-  chequeNo: z.string().optional(),
-  chequeDate: z.date().optional().nullable(),
+  accountId: z.string().nullish(),
+  chequeNo: z.string().nullish(),
+  chequeDate: z.date().nullish(),
   items: z.array(voucherItemSchema).min(1, "At least one ledger entry is required."),
-  remarks: z.string().optional(),
+  remarks: z.string().nullish(),
 }).refine(data => {
     if (data.billingType === 'Bank') return !!data.accountId;
     return true;
@@ -194,7 +194,7 @@ export function PaymentReceiptForm({ accounts, parties, vehicles, transactions, 
               <FormField control={form.control} name="voucherNo" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Voucher No.</FormLabel>
-                  <FormControl><Input {...field} readOnly className="bg-muted/50 font-mono" /></FormControl>
+                  <FormControl><Input {...field} value={field.value ?? ''} readOnly className="bg-muted/50 font-mono" /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}/>

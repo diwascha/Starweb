@@ -44,26 +44,26 @@ const purchaseCategories = [
 const transactionItemSchema = z.object({
     particular: z.string().min(1, 'Particular is required.'),
     quantity: z.number().min(0, 'Quantity must be positive.'),
-    uom: z.string().optional(),
+    uom: z.string().nullish(),
     rate: z.number().min(0, 'Rate must be positive.'),
 });
 
 const transactionSchema = z.object({
-    purchaseNumber: z.string().optional(),
+    purchaseNumber: z.string().nullish(),
     vehicleId: z.string().min(1, 'Vehicle is required.'),
     date: z.date({ required_error: 'Posting date is required.' }),
     category: z.string().min(1, 'Category is required.'),
-    invoiceNumber: z.string().optional(),
-    invoiceDate: z.date().optional().nullable(),
+    invoiceNumber: z.string().nullish(),
+    invoiceDate: z.date().nullish(),
     invoiceType: z.enum(['Taxable', 'Normal']),
     billingType: z.enum(['Cash', 'Bank', 'Credit']),
-    chequeNumber: z.string().optional(),
-    chequeDate: z.date().optional().nullable(),
-    dueDate: z.date().optional().nullable(),
-    partyId: z.string().optional(),
-    accountId: z.string().optional(),
+    chequeNumber: z.string().nullish(),
+    chequeDate: z.date().nullish(),
+    dueDate: z.date().nullish(),
+    partyId: z.string().nullish(),
+    accountId: z.string().nullish(),
     items: z.array(transactionItemSchema).min(1, 'At least one item is required.'),
-    remarks: z.string().optional(),
+    remarks: z.string().nullish(),
     type: z.enum(['Purchase', 'Sales']),
 }).refine(data => {
     if (data.billingType === 'Bank') return !!data.chequeDate;
@@ -251,7 +251,7 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
                     <div className="grid gap-6 py-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                              <FormField control={form.control} name="purchaseNumber" render={({ field }) => (
-                                <FormItem><FormLabel>Purchase Number</FormLabel><FormControl><Input {...field} readOnly className="bg-muted/50 font-mono" /></FormControl><FormMessage/></FormItem>
+                                <FormItem><FormLabel>Purchase Number</FormLabel><FormControl><Input {...field} value={field.value ?? ''} readOnly={!initialValues?.id} className={!initialValues?.id ? "bg-muted/50 font-mono" : "font-mono"} /></FormControl><FormMessage/></FormItem>
                             )}/>
                             <FormField control={form.control} name="date" render={({ field }) => (
                                 <FormItem><FormLabel>Posting Date</FormLabel>
@@ -458,7 +458,7 @@ export function PurchaseForm({ accounts, parties, vehicles, uoms, onFormSubmit, 
             <div className="flex justify-end gap-3 pt-4">
                 <Button type="button" variant="outline" className="h-11 px-8" onClick={onCancel}>Cancel</Button>
                 <Button type="submit" className="h-11 px-12 font-bold" disabled={isSubmitting}>
-                    {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : (initialValues ? 'Update Transaction' : 'Post Transaction')}
+                    {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : (initialValues?.id ? 'Update Transaction' : 'Post Transaction')}
                 </Button>
             </div>
         </form>

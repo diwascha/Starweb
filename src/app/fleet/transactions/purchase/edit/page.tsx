@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
@@ -31,8 +30,13 @@ function EditPurchaseComponent() {
         getUoms()
       ]).then(([transactionData, vehicleData, partyData, accountData, uomData]) => {
         if (transactionData) {
+          // Sanitize null values to prevent Zod string/date validation errors
           setInitialValues({
             ...transactionData,
+            invoiceNumber: transactionData.invoiceNumber || '',
+            remarks: transactionData.remarks || '',
+            purchaseNumber: transactionData.purchaseNumber || '',
+            chequeNumber: transactionData.chequeNumber || '',
             date: new Date(transactionData.date),
             invoiceDate: transactionData.invoiceDate ? new Date(transactionData.invoiceDate) : null,
             chequeDate: transactionData.chequeDate ? new Date(transactionData.chequeDate) : null,
