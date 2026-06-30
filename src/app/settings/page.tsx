@@ -76,7 +76,7 @@ import { onAccountsUpdate, addAccount, updateAccount, deleteAccount } from '@/se
 import { onUomsUpdate, addUom, updateUom, deleteUom } from '@/services/uom-service';
 import { onSettingUpdate, setSetting } from '@/services/settings-service';
 import { onPageVisitsUpdate } from '@/services/usage-service';
-import { onLogsUpdate, type SystemLog } from '@/services/log-service';
+import { onLogsUpdate, type SystemLog, logError } from '@/services/log-service';
 import { Separator } from '@/components/ui/separator';
 import { 
     DropdownMenu, 
@@ -389,8 +389,16 @@ export default function SettingsPage() {
           }
           
           toast({ title: "Logo Updated", description: "The branding has been successfully updated across the system." });
-      } catch (error) {
-          toast({ title: "Upload Failed", description: "Check file type and try again.", variant: 'destructive' });
+      } catch (error: any) {
+          console.error("Logo upload error:", error);
+          logError(error, "Settings - Logo Upload");
+          
+          let description = "Check your connection and file type.";
+          if (error.message && error.message.includes('CORS')) {
+              description = "Bucket CORS policy is blocking the upload. Please configure CORS in Firebase Console.";
+          }
+          
+          toast({ title: "Upload Failed", description, variant: 'destructive' });
       }
   };
 
@@ -1383,7 +1391,7 @@ export default function SettingsPage() {
                                     <CardTitle>Detailed Usage Report</CardTitle>
                                     <CardDescription>Full listing of all application paths and their engagement levels.</CardDescription>
                                 </div>
-                                <div className="flex flex-wrap items-center gap-2">
+                                <div className="flex wrap items-center gap-2">
                                     <div className="relative">
                                         <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
                                         <Input 
