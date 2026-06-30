@@ -19,6 +19,7 @@ import {
   ChevronDown,
   Printer,
   Eye,
+  Download,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
@@ -184,11 +185,6 @@ export default function FleetTransactionsPage() {
 
     const ledgerData = useMemo(() => {
         const rawMapped = transactions.map(t => {
-            // Accounting Logic for Partner Ledger:
-            // Purchases (Cr): Increase our liability (what we owe them)
-            // Receipts (Cr): Decreases receivable (they paid us)
-            // Payments (Dr): Decreases liability (we paid them) or increases asset (advance)
-            // Sales (Dr): Increases receivable from partner (we billed them)
             const isDebit = t.type === 'Payment' || t.type === 'Sales';
             const isCredit = t.type === 'Purchase' || t.type === 'Receipt';
             
@@ -222,13 +218,11 @@ export default function FleetTransactionsPage() {
             return true;
         };
 
-        // Determine boundaries for filtration
         let filtered = rawMapped.filter(t => {
             if (!matchesNonDateFilters(t)) return false;
             
             const tDate = new Date(t.date);
             
-            // BS Filter
             if (selectedBsYear !== 'All') {
                 try {
                     const nd = new NepaliDate(tDate);
@@ -237,7 +231,6 @@ export default function FleetTransactionsPage() {
                 } catch { return false; }
             }
             
-            // AD Range Filter
             if (dateRange?.from) {
                 if (isBefore(tDate, startOfDay(dateRange.from))) return false;
             }
@@ -248,7 +241,6 @@ export default function FleetTransactionsPage() {
             return true;
         });
 
-        // Determine Opening Balance
         let openingBalance = 0;
         let earliestDateRequested: Date | null = null;
 
@@ -323,7 +315,6 @@ export default function FleetTransactionsPage() {
             ];
             const ws = XLSX.utils.aoa_to_sheet(data);
             
-            // Basic styling for a professional look (XLSX handles mostly structure)
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Ledger");
             XLSX.writeFile(wb, `Ledger_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
@@ -332,7 +323,6 @@ export default function FleetTransactionsPage() {
             const { default: autoTable } = await import('jspdf-autotable');
             const doc = new jsPDF('l', 'mm', 'a4');
             
-            // Header
             doc.setFontSize(18); doc.setTextColor(0, 0, 0);
             doc.text(fleetProfile.nameEn.toUpperCase(), 14, 15);
             doc.setFontSize(9); doc.setTextColor(100);
