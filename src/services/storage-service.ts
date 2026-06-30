@@ -18,8 +18,8 @@ export const uploadFile = async (file: File, path: string): Promise<string> => {
         console.error("Firebase Storage Upload Error:", error);
         
         // Enhance error message for CORS issues
-        if (error.code === 'storage/unauthorized' || error.message?.includes('CORS')) {
-            throw new Error("Storage Access Blocked: Please ensure CORS is configured in Firebase Console for your project.");
+        if (error.code === 'storage/unauthorized' || error.message?.includes('CORS') || error.status === 403) {
+            throw new Error(`Storage Access Blocked: Please ensure CORS is configured in Firebase Console for bucket: ${storage.app.options.storageBucket}`);
         }
         
         throw error;

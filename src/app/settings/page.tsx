@@ -993,6 +993,7 @@ export default function SettingsPage() {
                                             src={appBranding.appLogoURL} 
                                             alt="App Logo" 
                                             className="w-full h-full object-contain" 
+                                            crossOrigin="anonymous"
                                         />
                                     ) : (
                                         <ImageIcon className="h-12 w-12 text-muted-foreground opacity-20" />
@@ -1042,6 +1043,7 @@ export default function SettingsPage() {
                                                 src={companyProfile.logoURL} 
                                                 alt="Shivam Logo" 
                                                 className="w-full h-full object-contain" 
+                                                crossOrigin="anonymous"
                                             />
                                         ) : (
                                             <ImageIcon className="h-16 w-16 text-muted-foreground opacity-20" />
@@ -1114,6 +1116,7 @@ export default function SettingsPage() {
                                                 src={fleetProfile.logoURL} 
                                                 alt="Sijan Logo" 
                                                 className="w-full h-full object-contain" 
+                                                crossOrigin="anonymous"
                                             />
                                         ) : (
                                             <ImageIcon className="h-16 w-16 text-muted-foreground opacity-20" />
@@ -1255,7 +1258,7 @@ export default function SettingsPage() {
                 </Card>
             </TabsContent>
             <TabsContent value="uom">
-                 <Card>
+                <Card>
                     <CardHeader className="flex flex-row items-center justify-between">
                         <div>
                             <CardTitle>Units of Measurement</CardTitle>
