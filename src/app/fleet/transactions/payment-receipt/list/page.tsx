@@ -18,7 +18,10 @@ import {
   Printer,
   Check,
   User,
-  History
+  History,
+  Truck,
+  Users,
+  Wallet
 } from 'lucide-react';
 import type { Transaction, Vehicle, Party, Account } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -56,6 +59,8 @@ interface VoucherSummary {
     entriesCount: number;
     remarks?: string;
     createdBy: string;
+    vehicleIds: string[]; // List of unique vehicle IDs in this voucher
+    partyIds: string[];   // List of unique party IDs in this voucher
 }
 
 // Helper component for multi-select with "All" support
@@ -126,13 +131,18 @@ const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }
 export default function VoucherLogsPage() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [accounts, setAccounts] = useState<Account[]>([]);
+    const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+    const [parties, setParties] = useState<Party[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     
     const [searchQuery, setSearchQuery] = useState('');
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [filterBsYears, setFilterBsYears] = useState<string[]>([]);
     const [filterBsMonths, setFilterBsMonths] = useState<string[]>([]);
-    const [filterTypes, setFilterStatuses] = useState<string[]>([]);
+    const [filterTypes, setFilterTypes] = useState<string[]>([]);
+    const [filterVehicleIds, setFilterVehicleIds] = useState<string[]>([]);
+    const [filterPartyIds, setFilterPartyIds] = useState<string[]>([]);
+    const [filterBillingTypes, setFilterBillingTypes] = useState<string[]>([]);
 
     const { toast } = useToast();
     const { hasPermission } = useAuth();
@@ -143,8 +153,8 @@ export default function VoucherLogsPage() {
         const unsubs = [
             onTransactionsUpdate(setTransactions),
             onAccountsUpdate(setAccounts),
-            onVehiclesUpdate(() => {}),
-            onPartiesUpdate(() => {})
+            onVehiclesUpdate(setVehicles),
+            onPartiesUpdate(setParties)
         ];
         setIsLoading(false);
         return () => unsubs.forEach(u => u());
@@ -179,6 +189,9 @@ export default function VoucherLogsPage() {
             const hasPayment = txns.some(t => t.type === 'Payment');
             const hasReceipt = txns.some(t => t.type === 'Receipt');
             
+            const vehicleIds = Array.from(new Set(txns.map(t => t.vehicleId).filter(Boolean)));
+            const partyIds = Array.from(new Set(txns.map(t => t.partyId).filter(Boolean)));
+
             return {
                 voucherId: vId,
                 voucherNo: first.referenceId || 'N/A',
@@ -189,7 +202,9 @@ export default function VoucherLogsPage() {
                 totalAmount: txns.reduce((sum, t) => sum + t.amount, 0),
                 entriesCount: txns.length,
                 remarks: first.remarks || undefined,
-                createdBy: first.createdBy
+                createdBy: first.createdBy,
+                vehicleIds,
+                partyIds
             };
         });
 
@@ -210,6 +225,22 @@ export default function VoucherLogsPage() {
 
         if (filterTypes.length > 0) {
             filtered = filtered.filter(v => filterTypes.includes(v.type));
+        }
+
+        if (filterBillingTypes.length > 0) {
+            filtered = filtered.filter(v => filterBillingTypes.includes(v.billingType));
+        }
+
+        if (filterVehicleIds.length > 0) {
+            filtered = filtered.filter(v => 
+                v.vehicleIds.some(id => filterVehicleIds.includes(id))
+            );
+        }
+
+        if (filterPartyIds.length > 0) {
+            filtered = filtered.filter(v => 
+                v.partyIds.some(id => filterPartyIds.includes(id))
+            );
         }
         
         if (dateRange?.from) {
@@ -236,7 +267,7 @@ export default function VoucherLogsPage() {
         }
 
         return filtered;
-    }, [vouchers, searchQuery, filterTypes, dateRange, filterBsYears, filterBsMonths]);
+    }, [vouchers, searchQuery, filterTypes, filterBillingTypes, filterVehicleIds, filterPartyIds, dateRange, filterBsYears, filterBsMonths]);
 
     const handleDelete = async (voucherId: string) => {
         try {
@@ -252,7 +283,10 @@ export default function VoucherLogsPage() {
         setDateRange(undefined);
         setFilterBsYears([]);
         setFilterBsMonths([]);
-        setFilterStatuses([]);
+        setFilterTypes([]);
+        setFilterVehicleIds([]);
+        setFilterPartyIds([]);
+        setFilterBillingTypes([]);
     };
 
     const isFiltered = useMemo(() => {
@@ -260,8 +294,11 @@ export default function VoucherLogsPage() {
                !!dateRange || 
                filterBsYears.length > 0 || 
                filterBsMonths.length > 0 || 
-               filterTypes.length > 0;
-    }, [searchQuery, dateRange, filterBsYears, filterBsMonths, filterTypes]);
+               filterTypes.length > 0 ||
+               filterVehicleIds.length > 0 ||
+               filterPartyIds.length > 0 ||
+               filterBillingTypes.length > 0;
+    }, [searchQuery, dateRange, filterBsYears, filterBsMonths, filterTypes, filterVehicleIds, filterPartyIds, filterBillingTypes]);
 
     return (
         <div className="flex flex-col gap-8">
@@ -301,7 +338,7 @@ export default function VoucherLogsPage() {
                 <MultiSelect 
                     label="Voucher Type" 
                     values={filterTypes} 
-                    onSelect={setFilterStatuses} 
+                    onSelect={setFilterTypes} 
                     items={[
                         { id: 'Payment', name: 'Payment Only' },
                         { id: 'Receipt', name: 'Receipt Only' },
@@ -309,6 +346,33 @@ export default function VoucherLogsPage() {
                     ]} 
                     placeholder="Type" 
                     icon={Receipt}
+                />
+                <MultiSelect 
+                    label="Vehicle" 
+                    values={filterVehicleIds} 
+                    onSelect={setFilterVehicleIds} 
+                    items={vehicles} 
+                    placeholder="Vehicle" 
+                    icon={Truck}
+                />
+                <MultiSelect 
+                    label="Party / Ledger" 
+                    values={filterPartyIds} 
+                    onSelect={setFilterPartyIds} 
+                    items={parties.filter(p => p.ownership === 'Sijan' || p.ownership === 'Both')} 
+                    placeholder="Party" 
+                    icon={Users}
+                />
+                <MultiSelect 
+                    label="Source" 
+                    values={filterBillingTypes} 
+                    onSelect={setFilterBillingTypes} 
+                    items={[
+                        { id: 'Cash', name: 'Cash' },
+                        { id: 'Bank', name: 'Bank' }
+                    ]} 
+                    placeholder="Source" 
+                    icon={Wallet}
                 />
                 <div className="space-y-1.5 w-full md:w-[180px]">
                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">AD Range</Label>
