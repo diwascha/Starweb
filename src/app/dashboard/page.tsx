@@ -118,7 +118,7 @@ export default function DashboardPage() {
           {hasPermission('fleet', 'create') && (
             <Button asChild size="sm" variant="default" className="bg-blue-600 hover:bg-blue-700 h-10 px-4">
               <Link href="/fleet/transactions/payment-receipt/new">
-                <ArrowRightLeft className="mr-2 h-4 w-4" /> New Payment/Receipt
+                <ArrowRightLeft className="mr-2 h-4 w-4" /> Sijan- Pmt / Rcd. Entry
               </Link>
             </Button>
           )}
