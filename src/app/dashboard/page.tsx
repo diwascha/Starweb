@@ -123,7 +123,7 @@ export default function DashboardPage() {
             </Button>
           )}
           {hasPermission('purchaseOrders', 'create') && (
-            <Button asChild size="sm" className="h-8 text-xs">
+            <Button asChild size="sm" variant="outline" className="h-8 text-xs">
               <Link href="/purchase-orders/new">
                 <ShoppingCart className="mr-1.5 h-3.5 w-3.5" /> New Purchase Order
               </Link>
@@ -248,32 +248,11 @@ export default function DashboardPage() {
         <div className="lg:col-span-2 space-y-6">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <ClipboardList className="h-5 w-5" />
-            Quick Access Modules
+            System Updates
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-             <Link href="/fleet/transactions/expenses/new">
-              <Card className="hover:bg-accent transition-colors cursor-pointer h-full border-emerald-200 border-2 border-dashed">
-                <CardHeader className="p-4">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Wallet className="h-4 w-4 text-emerald-600" />
-                    Daily Expense Entry
-                  </CardTitle>
-                  <CardDescription className="text-xs">Quick entry for maintenance, fuel, and trip advances</CardDescription>
-                </CardHeader>
-              </Card>
-            </Link>
-            <Link href="/fleet/transactions/payment-receipt/new">
-              <Card className="hover:bg-accent transition-colors cursor-pointer h-full border-blue-200 border-2 border-dashed">
-                <CardHeader className="p-4">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <ArrowRightLeft className="h-4 w-4 text-blue-600" />
-                    Fleet Payment/Receipt
-                  </CardTitle>
-                  <CardDescription className="text-xs">Quick entry for fleet vouchers and trip settlements</CardDescription>
-                </CardHeader>
-              </Card>
-            </Link>
-          </div>
+          <Card className="border-dashed h-[385px] flex items-center justify-center text-muted-foreground italic text-sm">
+            Business activity feed and operational logs will appear here.
+          </Card>
         </div>
 
         <div className="space-y-4">
