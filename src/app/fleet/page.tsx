@@ -23,8 +23,8 @@ import { useToast } from '@/hooks/use-toast';
 const fleetModules = [
     { name: 'Vehicles & Drivers', href: '/fleet/registry', icon: Truck },
     { name: 'Expense Logs', href: '/fleet/transactions/expenses', icon: Wallet },
-    { name: 'Voucher Logs', href: '/fleet/transactions/payment-receipt/list', icon: Receipt },
-    { name: 'General Ledger', href: '/fleet/transactions', icon: CreditCard },
+    { name: 'Pmt. / Rcd. logs', href: '/fleet/transactions/payment-receipt/list', icon: Receipt },
+    { name: 'Sijan Reports', href: '/fleet/transactions', icon: CreditCard },
 ];
 
 const defaultFleetProfile: CompanyProfile = {

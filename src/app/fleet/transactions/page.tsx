@@ -388,7 +388,7 @@ export default function FleetTransactionsPage() {
     return (
         <div className="flex flex-col gap-6 max-w-[1600px] mx-auto">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <h1 className="text-2xl font-bold tracking-tight">Fleet Ledger</h1>
+                <h1 className="text-2xl font-bold tracking-tight">Sijan Reports</h1>
                 <div className="flex items-center gap-2">
                     <Button variant="outline" size="sm" className="h-9 gap-2 shadow-sm border-gray-200" onClick={() => setIsPreviewOpen(true)}>
                         <Eye className="h-4 w-4 text-blue-600" /> Preview & Print
