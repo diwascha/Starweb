@@ -11,6 +11,9 @@ import {
   SidebarContent,
   useSidebar,
   SidebarGroupLabel,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
 } from '@/components/ui/sidebar';
 import { 
   FileText, 
@@ -39,7 +42,8 @@ import {
   PanelLeft, 
   PanelRight, 
   Receipt, 
-  Briefcase 
+  Briefcase,
+  ChevronRight
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -54,6 +58,11 @@ import { getNormalizedPath } from '@/lib/utils';
 import { onSettingUpdate } from '@/services/settings-service';
 import type { AppBranding } from '@/lib/types';
 import logo from '@/app/signup/StarSutra.png';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 function SidebarCollapseButton() {
     const { state, toggleSidebar } = useSidebar();
@@ -186,244 +195,274 @@ export function AppSidebar() {
         </SidebarMenu>
         
         {hasPermission('finance', 'view') && (
-            <SidebarMenu>
-                <SidebarSeparator />
-                 <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={getIsActive('/finance')}>
-                    <Link href="/finance">
-                        <Calculator />
-                        <span>Finance</span>
-                    </Link>
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
-                <div className="ml-4">
+            <Collapsible asChild defaultOpen={getIsActive('/finance')} className="group/collapsible">
+                <SidebarMenu>
+                    <SidebarSeparator />
                     <SidebarMenuItem>
-                        <SidebarMenuButton asChild isActive={getIsActive('/finance/estimate-invoice')}>
-                        <Link href="/finance/estimate-invoice">
-                            <FileText />
-                            <span>Estimate Invoice</span>
-                        </Link>
-                        </SidebarMenuButton>
+                        <CollapsibleTrigger asChild>
+                            <SidebarMenuButton tooltip="Finance" isActive={getIsActive('/finance')}>
+                                <Calculator />
+                                <span>Finance</span>
+                                <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                            </SidebarMenuButton>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                            <SidebarMenuSub>
+                                <SidebarMenuSubItem>
+                                    <SidebarMenuSubButton asChild isActive={getIsActive('/finance/estimate-invoice')}>
+                                        <Link href="/finance/estimate-invoice">
+                                            <FileText className="h-4 w-4" />
+                                            <span>Estimate Invoice</span>
+                                        </Link>
+                                    </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                                <SidebarMenuSubItem>
+                                    <SidebarMenuSubButton asChild isActive={getIsActive('/finance/tds-calculator')}>
+                                        <Link href="/finance/tds-calculator">
+                                            <Calculator className="h-4 w-4" />
+                                            <span>TDS Calculator</span>
+                                        </Link>
+                                    </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                                <SidebarMenuSubItem>
+                                    <SidebarMenuSubButton asChild isActive={getIsActive('/finance/cheque-generator')}>
+                                        <Link href="/finance/cheque-generator">
+                                            <Receipt className="h-4 w-4" />
+                                            <span>Cheque Generator</span>
+                                        </Link>
+                                    </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                            </SidebarMenuSub>
+                        </CollapsibleContent>
                     </SidebarMenuItem>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton asChild isActive={getIsActive('/finance/tds-calculator')}>
-                        <Link href="/finance/tds-calculator">
-                            <Calculator />
-                            <span>TDS Calculator</span>
-                        </Link>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton asChild isActive={getIsActive('/finance/cheque-generator')}>
-                        <Link href="/finance/cheque-generator">
-                            <Receipt />
-                            <span>Cheque Generator</span>
-                        </Link>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                </div>
-            </SidebarMenu>
+                </SidebarMenu>
+            </Collapsible>
         )}
 
         {(hasPermission('reports', 'view') || hasPermission('products', 'view')) && (
-            <SidebarMenu>
-                <SidebarSeparator />
-                 <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={getIsActive('/reports')}>
-                    <Link href="/reports">
-                        <FileText />
-                        <span>Test Report Mgmt</span>
-                    </Link>
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
-                <div className="ml-4">
-                    {hasPermission('reports', 'create') && (
-                        <SidebarMenuItem>
-                            <SidebarMenuButton asChild isActive={getIsActive('/report/new', true)}>
-                                <Link href="/report/new">
-                                    <PlusCircle />
-                                    <span>New QT Reports</span>
-                                </Link>
+            <Collapsible asChild defaultOpen={getIsActive('/reports') || getIsActive('/report') || getIsActive('/products')} className="group/collapsible">
+                <SidebarMenu>
+                    <SidebarSeparator />
+                    <SidebarMenuItem>
+                        <CollapsibleTrigger asChild>
+                            <SidebarMenuButton tooltip="Test Report Mgmt" isActive={getIsActive('/reports')}>
+                                <FileText />
+                                <span>Test Report Mgmt</span>
+                                <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                             </SidebarMenuButton>
-                        </SidebarMenuItem>
-                    )}
-                    {hasPermission('reports', 'view') && (
-                        <SidebarMenuItem>
-                            <SidebarMenuButton asChild isActive={getIsActive('/reports/list')}>
-                                <Link href="/reports/list">
-                                    <FileSpreadsheet />
-                                    <span>QT Reports Database</span>
-                                </Link>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
-                    )}
-                    {hasPermission('products', 'view') && (
-                        <SidebarMenuItem>
-                            <SidebarMenuButton asChild isActive={getIsActive('/products')}>
-                                <Link href="/products">
-                                    <Package />
-                                    <span>QT Products</span>
-                                </Link>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
-                    )}
-                </div>
-            </SidebarMenu>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                            <SidebarMenuSub>
+                                {hasPermission('reports', 'create') && (
+                                    <SidebarMenuSubItem>
+                                        <SidebarMenuSubButton asChild isActive={getIsActive('/report/new', true)}>
+                                            <Link href="/report/new">
+                                                <PlusCircle className="h-4 w-4" />
+                                                <span>New QT Reports</span>
+                                            </Link>
+                                        </SidebarMenuSubButton>
+                                    </SidebarMenuSubItem>
+                                )}
+                                {hasPermission('reports', 'view') && (
+                                    <SidebarMenuSubItem>
+                                        <SidebarMenuSubButton asChild isActive={getIsActive('/reports/list')}>
+                                            <Link href="/reports/list">
+                                                <FileSpreadsheet className="h-4 w-4" />
+                                                <span>QT Reports Database</span>
+                                            </Link>
+                                        </SidebarMenuSubButton>
+                                    </SidebarMenuSubItem>
+                                )}
+                                {hasPermission('products', 'view') && (
+                                    <SidebarMenuSubItem>
+                                        <SidebarMenuSubButton asChild isActive={getIsActive('/products')}>
+                                            <Link href="/products">
+                                                <Package className="h-4 w-4" />
+                                                <span>QT Products</span>
+                                            </Link>
+                                        </SidebarMenuSubButton>
+                                    </SidebarMenuSubItem>
+                                )}
+                            </SidebarMenuSub>
+                        </CollapsibleContent>
+                    </SidebarMenuItem>
+                </SidebarMenu>
+            </Collapsible>
         )}
         
         {(hasPermission('purchaseOrders', 'view') || hasPermission('rawMaterials', 'view')) && (
-            <SidebarMenu>
-                <SidebarSeparator />
-                 <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={getIsActive('/purchase-orders')}>
-                    <Link href="/purchase-orders">
-                        <ShoppingCart />
-                        <span>Purchase Order Mgmt</span>
-                    </Link>
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
-                <div className="ml-4">
-                    {hasPermission('purchaseOrders', 'view') && (
-                        <SidebarMenuItem>
-                            <SidebarMenuButton asChild isActive={getIsActive('/purchase-orders/list')}>
-                                <Link href="/purchase-orders/list">
-                                    <FileSpreadsheet />
-                                    <span>Purchase Orders</span>
-                                </Link>
+            <Collapsible asChild defaultOpen={getIsActive('/purchase-orders') || getIsActive('/raw-materials')} className="group/collapsible">
+                <SidebarMenu>
+                    <SidebarSeparator />
+                    <SidebarMenuItem>
+                        <CollapsibleTrigger asChild>
+                            <SidebarMenuButton tooltip="Purchase Order Mgmt" isActive={getIsActive('/purchase-orders')}>
+                                <ShoppingCart />
+                                <span>Purchase Order Mgmt</span>
+                                <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                             </SidebarMenuButton>
-                        </SidebarMenuItem>
-                    )}
-                    {hasPermission('rawMaterials', 'view') && (
-                        <SidebarMenuItem>
-                            <SidebarMenuButton asChild isActive={getIsActive('/raw-materials')}>
-                                <Link href="/raw-materials">
-                                    <Wrench />
-                                    <span>Raw Materials</span>
-                                </Link>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
-                    )}
-                </div>
-            </SidebarMenu>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                            <SidebarMenuSub>
+                                {hasPermission('purchaseOrders', 'view') && (
+                                    <SidebarMenuSubItem>
+                                        <SidebarMenuSubButton asChild isActive={getIsActive('/purchase-orders/list')}>
+                                            <Link href="/purchase-orders/list">
+                                                <FileSpreadsheet className="h-4 w-4" />
+                                                <span>Purchase Orders</span>
+                                            </Link>
+                                        </SidebarMenuSubButton>
+                                    </SidebarMenuSubItem>
+                                )}
+                                {hasPermission('rawMaterials', 'view') && (
+                                    <SidebarMenuSubItem>
+                                        <SidebarMenuSubButton asChild isActive={getIsActive('/raw-materials')}>
+                                            <Link href="/raw-materials">
+                                                <Wrench className="h-4 w-4" />
+                                                <span>Raw Materials</span>
+                                            </Link>
+                                        </SidebarMenuSubButton>
+                                    </SidebarMenuSubItem>
+                                )}
+                            </SidebarMenuSub>
+                        </CollapsibleContent>
+                    </SidebarMenuItem>
+                </SidebarMenu>
+            </Collapsible>
         )}
 
         {hasPermission('crm', 'view') && (
+            <Collapsible asChild defaultOpen={getIsActive('/crm')} className="group/collapsible">
+                <SidebarMenu>
+                    <SidebarSeparator />
+                    <SidebarMenuItem>
+                        <CollapsibleTrigger asChild>
+                            <SidebarMenuButton tooltip="CRM" isActive={getIsActive('/crm')}>
+                                <Briefcase />
+                                <span>CRM</span>
+                                <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                            </SidebarMenuButton>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                            <SidebarMenuSub>
+                                <SidebarMenuSubItem>
+                                    <SidebarMenuSubButton asChild isActive={getIsActive('/crm/cost-report')}>
+                                        <Link href="/crm/cost-report">
+                                            <Calculator className="h-4 w-4" />
+                                            <span>Cost Report</span>
+                                        </Link>
+                                    </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                                <SidebarMenuSubItem>
+                                    <SidebarMenuSubButton asChild isActive={getIsActive('/crm/pack-spec')}>
+                                        <Link href="/crm/pack-spec">
+                                            <FileText className="h-4 w-4" />
+                                            <span>PackSpec</span>
+                                        </Link>
+                                    </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                            </SidebarMenuSub>
+                        </CollapsibleContent>
+                    </SidebarMenuItem>
+                </SidebarMenu>
+            </Collapsible>
+        )}
+    
+        <Collapsible asChild defaultOpen={getIsActive('/hr')} className="group/collapsible">
             <SidebarMenu>
                 <SidebarSeparator />
                 <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={getIsActive('/crm')}>
-                    <Link href="/crm">
-                        <Briefcase />
-                        <span>CRM</span>
-                    </Link>
-                    </SidebarMenuButton>
+                    <CollapsibleTrigger asChild>
+                        <SidebarMenuButton tooltip="HRMS" isActive={getIsActive('/hr')}>
+                            <Building2 />
+                            <span>HRMS</span>
+                            <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                        </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                        <SidebarMenuSub>
+                            <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/employees')}><Link href="/hr/employees"><Users className="h-4 w-4" /><span>Employees</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                            <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/attendance')}><Link href="/hr/attendance"><Calendar className="h-4 w-4" /><span>Attendance</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                            <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/analytics')}><Link href="/hr/analytics"><BarChart2 className="h-4 w-4" /><span>Analytics</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                            <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/payroll')}><Link href="/hr/payroll"><FileText className="h-4 w-4" /><span>Payroll</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                            <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/bonus')}><Link href="/hr/bonus"><Award className="h-4 w-4" /><span>Bonus</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                            <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/payslip')}><Link href="/hr/payslip"><Wallet className="h-4 w-4" /><span>Payslip</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                        </SidebarMenuSub>
+                    </CollapsibleContent>
                 </SidebarMenuItem>
-                <div className="ml-4">
-                    <SidebarMenuItem>
-                        <SidebarMenuButton asChild isActive={getIsActive('/crm/cost-report')}>
-                            <Link href="/crm/cost-report">
-                                <Calculator />
-                               <span>Cost Report</span>
-                            </Link>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton asChild isActive={getIsActive('/crm/pack-spec')}>
-                            <Link href="/crm/pack-spec">
-                                <FileText />
-                                <span>PackSpec</span>
-                            </Link>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                </div>
             </SidebarMenu>
-        )}
-    
-        <SidebarMenu>
-             <SidebarSeparator />
-             <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={getIsActive('/hr')}>
-                <Link href="/hr">
-                    <Building2 />
-                    <span>HRMS</span>
-                </Link>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
-            <div className="ml-4">
-                <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/hr/employees')}><Link href="/hr/employees"><Users /><span>Employees</span></Link></SidebarMenuButton></SidebarMenuItem>
-                <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/hr/attendance')}><Link href="/hr/attendance"><Calendar /><span>Attendance</span></Link></SidebarMenuButton></SidebarMenuItem>
-                <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/hr/analytics')}><Link href="/hr/analytics"><BarChart2 /><span>Analytics</span></Link></SidebarMenuButton></SidebarMenuItem>
-                <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/hr/payroll')}><Link href="/hr/payroll"><FileText /><span>Payroll</span></Link></SidebarMenuButton></SidebarMenuItem>
-                <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/hr/bonus')}><Link href="/hr/bonus"><Award /><span>Bonus</span></Link></SidebarMenuButton></SidebarMenuItem>
-                <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/hr/payslip')}><Link href="/hr/payslip"><Wallet /><span>Payslip</span></Link></SidebarMenuButton></SidebarMenuItem>
-            </div>
-        </SidebarMenu>
+        </Collapsible>
         
         {hasPermission('fleet', 'view') && (
-             <SidebarMenu>
-                <SidebarSeparator />
-                 <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={getIsActive('/fleet')}>
-                    <Link href="/fleet">
-                        <Truck />
-                        <span>Fleet Management</span>
-                    </Link>
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
-                <div className="ml-4 space-y-4">
-                    <div className="space-y-1">
-                      <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/registry')}><Link href="/fleet/registry"><Truck /><span>Vehicles & Drivers</span></Link></SidebarMenuButton></SidebarMenuItem>
-                      <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/policies')}><Link href="/fleet/policies"><ShieldCheck /><span>Policies & Memberships</span></Link></SidebarMenuButton></SidebarMenuItem>
-                    </div>
+            <Collapsible asChild defaultOpen={getIsActive('/fleet')} className="group/collapsible">
+                <SidebarMenu>
+                    <SidebarSeparator />
+                    <SidebarMenuItem>
+                        <CollapsibleTrigger asChild>
+                            <SidebarMenuButton tooltip="Fleet Management" isActive={getIsActive('/fleet')}>
+                                <Truck />
+                                <span>Fleet Management</span>
+                                <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                            </SidebarMenuButton>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                            <div className="ml-4 pt-2 space-y-4">
+                                <div className="space-y-1">
+                                    <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/registry')}><Link href="/fleet/registry"><Truck className="h-4 w-4" /><span>Vehicles & Drivers</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                                    <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/policies')}><Link href="/fleet/policies"><ShieldCheck className="h-4 w-4" /><span>Policies & Memberships</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                                </div>
 
-                    {hasPermission('fleet', 'create') && (
-                      <div className="space-y-1">
-                        <SidebarGroupLabel className="px-0 py-1 text-[10px] uppercase text-muted-foreground font-bold">Data Entry</SidebarGroupLabel>
-                        <SidebarMenuItem>
-                            <SidebarMenuButton asChild isActive={getIsActive('/fleet/trip-sheets/new')}>
-                                <Link href="/fleet/trip-sheets/new">
-                                    <TrendingUp />
-                                    <span>Sales Entry</span>
-                                </Link>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
-                        <SidebarMenuItem>
-                            <SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/purchase/new')}>
-                                <Link href="/fleet/transactions/purchase/new">
-                                    <ShoppingCart />
-                                    <span>Purchase Entry</span>
-                                </Link>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
-                        <SidebarMenuItem>
-                            <SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/expenses/new')}>
-                                <Link href="/fleet/transactions/expenses/new">
-                                    <Wallet />
-                                    <span>Daily Expense Entry</span>
-                                </Link>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
-                        <SidebarMenuItem>
-                            <SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/payment-receipt/new')}>
-                                <Link href="/fleet/transactions/payment-receipt/new">
-                                    <ArrowRightLeft />
-                                    <span>Payment / Receipt</span>
-                                </Link>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
-                      </div>
-                    )}
+                                {hasPermission('fleet', 'create') && (
+                                    <div className="space-y-1">
+                                        <SidebarGroupLabel className="px-2 py-1 text-[10px] uppercase text-muted-foreground font-bold">Data Entry</SidebarGroupLabel>
+                                        <SidebarMenuSubItem>
+                                            <SidebarMenuSubButton asChild isActive={getIsActive('/fleet/trip-sheets/new')}>
+                                                <Link href="/fleet/trip-sheets/new">
+                                                    <TrendingUp className="h-4 w-4" />
+                                                    <span>Sales Entry</span>
+                                                </Link>
+                                            </SidebarMenuSubButton>
+                                        </SidebarMenuSubItem>
+                                        <SidebarMenuSubItem>
+                                            <SidebarMenuSubButton asChild isActive={getIsActive('/fleet/transactions/purchase/new')}>
+                                                <Link href="/fleet/transactions/purchase/new">
+                                                    <ShoppingCart className="h-4 w-4" />
+                                                    <span>Purchase Entry</span>
+                                                </Link>
+                                            </SidebarMenuSubButton>
+                                        </SidebarMenuSubItem>
+                                        <SidebarMenuSubItem>
+                                            <SidebarMenuSubButton asChild isActive={getIsActive('/fleet/transactions/expenses/new')}>
+                                                <Link href="/fleet/transactions/expenses/new">
+                                                    <Wallet className="h-4 w-4" />
+                                                    <span>Daily Expense Entry</span>
+                                                </Link>
+                                            </SidebarMenuSubButton>
+                                        </SidebarMenuSubItem>
+                                        <SidebarMenuSubItem>
+                                            <SidebarMenuSubButton asChild isActive={getIsActive('/fleet/transactions/payment-receipt/new')}>
+                                                <Link href="/fleet/transactions/payment-receipt/new">
+                                                    <ArrowRightLeft className="h-4 w-4" />
+                                                    <span>Payment / Receipt</span>
+                                                </Link>
+                                            </SidebarMenuSubButton>
+                                        </SidebarMenuSubItem>
+                                    </div>
+                                )}
 
-                    <div className="space-y-1">
-                      <SidebarGroupLabel className="px-0 py-1 text-[10px] uppercase text-muted-foreground font-bold">Logs & History</SidebarGroupLabel>
-                      <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/trip-sheets', true)}><Link href="/fleet/trip-sheets"><FileText /><span>Sales Logs</span></Link></SidebarMenuButton></SidebarMenuItem>
-                      <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/purchase', true)}><Link href="/fleet/transactions/purchase"><ShoppingCart /><span>Purchase Logs</span></Link></SidebarMenuButton></SidebarMenuItem>
-                      <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/expenses', true)}><Link href="/fleet/transactions/expenses"><Wallet /><span>Expense Logs</span></Link></SidebarMenuButton></SidebarMenuItem>
-                      <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/payment-receipt/list', true)}><Link href="/fleet/transactions/payment-receipt/list"><Receipt /><span>Pmt. / Rcd. logs</span></Link></SidebarMenuButton></SidebarMenuItem>
-                      <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions', true)}><Link href="/fleet/transactions"><CreditCard /><span>Sijan Reports</span></Link></SidebarMenuButton></SidebarMenuItem>
-                    </div>
-                </div>
-            </SidebarMenu>
+                                <div className="space-y-1">
+                                    <SidebarGroupLabel className="px-2 py-1 text-[10px] uppercase text-muted-foreground font-bold">Logs & History</SidebarGroupLabel>
+                                    <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/trip-sheets', true)}><Link href="/fleet/trip-sheets"><FileText className="h-4 w-4" /><span>Sales Logs</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                                    <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/transactions/purchase', true)}><Link href="/fleet/transactions/purchase"><ShoppingCart className="h-4 w-4" /><span>Purchase Logs</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                                    <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/transactions/expenses', true)}><Link href="/fleet/transactions/expenses"><Wallet className="h-4 w-4" /><span>Expense Logs</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                                    <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/transactions/payment-receipt/list', true)}><Link href="/fleet/transactions/payment-receipt/list"><Receipt className="h-4 w-4" /><span>Pmt. / Rcd. logs</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                                    <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/transactions', true)}><Link href="/fleet/transactions"><CreditCard className="h-4 w-4" /><span>Sijan Reports</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                                </div>
+                            </div>
+                        </CollapsibleContent>
+                    </SidebarMenuItem>
+                </SidebarMenu>
+            </Collapsible>
         )}
         
         <SidebarMenu>
