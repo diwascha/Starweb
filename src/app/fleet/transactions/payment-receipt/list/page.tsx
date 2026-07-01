@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   PlusCircle, 
@@ -15,7 +15,10 @@ import {
   Receipt,
   Eye,
   ChevronDown,
-  Printer
+  Printer,
+  Check,
+  User,
+  History
 } from 'lucide-react';
 import type { Transaction, Vehicle, Party, Account } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -32,6 +35,7 @@ import { onPartiesUpdate } from '@/services/party-service';
 import { onAccountsUpdate } from '@/services/account-service';
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 import type { DateRange } from 'react-day-picker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -54,6 +58,71 @@ interface VoucherSummary {
     createdBy: string;
 }
 
+// Helper component for multi-select with "All" support
+const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }: any) => {
+    const isAll = values.length === 0;
+
+    const toggleItem = (id: string) => {
+        if (id === 'All') {
+            onSelect([]);
+            return;
+        }
+        const next = values.includes(id)
+            ? values.filter((v: string) => v !== id)
+            : [...values, id];
+        onSelect(next);
+    };
+
+    const displayText = isAll
+        ? `All ${placeholder}s`
+        : values.length === 1
+            ? items.find((i: any) => String(i.id) === String(values[0]))?.name || values[0]
+            : `${values.length} ${placeholder}s Selected`;
+
+    return (
+        <div className="space-y-1.5 flex-1 min-w-[160px]">
+            <Label className="text-[10px] uppercase font-bold text-muted-foreground">{label}</Label>
+            <Popover>
+                <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-between h-9 bg-white border-gray-200 shadow-none font-normal text-xs px-3 text-left">
+                        <div className="flex items-center gap-2 overflow-hidden text-left">
+                            {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+                            <span className="truncate">{displayText}</span>
+                        </div>
+                        <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="p-0 w-[200px]" align="start">
+                    <Command>
+                        <div className="flex items-center border-b px-3" cmdk-input-wrapper="">
+                            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                            <input 
+                                placeholder={`Search ${placeholder.toLowerCase()}...`} 
+                                className="flex h-9 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                            />
+                        </div>
+                        <CommandList>
+                            <CommandEmpty>No results found.</CommandEmpty>
+                            <CommandGroup>
+                                <CommandItem value="All" onSelect={() => toggleItem('All')} className="text-xs">
+                                    <Check className={cn("mr-2 h-3.5 w-3.5", isAll ? "opacity-100" : "opacity-0")} />
+                                    All {placeholder}s
+                                </CommandItem>
+                                {items.map((item: any) => (
+                                    <CommandItem key={item.id} value={item.name} onSelect={() => toggleItem(String(item.id))} className="text-xs">
+                                        <Check className={cn("mr-2 h-3.5 w-3.5", values.includes(String(item.id)) ? "opacity-100" : "opacity-0")} />
+                                        {item.name}
+                                    </CommandItem>
+                                ))}
+                            </CommandGroup>
+                        </CommandList>
+                    </Command>
+                </PopoverContent>
+            </Popover>
+        </div>
+    );
+};
+
 export default function VoucherLogsPage() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [accounts, setAccounts] = useState<Account[]>([]);
@@ -61,9 +130,9 @@ export default function VoucherLogsPage() {
     
     const [searchQuery, setSearchQuery] = useState('');
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-    const [filterBsYear, setFilterBsYear] = useState<string>('All');
-    const [filterBsMonth, setFilterBsMonth] = useState<string>('All');
-    const [filterType, setFilterType] = useState<string>('All');
+    const [filterBsYears, setFilterBsYears] = useState<string[]>([]);
+    const [filterBsMonths, setFilterBsMonths] = useState<string[]>([]);
+    const [filterTypes, setFilterStatuses] = useState<string[]>([]);
 
     const { toast } = useToast();
     const { hasPermission } = useAuth();
@@ -74,7 +143,7 @@ export default function VoucherLogsPage() {
         const unsubs = [
             onTransactionsUpdate(setTransactions),
             onAccountsUpdate(setAccounts),
-            onVehiclesUpdate(() => {}), // Just triggering updates
+            onVehiclesUpdate(() => {}),
             onPartiesUpdate(() => {})
         ];
         setIsLoading(false);
@@ -82,6 +151,18 @@ export default function VoucherLogsPage() {
     }, []);
 
     const accountsById = useMemo(() => new Map(accounts.map(a => [a.id, a.bankName || a.name])), [accounts]);
+
+    const availableYears = useMemo(() => {
+        const years = new Set<number>();
+        transactions.forEach(t => {
+            try {
+                if (t.voucherId) {
+                    years.add(new NepaliDate(new Date(t.date)).getYear());
+                }
+            } catch {}
+        });
+        return Array.from(years).sort((a, b) => b - a);
+    }, [transactions]);
 
     const vouchers = useMemo(() => {
         const filteredTxns = transactions.filter(t => t.voucherId && (t.type === 'Payment' || t.type === 'Receipt'));
@@ -127,8 +208,8 @@ export default function VoucherLogsPage() {
             );
         }
 
-        if (filterType !== 'All') {
-            filtered = filtered.filter(v => v.type === filterType);
+        if (filterTypes.length > 0) {
+            filtered = filtered.filter(v => filterTypes.includes(v.type));
         }
         
         if (dateRange?.from) {
@@ -136,24 +217,26 @@ export default function VoucherLogsPage() {
             filtered = filtered.filter(v => isWithinInterval(new Date(v.date), interval));
         }
 
-        if (filterBsYear !== 'All') {
+        if (filterBsYears.length > 0) {
             filtered = filtered.filter(v => {
                 try {
-                    return new NepaliDate(new Date(v.date)).getYear() === parseInt(filterBsYear);
+                    const year = new NepaliDate(new Date(v.date)).getYear();
+                    return filterBsYears.includes(String(year));
                 } catch { return false; }
             });
         }
 
-        if (filterBsMonth !== 'All') {
+        if (filterBsMonths.length > 0) {
             filtered = filtered.filter(v => {
                 try {
-                    return new NepaliDate(new Date(v.date)).getMonth() === parseInt(filterBsMonth);
+                    const month = new NepaliDate(new Date(v.date)).getMonth();
+                    return filterBsMonths.includes(String(month));
                 } catch { return false; }
             });
         }
 
         return filtered;
-    }, [vouchers, searchQuery, filterType, dateRange, filterBsYear, filterBsMonth]);
+    }, [vouchers, searchQuery, filterTypes, dateRange, filterBsYears, filterBsMonths]);
 
     const handleDelete = async (voucherId: string) => {
         try {
@@ -167,10 +250,18 @@ export default function VoucherLogsPage() {
     const handleClearFilters = () => {
         setSearchQuery('');
         setDateRange(undefined);
-        setFilterBsYear('All');
-        setFilterBsMonth('All');
-        setFilterType('All');
+        setFilterBsYears([]);
+        setFilterBsMonths([]);
+        setFilterStatuses([]);
     };
+
+    const isFiltered = useMemo(() => {
+        return searchQuery !== '' || 
+               !!dateRange || 
+               filterBsYears.length > 0 || 
+               filterBsMonths.length > 0 || 
+               filterTypes.length > 0;
+    }, [searchQuery, dateRange, filterBsYears, filterBsMonths, filterTypes]);
 
     return (
         <div className="flex flex-col gap-8">
@@ -180,6 +271,10 @@ export default function VoucherLogsPage() {
                     <p className="text-muted-foreground">Management of multi-entry vouchers and settlements.</p>
                 </div>
                 <div className="flex items-center gap-2">
+                    <div className="relative">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input type="search" placeholder="Search logs..." className="pl-8 sm:w-[250px]" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                    </div>
                     {hasPermission('fleet', 'create') && (
                         <Button onClick={() => router.push('/fleet/transactions/payment-receipt/new')}>
                             <PlusCircle className="mr-2 h-4 w-4" /> New Voucher
@@ -189,35 +284,55 @@ export default function VoucherLogsPage() {
             </header>
 
             <div className="bg-muted/20 p-4 rounded-lg border border-dashed flex flex-wrap gap-4 items-end">
-                <div className="relative flex-1 min-w-[250px]">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input type="search" placeholder="Search voucher #, remarks..." className="pl-8 h-9 bg-white" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                <MultiSelect 
+                    label="Year (BS)" 
+                    values={filterBsYears} 
+                    onSelect={setFilterBsYears} 
+                    items={availableYears.map(y => ({ id: String(y), name: String(y) }))} 
+                    placeholder="Year" 
+                />
+                <MultiSelect 
+                    label="Month (BS)" 
+                    values={filterBsMonths} 
+                    onSelect={setFilterBsMonths} 
+                    items={NEPALI_MONTHS.map(m => ({ id: String(m.value), name: m.name }))} 
+                    placeholder="Month" 
+                />
+                <MultiSelect 
+                    label="Voucher Type" 
+                    values={filterTypes} 
+                    onSelect={setFilterStatuses} 
+                    items={[
+                        { id: 'Payment', name: 'Payment Only' },
+                        { id: 'Receipt', name: 'Receipt Only' },
+                        { id: 'Mixed', name: 'Mixed' }
+                    ]} 
+                    placeholder="Type" 
+                    icon={Receipt}
+                />
+                <div className="space-y-1.5 w-full md:w-[180px]">
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">AD Range</Label>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button variant="outline" className={cn("w-full h-9 justify-start text-left font-normal bg-white text-xs px-3", !dateRange && "text-muted-foreground")}>
+                                <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                                <span className="truncate">
+                                    {dateRange?.from ? (
+                                        dateRange.to ? `${format(dateRange.from, "MMM d")} - ${format(dateRange.to, "MMM d")}` : format(dateRange.from, "MMM d")
+                                    ) : 'Pick AD Range'}
+                                </span>
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                            <DualDateRangePicker selected={dateRange} onSelect={setDateRange} />
+                        </PopoverContent>
+                    </Popover>
                 </div>
-                <div className="w-[120px] space-y-1">
-                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Type</Label>
-                    <Select value={filterType} onValueChange={setFilterType}>
-                        <SelectTrigger className="h-9 bg-white text-xs"><SelectValue/></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="All">All Types</SelectItem>
-                            <SelectItem value="Payment">Payment Only</SelectItem>
-                            <SelectItem value="Receipt">Receipt Only</SelectItem>
-                            <SelectItem value="Mixed">Mixed</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-                <div className="w-[120px] space-y-1">
-                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Month (BS)</Label>
-                    <Select value={filterBsMonth} onValueChange={setFilterBsMonth}>
-                        <SelectTrigger className="h-9 bg-white text-xs"><SelectValue/></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="All">All Months</SelectItem>
-                            {NEPALI_MONTHS.map(m => <SelectItem key={m.value} value={String(m.value)}>{m.name}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                </div>
-                <Button variant="ghost" size="sm" onClick={handleClearFilters} className="text-muted-foreground h-9 px-2 text-xs">
-                    <FilterX className="mr-2 h-3.5 w-3.5" /> Reset
-                </Button>
+                {isFiltered && (
+                    <Button variant="ghost" size="sm" onClick={handleClearFilters} className="text-muted-foreground h-9 px-2 text-xs">
+                        <FilterX className="mr-2 h-3.5 w-3.5" /> Reset
+                    </Button>
+                )}
             </div>
 
             <Card>
@@ -239,7 +354,19 @@ export default function VoucherLogsPage() {
                         ) : filteredVouchers.map(v => (
                             <TableRow key={v.voucherId} className="hover:bg-muted/30">
                                 <TableCell className="font-medium text-[11px] whitespace-nowrap">{toNepaliDate(v.date)}</TableCell>
-                                <TableCell className="font-mono text-[11px] font-bold text-blue-600">{v.voucherNo}</TableCell>
+                                <TableCell>
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-mono text-[11px] font-bold text-blue-600">{v.voucherNo}</span>
+                                        <Button 
+                                            variant="ghost" 
+                                            size="icon" 
+                                            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" 
+                                            onClick={() => router.push(`/fleet/transactions/payment-receipt/edit?voucherId=${v.voucherId}`)}
+                                        >
+                                            <Edit className="h-3 w-3" />
+                                        </Button>
+                                    </div>
+                                </TableCell>
                                 <TableCell>
                                     <Badge variant="outline" className={cn(
                                         "text-[9px] uppercase font-bold",
