@@ -162,6 +162,8 @@ export default function VoucherLogsPage() {
     }, []);
 
     const accountsById = useMemo(() => new Map(accounts.map(a => [a.id, a.bankName || a.name])), [accounts]);
+    const vehiclesById = useMemo(() => new Map(vehicles.map(v => [v.id, v.name])), [vehicles]);
+    const partiesById = useMemo(() => new Map(parties.map(p => [p.id, p.name])), [parties]);
     const sijanBankAccounts = useMemo(() => accounts.filter(a => a.type === 'Bank' && (a.ownership === 'Sijan' || a.ownership === 'Both')), [accounts]);
 
     const availableYears = useMemo(() => {
@@ -417,6 +419,8 @@ export default function VoucherLogsPage() {
                             <TableHead className="text-xs">Date (BS)</TableHead>
                             <TableHead className="text-xs">Voucher #</TableHead>
                             <TableHead className="text-xs">Type</TableHead>
+                            <TableHead className="text-xs">Vehicles</TableHead>
+                            <TableHead className="text-xs">Ledgers</TableHead>
                             <TableHead className="text-xs">Mode / Account</TableHead>
                             <TableHead className="text-xs text-center">Entries</TableHead>
                             <TableHead className="text-right text-xs">Total Amount</TableHead>
@@ -425,7 +429,7 @@ export default function VoucherLogsPage() {
                     </TableHeader>
                     <TableBody>
                         {isLoading ? (
-                            <TableRow><TableCell colSpan={7} className="text-center py-12"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
+                            <TableRow><TableCell colSpan={9} className="text-center py-12"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
                         ) : filteredVouchers.map(v => (
                             <TableRow key={v.voucherId} className="hover:bg-muted/30">
                                 <TableCell className="font-medium text-[11px] whitespace-nowrap">{toNepaliDate(v.date)}</TableCell>
@@ -453,6 +457,24 @@ export default function VoucherLogsPage() {
                                     </Badge>
                                 </TableCell>
                                 <TableCell className="text-[11px]">
+                                    <div className="flex flex-wrap gap-1">
+                                        {v.vehicleIds.map(id => (
+                                            <Badge key={id} variant="secondary" className="text-[9px] px-1 h-4 font-normal">
+                                                {vehiclesById.get(id) || id}
+                                            </Badge>
+                                        ))}
+                                    </div>
+                                </TableCell>
+                                <TableCell className="text-[11px]">
+                                    <div className="flex flex-wrap gap-1">
+                                        {v.partyIds.map(id => (
+                                            <Badge key={id} variant="outline" className="text-[9px] px-1 h-4 font-normal">
+                                                {partiesById.get(id) || id}
+                                            </Badge>
+                                        ))}
+                                    </div>
+                                </TableCell>
+                                <TableCell className="text-[11px]">
                                     <div className="flex flex-col">
                                         <span className="font-medium">{v.billingType}</span>
                                         {v.accountName && <span className="text-[9px] text-muted-foreground">{v.accountName}</span>}
@@ -477,7 +499,7 @@ export default function VoucherLogsPage() {
                                 </TableCell>
                             </TableRow>
                         ))}
-                        {!isLoading && filteredVouchers.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground italic">No vouchers found.</TableCell></TableRow>}
+                        {!isLoading && filteredVouchers.length === 0 && <TableRow><TableCell colSpan={9} className="text-center py-12 text-muted-foreground italic">No vouchers found.</TableCell></TableRow>}
                     </TableBody>
                 </Table>
             </Card>
