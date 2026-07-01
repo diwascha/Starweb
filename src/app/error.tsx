@@ -1,4 +1,3 @@
-
 'use client';
 /**
  * @fileOverview Root error handler for Next.js route segments.
@@ -19,7 +18,9 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     // Log critical failure to Firestore for auditing
-    logError(error, 'Global App Segment', { digest: error.digest });
+    if (error) {
+        logError(error, 'Global App Segment', { digest: error?.digest });
+    }
     console.error('Critical Application Failure:', error);
   }, [error]);
 
@@ -37,8 +38,8 @@ export default function GlobalError({
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="p-3 bg-muted rounded text-[10px] font-mono overflow-auto max-h-32 border">
-            {error.name}: {error.message || 'The application encountered an unexpected state.'}
-            {error.digest && <p className="mt-2 opacity-50">Log Reference: {error.digest}</p>}
+            {error?.name || 'Error'}: {error?.message || 'The application encountered an unexpected state.'}
+            {error?.digest && <p className="mt-2 opacity-50">Log Reference: {error.digest}</p>}
           </div>
           <p className="text-xs text-center text-muted-foreground px-6">
             The crash has been reported. Fault isolation is active. Other parts of the system may still be operational.

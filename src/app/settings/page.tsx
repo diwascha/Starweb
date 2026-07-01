@@ -1033,7 +1033,7 @@ export default function SettingsPage() {
                             <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Detailed Engagement</CardTitle></CardHeader>
                             <CardContent className="p-0">
                                 <Table className="text-[10px]"><TableHeader><TableRow><TableHead onClick={() => handleUsageSort('path')} className="cursor-pointer">Path</TableHead><TableHead onClick={() => handleUsageSort('count')} className="cursor-pointer text-right">Visits</TableHead><TableHead onClick={() => handleUsageSort('lastVisited')} className="cursor-pointer text-right">Last Visit</TableHead></TableRow></TableHeader><TableBody>
-                                    {filteredDetailedUsage.map(v => (<TableRow key={v.id}><TableCell className="font-mono">{v.path}</TableCell><TableCell className="text-right">{v.count}</TableCell><TableCell className="text-right">{format(new Date(v.lastVisited), 'MMM d, p')}</TableCell></TableRow>))}
+                                    {filteredDetailedUsage.map(v => (<TableRow key={v.id}><TableCell className="font-mono">{v.path}</TableCell><TableCell className="text-right">{v.count}</TableCell><TableCell className="text-right">{v.lastVisited ? format(new Date(v.lastVisited), 'MMM d, p') : 'Never'}</TableCell></TableRow>))}
                                 </TableBody></Table>
                             </CardContent>
                         </Card>
@@ -1045,8 +1045,8 @@ export default function SettingsPage() {
                     <CardHeader><CardTitle>Error Logs</CardTitle></CardHeader>
                     <CardContent>
                         <Table><TableHeader><TableRow><TableHead>Time</TableHead><TableHead>Module</TableHead><TableHead>Error</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader><TableBody>
-                        {logs.map(log => (<TableRow key={log.id}><TableCell className="text-xs">{format(new Date(log.timestamp), 'p')}</TableCell><TableCell><Badge variant="outline">{log.module}</Badge></TableCell><TableCell className="text-xs truncate max-w-xs">{log.message}</TableCell><TableCell className="text-right">
-                            <Dialog><DialogTrigger asChild><Button variant="ghost" size="sm">View</Button></DialogTrigger><DialogContent className="max-w-2xl"><DialogHeader><DialogTitle>Error Details</DialogTitle></DialogHeader><div className="space-y-4 py-4"><pre className="text-[10px] bg-muted p-4 rounded overflow-auto max-h-96">{log.stack || log.message}</pre></div></DialogContent></Dialog>
+                        {logs.map(log => (<TableRow key={log?.id || Math.random()}><TableCell className="text-xs">{log?.timestamp ? format(new Date(log.timestamp), 'p') : '-'}</TableCell><TableCell><Badge variant="outline">{log?.module || 'Unknown'}</Badge></TableCell><TableCell className="text-xs truncate max-w-xs">{log?.message || 'Error'}</TableCell><TableCell className="text-right">
+                            <Dialog><DialogTrigger asChild><Button variant="ghost" size="sm">View</Button></DialogTrigger><DialogContent className="max-w-2xl"><DialogHeader><DialogTitle>Error Details</DialogTitle></DialogHeader><div className="space-y-4 py-4"><pre className="text-[10px] bg-muted p-4 rounded overflow-auto max-h-96">{log?.stack || log?.message || 'No details available'}</pre></div></DialogContent></Dialog>
                         </TableCell></TableRow>))}
                         </TableBody></Table>
                     </CardContent>

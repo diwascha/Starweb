@@ -1,4 +1,3 @@
-
 'use client';
 /**
  * @fileOverview Logging service for capturing system exceptions and telemetry.
@@ -43,14 +42,20 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): SystemLog
 export const logError = async (error: Error | any, moduleName: string, context?: any) => {
     try {
         const { db } = getFirebase();
-        const userSession = typeof window !== 'undefined' ? localStorage.getItem('user_session') : null;
-        const user = userSession ? JSON.parse(userSession) : null;
+        
+        let user = null;
+        try {
+            const userSession = typeof window !== 'undefined' ? localStorage.getItem('user_session') : null;
+            user = userSession ? JSON.parse(userSession) : null;
+        } catch (e) {
+            console.warn("Failed to parse user session for logging", e);
+        }
 
         await addDoc(collection(db, COLLECTIONS.LOGS), {
             timestamp: new Date().toISOString(),
             level: 'error',
-            module: moduleName,
-            message: error?.message || String(error),
+            module: moduleName || 'Unknown',
+            message: error?.message || String(error || 'Unknown Error'),
             stack: error?.stack || null,
             username: user?.username || 'Guest',
             userId: user?.id || 'anonymous',

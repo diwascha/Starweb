@@ -113,7 +113,7 @@ export default function LoginPage() {
       await signInWithEmailAndPassword(auth, email, data.password);
       
       const localUsers = getUsers();
-      const localUser = localUsers.find(u => u.username.toLowerCase() === username.toLowerCase());
+      const localUser = localUsers.find(u => u.username.toLowerCase() === data.username.toLowerCase());
       if (localUser) {
         await login(localUser, false);
       }
@@ -123,7 +123,7 @@ export default function LoginPage() {
       
     } catch (error: any) {
       let errorMessage = 'An unknown error occurred.';
-      if (error.code) {
+      if (error && error.code) {
         switch (error.code) {
           case AuthErrorCodes.INVALID_PASSWORD:
           case AuthErrorCodes.INVALID_EMAIL:
