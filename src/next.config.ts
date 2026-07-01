@@ -10,9 +10,6 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  experimental: {
-    // Cleaned up invalid keys
-  },
   images: {
     unoptimized: true,
     remotePatterns: [

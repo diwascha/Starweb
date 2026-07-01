@@ -6,7 +6,6 @@ import {
   ShoppingCart, 
   Truck, 
   TrendingUp, 
-  ClipboardList,
   MousePointerClick,
   Clock,
   ArrowRightLeft,
@@ -242,17 +241,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-6">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <ClipboardList className="h-5 w-5" />
-            System Updates
-          </h2>
-          <Card className="border-dashed h-[385px] flex items-center justify-center text-muted-foreground italic text-sm">
-            Business activity feed and operational logs will appear here.
-          </Card>
-        </div>
-
-        <div className="space-y-4">
+        <div className="space-y-4 lg:col-start-3">
           <Card className="overflow-hidden shadow-md">
             <CardHeader className="p-4 bg-muted/50 border-b">
               <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center justify-between">
