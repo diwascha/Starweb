@@ -1,8 +1,25 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { PlusCircle, MoreHorizontal, Edit, Trash2, View, ArrowUpDown, Search, PackageCheck, Ban, User, Printer, CalendarIcon } from 'lucide-react';
+import { 
+  PlusCircle, 
+  MoreHorizontal, 
+  Edit, 
+  Trash2, 
+  View, 
+  ArrowUpDown, 
+  Search, 
+  PackageCheck, 
+  Ban, 
+  User, 
+  Printer, 
+  CalendarIcon,
+  Check,
+  ChevronDown,
+  FilterX
+} from 'lucide-react';
 import type { PurchaseOrder, PurchaseOrderStatus } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -18,10 +35,10 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import {
@@ -40,24 +57,77 @@ import { Badge } from '@/components/ui/badge';
 import { cn, toNepaliDate } from '@/lib/utils';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { format } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
 import { onPurchaseOrdersUpdate, deletePurchaseOrder, updatePurchaseOrder } from '@/services/purchase-order-service';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import NepaliDate from 'nepali-date-converter';
+import { NEPALI_MONTHS } from '@/lib/constants';
+import { Label } from '@/components/ui/label';
 
 type SortKey = 'poNumber' | 'poDate' | 'companyName' | 'status' | 'authorship';
 type SortDirection = 'asc' | 'desc';
 
-const nepaliMonths = [
-    { value: 0, name: "Baishakh" }, { value: 1, name: "Jestha" }, { value: 2, name: "Ashadh" },
-    { value: 3, name: "Shrawan" }, { value: 4, name: "Bhadra" }, { value: 5, name: "Ashwin" },
-    { value: 6, name: "Kartik" }, { value: 7, name: "Mangsir" }, { value: 8, "name": "Poush" },
-    { value: 9, name: "Magh" }, { value: 10, name: "Falgun" }, { value: 11, name: "Chaitra" }
-];
+const statuses: PurchaseOrderStatus[] = ['Draft', 'Ordered', 'Amended', 'Delivered', 'Canceled'];
 
-const statuses: (PurchaseOrderStatus | 'All')[] = ['All', 'Draft', 'Ordered', 'Amended', 'Delivered', 'Canceled'];
+// Helper component for multi-select
+const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }: any) => {
+    const isAll = values.length === 0;
+
+    const toggleItem = (id: string) => {
+        const next = values.includes(id)
+            ? values.filter((v: string) => v !== id)
+            : [...values, id];
+        onSelect(next);
+    };
+
+    const displayText = isAll
+        ? `All ${placeholder}s`
+        : values.length === 1
+            ? items.find((i: any) => String(i.id) === String(values[0]))?.name || values[0]
+            : `${values.length} ${placeholder}s`;
+
+    return (
+        <div className="space-y-1.5 flex-1 min-w-[140px]">
+            <Label className="text-[10px] uppercase font-bold text-muted-foreground">{label}</Label>
+            <Popover>
+                <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-between h-9 bg-white border-gray-200 shadow-none font-normal text-xs px-3 text-left">
+                        <div className="flex items-center gap-2 overflow-hidden">
+                            {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+                            <span className="truncate">{displayText}</span>
+                        </div>
+                        <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="p-0 w-[200px]" align="start">
+                    <Command>
+                        <div className="flex items-center border-b px-3" cmdk-input-wrapper="">
+                            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                            <input 
+                                placeholder={`Search ${placeholder.toLowerCase()}...`} 
+                                className="flex h-9 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                            />
+                        </div>
+                        <CommandList>
+                            <CommandEmpty>No results found.</CommandEmpty>
+                            <CommandGroup>
+                                {items.map((item: any) => (
+                                    <CommandItem key={item.id} value={item.name} onSelect={() => toggleItem(String(item.id))} className="text-xs">
+                                        <Check className={cn("mr-2 h-3.5 w-3.5", values.includes(String(item.id)) ? "opacity-100" : "opacity-0")} />
+                                        {item.name}
+                                    </CommandItem>
+                                ))}
+                            </CommandGroup>
+                        </CommandList>
+                    </Command>
+                </PopoverContent>
+            </Popover>
+        </div>
+    );
+};
 
 export default function PurchaseOrdersListPage() {
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
@@ -76,10 +146,11 @@ export default function PurchaseOrdersListPage() {
   const [poToUpdate, setPoToUpdate] = useState<PurchaseOrder | null>(null);
   const [deliveryDate, setDeliveryDate] = useState<Date | undefined>(new Date());
   
-  const [selectedBsYear, setSelectedBsYear] = useState<string>('All');
-  const [selectedBsMonth, setSelectedBsMonth] = useState<string>('All');
-  const [selectedCompany, setSelectedCompany] = useState<string>('All');
-  const [selectedStatus, setSelectedStatus] = useState<string>('All');
+  // ERP Filter State (Multiple Selection)
+  const [filterBsYears, setFilterBsYears] = useState<string[]>([]);
+  const [filterBsMonths, setFilterBsMonths] = useState<string[]>([]);
+  const [filterCompanies, setFilterCompanies] = useState<string[]>([]);
+  const [filterStatuses, setFilterStatuses] = useState<string[]>([]);
 
   useEffect(() => {
     setIsLoading(true);
@@ -101,23 +172,22 @@ export default function PurchaseOrdersListPage() {
     });
     return {
         availableYears: Array.from(years).sort((a, b) => b - a),
-        availableCompanies: ['All', ...Array.from(companies).sort()],
+        availableCompanies: Array.from(companies).sort().map(c => ({ id: c, name: c })),
     };
   }, [purchaseOrders]);
 
   useEffect(() => {
-      if (availableYears.length > 0 && selectedBsYear === 'All') {
+      // Set default year on initial load if no filters active
+      if (availableYears.length > 0 && filterBsYears.length === 0 && !searchQuery) {
           const currentNepaliDate = new NepaliDate();
           const currentYear = currentNepaliDate.getYear();
           if(availableYears.includes(currentYear)) {
-              setSelectedBsYear(String(currentYear));
-              setSelectedBsMonth('All');
+              setFilterBsYears([String(currentYear)]);
           } else {
-              setSelectedBsYear(String(availableYears[0]));
-              setSelectedBsMonth('All');
+              setFilterBsYears([String(availableYears[0])]);
           }
       }
-  }, [availableYears, selectedBsYear]);
+  }, [availableYears, filterBsYears.length, searchQuery]);
   
   const handleDeletePurchaseOrder = async (id: string) => {
     try {
@@ -184,28 +254,30 @@ export default function PurchaseOrdersListPage() {
   const filteredAndSortedPOs = useMemo(() => {
     let filtered = [...purchaseOrders];
 
-    if (selectedBsYear && selectedBsYear !== 'All') {
+    if (filterBsYears.length > 0) {
       filtered = filtered.filter(po => {
         try {
-          return new NepaliDate(new Date(po.poDate)).getYear() === parseInt(selectedBsYear);
+          const year = new NepaliDate(new Date(po.poDate)).getYear();
+          return filterBsYears.includes(String(year));
         } catch { return false; }
       });
     }
 
-    if (selectedBsMonth && selectedBsMonth !== 'All') {
+    if (filterBsMonths.length > 0) {
       filtered = filtered.filter(po => {
         try {
-          return new NepaliDate(new Date(po.poDate)).getMonth() === parseInt(selectedBsMonth);
+          const month = new NepaliDate(new Date(po.poDate)).getMonth();
+          return filterBsMonths.includes(String(month));
         } catch { return false; }
       });
     }
     
-    if (selectedCompany !== 'All') {
-        filtered = filtered.filter(po => po.companyName === selectedCompany);
+    if (filterCompanies.length > 0) {
+        filtered = filtered.filter(po => filterCompanies.includes(po.companyName));
     }
 
-    if (selectedStatus !== 'All') {
-        filtered = filtered.filter(po => po.status === selectedStatus);
+    if (filterStatuses.length > 0) {
+        filtered = filtered.filter(po => filterStatuses.includes(po.status));
     }
 
     if (searchQuery) {
@@ -223,9 +295,8 @@ export default function PurchaseOrdersListPage() {
              const aDate = a.updatedAt || a.createdAt;
              const bDate = b.updatedAt || b.createdAt;
              if (!aDate || !bDate) return 0;
-             if (aDate < bDate) return sortConfig.direction === 'asc' ? -1 : 1;
-             if (aDate > bDate) return sortConfig.direction === 'asc' ? 1 : -1;
-             return 0;
+             const res = aDate < bDate ? -1 : 1;
+             return sortConfig.direction === 'asc' ? res : -res;
         }
 
         const aValue = a[sortConfig.key];
@@ -237,7 +308,23 @@ export default function PurchaseOrdersListPage() {
       });
     }
     return filtered;
-  }, [purchaseOrders, sortConfig, searchQuery, selectedBsYear, selectedBsMonth, selectedCompany, selectedStatus]);
+  }, [purchaseOrders, sortConfig, searchQuery, filterBsYears, filterBsMonths, filterCompanies, filterStatuses]);
+
+  const isFiltered = useMemo(() => {
+      return searchQuery !== '' || 
+             filterBsYears.length > 0 || 
+             filterBsMonths.length > 0 || 
+             filterCompanies.length > 0 || 
+             filterStatuses.length > 0;
+  }, [searchQuery, filterBsYears, filterBsMonths, filterCompanies, filterStatuses]);
+
+  const handleClearFilters = () => {
+    setSearchQuery('');
+    setFilterBsYears([]);
+    setFilterBsMonths([]);
+    setFilterCompanies([]);
+    setFilterStatuses([]);
+  };
 
   const renderStatusBadge = (status: PurchaseOrderStatus) => {
     switch (status) {
@@ -466,30 +553,48 @@ export default function PurchaseOrdersListPage() {
           )}
         </div>
       </header>
-      <div className="flex flex-col sm:flex-row gap-2">
-            <Select value={selectedBsYear} onValueChange={setSelectedBsYear} disabled={isLoading || availableYears.length === 0}>
-                <SelectTrigger className="w-full sm:w-[120px]"><SelectValue placeholder="Year (BS)" /></SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="All">All Years</SelectItem>
-                    {availableYears.map(year => <SelectItem key={year} value={String(year)}>{year}</SelectItem>)}
-                </SelectContent>
-            </Select>
-            <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth} disabled={isLoading || availableYears.length === 0}>
-                <SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Month (BS)" /></SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="All">All Months</SelectItem>
-                    {nepaliMonths.map(month => <SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>)}
-                </SelectContent>
-            </Select>
-            <Select value={selectedCompany} onValueChange={setSelectedCompany}>
-                <SelectTrigger className="w-full sm:w-[200px]"><SelectValue placeholder="All Companies" /></SelectTrigger>
-                <SelectContent>{availableCompanies.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-            </Select>
-            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                <SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="All Statuses" /></SelectTrigger>
-                <SelectContent>{statuses.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-            </Select>
-        </div>
+
+      <div className="flex flex-col gap-4 bg-muted/20 p-4 rounded-lg border border-dashed">
+            <div className="flex flex-wrap gap-4 items-end">
+                <MultiSelect 
+                    label="Year (BS)" 
+                    values={filterBsYears} 
+                    onSelect={setFilterBsYears} 
+                    items={availableYears.map(y => ({ id: String(y), name: String(y) }))} 
+                    placeholder="Year" 
+                />
+                <MultiSelect 
+                    label="Month (BS)" 
+                    values={filterBsMonths} 
+                    onSelect={setFilterBsMonths} 
+                    items={NEPALI_MONTHS.map(m => ({ id: String(m.value), name: m.name }))} 
+                    placeholder="Month" 
+                />
+                <MultiSelect 
+                    label="Supplier" 
+                    values={filterCompanies} 
+                    onSelect={setFilterCompanies} 
+                    items={availableCompanies} 
+                    placeholder="Supplier" 
+                />
+                <MultiSelect 
+                    label="Status" 
+                    values={filterStatuses} 
+                    onSelect={setFilterStatuses} 
+                    items={statuses.map(s => ({ id: s, name: s }))} 
+                    placeholder="Status" 
+                />
+            </div>
+            
+            {isFiltered && (
+                <div className="flex items-center pt-2 border-t border-dashed">
+                    <Button variant="ghost" size="sm" onClick={handleClearFilters} className="text-muted-foreground hover:text-foreground h-8 px-2 text-xs">
+                        <FilterX className="mr-2 h-3.5 w-3.5" /> Clear All Filters
+                    </Button>
+                </div>
+            )}
+      </div>
+
       {renderContent()}
        <Dialog open={deliveryDialogOpen} onOpenChange={setDeliveryDialogOpen}>
         <DialogContent>
