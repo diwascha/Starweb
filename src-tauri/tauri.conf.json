@@ -22,8 +22,10 @@
       "active": true,
       "targets": "all",
       "identifier": "com.starsutra.dev",
-      "icon": ["icons/icon.ico",
- 	            "icons/icon.png"]
+      "icon": [
+        "icons/icon.ico",
+        "icons/icon.png"
+      ]
     },
     "security": {
       "csp": null
