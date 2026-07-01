@@ -419,7 +419,7 @@ export function AppSidebar() {
                       <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/trip-sheets', true)}><Link href="/fleet/trip-sheets"><FileText /><span>Sales Logs</span></Link></SidebarMenuButton></SidebarMenuItem>
                       <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/purchase', true)}><Link href="/fleet/transactions/purchase"><ShoppingCart /><span>Purchase Logs</span></Link></SidebarMenuButton></SidebarMenuItem>
                       <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/expenses', true)}><Link href="/fleet/transactions/expenses"><Wallet /><span>Expense Logs</span></Link></SidebarMenuButton></SidebarMenuItem>
-                      <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/payment-receipt/list', true)}><Link href="/fleet/transactions/payment-receipt/list"><Receipt /><span>Voucher Logs</span></Link></SidebarMenuButton></SidebarMenuItem>
+                      <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/payment-receipt/list', true)}><Link href="/fleet/transactions/payment-receipt/list"><Receipt /><span>Pmt. / Rcd. logs</span></Link></SidebarMenuButton></SidebarMenuItem>
                       <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions', true)}><Link href="/fleet/transactions"><CreditCard /><span>General Ledger</span></Link></SidebarMenuButton></SidebarMenuItem>
                     </div>
                 </div>
