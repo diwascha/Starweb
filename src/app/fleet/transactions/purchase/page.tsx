@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -51,7 +50,7 @@ import { NEPALI_MONTHS } from '@/lib/constants';
 type SortKey = 'date' | 'vehicleName' | 'partyName' | 'amount' | 'authorship' | 'category';
 type SortDirection = 'asc' | 'desc';
 
-// Helper component for multi-select
+// Helper component for multi-select with "All" support
 const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }: any) => {
     const isAll = values.length === 0;
 

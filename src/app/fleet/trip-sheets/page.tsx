@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -89,7 +88,7 @@ interface CalculationDetails {
     netPay: number;
 }
 
-// Helper component for multi-select
+// Helper component for multi-select with "All" support
 const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }: any) => {
     const isAll = values.length === 0;
 

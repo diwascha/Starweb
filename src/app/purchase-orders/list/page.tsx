@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -72,7 +71,7 @@ type SortDirection = 'asc' | 'desc';
 
 const statuses: PurchaseOrderStatus[] = ['Draft', 'Ordered', 'Amended', 'Delivered', 'Canceled'];
 
-// Helper component for multi-select
+// Helper component for multi-select with "All" support
 const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }: any) => {
     const isAll = values.length === 0;
 
@@ -184,19 +183,6 @@ export default function PurchaseOrdersListPage() {
     };
   }, [purchaseOrders]);
 
-  useEffect(() => {
-      // Set default year on initial load if no filters active
-      if (availableYears.length > 0 && filterBsYears.length === 0 && !searchQuery) {
-          const currentNepaliDate = new NepaliDate();
-          const currentYear = currentNepaliDate.getYear();
-          if(availableYears.includes(currentYear)) {
-              setFilterBsYears([String(currentYear)]);
-          } else {
-              setFilterBsYears([String(availableYears[0])]);
-          }
-      }
-  }, [availableYears, filterBsYears.length, searchQuery]);
-  
   const handleDeletePurchaseOrder = async (id: string) => {
     try {
       await deletePurchaseOrder(id);
