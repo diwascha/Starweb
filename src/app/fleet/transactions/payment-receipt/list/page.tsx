@@ -440,7 +440,7 @@ export default function VoucherLogsPage() {
                         {isLoading ? (
                             <TableRow><TableCell colSpan={8} className="text-center py-12"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
                         ) : filteredVouchers.map(v => (
-                            <TableRow key={v.voucherId} className="hover:bg-muted/30">
+                            <TableRow key={v.voucherId} className="hover:bg-muted/30 h-14">
                                 <TableCell className="font-medium text-[11px] whitespace-nowrap">{toNepaliDate(v.date)}</TableCell>
                                 <TableCell>
                                     <div className="flex items-center gap-2">
@@ -466,34 +466,26 @@ export default function VoucherLogsPage() {
                                     </Badge>
                                 </TableCell>
                                 <TableCell>
-                                    <div className="flex flex-wrap gap-1.5">
+                                    <div className="flex flex-wrap gap-x-2 gap-y-0.5">
                                         {v.vehicleIds.map(id => (
-                                            <Badge 
-                                                key={id} 
-                                                variant="secondary" 
-                                                className="text-[10px] px-1.5 h-5 font-black uppercase tracking-tight bg-blue-50 text-blue-800 border-blue-200"
-                                            >
+                                            <span key={id} className="text-[11px] font-bold text-blue-900 uppercase tracking-tight">
                                                 {vehiclesById.get(id) || id}
-                                            </Badge>
+                                            </span>
                                         ))}
                                     </div>
                                 </TableCell>
                                 <TableCell>
-                                    <div className="flex flex-wrap gap-1.5">
+                                    <div className="flex flex-wrap gap-x-2 gap-y-0.5">
                                         {v.partyIds.map(id => (
-                                            <Badge 
-                                                key={id} 
-                                                variant="outline" 
-                                                className="text-[10px] px-1.5 h-5 font-semibold bg-gray-50 text-gray-900 border-gray-300"
-                                            >
+                                            <span key={id} className="text-[11px] font-semibold text-gray-900">
                                                 {partiesById.get(id) || id}
-                                            </Badge>
+                                            </span>
                                         ))}
                                     </div>
                                 </TableCell>
                                 <TableCell className="text-[11px]">
                                     <div className="flex flex-col">
-                                        <span className="font-medium">{v.billingType}</span>
+                                        <span className="font-medium text-gray-700">{v.billingType}</span>
                                         {v.accountName && <span className="text-[9px] text-muted-foreground">{v.accountName}</span>}
                                     </div>
                                 </TableCell>

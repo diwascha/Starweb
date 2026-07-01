@@ -549,8 +549,8 @@ export default function FleetTransactionsPage() {
                     <ScrollArea className="w-full">
                         <Table className="text-[12px]">
                             <TableHeader className="bg-blue-50/30">
-                                <TableRow className="hover:bg-transparent">
-                                    <TableHead className="w-[120px] font-bold text-blue-900 h-12">Date (BS)</TableHead>
+                                <TableRow className="hover:bg-transparent h-12">
+                                    <TableHead className="w-[120px] font-bold text-blue-900">Date (BS)</TableHead>
                                     <TableHead className="w-[120px] font-bold text-blue-900">Ref. No.</TableHead>
                                     <TableHead className="min-w-[300px] font-bold text-blue-900">Particulars / Description</TableHead>
                                     <TableHead className="w-[150px] font-bold text-blue-900">
@@ -566,7 +566,7 @@ export default function FleetTransactionsPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody className="bg-white">
-                                <TableRow className="bg-gray-50/30 font-medium">
+                                <TableRow className="bg-gray-50/30 font-medium h-12">
                                     <TableCell colSpan={2}></TableCell>
                                     <TableCell className="font-bold text-blue-700 italic">Balance B/F (Opening)</TableCell>
                                     <TableCell className="text-center">-</TableCell>
@@ -579,7 +579,7 @@ export default function FleetTransactionsPage() {
                                 </TableRow>
 
                                 {ledgerData.entries.map((entry) => (
-                                    <TableRow key={entry.id} className="h-12 border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
+                                    <TableRow key={entry.id} className="h-14 border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
                                         <TableCell className="text-gray-600">{toNepaliDate(entry.date)}</TableCell>
                                         <TableCell>
                                             <Button variant="link" className="p-0 h-auto font-bold text-blue-600" onClick={() => router.push(entry.voucherId ? `/fleet/transactions/payment-receipt?voucherId=${entry.voucherId}` : `/fleet/transactions/purchase/view?id=${entry.id}`)}>
@@ -589,14 +589,12 @@ export default function FleetTransactionsPage() {
                                         <TableCell className="py-3">
                                             <div className="flex flex-col gap-1">
                                                 <div className="flex items-center gap-2">
-                                                    <span className="font-bold text-gray-900 leading-tight">
+                                                    <span className="font-semibold text-gray-900 leading-tight">
+                                                        {entry.partyName}
+                                                    </span>
+                                                    <span className="text-[10px] text-muted-foreground uppercase font-medium">
                                                         {entry.remarks || entry.type}
                                                     </span>
-                                                    {entry.partyName !== 'Unassigned' && (
-                                                        <Badge variant="outline" className="text-[9px] px-1.5 h-4 font-semibold bg-gray-50 border-gray-200">
-                                                            {entry.partyName}
-                                                        </Badge>
-                                                    )}
                                                 </div>
                                                 <div className="text-[10px] text-muted-foreground italic leading-relaxed line-clamp-2 max-w-[400px]">
                                                     {entry.lineItemsSummary}
@@ -604,20 +602,20 @@ export default function FleetTransactionsPage() {
                                             </div>
                                         </TableCell>
                                         <TableCell>
-                                            <Badge variant="secondary" className="text-[10px] px-2 h-5 font-black uppercase tracking-tighter bg-blue-50 text-blue-800 border-blue-200">
+                                            <span className="text-[11px] font-bold text-blue-900 uppercase tracking-tight">
                                                 {entry.vehicleName}
-                                            </Badge>
+                                            </span>
                                         </TableCell>
                                         <TableCell>
                                             <Badge variant="outline" className={cn(
-                                                "text-[10px] font-black border-none px-2 py-0.5",
+                                                "text-[10px] font-black border-none px-2 py-0.5 shadow-none",
                                                 entry.debit > 0 ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"
                                             )}>
                                                 {entry.categoryDisplay}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell className="text-right font-bold text-red-500">{entry.debit > 0 ? entry.debit.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '-'}</TableCell>
-                                        <TableCell className="text-right font-bold text-emerald-600">{entry.credit > 0 ? entry.credit.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '-'}</TableCell>
+                                        <TableCell className="text-right font-bold text-red-500 tabular-nums">{entry.debit > 0 ? entry.debit.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '-'}</TableCell>
+                                        <TableCell className="text-right font-bold text-emerald-600 tabular-nums">{entry.credit > 0 ? entry.credit.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '-'}</TableCell>
                                         <TableCell className="text-right font-black tabular-nums">
                                             <div className="flex items-center justify-end gap-2 group/balance">
                                                 <span>

@@ -336,13 +336,17 @@ export default function ExpenseLogsPage() {
                         {isLoading ? (
                             <TableRow><TableCell colSpan={7} className="text-center py-12"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
                         ) : filteredAndSortedExpenses.map(e => (
-                            <TableRow key={e.id} className="hover:bg-muted/30">
+                            <TableRow key={e.id} className="hover:bg-muted/30 h-14">
                                 <TableCell className="font-medium text-[11px] whitespace-nowrap">{toNepaliDate(e.date)}</TableCell>
                                 <TableCell className="font-mono text-[11px]">{e.voucherNo}</TableCell>
-                                <TableCell className="text-[11px]">{vehiclesById.get(e.vehicleId) || 'N/A'}</TableCell>
+                                <TableCell>
+                                    <span className="text-[11px] font-bold text-blue-900 uppercase tracking-tight">
+                                        {vehiclesById.get(e.vehicleId) || 'N/A'}
+                                    </span>
+                                </TableCell>
                                 <TableCell>
                                     <Badge variant="outline" className={cn(
-                                        "text-[9px] uppercase font-bold",
+                                        "text-[9px] uppercase font-bold shadow-none",
                                         e.expenseType === 'Fuel' && "border-blue-200 bg-blue-50 text-blue-700",
                                         e.expenseType === 'Maintenance' && "border-amber-200 bg-amber-50 text-amber-700",
                                         e.expenseType === 'Advance' && "border-emerald-200 bg-emerald-50 text-emerald-700",
@@ -354,7 +358,7 @@ export default function ExpenseLogsPage() {
                                 </TableCell>
                                 <TableCell className="py-3">
                                     <div className="flex flex-col">
-                                        <span className="text-[11px] font-bold">
+                                        <span className="text-[11px] font-semibold text-gray-900">
                                             {e.partyId ? partiesById.get(e.partyId) : e.destination ? `To ${e.destination}` : 'Direct Cash'}
                                         </span>
                                         {e.remarks && <span className="text-[9px] text-muted-foreground italic line-clamp-1">{e.remarks}</span>}
