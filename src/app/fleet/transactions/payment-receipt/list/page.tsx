@@ -419,8 +419,18 @@ export default function VoucherLogsPage() {
                             <TableHead className="text-xs">Date (BS)</TableHead>
                             <TableHead className="text-xs">Voucher #</TableHead>
                             <TableHead className="text-xs">Type</TableHead>
-                            <TableHead className="text-xs">Vehicles</TableHead>
-                            <TableHead className="text-xs">Ledgers</TableHead>
+                            <TableHead className="text-xs">
+                                <div className="flex items-center gap-1.5">
+                                    <Truck className="h-3 w-3" />
+                                    <span>Vehicles</span>
+                                </div>
+                            </TableHead>
+                            <TableHead className="text-xs">
+                                <div className="flex items-center gap-1.5">
+                                    <Users className="h-3 w-3" />
+                                    <span>Ledgers</span>
+                                </div>
+                            </TableHead>
                             <TableHead className="text-xs">Mode / Account</TableHead>
                             <TableHead className="text-right text-xs">Total Amount</TableHead>
                             <TableHead className="text-right text-xs">Actions</TableHead>
@@ -455,19 +465,27 @@ export default function VoucherLogsPage() {
                                         {v.type === 'Payment' ? 'Pmt.' : v.type === 'Receipt' ? 'Rcd.' : 'Mixed'}
                                     </Badge>
                                 </TableCell>
-                                <TableCell className="text-[11px]">
-                                    <div className="flex flex-wrap gap-1">
+                                <TableCell>
+                                    <div className="flex flex-wrap gap-1.5">
                                         {v.vehicleIds.map(id => (
-                                            <Badge key={id} variant="secondary" className="text-[9px] px-1 h-4 font-normal">
+                                            <Badge 
+                                                key={id} 
+                                                variant="secondary" 
+                                                className="text-[10px] px-1.5 h-5 font-black uppercase tracking-tight bg-blue-50 text-blue-800 border-blue-200"
+                                            >
                                                 {vehiclesById.get(id) || id}
                                             </Badge>
                                         ))}
                                     </div>
                                 </TableCell>
-                                <TableCell className="text-[11px]">
-                                    <div className="flex flex-wrap gap-1">
+                                <TableCell>
+                                    <div className="flex flex-wrap gap-1.5">
                                         {v.partyIds.map(id => (
-                                            <Badge key={id} variant="outline" className="text-[9px] px-1 h-4 font-normal">
+                                            <Badge 
+                                                key={id} 
+                                                variant="outline" 
+                                                className="text-[10px] px-1.5 h-5 font-semibold bg-gray-50 text-gray-900 border-gray-300"
+                                            >
                                                 {partiesById.get(id) || id}
                                             </Badge>
                                         ))}

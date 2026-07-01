@@ -553,7 +553,12 @@ export default function FleetTransactionsPage() {
                                     <TableHead className="w-[120px] font-bold text-blue-900 h-12">Date (BS)</TableHead>
                                     <TableHead className="w-[120px] font-bold text-blue-900">Ref. No.</TableHead>
                                     <TableHead className="min-w-[300px] font-bold text-blue-900">Particulars / Description</TableHead>
-                                    <TableHead className="w-[150px] font-bold text-blue-900">Vehicle</TableHead>
+                                    <TableHead className="w-[150px] font-bold text-blue-900">
+                                        <div className="flex items-center gap-1">
+                                            <Truck className="h-3.5 w-3.5" />
+                                            <span>Vehicle</span>
+                                        </div>
+                                    </TableHead>
                                     <TableHead className="w-[140px] font-bold text-blue-900">Category</TableHead>
                                     <TableHead className="text-right w-[140px] font-bold text-blue-900">Debit (Dr)</TableHead>
                                     <TableHead className="text-right w-[140px] font-bold text-blue-900">Credit (Cr)</TableHead>
@@ -583,15 +588,26 @@ export default function FleetTransactionsPage() {
                                         </TableCell>
                                         <TableCell className="py-3">
                                             <div className="flex flex-col gap-1">
-                                                <span className="font-bold text-gray-900 leading-tight">
-                                                    {entry.remarks || entry.type}
-                                                </span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-bold text-gray-900 leading-tight">
+                                                        {entry.remarks || entry.type}
+                                                    </span>
+                                                    {entry.partyName !== 'Unassigned' && (
+                                                        <Badge variant="outline" className="text-[9px] px-1.5 h-4 font-semibold bg-gray-50 border-gray-200">
+                                                            {entry.partyName}
+                                                        </Badge>
+                                                    )}
+                                                </div>
                                                 <div className="text-[10px] text-muted-foreground italic leading-relaxed line-clamp-2 max-w-[400px]">
                                                     {entry.lineItemsSummary}
                                                 </div>
                                             </div>
                                         </TableCell>
-                                        <TableCell>{entry.vehicleName}</TableCell>
+                                        <TableCell>
+                                            <Badge variant="secondary" className="text-[10px] px-2 h-5 font-black uppercase tracking-tighter bg-blue-50 text-blue-800 border-blue-200">
+                                                {entry.vehicleName}
+                                            </Badge>
+                                        </TableCell>
                                         <TableCell>
                                             <Badge variant="outline" className={cn(
                                                 "text-[10px] font-black border-none px-2 py-0.5",
