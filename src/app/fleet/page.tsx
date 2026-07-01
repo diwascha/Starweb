@@ -1,7 +1,7 @@
 'use client';
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Truck, Users, ShieldCheck, CreditCard, ArrowRight, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
+import { Truck, Users, ShieldCheck, CreditCard, ArrowRight, TrendingUp, TrendingDown, AlertTriangle, Wallet, Receipt } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
 import { useState, useEffect, useMemo } from 'react';
@@ -21,10 +21,10 @@ import { onSettingUpdate } from '@/services/settings-service';
 import { useToast } from '@/hooks/use-toast';
 
 const fleetModules = [
-    { name: 'Vehicles', href: '/fleet/vehicles', icon: Truck },
-    { name: 'Drivers', href: '/fleet/drivers', icon: Users },
-    { name: 'Policies & Memberships', href: '/fleet/policies', icon: ShieldCheck },
-    { name: 'Transactions', href: '/fleet/transactions', icon: CreditCard },
+    { name: 'Vehicles & Drivers', href: '/fleet/registry', icon: Truck },
+    { name: 'Expense Logs', href: '/fleet/transactions/expenses', icon: Wallet },
+    { name: 'Voucher Logs', href: '/fleet/transactions/payment-receipt/list', icon: Receipt },
+    { name: 'General Ledger', href: '/fleet/transactions', icon: CreditCard },
 ];
 
 const defaultFleetProfile: CompanyProfile = {

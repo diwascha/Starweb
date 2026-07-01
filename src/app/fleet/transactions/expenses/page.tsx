@@ -1,0 +1,277 @@
+'use client';
+
+import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
+import { 
+  PlusCircle, 
+  Search, 
+  ArrowUpDown, 
+  MoreHorizontal, 
+  Trash2, 
+  Edit, 
+  FilterX, 
+  CalendarIcon, 
+  FileSpreadsheet, 
+  FileText,
+  Loader2,
+  Wallet,
+  Eye,
+  Check,
+  ChevronDown
+} from 'lucide-react';
+import type { Vehicle, Party } from '@/lib/types';
+import type { Expense } from '@/lib/expense-types';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { cn, toNepaliDate } from '@/lib/utils';
+import { useAuth } from '@/hooks/use-auth';
+import { onExpensesUpdate, deleteExpense } from '@/services/expense-service';
+import { onVehiclesUpdate } from '@/services/vehicle-service';
+import { onPartiesUpdate } from '@/services/party-service';
+import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
+import type { DateRange } from 'react-day-picker';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
+import NepaliDate from 'nepali-date-converter';
+import { NEPALI_MONTHS } from '@/lib/constants';
+
+type SortKey = 'date' | 'voucherNo' | 'amount' | 'expenseType';
+type SortDirection = 'asc' | 'desc';
+
+export default function ExpenseLogsPage() {
+    const [expenses, setExpenses] = useState<Expense[]>([]);
+    const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+    const [parties, setParties] = useState<Party[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    
+    const [searchQuery, setSearchQuery] = useState('');
+    const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+    const [filterBsYears, setFilterBsYears] = useState<string[]>([]);
+    const [filterBsMonths, setFilterBsMonths] = useState<string[]>([]);
+    const [filterVehicleId, setFilterVehicleId] = useState<string>('All');
+    const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
+
+    const { toast } = useToast();
+    const { hasPermission } = useAuth();
+    const router = useRouter();
+
+    useEffect(() => {
+        setIsLoading(true);
+        const unsubs = [
+            onExpensesUpdate(setExpenses),
+            onVehiclesUpdate(setVehicles),
+            onPartiesUpdate(setParties)
+        ];
+        setIsLoading(false);
+        return () => unsubs.forEach(u => u());
+    }, []);
+
+    const vehiclesById = useMemo(() => new Map(vehicles.map(v => [v.id, v.name])), [vehicles]);
+    const partiesById = useMemo(() => new Map(parties.map(p => [p.id, p.name])), [parties]);
+
+    const availableYears = useMemo(() => {
+        const years = new Set<number>();
+        expenses.forEach(e => {
+            try {
+                years.add(new NepaliDate(new Date(e.date)).getYear());
+            } catch {}
+        });
+        return Array.from(years).sort((a, b) => b - a);
+    }, [expenses]);
+
+    const filteredAndSortedExpenses = useMemo(() => {
+        let filtered = [...expenses];
+
+        if (searchQuery) {
+            const query = searchQuery.toLowerCase();
+            filtered = filtered.filter(e => 
+                e.voucherNo.toLowerCase().includes(query) ||
+                (vehiclesById.get(e.vehicleId) || '').toLowerCase().includes(query) ||
+                (e.expenseType || '').toLowerCase().includes(query) ||
+                (e.destination || '').toLowerCase().includes(query) ||
+                (e.remarks || '').toLowerCase().includes(query)
+            );
+        }
+        
+        if (dateRange?.from) {
+            const interval = { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to || dateRange.from) };
+            filtered = filtered.filter(e => isWithinInterval(new Date(e.date), interval));
+        }
+
+        if (filterBsYears.length > 0) {
+            filtered = filtered.filter(e => {
+                try {
+                    const year = new NepaliDate(new Date(e.date)).getYear();
+                    return filterBsYears.includes(String(year));
+                } catch { return false; }
+            });
+        }
+
+        if (filterBsMonths.length > 0) {
+            filtered = filtered.filter(e => {
+                try {
+                    const month = new NepaliDate(new Date(e.date)).getMonth();
+                    return filterBsMonths.includes(String(month));
+                } catch { return false; }
+            });
+        }
+        
+        if (filterVehicleId !== 'All') filtered = filtered.filter(e => e.vehicleId === filterVehicleId);
+        
+        filtered.sort((a, b) => {
+            const aVal = a[sortConfig.key] || '';
+            const bVal = b[sortConfig.key] || '';
+            if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        return filtered;
+    }, [expenses, searchQuery, dateRange, filterBsYears, filterBsMonths, sortConfig, filterVehicleId, vehiclesById]);
+
+    const handleDelete = async (id: string) => {
+        try {
+            await deleteExpense(id);
+            toast({ title: 'Success', description: 'Expense record deleted.' });
+        } catch (error) {
+             toast({ title: 'Error', description: 'Failed to delete record.', variant: 'destructive' });
+        }
+    };
+
+    const requestSort = (key: SortKey) => {
+        setSortConfig(prev => ({
+            key,
+            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+        }));
+    };
+
+    const handleClearFilters = () => {
+        setSearchQuery('');
+        setDateRange(undefined);
+        setFilterBsYears([]);
+        setFilterBsMonths([]);
+        setFilterVehicleId('All');
+    };
+
+    return (
+        <div className="flex flex-col gap-8">
+            <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight">Daily Expense Logs</h1>
+                    <p className="text-muted-foreground">Historical records of truck advances, maintenance, and petty cash purchases.</p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <div className="relative">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input type="search" placeholder="Search logs..." className="pl-8 sm:w-[250px]" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                    </div>
+                    {hasPermission('fleet', 'create') && (
+                        <Button onClick={() => router.push('/fleet/transactions/expenses/new')}>
+                            <PlusCircle className="mr-2 h-4 w-4" /> New Expense
+                        </Button>
+                    )}
+                </div>
+            </header>
+
+            <div className="bg-muted/20 p-4 rounded-lg border border-dashed flex flex-wrap gap-4 items-end">
+                <div className="space-y-1.5 w-[120px]">
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Year (BS)</Label>
+                    <Select value={filterBsYears[0] || 'All'} onValueChange={v => setFilterBsYears(v === 'All' ? [] : [v])}>
+                        <SelectTrigger className="bg-white h-9 text-xs"><SelectValue placeholder="All" /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="All">All Years</SelectItem>
+                            {availableYears.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div className="space-y-1.5 w-[150px]">
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Month (BS)</Label>
+                    <Select value={filterBsMonths[0] || 'All'} onValueChange={v => setFilterBsMonths(v === 'All' ? [] : [v])}>
+                        <SelectTrigger className="bg-white h-9 text-xs"><SelectValue placeholder="All" /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="All">All Months</SelectItem>
+                            {NEPALI_MONTHS.map(m => <SelectItem key={m.value} value={String(m.value)}>{m.name}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div className="space-y-1.5 w-[200px]">
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Vehicle</Label>
+                    <Select value={filterVehicleId} onValueChange={setFilterVehicleId}>
+                        <SelectTrigger className="bg-white h-9 text-xs"><SelectValue placeholder="All" /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="All">All Vehicles</SelectItem>
+                            {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                </div>
+                <Button variant="ghost" size="sm" onClick={handleClearFilters} className="text-muted-foreground h-9 px-2 text-xs">
+                    <FilterX className="mr-2 h-3.5 w-3.5" /> Reset
+                </Button>
+            </div>
+
+            <Card>
+                <Table>
+                    <TableHeader className="bg-muted/50">
+                        <TableRow>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('date')} className="-ml-4 h-8 px-2 text-xs">Date <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('voucherNo')} className="-ml-4 h-8 px-2 text-xs">Voucher # <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                            <TableHead className="text-xs">Vehicle</TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('expenseType')} className="-ml-4 h-8 px-2 text-xs">Type <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                            <TableHead className="text-xs">Payee / Detail</TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('amount')} className="-ml-4 h-8 px-2 text-xs text-right w-full">Total Amount <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                            <TableHead className="text-right text-xs">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {isLoading ? (
+                            <TableRow><TableCell colSpan={7} className="text-center py-12"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
+                        ) : filteredAndSortedExpenses.map(e => (
+                            <TableRow key={e.id} className="hover:bg-muted/30">
+                                <TableCell className="font-medium text-[11px] whitespace-nowrap">{toNepaliDate(e.date)}</TableCell>
+                                <TableCell className="font-mono text-[11px]">{e.voucherNo}</TableCell>
+                                <TableCell className="text-[11px]">{vehiclesById.get(e.vehicleId) || 'N/A'}</TableCell>
+                                <TableCell>
+                                    <Badge variant="outline" className="text-[9px] uppercase font-bold bg-blue-50/50 text-blue-700 border-blue-200">
+                                        {e.expenseType}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell className="py-3">
+                                    <div className="flex flex-col">
+                                        <span className="text-[11px] font-bold">
+                                            {e.partyId ? partiesById.get(e.partyId) : e.destination ? `To ${e.destination}` : 'Direct Cash'}
+                                        </span>
+                                        {e.remarks && <span className="text-[9px] text-muted-foreground italic line-clamp-1">{e.remarks}</span>}
+                                    </div>
+                                </TableCell>
+                                <TableCell className="text-right font-bold text-red-600 text-[11px] tabular-nums">
+                                    Rs. {(e.amount + (e.extraAmount || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onSelect={() => router.push(`/fleet/transactions/expenses/new`)}><PlusCircle className="mr-2 h-4 w-4" /> New Entry</DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                            <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem></AlertDialogTrigger>
+                                            <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete Record?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(e.id)}>Confirm Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                        {!isLoading && filteredAndSortedExpenses.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground italic">No expense records found.</TableCell></TableRow>}
+                    </TableBody>
+                </Table>
+            </Card>
+        </div>
+    );
+}
