@@ -107,25 +107,25 @@ export default function DashboardPage() {
               <p className="text-sm text-muted-foreground mt-1">Welcome back, {user?.username} • {companyProfile.address}</p>
             </div>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 whitespace-nowrap">
           {hasPermission('fleet', 'create') && (
-            <Button asChild size="sm" variant="default" className="bg-emerald-600 hover:bg-emerald-700 h-10 px-4">
+            <Button asChild size="sm" variant="outline" className="h-8 text-xs">
               <Link href="/fleet/transactions/expenses/new">
-                <Wallet className="mr-2 h-4 w-4" /> Sijan-Exp. Entry
+                <Wallet className="mr-1.5 h-3.5 w-3.5" /> Sijan-Exp. Entry
               </Link>
             </Button>
           )}
           {hasPermission('fleet', 'create') && (
-            <Button asChild size="sm" variant="default" className="bg-blue-600 hover:bg-blue-700 h-10 px-4">
+            <Button asChild size="sm" variant="outline" className="h-8 text-xs">
               <Link href="/fleet/transactions/payment-receipt/new">
-                <ArrowRightLeft className="mr-2 h-4 w-4" /> Sijan- Pmt / Rcd. Entry
+                <ArrowRightLeft className="mr-1.5 h-3.5 w-3.5" /> Sijan- Pmt / Rcd. Entry
               </Link>
             </Button>
           )}
           {hasPermission('purchaseOrders', 'create') && (
-            <Button asChild size="sm" className="h-10 px-4">
+            <Button asChild size="sm" className="h-8 text-xs">
               <Link href="/purchase-orders/new">
-                <ShoppingCart className="mr-2 h-4 w-4" /> New Purchase Order
+                <ShoppingCart className="mr-1.5 h-3.5 w-3.5" /> New Purchase Order
               </Link>
             </Button>
           )}
