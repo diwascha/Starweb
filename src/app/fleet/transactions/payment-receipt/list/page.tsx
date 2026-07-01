@@ -475,12 +475,19 @@ export default function VoucherLogsPage() {
                                     </div>
                                 </TableCell>
                                 <TableCell>
-                                    <div className="flex flex-wrap gap-x-2 gap-y-0.5">
-                                        {v.partyIds.map(id => (
-                                            <span key={id} className="text-[11px] font-semibold text-gray-900">
-                                                {partiesById.get(id) || id}
+                                    <div className="flex flex-col gap-1">
+                                        <div className="flex flex-wrap gap-x-2 gap-y-0.5">
+                                            {v.partyIds.map(id => (
+                                                <span key={id} className="text-[11px] font-semibold text-gray-900 leading-tight">
+                                                    {partiesById.get(id) || id}
+                                                </span>
+                                            ))}
+                                        </div>
+                                        {v.remarks && (
+                                            <span className="text-[10px] text-muted-foreground italic leading-tight line-clamp-1">
+                                                {v.remarks}
                                             </span>
-                                        ))}
+                                        )}
                                     </div>
                                 </TableCell>
                                 <TableCell className="text-[11px]">
