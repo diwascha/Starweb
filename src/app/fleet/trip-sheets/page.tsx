@@ -17,7 +17,10 @@ import {
   FileSpreadsheet, 
   FileText,
   Printer,
-  Loader2
+  Loader2,
+  Check,
+  ChevronDown,
+  FilterX
 } from 'lucide-react';
 import type { Trip, Vehicle, Party } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -61,6 +64,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 import type { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
@@ -84,6 +88,63 @@ interface CalculationDetails {
     netPay: number;
 }
 
+// Helper component for multi-select
+const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }: any) => {
+    const isAll = values.length === 0;
+
+    const toggleItem = (id: string) => {
+        const next = values.includes(id)
+            ? values.filter((v: string) => v !== id)
+            : [...values, id];
+        onSelect(next);
+    };
+
+    const displayText = isAll
+        ? `All ${placeholder}s`
+        : values.length === 1
+            ? items.find((i: any) => String(i.id) === String(values[0]))?.name || values[0]
+            : `${values.length} ${placeholder}s`;
+
+    return (
+        <div className="space-y-1.5 flex-1 min-w-[140px]">
+            <Label className="text-[10px] uppercase font-bold text-muted-foreground">{label}</Label>
+            <Popover>
+                <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-between h-9 bg-white border-gray-200 shadow-none font-normal text-xs px-3 text-left">
+                        <div className="flex items-center gap-2 overflow-hidden">
+                            {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+                            <span className="truncate">{displayText}</span>
+                        </div>
+                        <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="p-0 w-[200px]" align="start">
+                    <Command>
+                        <div className="flex items-center border-b px-3" cmdk-input-wrapper="">
+                            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                            <input 
+                                placeholder={`Search ${placeholder.toLowerCase()}...`} 
+                                className="flex h-9 w-full rounded-md bg-transparent py-3 text-xs outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                            />
+                        </div>
+                        <CommandList>
+                            <CommandEmpty>No results found.</CommandEmpty>
+                            <CommandGroup>
+                                {items.map((item: any) => (
+                                    <CommandItem key={item.id} value={item.name} onSelect={() => toggleItem(String(item.id))} className="text-xs">
+                                        <Check className={cn("mr-2 h-3.5 w-3.5", values.includes(String(item.id)) ? "opacity-100" : "opacity-0")} />
+                                        {item.name}
+                                    </CommandItem>
+                                ))}
+                            </CommandGroup>
+                        </CommandList>
+                    </Command>
+                </PopoverContent>
+            </Popover>
+        </div>
+    );
+};
+
 export default function TripSheetsPage() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -92,8 +153,8 @@ export default function TripSheetsPage() {
   // Filtering & Sorting State
   const [searchQuery, setSearchQuery] = useState('');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-  const [selectedBsYear, setSelectedBsYear] = useState<string>('All');
-  const [selectedBsMonth, setSelectedBsMonth] = useState<string>('All');
+  const [filterBsYears, setFilterBsYears] = useState<string[]>([]);
+  const [filterBsMonths, setFilterBsMonths] = useState<string[]>([]);
   const [filterVehicleId, setFilterVehicleId] = useState<string>('All');
   const [filterPartyId, setFilterPartyId] = useState<string>('All');
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({
@@ -108,7 +169,6 @@ export default function TripSheetsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const { hasPermission, user } = useAuth();
-  const hasSetInitialPeriod = useRef(false);
   
   const vehiclesById = useMemo(() => new Map(vehicles.map(v => [v.id, v.name])), [vehicles]);
   const partiesById = useMemo(() => new Map(parties.map(p => [p.id, p.name])), [parties]);
@@ -137,23 +197,6 @@ export default function TripSheetsPage() {
     return Array.from(years).sort((a, b) => b - a);
   }, [trips]);
 
-  // Initialize period filter once
-  useEffect(() => {
-    if (availableYears.length > 0 && !hasSetInitialPeriod.current) {
-        const currentNepaliDate = new NepaliDate();
-        const currentYear = currentNepaliDate.getYear();
-        const currentMonth = currentNepaliDate.getMonth();
-
-        if (availableYears.includes(currentYear)) {
-            setSelectedBsYear(String(currentYear));
-        } else {
-            setSelectedBsYear(String(availableYears[0]));
-        }
-        setSelectedBsMonth(String(currentMonth));
-        hasSetInitialPeriod.current = true;
-    }
-  }, [availableYears]);
-  
   const handleDeleteTrip = async (id: string) => {
     try {
       await deleteTrip(id);
@@ -232,18 +275,20 @@ export default function TripSheetsPage() {
         filtered = filtered.filter(trip => isWithinInterval(new Date(trip.date), interval));
     }
 
-    if (selectedBsYear !== 'All') {
+    if (filterBsYears.length > 0) {
         filtered = filtered.filter(trip => {
             try {
-                return new NepaliDate(new Date(trip.date)).getYear() === parseInt(selectedBsYear);
+                const year = new NepaliDate(new Date(trip.date)).getYear();
+                return filterBsYears.includes(String(year));
             } catch { return false; }
         });
     }
 
-    if (selectedBsMonth !== 'All') {
+    if (filterBsMonths.length > 0) {
         filtered = filtered.filter(trip => {
             try {
-                return new NepaliDate(new Date(trip.date)).getMonth() === parseInt(selectedBsMonth);
+                const month = new NepaliDate(new Date(trip.date)).getMonth();
+                return filterBsMonths.includes(String(month));
             } catch { return false; }
         });
     }
@@ -266,7 +311,7 @@ export default function TripSheetsPage() {
     });
     
     return filtered;
-  }, [augmentedTrips, sortConfig, searchQuery, dateRange, selectedBsYear, selectedBsMonth, filterVehicleId, filterPartyId]);
+  }, [augmentedTrips, sortConfig, searchQuery, dateRange, filterBsYears, filterBsMonths, filterVehicleId, filterPartyId]);
 
   const handleExportExcel = async () => {
     try {
@@ -326,25 +371,20 @@ export default function TripSheetsPage() {
   const handleClearFilters = () => {
     setSearchQuery('');
     setDateRange(undefined);
-    const currentNepaliDate = new NepaliDate();
-    setSelectedBsYear(String(currentNepaliDate.getYear()));
-    setSelectedBsMonth(String(currentNepaliDate.getMonth()));
+    setFilterBsYears([]);
+    setFilterBsMonths([]);
     setFilterVehicleId('All');
     setFilterPartyId('All');
   };
 
   const isFiltered = useMemo(() => {
-    const currentNepaliDate = new NepaliDate();
-    const currentYear = currentNepaliDate.getYear();
-    const currentMonth = currentNepaliDate.getMonth();
-
     return searchQuery !== '' || 
            !!dateRange || 
-           (selectedBsYear !== String(currentYear) && selectedBsYear !== 'All') || 
-           (selectedBsMonth !== String(currentMonth) && selectedBsMonth !== 'All') || 
+           filterBsYears.length > 0 || 
+           filterBsMonths.length > 0 || 
            filterVehicleId !== 'All' || 
            filterPartyId !== 'All';
-  }, [searchQuery, dateRange, selectedBsYear, selectedBsMonth, filterVehicleId, filterPartyId]);
+  }, [searchQuery, dateRange, filterBsYears, filterBsMonths, filterVehicleId, filterPartyId]);
 
   const renderContent = () => {
     if (isLoading) {
@@ -379,23 +419,23 @@ export default function TripSheetsPage() {
             <Table>
             <TableHeader>
                 <TableRow>
-                <TableHead><Button variant="ghost" onClick={() => requestSort('date')} className="-ml-4">Date <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
-                <TableHead><Button variant="ghost" onClick={() => requestSort('vehicleName')} className="-ml-4">Vehicle <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
-                <TableHead><Button variant="ghost" onClick={() => requestSort('customerName')} className="-ml-4">Customer <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
-                <TableHead><Button variant="ghost" onClick={() => requestSort('finalDestination')} className="-ml-4">Destination <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
-                <TableHead><Button variant="ghost" onClick={() => requestSort('netAmount')} className="-ml-4">Net Bank Pay <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
-                <TableHead><Button variant="ghost" onClick={() => requestSort('authorship')} className="-ml-4">Authorship <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead><Button variant="ghost" onClick={() => requestSort('date')} className="-ml-4 h-8 px-2 text-[11px]">Date <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                <TableHead><Button variant="ghost" onClick={() => requestSort('vehicleName')} className="-ml-4 h-8 px-2 text-[11px]">Vehicle <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                <TableHead><Button variant="ghost" onClick={() => requestSort('customerName')} className="-ml-4 h-8 px-2 text-[11px]">Customer <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                <TableHead><Button variant="ghost" onClick={() => requestSort('finalDestination')} className="-ml-4 h-8 px-2 text-[11px]">Destination <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                <TableHead><Button variant="ghost" onClick={() => requestSort('netAmount')} className="-ml-4 h-8 px-2 text-[11px]">Net Bank Pay <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                <TableHead className="text-[11px]">Authorship</TableHead>
+                <TableHead className="text-right text-[11px]">Actions</TableHead>
             </TableRow></TableHeader>
             <TableBody>
                 {filteredAndSortedTrips.map(trip => (
                 <TableRow key={trip.id} className="hover:bg-muted/30">
-                    <TableCell className="font-medium text-xs whitespace-nowrap">{toNepaliDate(trip.date)}</TableCell>
-                    <TableCell className="font-semibold text-xs">{trip.vehicleName}</TableCell>
-                    <TableCell className="text-xs">{trip.customerName}</TableCell>
-                    <TableCell className="text-xs uppercase text-muted-foreground">{trip.finalDestination}</TableCell>
+                    <TableCell className="font-medium text-[11px] whitespace-nowrap">{toNepaliDate(trip.date)}</TableCell>
+                    <TableCell className="font-semibold text-[11px]">{trip.vehicleName}</TableCell>
+                    <TableCell className="text-[11px]">{trip.customerName}</TableCell>
+                    <TableCell className="text-[11px] uppercase text-muted-foreground">{trip.finalDestination}</TableCell>
                     <TableCell>
-                        <Button variant="link" className="p-0 h-auto font-bold text-xs" onClick={() => openCalcDialog(trip)}>
+                        <Button variant="link" className="p-0 h-auto font-bold text-[11px]" onClick={() => openCalcDialog(trip)}>
                             Rs. {trip.netAmount.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })}
                         </Button>
                     </TableCell>
@@ -467,8 +507,8 @@ export default function TripSheetsPage() {
             </TableBody>
             <TableFooter>
                 <TableRow className="bg-muted/50 font-bold">
-                    <TableCell colSpan={4} className="text-right">Total for Filtered Period ({filteredAndSortedTrips.length} Trips)</TableCell>
-                    <TableCell>Rs. {filteredAndSortedTrips.reduce((sum, t) => sum + t.netAmount, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                    <TableCell colSpan={4} className="text-right text-[11px]">Total for Filtered Period ({filteredAndSortedTrips.length} Trips)</TableCell>
+                    <TableCell className="text-[11px]">Rs. {filteredAndSortedTrips.reduce((sum, t) => sum + t.netAmount, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                     <TableCell colSpan={2}></TableCell>
                 </TableRow>
             </TableFooter>
@@ -502,37 +542,27 @@ export default function TripSheetsPage() {
 
       <div className="flex flex-col gap-4 bg-muted/20 p-4 rounded-lg border border-dashed">
             <div className="flex flex-wrap gap-4 items-end">
-                <div className="space-y-1.5">
-                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Year (BS)</Label>
-                    <Select value={selectedBsYear} onValueChange={setSelectedBsYear}>
-                        <SelectTrigger className="w-[120px] bg-white">
-                            <SelectValue placeholder="Year" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="All">All Time</SelectItem>
-                            {availableYears.map(year => <SelectItem key={year} value={String(year)}>{year}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                </div>
-                <div className="space-y-1.5">
-                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Month (BS)</Label>
-                    <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth}>
-                        <SelectTrigger className="w-[150px] bg-white">
-                            <SelectValue placeholder="Month" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="All">All Months</SelectItem>
-                            {NEPALI_MONTHS.map(month => <SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                </div>
-                <div className="space-y-1.5 w-full md:w-[250px]">
+                <MultiSelect 
+                    label="Year (BS)" 
+                    values={filterBsYears} 
+                    onSelect={setFilterBsYears} 
+                    items={availableYears.map(y => ({ id: String(y), name: String(y) }))} 
+                    placeholder="Year" 
+                />
+                <MultiSelect 
+                    label="Month (BS)" 
+                    values={filterBsMonths} 
+                    onSelect={setFilterBsMonths} 
+                    items={NEPALI_MONTHS.map(m => ({ id: String(m.value), name: m.name }))} 
+                    placeholder="Month" 
+                />
+                <div className="space-y-1.5 w-full md:w-[200px]">
                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Custom AD Range</Label>
                     <Popover>
                         <PopoverTrigger asChild>
-                            <Button variant="outline" className={cn("w-full justify-start text-left font-normal bg-white", !dateRange && "text-muted-foreground")}>
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {dateRange?.from ? (dateRange.to ? (`${format(dateRange.from, "LLL dd, y")} - ${format(dateRange.to, "LLL dd, y")}`) : format(dateRange.from, "LLL dd, y")) : (<span>Pick a date range</span>)}
+                            <Button variant="outline" className={cn("w-full h-9 justify-start text-left font-normal bg-white text-xs", !dateRange && "text-muted-foreground")}>
+                                <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                                {dateRange?.from ? (dateRange.to ? (`${format(dateRange.from, "MMM d")} - ${format(dateRange.to, "MMM d")}`) : format(dateRange.from, "MMM d")) : (<span>Pick a date range</span>)}
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
@@ -540,20 +570,20 @@ export default function TripSheetsPage() {
                         </PopoverContent>
                     </Popover>
                 </div>
-                <div className="space-y-1.5 w-full md:w-[180px]">
+                <div className="space-y-1.5 w-full md:w-[150px]">
                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Vehicle</Label>
                     <Select value={filterVehicleId} onValueChange={setFilterVehicleId}>
-                        <SelectTrigger className="bg-white"><SelectValue placeholder="All Vehicles" /></SelectTrigger>
+                        <SelectTrigger className="bg-white h-9 text-xs"><SelectValue placeholder="All Vehicles" /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="All">All Vehicles</SelectItem>
                             {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
                         </SelectContent>
                     </Select>
                 </div>
-                <div className="space-y-1.5 w-full md:w-[220px]">
+                <div className="space-y-1.5 w-full md:w-[200px]">
                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Customer</Label>
                     <Select value={filterPartyId} onValueChange={setFilterPartyId}>
-                        <SelectTrigger className="bg-white">
+                        <SelectTrigger className="bg-white h-9 text-xs">
                             <SelectValue placeholder="All Customers" />
                         </SelectTrigger>
                         <SelectContent>
@@ -568,16 +598,16 @@ export default function TripSheetsPage() {
             
             <div className="flex gap-2 w-full md:w-auto items-center pt-2 border-t border-dashed">
                 {isFiltered && (
-                    <Button variant="ghost" size="sm" onClick={handleClearFilters} className="text-muted-foreground hover:text-foreground">
-                        <X className="mr-2 h-4 w-4" /> Clear All Filters
+                    <Button variant="ghost" size="sm" onClick={handleClearFilters} className="text-muted-foreground hover:text-foreground h-8 px-2 text-xs">
+                        <FilterX className="mr-2 h-3.5 w-3.5" /> Clear All Filters
                     </Button>
                 )}
                 <div className="ml-auto flex gap-2">
-                    <Button variant="outline" size="sm" onClick={handleExportExcel}>
-                        <FileSpreadsheet className="mr-2 h-4 w-4 text-emerald-600" /> Export Excel
+                    <Button variant="outline" size="sm" onClick={handleExportExcel} className="h-8 text-xs">
+                        <FileSpreadsheet className="mr-2 h-3.5 w-3.5 text-emerald-600" /> Excel
                     </Button>
-                    <Button variant="outline" size="sm" onClick={handleExportPdf}>
-                        <FileText className="mr-2 h-4 w-4 text-red-600" /> Export PDF
+                    <Button variant="outline" size="sm" onClick={handleExportPdf} className="h-8 text-xs">
+                        <FileText className="mr-2 h-3.5 w-3.5 text-red-600" /> PDF
                     </Button>
                 </div>
             </div>

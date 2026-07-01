@@ -4,7 +4,26 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Transaction, Vehicle, Party } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Search, ArrowUpDown, MoreHorizontal, View, Edit, Trash2, User, Download, CalendarIcon, X, FileSpreadsheet, FileText, Loader2, Eye } from 'lucide-react';
+import { 
+  PlusCircle, 
+  Search, 
+  ArrowUpDown, 
+  MoreHorizontal, 
+  View, 
+  Edit, 
+  Trash2, 
+  User, 
+  Download, 
+  CalendarIcon, 
+  X, 
+  FileSpreadsheet, 
+  FileText, 
+  Loader2, 
+  Eye,
+  Check,
+  ChevronDown,
+  FilterX
+} from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
@@ -18,17 +37,75 @@ import { onPartiesUpdate } from '@/services/party-service';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { DualDateRangePicker } from '@/components/ui/dual-date-range-picker';
 import type { DateRange } from 'react-day-picker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import NepaliDate from 'nepali-date-converter';
 import { NEPALI_MONTHS } from '@/lib/constants';
 
 type SortKey = 'date' | 'vehicleName' | 'partyName' | 'amount' | 'authorship' | 'category';
 type SortDirection = 'asc' | 'desc';
+
+// Helper component for multi-select
+const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }: any) => {
+    const isAll = values.length === 0;
+
+    const toggleItem = (id: string) => {
+        const next = values.includes(id)
+            ? values.filter((v: string) => v !== id)
+            : [...values, id];
+        onSelect(next);
+    };
+
+    const displayText = isAll
+        ? `All ${placeholder}s`
+        : values.length === 1
+            ? items.find((i: any) => String(i.id) === String(values[0]))?.name || values[0]
+            : `${values.length} ${placeholder}s`;
+
+    return (
+        <div className="space-y-1.5 flex-1 min-w-[140px]">
+            <Label className="text-[10px] uppercase font-bold text-muted-foreground">{label}</Label>
+            <Popover>
+                <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-between h-9 bg-white border-gray-200 shadow-none font-normal text-xs px-3">
+                        <div className="flex items-center gap-2 overflow-hidden text-left">
+                            {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+                            <span className="truncate">{displayText}</span>
+                        </div>
+                        <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="p-0 w-[200px]" align="start">
+                    <Command>
+                        <div className="flex items-center border-b px-3" cmdk-input-wrapper="">
+                            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                            <input 
+                                placeholder={`Search ${placeholder.toLowerCase()}...`} 
+                                className="flex h-9 w-full rounded-md bg-transparent py-3 text-xs outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                            />
+                        </div>
+                        <CommandList>
+                            <CommandEmpty>No results found.</CommandEmpty>
+                            <CommandGroup>
+                                {items.map((item: any) => (
+                                    <CommandItem key={item.id} value={item.name} onSelect={() => toggleItem(String(item.id))} className="text-xs">
+                                        <Check className={cn("mr-2 h-3.5 w-3.5", values.includes(String(item.id)) ? "opacity-100" : "opacity-0")} />
+                                        {item.name}
+                                    </CommandItem>
+                                ))}
+                            </CommandGroup>
+                        </CommandList>
+                    </Command>
+                </PopoverContent>
+            </Popover>
+        </div>
+    );
+};
 
 export default function PurchaseLogsPage() {
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -38,8 +115,8 @@ export default function PurchaseLogsPage() {
     
     const [searchQuery, setSearchQuery] = useState('');
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-    const [selectedBsYear, setSelectedBsYear] = useState<string>('All');
-    const [selectedBsMonth, setSelectedBsMonth] = useState<string>('All');
+    const [filterBsYears, setFilterBsYears] = useState<string[]>([]);
+    const [filterBsMonths, setFilterBsMonths] = useState<string[]>([]);
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
     const [filterVehicleId, setFilterVehicleId] = useState<string>('All');
     const [filterPartyId, setFilterPartyId] = useState<string>('All');
@@ -71,37 +148,6 @@ export default function PurchaseLogsPage() {
         };
     }, [transactions]);
 
-    useEffect(() => {
-        if (availableYears.length > 0 && selectedBsYear === 'All' && selectedBsMonth === 'All') {
-            const currentNepaliDate = new NepaliDate();
-            const currentYear = currentNepaliDate.getYear();
-            const currentMonth = currentNepaliDate.getMonth();
-
-            if (availableYears.includes(currentYear)) {
-                setSelectedBsYear(String(currentYear));
-            } else {
-                setSelectedBsYear(String(availableYears[0]));
-            }
-            setSelectedBsMonth(String(currentMonth));
-        }
-    }, [availableYears, selectedBsYear, selectedBsMonth]);
-
-    const handleDelete = async (id: string) => {
-        try {
-            await deleteTransaction(id);
-            toast({ title: 'Success', description: 'Purchase deleted.' });
-        } catch (error) {
-             toast({ title: 'Error', description: 'Failed to delete purchase.', variant: 'destructive' });
-        }
-    };
-
-    const requestSort = (key: SortKey) => {
-        setSortConfig(prev => ({
-            key,
-            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
-        }));
-    };
-
     const vehiclesById = useMemo(() => new Map(vehicles.map(v => [v.id, v.name])), [vehicles]);
     const partiesById = useMemo(() => new Map(parties.map(p => [p.id, p.name])), [parties]);
 
@@ -123,18 +169,20 @@ export default function PurchaseLogsPage() {
             filtered = filtered.filter(t => isWithinInterval(new Date(t.date), interval));
         }
 
-        if (selectedBsYear !== 'All') {
+        if (filterBsYears.length > 0) {
             filtered = filtered.filter(p => {
                 try {
-                    return new NepaliDate(new Date(p.date)).getYear() === parseInt(selectedBsYear);
+                    const year = new NepaliDate(new Date(p.date)).getYear();
+                    return filterBsYears.includes(String(year));
                 } catch { return false; }
             });
         }
 
-        if (selectedBsMonth !== 'All') {
+        if (filterBsMonths.length > 0) {
             filtered = filtered.filter(p => {
                 try {
-                    return new NepaliDate(new Date(p.date)).getMonth() === parseInt(selectedBsMonth);
+                    const month = new NepaliDate(new Date(p.date)).getMonth();
+                    return filterBsMonths.includes(String(month));
                 } catch { return false; }
             });
         }
@@ -169,29 +217,40 @@ export default function PurchaseLogsPage() {
         });
 
         return filtered;
-    }, [transactions, searchQuery, dateRange, selectedBsYear, selectedBsMonth, sortConfig, filterVehicleId, filterPartyId, vehiclesById, partiesById]);
+    }, [transactions, searchQuery, dateRange, filterBsYears, filterBsMonths, sortConfig, filterVehicleId, filterPartyId, vehiclesById, partiesById]);
 
     const isFiltered = useMemo(() => {
-        const currentNepaliDate = new NepaliDate();
-        const currentYear = currentNepaliDate.getYear();
-        const currentMonth = currentNepaliDate.getMonth();
-
         return searchQuery !== '' || 
                !!dateRange || 
-               (selectedBsYear !== String(currentYear) && selectedBsYear !== 'All') || 
-               (selectedBsMonth !== String(currentMonth) && selectedBsMonth !== 'All') || 
+               filterBsYears.length > 0 || 
+               filterBsMonths.length > 0 || 
                filterVehicleId !== 'All' || 
                filterPartyId !== 'All';
-    }, [searchQuery, dateRange, selectedBsYear, selectedBsMonth, filterVehicleId, filterPartyId]);
+    }, [searchQuery, dateRange, filterBsYears, filterBsMonths, filterVehicleId, filterPartyId]);
 
     const handleClearFilters = () => {
         setSearchQuery('');
         setDateRange(undefined);
-        const currentNepaliDate = new NepaliDate();
-        setSelectedBsYear(String(currentNepaliDate.getYear()));
-        setSelectedBsMonth(String(currentNepaliDate.getMonth()));
+        setFilterBsYears([]);
+        setFilterBsMonths([]);
         setFilterVehicleId('All');
         setFilterPartyId('All');
+    };
+
+    const handleDelete = async (id: string) => {
+        try {
+            await deleteTransaction(id);
+            toast({ title: 'Success', description: 'Purchase deleted.' });
+        } catch (error) {
+             toast({ title: 'Error', description: 'Failed to delete purchase.', variant: 'destructive' });
+        }
+    };
+
+    const requestSort = (key: SortKey) => {
+        setSortConfig(prev => ({
+            key,
+            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+        }));
     };
 
     const handleExport = async (formatType: 'excel' | 'pdf') => {
@@ -259,42 +318,32 @@ export default function PurchaseLogsPage() {
 
             <div className="flex flex-col gap-4 bg-muted/20 p-4 rounded-lg border border-dashed">
                 <div className="flex flex-wrap gap-4 items-end">
-                    <div className="space-y-1.5">
-                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Year (BS)</Label>
-                        <Select value={selectedBsYear} onValueChange={setSelectedBsYear} disabled={isLoading || availableYears.length === 0}>
-                            <SelectTrigger className="w-[120px] bg-white">
-                                <SelectValue placeholder="All Years" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="All">All Years</SelectItem>
-                                {availableYears.map(year => <SelectItem key={year} value={String(year)}>{year}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="space-y-1.5">
-                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Month (BS)</Label>
-                        <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth} disabled={isLoading || availableYears.length === 0}>
-                            <SelectTrigger className="w-[150px] bg-white">
-                                <SelectValue placeholder="All Months" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="All">All Months</SelectItem>
-                                {NEPALI_MONTHS.map(month => <SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="space-y-1.5 w-full md:w-[250px]">
+                    <MultiSelect 
+                        label="Year (BS)" 
+                        values={filterBsYears} 
+                        onSelect={setFilterBsYears} 
+                        items={availableYears.map(y => ({ id: String(y), name: String(y) }))} 
+                        placeholder="Year" 
+                    />
+                    <MultiSelect 
+                        label="Month (BS)" 
+                        values={filterBsMonths} 
+                        onSelect={setFilterBsMonths} 
+                        items={NEPALI_MONTHS.map(m => ({ id: String(m.value), name: m.name }))} 
+                        placeholder="Month" 
+                    />
+                    <div className="space-y-1.5 w-full md:w-[200px]">
                         <Label className="text-[10px] uppercase font-bold text-muted-foreground">Custom AD Range</Label>
-                        <Popover><PopoverTrigger asChild><Button variant="outline" className={cn("w-full justify-start text-left font-normal bg-white", !dateRange && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{dateRange?.from ? (dateRange.to ? (`${format(dateRange.from, "LLL dd, y")} - ${format(dateRange.to, "LLL dd, y")}`) : format(dateRange.from, "LLL dd, y")) : (<span>Pick dates</span>)}</Button></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><DualDateRangePicker selected={dateRange} onSelect={setDateRange} /></PopoverContent></Popover>
+                        <Popover><PopoverTrigger asChild><Button variant="outline" className={cn("w-full h-9 justify-start text-left font-normal bg-white text-xs", !dateRange && "text-muted-foreground")}><CalendarIcon className="mr-2 h-3.5 w-3.5" />{dateRange?.from ? (dateRange.to ? (`${format(dateRange.from, "MMM d")} - ${format(dateRange.to, "MMM d")}`) : format(dateRange.from, "MMM d")) : (<span>Pick dates</span>)}</Button></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><DualDateRangePicker selected={dateRange} onSelect={setDateRange} /></PopoverContent></Popover>
                     </div>
-                    <div className="space-y-1.5 w-full md:w-[180px]">
+                    <div className="space-y-1.5 w-full md:w-[150px]">
                         <Label className="text-[10px] uppercase font-bold text-muted-foreground">Vehicle</Label>
-                        <Select value={filterVehicleId} onValueChange={setFilterVehicleId}><SelectTrigger className="bg-white"><SelectValue placeholder="All" /></SelectTrigger><SelectContent><SelectItem value="All">All Vehicles</SelectItem>{vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}</SelectContent></Select>
+                        <Select value={filterVehicleId} onValueChange={setFilterVehicleId}><SelectTrigger className="bg-white h-9 text-xs"><SelectValue placeholder="All" /></SelectTrigger><SelectContent><SelectItem value="All">All Vehicles</SelectItem>{vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}</SelectContent></Select>
                     </div>
-                    <div className="space-y-1.5 w-full md:w-[220px]">
+                    <div className="space-y-1.5 w-full md:w-[200px]">
                         <Label className="text-[10px] uppercase font-bold text-muted-foreground">Party / Service Provider</Label>
                         <Select value={filterPartyId} onValueChange={setFilterPartyId}>
-                            <SelectTrigger className="bg-white">
+                            <SelectTrigger className="bg-white h-9 text-xs">
                                 <SelectValue placeholder="All" />
                             </SelectTrigger>
                             <SelectContent>
@@ -309,16 +358,16 @@ export default function PurchaseLogsPage() {
                 
                 <div className="flex gap-2 w-full md:w-auto items-center pt-2 border-t border-dashed">
                     {isFiltered && (
-                        <Button variant="ghost" size="sm" onClick={handleClearFilters} className="text-muted-foreground hover:text-foreground">
-                            <X className="mr-2 h-4 w-4" /> Clear All Filters
+                        <Button variant="ghost" size="sm" onClick={handleClearFilters} className="text-muted-foreground hover:text-foreground h-8 px-2 text-xs">
+                            <FilterX className="mr-2 h-3.5 w-3.5" /> Clear All Filters
                         </Button>
                     )}
                     <div className="ml-auto flex gap-2">
-                        <Button variant="outline" size="sm" onClick={() => handleExport('excel')}>
-                            <FileSpreadsheet className="mr-2 h-4 w-4 text-emerald-600" /> Export Excel
+                        <Button variant="outline" size="sm" onClick={() => handleExport('excel')} className="h-8 text-xs">
+                            <FileSpreadsheet className="mr-2 h-3.5 w-3.5 text-emerald-600" /> Excel
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => handleExport('pdf')}>
-                            <FileText className="mr-2 h-4 w-4 text-red-600" /> Export PDF
+                        <Button variant="outline" size="sm" onClick={() => handleExport('pdf')} className="h-8 text-xs">
+                            <FileText className="mr-2 h-3.5 w-3.5 text-red-600" /> PDF
                         </Button>
                     </div>
                 </div>
@@ -328,13 +377,13 @@ export default function PurchaseLogsPage() {
                 <Table>
                     <TableHeader className="bg-muted/50">
                         <TableRow>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('date')} className="-ml-4">Date <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('vehicleName')} className="-ml-4">Vehicle <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('category')} className="-ml-4 font-bold text-primary">Category <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('partyName')} className="-ml-4">Supplier <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('amount')} className="-ml-4">Amount <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
-                            <TableHead>Author</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('date')} className="-ml-4 h-8 px-2 text-xs">Date <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('vehicleName')} className="-ml-4 h-8 px-2 text-xs">Vehicle <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('category')} className="-ml-4 h-8 px-2 text-xs font-bold text-primary">Category <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('partyName')} className="-ml-4 h-8 px-2 text-xs">Supplier <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('amount')} className="-ml-4 h-8 px-2 text-xs">Amount <ArrowUpDown className="ml-2 h-3 w-3" /></Button></TableHead>
+                            <TableHead className="text-xs">Author</TableHead>
+                            <TableHead className="text-right text-xs">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -342,8 +391,8 @@ export default function PurchaseLogsPage() {
                             <TableRow><TableCell colSpan={7} className="text-center py-12"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
                         ) : filteredAndSortedPurchases.map(txn => (
                             <TableRow key={txn.id} className="hover:bg-muted/30">
-                                <TableCell className="font-medium text-xs whitespace-nowrap">{toNepaliDate(txn.date)}</TableCell>
-                                <TableCell className="font-semibold text-xs">{vehiclesById.get(txn.vehicleId) || 'N/A'}</TableCell>
+                                <TableCell className="font-medium text-[11px] whitespace-nowrap">{toNepaliDate(txn.date)}</TableCell>
+                                <TableCell className="font-semibold text-[11px]">{vehiclesById.get(txn.vehicleId) || 'N/A'}</TableCell>
                                 <TableCell>
                                     <Badge variant="outline" className={cn(
                                         "text-[9px] uppercase font-bold",
@@ -357,8 +406,8 @@ export default function PurchaseLogsPage() {
                                         {txn.category || 'Other'}
                                     </Badge>
                                 </TableCell>
-                                <TableCell className="text-xs">{partiesById.get(txn.partyId!) || 'N/A'}</TableCell>
-                                <TableCell className="text-red-600 font-mono font-bold text-xs">-{txn.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                <TableCell className="text-[11px]">{partiesById.get(txn.partyId!) || 'N/A'}</TableCell>
+                                <TableCell className="text-red-600 font-mono font-bold text-[11px]">-{txn.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                 <TableCell>
                                     <TooltipProvider><Tooltip><TooltipTrigger className="text-[10px] text-muted-foreground uppercase font-bold">{txn.lastModifiedBy || txn.createdBy}</TooltipTrigger><TooltipContent><p className="text-xs">Posted: {format(new Date(txn.createdAt), "PPpp")}</p>{txn.lastModifiedAt && <p className="text-xs">Updated: {format(new Date(txn.lastModifiedAt), "PPpp")}</p>}</TooltipContent></Tooltip></TooltipProvider>
                                 </TableCell>
@@ -369,14 +418,14 @@ export default function PurchaseLogsPage() {
                                             <DropdownMenuItem onSelect={() => router.push(`/fleet/transactions/purchase/view?id=${txn.id}`)}><Eye className="mr-2 h-4 w-4" /> View Details</DropdownMenuItem>
                                             <DropdownMenuItem onSelect={() => router.push(`/fleet/transactions/purchase/edit?id=${txn.id}`)}><Edit className="mr-2 h-4 w-4" /> Edit Record</DropdownMenuItem>
                                             <DropdownMenuSeparator />
-                                            <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem></AlertDialogTrigger>
+                                            <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4 text-destructive" /> Delete</DropdownMenuItem></AlertDialogTrigger>
                                             <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete Purchase Record?</AlertDialogTitle><AlertDialogDescription>This will permanently remove the record and its financial impact. This action cannot be undone.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(txn.id)}>Confirm Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </TableCell>
                             </TableRow>
                         ))}
-                        {!isLoading && filteredAndSortedPurchases.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">No purchase records found matching your filters.</TableCell></TableRow>}
+                        {!isLoading && filteredAndSortedPurchases.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground italic">No purchase records found matching your filters.</TableCell></TableRow>}
                     </TableBody>
                 </Table>
             </Card>
