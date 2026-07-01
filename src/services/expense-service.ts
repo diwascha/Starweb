@@ -3,7 +3,7 @@
  */
 
 import { getFirebase } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, deleteDoc, query, orderBy, getDocs, setDoc } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, deleteDoc, query, orderBy, getDocs, setDoc, getDoc, updateDoc, where, writeBatch } from 'firebase/firestore';
 import type { Expense } from '@/lib/expense-types';
 import { COLLECTIONS } from '@/lib/constants';
 import { addTransaction } from './transaction-service';
@@ -13,6 +13,11 @@ import { createTimestamp, logServiceError } from '@/lib/service-utils';
 const getExpensesCollection = () => {
     const { db } = getFirebase();
     return collection(db, COLLECTIONS.EXPENSES);
+};
+
+const getTransactionsCollection = () => {
+    const { db } = getFirebase();
+    return collection(db, COLLECTIONS.TRANSACTIONS);
 };
 
 const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Expense => {
@@ -52,6 +57,23 @@ export const getExpenses = async (): Promise<Expense[]> => {
 };
 
 /**
+ * Fetches a single expense by ID.
+ */
+export const getExpense = async (id: string): Promise<Expense | null> => {
+    try {
+        const docRef = doc(getExpensesCollection(), id);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+            return fromFirestore(docSnap as QueryDocumentSnapshot<DocumentData>);
+        }
+        return null;
+    } catch (error) {
+        logServiceError('getExpense', error);
+        return null;
+    }
+};
+
+/**
  * Listens for real-time updates to the expenses collection.
  */
 export const onExpensesUpdate = (callback: (expenses: Expense[]) => void): () => void => {
@@ -74,7 +96,6 @@ export const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>)
     const { db } = getFirebase();
     const now = createTimestamp();
     
-    // Pre-generate expense ID to use for transaction reference
     const expenseId = doc(getExpensesCollection()).id;
 
     const expenseRecord = {
@@ -94,11 +115,8 @@ export const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>)
         createdAt: now,
     };
 
-    // 1. Save to Expenses Collection
     await setDoc(doc(getExpensesCollection(), expenseId), expenseRecord);
 
-    // 2. Automatically sync to Main Transactions for accounting
-    // Architecture: type: "Payment", category: the expense type, sourceRef: origin
     const totalAmount = expenseRecord.amount + expenseRecord.extraAmount;
     
     const items: TransactionItem[] = [
@@ -120,7 +138,7 @@ export const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>)
     const txnData: Omit<Transaction, 'id' | 'createdAt' | 'lastModifiedAt'> = {
         date: expenseRecord.date,
         vehicleId: expenseRecord.vehicleId,
-        type: 'Payment', // All entries from Daily Expense are Outflows
+        type: 'Payment',
         amount: totalAmount,
         billingType: expenseRecord.paymentMode,
         invoiceType: 'Normal',
@@ -129,7 +147,7 @@ export const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>)
         accountId: expenseRecord.accountId,
         remarks: `Expense Entry: ${expenseRecord.expenseType}${expenseRecord.destination ? ` (${expenseRecord.destination})` : ''}`,
         referenceType: "Expense Entry",
-        referenceId: expenseRecord.voucherNo, // Synchronize using the readable Voucher Number
+        referenceId: expenseRecord.voucherNo,
         items: items,
         createdBy: expenseRecord.createdBy,
         invoiceNumber: null,
@@ -151,12 +169,105 @@ export const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>)
 };
 
 /**
- * Deletes an expense record.
+ * Updates an expense record and its linked transaction.
+ */
+export const updateExpense = async (id: string, updates: Partial<Expense>, modifiedBy: string): Promise<void> => {
+    const { db } = getFirebase();
+    const now = createTimestamp();
+    const expenseRef = doc(getExpensesCollection(), id);
+
+    try {
+        const expenseSnap = await getDoc(expenseRef);
+        if (!expenseSnap.exists()) throw new Error("Expense not found");
+        
+        const oldData = expenseSnap.data() as Expense;
+        const newData = { ...oldData, ...updates };
+
+        const batch = writeBatch(db);
+
+        // 1. Update Expense Document
+        batch.update(expenseRef, {
+            ...updates,
+            lastModifiedBy: modifiedBy,
+            lastModifiedAt: now,
+        });
+
+        // 2. Update Linked Transaction
+        const q = query(
+            getTransactionsCollection(), 
+            where("referenceType", "==", "Expense Entry"),
+            where("referenceId", "==", oldData.voucherNo)
+        );
+        const txnSnap = await getDocs(q);
+
+        if (!txnSnap.empty) {
+            const txnDoc = txnSnap.docs[0];
+            const totalAmount = (Number(newData.amount) || 0) + (Number(newData.extraAmount) || 0);
+            
+            const items: TransactionItem[] = [
+                { 
+                    particular: `${newData.voucherNo}: ${newData.expenseType}${newData.destination ? ` to ${newData.destination}` : ''}`, 
+                    quantity: 1, 
+                    rate: Number(newData.amount) || 0 
+                }
+            ];
+
+            if ((Number(newData.extraAmount) || 0) > 0) {
+                items.push({
+                    particular: newData.extraRemarks || 'Extra Trip Charge',
+                    quantity: 1,
+                    rate: Number(newData.extraAmount) || 0
+                });
+            }
+
+            batch.update(txnDoc.ref, {
+                date: newData.date,
+                vehicleId: newData.vehicleId,
+                amount: totalAmount,
+                billingType: newData.paymentMode,
+                category: newData.expenseType,
+                partyId: newData.partyId || null,
+                accountId: newData.accountId || null,
+                remarks: `Expense Entry: ${newData.expenseType}${newData.destination ? ` (${newData.destination})` : ''}`,
+                items: items,
+                referenceId: newData.voucherNo,
+                lastModifiedBy: modifiedBy,
+                lastModifiedAt: now,
+            });
+        }
+
+        await batch.commit();
+    } catch (error) {
+        logServiceError('updateExpense', error);
+        throw error;
+    }
+};
+
+/**
+ * Deletes an expense record and its linked transaction.
  */
 export const deleteExpense = async (id: string): Promise<void> => {
+    const { db } = getFirebase();
     try {
-        const docRef = doc(getExpensesCollection(), id);
-        await deleteDoc(docRef);
+        const expenseSnap = await getDoc(doc(getExpensesCollection(), id));
+        if (!expenseSnap.exists()) return;
+
+        const data = expenseSnap.data();
+        const batch = writeBatch(db);
+
+        // 1. Delete Expense
+        batch.delete(expenseSnap.ref);
+
+        // 2. Delete linked transaction
+        const q = query(
+            getTransactionsCollection(), 
+            where("referenceType", "==", "Expense Entry"),
+            where("referenceId", "==", data.voucherNo)
+        );
+        const txnSnap = await getDocs(q);
+        txnSnap.forEach(d => batch.delete(d.ref));
+
+        await batch.commit();
     } catch (error) {
         logServiceError('deleteExpense', error);
         throw error;

@@ -39,7 +39,7 @@ import {
 import { cn, toNepaliDate } from '@/lib/utils';
 import type { Vehicle, Party, Account, AccountOwnership, PartyType, Transaction, Destination } from '@/lib/types';
 import type { Expense, ExpenseType } from '@/lib/expense-types';
-import { addExpense } from '@/services/expense-service';
+import { addExpense, updateExpense } from '@/services/expense-service';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -95,9 +95,10 @@ interface ExpenseFormProps {
     accounts: Account[];
     transactions: Transaction[];
     initialVoucherNo: string;
+    expenseToEdit?: Expense;
 }
 
-export function ExpenseForm({ vehicles, parties, accounts, transactions, initialVoucherNo }: ExpenseFormProps) {
+export function ExpenseForm({ vehicles, parties, accounts, transactions, initialVoucherNo, expenseToEdit }: ExpenseFormProps) {
     const { user } = useAuth();
     const { toast } = useToast();
     const router = useRouter();
@@ -106,7 +107,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
     // Additional Master Data
     const [destinations, setDestinations] = useState<Destination[]>([]);
     const [destSearch, setDestSearch] = useState('');
-    const [showExtraFields, setShowExtraFields] = useState(false);
+    const [showExtraFields, setShowExtraFields] = useState(expenseToEdit?.extraAmount ? expenseToEdit.extraAmount > 0 : false);
     
     // Quick Add States
     const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
@@ -120,22 +121,26 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
     const form = useForm<z.infer<typeof expenseSchema>>({
         resolver: zodResolver(expenseSchema),
         defaultValues: {
-            voucherNo: initialVoucherNo,
-            date: new Date(),
-            expenseType: 'Advance',
-            paymentMode: 'Cash',
-            amount: 0,
-            extraAmount: 0,
-            extraRemarks: '',
-            remarks: '',
+            voucherNo: expenseToEdit?.voucherNo || initialVoucherNo,
+            date: expenseToEdit ? new Date(expenseToEdit.date) : new Date(),
+            expenseType: expenseToEdit?.expenseType || 'Advance',
+            paymentMode: expenseToEdit?.paymentMode || 'Cash',
+            amount: expenseToEdit?.amount || 0,
+            extraAmount: expenseToEdit?.extraAmount || 0,
+            extraRemarks: expenseToEdit?.extraRemarks || '',
+            remarks: expenseToEdit?.remarks || '',
+            vehicleId: expenseToEdit?.vehicleId || '',
+            partyId: expenseToEdit?.partyId || '',
+            accountId: expenseToEdit?.accountId || '',
+            destination: expenseToEdit?.destination || '',
         }
     });
 
     useEffect(() => {
-        if (initialVoucherNo) {
+        if (!expenseToEdit && initialVoucherNo) {
             form.setValue('voucherNo', initialVoucherNo);
         }
-    }, [initialVoucherNo, form]);
+    }, [initialVoucherNo, form, expenseToEdit]);
 
     const watchedType = form.watch('expenseType');
     const watchedMode = form.watch('paymentMode');
@@ -175,13 +180,21 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
         if (!user) return;
         setIsSubmitting(true);
         try {
-            await addExpense({
-                ...values,
-                date: values.date.toISOString(),
-                createdBy: user.username,
-            });
-            toast({ title: 'Success', description: 'Expense recorded successfully.' });
-            router.push('/fleet/transactions');
+            if (expenseToEdit) {
+                await updateExpense(expenseToEdit.id, {
+                    ...values,
+                    date: values.date.toISOString(),
+                }, user.username);
+                toast({ title: 'Success', description: 'Expense updated successfully.' });
+            } else {
+                await addExpense({
+                    ...values,
+                    date: values.date.toISOString(),
+                    createdBy: user.username,
+                });
+                toast({ title: 'Success', description: 'Expense recorded successfully.' });
+            }
+            router.push('/fleet/transactions/expenses');
         } catch (error: any) {
             console.error("Expense Save Failure:", error);
             toast({ title: 'Save Failed', description: error.message || 'Check connection and try again.', variant: 'destructive' });
@@ -631,10 +644,10 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
 
                 <div className="flex items-center gap-3 pt-4 border-t">
                     <Button type="submit" size="lg" className="px-10 h-12 font-bold" disabled={isSubmitting}>
-                        {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : <><Save className="mr-2 h-4 w-4" /> Save Expense</>}
+                        {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : <><Save className="mr-2 h-4 w-4" /> {expenseToEdit ? 'Update Expense' : 'Save Expense'}</>}
                     </Button>
-                    <Button type="button" variant="outline" size="lg" className="h-12" onClick={() => { form.reset(); setShowExtraFields(false); }}>
-                        <X className="mr-2 h-4 w-4" /> Clear
+                    <Button type="button" variant="outline" size="lg" className="h-12" onClick={() => router.back()}>
+                        <X className="mr-2 h-4 w-4" /> Cancel
                     </Button>
                 </div>
             </form>
@@ -742,7 +755,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                                         <AlertDialogAction onClick={handleDeleteDest} className="bg-destructive text-destructive-foreground">Delete</AlertDialogAction>
                                     </AlertDialogFooter>
                                 </AlertDialogContent>
-                            </AlertDialog>
+                             </AlertDialog>
                         )}
                         <div className="flex gap-2 ml-auto">
                             <Button variant="outline" onClick={() => setIsDestDialogOpen(false)}>Cancel</Button>

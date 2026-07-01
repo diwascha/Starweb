@@ -240,7 +240,14 @@ export default function ExpenseLogsPage() {
                                 <TableCell className="font-mono text-[11px]">{e.voucherNo}</TableCell>
                                 <TableCell className="text-[11px]">{vehiclesById.get(e.vehicleId) || 'N/A'}</TableCell>
                                 <TableCell>
-                                    <Badge variant="outline" className="text-[9px] uppercase font-bold bg-blue-50/50 text-blue-700 border-blue-200">
+                                    <Badge variant="outline" className={cn(
+                                        "text-[9px] uppercase font-bold",
+                                        e.expenseType === 'Fuel' && "border-blue-200 bg-blue-50 text-blue-700",
+                                        e.expenseType === 'Maintenance' && "border-amber-200 bg-amber-50 text-amber-700",
+                                        e.expenseType === 'Advance' && "border-emerald-200 bg-emerald-50 text-emerald-700",
+                                        e.expenseType === 'Loan Repayment' && "border-orange-200 bg-orange-50 text-orange-700",
+                                        e.expenseType === 'Membership Renewal' && "border-purple-200 bg-purple-50 text-purple-700",
+                                    )}>
                                         {e.expenseType}
                                     </Badge>
                                 </TableCell>
@@ -259,6 +266,7 @@ export default function ExpenseLogsPage() {
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onSelect={() => router.push(`/fleet/transactions/expenses/edit?id=${e.id}`)}><Edit className="mr-2 h-4 w-4" /> Edit Record</DropdownMenuItem>
                                             <DropdownMenuItem onSelect={() => router.push(`/fleet/transactions/expenses/new`)}><PlusCircle className="mr-2 h-4 w-4" /> New Entry</DropdownMenuItem>
                                             <DropdownMenuSeparator />
                                             <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem></AlertDialogTrigger>
