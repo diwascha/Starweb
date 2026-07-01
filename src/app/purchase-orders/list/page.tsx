@@ -61,7 +61,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { format } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
 import { onPurchaseOrdersUpdate, deletePurchaseOrder, updatePurchaseOrder } from '@/services/purchase-order-service';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import NepaliDate from 'nepali-date-converter';
 import { NEPALI_MONTHS } from '@/lib/constants';
@@ -77,6 +77,10 @@ const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }
     const isAll = values.length === 0;
 
     const toggleItem = (id: string) => {
+        if (id === 'All') {
+            onSelect([]);
+            return;
+        }
         const next = values.includes(id)
             ? values.filter((v: string) => v !== id)
             : [...values, id];
@@ -114,6 +118,10 @@ const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }
                         <CommandList>
                             <CommandEmpty>No results found.</CommandEmpty>
                             <CommandGroup>
+                                <CommandItem value="All" onSelect={() => toggleItem('All')} className="text-xs">
+                                    <Check className={cn("mr-2 h-3.5 w-3.5", isAll ? "opacity-100" : "opacity-0")} />
+                                    All {placeholder}s
+                                </CommandItem>
                                 {items.map((item: any) => (
                                     <CommandItem key={item.id} value={item.name} onSelect={() => toggleItem(String(item.id))} className="text-xs">
                                         <Check className={cn("mr-2 h-3.5 w-3.5", values.includes(String(item.id)) ? "opacity-100" : "opacity-0")} />

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -60,7 +61,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { onTripsUpdate, deleteTrip } from '@/services/trip-service';
 import { onVehiclesUpdate } from '@/services/vehicle-service';
 import { onPartiesUpdate } from '@/services/party-service';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -93,6 +94,10 @@ const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }
     const isAll = values.length === 0;
 
     const toggleItem = (id: string) => {
+        if (id === 'All') {
+            onSelect([]);
+            return;
+        }
         const next = values.includes(id)
             ? values.filter((v: string) => v !== id)
             : [...values, id];
@@ -111,7 +116,7 @@ const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }
             <Popover>
                 <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-between h-9 bg-white border-gray-200 shadow-none font-normal text-xs px-3 text-left">
-                        <div className="flex items-center gap-2 overflow-hidden">
+                        <div className="flex items-center gap-2 overflow-hidden text-left">
                             {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
                             <span className="truncate">{displayText}</span>
                         </div>
@@ -124,12 +129,16 @@ const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }
                             <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
                             <input 
                                 placeholder={`Search ${placeholder.toLowerCase()}...`} 
-                                className="flex h-9 w-full rounded-md bg-transparent py-3 text-xs outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                                className="flex h-9 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
                             />
                         </div>
                         <CommandList>
                             <CommandEmpty>No results found.</CommandEmpty>
                             <CommandGroup>
+                                <CommandItem value="All" onSelect={() => toggleItem('All')} className="text-xs">
+                                    <Check className={cn("mr-2 h-3.5 w-3.5", isAll ? "opacity-100" : "opacity-0")} />
+                                    All {placeholder}s
+                                </CommandItem>
                                 {items.map((item: any) => (
                                     <CommandItem key={item.id} value={item.name} onSelect={() => toggleItem(String(item.id))} className="text-xs">
                                         <Check className={cn("mr-2 h-3.5 w-3.5", values.includes(String(item.id)) ? "opacity-100" : "opacity-0")} />
