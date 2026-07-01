@@ -356,8 +356,8 @@ export default function VoucherLogsPage() {
                     values={filterTypes} 
                     onSelect={setFilterTypes} 
                     items={[
-                        { id: 'Payment', name: 'Payment Only' },
-                        { id: 'Receipt', name: 'Receipt Only' },
+                        { id: 'Payment', name: 'Pmt. Only' },
+                        { id: 'Receipt', name: 'Rcd. Only' },
                         { id: 'Mixed', name: 'Mixed' }
                     ]} 
                     placeholder="Type" 
@@ -453,7 +453,7 @@ export default function VoucherLogsPage() {
                                         v.type === 'Receipt' ? "bg-emerald-50 text-emerald-700 border-emerald-200" : 
                                         "bg-amber-50 text-amber-700 border-amber-200"
                                     )}>
-                                        {v.type}
+                                        {v.type === 'Payment' ? 'Pmt.' : v.type === 'Receipt' ? 'Rcd.' : 'Mixed'}
                                     </Badge>
                                 </TableCell>
                                 <TableCell className="text-[11px]">
