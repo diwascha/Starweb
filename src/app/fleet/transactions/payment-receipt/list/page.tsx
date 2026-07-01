@@ -422,14 +422,13 @@ export default function VoucherLogsPage() {
                             <TableHead className="text-xs">Vehicles</TableHead>
                             <TableHead className="text-xs">Ledgers</TableHead>
                             <TableHead className="text-xs">Mode / Account</TableHead>
-                            <TableHead className="text-xs text-center">Entries</TableHead>
                             <TableHead className="text-right text-xs">Total Amount</TableHead>
                             <TableHead className="text-right text-xs">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {isLoading ? (
-                            <TableRow><TableCell colSpan={9} className="text-center py-12"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
+                            <TableRow><TableCell colSpan={8} className="text-center py-12"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
                         ) : filteredVouchers.map(v => (
                             <TableRow key={v.voucherId} className="hover:bg-muted/30">
                                 <TableCell className="font-medium text-[11px] whitespace-nowrap">{toNepaliDate(v.date)}</TableCell>
@@ -480,7 +479,6 @@ export default function VoucherLogsPage() {
                                         {v.accountName && <span className="text-[9px] text-muted-foreground">{v.accountName}</span>}
                                     </div>
                                 </TableCell>
-                                <TableCell className="text-center font-bold text-[11px] text-muted-foreground">{v.entriesCount}</TableCell>
                                 <TableCell className="text-right font-black text-[11px] tabular-nums">
                                     Rs. {v.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                 </TableCell>
@@ -493,13 +491,13 @@ export default function VoucherLogsPage() {
                                             <DropdownMenuItem onSelect={() => window.open(`/fleet/transactions/payment-receipt?voucherId=${v.voucherId}`, '_blank')}><Printer className="mr-2 h-4 w-4" /> Print</DropdownMenuItem>
                                             <DropdownMenuSeparator />
                                             <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete Voucher</DropdownMenuItem></AlertDialogTrigger>
-                                            <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete Entire Voucher?</AlertDialogTitle><AlertDialogDescription>This will delete all {v.entriesCount} linked transactions. This action cannot be reversed.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(v.voucherId)}>Confirm Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+                                            <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete Entire Voucher?</AlertDialogTitle><AlertDialogDescription>This will delete all linked transactions. This action cannot be reversed.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(v.voucherId)}>Confirm Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </TableCell>
                             </TableRow>
                         ))}
-                        {!isLoading && filteredVouchers.length === 0 && <TableRow><TableCell colSpan={9} className="text-center py-12 text-muted-foreground italic">No vouchers found.</TableCell></TableRow>}
+                        {!isLoading && filteredVouchers.length === 0 && <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground italic">No vouchers found.</TableCell></TableRow>}
                     </TableBody>
                 </Table>
             </Card>
