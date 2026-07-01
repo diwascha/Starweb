@@ -54,6 +54,7 @@ interface VoucherSummary {
     date: string;
     type: 'Payment' | 'Receipt' | 'Mixed';
     billingType: string;
+    accountId?: string;
     totalAmount: number;
     accountName?: string;
     entriesCount: number;
@@ -161,6 +162,7 @@ export default function VoucherLogsPage() {
     }, []);
 
     const accountsById = useMemo(() => new Map(accounts.map(a => [a.id, a.bankName || a.name])), [accounts]);
+    const sijanBankAccounts = useMemo(() => accounts.filter(a => a.type === 'Bank' && (a.ownership === 'Sijan' || a.ownership === 'Both')), [accounts]);
 
     const availableYears = useMemo(() => {
         const years = new Set<number>();
@@ -198,6 +200,7 @@ export default function VoucherLogsPage() {
                 date: first.date,
                 type: (hasPayment && hasReceipt) ? 'Mixed' : hasPayment ? 'Payment' : 'Receipt',
                 billingType: first.billingType,
+                accountId: first.accountId || undefined,
                 accountName: first.accountId ? accountsById.get(first.accountId) : undefined,
                 totalAmount: txns.reduce((sum, t) => sum + t.amount, 0),
                 entriesCount: txns.length,
@@ -228,7 +231,11 @@ export default function VoucherLogsPage() {
         }
 
         if (filterBillingTypes.length > 0) {
-            filtered = filtered.filter(v => filterBillingTypes.includes(v.billingType));
+            filtered = filtered.filter(v => {
+                if (filterBillingTypes.includes('Cash') && v.billingType === 'Cash') return true;
+                if (v.billingType === 'Bank' && v.accountId && filterBillingTypes.includes(v.accountId)) return true;
+                return false;
+            });
         }
 
         if (filterVehicleIds.length > 0) {
@@ -300,6 +307,13 @@ export default function VoucherLogsPage() {
                filterBillingTypes.length > 0;
     }, [searchQuery, dateRange, filterBsYears, filterBsMonths, filterTypes, filterVehicleIds, filterPartyIds, filterBillingTypes]);
 
+    const sourceFilterItems = useMemo(() => {
+        return [
+            { id: 'Cash', name: 'Cash' },
+            ...sijanBankAccounts.map(a => ({ id: a.id, name: a.bankName || a.name }))
+        ];
+    }, [sijanBankAccounts]);
+
     return (
         <div className="flex flex-col gap-8">
             <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -367,10 +381,7 @@ export default function VoucherLogsPage() {
                     label="Source" 
                     values={filterBillingTypes} 
                     onSelect={setFilterBillingTypes} 
-                    items={[
-                        { id: 'Cash', name: 'Cash' },
-                        { id: 'Bank', name: 'Bank' }
-                    ]} 
+                    items={sourceFilterItems} 
                     placeholder="Source" 
                     icon={Wallet}
                 />
