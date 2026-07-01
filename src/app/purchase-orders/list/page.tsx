@@ -90,7 +90,7 @@ const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }
         ? `All ${placeholder}s`
         : values.length === 1
             ? items.find((i: any) => String(i.id) === String(values[0]))?.name || values[0]
-            : `${values.length} ${placeholder}s`;
+            : `${values.length} ${placeholder}s Selected`;
 
     return (
         <div className="space-y-1.5 flex-1 min-w-[140px]">
@@ -98,7 +98,7 @@ const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }
             <Popover>
                 <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-between h-9 bg-white border-gray-200 shadow-none font-normal text-xs px-3 text-left">
-                        <div className="flex items-center gap-2 overflow-hidden">
+                        <div className="flex items-center gap-2 overflow-hidden text-left">
                             {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
                             <span className="truncate">{displayText}</span>
                         </div>
