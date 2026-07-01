@@ -122,10 +122,10 @@ export default function DashboardPage() {
               </Link>
             </Button>
           )}
-          {hasPermission('reports', 'create') && (
+          {hasPermission('purchaseOrders', 'create') && (
             <Button asChild size="sm" className="h-10 px-4">
-              <Link href="/report/new">
-                <PlusCircle className="mr-2 h-4 w-4" /> New QT Report
+              <Link href="/purchase-orders/new">
+                <ShoppingCart className="mr-2 h-4 w-4" /> New Purchase Order
               </Link>
             </Button>
           )}
