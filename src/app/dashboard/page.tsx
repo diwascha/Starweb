@@ -3,20 +3,17 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { 
-  PlusCircle, 
   ShoppingCart, 
-  FileText, 
   Truck, 
   TrendingUp, 
   ClipboardList,
   MousePointerClick,
   Clock,
   ArrowRightLeft,
-  Wallet,
-  Building2
+  Wallet
 } from 'lucide-react';
 
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/use-auth';
@@ -107,25 +104,25 @@ export default function DashboardPage() {
               <p className="text-sm text-muted-foreground mt-1">Welcome back, {user?.username} • {companyProfile.address}</p>
             </div>
         </div>
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 whitespace-nowrap">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-2 md:pb-0 whitespace-nowrap">
           {hasPermission('fleet', 'create') && (
-            <Button asChild size="sm" variant="outline" className="h-8 text-xs">
+            <Button asChild size="sm" variant="secondary" className="h-7 text-[10px] px-3 font-bold uppercase tracking-wider">
               <Link href="/fleet/transactions/expenses/new">
-                <Wallet className="mr-1.5 h-3.5 w-3.5" /> Sijan-Exp. Entry
+                <Wallet className="mr-1.5 h-3 w-3" /> Sijan-Exp. Entry
               </Link>
             </Button>
           )}
           {hasPermission('fleet', 'create') && (
-            <Button asChild size="sm" variant="outline" className="h-8 text-xs">
+            <Button asChild size="sm" variant="secondary" className="h-7 text-[10px] px-3 font-bold uppercase tracking-wider">
               <Link href="/fleet/transactions/payment-receipt/new">
-                <ArrowRightLeft className="mr-1.5 h-3.5 w-3.5" /> Sijan- Pmt / Rcd. Entry
+                <ArrowRightLeft className="mr-1.5 h-3 w-3" /> Sijan- Pmt / Rcd. Entry
               </Link>
             </Button>
           )}
           {hasPermission('purchaseOrders', 'create') && (
-            <Button asChild size="sm" variant="outline" className="h-8 text-xs">
+            <Button asChild size="sm" variant="secondary" className="h-7 text-[10px] px-3 font-bold uppercase tracking-wider">
               <Link href="/purchase-orders/new">
-                <ShoppingCart className="mr-1.5 h-3.5 w-3.5" /> New Purchase Order
+                <ShoppingCart className="mr-1.5 h-3 w-3" /> New Purchase Order
               </Link>
             </Button>
           )}

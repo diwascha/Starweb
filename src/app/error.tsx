@@ -1,6 +1,6 @@
 'use client';
 /**
- * @fileOverview Root error handler for Next.js route segments.
+ * @fileOverview Root error handler for Next.js route segments with improved resiliency.
  */
 
 import { useEffect } from 'react';
@@ -17,7 +17,7 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    // Log critical failure to Firestore for auditing
+    // Log critical failure to Firestore with safety checks
     if (error) {
         logError(error, 'Global App Segment', { digest: error?.digest });
     }

@@ -37,7 +37,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): SystemLog
 };
 
 /**
- * Logs an error to Firestore.
+ * Logs an error to Firestore with improved resiliency.
  */
 export const logError = async (error: Error | any, moduleName: string, context?: any) => {
     try {
@@ -48,22 +48,26 @@ export const logError = async (error: Error | any, moduleName: string, context?:
             const userSession = typeof window !== 'undefined' ? localStorage.getItem('user_session') : null;
             user = userSession ? JSON.parse(userSession) : null;
         } catch (e) {
-            console.warn("Failed to parse user session for logging", e);
+            // Silently fail session parsing
         }
+
+        // Safe property access to prevent "reading 'stack' of undefined"
+        const errorMessage = error?.message || (typeof error === 'string' ? error : 'Unknown Error');
+        const errorStack = error?.stack || null;
 
         await addDoc(collection(db, COLLECTIONS.LOGS), {
             timestamp: new Date().toISOString(),
             level: 'error',
             module: moduleName || 'Unknown',
-            message: error?.message || String(error || 'Unknown Error'),
-            stack: error?.stack || null,
+            message: errorMessage,
+            stack: errorStack,
             username: user?.username || 'Guest',
             userId: user?.id || 'anonymous',
             context: context || null,
             createdAt: serverTimestamp()
         });
     } catch (e) {
-        // Fallback to console if logging fails
+        // Absolute fallback to prevent recursion in error handling
         console.error("Critical: Logger Failure", e, "Original Error:", error);
     }
 };
@@ -72,9 +76,14 @@ export const logError = async (error: Error | any, moduleName: string, context?:
  * Real-time listener for logs (for settings dashboard).
  */
 export const onLogsUpdate = (callback: (logs: SystemLog[]) => void) => {
-    const { db } = getFirebase();
-    const q = query(collection(db, COLLECTIONS.LOGS), orderBy('createdAt', 'desc'), limit(50));
-    return onSnapshot(q, (snapshot) => {
-        callback(snapshot.docs.map(fromFirestore));
-    });
+    try {
+        const { db } = getFirebase();
+        const q = query(collection(db, COLLECTIONS.LOGS), orderBy('createdAt', 'desc'), limit(50));
+        return onSnapshot(q, (snapshot) => {
+            callback(snapshot.docs.map(fromFirestore));
+        });
+    } catch (e) {
+        console.error("Failed to subscribe to logs", e);
+        return () => {};
+    }
 };
