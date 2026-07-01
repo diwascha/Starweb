@@ -1,29 +1,35 @@
 'use client';
 /**
- * @fileOverview Root Firebase Client Provider with error listener integration.
+ * @fileOverview Optimized root Firebase Client Provider.
+ * Initializing services at the module level to avoid delays in the component lifecycle.
  */
 
-import { useState, useEffect, ReactNode } from 'react';
+import { useState, useEffect, ReactNode, useMemo } from 'react';
 import { FirebaseProvider } from './provider';
 import { getFirebase } from '@/lib/firebase';
 import { Toaster } from '@/components/ui/toaster';
 import { FirebaseErrorListener } from '@/components/firebase-error-listener';
 
+// Initialize Firebase services immediately at the module level for faster access.
+// The getFirebase() utility is idempotent and safe to call here.
+const firebaseServices = getFirebase();
+
 export function FirebaseClientProvider({ children }: { children: ReactNode }) {
-    const [isClient, setIsClient] = useState(false);
-    const [firebaseServices, setFirebaseServices] = useState<ReturnType<typeof getFirebase> | null>(null);
+    const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
-        setIsClient(true);
-        // Initialize Firebase here, once, on the client.
-        setFirebaseServices(getFirebase());
+        // Delay children rendering until after hydration to prevent mismatch.
+        setIsMounted(true);
     }, []);
 
-    if (!isClient || !firebaseServices) {
+    if (!isMounted) {
+        // Render a lightweight placeholder during the initial hydration phase.
         return (
-            <div className="flex h-screen items-center justify-center">
+            <div className="flex h-screen items-center justify-center bg-background">
                 <div className="flex flex-col items-center gap-2">
-                    <p className="text-sm font-medium animate-pulse">Initializing Services...</p>
+                    <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase animate-pulse">
+                        Initializing StarSutra...
+                    </p>
                 </div>
             </div>
         );
@@ -31,7 +37,7 @@ export function FirebaseClientProvider({ children }: { children: ReactNode }) {
 
     return (
         <FirebaseProvider {...firebaseServices}>
-            {/* The listener re-throws errors to be caught by Next.js error segments or ErrorBoundary */}
+            {/* Re-throw Firebase errors into the React tree for boundary handling */}
             <FirebaseErrorListener />
             {children}
             <Toaster />

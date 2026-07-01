@@ -1,23 +1,36 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { trackPageVisit } from '@/services/usage-service';
 import { useAuth } from '@/hooks/use-auth';
 import { getNormalizedPath } from '@/lib/utils';
 
+/**
+ * @fileOverview Performance-optimized usage tracker.
+ * Avoids redundant tracking and ensures non-blocking execution.
+ */
 export function UsageTracker() {
   const pathname = usePathname();
   const { user } = useAuth();
+  const lastTrackedPath = useRef<string | null>(null);
 
   useEffect(() => {
-    // Normalize path to prevent duplicates like /settings vs /settings/
     const normalizedPath = getNormalizedPath(pathname);
     
-    // Only track if a user is logged in and it's not the login page 
-    // or the root redirect gateway (/) to keep analytics meaningful.
-    if (user && normalizedPath !== '/login' && normalizedPath !== '/') {
-      trackPageVisit(normalizedPath);
+    // Only track if logged in, not on gateway pages, and the path has actually changed.
+    if (user && normalizedPath !== '/login' && normalizedPath !== '/' && normalizedPath !== lastTrackedPath.current) {
+      lastTrackedPath.current = normalizedPath;
+      
+      // Fire-and-forget tracking to avoid blocking any UI processes.
+      // Small timeout ensures tracking happens after critical render path.
+      const timer = setTimeout(() => {
+        trackPageVisit(normalizedPath).catch(() => {
+            // Silently ignore tracking failures to maintain UX performance
+        });
+      }, 500);
+      
+      return () => clearTimeout(timer);
     }
   }, [pathname, user]);
 
