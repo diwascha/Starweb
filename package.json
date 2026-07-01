@@ -9,7 +9,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
   },
   "dependencies": {
     "@genkit-ai/google-genai": "^1.28.0",
@@ -61,10 +64,10 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^1.6.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@types/recharts": "^1.8.29",
     "cross-env": "^7.0.3",
     "eslint": "^9.0.0",
     "eslint-config-next": "15.1.6",
@@ -77,6 +80,11 @@
     "ajv": "6.12.6",
     "@emnapi/runtime": "1.7.1",
     "minimatch": "3.1.2",
-    "js-yaml": "4.1.0"
+    "js-yaml": "4.1.0",
+    "debug": "4.4.0",
+    "semver": "7.6.3",
+    "resolve": "2.0.0-next.5",
+    "es-object-atoms": "1.1.1",
+    "hasown": "2.0.2"
   }
 }
