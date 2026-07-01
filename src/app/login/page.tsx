@@ -65,7 +65,6 @@ export default function LoginPage() {
     const today = format(new Date(), 'yyyy-MM-dd');
 
     if (lastBackupDate !== today) {
-        console.log('Performing automatic daily backup...');
         try {
             const data = await exportData();
             const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(data, null, 2))}`;
@@ -76,16 +75,10 @@ export default function LoginPage() {
             localStorage.setItem('lastAutoBackupDate', today);
             toast({
                 title: "Automatic Backup",
-                description: `Backup file "starsutra-backup-auto-${today}.json" saved to your Downloads.`,
-                duration: 8000
+                description: `Backup file saved.`,
             });
         } catch (error) {
             console.error("Automatic backup failed:", error);
-            toast({
-                title: "Auto-Backup Failed",
-                description: "Could not create automatic backup.",
-                variant: "destructive",
-            });
         }
     }
   };
@@ -98,7 +91,7 @@ export default function LoginPage() {
         const adminCreds = getAdminCredentials();
         if (data.password === adminCreds.password) {
             await login({ username: 'Administrator', id: 'admin', permissions: {}}, true);
-            toast({ title: 'Success', description: 'Admin logged in successfully. Redirecting...' });
+            toast({ title: 'Success', description: 'Admin logged in successfully.' });
             await handleDailyBackup();
         } else {
             toast({ title: 'Login Failed', description: 'Invalid username or password.', variant: 'destructive'});
@@ -118,25 +111,13 @@ export default function LoginPage() {
         await login(localUser, false);
       }
 
-      toast({ title: 'Success', description: 'Logged in successfully. Redirecting...' });
+      toast({ title: 'Success', description: 'Logged in successfully.' });
       await handleDailyBackup();
       
     } catch (error: any) {
-      let errorMessage = 'An unknown error occurred.';
+      let errorMessage = 'Invalid username or password.';
       if (error && error.code) {
-        switch (error.code) {
-          case AuthErrorCodes.INVALID_PASSWORD:
-          case AuthErrorCodes.INVALID_EMAIL:
-          case 'auth/invalid-credential':
-             errorMessage = 'Invalid username or password.';
-             break;
-          case AuthErrorCodes.USER_DELETED:
-             errorMessage = 'This user account has been deleted.';
-             break;
-          default:
-             errorMessage = 'Login failed. Please check your credentials and try again.';
-             break;
-        }
+          if (error.code === AuthErrorCodes.USER_DELETED) errorMessage = 'User deleted.';
       }
       toast({
         title: 'Login Failed',

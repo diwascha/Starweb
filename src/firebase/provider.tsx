@@ -1,4 +1,3 @@
-
 'use client';
 
 import { createContext, useContext, ReactNode, useState, useEffect } from 'react';
@@ -14,7 +13,7 @@ interface FirebaseContextType {
     auth: Auth;
     db: Firestore;
     storage: FirebaseStorage;
-    rtdb: Database;
+    rtdb?: Database;
     isConnected: boolean;
 }
 
@@ -28,14 +27,23 @@ export const FirebaseProvider = ({ children, app, auth, db, storage, rtdb }: Fir
     const [isConnected, setIsConnected] = useState(true);
 
     useEffect(() => {
-        const connectedRef = ref(rtdb, '.info/connected');
-        const listener = onValue(connectedRef, (snap) => {
-            setIsConnected(snap.val() === true);
-        });
+        // If RTDB failed to initialize in the service layer, skip the connection listener
+        if (!rtdb) return;
+        
+        try {
+            const connectedRef = ref(rtdb, '.info/connected');
+            const listener = onValue(connectedRef, (snap) => {
+                setIsConnected(snap.val() === true);
+            }, (err) => {
+                console.warn("Connection status listener failed:", err);
+            });
 
-        return () => {
-            off(connectedRef, 'value', listener);
-        };
+            return () => {
+                off(connectedRef, 'value', listener);
+            };
+        } catch (e) {
+            console.warn("Failed to attach connection listener:", e);
+        }
     }, [rtdb]);
 
     return (
