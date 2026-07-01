@@ -33,7 +33,7 @@ export function FirebaseClientProvider({ children }: { children: ReactNode }) {
                 <div className="flex flex-col items-center gap-3">
                     <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
                     <p className="text-xs font-bold tracking-widest text-muted-foreground uppercase">
-                        Starting StarSutra...
+                        INITIALIZING...
                     </p>
                 </div>
             </div>
