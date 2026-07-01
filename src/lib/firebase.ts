@@ -5,7 +5,7 @@ import { getAuth, Auth } from 'firebase/auth';
 import { getDatabase, Database } from 'firebase/database';
 import { firebaseConfig } from "@/firebase/config";
 
-// This function ensures Firebase is initialized only once.
+// Idempotent Firebase initialization helper
 export const getFirebase = () => {
   let app: FirebaseApp;
 
@@ -18,7 +18,9 @@ export const getFirebase = () => {
   const auth = getAuth(app);
   const db = getFirestore(app);
   const storage = getStorage(app);
-  const rtdb = getDatabase(app, "https://testreportgen-default-rtdb.asia-southeast1.firebasedatabase.app");
+  
+  // Initialize RTDB using the default URL from the config
+  const rtdb = getDatabase(app);
 
   return { app, db, storage, auth, rtdb };
 };
