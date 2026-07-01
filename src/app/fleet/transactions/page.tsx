@@ -20,6 +20,7 @@ import {
   Printer,
   Eye,
   Download,
+  Edit,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
@@ -112,7 +113,7 @@ const SearchableMultiSelect = ({ label, values, onSelect, items, placeholder, ic
                                 </CommandItem>
                                 {items.map((item: any) => (
                                     <CommandItem key={item.id} value={item.name} onSelect={() => toggleItem(item.id)}>
-                                        <Check className={cn("mr-2 h-4 w-4", values.includes(item.id) ? "opacity-100" : "opacity-0")} />
+                                        <Check className={cn("mr-2 h-4 w-4", values.includes(id) ? "opacity-100" : "opacity-0")} />
                                         {item.name}
                                     </CommandItem>
                                 ))}
@@ -596,7 +597,22 @@ export default function FleetTransactionsPage() {
                                         <TableCell className="text-right font-bold text-red-500">{entry.debit > 0 ? entry.debit.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '-'}</TableCell>
                                         <TableCell className="text-right font-bold text-emerald-600">{entry.credit > 0 ? entry.credit.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '-'}</TableCell>
                                         <TableCell className="text-right font-black tabular-nums">
-                                            {Math.abs(entry.balance).toLocaleString(undefined, { minimumFractionDigits: 2 })} {entry.balance >= 0 ? 'Dr' : 'Cr'}
+                                            <div className="flex items-center justify-end gap-2 group/balance">
+                                                <span>
+                                                    {Math.abs(entry.balance).toLocaleString(undefined, { minimumFractionDigits: 2 })} {entry.balance >= 0 ? 'Dr' : 'Cr'}
+                                                </span>
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="icon" 
+                                                    className="h-6 w-6 opacity-0 group-hover/balance:opacity-100 transition-opacity"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        router.push(entry.voucherId ? `/fleet/transactions/payment-receipt/edit?voucherId=${entry.voucherId}` : `/fleet/transactions/purchase/edit?id=${entry.id}`);
+                                                    }}
+                                                >
+                                                    <Edit className="h-3 w-3" />
+                                                </Button>
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))}
