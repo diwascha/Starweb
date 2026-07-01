@@ -3,26 +3,28 @@
  * @fileOverview Root Firebase Client Provider with simplified, resilient initialization.
  */
 
-import { useState, useEffect, ReactNode } from 'react';
+import { useState, useEffect, ReactNode, useMemo } from 'react';
 import { FirebaseProvider } from './provider';
 import { getFirebase } from '@/lib/firebase';
 import { Toaster } from '@/components/ui/toaster';
 import { FirebaseErrorListener } from '@/components/firebase-error-listener';
 
 export function FirebaseClientProvider({ children }: { children: ReactNode }) {
-    const [firebaseServices, setFirebaseServices] = useState<any>(null);
-    const [initError, setInitError] = useState<boolean>(false);
+    const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
-        // Safe client-side initialization after component mount
+        setIsMounted(true);
+    }, []);
+
+    const firebaseServices = useMemo(() => {
+        if (!isMounted) return null;
         try {
-            const services = getFirebase();
-            setFirebaseServices(services);
+            return getFirebase();
         } catch (error) {
             console.error("Critical: Firebase boot failed", error);
-            setInitError(true);
+            return null;
         }
-    }, []);
+    }, [isMounted]);
 
     // While initializing, show a simple, stable loader
     if (!firebaseServices) {
@@ -31,7 +33,7 @@ export function FirebaseClientProvider({ children }: { children: ReactNode }) {
                 <div className="flex flex-col items-center gap-3">
                     <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
                     <p className="text-xs font-bold tracking-widest text-muted-foreground uppercase">
-                        {initError ? 'System Error - Please Refresh' : 'System Booting...'}
+                        Starting StarSutra...
                     </p>
                 </div>
             </div>
