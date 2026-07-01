@@ -24,4 +24,4 @@ custom-protocol = ["tauri/custom-protocol"]
 
 [[bin]]
 name = "starsutra"
-path = "src/main.rs"
+path = "src/main.rs" 
