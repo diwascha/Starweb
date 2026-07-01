@@ -36,7 +36,7 @@ export default function VoucherViewClient({
   const router = useRouter();
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(defaultCompanyProfile);
-  const transaction = initialTransactions[0]; // The main transaction details
+  const transaction = initialTransactions?.[0]; // Safe access to the main transaction details
 
   useEffect(() => {
     const unsub = onSettingUpdate('fleetCompanyProfile', (s) => {
@@ -52,6 +52,7 @@ export default function VoucherViewClient({
   };
 
   const handleSaveAsPdf = async () => {
+    if (!transaction) return;
     setIsGeneratingPdf(true);
     const printableArea = document.querySelector('.printable-area') as HTMLElement;
     if (!printableArea) {
@@ -69,7 +70,7 @@ export default function VoucherViewClient({
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`Voucher-${transaction.items[0]?.particular}.pdf`);
+      pdf.save(`Voucher-${transaction.items?.[0]?.particular || 'Voucher'}.pdf`);
     } catch (error) {
       console.error("Error generating PDF", error);
     } finally {
@@ -77,7 +78,16 @@ export default function VoucherViewClient({
     }
   };
   
-  const voucherNo = transaction.items[0]?.particular.replace(/ .*/,'') || 'N/A';
+  if (!transaction) {
+    return (
+        <div className="p-8 text-center">
+            <p className="text-muted-foreground">Voucher data not available.</p>
+            <Button variant="link" onClick={() => router.back()}>Go Back</Button>
+        </div>
+    );
+  }
+
+  const voucherNo = transaction.items?.[0]?.particular?.replace(/ .*/,'') || 'N/A';
 
   return (
     <>
