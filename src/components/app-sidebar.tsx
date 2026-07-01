@@ -88,7 +88,7 @@ function ConnectionStatusIndicator() {
   const isConnected = user?.is_admin ? true : isFirebaseConnected;
 
   return (
-    <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+    <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground shrink-0">
       {isConnected ? (
         <>
           <span className="relative flex h-2 w-2">
@@ -498,8 +498,8 @@ export function AppSidebar() {
             )}
         </SidebarMenu>
         <SidebarSeparator />
-         <div className="flex flex-col gap-2 p-2 text-sm">
-            <p className="font-medium text-sidebar-foreground truncate">{user.username}</p>
+         <div className="flex items-center justify-between gap-2 p-2 text-sm group-data-[collapsible=icon]:hidden">
+            <p className="font-medium text-sidebar-foreground truncate flex-1">{user.username}</p>
             <ConnectionStatusIndicator />
          </div>
         <SidebarMenuItem>
