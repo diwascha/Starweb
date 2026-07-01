@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -10,7 +9,7 @@ import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { DateRange } from "react-day-picker"
-import { addDay, isAfter, isBefore, isEqual, startOfDay } from "date-fns"
+import { addDays, isAfter, isBefore, isEqual, startOfDay } from "date-fns"
 
 const nepaliMonths = [
   "Baishakh", "Jestha", "Ashadh", "Shrawan", "Bhadra", "Ashwin",
