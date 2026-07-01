@@ -103,7 +103,13 @@ const SearchableMultiSelect = ({ label, values, onSelect, items, placeholder, ic
                 </PopoverTrigger>
                 <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
                     <Command>
-                        <CommandInput placeholder={`Search ${placeholder.toLowerCase()}...`} />
+                        <div className="flex items-center border-b px-3" cmdk-input-wrapper="">
+                            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                            <input 
+                                placeholder={`Search ${placeholder.toLowerCase()}...`} 
+                                className="flex h-9 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                            />
+                        </div>
                         <CommandList>
                             <CommandEmpty>No results found.</CommandEmpty>
                             <CommandGroup>
@@ -113,7 +119,7 @@ const SearchableMultiSelect = ({ label, values, onSelect, items, placeholder, ic
                                 </CommandItem>
                                 {items.map((item: any) => (
                                     <CommandItem key={item.id} value={item.name} onSelect={() => toggleItem(item.id)}>
-                                        <Check className={cn("mr-2 h-4 w-4", values.includes(id) ? "opacity-100" : "opacity-0")} />
+                                        <Check className={cn("mr-2 h-4 w-4", values.includes(item.id) ? "opacity-100" : "opacity-0")} />
                                         {item.name}
                                     </CommandItem>
                                 ))}
@@ -604,7 +610,7 @@ export default function FleetTransactionsPage() {
                                                 <Button 
                                                     variant="ghost" 
                                                     size="icon" 
-                                                    className="h-6 w-6 opacity-0 group-hover/balance:opacity-100 transition-opacity"
+                                                    className="h-3 w-3 opacity-0 group-hover/balance:opacity-100 transition-opacity"
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         router.push(entry.voucherId ? `/fleet/transactions/payment-receipt/edit?voucherId=${entry.voucherId}` : `/fleet/transactions/purchase/edit?id=${entry.id}`);
