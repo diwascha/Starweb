@@ -11,13 +11,11 @@ import {
   Edit, 
   FilterX, 
   CalendarIcon, 
-  FileSpreadsheet, 
-  FileText,
   Loader2,
-  Wallet,
-  Eye,
   Check,
-  ChevronDown
+  ChevronDown,
+  Users,
+  Truck
 } from 'lucide-react';
 import type { Vehicle, Party } from '@/lib/types';
 import type { Expense } from '@/lib/expense-types';
@@ -43,9 +41,75 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from '@/hooks/use-toast';
 import NepaliDate from 'nepali-date-converter';
 import { NEPALI_MONTHS } from '@/lib/constants';
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 type SortKey = 'date' | 'voucherNo' | 'amount' | 'expenseType';
 type SortDirection = 'asc' | 'desc';
+
+// Helper component for multi-select with "All" support
+const MultiSelect = ({ label, values, onSelect, items, placeholder, icon: Icon }: any) => {
+    const isAll = values.length === 0;
+
+    const toggleItem = (id: string) => {
+        if (id === 'All') {
+            onSelect([]);
+            return;
+        }
+        const next = values.includes(id)
+            ? values.filter((v: string) => v !== id)
+            : [...values, id];
+        onSelect(next);
+    };
+
+    const displayText = isAll
+        ? `All ${placeholder}s`
+        : values.length === 1
+            ? items.find((i: any) => String(i.id) === String(values[0]))?.name || values[0]
+            : `${values.length} ${placeholder}s Selected`;
+
+    return (
+        <div className="space-y-1.5 flex-1 min-w-[160px]">
+            <Label className="text-[10px] uppercase font-bold text-muted-foreground">{label}</Label>
+            <Popover>
+                <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-between h-9 bg-white border-gray-200 shadow-none font-normal text-xs px-3 text-left">
+                        <div className="flex items-center gap-2 overflow-hidden text-left">
+                            {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+                            <span className="truncate">{displayText}</span>
+                        </div>
+                        <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="p-0 w-[200px]" align="start">
+                    <Command>
+                        <div className="flex items-center border-b px-3" cmdk-input-wrapper="">
+                            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                            <input 
+                                placeholder={`Search ${placeholder.toLowerCase()}...`} 
+                                className="flex h-9 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                            />
+                        </div>
+                        <CommandList>
+                            <CommandEmpty>No results found.</CommandEmpty>
+                            <CommandGroup>
+                                <CommandItem value="All" onSelect={() => toggleItem('All')} className="text-xs">
+                                    <Check className={cn("mr-2 h-3.5 w-3.5", isAll ? "opacity-100" : "opacity-0")} />
+                                    All {placeholder}s
+                                </CommandItem>
+                                {items.map((item: any) => (
+                                    <CommandItem key={item.id} value={item.name} onSelect={() => toggleItem(String(item.id))} className="text-xs">
+                                        <Check className={cn("mr-2 h-3.5 w-3.5", values.includes(String(item.id)) ? "opacity-100" : "opacity-0")} />
+                                        {item.name}
+                                    </CommandItem>
+                                ))}
+                            </CommandGroup>
+                        </CommandList>
+                    </Command>
+                </PopoverContent>
+            </Popover>
+        </div>
+    );
+};
 
 export default function ExpenseLogsPage() {
     const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -57,7 +121,8 @@ export default function ExpenseLogsPage() {
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [filterBsYears, setFilterBsYears] = useState<string[]>([]);
     const [filterBsMonths, setFilterBsMonths] = useState<string[]>([]);
-    const [filterVehicleId, setFilterVehicleId] = useState<string>('All');
+    const [filterVehicleIds, setFilterVehicleIds] = useState<string[]>([]);
+    const [filterPartyIds, setFilterPartyIds] = useState<string[]>([]);
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
 
     const { toast } = useToast();
@@ -125,7 +190,13 @@ export default function ExpenseLogsPage() {
             });
         }
         
-        if (filterVehicleId !== 'All') filtered = filtered.filter(e => e.vehicleId === filterVehicleId);
+        if (filterVehicleIds.length > 0) {
+            filtered = filtered.filter(e => filterVehicleIds.includes(e.vehicleId));
+        }
+
+        if (filterPartyIds.length > 0) {
+            filtered = filtered.filter(e => e.partyId && filterPartyIds.includes(e.partyId));
+        }
         
         filtered.sort((a, b) => {
             const aVal = a[sortConfig.key] || '';
@@ -136,7 +207,7 @@ export default function ExpenseLogsPage() {
         });
 
         return filtered;
-    }, [expenses, searchQuery, dateRange, filterBsYears, filterBsMonths, sortConfig, filterVehicleId, vehiclesById]);
+    }, [expenses, searchQuery, dateRange, filterBsYears, filterBsMonths, filterVehicleIds, filterPartyIds, sortConfig, vehiclesById]);
 
     const handleDelete = async (id: string) => {
         try {
@@ -159,8 +230,18 @@ export default function ExpenseLogsPage() {
         setDateRange(undefined);
         setFilterBsYears([]);
         setFilterBsMonths([]);
-        setFilterVehicleId('All');
+        setFilterVehicleIds([]);
+        setFilterPartyIds([]);
     };
+
+    const isFiltered = useMemo(() => {
+        return searchQuery !== '' || 
+               !!dateRange || 
+               filterBsYears.length > 0 || 
+               filterBsMonths.length > 0 || 
+               filterVehicleIds.length > 0 ||
+               filterPartyIds.length > 0;
+    }, [searchQuery, dateRange, filterBsYears, filterBsMonths, filterVehicleIds, filterPartyIds]);
 
     return (
         <div className="flex flex-col gap-8">
@@ -183,39 +264,59 @@ export default function ExpenseLogsPage() {
             </header>
 
             <div className="bg-muted/20 p-4 rounded-lg border border-dashed flex flex-wrap gap-4 items-end">
-                <div className="space-y-1.5 w-[120px]">
-                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Year (BS)</Label>
-                    <Select value={filterBsYears[0] || 'All'} onValueChange={v => setFilterBsYears(v === 'All' ? [] : [v])}>
-                        <SelectTrigger className="bg-white h-9 text-xs"><SelectValue placeholder="All" /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="All">All Years</SelectItem>
-                            {availableYears.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
+                <MultiSelect 
+                    label="Year (BS)" 
+                    values={filterBsYears} 
+                    onSelect={setFilterBsYears} 
+                    items={availableYears.map(y => ({ id: String(y), name: String(y) }))} 
+                    placeholder="Year" 
+                />
+                <MultiSelect 
+                    label="Month (BS)" 
+                    values={filterBsMonths} 
+                    onSelect={setFilterBsMonths} 
+                    items={NEPALI_MONTHS.map(m => ({ id: String(m.value), name: m.name }))} 
+                    placeholder="Month" 
+                />
+                <MultiSelect 
+                    label="Vehicle" 
+                    values={filterVehicleIds} 
+                    onSelect={setFilterVehicleIds} 
+                    items={vehicles} 
+                    placeholder="Vehicle" 
+                    icon={Truck}
+                />
+                <MultiSelect 
+                    label="Party / Supplier" 
+                    values={filterPartyIds} 
+                    onSelect={setFilterPartyIds} 
+                    items={parties.filter(p => p.ownership === 'Sijan' || p.ownership === 'Both')} 
+                    placeholder="Party" 
+                    icon={Users}
+                />
+                <div className="space-y-1.5 w-full md:w-[180px]">
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">AD Range</Label>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button variant="outline" className={cn("w-full h-9 justify-start text-left font-normal bg-white text-xs px-3", !dateRange && "text-muted-foreground")}>
+                                <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                                <span className="truncate">
+                                    {dateRange?.from ? (
+                                        dateRange.to ? `${format(dateRange.from, "MMM d")} - ${format(dateRange.to, "MMM d")}` : format(dateRange.from, "MMM d")
+                                    ) : 'Pick AD Range'}
+                                </span>
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                            <DualDateRangePicker selected={dateRange} onSelect={setDateRange} />
+                        </PopoverContent>
+                    </Popover>
                 </div>
-                <div className="space-y-1.5 w-[150px]">
-                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Month (BS)</Label>
-                    <Select value={filterBsMonths[0] || 'All'} onValueChange={v => setFilterBsMonths(v === 'All' ? [] : [v])}>
-                        <SelectTrigger className="bg-white h-9 text-xs"><SelectValue placeholder="All" /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="All">All Months</SelectItem>
-                            {NEPALI_MONTHS.map(m => <SelectItem key={m.value} value={String(m.value)}>{m.name}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                </div>
-                <div className="space-y-1.5 w-[200px]">
-                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Vehicle</Label>
-                    <Select value={filterVehicleId} onValueChange={setFilterVehicleId}>
-                        <SelectTrigger className="bg-white h-9 text-xs"><SelectValue placeholder="All" /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="All">All Vehicles</SelectItem>
-                            {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                </div>
-                <Button variant="ghost" size="sm" onClick={handleClearFilters} className="text-muted-foreground h-9 px-2 text-xs">
-                    <FilterX className="mr-2 h-3.5 w-3.5" /> Reset
-                </Button>
+                {isFiltered && (
+                    <Button variant="ghost" size="sm" onClick={handleClearFilters} className="text-muted-foreground h-9 px-2 text-xs">
+                        <FilterX className="mr-2 h-3.5 w-3.5" /> Reset
+                    </Button>
+                )}
             </div>
 
             <Card>
