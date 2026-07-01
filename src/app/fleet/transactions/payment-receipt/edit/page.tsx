@@ -70,7 +70,7 @@ function EditVoucherComponent() {
         try {
             await updateVoucher(voucherId, values, user.username);
             toast({ title: 'Success', description: 'Voucher updated successfully.' });
-            router.push('/fleet/transactions/payment-receipt/new');
+            router.push('/fleet/transactions/payment-receipt/list');
         } catch (error) {
             console.error('Failed to update voucher:', error);
             toast({ title: 'Error', description: 'Could not update voucher.', variant: 'destructive' });
@@ -93,7 +93,7 @@ function EditVoucherComponent() {
             vehicles={vehicles}
             transactions={allTransactions}
             onFormSubmit={handleFormSubmit}
-            onCancel={() => router.push('/fleet/transactions/payment-receipt/new')}
+            onCancel={() => router.push('/fleet/transactions/payment-receipt/list')}
             initialValues={initialValues}
         />
     );

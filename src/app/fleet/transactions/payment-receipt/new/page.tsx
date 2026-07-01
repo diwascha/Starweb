@@ -57,7 +57,7 @@ export default function NewPaymentReceiptPage() {
         try {
             await saveVoucher(values, user.username);
             toast({ title: "Voucher Saved", description: "The voucher has been successfully recorded." });
-            router.push('/fleet/transactions'); // Return to transaction history
+            router.push('/fleet/transactions/payment-receipt/list'); // Return to voucher logs
         } catch (error) {
             console.error("Failed to save voucher:", error);
             toast({ title: "Error", description: "Failed to save voucher.", variant: "destructive" });
@@ -73,15 +73,15 @@ export default function NewPaymentReceiptPage() {
             <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
                     <div className="flex items-center gap-2 mb-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => router.back()}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => router.push('/fleet/transactions/payment-receipt/list')}>
                             <ArrowLeft className="h-4 w-4" />
                         </Button>
                         <h1 className="text-3xl font-bold tracking-tight">New Payment / Receipt</h1>
                     </div>
                     <p className="text-muted-foreground ml-10">Record a settlement, maintenance payment, or renewal fee.</p>
                 </div>
-                <Button variant="outline" onClick={() => router.push('/fleet/transactions')}>
-                    <History className="mr-2 h-4 w-4" /> Transaction History
+                <Button variant="outline" onClick={() => router.push('/fleet/transactions/payment-receipt/list')}>
+                    <History className="mr-2 h-4 w-4" /> Pmt. / Rcd. logs
                 </Button>
             </header>
             
@@ -92,7 +92,7 @@ export default function NewPaymentReceiptPage() {
                     vehicles={vehicles}
                     transactions={transactions}
                     onFormSubmit={handleFormSubmit}
-                    onCancel={() => router.back()}
+                    onCancel={() => router.push('/fleet/transactions/payment-receipt/list')}
                     initialValues={{ voucherNo: nextVoucherNum }}
                 />
             </Suspense>

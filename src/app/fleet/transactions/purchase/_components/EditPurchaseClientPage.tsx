@@ -1,4 +1,3 @@
-
 'use client';
 import { PurchaseForm } from '../../_components/purchase-form';
 import { useRouter } from 'next/navigation';
@@ -54,7 +53,7 @@ export default function EditPurchaseClientPage({ accounts, parties, vehicles, uo
         try {
             await updateTransaction(transactionId, transactionData);
             toast({ title: 'Success', description: 'Purchase transaction updated.' });
-            router.push('/fleet/transactions/purchase/new');
+            router.push('/fleet/transactions/purchase');
         } catch (error) {
              console.error("Failed to update transaction:", error);
              toast({ title: 'Error', description: 'Failed to update transaction.', variant: 'destructive' });
@@ -70,7 +69,7 @@ export default function EditPurchaseClientPage({ accounts, parties, vehicles, uo
             vehicles={vehicles}
             uoms={uoms}
             onFormSubmit={handleFormSubmit}
-            onCancel={() => router.push('/fleet/transactions/purchase/new')}
+            onCancel={() => router.push('/fleet/transactions/purchase')}
             initialValues={initialValues}
         />
     );
