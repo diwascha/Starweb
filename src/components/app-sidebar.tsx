@@ -43,7 +43,8 @@ import {
   PanelRight, 
   Receipt, 
   Briefcase,
-  ChevronRight
+  ChevronRight,
+  Home
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -458,6 +459,35 @@ export function AppSidebar() {
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/transactions/expenses', true)}><Link href="/fleet/transactions/expenses"><Wallet className="h-4 w-4" /><span>Expense Logs</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/transactions/payment-receipt/list', true)}><Link href="/fleet/transactions/payment-receipt/list"><Receipt className="h-4 w-4" /><span>Pmt. / Rcd. logs</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/fleet/transactions', true)}><Link href="/fleet/transactions"><CreditCard className="h-4 w-4" /><span>Sijan Reports</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                            </SidebarMenuSub>
+                        </CollapsibleContent>
+                    </SidebarMenuItem>
+                </SidebarMenu>
+            </Collapsible>
+        )}
+
+        {hasPermission('rental', 'view') && (
+            <Collapsible asChild defaultOpen={getIsActive('/rental')} className="group/collapsible">
+                <SidebarMenu>
+                    <SidebarSeparator />
+                    <SidebarMenuItem>
+                        <CollapsibleTrigger asChild>
+                            <SidebarMenuButton tooltip="Rental Management" isActive={getIsActive('/rental')}>
+                                <Home />
+                                <span>Rental Management</span>
+                                <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                            </SidebarMenuButton>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                            <SidebarMenuSub>
+                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/rental', true)}><Link href="/rental"><span>Dashboard</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/rental/properties')}><Link href="/rental/properties"><span>Properties</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/rental/units')}><Link href="/rental/units"><span>Units</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/rental/tenants')}><Link href="/rental/tenants"><span>Tenants</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/rental/agreements')}><Link href="/rental/agreements"><span>Agreements</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/rental/billing')}><Link href="/rental/billing"><span>Rent Billing</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/rental/payments')}><Link href="/rental/payments"><span>Payments</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/rental/reports')}><Link href="/rental/reports"><span>Reports</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                             </SidebarMenuSub>
                         </CollapsibleContent>
                     </SidebarMenuItem>

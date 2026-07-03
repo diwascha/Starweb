@@ -1,4 +1,3 @@
-
 /**
  * Centralized constants for the application to ensure consistency and DRY principles.
  */
@@ -28,6 +27,10 @@ export const COLLECTIONS = {
   CHEQUES: 'cheques',
   EXPENSES: 'expenses',
   LOGS: 'logs',
+  RENTAL_PROPERTIES: 'rentalProperties',
+  RENTAL_UNITS: 'rentalUnits',
+  RENTAL_AGREEMENTS: 'rentalAgreements',
+  RENTAL_BILLS: 'rentalBills',
 } as const;
 
 export const NEPALI_MONTHS = [

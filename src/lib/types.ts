@@ -368,11 +368,11 @@ export interface PolicyOrMembership {
 export const transactionTypes = ['Purchase', 'Sales', 'Payment', 'Receipt'] as const;
 export type TransactionType = typeof transactionTypes[number];
 
-export type PartyType = 'Supplier' | 'Customer' | 'Vendor' | 'Both';
+export type PartyType = 'Supplier' | 'Customer' | 'Vendor' | 'Tenant' | 'Both';
 
 export type AccountType = 'Cash' | 'Bank';
 export type BankAccountType = 'Saving' | 'Current' | 'Over Draft';
-export type AccountOwnership = 'Sijan' | 'Shivam' | 'Both';
+export type AccountOwnership = 'Sijan' | 'Shivam' | 'Rental' | 'Both';
 
 export interface Party {
     id: string;
@@ -415,7 +415,7 @@ export type InvoiceType = 'Taxable' | 'Normal';
 export interface Transaction {
     id: string;
     purchaseNumber?: string;
-    vehicleId: string;
+    vehicleId?: string;
     date: string; // Posting Date (ISO string)
     invoiceNumber?: string | null;
     invoiceDate?: string | null;
@@ -424,15 +424,15 @@ export interface Transaction {
     chequeNumber?: string | null;
     chequeDate?: string | null;
     dueDate?: string | null;
-    partyId?: string | null; // Supplier
+    partyId?: string | null; // Supplier/Tenant
     accountId?: string | null;
     items: TransactionItem[];
     amount: number; // This will be the grand total
     remarks: string | null;
     tripId?: string; // Link to the trip
     type: TransactionType;
-    category?: string; // Category for easier auditing (Maintenance, Renewal, Peski, etc.)
-    referenceType?: string | null; // e.g. "Trip Sheet", "Expense Entry", "Voucher"
+    category?: string; // Category for easier auditing (Maintenance, Renewal, Rent, etc.)
+    referenceType?: string | null; // e.g. "Trip Sheet", "Rental Bill", "Voucher"
     referenceId?: string | null; // The ID of the source document
     voucherId?: string; // To group payment/receipt transactions
     createdBy: string;
@@ -511,7 +511,7 @@ export interface Trip {
 
 
 // RBAC Types
-export const modules = ['dashboard', 'reports', 'products', 'purchaseOrders', 'rawMaterials', 'settings', 'hr', 'fleet', 'finance', 'crm'] as const;
+export const modules = ['dashboard', 'reports', 'products', 'purchaseOrders', 'rawMaterials', 'settings', 'hr', 'fleet', 'finance', 'crm', 'rental'] as const;
 export type Module = typeof modules[number];
 
 export const actions = ['view', 'create', 'edit', 'delete'] as const;
@@ -545,7 +545,7 @@ export interface AppSetting {
     value: any;
 }
 
-export const documentTypes = ['report', 'purchaseOrder', 'sales', 'purchase', 'paymentReceipt', 'tdsVoucher', 'estimateInvoice', 'expense'] as const;
+export const documentTypes = ['report', 'purchaseOrder', 'sales', 'purchase', 'paymentReceipt', 'tdsVoucher', 'estimateInvoice', 'expense', 'rentalBill'] as const;
 export type DocumentType = typeof documentTypes[number];
 
 export interface DocumentPrefixes {
@@ -557,6 +557,7 @@ export interface DocumentPrefixes {
     tdsVoucher?: string;
     estimateInvoice?: string;
     expense?: string;
+    rentalBill?: string;
 }
 
 export const getDocumentName = (type: DocumentType): string => {
@@ -577,6 +578,8 @@ export const getDocumentName = (type: DocumentType): string => {
             return 'Estimate Invoice';
         case 'expense':
             return 'Expense Voucher';
+        case 'rentalBill':
+            return 'Rental Bill';
         default:
             return 'Document';
     }
@@ -804,4 +807,83 @@ export interface AppBranding {
   appName: string;
   appMotto: string;
   appLogoURL?: string;
+}
+
+// --- Rental Property Management Types ---
+
+export interface RentalProperty {
+  id: string;
+  name: string;
+  address: string;
+  totalUnits: number;
+  createdBy: string;
+  createdAt: string;
+  lastModifiedBy?: string;
+  lastModifiedAt?: string;
+}
+
+export type RentalUnitStatus = 'Occupied' | 'Vacant' | 'Reserved' | 'Under Maintenance';
+
+export interface RentalUnit {
+  id: string;
+  propertyId: string;
+  propertyName?: string;
+  unitNumber: string;
+  floor: string;
+  type: string; // e.g., Apartment, Shop, Warehouse
+  monthlyRent: number;
+  status: RentalUnitStatus;
+  tenantId?: string; // Link to PartyId
+  tenantName?: string;
+  outstandingBalance: number;
+  createdBy: string;
+  createdAt: string;
+  lastModifiedBy?: string;
+  lastModifiedAt?: string;
+}
+
+export type AgreementStatus = 'Active' | 'Pending' | 'Expired' | 'Terminated';
+
+export interface RentalAgreement {
+  id: string;
+  unitId: string;
+  unitNumber?: string;
+  propertyId: string;
+  propertyName?: string;
+  tenantId: string;
+  tenantName?: string;
+  monthlyRent: number;
+  securityDeposit: number;
+  billingDate: number; // Day of month (1-31)
+  lateFee: number;
+  startDate: string;
+  endDate: string;
+  status: AgreementStatus;
+  createdBy: string;
+  createdAt: string;
+  lastModifiedBy?: string;
+  lastModifiedAt?: string;
+}
+
+export type RentalBillType = 'Rent' | 'Electricity' | 'Water' | 'Internet' | 'Maintenance' | 'Parking' | 'Other';
+
+export interface RentalBill {
+  id: string;
+  agreementId: string;
+  tenantId: string;
+  tenantName: string;
+  unitId: string;
+  unitNumber: string;
+  propertyId: string;
+  propertyName: string;
+  type: RentalBillType;
+  amount: number;
+  billingMonth: number; // 0-11
+  billingYear: number;
+  dueDate: string;
+  status: 'Paid' | 'Unpaid' | 'Partial';
+  transactionId?: string; // Link to Transaction entity
+  remarks?: string;
+  createdBy: string;
+  createdAt: string;
 }
