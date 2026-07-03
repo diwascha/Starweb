@@ -21,6 +21,7 @@ import {
   Eye,
   Download,
   Edit,
+  Wallet,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
@@ -145,6 +146,7 @@ export default function FleetTransactionsPage() {
     // ERP Filter State
     const [filterParties, setFilterParties] = useState<string[]>([]);
     const [filterVehicles, setFilterVehicles] = useState<string[]>([]);
+    const [filterBillingTypes, setFilterBillingTypes] = useState<string[]>([]);
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [selectedBsYear, setSelectedBsYear] = useState<string>('All');
     const [selectedBsMonth, setSelectedBsMonth] = useState<string>('All');
@@ -183,6 +185,7 @@ export default function FleetTransactionsPage() {
     const handleResetFilters = () => {
         setFilterParties([]);
         setFilterVehicles([]);
+        setFilterBillingTypes([]);
         setDateRange(undefined);
         setSelectedBsYear('All');
         setSelectedBsMonth('All');
@@ -213,6 +216,7 @@ export default function FleetTransactionsPage() {
         const matchesNonDateFilters = (t: any) => {
             if (filterParties.length > 0 && (!t.partyId || !filterParties.includes(t.partyId))) return false;
             if (filterVehicles.length > 0 && !filterVehicles.includes(t.vehicleId)) return false;
+            if (filterBillingTypes.length > 0 && !filterBillingTypes.includes(t.billingType)) return false;
             if (filterCategory !== 'All' && t.categoryDisplay !== filterCategory.toUpperCase()) return false;
             if (globalSearch) {
                 const q = globalSearch.toLowerCase();
@@ -293,7 +297,7 @@ export default function FleetTransactionsPage() {
                 count: processed.length
             }
         };
-    }, [transactions, filterParties, filterVehicles, selectedBsYear, selectedBsMonth, dateRange, filterCategory, globalSearch, vehiclesById, partiesById]);
+    }, [transactions, filterParties, filterVehicles, filterBillingTypes, selectedBsYear, selectedBsMonth, dateRange, filterCategory, globalSearch, vehiclesById, partiesById]);
 
     const handleExport = async (type: 'excel' | 'pdf') => {
         const periodStr = dateRange?.from ? `${toNepaliDate(dateRange.from.toISOString())} - ${dateRange.to ? toNepaliDate(dateRange.to.toISOString()) : 'Present'}` : 'All Time';
@@ -378,12 +382,13 @@ export default function FleetTransactionsPage() {
     const isFiltered = useMemo(() => {
         return filterParties.length > 0 || 
                filterVehicles.length > 0 || 
+               filterBillingTypes.length > 0 ||
                !!dateRange || 
                selectedBsYear !== 'All' || 
                selectedBsMonth !== 'All' ||
                filterCategory !== 'All' || 
                globalSearch !== '';
-    }, [filterParties, filterVehicles, dateRange, selectedBsYear, selectedBsMonth, filterCategory, globalSearch]);
+    }, [filterParties, filterVehicles, filterBillingTypes, dateRange, selectedBsYear, selectedBsMonth, filterCategory, globalSearch]);
 
     return (
         <div className="flex flex-col gap-6 max-w-[1600px] mx-auto">
@@ -428,6 +433,19 @@ export default function FleetTransactionsPage() {
                         items={vehicles} 
                         placeholder="Vehicle" 
                         icon={Truck} 
+                    />
+                    
+                    <SearchableMultiSelect 
+                        label="Modes of Payment" 
+                        values={filterBillingTypes} 
+                        onSelect={setFilterBillingTypes} 
+                        items={[
+                            { id: 'Cash', name: 'Cash' },
+                            { id: 'Bank', name: 'Bank' },
+                            { id: 'Credit', name: 'Credit' }
+                        ]} 
+                        placeholder="Payment Mode" 
+                        icon={Wallet} 
                     />
                     
                     <div className="space-y-1.5 flex-1 min-w-[120px]">
