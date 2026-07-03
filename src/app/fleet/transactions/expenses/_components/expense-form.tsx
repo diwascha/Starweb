@@ -180,6 +180,8 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
         return dest?.standardAdvanceAmount || null;
     }, [watchedType, watchedDestinationName, destinations]);
 
+    const totalSettlement = watchedAmount + watchedExtraAmount;
+
     const partyBalance = useMemo(() => {
         if (!watchedPartyId) return null;
         const filteredTxns = transactions.filter(t => t.partyId === watchedPartyId);
@@ -192,15 +194,6 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
         }, { receivables: 0, payables: 0 });
         return balance;
     }, [watchedPartyId, transactions]);
-
-    const handleBalanceSplit = (type: 'cash' | 'bank') => {
-        const total = watchedAmount + watchedExtraAmount;
-        if (type === 'cash') {
-            form.setValue('cashAmount', Math.max(0, total - watchedBankAmount));
-        } else {
-            form.setValue('bankAmount', Math.max(0, total - watchedCashAmount));
-        }
-    };
 
     const onSubmit = async (values: z.infer<typeof expenseSchema>) => {
         if (!user) return;
@@ -298,8 +291,6 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
             toast({ title: 'Error deleting destination', variant: 'destructive' });
         }
     };
-
-    const totalSettlement = watchedAmount + watchedExtraAmount;
 
     return (
         <Form {...form}>
@@ -526,7 +517,16 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                                             type="number" 
                                             className="pl-10 h-10 text-base font-bold" 
                                             {...field} 
-                                            onChange={e => field.onChange(parseFloat(e.target.value) || 0)} 
+                                            onChange={e => {
+                                                const val = parseFloat(e.target.value) || 0;
+                                                field.onChange(val);
+                                                // Sync Mixed payment amounts if total changes
+                                                if (watchedMode === 'Mixed') {
+                                                    const total = val + watchedExtraAmount;
+                                                    form.setValue('cashAmount', total);
+                                                    form.setValue('bankAmount', 0);
+                                                }
+                                            }} 
                                         />
                                     </div>
                                 </FormControl>
@@ -561,8 +561,10 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                                             className="flex-1 h-10"
                                             onClick={() => {
                                                 field.onChange('Mixed');
+                                                const total = watchedAmount + watchedExtraAmount;
                                                 if (watchedCashAmount === 0 && watchedBankAmount === 0) {
-                                                    form.setValue('cashAmount', watchedAmount + watchedExtraAmount);
+                                                    form.setValue('cashAmount', total);
+                                                    form.setValue('bankAmount', 0);
                                                 }
                                             }}
                                         >
@@ -605,24 +607,38 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <FormField control={form.control} name="cashAmount" render={({ field }) => (
                                     <FormItem>
-                                        <div className="flex justify-between items-center mb-1">
-                                            <FormLabel className="text-xs">Paid by Cash</FormLabel>
-                                            <Button type="button" variant="link" size="sm" className="h-auto p-0 text-[10px]" onClick={() => handleBalanceSplit('cash')}>Set Balance</Button>
-                                        </div>
+                                        <FormLabel className="text-xs">Paid by Cash</FormLabel>
                                         <FormControl>
-                                            <Input type="number" {...field} className="h-9 font-semibold text-sm" onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />
+                                            <Input 
+                                                type="number" 
+                                                {...field} 
+                                                className="h-9 font-semibold text-sm" 
+                                                onChange={e => {
+                                                    const val = parseFloat(e.target.value) || 0;
+                                                    field.onChange(val);
+                                                    // Automatic balancing
+                                                    form.setValue('bankAmount', Math.max(0, totalSettlement - val));
+                                                }} 
+                                            />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )} />
                                 <FormField control={form.control} name="bankAmount" render={({ field }) => (
                                     <FormItem>
-                                        <div className="flex justify-between items-center mb-1">
-                                            <FormLabel className="text-xs">Paid by Bank</FormLabel>
-                                            <Button type="button" variant="link" size="sm" className="h-auto p-0 text-[10px]" onClick={() => handleBalanceSplit('bank')}>Set Balance</Button>
-                                        </div>
+                                        <FormLabel className="text-xs">Paid by Bank</FormLabel>
                                         <FormControl>
-                                            <Input type="number" {...field} className="h-9 font-semibold text-sm" onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />
+                                            <Input 
+                                                type="number" 
+                                                {...field} 
+                                                className="h-9 font-semibold text-sm" 
+                                                onChange={e => {
+                                                    const val = parseFloat(e.target.value) || 0;
+                                                    field.onChange(val);
+                                                    // Automatic balancing
+                                                    form.setValue('cashAmount', Math.max(0, totalSettlement - val));
+                                                }} 
+                                            />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -666,7 +682,16 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                                                         type="number" 
                                                         className="h-9 font-semibold text-sm" 
                                                         {...field} 
-                                                        onChange={e => field.onChange(parseFloat(e.target.value) || 0)} 
+                                                        onChange={e => {
+                                                            const val = parseFloat(e.target.value) || 0;
+                                                            field.onChange(val);
+                                                            // Sync Mixed payment amounts if total changes
+                                                            if (watchedMode === 'Mixed') {
+                                                                const total = val + watchedAmount;
+                                                                form.setValue('cashAmount', total);
+                                                                form.setValue('bankAmount', 0);
+                                                            }
+                                                        }} 
                                                     />
                                                 </FormControl>
                                             </FormItem>
