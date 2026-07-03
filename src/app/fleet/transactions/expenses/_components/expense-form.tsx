@@ -35,7 +35,8 @@ import {
     DollarSign,
     PlusIcon,
     ShieldCheck,
-    Briefcase
+    Briefcase,
+    ArrowRightLeft
 } from 'lucide-react';
 import { cn, toNepaliDate } from '@/lib/utils';
 import type { Vehicle, Party, Account, AccountOwnership, PartyType, Transaction, Destination } from '@/lib/types';
@@ -69,7 +70,9 @@ const expenseSchema = z.object({
     amount: z.number().min(1, "Amount must be positive."),
     extraAmount: z.number().optional().default(0),
     extraRemarks: z.string().optional(),
-    paymentMode: z.enum(['Cash', 'Bank']),
+    paymentMode: z.enum(['Cash', 'Bank', 'Mixed']),
+    cashAmount: z.number().optional().default(0),
+    bankAmount: z.number().optional().default(0),
     partyId: z.string().optional(),
     accountId: z.string().optional(),
     destination: z.string().optional(),
@@ -83,13 +86,20 @@ const expenseSchema = z.object({
     return true;
 }, { message: "Loan Account is required.", path: ['accountId'] })
 .refine(data => {
-    if (data.paymentMode === 'Bank') return !!data.accountId;
+    if ((data.paymentMode === 'Bank' || data.paymentMode === 'Mixed') && data.expenseType !== 'Loan Repayment') return !!data.accountId;
     return true;
-}, { message: "Bank Account is required for Bank payment.", path: ['accountId'] })
+}, { message: "Bank Account is required for Bank/Mixed payment.", path: ['accountId'] })
 .refine(data => {
     if (data.expenseType === 'Advance') return !!data.destination && data.destination.trim() !== '';
     return true;
-}, { message: "Destination is required for Advances.", path: ['destination'] });
+}, { message: "Destination is required for Advances.", path: ['destination'] })
+.refine(data => {
+    if (data.paymentMode === 'Mixed') {
+        const totalExpected = data.amount + (data.extraAmount || 0);
+        return (data.cashAmount + data.bankAmount) === totalExpected;
+    }
+    return true;
+}, { message: "Cash + Bank amount must equal Total settlement amount.", path: ['cashAmount'] });
 
 interface ExpenseFormProps {
     vehicles: Vehicle[];
@@ -135,6 +145,8 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
             partyId: expenseToEdit?.partyId || '',
             accountId: expenseToEdit?.accountId || '',
             destination: expenseToEdit?.destination || '',
+            cashAmount: expenseToEdit?.cashAmount || 0,
+            bankAmount: expenseToEdit?.bankAmount || 0,
         }
     });
 
@@ -150,6 +162,8 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
     const watchedDestinationName = form.watch('destination');
     const watchedAmount = form.watch('amount');
     const watchedExtraAmount = form.watch('extraAmount');
+    const watchedCashAmount = form.watch('cashAmount');
+    const watchedBankAmount = form.watch('bankAmount');
 
     useEffect(() => {
         const unsubDest = onDestinationsUpdate(setDestinations);
@@ -177,6 +191,15 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
         }, { receivables: 0, payables: 0 });
         return balance;
     }, [watchedPartyId, transactions]);
+
+    const handleBalanceSplit = (type: 'cash' | 'bank') => {
+        const total = watchedAmount + watchedExtraAmount;
+        if (type === 'cash') {
+            form.setValue('cashAmount', Math.max(0, total - watchedBankAmount));
+        } else {
+            form.setValue('bankAmount', Math.max(0, total - watchedCashAmount));
+        }
+    };
 
     const onSubmit = async (values: z.infer<typeof expenseSchema>) => {
         if (!user) return;
@@ -491,7 +514,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                     )} />
                 )}
 
-                {(watchedType === 'Loan Repayment' || watchedMode === 'Bank') && (
+                {(watchedType === 'Loan Repayment' || watchedMode === 'Bank' || watchedMode === 'Mixed') && (
                     <FormField control={form.control} name="accountId" render={({ field }) => (
                         <FormItem>
                             <FormLabel>{watchedType === 'Loan Repayment' ? 'Loan Account (Bank)' : 'Source Bank Account'} <span className="text-destructive">*</span></FormLabel>
@@ -550,10 +573,52 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                                     >
                                         <Building2 className="mr-2 h-4 w-4" /> Bank
                                     </Button>
+                                    <Button
+                                        type="button"
+                                        variant={field.value === 'Mixed' ? 'default' : 'outline'}
+                                        className="flex-1 h-12"
+                                        onClick={() => {
+                                            field.onChange('Mixed');
+                                            if (watchedCashAmount === 0 && watchedBankAmount === 0) {
+                                                form.setValue('cashAmount', watchedAmount + watchedExtraAmount);
+                                            }
+                                        }}
+                                    >
+                                        <ArrowRightLeft className="mr-2 h-4 w-4" /> Mixed
+                                    </Button>
                                 </div>
                             </FormItem>
                         )} />
                     </div>
+
+                    {watchedMode === 'Mixed' && (
+                        <div className="bg-blue-50/30 p-4 rounded-xl border border-blue-100 grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-top-2">
+                            <FormField control={form.control} name="cashAmount" render={({ field }) => (
+                                <FormItem>
+                                    <div className="flex justify-between items-center mb-1">
+                                        <FormLabel className="text-xs">Paid by Cash</FormLabel>
+                                        <Button type="button" variant="link" size="sm" className="h-auto p-0 text-[10px]" onClick={() => handleBalanceSplit('cash')}>Set Balance</Button>
+                                    </div>
+                                    <FormControl>
+                                        <Input type="number" {...field} className="h-10 font-semibold" onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )} />
+                            <FormField control={form.control} name="bankAmount" render={({ field }) => (
+                                <FormItem>
+                                    <div className="flex justify-between items-center mb-1">
+                                        <FormLabel className="text-xs">Paid by Bank</FormLabel>
+                                        <Button type="button" variant="link" size="sm" className="h-auto p-0 text-[10px]" onClick={() => handleBalanceSplit('bank')}>Set Balance</Button>
+                                    </div>
+                                    <FormControl>
+                                        <Input type="number" {...field} className="h-10 font-semibold" onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )} />
+                        </div>
+                    )}
 
                     {watchedType === 'Advance' && (
                         <div className="bg-muted/30 p-4 rounded-xl border border-dashed space-y-4">

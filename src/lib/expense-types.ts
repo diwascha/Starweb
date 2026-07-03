@@ -13,7 +13,9 @@ export interface Expense {
     amount: number;
     extraAmount?: number; // Added for combined payments (e.g. 5k peski + 1k maintenance)
     extraRemarks?: string; // Added to explain extra amounts
-    paymentMode: 'Cash' | 'Bank';
+    paymentMode: 'Cash' | 'Bank' | 'Mixed'; // Support for split payments
+    cashAmount?: number; // Amount paid in cash for Mixed mode
+    bankAmount?: number; // Amount paid via bank for Mixed mode
     remarks?: string;
     createdBy: string;
     createdAt: string; // ISO string

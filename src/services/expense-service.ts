@@ -36,6 +36,8 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Expense =
         extraAmount: data.extraAmount || undefined,
         extraRemarks: data.extraRemarks || undefined,
         paymentMode: data.paymentMode,
+        cashAmount: data.cashAmount || undefined,
+        bankAmount: data.bankAmount || undefined,
         remarks: data.remarks || undefined,
         createdBy: data.createdBy,
         createdAt: data.createdAt,
@@ -89,8 +91,60 @@ export const onExpensesUpdate = (callback: (expenses: Expense[]) => void): () =>
 };
 
 /**
+ * Generates transaction data for the ledger based on an expense.
+ * Handles split payments by returning multiple transactions.
+ */
+const generateLedgerTransactions = (expense: Omit<Expense, 'id'>, now: string): Omit<Transaction, 'id' | 'createdAt' | 'lastModifiedAt'>[] => {
+    const transactions: Omit<Transaction, 'id' | 'createdAt' | 'lastModifiedAt'>[] = [];
+    const baseNarrative = `${expense.voucherNo}: ${expense.expenseType}${expense.destination ? ` to ${expense.destination}` : ''}`;
+
+    const createTxn = (mode: 'Cash' | 'Bank', amt: number, specificNarration: string) => {
+        const items: TransactionItem[] = [{ particular: specificNarration, quantity: 1, rate: amt }];
+        
+        return {
+            date: expense.date,
+            vehicleId: expense.vehicleId,
+            type: 'Payment' as const,
+            amount: amt,
+            billingType: mode,
+            invoiceType: 'Normal' as const,
+            category: expense.expenseType,
+            partyId: expense.partyId || null,
+            accountId: mode === 'Bank' ? expense.accountId : null,
+            remarks: `Expense Entry: ${expense.expenseType}${expense.destination ? ` (${expense.destination})` : ''}`,
+            referenceType: "Expense Entry",
+            referenceId: expense.voucherNo,
+            items: items,
+            createdBy: expense.createdBy,
+            invoiceNumber: null,
+            invoiceDate: null,
+            chequeNumber: null,
+            chequeDate: null,
+            dueDate: null,
+            tripId: null,
+            voucherId: null,
+            lastModifiedBy: null,
+            purchaseNumber: null,
+        };
+    };
+
+    if (expense.paymentMode === 'Mixed') {
+        if ((expense.cashAmount || 0) > 0) {
+            transactions.push(createTxn('Cash', expense.cashAmount!, `${baseNarrative} (Cash Portion)`));
+        }
+        if ((expense.bankAmount || 0) > 0) {
+            transactions.push(createTxn('Bank', expense.bankAmount!, `${baseNarrative} (Bank Portion)`));
+        }
+    } else {
+        const totalAmount = expense.amount + (expense.extraAmount || 0);
+        transactions.push(createTxn(expense.paymentMode as any, totalAmount, baseNarrative));
+    }
+
+    return transactions;
+};
+
+/**
  * Adds a new expense record and automatically syncs it to the general accounting ledger.
- * ARCHITECTURE: All entries from this form are categorized as "Payment" (Outflow).
  */
 export const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>): Promise<string> => {
     const { db } = getFirebase();
@@ -107,6 +161,8 @@ export const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>)
         extraAmount: Number(expenseData.extraAmount) || 0,
         extraRemarks: expenseData.extraRemarks || null,
         paymentMode: expenseData.paymentMode,
+        cashAmount: Number(expenseData.cashAmount) || 0,
+        bankAmount: Number(expenseData.bankAmount) || 0,
         partyId: expenseData.partyId || null,
         accountId: expenseData.accountId || null,
         destination: expenseData.destination || null,
@@ -115,61 +171,21 @@ export const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>)
         createdAt: now,
     };
 
-    await setDoc(doc(getExpensesCollection(), expenseId), expenseRecord);
+    const batch = writeBatch(db);
+    batch.set(doc(getExpensesCollection(), expenseId), expenseRecord);
 
-    const totalAmount = expenseRecord.amount + expenseRecord.extraAmount;
-    
-    const items: TransactionItem[] = [
-        { 
-            particular: `${expenseRecord.voucherNo}: ${expenseRecord.expenseType}${expenseRecord.destination ? ` to ${expenseRecord.destination}` : ''}`, 
-            quantity: 1, 
-            rate: expenseRecord.amount 
-        }
-    ];
+    const ledgerTxns = generateLedgerTransactions(expenseRecord as any, now);
+    ledgerTxns.forEach(txn => {
+        const txnRef = doc(getTransactionsCollection());
+        batch.set(txnRef, { ...txn, createdAt: now, lastModifiedAt: now });
+    });
 
-    if (expenseRecord.extraAmount > 0) {
-        items.push({
-            particular: expenseRecord.extraRemarks || 'Extra Trip Charge',
-            quantity: 1,
-            rate: expenseRecord.extraAmount
-        });
-    }
-
-    const txnData: Omit<Transaction, 'id' | 'createdAt' | 'lastModifiedAt'> = {
-        date: expenseRecord.date,
-        vehicleId: expenseRecord.vehicleId,
-        type: 'Payment',
-        amount: totalAmount,
-        billingType: expenseRecord.paymentMode,
-        invoiceType: 'Normal',
-        category: expenseRecord.expenseType,
-        partyId: expenseRecord.partyId,
-        accountId: expenseRecord.accountId,
-        remarks: `Expense Entry: ${expenseRecord.expenseType}${expenseRecord.destination ? ` (${expenseRecord.destination})` : ''}`,
-        referenceType: "Expense Entry",
-        referenceId: expenseRecord.voucherNo,
-        items: items,
-        createdBy: expenseRecord.createdBy,
-        invoiceNumber: null,
-        invoiceDate: null,
-        chequeNumber: null,
-        chequeDate: null,
-        dueDate: null,
-        tripId: null,
-        voucherId: null,
-    };
-
-    try {
-        await addTransaction(txnData);
-    } catch (error) {
-        logServiceError('addExpense-transactionSync', error);
-    }
-
+    await batch.commit();
     return expenseId;
 };
 
 /**
- * Updates an expense record and its linked transaction.
+ * Updates an expense record and its linked transaction(s).
  */
 export const updateExpense = async (id: string, updates: Partial<Expense>, modifiedBy: string): Promise<void> => {
     const { db } = getFirebase();
@@ -192,49 +208,27 @@ export const updateExpense = async (id: string, updates: Partial<Expense>, modif
             lastModifiedAt: now,
         });
 
-        // 2. Update Linked Transaction
+        // 2. Refresh Ledger Entries
+        // Delete all old linked txns for this voucher
         const q = query(
             getTransactionsCollection(), 
             where("referenceType", "==", "Expense Entry"),
             where("referenceId", "==", oldData.voucherNo)
         );
         const txnSnap = await getDocs(q);
+        txnSnap.forEach(d => batch.delete(d.ref));
 
-        if (!txnSnap.empty) {
-            const txnDoc = txnSnap.docs[0];
-            const totalAmount = (Number(newData.amount) || 0) + (Number(newData.extraAmount) || 0);
-            
-            const items: TransactionItem[] = [
-                { 
-                    particular: `${newData.voucherNo}: ${newData.expenseType}${newData.destination ? ` to ${newData.destination}` : ''}`, 
-                    quantity: 1, 
-                    rate: Number(newData.amount) || 0 
-                }
-            ];
-
-            if ((Number(newData.extraAmount) || 0) > 0) {
-                items.push({
-                    particular: newData.extraRemarks || 'Extra Trip Charge',
-                    quantity: 1,
-                    rate: Number(newData.extraAmount) || 0
-                });
-            }
-
-            batch.update(txnDoc.ref, {
-                date: newData.date,
-                vehicleId: newData.vehicleId,
-                amount: totalAmount,
-                billingType: newData.paymentMode,
-                category: newData.expenseType,
-                partyId: newData.partyId || null,
-                accountId: newData.accountId || null,
-                remarks: `Expense Entry: ${newData.expenseType}${newData.destination ? ` (${newData.destination})` : ''}`,
-                items: items,
-                referenceId: newData.voucherNo,
-                lastModifiedBy: modifiedBy,
+        // Create new ones based on current data
+        const ledgerTxns = generateLedgerTransactions(newData as any, now);
+        ledgerTxns.forEach(txn => {
+            const txnRef = doc(getTransactionsCollection());
+            batch.set(txnRef, { 
+                ...txn, 
+                createdAt: oldData.createdAt, 
                 lastModifiedAt: now,
+                lastModifiedBy: modifiedBy
             });
-        }
+        });
 
         await batch.commit();
     } catch (error) {
@@ -258,7 +252,7 @@ export const deleteExpense = async (id: string): Promise<void> => {
         // 1. Delete Expense
         batch.delete(expenseSnap.ref);
 
-        // 2. Delete linked transaction
+        // 2. Delete linked transaction(s)
         const q = query(
             getTransactionsCollection(), 
             where("referenceType", "==", "Expense Entry"),
