@@ -24,7 +24,8 @@ import {
   ChevronRight,
   Loader2,
   Trash2,
-  X
+  X,
+  PlusCircle
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -542,7 +543,7 @@ export default function TenantsPage() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {transactions.filter(t => t.partyId === selectedTenant.id).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(t => (
+                                        {transactions.filter(t => t.partyId === selectedTenant.id).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map(t => (
                                             <TableRow key={t.id} className="h-12">
                                                 <TableCell className="text-gray-500 whitespace-nowrap">{toNepaliDate(t.date)}</TableCell>
                                                 <TableCell>
