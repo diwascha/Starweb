@@ -94,12 +94,12 @@ const SearchableMultiSelect = ({ label, values, onSelect, items, placeholder, ic
             <Label className="text-[11px] font-bold text-muted-foreground uppercase tracking-tight">{label}</Label>
             <Popover>
                 <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-between h-10 bg-white border-gray-200 shadow-none font-normal text-sm px-3">
+                    <Button variant="outline" className="w-full justify-between h-9 bg-white border-gray-200 shadow-none font-normal text-xs px-3">
                         <div className="flex items-center gap-2 overflow-hidden">
-                            <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
+                            <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                             <span className="truncate">{displayText}</span>
                         </div>
-                        <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
+                        <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
                     </Button>
                 </PopoverTrigger>
                 <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
@@ -475,7 +475,7 @@ export default function FleetTransactionsPage() {
                     <div className="space-y-1.5 flex-1 min-w-[120px]">
                         <Label className="text-[11px] font-bold text-muted-foreground uppercase tracking-tight">Year (BS)</Label>
                         <Select value={selectedBsYear} onValueChange={setSelectedBsYear}>
-                            <SelectTrigger className="h-10 bg-white border-gray-200 shadow-none">
+                            <SelectTrigger className="h-9 bg-white border-gray-200 shadow-none">
                                 <SelectValue placeholder="Year" />
                             </SelectTrigger>
                             <SelectContent>
@@ -490,7 +490,7 @@ export default function FleetTransactionsPage() {
                     <div className="space-y-1.5 flex-1 min-w-[140px]">
                         <Label className="text-[11px] font-bold text-muted-foreground uppercase tracking-tight">Month (BS)</Label>
                         <Select value={selectedBsMonth} onValueChange={setSelectedBsMonth}>
-                            <SelectTrigger className="h-10 bg-white border-gray-200 shadow-none">
+                            <SelectTrigger className="h-9 bg-white border-gray-200 shadow-none">
                                 <SelectValue placeholder="Month" />
                             </SelectTrigger>
                             <SelectContent>
@@ -502,20 +502,20 @@ export default function FleetTransactionsPage() {
                         </Select>
                     </div>
 
-                    <div className="space-y-1.5 flex-1 min-w-[200px]">
+                    <div className="space-y-1.5 min-w-[160px]">
                         <Label className="text-[11px] font-bold text-muted-foreground uppercase tracking-tight">AD Range</Label>
                         <Popover>
                             <PopoverTrigger asChild>
-                                <Button variant="outline" className="w-full justify-between h-10 bg-white border-gray-200 shadow-none font-normal">
-                                    <div className="flex items-center gap-2">
-                                        <CalendarIcon className="h-4 w-4 opacity-50" />
-                                        <span className="text-sm">
+                                <Button variant="outline" className="w-full justify-between h-9 bg-white border-gray-200 shadow-none font-normal text-xs px-3">
+                                    <div className="flex items-center gap-2 overflow-hidden">
+                                        <CalendarIcon className="h-3.5 w-3.5 opacity-50 shrink-0" />
+                                        <span className="truncate">
                                             {dateRange?.from ? (
                                                 dateRange.to ? `${format(dateRange.from, "MMM d")} - ${format(dateRange.to, "MMM d")}` : format(dateRange.from, "MMM d")
                                             ) : 'Pick AD Range'}
                                         </span>
                                     </div>
-                                    <ChevronDown className="h-4 w-4 opacity-50" />
+                                    <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
                                 </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0" align="start">
@@ -526,7 +526,7 @@ export default function FleetTransactionsPage() {
 
                     <div className="flex gap-2 shrink-0">
                         {isFiltered && (
-                            <Button variant="ghost" className="h-10 px-4 text-muted-foreground hover:bg-gray-50 border-dashed" onClick={handleResetFilters}>
+                            <Button variant="ghost" className="h-9 px-4 text-muted-foreground hover:bg-gray-50 border-dashed" onClick={handleResetFilters}>
                                 <FilterX className="mr-2 h-4 w-4" /> Reset
                             </Button>
                         )}
@@ -580,7 +580,7 @@ export default function FleetTransactionsPage() {
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input 
                             placeholder="Search narration, ref no..." 
-                            className="pl-9 h-10 bg-gray-50 border-gray-200 shadow-none focus-visible:bg-white text-sm"
+                            className="pl-9 h-9 bg-gray-50 border-gray-200 shadow-none focus-visible:bg-white text-sm"
                             value={globalSearch}
                             onChange={(e) => setUsageSearch(e.target.value)}
                         />
