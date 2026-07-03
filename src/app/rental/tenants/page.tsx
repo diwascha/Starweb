@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { 
   Users, 
   Search, 
@@ -34,7 +35,9 @@ import {
   Trash,
   Car,
   Wrench,
-  HelpCircle
+  HelpCircle,
+  ChevronDown,
+  FilterX
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -54,10 +57,10 @@ import {
     AlertDialogAction,
     AlertDialogCancel,
     AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
+    AlertDialogDescription,
+    AlertDialogFooter,
     AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { 
@@ -132,13 +135,13 @@ export default function TenantsPage() {
     // Obligations
     taxLiability: 'Paid by Tenant',
     utilities: {
-      electricity: { enabled: false, isMetered: true, fixedCharge: 0 },
-      water: { enabled: false, isMetered: true, fixedCharge: 0 },
-      waste: { enabled: false, isMetered: false, fixedCharge: 0 },
-      internet: { enabled: false, isMetered: false, fixedCharge: 0 },
-      parking: { enabled: false, isMetered: false, fixedCharge: 0 },
-      maintenance: { enabled: false, isMetered: false, fixedCharge: 0 },
-      other: { enabled: false, isMetered: false, fixedCharge: 0 },
+      electricity: { enabled: false, isMetered: true, fixedCharge: 0, responsibleParty: 'Tenant' },
+      water: { enabled: false, isMetered: true, fixedCharge: 0, responsibleParty: 'Tenant' },
+      waste: { enabled: false, isMetered: false, fixedCharge: 0, responsibleParty: 'Tenant' },
+      internet: { enabled: false, isMetered: false, fixedCharge: 0, responsibleParty: 'Tenant' },
+      parking: { enabled: false, isMetered: false, fixedCharge: 0, responsibleParty: 'Tenant' },
+      maintenance: { enabled: false, isMetered: false, fixedCharge: 0, responsibleParty: 'Tenant' },
+      other: { enabled: false, isMetered: false, fixedCharge: 0, responsibleParty: 'Tenant' },
     },
     specialTerms: '',
   });
@@ -164,7 +167,6 @@ export default function TenantsPage() {
   useEffect(() => {
     if (tenantForm.propertyId) {
       getUnitsByProperty(tenantForm.propertyId).then(data => {
-        // Filter vacant units, but allow current unit if editing (simplified for now as this form is primarily for onboarding)
         setAvailableUnits(data.filter(u => u.status === 'Vacant' || u.id === tenantForm.unitId));
       });
     } else {
@@ -216,13 +218,13 @@ export default function TenantsPage() {
         dueDay: '1',
         taxLiability: 'Paid by Tenant',
         utilities: {
-          electricity: { enabled: false, isMetered: true, fixedCharge: 0 },
-          water: { enabled: false, isMetered: true, fixedCharge: 0 },
-          waste: { enabled: false, isMetered: false, fixedCharge: 0 },
-          internet: { enabled: false, isMetered: false, fixedCharge: 0 },
-          parking: { enabled: false, isMetered: false, fixedCharge: 0 },
-          maintenance: { enabled: false, isMetered: false, fixedCharge: 0 },
-          other: { enabled: false, isMetered: false, fixedCharge: 0 },
+          electricity: { enabled: false, isMetered: true, fixedCharge: 0, responsibleParty: 'Tenant' },
+          water: { enabled: false, isMetered: true, fixedCharge: 0, responsibleParty: 'Tenant' },
+          waste: { enabled: false, isMetered: false, fixedCharge: 0, responsibleParty: 'Tenant' },
+          internet: { enabled: false, isMetered: false, fixedCharge: 0, responsibleParty: 'Tenant' },
+          parking: { enabled: false, isMetered: false, fixedCharge: 0, responsibleParty: 'Tenant' },
+          maintenance: { enabled: false, isMetered: false, fixedCharge: 0, responsibleParty: 'Tenant' },
+          other: { enabled: false, isMetered: false, fixedCharge: 0, responsibleParty: 'Tenant' },
         },
         specialTerms: '',
     });
@@ -265,13 +267,13 @@ export default function TenantsPage() {
         dueDay: meta.dueDay || '1',
         taxLiability: meta.taxLiability || 'Paid by Tenant',
         utilities: meta.utilities || {
-          electricity: { enabled: false, isMetered: true, fixedCharge: 0 },
-          water: { enabled: false, isMetered: true, fixedCharge: 0 },
-          waste: { enabled: false, isMetered: false, fixedCharge: 0 },
-          internet: { enabled: false, isMetered: false, fixedCharge: 0 },
-          parking: { enabled: false, isMetered: false, fixedCharge: 0 },
-          maintenance: { enabled: false, isMetered: false, fixedCharge: 0 },
-          other: { enabled: false, isMetered: false, fixedCharge: 0 },
+          electricity: { enabled: false, isMetered: true, fixedCharge: 0, responsibleParty: 'Tenant' },
+          water: { enabled: false, isMetered: true, fixedCharge: 0, responsibleParty: 'Tenant' },
+          waste: { enabled: false, isMetered: false, fixedCharge: 0, responsibleParty: 'Tenant' },
+          internet: { enabled: false, isMetered: false, fixedCharge: 0, responsibleParty: 'Tenant' },
+          parking: { enabled: false, isMetered: false, fixedCharge: 0, responsibleParty: 'Tenant' },
+          maintenance: { enabled: false, isMetered: false, fixedCharge: 0, responsibleParty: 'Tenant' },
+          other: { enabled: false, isMetered: false, fixedCharge: 0, responsibleParty: 'Tenant' },
         },
         specialTerms: meta.specialTerms || '',
     });
@@ -327,7 +329,6 @@ export default function TenantsPage() {
             });
         }
 
-        // Handle Agreement Activation (Step 4 Logic)
         if (tenantForm.propertyId && tenantForm.unitId && finalTenantId) {
           const agreementPayload = {
             propertyId: tenantForm.propertyId,
@@ -339,7 +340,7 @@ export default function TenantsPage() {
             monthlyRent: tenantForm.rentAmount,
             securityDeposit: tenantForm.securityDeposit,
             billingDate: parseInt(tenantForm.dueDay, 10),
-            lateFee: 0, // Default for now
+            lateFee: 0,
             startDate: tenantForm.startDate,
             endDate: tenantForm.endDate || new Date(new Date(tenantForm.startDate).setFullYear(new Date(tenantForm.startDate).getFullYear() + 1)).toISOString().split('T')[0],
             status: 'Active',
@@ -565,7 +566,6 @@ export default function TenantsPage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="p-8 space-y-12">
-                    {/* Section 1 & 2: Personal & Identity */}
                     <div className="space-y-8">
                         <div className="space-y-4">
                           <h3 className="text-xs font-black uppercase text-primary tracking-[0.2em] border-b pb-2">Personal Information</h3>
@@ -623,7 +623,6 @@ export default function TenantsPage() {
                         </div>
                     </div>
 
-                    {/* Section 3: Rental Information */}
                     <div className="space-y-6">
                         <div className="flex items-center gap-2 text-primary">
                             <div className="p-1.5 rounded-lg bg-primary/10"><Building2 className="h-4 w-4"/></div>
@@ -735,7 +734,6 @@ export default function TenantsPage() {
                         </div>
                     </div>
 
-                    {/* Section 4: Rental Obligations */}
                     <div className="space-y-6">
                         <div className="flex items-center gap-2 text-primary">
                             <div className="p-1.5 rounded-lg bg-primary/10"><ShieldCheck className="h-4 w-4"/></div>
@@ -774,7 +772,7 @@ export default function TenantsPage() {
                                           "flex flex-col p-3 rounded-lg border transition-all",
                                           config.enabled ? "bg-white border-primary/20 shadow-sm" : "bg-muted/50 border-transparent opacity-60"
                                         )}>
-                                          <div className="flex items-center justify-between mb-2">
+                                          <div className="flex items-center justify-between mb-3">
                                             <div className="flex items-center gap-2">
                                               <Icon className="h-3 w-3 text-muted-foreground" />
                                               <span className="text-[11px] font-bold uppercase tracking-tight capitalize">{key}</span>
@@ -786,24 +784,37 @@ export default function TenantsPage() {
                                             />
                                           </div>
                                           {config.enabled && (
-                                            <div className="flex gap-2 animate-in slide-in-from-top-1 duration-200">
-                                              <div className="flex-1 space-y-1">
-                                                <Label className="text-[9px] uppercase text-muted-foreground">Fixed Charge</Label>
-                                                <Input 
-                                                  type="number" 
-                                                  value={config.fixedCharge} 
-                                                  onChange={e => updateUtility(key as any, 'fixedCharge', Number(e.target.value))}
-                                                  className="h-7 text-[10px]" 
-                                                />
+                                            <div className="space-y-3 animate-in slide-in-from-top-1 duration-200">
+                                              <div className="flex items-center justify-between gap-4">
+                                                <Label className="text-[9px] uppercase text-muted-foreground">Responsibility</Label>
+                                                <Select value={config.responsibleParty} onValueChange={v => updateUtility(key as any, 'responsibleParty', v)}>
+                                                    <SelectTrigger className="h-7 text-[10px] w-[140px] bg-muted/20"><SelectValue /></SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="Tenant">Paid by Tenant</SelectItem>
+                                                        <SelectItem value="Owner">Paid by Owner</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
                                               </div>
-                                              <div className="flex flex-col justify-end pb-1.5">
-                                                <div className="flex items-center space-x-1">
-                                                  <Checkbox 
-                                                    id={`metered-${key}`} 
-                                                    checked={config.isMetered} 
-                                                    onCheckedChange={(v) => updateUtility(key as any, 'isMetered', !!v)}
+                                              
+                                              <div className="flex gap-2">
+                                                <div className="flex-1 space-y-1">
+                                                  <Label className="text-[9px] uppercase text-muted-foreground">Fixed Charge</Label>
+                                                  <Input 
+                                                    type="number" 
+                                                    value={config.fixedCharge} 
+                                                    onChange={e => updateUtility(key as any, 'fixedCharge', Number(e.target.value))}
+                                                    className="h-7 text-[10px]" 
                                                   />
-                                                  <Label htmlFor={`metered-${key}`} className="text-[9px] uppercase font-medium cursor-pointer">Metered</Label>
+                                                </div>
+                                                <div className="flex flex-col justify-end pb-1.5">
+                                                  <div className="flex items-center space-x-1">
+                                                    <Checkbox 
+                                                      id={`metered-${key}`} 
+                                                      checked={config.isMetered} 
+                                                      onCheckedChange={(v) => updateUtility(key as any, 'isMetered', !!v)}
+                                                    />
+                                                    <Label htmlFor={`metered-${key}`} className="text-[9px] uppercase font-medium cursor-pointer">Metered</Label>
+                                                  </div>
                                                 </div>
                                               </div>
                                             </div>
@@ -816,7 +827,6 @@ export default function TenantsPage() {
                         </div>
                     </div>
 
-                    {/* Section 5: Special Conditions */}
                     <div className="space-y-6">
                         <div className="flex items-center gap-2 text-primary">
                             <div className="p-1.5 rounded-lg bg-primary/10"><FileText className="h-4 w-4"/></div>
