@@ -17,6 +17,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
         ownership: data.ownership || 'Both', // Categorization
         address: data.address,
         panNumber: data.panNumber,
+        photoURL: data.photoURL,
         createdBy: data.createdBy,
         createdAt: data.createdAt,
         lastModifiedBy: data.lastModifiedBy,

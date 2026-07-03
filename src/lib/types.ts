@@ -381,6 +381,7 @@ export interface Party {
     ownership: AccountOwnership; // Added categorization
     address?: string;
     panNumber?: string;
+    photoURL?: string; // Support for tenant/customer photos
     createdBy: string;
     createdAt: string; // ISO string
     lastModifiedBy?: string;
