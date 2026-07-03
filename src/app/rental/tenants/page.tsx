@@ -39,7 +39,8 @@ import {
   ChevronDown,
   FilterX,
   Scale,
-  Receipt
+  Receipt,
+  Wallet
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -745,6 +746,8 @@ export default function TenantsPage() {
                             </div>
                         </div>
                     </div>
+
+                    <Separator className="opacity-50" />
 
                     {/* Enhanced Rental Obligations Section */}
                     <div className="space-y-8">
