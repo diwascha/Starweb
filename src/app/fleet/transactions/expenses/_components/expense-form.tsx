@@ -343,138 +343,6 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                     )} />
                 </div>
 
-                <div className="space-y-6 pt-4 pb-6 border-y border-dashed bg-muted/10 px-4 rounded-xl">
-                    <FormField control={form.control} name="paymentMode" render={({ field }) => (
-                        <FormItem className="space-y-2">
-                            <FormLabel>Payment Mode</FormLabel>
-                            <div className="flex flex-col gap-3">
-                                <div className="flex gap-2 max-w-md">
-                                    <Button
-                                        type="button"
-                                        variant={field.value === 'Cash' ? 'default' : 'outline'}
-                                        className="flex-1 h-10"
-                                        onClick={() => field.onChange('Cash')}
-                                    >
-                                        <Wallet className="mr-2 h-4 w-4" /> Cash
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        variant={field.value === 'Bank' ? 'default' : 'outline'}
-                                        className="flex-1 h-10"
-                                        onClick={() => field.onChange('Bank')}
-                                    >
-                                        <Building2 className="mr-2 h-4 w-4" /> Bank
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        variant={field.value === 'Mixed' ? 'default' : 'outline'}
-                                        className="flex-1 h-10"
-                                        onClick={() => {
-                                            field.onChange('Mixed');
-                                            if (watchedCashAmount === 0 && watchedBankAmount === 0) {
-                                                form.setValue('cashAmount', totalSettlement);
-                                                form.setValue('bankAmount', 0);
-                                            }
-                                        }}
-                                    >
-                                        <ArrowRightLeft className="mr-2 h-4 w-4" /> Mixed
-                                    </Button>
-                                </div>
-                                
-                                {(watchedType === 'Loan Repayment' || watchedMode === 'Bank' || watchedMode === 'Mixed') && (
-                                    <FormField control={form.control} name="accountId" render={({ field: accountField }) => (
-                                        <FormItem className="animate-in fade-in slide-in-from-top-1 max-w-md">
-                                            <Select onValueChange={accountField.onChange} value={accountField.value}>
-                                                <FormControl>
-                                                    <SelectTrigger className="h-9 text-xs border-primary/20 bg-primary/5">
-                                                        <SelectValue placeholder={watchedType === 'Loan Repayment' ? "Select loan account..." : "Select bank account..."} />
-                                                    </SelectTrigger>
-                                                </FormControl>
-                                                <SelectContent>
-                                                    {sijanAccounts.map(a => <SelectItem key={a.id} value={a.id}>{a.bankName} - {a.accountNumber}</SelectItem>)}
-                                                </SelectContent>
-                                            </Select>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )} />
-                                )}
-                            </div>
-                        </FormItem>
-                    )} />
-
-                    <div className={cn(
-                        "grid gap-6 items-end pt-2",
-                        watchedMode === 'Mixed' ? "grid-cols-1 md:grid-cols-3" : "grid-cols-1"
-                    )}>
-                        <FormField control={form.control} name="amount" render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>{watchedType === 'Advance' ? 'Advance Amount (NPR)' : 'Base Amount'} <span className="text-destructive">*</span></FormLabel>
-                                <FormControl>
-                                    <div className="relative">
-                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-bold">Rs.</span>
-                                        <Input 
-                                            type="number" 
-                                            className="pl-10 h-10 text-base font-bold" 
-                                            {...field} 
-                                            onChange={e => {
-                                                const val = parseFloat(e.target.value) || 0;
-                                                field.onChange(val);
-                                                if (watchedMode === 'Mixed') {
-                                                    const total = val + watchedExtraAmount;
-                                                    form.setValue('cashAmount', total);
-                                                    form.setValue('bankAmount', 0);
-                                                }
-                                            }} 
-                                        />
-                                    </div>
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )} />
-
-                        {watchedMode === 'Mixed' && (
-                            <>
-                                <FormField control={form.control} name="cashAmount" render={({ field }) => (
-                                    <FormItem className="animate-in fade-in slide-in-from-left-2">
-                                        <FormLabel className="text-xs">Paid by Cash</FormLabel>
-                                        <FormControl>
-                                            <Input 
-                                                type="number" 
-                                                {...field} 
-                                                className="h-10 font-semibold text-sm border-emerald-100 bg-white" 
-                                                onChange={e => {
-                                                    const val = parseFloat(e.target.value) || 0;
-                                                    field.onChange(val);
-                                                    form.setValue('bankAmount', Math.max(0, totalSettlement - val));
-                                                }} 
-                                            />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )} />
-                                <FormField control={form.control} name="bankAmount" render={({ field }) => (
-                                    <FormItem className="animate-in fade-in slide-in-from-left-2">
-                                        <FormLabel className="text-xs">Paid by Bank</FormLabel>
-                                        <FormControl>
-                                            <Input 
-                                                type="number" 
-                                                {...field} 
-                                                className="h-10 font-semibold text-sm border-blue-100 bg-white" 
-                                                onChange={e => {
-                                                    const val = parseFloat(e.target.value) || 0;
-                                                    field.onChange(val);
-                                                    form.setValue('cashAmount', Math.max(0, totalSettlement - val));
-                                                }} 
-                                            />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )} />
-                            </>
-                        )}
-                    </div>
-                </div>
-
                 <div className="space-y-4">
                     <FormLabel className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Select Expense Type <span className="text-destructive">*</span></FormLabel>
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -577,7 +445,8 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
 
                 <div className={cn(
                     "flex items-center gap-4 p-3 rounded-lg border bg-blue-50/50 text-blue-800 text-xs",
-                    watchedType === 'Advance' && !routeStandardAmount && "hidden"
+                    (watchedType === 'Advance' && !routeStandardAmount) && "hidden",
+                    (!['Maintenance', 'Purchase', 'Loan Repayment', 'Membership Renewal', 'Shivam / Others', 'Advance'].includes(watchedType)) && "hidden"
                 )}>
                     <Info className="h-3.5 w-3.5 shrink-0" />
                     <span className="flex-1">
@@ -710,6 +579,138 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                         )}
                     </div>
                 )}
+
+                <div className="space-y-6 pt-4 pb-6 border-y border-dashed bg-muted/10 px-4 rounded-xl">
+                    <FormField control={form.control} name="paymentMode" render={({ field }) => (
+                        <FormItem className="space-y-2">
+                            <FormLabel>Payment Mode</FormLabel>
+                            <div className="flex flex-col gap-3">
+                                <div className="flex gap-2 max-w-md">
+                                    <Button
+                                        type="button"
+                                        variant={field.value === 'Cash' ? 'default' : 'outline'}
+                                        className="flex-1 h-10"
+                                        onClick={() => field.onChange('Cash')}
+                                    >
+                                        <Wallet className="mr-2 h-4 w-4" /> Cash
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant={field.value === 'Bank' ? 'default' : 'outline'}
+                                        className="flex-1 h-10"
+                                        onClick={() => field.onChange('Bank')}
+                                    >
+                                        <Building2 className="mr-2 h-4 w-4" /> Bank
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant={field.value === 'Mixed' ? 'default' : 'outline'}
+                                        className="flex-1 h-10"
+                                        onClick={() => {
+                                            field.onChange('Mixed');
+                                            if (watchedCashAmount === 0 && watchedBankAmount === 0) {
+                                                form.setValue('cashAmount', totalSettlement);
+                                                form.setValue('bankAmount', 0);
+                                            }
+                                        }}
+                                    >
+                                        <ArrowRightLeft className="mr-2 h-4 w-4" /> Mixed
+                                    </Button>
+                                </div>
+                                
+                                {(watchedType === 'Loan Repayment' || watchedMode === 'Bank' || watchedMode === 'Mixed') && (
+                                    <FormField control={form.control} name="accountId" render={({ field: accountField }) => (
+                                        <FormItem className="animate-in fade-in slide-in-from-top-1 max-w-md">
+                                            <Select onValueChange={accountField.onChange} value={accountField.value}>
+                                                <FormControl>
+                                                    <SelectTrigger className="h-9 text-xs border-primary/20 bg-primary/5">
+                                                        <SelectValue placeholder={watchedType === 'Loan Repayment' ? "Select loan account..." : "Select bank account..."} />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    {sijanAccounts.map(a => <SelectItem key={a.id} value={a.id}>{a.bankName} - {a.accountNumber}</SelectItem>)}
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )} />
+                                )}
+                            </div>
+                        </FormItem>
+                    )} />
+
+                    <div className={cn(
+                        "grid gap-6 items-end pt-2",
+                        watchedMode === 'Mixed' ? "grid-cols-1 md:grid-cols-3" : "grid-cols-1"
+                    )}>
+                        <FormField control={form.control} name="amount" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>{watchedType === 'Advance' ? 'Advance Amount (NPR)' : 'Base Amount'} <span className="text-destructive">*</span></FormLabel>
+                                <FormControl>
+                                    <div className="relative">
+                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-bold">Rs.</span>
+                                        <Input 
+                                            type="number" 
+                                            className="pl-10 h-10 text-base font-bold" 
+                                            {...field} 
+                                            onChange={e => {
+                                                const val = parseFloat(e.target.value) || 0;
+                                                field.onChange(val);
+                                                if (watchedMode === 'Mixed') {
+                                                    const total = val + watchedExtraAmount;
+                                                    form.setValue('cashAmount', total);
+                                                    form.setValue('bankAmount', 0);
+                                                }
+                                            }} 
+                                        />
+                                    </div>
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+
+                        {watchedMode === 'Mixed' && (
+                            <>
+                                <FormField control={form.control} name="cashAmount" render={({ field }) => (
+                                    <FormItem className="animate-in fade-in slide-in-from-left-2">
+                                        <FormLabel className="text-xs">Paid by Cash</FormLabel>
+                                        <FormControl>
+                                            <Input 
+                                                type="number" 
+                                                {...field} 
+                                                className="h-10 font-semibold text-sm border-emerald-100 bg-white" 
+                                                onChange={e => {
+                                                    const val = parseFloat(e.target.value) || 0;
+                                                    field.onChange(val);
+                                                    form.setValue('bankAmount', Math.max(0, totalSettlement - val));
+                                                }} 
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )} />
+                                <FormField control={form.control} name="bankAmount" render={({ field }) => (
+                                    <FormItem className="animate-in fade-in slide-in-from-left-2">
+                                        <FormLabel className="text-xs">Paid by Bank</FormLabel>
+                                        <FormControl>
+                                            <Input 
+                                                type="number" 
+                                                {...field} 
+                                                className="h-10 font-semibold text-sm border-blue-100 bg-white" 
+                                                onChange={e => {
+                                                    const val = parseFloat(e.target.value) || 0;
+                                                    field.onChange(val);
+                                                    form.setValue('cashAmount', Math.max(0, totalSettlement - val));
+                                                }} 
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )} />
+                            </>
+                        )}
+                    </div>
+                </div>
 
                 <div className="p-4 bg-primary/5 rounded-xl border border-primary/20">
                     <div className="flex justify-between items-center">
