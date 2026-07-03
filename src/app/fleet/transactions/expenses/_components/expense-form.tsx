@@ -37,7 +37,6 @@ import {
     ShieldCheck,
     Briefcase,
     ArrowRightLeft,
-    Calculator
 } from 'lucide-react';
 import { cn, toNepaliDate } from '@/lib/utils';
 import type { Vehicle, Party, Account, AccountOwnership, PartyType, Transaction, Destination } from '@/lib/types';
@@ -51,7 +50,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Badge } from '@/components/ui/badge';
 import { onDestinationsUpdate, addDestination, updateDestination, deleteDestination } from '@/services/destination-service';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription as AlertDialogDesc, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Separator } from '@/components/ui/separator';
 
 const expenseTypes: { type: ExpenseType; label: string; sub: string; icon: any; color: string }[] = [
@@ -79,7 +78,8 @@ const expenseSchema = z.object({
     destination: z.string().optional(),
     remarks: z.string().max(200).optional(),
 }).refine(data => {
-    if (['Maintenance', 'Purchase', 'Membership Renewal', 'Shivam / Others'].includes(data.expenseType)) return !!data.partyId;
+    // Show party selector for all types except pure Advance
+    if (['Maintenance', 'Purchase', 'Loan Repayment', 'Membership Renewal', 'Shivam / Others'].includes(data.expenseType)) return !!data.partyId;
     return true;
 }, { message: "Party / Supplier is required.", path: ['partyId'] })
 .refine(data => {
@@ -344,64 +344,138 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                     )} />
                 </div>
 
-                <FormField control={form.control} name="paymentMode" render={({ field }) => (
-                    <FormItem className="space-y-2">
-                        <FormLabel>Payment Mode</FormLabel>
-                        <div className="flex flex-col gap-3">
-                            <div className="flex gap-2 max-w-md">
-                                <Button
-                                    type="button"
-                                    variant={field.value === 'Cash' ? 'default' : 'outline'}
-                                    className="flex-1 h-10"
-                                    onClick={() => field.onChange('Cash')}
-                                >
-                                    <Wallet className="mr-2 h-4 w-4" /> Cash
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant={field.value === 'Bank' ? 'default' : 'outline'}
-                                    className="flex-1 h-10"
-                                    onClick={() => field.onChange('Bank')}
-                                >
-                                    <Building2 className="mr-2 h-4 w-4" /> Bank
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant={field.value === 'Mixed' ? 'default' : 'outline'}
-                                    className="flex-1 h-10"
-                                    onClick={() => {
-                                        field.onChange('Mixed');
-                                        const total = watchedAmount + watchedExtraAmount;
-                                        if (watchedCashAmount === 0 && watchedBankAmount === 0) {
-                                            form.setValue('cashAmount', total);
-                                            form.setValue('bankAmount', 0);
-                                        }
-                                    }}
-                                >
-                                    <ArrowRightLeft className="mr-2 h-4 w-4" /> Mixed
-                                </Button>
+                <div className="space-y-6 pt-2 pb-4 border-y border-dashed">
+                    <FormField control={form.control} name="paymentMode" render={({ field }) => (
+                        <FormItem className="space-y-2">
+                            <FormLabel>Payment Mode</FormLabel>
+                            <div className="flex flex-col gap-3">
+                                <div className="flex gap-2 max-w-md">
+                                    <Button
+                                        type="button"
+                                        variant={field.value === 'Cash' ? 'default' : 'outline'}
+                                        className="flex-1 h-10"
+                                        onClick={() => field.onChange('Cash')}
+                                    >
+                                        <Wallet className="mr-2 h-4 w-4" /> Cash
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant={field.value === 'Bank' ? 'default' : 'outline'}
+                                        className="flex-1 h-10"
+                                        onClick={() => field.onChange('Bank')}
+                                    >
+                                        <Building2 className="mr-2 h-4 w-4" /> Bank
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant={field.value === 'Mixed' ? 'default' : 'outline'}
+                                        className="flex-1 h-10"
+                                        onClick={() => {
+                                            field.onChange('Mixed');
+                                            const total = watchedAmount + watchedExtraAmount;
+                                            if (watchedCashAmount === 0 && watchedBankAmount === 0) {
+                                                form.setValue('cashAmount', total);
+                                                form.setValue('bankAmount', 0);
+                                            }
+                                        }}
+                                    >
+                                        <ArrowRightLeft className="mr-2 h-4 w-4" /> Mixed
+                                    </Button>
+                                </div>
+                                
+                                {(watchedType === 'Loan Repayment' || watchedMode === 'Bank' || watchedMode === 'Mixed') && (
+                                    <FormField control={form.control} name="accountId" render={({ field: accountField }) => (
+                                        <FormItem className="animate-in fade-in slide-in-from-top-1 max-w-md">
+                                            <Select onValueChange={accountField.onChange} value={accountField.value}>
+                                                <FormControl>
+                                                    <SelectTrigger className="h-9 text-xs border-primary/20 bg-primary/5">
+                                                        <SelectValue placeholder={watchedType === 'Loan Repayment' ? "Select loan account..." : "Select bank account..."} />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    {sijanAccounts.map(a => <SelectItem key={a.id} value={a.id}>{a.bankName} - {a.accountNumber}</SelectItem>)}
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )} />
+                                )}
                             </div>
-                            
-                            {(watchedType === 'Loan Repayment' || watchedMode === 'Bank' || watchedMode === 'Mixed') && (
-                                <FormField control={form.control} name="accountId" render={({ field: accountField }) => (
-                                    <FormItem className="animate-in fade-in slide-in-from-top-1 max-w-md">
-                                        <Select onValueChange={accountField.onChange} value={accountField.value}>
-                                            <FormControl>
-                                                <SelectTrigger className="h-9 text-xs border-primary/20 bg-primary/5">
-                                                    <SelectValue placeholder="Select bank account..." />
-                                                </SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent>
-                                                {sijanAccounts.map(a => <SelectItem key={a.id} value={a.id}>{a.bankName} - {a.accountNumber}</SelectItem>)}
-                                            </SelectContent>
-                                        </Select>
+                        </FormItem>
+                    )} />
+
+                    <div className={cn(
+                        "grid gap-6 items-end",
+                        watchedMode === 'Mixed' ? "grid-cols-1 md:grid-cols-3" : "grid-cols-1"
+                    )}>
+                        <FormField control={form.control} name="amount" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>{watchedType === 'Advance' ? 'Advance Amount (NPR)' : 'Base Amount'} <span className="text-destructive">*</span></FormLabel>
+                                <FormControl>
+                                    <div className="relative">
+                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-bold">Rs.</span>
+                                        <Input 
+                                            type="number" 
+                                            className="pl-10 h-10 text-base font-bold" 
+                                            {...field} 
+                                            onChange={e => {
+                                                const val = parseFloat(e.target.value) || 0;
+                                                field.onChange(val);
+                                                if (watchedMode === 'Mixed') {
+                                                    const total = val + watchedExtraAmount;
+                                                    form.setValue('cashAmount', total);
+                                                    form.setValue('bankAmount', 0);
+                                                }
+                                            }} 
+                                        />
+                                    </div>
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+
+                        {watchedMode === 'Mixed' && (
+                            <>
+                                <FormField control={form.control} name="cashAmount" render={({ field }) => (
+                                    <FormItem className="animate-in fade-in slide-in-from-left-2">
+                                        <FormLabel className="text-xs">Paid by Cash</FormLabel>
+                                        <FormControl>
+                                            <Input 
+                                                type="number" 
+                                                {...field} 
+                                                className="h-10 font-semibold text-sm border-emerald-100 bg-emerald-50/30" 
+                                                onChange={e => {
+                                                    const val = parseFloat(e.target.value) || 0;
+                                                    field.onChange(val);
+                                                    form.setValue('bankAmount', Math.max(0, totalSettlement - val));
+                                                }} 
+                                            />
+                                        </FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )} />
-                            )}
-                        </div>
-                    </FormItem>
-                )} />
+                                <FormField control={form.control} name="bankAmount" render={({ field }) => (
+                                    <FormItem className="animate-in fade-in slide-in-from-left-2">
+                                        <FormLabel className="text-xs">Paid by Bank</FormLabel>
+                                        <FormControl>
+                                            <Input 
+                                                type="number" 
+                                                {...field} 
+                                                className="h-10 font-semibold text-sm border-blue-100 bg-blue-50/30" 
+                                                onChange={e => {
+                                                    const val = parseFloat(e.target.value) || 0;
+                                                    field.onChange(val);
+                                                    form.setValue('cashAmount', Math.max(0, totalSettlement - val));
+                                                }} 
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )} />
+                            </>
+                        )}
+                    </div>
+                </div>
 
                 <div className="space-y-3">
                     <FormLabel className="text-xs uppercase font-bold tracking-wider text-muted-foreground">Select Expense Type</FormLabel>
@@ -503,7 +577,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                     <span className="flex-1">
                         {watchedType === 'Maintenance' && "Maintenance selected • Select the party who provided the service."}
                         {watchedType === 'Purchase' && "Purchase selected • Select the supplier for the item."}
-                        {watchedType === 'Loan Repayment' && "Loan Repayment selected • Select the bank account where the EMI was paid."}
+                        {watchedType === 'Loan Repayment' && "Loan Repayment selected • Select the lender (Party) and the specific loan account."}
                         {watchedType === 'Membership Renewal' && "Renewal selected • Select the authority or agency paid."}
                         {watchedType === 'Shivam / Others' && "Shivam / Others selected • Select the relevant party or leave blank for misc."}
                         {watchedType === 'Advance' && routeStandardAmount && (
@@ -522,18 +596,19 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                             </div>
                         )}
                     </span>
-                    {['Maintenance', 'Purchase', 'Membership Renewal', 'Shivam / Others'].includes(watchedType) && (
+                    {['Maintenance', 'Purchase', 'Loan Repayment', 'Membership Renewal', 'Shivam / Others'].includes(watchedType) && (
                         <Button type="button" variant="outline" size="sm" onClick={() => setIsPartyDialogOpen(true)} className="bg-white text-[10px]">
                             <Plus className="mr-1 h-3 w-3" /> Add New Party
                         </Button>
                     )}
                 </div>
 
-                {['Maintenance', 'Purchase', 'Membership Renewal', 'Shivam / Others'].includes(watchedType) && (
+                {['Maintenance', 'Purchase', 'Loan Repayment', 'Membership Renewal', 'Shivam / Others'].includes(watchedType) && (
                     <FormField control={form.control} name="partyId" render={({ field }) => (
                         <FormItem>
                             <FormLabel>
-                                Party / Service Provider <span className={cn(watchedType === 'Shivam / Others' ? "" : "text-destructive")}>{watchedType === 'Shivam / Others' ? "" : "*"}</span>
+                                {watchedType === 'Loan Repayment' ? 'Lending Institution / Bank (Party)' : 'Party / Service Provider'} 
+                                <span className={cn(watchedType === 'Shivam / Others' ? "" : "text-destructive")}>{watchedType === 'Shivam / Others' ? "" : "*"}</span>
                             </FormLabel>
                             <Select onValueChange={field.onChange} value={field.value}>
                                 <FormControl>
@@ -564,149 +639,71 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                     )} />
                 )}
 
-                <div className="space-y-4">
-                    <div className={cn(
-                        "grid gap-6 items-start",
-                        watchedMode === 'Mixed' ? "grid-cols-1 md:grid-cols-3" : "grid-cols-1 md:grid-cols-2"
-                    )}>
-                        <FormField control={form.control} name="amount" render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>{watchedType === 'Advance' ? 'Advance Amount (NPR)' : 'Base Amount'} <span className="text-destructive">*</span></FormLabel>
-                                <FormControl>
-                                    <div className="relative">
-                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-bold">Rs.</span>
-                                        <Input 
-                                            type="number" 
-                                            className="pl-10 h-10 text-base font-bold" 
-                                            {...field} 
-                                            onChange={e => {
-                                                const val = parseFloat(e.target.value) || 0;
-                                                field.onChange(val);
-                                                // Sync Mixed payment amounts if total changes
-                                                if (watchedMode === 'Mixed') {
-                                                    const total = val + watchedExtraAmount;
-                                                    form.setValue('cashAmount', total);
-                                                    form.setValue('bankAmount', 0);
-                                                }
-                                            }} 
-                                        />
-                                    </div>
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )} />
-
-                        {watchedMode === 'Mixed' && (
-                            <>
-                                <FormField control={form.control} name="cashAmount" render={({ field }) => (
-                                    <FormItem className="animate-in fade-in slide-in-from-left-2">
-                                        <FormLabel className="text-xs">Paid by Cash</FormLabel>
-                                        <FormControl>
-                                            <Input 
-                                                type="number" 
-                                                {...field} 
-                                                className="h-10 font-semibold text-sm border-emerald-100 bg-emerald-50/30" 
-                                                onChange={e => {
-                                                    const val = parseFloat(e.target.value) || 0;
-                                                    field.onChange(val);
-                                                    // Automatic balancing
-                                                    form.setValue('bankAmount', Math.max(0, totalSettlement - val));
-                                                }} 
-                                            />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )} />
-                                <FormField control={form.control} name="bankAmount" render={({ field }) => (
-                                    <FormItem className="animate-in fade-in slide-in-from-left-2">
-                                        <FormLabel className="text-xs">Paid by Bank</FormLabel>
-                                        <FormControl>
-                                            <Input 
-                                                type="number" 
-                                                {...field} 
-                                                className="h-10 font-semibold text-sm border-blue-100 bg-blue-50/30" 
-                                                onChange={e => {
-                                                    const val = parseFloat(e.target.value) || 0;
-                                                    field.onChange(val);
-                                                    // Automatic balancing
-                                                    form.setValue('cashAmount', Math.max(0, totalSettlement - val));
-                                                }} 
-                                            />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )} />
-                            </>
+                {watchedType === 'Advance' && (
+                    <div className="bg-muted/30 p-4 rounded-xl border border-dashed space-y-4">
+                        {!showExtraFields ? (
+                            <Button 
+                                type="button" 
+                                variant="outline" 
+                                size="sm" 
+                                className="h-8 text-[10px] uppercase font-bold tracking-wider"
+                                onClick={() => setShowExtraFields(true)}
+                            >
+                                <PlusIcon className="mr-1 h-3 w-3" /> Add Extra Combined Expense
+                            </Button>
+                        ) : (
+                            <div className="animate-in fade-in slide-in-from-top-2">
+                                <div className="flex items-center justify-between mb-3">
+                                    <h4 className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest flex items-center gap-2">
+                                        <DollarSign className="h-3 w-3" /> Combined Extra Charge
+                                    </h4>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => {
+                                        setShowExtraFields(false);
+                                        form.setValue('extraAmount', 0);
+                                        form.setValue('extraRemarks', '');
+                                    }}>
+                                        <X className="h-3 w-3" />
+                                    </Button>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <FormField control={form.control} name="extraAmount" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className="text-xs">Extra Amount</FormLabel>
+                                            <FormControl>
+                                                <Input 
+                                                    type="number" 
+                                                    className="h-9 font-semibold text-sm" 
+                                                    {...field} 
+                                                    onChange={e => {
+                                                        const val = parseFloat(e.target.value) || 0;
+                                                        field.onChange(val);
+                                                        if (watchedMode === 'Mixed') {
+                                                            const total = val + watchedAmount;
+                                                            form.setValue('cashAmount', total);
+                                                            form.setValue('bankAmount', 0);
+                                                        }
+                                                    }} 
+                                                />
+                                            </FormControl>
+                                        </FormItem>
+                                    )} />
+                                    <FormField control={form.control} name="extraRemarks" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className="text-xs">Charge Description</FormLabel>
+                                            <FormControl>
+                                                <Input 
+                                                    placeholder="e.g. Repair, Road Tax" 
+                                                    className="h-9 text-xs" 
+                                                    {...field} 
+                                                />
+                                            </FormControl>
+                                        </FormItem>
+                                    )} />
+                                </div>
+                            </div>
                         )}
                     </div>
-
-                    {watchedType === 'Advance' && (
-                        <div className="bg-muted/30 p-4 rounded-xl border border-dashed space-y-4">
-                            {!showExtraFields ? (
-                                <Button 
-                                    type="button" 
-                                    variant="outline" 
-                                    size="sm" 
-                                    className="h-8 text-[10px] uppercase font-bold tracking-wider"
-                                    onClick={() => setShowExtraFields(true)}
-                                >
-                                    <PlusIcon className="mr-1 h-3 w-3" /> Add Extra Combined Expense
-                                </Button>
-                            ) : (
-                                <div className="animate-in fade-in slide-in-from-top-2">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <h4 className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest flex items-center gap-2">
-                                            <DollarSign className="h-3 w-3" /> Combined Extra Charge
-                                        </h4>
-                                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => {
-                                            setShowExtraFields(false);
-                                            form.setValue('extraAmount', 0);
-                                            form.setValue('extraRemarks', '');
-                                        }}>
-                                            <X className="h-3 w-3" />
-                                        </Button>
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <FormField control={form.control} name="extraAmount" render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel className="text-xs">Extra Amount</FormLabel>
-                                                <FormControl>
-                                                    <Input 
-                                                        type="number" 
-                                                        className="h-9 font-semibold text-sm" 
-                                                        {...field} 
-                                                        onChange={e => {
-                                                            const val = parseFloat(e.target.value) || 0;
-                                                            field.onChange(val);
-                                                            // Sync Mixed payment amounts if total changes
-                                                            if (watchedMode === 'Mixed') {
-                                                                const total = val + watchedAmount;
-                                                                form.setValue('cashAmount', total);
-                                                                form.setValue('bankAmount', 0);
-                                                            }
-                                                        }} 
-                                                    />
-                                                </FormControl>
-                                            </FormItem>
-                                        )} />
-                                        <FormField control={form.control} name="extraRemarks" render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel className="text-xs">Charge Description</FormLabel>
-                                                <FormControl>
-                                                    <Input 
-                                                        placeholder="e.g. Repair, Road Tax" 
-                                                        className="h-9 text-xs" 
-                                                        {...field} 
-                                                    />
-                                                </FormControl>
-                                            </FormItem>
-                                        )} />
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
+                )}
 
                 <div className="p-4 bg-primary/5 rounded-xl border border-primary/20">
                     <div className="flex justify-between items-center">
@@ -751,10 +748,10 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
 
             <Dialog open={isPartyDialogOpen} onOpenChange={setIsPartyDialogOpen}>
                 <DialogContent className="sm:max-w-md">
-                    <DialogHeader><DialogTitle>Quick Add Supplier</DialogTitle></DialogHeader>
+                    <DialogHeader><DialogTitle>Quick Add Supplier / Lender</DialogTitle></DialogHeader>
                     <div className="grid gap-4 py-4">
                         <div className="space-y-2">
-                            <Label>Supplier Name</Label>
+                            <Label>Name</Label>
                             <Input value={partyForm.name} onChange={e => setPartyForm({...partyForm, name: e.target.value})} />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
@@ -763,7 +760,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                                 <Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm({...partyForm, type: v})}>
                                     <SelectTrigger><SelectValue /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="Vendor">Service Provider / Vendor</SelectItem>
+                                        <SelectItem value="Vendor">Service Provider / Vendor / Bank</SelectItem>
                                         <SelectItem value="Customer">Client / RT Customer</SelectItem>
                                         <SelectItem value="Both">Both</SelectItem>
                                     </SelectContent>
@@ -792,7 +789,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsPartyDialogOpen(false)}>Cancel</Button>
-                        <Button onClick={handleQuickAddParty}>Add Supplier</Button>
+                        <Button onClick={handleQuickAddParty}>Add Record</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -842,9 +839,9 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                                 <AlertDialogContent>
                                     <AlertDialogHeader>
                                         <AlertDialogTitle>Delete Destination?</AlertDialogTitle>
-                                        <AlertDialogDescription>
+                                        <AlertDialogDesc>
                                             Permanently remove "{editingDestination.name}"?
-                                        </AlertDialogDescription>
+                                        </AlertDialogDesc>
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
                                         <AlertDialogCancel>Cancel</AlertDialogCancel>
