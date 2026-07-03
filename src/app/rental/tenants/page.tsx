@@ -40,7 +40,8 @@ import {
   FilterX,
   Scale,
   Receipt,
-  Wallet
+  Wallet,
+  Info
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -391,6 +392,13 @@ export default function TenantsPage() {
       }
   };
 
+  const scrollToSection = (id: string) => {
+    const element = document.getElementById(id);
+    if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
     <div className="flex flex-col gap-8">
       <header>
@@ -401,11 +409,11 @@ export default function TenantsPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="flex items-center justify-between border-b pb-4">
             <TabsList className="bg-muted/50 p-1">
-                <TabsTrigger value="records" className="gap-2">
+                <TabsTrigger value="records" className="gap-2 px-6">
                     <ClipboardList className="h-4 w-4"/>
                     Records
                 </TabsTrigger>
-                <TabsTrigger value="form" className="gap-2">
+                <TabsTrigger value="form" className="gap-2 px-6">
                     {editingTenantId ? <Edit className="h-4 w-4"/> : <PlusCircle className="h-4 w-4"/>}
                     {editingTenantId ? 'Edit Tenant' : 'New Tenant'}
                 </TabsTrigger>
@@ -439,8 +447,7 @@ export default function TenantsPage() {
                             <TableRow className="hover:bg-transparent">
                                 <TableHead className="w-[300px] font-bold">Tenant Name</TableHead>
                                 <TableHead className="font-bold">Unit / Property</TableHead>
-                                <TableHead className="font-bold">Contact / Phone</TableHead>
-                                <TableHead className="font-bold">Lease Status</TableHead>
+                                <TableHead className="font-bold text-center">Lease Status</TableHead>
                                 <TableHead className="text-right font-bold">Outstanding</TableHead>
                                 <TableHead className="text-right font-bold">Deposit</TableHead>
                                 <TableHead className="w-[100px] text-right">Actions</TableHead>
@@ -450,20 +457,20 @@ export default function TenantsPage() {
                             {filteredTenants.map((tenant) => (
                                 <TableRow 
                                     key={tenant.id} 
-                                    className="group hover:bg-muted/30 cursor-pointer"
+                                    className="group hover:bg-muted/30 cursor-pointer h-14"
                                     onClick={() => handleOpenDetail(tenant.id)}
                                 >
                                     <TableCell>
                                         <div className="flex items-center gap-3">
-                                            <Avatar className="h-9 w-9 border shadow-sm">
+                                            <Avatar className="h-9 w-9 border shadow-sm shrink-0">
                                                 <AvatarImage src={tenant.photoURL} />
                                                 <AvatarFallback className="bg-primary/5 text-primary text-xs font-bold">
                                                     {tenant.name.charAt(0)}
                                                 </AvatarFallback>
                                             </Avatar>
-                                            <div className="flex flex-col">
-                                                <span className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors">{tenant.name}</span>
-                                                <span className="text-[10px] text-muted-foreground uppercase flex items-center gap-1">
+                                            <div className="flex flex-col overflow-hidden">
+                                                <span className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors truncate">{tenant.name}</span>
+                                                <span className="text-[10px] text-muted-foreground uppercase flex items-center gap-1 truncate">
                                                     <MapPin className="h-2 w-2"/> {tenant.address || 'No location'}
                                                 </span>
                                             </div>
@@ -473,22 +480,19 @@ export default function TenantsPage() {
                                         {tenant.activeLease ? (
                                             <div className="flex flex-col">
                                                 <span className="font-semibold text-xs">Unit {tenant.activeLease.unitNumber}</span>
-                                                <span className="text-[10px] text-muted-foreground uppercase">{tenant.activeLease.propertyName}</span>
+                                                <span className="text-[10px] text-muted-foreground uppercase truncate">{tenant.activeLease.propertyName}</span>
                                             </div>
                                         ) : (
                                             <span className="text-xs text-muted-foreground italic">No active lease</span>
                                         )}
                                     </TableCell>
-                                    <TableCell className="text-xs font-medium text-gray-600">
-                                        {tenant.panNumber || '—'}
-                                    </TableCell>
-                                    <TableCell>
+                                    <TableCell className="text-center">
                                         {tenant.activeLease ? (
-                                            <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-black uppercase">
+                                            <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[9px] font-black uppercase h-5">
                                                 Active
                                             </Badge>
                                         ) : (
-                                            <Badge variant="outline" className="bg-gray-50 text-gray-500 border-gray-200 text-[10px] uppercase">
+                                            <Badge variant="outline" className="bg-gray-50 text-gray-500 border-gray-200 text-[9px] uppercase h-5">
                                                 Inactive
                                             </Badge>
                                         )}
@@ -553,7 +557,7 @@ export default function TenantsPage() {
                             ))}
                             {!isLoading && filteredTenants.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={7} className="h-40 text-center text-muted-foreground italic">
+                                    <TableCell colSpan={6} className="h-40 text-center text-muted-foreground italic">
                                         <Users className="h-8 w-8 mx-auto opacity-20 mb-2"/>
                                         No tenants matching your search.
                                     </TableCell>
@@ -565,373 +569,297 @@ export default function TenantsPage() {
             </Card>
         </TabsContent>
 
-        <TabsContent value="form" className="mt-6 space-y-8">
-            <Card className="max-w-5xl mx-auto shadow-lg border-primary/10 overflow-hidden">
-                <CardHeader className="bg-primary/5 border-b py-6 px-8">
-                    <div className="flex items-center gap-4">
-                        <div className="p-3 bg-white rounded-2xl shadow-sm border border-primary/10">
-                            <User className="h-6 w-6 text-primary"/>
-                        </div>
-                        <div>
-                            <CardTitle className="text-2xl font-black text-gray-900 tracking-tight">
-                                {editingTenantId ? 'Update Tenant Profile' : 'Register New Tenant'}
+        <TabsContent value="form" className="mt-6">
+            <div className="flex flex-col lg:flex-row gap-8 max-w-[1400px] mx-auto items-start">
+                {/* Section Navigation Sidebar */}
+                <aside className="w-full lg:w-64 shrink-0 sticky top-24 space-y-1">
+                    <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em] px-3 mb-3">Onboarding Steps</h3>
+                    {[
+                        { id: 'sec-identity', label: 'Primary Identity', icon: User },
+                        { id: 'sec-verification', label: 'Verification Info', icon: ShieldCheck },
+                        { id: 'sec-lease', label: 'Lease & Occupancy', icon: Home },
+                        { id: 'sec-finance', label: 'Financial Terms', icon: DollarSign },
+                        { id: 'sec-obligations', label: 'Rental Obligations', icon: Scale },
+                        { id: 'sec-special', label: 'Special Terms', icon: FileText },
+                    ].map((sec) => (
+                        <button
+                            key={sec.id}
+                            type="button"
+                            onClick={() => scrollToSection(sec.id)}
+                            className="flex items-center gap-3 w-full px-3 py-2.5 text-xs font-bold text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-lg transition-all text-left group"
+                        >
+                            <sec.icon className="h-4 w-4 shrink-0 group-hover:scale-110 transition-transform"/>
+                            {sec.label}
+                        </button>
+                    ))}
+                    <div className="pt-6 px-3">
+                        <Button onClick={handleTenantSubmit} disabled={isSubmitting || !tenantForm.name} className="w-full h-11 font-black text-[10px] uppercase tracking-widest shadow-xl shadow-primary/20">
+                            {isSubmitting ? <Loader2 className="animate-spin h-4 w-4 mr-2"/> : <Save className="mr-2 h-4 w-4"/>}
+                            {editingTenantId ? 'Save & Update' : 'Finalize Onboarding'}
+                        </Button>
+                        <Button variant="ghost" onClick={() => setActiveTab('records')} className="w-full mt-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Cancel</Button>
+                    </div>
+                </aside>
+
+                {/* Main Form Content */}
+                <div className="flex-1 space-y-6 w-full pb-20">
+                    <Card className="shadow-sm border-gray-100 overflow-hidden">
+                        <CardHeader className="bg-primary/5 border-b py-4 px-6">
+                            <CardTitle className="text-xl font-black text-gray-900 tracking-tight">
+                                {editingTenantId ? 'Update Profile' : 'Tenant Registration'}
                             </CardTitle>
-                            <CardDescription>
-                                Complete the digital onboarding for the upcoming occupant.
-                            </CardDescription>
-                        </div>
-                    </div>
-                </CardHeader>
-                <CardContent className="p-8 space-y-12">
-                    {/* Identification Section */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-                        <div className="space-y-6">
-                            <h3 className="text-xs font-black uppercase text-primary tracking-[0.2em] flex items-center gap-2">
-                                <ClipboardList className="h-4 w-4"/>
-                                Primary Identity
-                            </h3>
-                            <div className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Full Name <span className="text-destructive">*</span></Label>
-                                    <Input value={tenantForm.name} onChange={e => setTenantForm({...tenantForm, name: e.target.value})} placeholder="e.g. John Doe" className="h-11 shadow-sm" />
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Contact Number</Label>
-                                        <Input value={tenantForm.panNumber} onChange={e => setTenantForm({...tenantForm, panNumber: e.target.value})} placeholder="98XXXXXXXX" className="h-11" />
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            {/* Personal & Verification */}
+                            <div className="grid grid-cols-1 xl:grid-cols-2">
+                                <div id="sec-identity" className="p-6 border-r border-b xl:border-b-0 space-y-6">
+                                    <div className="flex items-center gap-2 text-primary">
+                                        <User className="h-4 w-4"/>
+                                        <h3 className="text-xs font-black uppercase tracking-wider">Identity Details</h3>
                                     </div>
-                                    <div className="space-y-2">
-                                        <Label className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Permanent Address</Label>
-                                        <Input value={tenantForm.address} onChange={e => setTenantForm({...tenantForm, address: e.target.value})} placeholder="Current location" className="h-11" />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="space-y-6">
-                            <h3 className="text-xs font-black uppercase text-primary tracking-[0.2em] flex items-center gap-2">
-                                <ShieldCheck className="h-4 w-4"/>
-                                Verification
-                            </h3>
-                            <div className="grid grid-cols-2 gap-4 p-5 rounded-2xl border bg-gray-50/50 shadow-inner">
-                                <div className="space-y-2 col-span-2">
-                                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">ID Type</Label>
-                                    <Select value={tenantForm.identityType} onValueChange={v => setTenantForm({...tenantForm, identityType: v})}>
-                                        <SelectTrigger className="h-10 bg-white"><SelectValue /></SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="Citizenship">Citizenship</SelectItem>
-                                            <SelectItem value="NID">National ID (NID)</SelectItem>
-                                            <SelectItem value="Driving License">Driving License</SelectItem>
-                                            <SelectItem value="Passport">Passport</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2 col-span-2">
-                                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">Document #</Label>
-                                    <Input value={tenantForm.documentNumber} onChange={e => setTenantForm({...tenantForm, documentNumber: e.target.value})} placeholder="ID serial number" className="bg-white" />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">Issue Date</Label>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button variant="outline" className="w-full justify-start h-10 bg-white text-xs px-3">
-                                                <CalendarIcon className="mr-2 h-3 w-3" />
-                                                {tenantForm.issueDate ? toNepaliDate(tenantForm.issueDate) : "Select"}
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0" align="start">
-                                            <DualCalendar selected={tenantForm.issueDate ? new Date(tenantForm.issueDate) : undefined} onSelect={d => setTenantForm({...tenantForm, issueDate: d?.toISOString() || ''})} />
-                                        </PopoverContent>
-                                    </Popover>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">Expiry</Label>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button variant="outline" className="w-full justify-start h-10 bg-white text-xs px-3">
-                                                <CalendarIcon className="mr-2 h-3 w-3" />
-                                                {tenantForm.expiryDate ? toNepaliDate(tenantForm.expiryDate) : "Select"}
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0" align="start">
-                                            <DualCalendar selected={tenantForm.expiryDate ? new Date(tenantForm.expiryDate) : undefined} onSelect={d => setTenantForm({...tenantForm, expiryDate: d?.toISOString() || ''})} />
-                                        </PopoverContent>
-                                    </Popover>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <Separator className="opacity-50" />
-
-                    {/* Rental Info Section */}
-                    <div className="space-y-8">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-blue-50 rounded-xl"><Home className="h-5 w-5 text-blue-600"/></div>
-                            <div>
-                                <h3 className="text-sm font-black uppercase text-gray-900 tracking-wider">Lease & Occupancy</h3>
-                                <p className="text-xs text-muted-foreground">Select the unit and define financial terms.</p>
-                            </div>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                            <div className="space-y-5">
-                                <div className="space-y-2">
-                                    <Label className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Property <span className="text-destructive">*</span></Label>
-                                    <Select value={tenantForm.propertyId} onValueChange={v => setTenantForm({...tenantForm, propertyId: v, unitId: ''})}>
-                                        <SelectTrigger className="h-11 shadow-sm"><SelectValue placeholder="Select asset..."/></SelectTrigger>
-                                        <SelectContent>{properties.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Available Unit <span className="text-destructive">*</span></Label>
-                                    <Select value={tenantForm.unitId} onValueChange={v => {
-                                        const u = availableUnits.find(x => x.id === v);
-                                        setTenantForm({...tenantForm, unitId: v, rentAmount: u?.monthlyRent || 0});
-                                    }} disabled={!tenantForm.propertyId}>
-                                        <SelectTrigger className="h-11 shadow-sm"><SelectValue placeholder="Assign unit..."/></SelectTrigger>
-                                        <SelectContent>
-                                            {availableUnits.map(u => <SelectItem key={u.id} value={u.id}>{u.unitNumber} - {u.type} (Rs.{u.monthlyRent})</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="grid grid-cols-2 gap-4 pt-2">
-                                    <div className="space-y-2">
-                                        <Label className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Start Date</Label>
-                                        <Input type="date" value={tenantForm.startDate} onChange={e => setTenantForm({...tenantForm, startDate: e.target.value})} className="h-10" />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">End Date</Label>
-                                        <Input type="date" value={tenantForm.endDate} onChange={e => setTenantForm({...tenantForm, endDate: e.target.value})} className="h-10" />
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="p-6 rounded-2xl bg-blue-50/30 border border-blue-100/50 space-y-6">
-                                <div className="grid grid-cols-2 gap-6">
-                                    <div className="space-y-2">
-                                        <Label className="text-[10px] font-bold uppercase text-blue-900 tracking-widest">Monthly Rent</Label>
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 font-black text-blue-400 text-sm">रु</span>
-                                            <Input type="number" value={tenantForm.rentAmount} onChange={e => setTenantForm({...tenantForm, rentAmount: Number(e.target.value)})} className="pl-8 h-11 bg-white border-blue-200 text-lg font-black text-blue-900" />
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div className="space-y-1.5 col-span-2">
+                                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Full Name <span className="text-destructive">*</span></Label>
+                                            <Input value={tenantForm.name} onChange={e => setTenantForm({...tenantForm, name: e.target.value})} placeholder="e.g. John Doe" className="h-9" />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Contact Number</Label>
+                                            <Input value={tenantForm.panNumber} onChange={e => setTenantForm({...tenantForm, panNumber: e.target.value})} placeholder="98XXXXXXXX" className="h-9" />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Permanent Address</Label>
+                                            <Input value={tenantForm.address} onChange={e => setTenantForm({...tenantForm, address: e.target.value})} placeholder="Current location" className="h-9" />
                                         </div>
                                     </div>
-                                    <div className="space-y-2">
-                                        <Label className="text-[10px] font-bold uppercase text-blue-900 tracking-widest">Security Deposit</Label>
-                                        <Input type="number" value={tenantForm.securityDeposit} onChange={e => setTenantForm({...tenantForm, securityDeposit: Number(e.target.value)})} className="h-11 bg-white border-blue-200" />
-                                    </div>
                                 </div>
-                                <div className="grid grid-cols-2 gap-6 pt-2">
-                                    <div className="space-y-2">
-                                        <Label className="text-[10px] font-bold uppercase text-blue-900 tracking-widest">Billing Day</Label>
-                                        <Select value={tenantForm.dueDay} onValueChange={v => setTenantForm({...tenantForm, dueDay: v})}>
-                                            <SelectTrigger className="bg-white border-blue-200 h-10"><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                {Array.from({length: 28}, (_, i) => String(i+1)).map(d => <SelectItem key={d} value={d}>{d}th of month</SelectItem>)}
-                                            </SelectContent>
-                                        </Select>
+
+                                <div id="sec-verification" className="p-6 bg-gray-50/30 space-y-6">
+                                    <div className="flex items-center gap-2 text-primary">
+                                        <ShieldCheck className="h-4 w-4"/>
+                                        <h3 className="text-xs font-black uppercase tracking-wider">Verification</h3>
                                     </div>
-                                    <div className="space-y-2">
-                                        <Label className="text-[10px] font-bold uppercase text-blue-900 tracking-widest">Billing Cycle</Label>
-                                        <Select value={tenantForm.billingCycle} onValueChange={v => setTenantForm({...tenantForm, billingCycle: v})}>
-                                            <SelectTrigger className="bg-white border-blue-200 h-10"><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="Monthly">Monthly</SelectItem>
-                                                <SelectItem value="Quarterly">Quarterly</SelectItem>
-                                                <SelectItem value="Yearly">Yearly</SelectItem>
-                                            </SelectContent>
-                                        </Select>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-1.5 col-span-2">
+                                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">ID Document Type</Label>
+                                            <Select value={tenantForm.identityType} onValueChange={v => setTenantForm({...tenantForm, identityType: v})}>
+                                                <SelectTrigger className="h-9 bg-white"><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="Citizenship">Citizenship</SelectItem>
+                                                    <SelectItem value="NID">National ID (NID)</SelectItem>
+                                                    <SelectItem value="Driving License">Driving License</SelectItem>
+                                                    <SelectItem value="Passport">Passport</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Document #</Label>
+                                            <Input value={tenantForm.documentNumber} onChange={e => setTenantForm({...tenantForm, documentNumber: e.target.value})} placeholder="ID serial" className="h-9 bg-white" />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">ID Expiry (Optional)</Label>
+                                            <Popover>
+                                                <PopoverTrigger asChild>
+                                                    <Button variant="outline" className="w-full justify-start h-9 bg-white text-xs px-3">
+                                                        <CalendarIcon className="mr-2 h-3 w-3" />
+                                                        {tenantForm.expiryDate ? toNepaliDate(tenantForm.expiryDate) : "Select"}
+                                                    </Button>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-auto p-0" align="start">
+                                                    <DualCalendar selected={tenantForm.expiryDate ? new Date(tenantForm.expiryDate) : undefined} onSelect={d => setTenantForm({...tenantForm, expiryDate: d?.toISOString() || ''})} />
+                                                </PopoverContent>
+                                            </Popover>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
 
-                    <Separator className="opacity-50" />
+                            {/* Lease & Financial */}
+                            <div className="grid grid-cols-1 xl:grid-cols-2 border-t">
+                                <div id="sec-lease" className="p-6 border-r border-b xl:border-b-0 space-y-6">
+                                    <div className="flex items-center gap-2 text-primary">
+                                        <Home className="h-4 w-4"/>
+                                        <h3 className="text-xs font-black uppercase tracking-wider">Lease & Occupancy</h3>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-1.5 col-span-2">
+                                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Property Asset <span className="text-destructive">*</span></Label>
+                                            <Select value={tenantForm.propertyId} onValueChange={v => setTenantForm({...tenantForm, propertyId: v, unitId: ''})}>
+                                                <SelectTrigger className="h-9"><SelectValue placeholder="Select Property"/></SelectTrigger>
+                                                <SelectContent>{properties.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-1.5 col-span-2">
+                                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Available Unit <span className="text-destructive">*</span></Label>
+                                            <Select value={tenantForm.unitId} onValueChange={v => {
+                                                const u = availableUnits.find(x => x.id === v);
+                                                setTenantForm({...tenantForm, unitId: v, rentAmount: u?.monthlyRent || 0});
+                                            }} disabled={!tenantForm.propertyId}>
+                                                <SelectTrigger className="h-9"><SelectValue placeholder="Assign unit..."/></SelectTrigger>
+                                                <SelectContent>
+                                                    {availableUnits.map(u => <SelectItem key={u.id} value={u.id}>{u.unitNumber} - {u.type} (Rs.{u.monthlyRent})</SelectItem>)}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Start Date</Label>
+                                            <Input type="date" value={tenantForm.startDate} onChange={e => setTenantForm({...tenantForm, startDate: e.target.value})} className="h-9" />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">End Date</Label>
+                                            <Input type="date" value={tenantForm.endDate} onChange={e => setTenantForm({...tenantForm, endDate: e.target.value})} className="h-9" />
+                                        </div>
+                                    </div>
+                                </div>
 
-                    {/* Enhanced Rental Obligations Section */}
-                    <div className="space-y-8">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-emerald-50 rounded-xl"><Scale className="h-5 w-5 text-emerald-600"/></div>
-                            <div>
-                                <h3 className="text-sm font-black uppercase text-gray-900 tracking-wider">Financial Obligations</h3>
-                                <p className="text-xs text-muted-foreground">Assign responsibility for taxes and utility service charges.</p>
-                            </div>
-                        </div>
-
-                        <div className="space-y-6">
-                            {/* Rental Tax Liability Card */}
-                            <Card className="shadow-none border border-gray-100 bg-white">
-                                <CardContent className="p-6">
-                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                                        <div className="flex items-center gap-4">
-                                            <div className="p-2 bg-muted rounded-lg"><Receipt className="h-5 w-5 text-muted-foreground"/></div>
-                                            <div>
-                                                <h4 className="text-sm font-bold text-gray-900">Rental Tax Liability</h4>
-                                                <p className="text-[11px] text-muted-foreground">Who is responsible for paying the rental tax?</p>
+                                <div id="sec-finance" className="p-6 bg-blue-50/10 space-y-6">
+                                    <div className="flex items-center gap-2 text-primary">
+                                        <DollarSign className="h-4 w-4"/>
+                                        <h3 className="text-xs font-black uppercase tracking-wider">Financial Terms</h3>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-1.5">
+                                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Monthly Rent</Label>
+                                            <div className="relative">
+                                                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-black text-blue-400 text-[10px]">रु</span>
+                                                <Input type="number" value={tenantForm.rentAmount} onChange={e => setTenantForm({...tenantForm, rentAmount: Number(e.target.value)})} className="pl-6 h-9 font-black text-blue-900" />
                                             </div>
                                         </div>
-                                        <div className="flex items-end gap-4 w-full md:w-auto">
-                                            <div className="space-y-1.5 flex-1 md:w-[200px]">
-                                                <Label className="text-[9px] uppercase font-bold text-muted-foreground">Tax Responsibility</Label>
-                                                <Select value={tenantForm.taxLiability} onValueChange={v => setTenantForm({...tenantForm, taxLiability: v})}>
-                                                    <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                                        <div className="space-y-1.5">
+                                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Security Deposit</Label>
+                                            <Input type="number" value={tenantForm.securityDeposit} onChange={e => setTenantForm({...tenantForm, securityDeposit: Number(e.target.value)})} className="h-9" />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Rent Due Day</Label>
+                                            <Select value={tenantForm.dueDay} onValueChange={v => setTenantForm({...tenantForm, dueDay: v})}>
+                                                <SelectTrigger className="h-9 bg-white"><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    {Array.from({length: 28}, (_, i) => String(i+1)).map(d => <SelectItem key={d} value={d}>{d}th</SelectItem>)}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Cycle</Label>
+                                            <Select value={tenantForm.billingCycle} onValueChange={v => setTenantForm({...tenantForm, billingCycle: v})}>
+                                                <SelectTrigger className="h-9 bg-white"><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="Monthly">Monthly</SelectItem>
+                                                    <SelectItem value="Quarterly">Quarterly</SelectItem>
+                                                    <SelectItem value="Yearly">Yearly</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Rental Obligations Section */}
+                    <Card id="sec-obligations" className="shadow-sm border-gray-100 bg-white">
+                        <CardHeader className="py-4 px-6 border-b bg-emerald-50/10">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-emerald-50 rounded-xl"><Scale className="h-5 w-5 text-emerald-600"/></div>
+                                <div>
+                                    <CardTitle className="text-sm font-black uppercase text-gray-900 tracking-wider">Utility & Tax Obligations</CardTitle>
+                                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">Responsibility assignment for monthly recurring charges.</p>
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="p-6 space-y-8">
+                            <div className="flex flex-col md:flex-row items-end gap-6 bg-gray-50/50 p-4 rounded-xl border">
+                                <div className="space-y-1 flex-1">
+                                    <h4 className="text-xs font-bold text-gray-900">Rental Tax Liability</h4>
+                                    <p className="text-[10px] text-muted-foreground uppercase font-medium">Define who settles the government tax percentage.</p>
+                                </div>
+                                <div className="flex gap-4 items-end">
+                                    <div className="space-y-1.5 w-[180px]">
+                                        <Label className="text-[9px] uppercase font-black text-muted-foreground">Responsible Party</Label>
+                                        <Select value={tenantForm.taxLiability} onValueChange={v => setTenantForm({...tenantForm, taxLiability: v})}>
+                                            <SelectTrigger className="h-8 text-xs bg-white"><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="Paid by Tenant">Paid by Tenant</SelectItem>
+                                                <SelectItem value="Paid by Owner">Paid by Owner</SelectItem>
+                                                <SelectItem value="Included in Rent">Included in Rent</SelectItem>
+                                                <SelectItem value="Not Applicable">Not Applicable</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    {(tenantForm.taxLiability === 'Paid by Tenant' || tenantForm.taxLiability === 'Paid by Owner') && (
+                                        <div className="space-y-1.5 w-[100px] animate-in slide-in-from-right-2">
+                                            <Label className="text-[9px] uppercase font-black text-muted-foreground">Tax Rate %</Label>
+                                            <div className="relative">
+                                                <Input type="number" value={tenantForm.taxRate} onChange={e => setTenantForm({...tenantForm, taxRate: Number(e.target.value)})} className="h-8 text-xs font-black pr-6 bg-white" />
+                                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-bold text-muted-foreground">%</span>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                                {Object.entries(tenantForm.utilities).map(([key, config]) => {
+                                    const Icon = { electricity: Zap, water: Droplets, waste: Trash, internet: Wifi, parking: Car, maintenance: Wrench, security: ShieldCheck, other: HelpCircle }[key] || HelpCircle;
+                                    const color = { electricity: "text-blue-600", water: "text-cyan-600", waste: "text-emerald-600", internet: "text-purple-600", parking: "text-indigo-600", maintenance: "text-orange-600", security: "text-blue-700", other: "text-gray-600" }[key] || "text-gray-600";
+
+                                    return (
+                                        <div key={key} className={cn(
+                                            "p-3 rounded-xl border-2 transition-all group",
+                                            config.enabled ? "border-primary/30 bg-primary/[0.02] shadow-sm ring-1 ring-primary/5" : "border-gray-100 bg-gray-50/50 opacity-60"
+                                        )}>
+                                            <div className="flex items-center justify-between mb-3">
+                                                <div className="flex items-center gap-2">
+                                                    <Icon className={cn("h-3.5 w-3.5", color)} />
+                                                    <span className="text-[10px] font-black uppercase tracking-tighter capitalize">{key}</span>
+                                                </div>
+                                                <Switch checked={config.enabled} onCheckedChange={(v) => updateUtility(key as any, 'enabled', v)} className="scale-75" />
+                                            </div>
+                                            <div className={cn("space-y-3 transition-opacity", !config.enabled && "opacity-0 pointer-events-none")}>
+                                                <Select value={config.responsibleParty} onValueChange={v => updateUtility(key as any, 'responsibleParty', v)}>
+                                                    <SelectTrigger className="h-7 text-[9px] font-bold bg-white px-2 uppercase"><SelectValue /></SelectTrigger>
                                                     <SelectContent>
-                                                        <SelectItem value="Paid by Tenant">Paid by Tenant</SelectItem>
-                                                        <SelectItem value="Paid by Owner">Paid by Owner</SelectItem>
-                                                        <SelectItem value="Included in Rent">Included in Rent</SelectItem>
-                                                        <SelectItem value="Not Applicable">Not Applicable</SelectItem>
+                                                        <SelectItem value="Tenant" className="text-[9px]">By Tenant</SelectItem>
+                                                        <SelectItem value="Owner" className="text-[9px]">By Owner</SelectItem>
                                                     </SelectContent>
                                                 </Select>
-                                            </div>
-                                            {(tenantForm.taxLiability === 'Paid by Tenant' || tenantForm.taxLiability === 'Paid by Owner') && (
-                                                <div className="space-y-1.5 w-[120px] animate-in fade-in slide-in-from-right-2">
-                                                    <Label className="text-[9px] uppercase font-bold text-muted-foreground">Tax Rate (%)</Label>
-                                                    <div className="relative">
-                                                        <Input 
-                                                          type="number" 
-                                                          value={tenantForm.taxRate} 
-                                                          onChange={e => setTenantForm({...tenantForm, taxRate: Number(e.target.value)})}
-                                                          className="h-9 text-xs pr-7 font-bold" 
-                                                        />
-                                                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-muted-foreground">%</span>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                            {/* Utility Charges Grid */}
-                            <div className="space-y-4">
-                                <div className="flex items-center gap-4 px-2">
-                                    <div className="p-1.5 bg-blue-50 rounded-lg"><Wallet className="h-4 w-4 text-blue-600"/></div>
-                                    <div>
-                                        <h4 className="text-sm font-bold text-gray-900">Monthly Utility & Service Charges</h4>
-                                        <p className="text-[11px] text-muted-foreground">Enable utilities and define monthly charges and responsibility.</p>
-                                    </div>
-                                </div>
-                                
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                                    {Object.entries(tenantForm.utilities).map(([key, config]) => {
-                                        const Icon = {
-                                            electricity: Zap,
-                                            water: Droplets,
-                                            waste: Trash,
-                                            internet: Wifi,
-                                            parking: Car,
-                                            maintenance: Wrench,
-                                            security: ShieldCheck,
-                                            other: HelpCircle
-                                        }[key] || HelpCircle;
-
-                                        const colors = {
-                                            electricity: "text-blue-600",
-                                            water: "text-cyan-600",
-                                            waste: "text-emerald-600",
-                                            internet: "text-purple-600",
-                                            parking: "text-indigo-600",
-                                            maintenance: "text-orange-600",
-                                            security: "text-blue-700",
-                                            other: "text-gray-600"
-                                        }[key] || "text-gray-600";
-
-                                        return (
-                                            <Card key={key} className={cn(
-                                                "transition-all duration-200 border-2 overflow-hidden",
-                                                config.enabled ? "border-primary/40 shadow-md ring-1 ring-primary/10" : "border-transparent bg-muted/40 opacity-70"
-                                            )}>
-                                                <CardContent className="p-4 space-y-4">
+                                                <div className="space-y-1">
                                                     <div className="flex items-center justify-between">
-                                                        <div className="flex items-center gap-2">
-                                                            <Icon className={cn("h-4 w-4", colors)} />
-                                                            <span className="text-[11px] font-black uppercase tracking-tight capitalize">{key}</span>
-                                                        </div>
-                                                        <Switch 
-                                                            checked={config.enabled} 
-                                                            onCheckedChange={(v) => updateUtility(key as any, 'enabled', v)}
-                                                            className="data-[state=checked]:bg-primary"
-                                                        />
-                                                    </div>
-
-                                                    <div className={cn("space-y-4 transition-all", !config.enabled && "pointer-events-none")}>
-                                                        <div className="space-y-1">
-                                                            <Label className="text-[9px] uppercase font-bold text-muted-foreground">Responsibility</Label>
-                                                            <Select 
-                                                                value={config.responsibleParty} 
-                                                                onValueChange={v => updateUtility(key as any, 'responsibleParty', v)}
-                                                                disabled={!config.enabled}
-                                                            >
-                                                                <SelectTrigger className="h-8 text-[10px] bg-white"><SelectValue /></SelectTrigger>
-                                                                <SelectContent>
-                                                                    <SelectItem value="Tenant">Paid by Tenant</SelectItem>
-                                                                    <SelectItem value="Owner">Paid by Owner</SelectItem>
-                                                                </SelectContent>
-                                                            </Select>
-                                                        </div>
-                                                        
-                                                        <div className="space-y-2">
-                                                            <Label className="text-[9px] uppercase font-bold text-muted-foreground">Fixed Monthly Charge (रु)</Label>
-                                                            <div className="flex items-center gap-2">
-                                                                <Input 
-                                                                    type="number" 
-                                                                    value={config.fixedCharge} 
-                                                                    onChange={e => updateUtility(key as any, 'fixedCharge', Number(e.target.value))}
-                                                                    disabled={!config.enabled}
-                                                                    className="h-8 text-[11px] font-bold bg-white" 
-                                                                />
-                                                                <div className="flex items-center gap-1.5 shrink-0">
-                                                                    <Checkbox 
-                                                                        id={`metered-${key}`} 
-                                                                        checked={config.isMetered} 
-                                                                        onCheckedChange={(v) => updateUtility(key as any, 'isMetered', !!v)}
-                                                                        disabled={!config.enabled}
-                                                                        className="scale-90"
-                                                                    />
-                                                                    <Label htmlFor={`metered-${key}`} className="text-[9px] uppercase font-medium cursor-pointer">Metered</Label>
-                                                                </div>
-                                                            </div>
+                                                        <Label className="text-[8px] uppercase font-black text-muted-foreground">Charge (रु)</Label>
+                                                        <div className="flex items-center gap-1">
+                                                            <Checkbox id={`meter-${key}`} checked={config.isMetered} onCheckedChange={(v) => updateUtility(key as any, 'isMetered', !!v)} className="h-3 w-3" />
+                                                            <Label htmlFor={`meter-${key}`} className="text-[8px] font-bold uppercase cursor-pointer">Meter</Label>
                                                         </div>
                                                     </div>
-                                                </CardContent>
-                                            </Card>
-                                        );
-                                    })}
-                                </div>
+                                                    <Input type="number" value={config.fixedCharge} onChange={e => updateUtility(key as any, 'fixedCharge', Number(e.target.value))} className="h-7 text-xs font-black bg-white" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </CardContent>
+                    </Card>
 
-                                <div className="p-4 rounded-xl bg-blue-50/50 border border-blue-100 flex items-center gap-3 text-blue-900">
-                                    <Info className="h-4 w-4 shrink-0 text-blue-600"/>
-                                    <p className="text-[10px] font-medium italic">Note: Charges marked as <b>"Paid by Tenant"</b> will be automatically aggregated and billed to the tenant during the monthly cycle.</p>
+                    <Card id="sec-special" className="shadow-sm border-gray-100 bg-white">
+                        <CardHeader className="py-4 px-6 border-b">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-amber-50 rounded-xl"><FileText className="h-5 w-5 text-amber-600"/></div>
+                                <div>
+                                    <CardTitle className="text-sm font-black uppercase text-gray-900 tracking-wider">Additional Terms</CardTitle>
+                                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">Agreement clauses, rules, or special maintenance arrangements.</p>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-
-                    <Separator className="opacity-50" />
-
-                    {/* Special Terms Section */}
-                    <div className="space-y-6">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-amber-50 rounded-xl"><FileText className="h-5 w-5 text-amber-600"/></div>
-                            <h3 className="text-sm font-black uppercase text-gray-900 tracking-wider">Terms & Special Conditions</h3>
-                        </div>
-                        <Textarea 
-                          value={tenantForm.specialTerms} 
-                          onChange={e => setTenantForm({...tenantForm, specialTerms: e.target.value})}
-                          placeholder="List any unique agreement terms here (e.g. Pets allowed, No smoking, Maintenance cap of Rs. 2000...)" 
-                          className="min-h-[120px] text-sm resize-none bg-muted/5 shadow-inner" 
-                        />
-                    </div>
-                </CardContent>
-                <CardFooter className="bg-muted/10 border-t p-8 flex justify-end gap-4">
-                    <Button variant="outline" onClick={() => setActiveTab('records')} className="px-8 h-11 font-bold text-xs uppercase tracking-widest border-gray-300">Cancel</Button>
-                    <Button onClick={handleTenantSubmit} disabled={isSubmitting || !tenantForm.name} className="px-12 h-11 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20">
-                        {isSubmitting ? <Loader2 className="animate-spin h-4 w-4 mr-2"/> : <Save className="mr-2 h-4 w-4"/>}
-                        {editingTenantId ? 'Save & Update' : 'Finalize Onboarding'}
-                    </Button>
-                </CardFooter>
-            </Card>
+                        </CardHeader>
+                        <CardContent className="p-6">
+                            <Textarea 
+                                value={tenantForm.specialTerms} 
+                                onChange={e => setTenantForm({...tenantForm, specialTerms: e.target.value})}
+                                placeholder="Pets allowed, No smoking, Maintenance cap of Rs. 2000, Visitor restrictions, etc." 
+                                className="min-h-[100px] text-sm resize-none bg-gray-50/50 shadow-inner p-4 focus-visible:bg-white" 
+                            />
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
         </TabsContent>
       </Tabs>
 
@@ -1085,12 +1013,6 @@ export default function TenantsPage() {
                                     </CardFooter>
                                 </Card>
                             ))}
-                            {agreements.filter(a => a.tenantId === selectedTenant.id).length === 0 && (
-                                <div className="py-20 text-center border-2 border-dashed rounded-xl">
-                                    <FileText className="h-10 w-10 mx-auto text-muted-foreground/30 mb-2"/>
-                                    <p className="text-muted-foreground">No historical lease data found.</p>
-                                </div>
-                            )}
                         </TabsContent>
 
                         <TabsContent value="ledger" className="mt-0">
@@ -1132,7 +1054,7 @@ export default function TenantsPage() {
                 <DialogFooter className="p-6 border-t bg-muted/10 shrink-0">
                     <Button variant="outline" onClick={() => setIsDetailOpen(false)} className="h-10 px-6 font-bold text-xs uppercase tracking-widest border-gray-300">Close Profile</Button>
                     <div className="flex gap-2 ml-auto">
-                        <Button variant="outline" size="icon" className="h-10 w-10 bg-white"><Printer className="h-4 w-4"/></Button>
+                        <Button variant="outline" size="icon" className="h-10 w-10 bg-white" onClick={() => window.print()}><Printer className="h-4 w-4"/></Button>
                         <Button asChild className="h-10 px-6 font-bold text-xs uppercase tracking-widest shadow-blue-500/20 shadow-lg">
                             <Link href={`/rental/payments?tenantId=${selectedTenant.id}`}>
                                 <DollarSign className="mr-2 h-4 w-4"/> New Collection
@@ -1154,7 +1076,3 @@ export default function TenantsPage() {
     </div>
   );
 }
-
-const Info = ({ className }: { className?: string }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-);
