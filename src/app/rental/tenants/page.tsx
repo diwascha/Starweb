@@ -18,7 +18,8 @@ import {
   ArrowRight,
   ShieldCheck,
   Building2,
-  Download
+  Download,
+  Edit
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -37,7 +38,7 @@ import {
     DropdownMenu, 
     DropdownMenuContent, 
     DropdownMenuItem, 
-    DropdownMenuTrigger,
+    DropdownMenuTrigger, 
     DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
