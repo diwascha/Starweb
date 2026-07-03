@@ -20,13 +20,6 @@ import { onTransactionsUpdate } from '@/services/transaction-service';
 import { onSettingUpdate } from '@/services/settings-service';
 import { useToast } from '@/hooks/use-toast';
 
-const fleetModules = [
-    { name: 'Vehicles & Drivers', href: '/fleet/registry', icon: Truck },
-    { name: 'Expense Logs', href: '/fleet/transactions/expenses', icon: Wallet },
-    { name: 'Pmt. / Rcd. logs', href: '/fleet/transactions/payment-receipt/list', icon: Receipt },
-    { name: 'Sijan Reports', href: '/fleet/transactions', icon: CreditCard },
-];
-
 const defaultFleetProfile: CompanyProfile = {
   nameEn: "SIJAN DHUWANI SEWA",
   nameNp: "सिजन ढुवानी सेवा",
@@ -39,8 +32,7 @@ const defaultFleetProfile: CompanyProfile = {
 export default function FleetDashboardPage() {
     const { user, hasPermission } = useAuth();
     const [isLoading, setIsLoading] = useState(true);
-    const { toast } = useToast();
-
+    
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [drivers, setDrivers] = useState<Driver[]>([]);
     const [policies, setPolicies] = useState<PolicyOrMembership[]>([]);
@@ -49,26 +41,20 @@ export default function FleetDashboardPage() {
     
     useEffect(() => {
         setIsLoading(true);
-        const unsubVehicles = onVehiclesUpdate(setVehicles);
-        const unsubDrivers = onDriversUpdate(setDrivers);
-        const unsubPolicies = onPoliciesUpdate(setPolicies);
-        const unsubTxns = onTransactionsUpdate(setTransactions);
-        const unsubProfile = onSettingUpdate('fleetCompanyProfile', (s) => {
-            if (s?.value) setCompanyProfile(s.value);
-        });
-        
+        const unsubs = [
+            onVehiclesUpdate(setVehicles),
+            onDriversUpdate(setDrivers),
+            onPoliciesUpdate(setPolicies),
+            onTransactionsUpdate(setTransactions),
+            onSettingUpdate('fleetCompanyProfile', (s) => {
+                if (s?.value) setCompanyProfile(s.value);
+            })
+        ];
         setIsLoading(false);
-
-        return () => {
-            unsubVehicles();
-            unsubDrivers();
-            unsubPolicies();
-            unsubTxns();
-            unsubProfile();
-        }
+        return () => unsubs.forEach(u => u());
     }, []);
     
-    const { totalVehicles, totalDrivers, netThisMonth, vehicleStatusData } = useMemo(() => {
+    const stats = useMemo(() => {
         if (isLoading) return { totalVehicles: 0, totalDrivers: 0, netThisMonth: 0, vehicleStatusData: [] };
         
         const now = new Date();
@@ -80,21 +66,22 @@ export default function FleetDashboardPage() {
             return tDate >= start && tDate <= end;
         });
 
-        const income = monthlyTxns.filter(t => t.type === 'Income' || t.type === 'Sales' || t.type === 'Receipt').reduce((sum, t) => sum + t.amount, 0);
-        const expense = monthlyTxns.filter(t => t.type === 'Expense' || t.type === 'Purchase' || t.type === 'Payment').reduce((sum, t) => sum + t.amount, 0);
+        // Use any cast for literals that may have been normalized
+        const income = monthlyTxns.filter(t => ['Income', 'Sales', 'Receipt'].includes(t.type as any)).reduce((sum, t) => sum + (t.amount || 0), 0);
+        const expense = monthlyTxns.filter(t => ['Expense', 'Purchase', 'Payment'].includes(t.type as any)).reduce((sum, t) => sum + (t.amount || 0), 0);
         
         const statusCounts = vehicles.reduce((acc, v) => {
             acc[v.status] = (acc[v.status] || 0) + 1;
             return acc;
         }, {} as Record<string, number>);
         
-        const statusData = Object.entries(statusCounts).map(([name, value]) => ({ name, value }));
+        const vehicleStatusData = Object.entries(statusCounts).map(([name, value]) => ({ name, value }));
 
         return {
             totalVehicles: vehicles.length,
             totalDrivers: drivers.length,
             netThisMonth: income - expense,
-            vehicleStatusData: statusData
+            vehicleStatusData
         };
     }, [isLoading, vehicles, drivers, transactions]);
     
@@ -111,8 +98,8 @@ export default function FleetDashboardPage() {
                 return tDate >= start && tDate <= end;
             });
 
-            const income = monthTxns.filter(t => t.type === 'Income' || t.type === 'Sales' || t.type === 'Receipt').reduce((sum, t) => sum + t.amount, 0);
-            const expense = monthTxns.filter(t => t.type === 'Expense' || t.type === 'Purchase' || t.type === 'Payment').reduce((sum, t) => sum + t.amount, 0);
+            const income = monthTxns.filter(t => ['Income', 'Sales', 'Receipt'].includes(t.type as any)).reduce((sum, t) => sum + (t.amount || 0), 0);
+            const expense = monthTxns.filter(t => ['Expense', 'Purchase', 'Payment'].includes(t.type as any)).reduce((sum, t) => sum + (t.amount || 0), 0);
             
             data.push({
                 month: format(date, 'MMM'),
@@ -124,30 +111,26 @@ export default function FleetDashboardPage() {
     }, [isLoading, transactions]);
     
     const upcomingRenewals = useMemo(() => {
-        if (isLoading) return [];
         const today = startOfToday();
         return policies
-            .map(p => ({...p, daysRemaining: differenceInDays(new Date(p.endDate), today)}))
+            .map(p => ({ ...p, daysRemaining: differenceInDays(new Date(p.endDate), today) }))
             .filter(p => p.daysRemaining >= 0 && p.daysRemaining <= 30)
             .sort((a, b) => a.daysRemaining - b.daysRemaining)
             .slice(0, 5);
-    }, [isLoading, policies, vehicles, drivers]);
+    }, [policies]);
     
     const recentTransactions = useMemo(() => {
-        if (isLoading) return [];
         return [...transactions]
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
             .slice(0, 5);
-    }, [isLoading, transactions]);
+    }, [transactions]);
     
     const chartConfig: ChartConfig = {
-        value: { label: 'Vehicles' },
         income: { label: 'Income', color: 'hsl(var(--chart-2))' },
         expense: { label: 'Expense', color: 'hsl(var(--chart-1))' },
     };
     
-     const COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
-
+    const COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
 
     if (isLoading) {
       return (
@@ -167,10 +150,6 @@ export default function FleetDashboardPage() {
                         <p className="text-sm text-muted-foreground uppercase">{companyProfile.address}</p>
                     </div>
                 </div>
-                <div className="text-right hidden md:block">
-                    <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest">PAN: {companyProfile.pan}</p>
-                    <p className="text-[10px] text-muted-foreground mt-1 italic">Welcome, {user?.username}</p>
-                </div>
             </header>
             
             <div className="grid gap-6 md:grid-cols-3">
@@ -180,7 +159,7 @@ export default function FleetDashboardPage() {
                         <Truck className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{totalVehicles}</div>
+                        <div className="text-2xl font-bold">{stats.totalVehicles}</div>
                     </CardContent>
                 </Card>
                 <Card>
@@ -189,17 +168,17 @@ export default function FleetDashboardPage() {
                         <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{totalDrivers}</div>
+                        <div className="text-2xl font-bold">{stats.totalDrivers}</div>
                     </CardContent>
                 </Card>
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Net Income (This Month)</CardTitle>
-                        {netThisMonth >= 0 ? <TrendingUp className="h-4 w-4 text-muted-foreground"/> : <TrendingDown className="h-4 w-4 text-muted-foreground"/>}
+                        <CardTitle className="text-sm font-medium">Net Income (Month)</CardTitle>
+                        {stats.netThisMonth >= 0 ? <TrendingUp className="h-4 w-4 text-emerald-600"/> : <TrendingDown className="h-4 w-4 text-red-600"/>}
                     </CardHeader>
                     <CardContent>
-                        <div className={cn("text-2xl font-bold", netThisMonth >= 0 ? 'text-green-600' : 'text-red-600')}>
-                            {netThisMonth.toLocaleString()}
+                        <div className={cn("text-2xl font-bold", stats.netThisMonth >= 0 ? 'text-emerald-600' : 'text-red-600')}>
+                            Rs. {stats.netThisMonth.toLocaleString()}
                         </div>
                     </CardContent>
                 </Card>
@@ -207,9 +186,7 @@ export default function FleetDashboardPage() {
             
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
                 <Card className="lg:col-span-3">
-                    <CardHeader>
-                        <CardTitle>Income vs. Expense (Last 6 Months)</CardTitle>
-                    </CardHeader>
+                    <CardHeader><CardTitle>Financial Movement (Last 6 Months)</CardTitle></CardHeader>
                     <CardContent>
                         <ChartContainer config={chartConfig} className="h-[250px] w-full">
                             <BarChart data={monthlyChartData}>
@@ -224,16 +201,14 @@ export default function FleetDashboardPage() {
                     </CardContent>
                 </Card>
                  <Card className="lg:col-span-2">
-                    <CardHeader>
-                        <CardTitle>Vehicle Status</CardTitle>
-                    </CardHeader>
+                    <CardHeader><CardTitle>Fleet Composition</CardTitle></CardHeader>
                     <CardContent className="flex items-center justify-center">
                         <ChartContainer config={chartConfig} className="h-[250px] w-full">
                             <ResponsiveContainer width="100%" height={250}>
                                 <PieChart>
                                     <Tooltip content={<ChartTooltipContent nameKey="name" />} />
-                                    <Pie data={vehicleStatusData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
-                                        {vehicleStatusData.map((entry, index) => (
+                                    <Pie data={stats.vehicleStatusData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
+                                        {stats.vehicleStatusData.map((_, index) => (
                                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                         ))}
                                     </Pie>
@@ -247,10 +222,7 @@ export default function FleetDashboardPage() {
             <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between">
-                        <div>
-                            <CardTitle>Upcoming Renewals</CardTitle>
-                            <CardDescription>Policies & memberships expiring in the next 30 days.</CardDescription>
-                        </div>
+                        <div><CardTitle>Upcoming Renewals</CardTitle></div>
                          <Button asChild size="sm" variant="outline">
                             <Link href="/fleet/policies">View All <ArrowRight className="ml-2 h-4 w-4" /></Link>
                         </Button>
@@ -276,19 +248,14 @@ export default function FleetDashboardPage() {
                                 ))}
                             </div>
                         ) : (
-                             <div className="flex h-full items-center justify-center text-muted-foreground">
-                                No upcoming renewals.
-                            </div>
+                             <div className="flex h-full items-center justify-center text-muted-foreground">No upcoming renewals.</div>
                         )}
                         </ScrollArea>
                     </CardContent>
                 </Card>
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between">
-                        <div>
-                           <CardTitle>Recent Transactions</CardTitle>
-                           <CardDescription>A log of the latest income and expenses.</CardDescription>
-                        </div>
+                        <div><CardTitle>Recent Transactions</CardTitle></div>
                         <Button asChild size="sm" variant="outline">
                             <Link href="/fleet/transactions">View All <ArrowRight className="ml-2 h-4 w-4" /></Link>
                         </Button>
@@ -303,36 +270,18 @@ export default function FleetDashboardPage() {
                                             <p className="font-medium">{t.category || t.type} <span className="text-sm text-muted-foreground">for {vehicles.find(v => v.id === t.vehicleId)?.name}</span></p>
                                             <p className="text-sm text-muted-foreground">{new Date(t.date).toLocaleDateString()}</p>
                                         </div>
-                                        <p className={cn("font-medium", ['Income', 'Sales', 'Receipt'].includes(t.type) ? 'text-green-600' : 'text-red-600')}>
-                                            {['Expense', 'Purchase', 'Payment'].includes(t.type) && '-'}{t.amount.toLocaleString()}
+                                        <p className={cn("font-medium", ['Income', 'Sales', 'Receipt'].includes(t.type as any) ? 'text-emerald-600' : 'text-red-600')}>
+                                            {['Expense', 'Purchase', 'Payment'].includes(t.type as any) && '-'}{t.amount.toLocaleString()}
                                         </p>
                                     </div>
                                 ))}
                             </div>
                          ) : (
-                             <div className="flex h-full items-center justify-center text-muted-foreground">
-                                No transactions recorded yet.
-                            </div>
+                             <div className="flex h-full items-center justify-center text-muted-foreground">No transactions recorded yet.</div>
                          )}
                         </ScrollArea>
                     </CardContent>
                 </Card>
-            </div>
-            
-            <div>
-                 <h2 className="text-xl font-bold tracking-tight mb-4">Quick Access</h2>
-                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                    {fleetModules.map((module) => (
-                      <Link href={module.href} key={module.name}>
-                        <Card className="h-full transition-all hover:shadow-md">
-                          <CardHeader className="flex flex-row items-center gap-4 space-y-0">
-                            <module.icon className="h-6 w-6 text-muted-foreground" />
-                            <CardTitle className="text-lg font-medium">{module.name}</CardTitle>
-                          </CardHeader>
-                        </Card>
-                      </Link>
-                    ))}
-                  </div>
             </div>
         </div>
     );

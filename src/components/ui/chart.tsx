@@ -12,7 +12,6 @@ import {
   Cell,
   PieProps as RechartsPieProps,
   PieSectorDataItem,
-  TooltipProps as RechartsTooltipProps,
 } from "recharts"
 
 import {
@@ -25,6 +24,9 @@ import {
   ChartTooltipItem,
 } from "@/components/ui/chart-core"
 import { cn } from "@/lib/utils"
+
+// Explicitly re-export for consumers
+export type { ChartConfig }
 
 const Chart = ChartContainer
 
@@ -101,18 +103,12 @@ const ChartLegend = React.forwardRef<
 })
 ChartLegend.displayName = "ChartLegend"
 
-// TODO: Resolve TooltipPortal's missing ref
-const ChartTooltipPortal = RechartsTooltip
-
-type PieChartProps = React.ComponentProps<typeof RechartsPieChart> & {
-  "data-testid"?: string
-}
-
 const PieChart = React.forwardRef<
   HTMLDivElement,
-  PieChartProps & {
+  React.ComponentProps<typeof RechartsPieChart> & {
     config: ChartConfig
     children: React.ReactNode
+    "data-testid"?: string
   }
 >(({ children, className, config, "data-testid": testId, ...props }, ref) => {
   const legend = React.useMemo(() => {
@@ -220,48 +216,6 @@ const Pie = React.forwardRef<
 })
 Pie.displayName = "Pie"
 
-const PieLabel = React.forwardRef<
-  SVGTextElement,
-  Omit<React.ComponentProps<typeof Label>, "children"> & {
-    children?:
-      | React.ReactNode
-      | ((props: {
-          percent?: number
-          payload?: any
-        }) => React.ReactNode)
-  }
->((props, ref) => {
-  if (typeof props.children === "function") {
-    return (
-      <Label
-        {...props}
-        content={(labelProps: any) => {
-          const { percent, payload } = labelProps;
-          return props.children?.({ percent, payload }) as any;
-        }}
-      />
-    )
-  }
-
-  return <Label {...props} />
-})
-PieLabel.displayName = "PieLabel"
-
-const PieLabelList = Label
-
-const PieActiveSector = Sector
-
-const ChartTooltipContentWrapper = React.forwardRef<
-  HTMLDivElement,
-  RechartsTooltipProps<any, any>
->(({ active, payload, label, ...props }, ref) => {
-  if (!active || !payload?.length) {
-    return null
-  }
-  return <ChartTooltipContent {...props} payload={payload} />
-})
-ChartTooltipContentWrapper.displayName = "ChartTooltipContentWrapper"
-
 export {
   Chart,
   ChartContainer,
@@ -272,14 +226,8 @@ export {
   ChartTooltipContent,
   ChartTooltipFrame,
   ChartTooltipItem,
-  ChartTooltipPortal,
-  useChartLegend,
   PieChart,
   Pie,
-  PieLabel,
-  PieLabelList,
-  PieActiveSector,
 }
 
-// Re-export zod for convenience
 export * from "zod"

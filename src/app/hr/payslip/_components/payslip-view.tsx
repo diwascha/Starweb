@@ -1,11 +1,10 @@
-
 'use client';
 
 import type { Employee, Payroll, CompanyProfile } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Printer, Save, Loader2, ArrowLeft } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
-import { toNepaliDate, toWords } from '@/lib/utils';
+import { toWords } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Table, TableBody, TableCell, TableRow, TableHeader, TableHead } from '@/components/ui/table';
 import { useState, useEffect } from 'react';
@@ -48,13 +47,10 @@ export default function PayslipView({ employee, payroll, bsYear, bsMonthName }: 
   };
   
   const handleSaveAsPdf = async () => {
-    setIsGeneratingPdf(true);
     const printableArea = document.querySelector('.printable-area') as HTMLElement;
-    if (!printableArea) {
-        setIsGeneratingPdf(false);
-        return;
-    }
+    if (!printableArea) return;
     
+    setIsGeneratingPdf(true);
     try {
         const jsPDF = (await import('jspdf')).default;
         const html2canvas = (await import('html2canvas')).default;
@@ -74,20 +70,20 @@ export default function PayslipView({ employee, payroll, bsYear, bsMonthName }: 
   };
   
   const earnings = [
-      { label: "Normal Pay", amount: payroll.regularPay },
-      { label: "Overtime Pay", amount: payroll.otPay },
-      { label: "Allowance", amount: payroll.allowance },
-      { label: "Bonus", amount: payroll.bonus },
+      { label: "Normal Pay", amount: payroll?.regularPay ?? 0 },
+      { label: "Overtime Pay", amount: payroll?.otPay ?? 0 },
+      { label: "Allowance", amount: payroll?.allowance ?? 0 },
+      { label: "Bonus", amount: payroll?.bonus ?? 0 },
   ];
   
   const deductions = [
-      { label: "Absent Deduction", amount: payroll.deduction },
-      { label: "TDS (1%)", amount: payroll.tds },
-      { label: "Advance", amount: payroll.advance },
+      { label: "Absent Deduction", amount: payroll?.deduction ?? 0 },
+      { label: "TDS (1%)", amount: payroll?.tds ?? 0 },
+      { label: "Advance", amount: payroll?.advance ?? 0 },
   ];
 
-  const totalEarnings = earnings.reduce((sum, item) => sum + (item.amount || 0), 0);
-  const totalDeductions = deductions.reduce((sum, item) => sum + (item.amount || 0), 0);
+  const totalEarnings = earnings.reduce((sum, item) => sum + item.amount, 0);
+  const totalDeductions = deductions.reduce((sum, item) => sum + item.amount, 0);
 
   return (
     <>
@@ -97,18 +93,12 @@ export default function PayslipView({ employee, payroll, bsYear, bsMonthName }: 
              <p className="text-muted-foreground">Payslip for {employee.name} for {bsMonthName}, {bsYear}</p>
         </div>
         <div className="flex gap-2">
-            <Button variant="outline" onClick={() => router.back()}>
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back
-            </Button>
+            <Button variant="outline" onClick={() => router.back()}><ArrowLeft className="mr-2 h-4 w-4" />Back</Button>
             <Button variant="outline" onClick={handleSaveAsPdf} disabled={isGeneratingPdf}>
                 {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                {isGeneratingPdf ? 'Saving...' : 'Save as PDF'}
+                Save as PDF
             </Button>
-            <Button onClick={handlePrint}>
-                <Printer className="mr-2 h-4 w-4" />
-                Print
-            </Button>
+            <Button onClick={handlePrint}><Printer className="mr-2 h-4 w-4" />Print</Button>
         </div>
       </div>
       
@@ -173,42 +163,28 @@ export default function PayslipView({ employee, payroll, bsYear, bsMonthName }: 
         
         <div className="grid grid-cols-2 gap-4 mt-2">
             <div className="border border-gray-300 rounded-md bg-gray-50">
-                <Table>
-                    <TableBody>
-                        <TableRow className="font-bold">
-                            <TableCell className="h-8 px-2 text-xs">Total Earnings</TableCell>
-                            <TableCell className="h-8 px-2 text-xs text-right">{totalEarnings.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
-                        </TableRow>
-                    </TableBody>
-                </Table>
+                <Table><TableBody><TableRow className="font-bold">
+                    <TableCell className="h-8 px-2 text-xs">Total Earnings</TableCell>
+                    <TableCell className="h-8 px-2 text-xs text-right">{totalEarnings.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                </TableRow></TableBody></Table>
             </div>
              <div className="border border-gray-300 rounded-md bg-gray-50">
-                <Table>
-                    <TableBody>
-                        <TableRow className="font-bold">
-                            <TableCell className="h-8 px-2 text-xs">Total Deductions</TableCell>
-                            <TableCell className="h-8 px-2 text-xs text-right">{totalDeductions.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
-                        </TableRow>
-                    </TableBody>
-                </Table>
+                <Table><TableBody><TableRow className="font-bold">
+                    <TableCell className="h-8 px-2 text-xs">Total Deductions</TableCell>
+                    <TableCell className="h-8 px-2 text-xs text-right">{totalDeductions.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                </TableRow></TableBody></Table>
             </div>
         </div>
         
         <div className="mt-4 p-2 bg-blue-100 border border-blue-300 rounded-md text-center">
-            <p className="font-semibold text-sm">Net Salary: NPR {(payroll.netPayment || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
-            <p className="text-xs font-medium">In Words: {toWords(payroll.netPayment || 0)}</p>
+            <p className="font-semibold text-sm">Net Salary: NPR {(payroll?.netPayment ?? 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+            <p className="text-xs font-medium">In Words: {toWords(payroll?.netPayment ?? 0)}</p>
         </div>
 
-
-        <div className="mt-8 grid grid-cols-2 gap-8 pt-16 text-xs">
-            <div className="text-center"><div className="border-t border-black w-36 mx-auto"></div><p className="font-semibold mt-1">Employer's Signature</p></div>
-            <div className="text-center"><div className="border-t border-black w-36 mx-auto"></div><p className="font-semibold mt-1">Employee's Signature</p></div>
+        <div className="mt-8 grid grid-cols-2 gap-8 pt-16 text-xs text-center">
+            <div><div className="border-t border-black w-36 mx-auto"></div><p className="font-semibold mt-1">Employer's Signature</p></div>
+            <div><div className="border-t border-black w-36 mx-auto"></div><p className="font-semibold mt-1">Employee's Signature</p></div>
         </div>
-        
-         <div className="mt-8 text-center pt-8 text-xs text-gray-500">
-              <p>This is a computer-generated payslip. Please review it carefully and report any discrepancies to the HR department within seven (7) days of receipt.</p>
-        </div>
-
       </div>
        <style jsx global>{`
         @media print {
