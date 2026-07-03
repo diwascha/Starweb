@@ -344,6 +344,66 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                     )} />
                 </div>
 
+                {/* MOVED: Payment Mode Section */}
+                <FormField control={form.control} name="paymentMode" render={({ field }) => (
+                    <FormItem className="space-y-2">
+                        <FormLabel>Payment Mode</FormLabel>
+                        <div className="flex flex-col gap-3">
+                            <div className="flex gap-2 max-w-md">
+                                <Button
+                                    type="button"
+                                    variant={field.value === 'Cash' ? 'default' : 'outline'}
+                                    className="flex-1 h-10"
+                                    onClick={() => field.onChange('Cash')}
+                                >
+                                    <Wallet className="mr-2 h-4 w-4" /> Cash
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant={field.value === 'Bank' ? 'default' : 'outline'}
+                                    className="flex-1 h-10"
+                                    onClick={() => field.onChange('Bank')}
+                                >
+                                    <Building2 className="mr-2 h-4 w-4" /> Bank
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant={field.value === 'Mixed' ? 'default' : 'outline'}
+                                    className="flex-1 h-10"
+                                    onClick={() => {
+                                        field.onChange('Mixed');
+                                        const total = watchedAmount + watchedExtraAmount;
+                                        if (watchedCashAmount === 0 && watchedBankAmount === 0) {
+                                            form.setValue('cashAmount', total);
+                                            form.setValue('bankAmount', 0);
+                                        }
+                                    }}
+                                >
+                                    <ArrowRightLeft className="mr-2 h-4 w-4" /> Mixed
+                                </Button>
+                            </div>
+                            
+                            {(watchedType === 'Loan Repayment' || watchedMode === 'Bank' || watchedMode === 'Mixed') && (
+                                <FormField control={form.control} name="accountId" render={({ field: accountField }) => (
+                                    <FormItem className="animate-in fade-in slide-in-from-top-1 max-w-md">
+                                        <Select onValueChange={accountField.onChange} value={accountField.value}>
+                                            <FormControl>
+                                                <SelectTrigger className="h-9 text-xs border-primary/20 bg-primary/5">
+                                                    <SelectValue placeholder="Select bank account..." />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                {sijanAccounts.map(a => <SelectItem key={a.id} value={a.id}>{a.bankName} - {a.accountNumber}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                    </FormItem>
+                                )} />
+                            )}
+                        </div>
+                    </FormItem>
+                )} />
+
                 <div className="space-y-3">
                     <FormLabel className="text-xs uppercase font-bold tracking-wider text-muted-foreground">Select Expense Type</FormLabel>
                     <div className="flex flex-wrap gap-2">
@@ -531,65 +591,6 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                                     </div>
                                 </FormControl>
                                 <FormMessage />
-                            </FormItem>
-                        )} />
-
-                        <FormField control={form.control} name="paymentMode" render={({ field }) => (
-                            <FormItem className="space-y-2">
-                                <FormLabel>Payment Mode</FormLabel>
-                                <div className="flex flex-col gap-3">
-                                    <div className="flex gap-2">
-                                        <Button
-                                            type="button"
-                                            variant={field.value === 'Cash' ? 'default' : 'outline'}
-                                            className="flex-1 h-10"
-                                            onClick={() => field.onChange('Cash')}
-                                        >
-                                            <Wallet className="mr-2 h-4 w-4" /> Cash
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            variant={field.value === 'Bank' ? 'default' : 'outline'}
-                                            className="flex-1 h-10"
-                                            onClick={() => field.onChange('Bank')}
-                                        >
-                                            <Building2 className="mr-2 h-4 w-4" /> Bank
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            variant={field.value === 'Mixed' ? 'default' : 'outline'}
-                                            className="flex-1 h-10"
-                                            onClick={() => {
-                                                field.onChange('Mixed');
-                                                const total = watchedAmount + watchedExtraAmount;
-                                                if (watchedCashAmount === 0 && watchedBankAmount === 0) {
-                                                    form.setValue('cashAmount', total);
-                                                    form.setValue('bankAmount', 0);
-                                                }
-                                            }}
-                                        >
-                                            <ArrowRightLeft className="mr-2 h-4 w-4" /> Mixed
-                                        </Button>
-                                    </div>
-                                    
-                                    {(watchedType === 'Loan Repayment' || watchedMode === 'Bank' || watchedMode === 'Mixed') && (
-                                        <FormField control={form.control} name="accountId" render={({ field: accountField }) => (
-                                            <FormItem className="animate-in fade-in slide-in-from-top-1">
-                                                <Select onValueChange={accountField.onChange} value={accountField.value}>
-                                                    <FormControl>
-                                                        <SelectTrigger className="h-9 text-xs border-primary/20 bg-primary/5">
-                                                            <SelectValue placeholder="Select bank account..." />
-                                                        </SelectTrigger>
-                                                    </FormControl>
-                                                    <SelectContent>
-                                                        {sijanAccounts.map(a => <SelectItem key={a.id} value={a.id}>{a.bankName} - {a.accountNumber}</SelectItem>)}
-                                                    </SelectContent>
-                                                </Select>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )} />
-                                    )}
-                                </div>
                             </FormItem>
                         )} />
                     </div>
