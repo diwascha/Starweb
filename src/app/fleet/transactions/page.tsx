@@ -99,7 +99,7 @@ const SearchableMultiSelect = ({ label, values, onSelect, items, placeholder, ic
                             <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
                             <span className="truncate">{displayText}</span>
                         </div>
-                        <ChevronDown className="h-4 w-4 opacity-50" />
+                        <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
                     </Button>
                 </PopoverTrigger>
                 <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
@@ -137,6 +137,7 @@ export default function FleetTransactionsPage() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [parties, setParties] = useState<Party[]>([]);
+    const [accounts, setAccounts] = useState<Account[]>([]);
     const [fleetProfile, setFleetProfile] = useState<CompanyProfile>(DEFAULT_FLEET_PROFILE);
     const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
@@ -162,8 +163,13 @@ export default function FleetTransactionsPage() {
             onTransactionsUpdate(setTransactions),
             onVehiclesUpdate(setVehicles),
             onPartiesUpdate(setParties),
-            onSettingUpdate('fleetCompanyProfile', (s) => { if (s?.value) setFleetProfile(s.value); })
+            onSettingUpdate('fleetCompanyProfile', (s) => { if (s?.value) setFleetProfile(s.value); }),
+            onSettingUpdate('accounts', (s) => { if (s?.value) setAccounts(s.value); })
         ];
+        
+        // Use service layer getters for initial load
+        import('@/services/account-service').then(m => m.getAccounts(true).then(setAccounts));
+
         setIsLoading(false);
         return () => unsubs.forEach(u => u());
     }, []);
@@ -181,6 +187,8 @@ export default function FleetTransactionsPage() {
         });
         return Array.from(years).sort((a, b) => b - a);
     }, [transactions]);
+
+    const sijanBankAccounts = useMemo(() => accounts.filter(a => a.type === 'Bank' && (a.ownership === 'Sijan' || a.ownership === 'Both')), [accounts]);
 
     const handleResetFilters = () => {
         setFilterParties([]);
@@ -216,7 +224,16 @@ export default function FleetTransactionsPage() {
         const matchesNonDateFilters = (t: any) => {
             if (filterParties.length > 0 && (!t.partyId || !filterParties.includes(t.partyId))) return false;
             if (filterVehicles.length > 0 && !filterVehicles.includes(t.vehicleId)) return false;
-            if (filterBillingTypes.length > 0 && !filterBillingTypes.includes(t.billingType)) return false;
+            
+            if (filterBillingTypes.length > 0) {
+                const isMatched = filterBillingTypes.some(val => {
+                    if (val === 'Cash') return t.billingType === 'Cash';
+                    if (val === 'Credit') return t.billingType === 'Credit';
+                    return t.accountId === val;
+                });
+                if (!isMatched) return false;
+            }
+
             if (filterCategory !== 'All' && t.categoryDisplay !== filterCategory.toUpperCase()) return false;
             if (globalSearch) {
                 const q = globalSearch.toLowerCase();
@@ -390,6 +407,17 @@ export default function FleetTransactionsPage() {
                globalSearch !== '';
     }, [filterParties, filterVehicles, filterBillingTypes, dateRange, selectedBsYear, selectedBsMonth, filterCategory, globalSearch]);
 
+    const sourceFilterItems = useMemo(() => {
+        return [
+            { id: 'Cash', name: 'Cash' },
+            { id: 'Credit', name: 'Credit' },
+            ...sijanBankAccounts.map(a => ({ 
+                id: a.id, 
+                name: `${a.bankName || a.name}${a.accountNumber ? ` (${a.accountNumber})` : ''}` 
+            }))
+        ];
+    }, [sijanBankAccounts]);
+
     return (
         <div className="flex flex-col gap-6 max-w-[1600px] mx-auto">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -439,11 +467,7 @@ export default function FleetTransactionsPage() {
                         label="Modes of Payment" 
                         values={filterBillingTypes} 
                         onSelect={setFilterBillingTypes} 
-                        items={[
-                            { id: 'Cash', name: 'Cash' },
-                            { id: 'Bank', name: 'Bank' },
-                            { id: 'Credit', name: 'Credit' }
-                        ]} 
+                        items={sourceFilterItems} 
                         placeholder="Payment Mode" 
                         icon={Wallet} 
                     />
