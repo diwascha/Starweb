@@ -382,6 +382,10 @@ export interface Party {
     address?: string;
     panNumber?: string;
     photoURL?: string; // Support for tenant/customer photos
+    identityType?: string;
+    documentNumber?: string;
+    issueDate?: string;
+    expiryDate?: string;
     createdBy: string;
     createdAt: string; // ISO string
     lastModifiedBy?: string;

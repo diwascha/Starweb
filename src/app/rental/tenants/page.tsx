@@ -25,7 +25,8 @@ import {
   Loader2,
   Trash2,
   X,
-  PlusCircle
+  PlusCircle,
+  CalendarIcon
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -72,6 +73,10 @@ import { cn, toNepaliDate } from '@/lib/utils';
 import Link from 'next/link';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { DualCalendar } from '@/components/ui/dual-calendar';
+import { format, isPast } from 'date-fns';
 
 const NEPALI_MONTHS = [
     { value: 0, name: "Baishakh" }, { value: 1, name: "Jestha" }, { value: 2, name: "Ashadh" },
@@ -101,14 +106,17 @@ export default function TenantsPage() {
   const [tenantForm, setTenantForm] = useState({
     name: '',
     address: '',
-    panNumber: '', // Used as phone number in this context
+    panNumber: '', // Used as phone number
+    identityType: 'Citizenship',
+    documentNumber: '',
+    issueDate: '',
+    expiryDate: '',
   });
 
   useEffect(() => {
     setIsLoading(true);
     const unsubs = [
         onPartiesUpdate((data) => {
-            // Filter parties that are tenants and exclusive to Rental or Both
             setTenants(data.filter(p => 
                 (p.type === 'Tenant' || p.type === 'Both') && 
                 (p.ownership === 'Rental' || p.ownership === 'Both')
@@ -155,7 +163,15 @@ export default function TenantsPage() {
 
   const openAddDialog = () => {
     setEditingTenantId(null);
-    setTenantForm({ name: '', address: '', panNumber: '' });
+    setTenantForm({
+        name: '',
+        address: '',
+        panNumber: '',
+        identityType: 'Citizenship',
+        documentNumber: '',
+        issueDate: '',
+        expiryDate: '',
+    });
     setIsAddDialogOpen(true);
   };
 
@@ -166,6 +182,10 @@ export default function TenantsPage() {
         name: tenant.name,
         address: tenant.address || '',
         panNumber: tenant.panNumber || '',
+        identityType: tenant.identityType || 'Citizenship',
+        documentNumber: tenant.documentNumber || '',
+        issueDate: tenant.issueDate || '',
+        expiryDate: tenant.expiryDate || '',
     });
     setIsAddDialogOpen(true);
   };
@@ -174,19 +194,25 @@ export default function TenantsPage() {
     if (!user || !tenantForm.name) return;
     setIsSubmitting(true);
     try {
+        const payload = {
+            name: tenantForm.name,
+            address: tenantForm.address,
+            panNumber: tenantForm.panNumber,
+            identityType: tenantForm.identityType,
+            documentNumber: tenantForm.documentNumber,
+            issueDate: tenantForm.issueDate || undefined,
+            expiryDate: tenantForm.expiryDate || undefined,
+        };
+
         if (editingTenantId) {
             await updateParty(editingTenantId, {
-                name: tenantForm.name,
-                address: tenantForm.address,
-                panNumber: tenantForm.panNumber,
+                ...payload,
                 lastModifiedBy: user.username
             });
             toast({ title: 'Tenant Updated' });
         } else {
             await addParty({
-                name: tenantForm.name,
-                address: tenantForm.address,
-                panNumber: tenantForm.panNumber,
+                ...payload,
                 type: 'Tenant' as PartyType,
                 ownership: 'Rental' as AccountOwnership,
                 createdBy: user.username
@@ -370,11 +396,11 @@ export default function TenantsPage() {
 
       {/* Add/Edit Tenant Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-xl">
             <DialogHeader>
                 <DialogTitle>{editingTenantId ? 'Edit Tenant Profile' : 'Register New Tenant'}</DialogTitle>
                 <DialogDescription>
-                    Fill in the contact information. This data is exclusive to the Rental module.
+                    Fill in the contact and identification information. This data is exclusive to the Rental module.
                 </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
@@ -387,14 +413,67 @@ export default function TenantsPage() {
                         placeholder="e.g. John Doe"
                     />
                 </div>
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="tenant-contact">Mobile / Contact Number</Label>
+                        <Input 
+                            id="tenant-contact" 
+                            value={tenantForm.panNumber} 
+                            onChange={e => setTenantForm({...tenantForm, panNumber: e.target.value})} 
+                            placeholder="e.g. 9841XXXXXX"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>ID Type</Label>
+                        <Select value={tenantForm.identityType} onValueChange={v => setTenantForm({...tenantForm, identityType: v})}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Citizenship">Citizenship</SelectItem>
+                                <SelectItem value="NID">National ID (NID)</SelectItem>
+                                <SelectItem value="Driving License">Driving License</SelectItem>
+                                <SelectItem value="Voters Card">Voters Card</SelectItem>
+                                <SelectItem value="Others">Others</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
                 <div className="space-y-2">
-                    <Label htmlFor="tenant-contact">Mobile / Contact Number</Label>
+                    <Label>Document Number</Label>
                     <Input 
-                        id="tenant-contact" 
-                        value={tenantForm.panNumber} 
-                        onChange={e => setTenantForm({...tenantForm, panNumber: e.target.value})} 
-                        placeholder="e.g. 9841XXXXXX"
+                        value={tenantForm.documentNumber} 
+                        onChange={e => setTenantForm({...tenantForm, documentNumber: e.target.value})} 
+                        placeholder="Passport / ID Number"
                     />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label>Issue Date (Optional)</Label>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button variant="outline" className={cn("w-full justify-start text-left font-normal h-10", !tenantForm.issueDate && "text-muted-foreground")}>
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {tenantForm.issueDate ? toNepaliDate(tenantForm.issueDate) : "Pick date"}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <DualCalendar selected={tenantForm.issueDate ? new Date(tenantForm.issueDate) : undefined} onSelect={d => setTenantForm({...tenantForm, issueDate: d?.toISOString() || ''})} />
+                            </PopoverContent>
+                        </Popover>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Expiry Date (Optional)</Label>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button variant="outline" className={cn("w-full justify-start text-left font-normal h-10", !tenantForm.expiryDate && "text-muted-foreground")}>
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {tenantForm.expiryDate ? toNepaliDate(tenantForm.expiryDate) : "Pick date"}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <DualCalendar selected={tenantForm.expiryDate ? new Date(tenantForm.expiryDate) : undefined} onSelect={d => setTenantForm({...tenantForm, expiryDate: d?.toISOString() || ''})} />
+                            </PopoverContent>
+                        </Popover>
+                    </div>
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="tenant-address">Home Address / Location</Label>
@@ -403,7 +482,7 @@ export default function TenantsPage() {
                         value={tenantForm.address} 
                         onChange={e => setTenantForm({...tenantForm, address: e.target.value})} 
                         placeholder="Permanent or current address"
-                        className="min-h-[80px]"
+                        className="min-h-[60px]"
                     />
                 </div>
             </div>
@@ -462,50 +541,82 @@ export default function TenantsPage() {
                                 </Card>
                             </div>
 
-                            <section className="space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <h4 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
-                                        <Clock className="h-3 w-3 text-primary"/> Recent Invoices
-                                    </h4>
-                                    <Button variant="link" className="h-auto p-0 text-[10px] font-bold uppercase" asChild>
-                                        <Link href="/rental/billing">View All History</Link>
-                                    </Button>
-                                </div>
-                                <div className="border rounded-lg bg-white shadow-sm overflow-hidden">
-                                    <Table className="text-xs">
-                                        <TableHeader className="bg-muted/30">
-                                            <TableRow className="h-9 hover:bg-transparent">
-                                                <TableHead>Bill Date</TableHead>
-                                                <TableHead>Charge Type</TableHead>
-                                                <TableHead>Period (BS)</TableHead>
-                                                <TableHead className="text-right">Amount</TableHead>
-                                                <TableHead className="text-center">Status</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {bills.filter(b => b.tenantId === selectedTenant.id).slice(0, 5).map(bill => (
-                                                <TableRow key={bill.id} className="h-11">
-                                                    <TableCell className="text-gray-500">{new Date(bill.createdAt).toLocaleDateString()}</TableCell>
-                                                    <TableCell><Badge variant="outline" className="text-[9px] font-black uppercase px-2 py-0 h-4 border-muted-foreground/20">{bill.type}</Badge></TableCell>
-                                                    <TableCell className="font-medium uppercase text-gray-700">{NEPALI_MONTHS[bill.billingMonth].name} {bill.billingYear}</TableCell>
-                                                    <TableCell className="text-right font-mono font-bold">Rs. {bill.amount.toLocaleString()}</TableCell>
-                                                    <TableCell className="text-center">
-                                                        <Badge variant={bill.status === 'Paid' ? 'default' : 'destructive'} className={cn(
-                                                            "text-[9px] font-black h-4 px-2 py-0 uppercase",
-                                                            bill.status === 'Paid' ? 'bg-green-600' : ''
-                                                        )}>
-                                                            {bill.status}
-                                                        </Badge>
-                                                    </TableCell>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <section className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+                                            <ShieldCheck className="h-3 w-3 text-primary"/> Verification & Identity
+                                        </h4>
+                                    </div>
+                                    <div className="p-4 rounded-xl border bg-white shadow-sm space-y-3">
+                                        <div className="flex justify-between items-center text-sm">
+                                            <span className="text-muted-foreground">ID Document Type</span>
+                                            <Badge variant="outline" className="font-bold">{selectedTenant.identityType || 'Not Provided'}</Badge>
+                                        </div>
+                                        <div className="flex justify-between items-center text-sm">
+                                            <span className="text-muted-foreground">ID Number</span>
+                                            <span className="font-mono font-bold tracking-tight">{selectedTenant.documentNumber || '—'}</span>
+                                        </div>
+                                        <Separator className="border-dashed" />
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-1">
+                                                <p className="text-[10px] uppercase font-bold text-muted-foreground">Issue Date</p>
+                                                <p className="text-xs font-medium">{selectedTenant.issueDate ? toNepaliDate(selectedTenant.issueDate) : '—'}</p>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <p className="text-[10px] uppercase font-bold text-muted-foreground">Expiry Date</p>
+                                                <p className={cn(
+                                                    "text-xs font-medium",
+                                                    selectedTenant.expiryDate && isPast(new Date(selectedTenant.expiryDate)) ? "text-red-600 font-bold" : ""
+                                                )}>
+                                                    {selectedTenant.expiryDate ? toNepaliDate(selectedTenant.expiryDate) : '—'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                <section className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+                                            <Clock className="h-3 w-3 text-primary"/> Recent Invoices
+                                        </h4>
+                                        <Button variant="link" className="h-auto p-0 text-[10px] font-bold uppercase" asChild>
+                                            <Link href="/rental/billing">View All History</Link>
+                                        </Button>
+                                    </div>
+                                    <div className="border rounded-lg bg-white shadow-sm overflow-hidden">
+                                        <Table className="text-[10px]">
+                                            <TableHeader className="bg-muted/30">
+                                                <TableRow className="h-8 hover:bg-transparent">
+                                                    <TableHead>Bill Date</TableHead>
+                                                    <TableHead className="text-right">Amount</TableHead>
+                                                    <TableHead className="text-center">Status</TableHead>
                                                 </TableRow>
-                                            ))}
-                                            {bills.filter(b => b.tenantId === selectedTenant.id).length === 0 && (
-                                                <TableRow><TableCell colSpan={5} className="h-20 text-center italic text-muted-foreground">No invoices recorded.</TableCell></TableRow>
-                                            )}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                            </section>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {bills.filter(b => b.tenantId === selectedTenant.id).slice(0, 5).map(bill => (
+                                                    <TableRow key={bill.id} className="h-10">
+                                                        <TableCell className="text-gray-500">{new Date(bill.createdAt).toLocaleDateString()}</TableCell>
+                                                        <TableCell className="text-right font-mono font-bold">Rs. {bill.amount.toLocaleString()}</TableCell>
+                                                        <TableCell className="text-center">
+                                                            <Badge variant={bill.status === 'Paid' ? 'default' : 'destructive'} className={cn(
+                                                                "text-[8px] font-black h-3 px-1.5 py-0 uppercase",
+                                                                bill.status === 'Paid' ? "bg-green-600" : ""
+                                                            )}>
+                                                                {bill.status}
+                                                            </Badge>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))}
+                                                {bills.filter(b => b.tenantId === selectedTenant.id).length === 0 && (
+                                                    <TableRow><TableCell colSpan={3} className="h-20 text-center italic text-muted-foreground">No invoices.</TableCell></TableRow>
+                                                )}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                </section>
+                            </div>
                         </TabsContent>
 
                         <TabsContent value="agreement" className="mt-0 space-y-6">
