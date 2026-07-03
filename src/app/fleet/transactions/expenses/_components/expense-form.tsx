@@ -34,7 +34,8 @@ import {
     Trash2,
     DollarSign,
     PlusIcon,
-    ShieldCheck
+    ShieldCheck,
+    Briefcase
 } from 'lucide-react';
 import { cn, toNepaliDate } from '@/lib/utils';
 import type { Vehicle, Party, Account, AccountOwnership, PartyType, Transaction, Destination } from '@/lib/types';
@@ -57,13 +58,14 @@ const expenseTypes: { type: ExpenseType; label: string; sub: string; icon: any; 
     { type: 'Loan Repayment', label: 'Loan Repayment', sub: 'Bank / EMI', icon: Building2, color: 'text-orange-600 bg-orange-50 border-orange-200' },
     { type: 'Membership Renewal', label: 'Renewal', sub: 'Policy / Tax', icon: ShieldCheck, color: 'text-purple-600 bg-purple-50 border-purple-200' },
     { type: 'Purchase', label: 'Cash Purchase', sub: 'Oil, spares, etc.', icon: ShoppingCart, color: 'text-cyan-600 bg-cyan-50 border-cyan-200' },
+    { type: 'Shivam / Others', label: 'Shivam / Others', sub: 'Misc expenses', icon: Briefcase, color: 'text-pink-600 bg-pink-50 border-pink-200' },
 ];
 
 const expenseSchema = z.object({
     voucherNo: z.string().min(1, "Voucher No is required."),
     date: z.date(),
     vehicleId: z.string().min(1, "Truck is required."),
-    expenseType: z.enum(['Advance', 'Maintenance', 'Purchase', 'Loan Repayment', 'Membership Renewal']),
+    expenseType: z.enum(['Advance', 'Maintenance', 'Purchase', 'Loan Repayment', 'Membership Renewal', 'Shivam / Others']),
     amount: z.number().min(1, "Amount must be positive."),
     extraAmount: z.number().optional().default(0),
     extraRemarks: z.string().optional(),
@@ -73,7 +75,7 @@ const expenseSchema = z.object({
     destination: z.string().optional(),
     remarks: z.string().max(200).optional(),
 }).refine(data => {
-    if (['Maintenance', 'Purchase', 'Membership Renewal'].includes(data.expenseType)) return !!data.partyId;
+    if (['Maintenance', 'Purchase', 'Membership Renewal', 'Shivam / Others'].includes(data.expenseType)) return !!data.partyId;
     return true;
 }, { message: "Party / Supplier is required.", path: ['partyId'] })
 .refine(data => {
@@ -327,7 +329,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
 
                 <div className="space-y-3">
                     <FormLabel>Expense Type <span className="text-destructive">*</span></FormLabel>
-                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
                         {expenseTypes.map((item) => (
                             <button
                                 key={item.type}
@@ -430,6 +432,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                         {watchedType === 'Purchase' && "Purchase selected • Select the supplier for the item."}
                         {watchedType === 'Loan Repayment' && "Loan Repayment selected • Select the bank account where the EMI was paid."}
                         {watchedType === 'Membership Renewal' && "Renewal selected • Select the authority or agency paid."}
+                        {watchedType === 'Shivam / Others' && "Shivam / Others selected • Select the relevant party or leave blank for misc."}
                         {watchedType === 'Advance' && routeStandardAmount && (
                             <div className="flex items-center gap-2">
                                 <Lightbulb className="h-4 w-4 text-amber-600" />
@@ -446,18 +449,18 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                             </div>
                         )}
                     </span>
-                    {['Maintenance', 'Purchase', 'Membership Renewal'].includes(watchedType) && (
+                    {['Maintenance', 'Purchase', 'Membership Renewal', 'Shivam / Others'].includes(watchedType) && (
                         <Button type="button" variant="outline" size="sm" onClick={() => setIsPartyDialogOpen(true)} className="bg-white">
                             <Plus className="mr-1 h-3 w-3" /> Add New Party
                         </Button>
                     )}
                 </div>
 
-                {['Maintenance', 'Purchase', 'Membership Renewal'].includes(watchedType) && (
+                {['Maintenance', 'Purchase', 'Membership Renewal', 'Shivam / Others'].includes(watchedType) && (
                     <FormField control={form.control} name="partyId" render={({ field }) => (
                         <FormItem>
                             <FormLabel>
-                                Party / Service Provider <span className="text-destructive">*</span>
+                                Party / Service Provider <span className={cn(watchedType === 'Shivam / Others' ? "" : "text-destructive")}>{watchedType === 'Shivam / Others' ? "" : "*"}</span>
                             </FormLabel>
                             <Select onValueChange={field.onChange} value={field.value}>
                                 <FormControl>
