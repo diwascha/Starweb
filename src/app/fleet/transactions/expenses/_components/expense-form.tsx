@@ -596,14 +596,6 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
 
                     {watchedMode === 'Mixed' && (
                         <div className="bg-blue-50/30 p-4 rounded-xl border border-blue-100 flex flex-col gap-4 animate-in fade-in slide-in-from-top-2">
-                             <div className="flex items-center justify-between bg-white/80 p-3 rounded-lg border border-blue-100 shadow-sm">
-                                <div className="flex items-center gap-2 text-blue-700">
-                                    <Calculator className="h-4 w-4" />
-                                    <span className="text-xs font-bold uppercase tracking-wider">Total Settlement Required</span>
-                                </div>
-                                <span className="text-lg font-black tabular-nums">Rs. {totalSettlement.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
-                            </div>
-                            
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <FormField control={form.control} name="cashAmount" render={({ field }) => (
                                     <FormItem>
