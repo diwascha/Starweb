@@ -579,7 +579,7 @@ export default function TenantsPage() {
                         { id: 'sec-verification', label: 'Verification Info', icon: ShieldCheck },
                         { id: 'sec-lease', label: 'Lease & Occupancy', icon: Home },
                         { id: 'sec-finance', label: 'Financial Terms', icon: DollarSign },
-                        { id: 'sec-obligations', label: 'Rental Obligations', icon: Scale },
+                        { id: 'sec-obligations', label: 'Financial Obligations', icon: Scale },
                         { id: 'sec-special', label: 'Special Terms', icon: FileText },
                     ].map((sec) => (
                         <button
@@ -648,6 +648,8 @@ export default function TenantsPage() {
                                                     <SelectItem value="NID">National ID (NID)</SelectItem>
                                                     <SelectItem value="Driving License">Driving License</SelectItem>
                                                     <SelectItem value="Passport">Passport</SelectItem>
+                                                    <SelectItem value="Voters Card">Voters Card</SelectItem>
+                                                    <SelectItem value="Other">Other</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                         </div>
@@ -760,81 +762,106 @@ export default function TenantsPage() {
                             <div className="flex items-center gap-3">
                                 <div className="p-2 bg-emerald-50 rounded-xl"><Scale className="h-5 w-5 text-emerald-600"/></div>
                                 <div>
-                                    <CardTitle className="text-sm font-black uppercase text-gray-900 tracking-wider">Utility & Tax Obligations</CardTitle>
+                                    <CardTitle className="text-sm font-black uppercase text-gray-900 tracking-wider">Financial Obligations</CardTitle>
                                     <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">Responsibility assignment for monthly recurring charges.</p>
                                 </div>
                             </div>
                         </CardHeader>
                         <CardContent className="p-6 space-y-8">
-                            <div className="flex flex-col md:flex-row items-end gap-6 bg-gray-50/50 p-4 rounded-xl border">
-                                <div className="space-y-1 flex-1">
-                                    <h4 className="text-xs font-bold text-gray-900">Rental Tax Liability</h4>
-                                    <p className="text-[10px] text-muted-foreground uppercase font-medium">Define who settles the government tax percentage.</p>
-                                </div>
-                                <div className="flex gap-4 items-end">
-                                    <div className="space-y-1.5 w-[180px]">
-                                        <Label className="text-[9px] uppercase font-black text-muted-foreground">Responsible Party</Label>
-                                        <Select value={tenantForm.taxLiability} onValueChange={v => setTenantForm({...tenantForm, taxLiability: v})}>
-                                            <SelectTrigger className="h-8 text-xs bg-white"><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="Paid by Tenant">Paid by Tenant</SelectItem>
-                                                <SelectItem value="Paid by Owner">Paid by Owner</SelectItem>
-                                                <SelectItem value="Included in Rent">Included in Rent</SelectItem>
-                                                <SelectItem value="Not Applicable">Not Applicable</SelectItem>
-                                            </SelectContent>
-                                        </Select>
+                            {/* 1. Rental Tax Liability (Moved Above) */}
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-4 px-2">
+                                    <div className="p-1.5 bg-emerald-50 rounded-lg"><Scale className="h-4 w-4 text-emerald-600"/></div>
+                                    <div>
+                                        <h4 className="text-sm font-bold text-gray-900">Rental Tax Liability</h4>
+                                        <p className="text-[11px] text-muted-foreground">Define who settles the government tax percentage.</p>
                                     </div>
-                                    {(tenantForm.taxLiability === 'Paid by Tenant' || tenantForm.taxLiability === 'Paid by Owner') && (
-                                        <div className="space-y-1.5 w-[100px] animate-in slide-in-from-right-2">
-                                            <Label className="text-[9px] uppercase font-black text-muted-foreground">Tax Rate %</Label>
-                                            <div className="relative">
-                                                <Input type="number" value={tenantForm.taxRate} onChange={e => setTenantForm({...tenantForm, taxRate: Number(e.target.value)})} className="h-8 text-xs font-black pr-6 bg-white" />
-                                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-bold text-muted-foreground">%</span>
-                                            </div>
+                                </div>
+                                <div className="flex flex-col md:flex-row items-end gap-6 bg-gray-50/50 p-4 rounded-xl border">
+                                    <div className="space-y-1 flex-1">
+                                        <h4 className="text-xs font-bold text-gray-900">Tax Responsibility</h4>
+                                        <p className="text-[10px] text-muted-foreground uppercase font-medium">Identify the party paying rental withholding tax.</p>
+                                    </div>
+                                    <div className="flex gap-4 items-end">
+                                        <div className="space-y-1.5 w-[180px]">
+                                            <Label className="text-[9px] uppercase font-black text-muted-foreground">Responsible Party</Label>
+                                            <Select value={tenantForm.taxLiability} onValueChange={v => setTenantForm({...tenantForm, taxLiability: v})}>
+                                                <SelectTrigger className="h-8 text-xs bg-white"><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="Paid by Tenant">Paid by Tenant</SelectItem>
+                                                    <SelectItem value="Paid by Owner">Paid by Owner</SelectItem>
+                                                    <SelectItem value="Included in Rent">Included in Rent</SelectItem>
+                                                    <SelectItem value="Not Applicable">Not Applicable</SelectItem>
+                                                </SelectContent>
+                                            </Select>
                                         </div>
-                                    )}
+                                        {(tenantForm.taxLiability === 'Paid by Tenant' || tenantForm.taxLiability === 'Paid by Owner') && (
+                                            <div className="space-y-1.5 w-[100px] animate-in slide-in-from-right-2">
+                                                <Label className="text-[9px] uppercase font-black text-muted-foreground">Tax Rate %</Label>
+                                                <div className="relative">
+                                                    <Input type="number" value={tenantForm.taxRate} onChange={e => setTenantForm({...tenantForm, taxRate: Number(e.target.value)})} className="h-8 text-xs font-black pr-6 bg-white" />
+                                                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-bold text-muted-foreground">%</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                                {Object.entries(tenantForm.utilities).map(([key, config]) => {
-                                    const Icon = { electricity: Zap, water: Droplets, waste: Trash, internet: Wifi, parking: Car, maintenance: Wrench, security: ShieldCheck, other: HelpCircle }[key] || HelpCircle;
-                                    const color = { electricity: "text-blue-600", water: "text-cyan-600", waste: "text-emerald-600", internet: "text-purple-600", parking: "text-indigo-600", maintenance: "text-orange-600", security: "text-blue-700", other: "text-gray-600" }[key] || "text-gray-600";
+                            <Separator className="border-dashed" />
 
-                                    return (
-                                        <div key={key} className={cn(
-                                            "p-3 rounded-xl border-2 transition-all group",
-                                            config.enabled ? "border-primary/30 bg-primary/[0.02] shadow-sm ring-1 ring-primary/5" : "border-gray-100 bg-gray-50/50 opacity-60"
-                                        )}>
-                                            <div className="flex items-center justify-between mb-3">
-                                                <div className="flex items-center gap-2">
-                                                    <Icon className={cn("h-3.5 w-3.5", color)} />
-                                                    <span className="text-[10px] font-black uppercase tracking-tighter capitalize">{key}</span>
-                                                </div>
-                                                <Switch checked={config.enabled} onCheckedChange={(v) => updateUtility(key as any, 'enabled', v)} className="scale-75" />
-                                            </div>
-                                            <div className={cn("space-y-3 transition-opacity", !config.enabled && "opacity-0 pointer-events-none")}>
-                                                <Select value={config.responsibleParty} onValueChange={v => updateUtility(key as any, 'responsibleParty', v)}>
-                                                    <SelectTrigger className="h-7 text-[9px] font-bold bg-white px-2 uppercase"><SelectValue /></SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="Tenant" className="text-[9px]">By Tenant</SelectItem>
-                                                        <SelectItem value="Owner" className="text-[9px]">By Owner</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                                <div className="space-y-1">
-                                                    <div className="flex items-center justify-between">
-                                                        <Label className="text-[8px] uppercase font-black text-muted-foreground">Charge (रु)</Label>
-                                                        <div className="flex items-center gap-1">
-                                                            <Checkbox id={`meter-${key}`} checked={config.isMetered} onCheckedChange={(v) => updateUtility(key as any, 'isMetered', !!v)} className="h-3 w-3" />
-                                                            <Label htmlFor={`meter-${key}`} className="text-[8px] font-bold uppercase cursor-pointer">Meter</Label>
-                                                        </div>
+                            {/* 2. Monthly Utility & Service Charges */}
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-4 px-2">
+                                    <div className="p-1.5 bg-blue-50 rounded-lg"><Wallet className="h-4 w-4 text-blue-600"/></div>
+                                    <div>
+                                        <h4 className="text-sm font-bold text-gray-900">Monthly Utility & Service Charges</h4>
+                                        <p className="text-[11px] text-muted-foreground">Enable utilities and define monthly charges and responsibility.</p>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                                    {Object.entries(tenantForm.utilities).map(([key, config]) => {
+                                        const Icon = { electricity: Zap, water: Droplets, waste: Trash, internet: Wifi, parking: Car, maintenance: Wrench, security: ShieldCheck, other: HelpCircle }[key] || HelpCircle;
+                                        const color = { electricity: "text-blue-600", water: "text-cyan-600", waste: "text-emerald-600", internet: "text-purple-600", parking: "text-indigo-600", maintenance: "text-orange-600", security: "text-blue-700", other: "text-gray-600" }[key] || "text-gray-600";
+
+                                        return (
+                                            <div key={key} className={cn(
+                                                "p-3 rounded-xl border-2 transition-all group",
+                                                config.enabled ? "border-primary/30 bg-primary/[0.02] shadow-sm ring-1 ring-primary/5" : "border-gray-100 bg-gray-50/50 opacity-60"
+                                            )}>
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <Icon className={cn("h-3.5 w-3.5", color)} />
+                                                        <span className="text-[10px] font-black uppercase tracking-tighter capitalize">{key}</span>
                                                     </div>
-                                                    <Input type="number" value={config.fixedCharge} onChange={e => updateUtility(key as any, 'fixedCharge', Number(e.target.value))} className="h-7 text-xs font-black bg-white" />
+                                                    <Switch checked={config.enabled} onCheckedChange={(v) => updateUtility(key as any, 'enabled', v)} className="scale-75" />
+                                                </div>
+                                                <div className={cn("space-y-3 transition-opacity", !config.enabled && "opacity-0 pointer-events-none")}>
+                                                    <Select value={config.responsibleParty} onValueChange={v => updateUtility(key as any, 'responsibleParty', v)}>
+                                                        <SelectTrigger className="h-7 text-[9px] font-bold bg-white px-2 uppercase"><SelectValue /></SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="Tenant" className="text-[9px]">By Tenant</SelectItem>
+                                                            <SelectItem value="Owner" className="text-[9px]">By Owner</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <div className="space-y-1">
+                                                        <div className="flex items-center justify-between">
+                                                            <Label className="text-[8px] uppercase font-black text-muted-foreground">Charge (रु)</Label>
+                                                            <div className="flex items-center gap-1">
+                                                                <Checkbox id={`meter-${key}`} checked={config.isMetered} onCheckedChange={(v) => updateUtility(key as any, 'isMetered', !!v)} className="h-3 w-3" />
+                                                                <Label htmlFor={`meter-${key}`} className="text-[8px] font-bold uppercase cursor-pointer">Meter</Label>
+                                                            </div>
+                                                        </div>
+                                                        <Input type="number" value={config.fixedCharge} onChange={e => updateUtility(key as any, 'fixedCharge', Number(e.target.value))} className="h-7 text-xs font-black bg-white" />
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    );
-                                })}
+                                        );
+                                    })}
+                                </div>
+                                <p className="text-[10px] text-muted-foreground italic px-2">
+                                    Note: Charges marked as "Paid by Tenant" will be automatically aggregated and billed to the tenant during the monthly cycle.
+                                </p>
                             </div>
                         </CardContent>
                     </Card>
