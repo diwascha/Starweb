@@ -344,7 +344,6 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                     )} />
                 </div>
 
-                {/* MOVED: Payment Mode Section */}
                 <FormField control={form.control} name="paymentMode" render={({ field }) => (
                     <FormItem className="space-y-2">
                         <FormLabel>Payment Mode</FormLabel>
@@ -566,7 +565,10 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                 )}
 
                 <div className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                    <div className={cn(
+                        "grid gap-6 items-start",
+                        watchedMode === 'Mixed' ? "grid-cols-1 md:grid-cols-3" : "grid-cols-1 md:grid-cols-2"
+                    )}>
                         <FormField control={form.control} name="amount" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>{watchedType === 'Advance' ? 'Advance Amount (NPR)' : 'Base Amount'} <span className="text-destructive">*</span></FormLabel>
@@ -593,19 +595,17 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                                 <FormMessage />
                             </FormItem>
                         )} />
-                    </div>
 
-                    {watchedMode === 'Mixed' && (
-                        <div className="bg-blue-50/30 p-4 rounded-xl border border-blue-100 flex flex-col gap-4 animate-in fade-in slide-in-from-top-2">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {watchedMode === 'Mixed' && (
+                            <>
                                 <FormField control={form.control} name="cashAmount" render={({ field }) => (
-                                    <FormItem>
+                                    <FormItem className="animate-in fade-in slide-in-from-left-2">
                                         <FormLabel className="text-xs">Paid by Cash</FormLabel>
                                         <FormControl>
                                             <Input 
                                                 type="number" 
                                                 {...field} 
-                                                className="h-9 font-semibold text-sm" 
+                                                className="h-10 font-semibold text-sm border-emerald-100 bg-emerald-50/30" 
                                                 onChange={e => {
                                                     const val = parseFloat(e.target.value) || 0;
                                                     field.onChange(val);
@@ -618,13 +618,13 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                                     </FormItem>
                                 )} />
                                 <FormField control={form.control} name="bankAmount" render={({ field }) => (
-                                    <FormItem>
+                                    <FormItem className="animate-in fade-in slide-in-from-left-2">
                                         <FormLabel className="text-xs">Paid by Bank</FormLabel>
                                         <FormControl>
                                             <Input 
                                                 type="number" 
                                                 {...field} 
-                                                className="h-9 font-semibold text-sm" 
+                                                className="h-10 font-semibold text-sm border-blue-100 bg-blue-50/30" 
                                                 onChange={e => {
                                                     const val = parseFloat(e.target.value) || 0;
                                                     field.onChange(val);
@@ -636,9 +636,9 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                                         <FormMessage />
                                     </FormItem>
                                 )} />
-                            </div>
-                        </div>
-                    )}
+                            </>
+                        )}
+                    </div>
 
                     {watchedType === 'Advance' && (
                         <div className="bg-muted/30 p-4 rounded-xl border border-dashed space-y-4">
