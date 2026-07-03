@@ -12,21 +12,18 @@ import {
   DollarSign, 
   Clock, 
   FileText, 
-  CheckCircle2, 
-  AlertCircle, 
   History, 
-  ArrowRight,
-  ShieldCheck,
-  Building2,
-  Download,
-  Edit,
-  Printer,
-  ChevronRight,
-  Loader2,
-  Trash2,
-  X,
-  PlusCircle,
-  CalendarIcon
+  ShieldCheck, 
+  Edit, 
+  Printer, 
+  ChevronRight, 
+  Loader2, 
+  Trash2, 
+  PlusCircle, 
+  CalendarIcon,
+  Check,
+  User,
+  ClipboardList
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -78,17 +75,11 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { format, isPast } from 'date-fns';
 
-const NEPALI_MONTHS = [
-    { value: 0, name: "Baishakh" }, { value: 1, name: "Jestha" }, { value: 2, name: "Ashadh" },
-    { value: 3, name: "Shrawan" }, { value: 4, name: "Bhadra" }, { value: 5, name: "Ashwin" },
-    { value: 6, name: "Kartik" }, { value: 7, name: "Mangsir" }, { value: 8, "name": "Poush" },
-    { value: 9, name: "Magh" }, { value: 10, name: "Falgun" }, { value: 11, name: "Chaitra" }
-];
-
 export default function TenantsPage() {
   const { user, hasPermission } = useAuth();
   const { toast } = useToast();
   
+  const [activeTab, setActiveTab] = useState('records');
   const [tenants, setTenants] = useState<Party[]>([]);
   const [agreements, setAgreements] = useState<RentalAgreement[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -99,14 +90,13 @@ export default function TenantsPage() {
   const [selectedTenant, setSelectedTenant] = useState<Party | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
-  // Add/Edit Dialog State
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  // Form State
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingTenantId, setEditingTenantId] = useState<string | null>(null);
   const [tenantForm, setTenantForm] = useState({
     name: '',
     address: '',
-    panNumber: '', // Used as phone number
+    panNumber: '', // Used as contact number
     identityType: 'Citizenship',
     documentNumber: '',
     issueDate: '',
@@ -153,15 +143,7 @@ export default function TenantsPage() {
     ).sort((a, b) => a.name.localeCompare(b.name));
   }, [tenantSummaries, searchQuery]);
 
-  const handleOpenDetail = (tenantId: string) => {
-    const tenant = tenants.find(t => t.id === tenantId);
-    if (tenant) {
-        setSelectedTenant(tenant);
-        setIsDetailOpen(true);
-    }
-  };
-
-  const openAddDialog = () => {
+  const resetForm = () => {
     setEditingTenantId(null);
     setTenantForm({
         name: '',
@@ -172,10 +154,22 @@ export default function TenantsPage() {
         issueDate: '',
         expiryDate: '',
     });
-    setIsAddDialogOpen(true);
   };
 
-  const openEditDialog = (e: React.MouseEvent, tenant: Party) => {
+  const handleOpenDetail = (tenantId: string) => {
+    const tenant = tenants.find(t => t.id === tenantId);
+    if (tenant) {
+        setSelectedTenant(tenant);
+        setIsDetailOpen(true);
+    }
+  };
+
+  const openAddForm = () => {
+    resetForm();
+    setActiveTab('form');
+  };
+
+  const openEditForm = (e: React.MouseEvent, tenant: Party) => {
     e.stopPropagation();
     setEditingTenantId(tenant.id);
     setTenantForm({
@@ -187,7 +181,7 @@ export default function TenantsPage() {
         issueDate: tenant.issueDate || '',
         expiryDate: tenant.expiryDate || '',
     });
-    setIsAddDialogOpen(true);
+    setActiveTab('form');
   };
 
   const handleTenantSubmit = async () => {
@@ -219,7 +213,8 @@ export default function TenantsPage() {
             });
             toast({ title: 'Tenant Created' });
         }
-        setIsAddDialogOpen(false);
+        setActiveTab('records');
+        resetForm();
     } catch {
         toast({ title: 'Error saving tenant', variant: 'destructive' });
     } finally {
@@ -239,263 +234,296 @@ export default function TenantsPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
+      <header>
           <h1 className="text-3xl font-bold tracking-tight">Tenant Directory</h1>
           <p className="text-muted-foreground">Detailed overview of occupants and financial standings.</p>
-        </div>
-        <div className="flex items-center gap-2">
-            <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input 
-                    placeholder="Search name or location..." 
-                    className="pl-8 w-full md:w-[300px]" 
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                />
-            </div>
-            {hasPermission('rental', 'create') && (
-                <Button onClick={openAddDialog}>
-                    <Plus className="mr-2 h-4 w-4"/> Add New Tenant
-                </Button>
-            )}
-        </div>
       </header>
 
-      <Card className="shadow-sm border-gray-100 bg-white">
-        <CardContent className="p-0">
-            <Table>
-                <TableHeader className="bg-muted/50">
-                    <TableRow className="hover:bg-transparent">
-                        <TableHead className="w-[300px] font-bold">Tenant Name</TableHead>
-                        <TableHead className="font-bold">Unit / Property</TableHead>
-                        <TableHead className="font-bold">Contact / Phone</TableHead>
-                        <TableHead className="font-bold">Lease Status</TableHead>
-                        <TableHead className="text-right font-bold">Outstanding</TableHead>
-                        <TableHead className="text-right font-bold">Deposit</TableHead>
-                        <TableHead className="w-[100px] text-right">Actions</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {filteredTenants.map((tenant) => (
-                        <TableRow 
-                            key={tenant.id} 
-                            className="group hover:bg-muted/30 cursor-pointer"
-                            onClick={() => handleOpenDetail(tenant.id)}
-                        >
-                            <TableCell>
-                                <div className="flex items-center gap-3">
-                                    <Avatar className="h-9 w-9 border shadow-sm">
-                                        <AvatarImage src={tenant.photoURL} />
-                                        <AvatarFallback className="bg-primary/5 text-primary text-xs font-bold">
-                                            {tenant.name.charAt(0)}
-                                        </AvatarFallback>
-                                    </Avatar>
-                                    <div className="flex flex-col">
-                                        <span className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors">{tenant.name}</span>
-                                        <span className="text-[10px] text-muted-foreground uppercase flex items-center gap-1">
-                                            <MapPin className="h-2 w-2"/> {tenant.address || 'No location'}
-                                        </span>
-                                    </div>
-                                </div>
-                            </TableCell>
-                            <TableCell>
-                                {tenant.activeLease ? (
-                                    <div className="flex flex-col">
-                                        <span className="font-semibold text-xs">Unit {tenant.activeLease.unitNumber}</span>
-                                        <span className="text-[10px] text-muted-foreground uppercase">{tenant.activeLease.propertyName}</span>
-                                    </div>
-                                ) : (
-                                    <span className="text-xs text-muted-foreground italic">No active lease</span>
-                                )}
-                            </TableCell>
-                            <TableCell className="text-xs font-medium text-gray-600">
-                                {tenant.panNumber || '—'}
-                            </TableCell>
-                            <TableCell>
-                                {tenant.activeLease ? (
-                                    <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-black uppercase">
-                                        Active
-                                    </Badge>
-                                ) : (
-                                    <Badge variant="outline" className="bg-gray-50 text-gray-500 border-gray-200 text-[10px] uppercase">
-                                        Inactive
-                                    </Badge>
-                                )}
-                            </TableCell>
-                            <TableCell className={cn(
-                                "text-right font-mono font-bold text-xs tabular-nums",
-                                tenant.outstandingBalance > 0 ? "text-red-600" : "text-emerald-600"
-                            )}>
-                                Rs. {tenant.outstandingBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                            </TableCell>
-                            <TableCell className="text-right font-mono text-xs text-gray-600 tabular-nums">
-                                Rs. {tenant.securityDeposit.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                            </TableCell>
-                            <TableCell className="text-right">
-                                <div className="flex items-center justify-end gap-1">
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <MoreHorizontal className="h-4 w-4" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end" className="w-48">
-                                            <DropdownMenuItem onSelect={() => handleOpenDetail(tenant.id)}>
-                                                <Eye className="mr-2 h-4 w-4"/> View Profile
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem asChild>
-                                                <Link href={`/rental/payments?tenantId=${tenant.id}`}>
-                                                    <DollarSign className="mr-2 h-4 w-4"/> Collect Rent
-                                                </Link>
-                                            </DropdownMenuItem>
-                                            <DropdownMenuSeparator />
-                                            <DropdownMenuItem onClick={(e) => openEditDialog(e, tenant)}>
-                                                <Edit className="mr-2 h-4 w-4"/> Edit Details
-                                            </DropdownMenuItem>
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">
-                                                        <Trash2 className="mr-2 h-4 w-4"/> Delete Tenant
-                                                    </DropdownMenuItem>
-                                                </AlertDialogTrigger>
-                                                <AlertDialogContent onClick={(e) => e.stopPropagation()}>
-                                                    <AlertDialogHeader>
-                                                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                                        <AlertDialogDescription>
-                                                            This will permanently delete the tenant record. Accounting history for this tenant will be preserved but disconnected.
-                                                        </AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <AlertDialogFooter>
-                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={(e) => handleDeleteTenant(e, tenant.id)} className="bg-destructive text-destructive-foreground">
-                                                            Yes, Delete
-                                                        </AlertDialogAction>
-                                                    </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                    <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:translate-x-1 transition-transform" />
-                                </div>
-                            </TableCell>
-                        </TableRow>
-                    ))}
-                    {!isLoading && filteredTenants.length === 0 && (
-                        <TableRow>
-                            <TableCell colSpan={7} className="h-40 text-center text-muted-foreground italic">
-                                <Users className="h-8 w-8 mx-auto opacity-20 mb-2"/>
-                                No tenants matching your search.
-                            </TableCell>
-                        </TableRow>
-                    )}
-                </TableBody>
-            </Table>
-        </CardContent>
-      </Card>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <div className="flex items-center justify-between border-b pb-4">
+            <TabsList className="bg-muted/50 p-1">
+                <TabsTrigger value="records" className="gap-2">
+                    <ClipboardList className="h-4 w-4"/>
+                    Records
+                </TabsTrigger>
+                <TabsTrigger value="form" className="gap-2">
+                    {editingTenantId ? <Edit className="h-4 w-4"/> : <PlusCircle className="h-4 w-4"/>}
+                    {editingTenantId ? 'Edit Tenant' : 'New Tenant'}
+                </TabsTrigger>
+            </TabsList>
 
-      {/* Add/Edit Tenant Dialog */}
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="sm:max-w-xl">
-            <DialogHeader>
-                <DialogTitle>{editingTenantId ? 'Edit Tenant Profile' : 'Register New Tenant'}</DialogTitle>
-                <DialogDescription>
-                    Fill in the contact and identification information. This data is exclusive to the Rental module.
-                </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-                <div className="space-y-2">
-                    <Label htmlFor="tenant-name">Full Name <span className="text-destructive">*</span></Label>
-                    <Input 
-                        id="tenant-name" 
-                        value={tenantForm.name} 
-                        onChange={e => setTenantForm({...tenantForm, name: e.target.value})} 
-                        placeholder="e.g. John Doe"
-                    />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="tenant-contact">Mobile / Contact Number</Label>
+            {activeTab === 'records' && (
+                <div className="flex items-center gap-2">
+                    <div className="relative">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input 
-                            id="tenant-contact" 
-                            value={tenantForm.panNumber} 
-                            onChange={e => setTenantForm({...tenantForm, panNumber: e.target.value})} 
-                            placeholder="e.g. 9841XXXXXX"
+                            placeholder="Search name or location..." 
+                            className="pl-8 w-full md:w-[300px] h-9 bg-white" 
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
-                    <div className="space-y-2">
-                        <Label>ID Type</Label>
-                        <Select value={tenantForm.identityType} onValueChange={v => setTenantForm({...tenantForm, identityType: v})}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="Citizenship">Citizenship</SelectItem>
-                                <SelectItem value="NID">National ID (NID)</SelectItem>
-                                <SelectItem value="Driving License">Driving License</SelectItem>
-                                <SelectItem value="Voters Card">Voters Card</SelectItem>
-                                <SelectItem value="Others">Others</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
+                    {hasPermission('rental', 'create') && (
+                        <Button size="sm" onClick={openAddForm}>
+                            <Plus className="mr-2 h-4 w-4"/> Add Tenant
+                        </Button>
+                    )}
                 </div>
-                <div className="space-y-2">
-                    <Label>Document Number</Label>
-                    <Input 
-                        value={tenantForm.documentNumber} 
-                        onChange={e => setTenantForm({...tenantForm, documentNumber: e.target.value})} 
-                        placeholder="Passport / ID Number"
-                    />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <Label>Issue Date (Optional)</Label>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button variant="outline" className={cn("w-full justify-start text-left font-normal h-10", !tenantForm.issueDate && "text-muted-foreground")}>
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {tenantForm.issueDate ? toNepaliDate(tenantForm.issueDate) : "Pick date"}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                                <DualCalendar selected={tenantForm.issueDate ? new Date(tenantForm.issueDate) : undefined} onSelect={d => setTenantForm({...tenantForm, issueDate: d?.toISOString() || ''})} />
-                            </PopoverContent>
-                        </Popover>
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Expiry Date (Optional)</Label>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button variant="outline" className={cn("w-full justify-start text-left font-normal h-10", !tenantForm.expiryDate && "text-muted-foreground")}>
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {tenantForm.expiryDate ? toNepaliDate(tenantForm.expiryDate) : "Pick date"}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                                <DualCalendar selected={tenantForm.expiryDate ? new Date(tenantForm.expiryDate) : undefined} onSelect={d => setTenantForm({...tenantForm, expiryDate: d?.toISOString() || ''})} />
-                            </PopoverContent>
-                        </Popover>
-                    </div>
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="tenant-address">Home Address / Location</Label>
-                    <Textarea 
-                        id="tenant-address" 
-                        value={tenantForm.address} 
-                        onChange={e => setTenantForm({...tenantForm, address: e.target.value})} 
-                        placeholder="Permanent or current address"
-                        className="min-h-[60px]"
-                    />
-                </div>
-            </div>
-            <DialogFooter>
-                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
-                <Button onClick={handleTenantSubmit} disabled={isSubmitting || !tenantForm.name}>
-                    {isSubmitting ? <Loader2 className="animate-spin h-4 w-4 mr-2"/> : <PlusCircle className="mr-2 h-4 w-4"/>}
-                    {editingTenantId ? 'Update Record' : 'Create Tenant'}
-                </Button>
-            </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            )}
+        </div>
 
+        <TabsContent value="records" className="mt-6">
+            <Card className="shadow-sm border-gray-100 bg-white">
+                <CardContent className="p-0">
+                    <Table>
+                        <TableHeader className="bg-muted/50">
+                            <TableRow className="hover:bg-transparent">
+                                <TableHead className="w-[300px] font-bold">Tenant Name</TableHead>
+                                <TableHead className="font-bold">Unit / Property</TableHead>
+                                <TableHead className="font-bold">Contact / Phone</TableHead>
+                                <TableHead className="font-bold">Lease Status</TableHead>
+                                <TableHead className="text-right font-bold">Outstanding</TableHead>
+                                <TableHead className="text-right font-bold">Deposit</TableHead>
+                                <TableHead className="w-[100px] text-right">Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {filteredTenants.map((tenant) => (
+                                <TableRow 
+                                    key={tenant.id} 
+                                    className="group hover:bg-muted/30 cursor-pointer"
+                                    onClick={() => handleOpenDetail(tenant.id)}
+                                >
+                                    <TableCell>
+                                        <div className="flex items-center gap-3">
+                                            <Avatar className="h-9 w-9 border shadow-sm">
+                                                <AvatarImage src={tenant.photoURL} />
+                                                <AvatarFallback className="bg-primary/5 text-primary text-xs font-bold">
+                                                    {tenant.name.charAt(0)}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            <div className="flex flex-col">
+                                                <span className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors">{tenant.name}</span>
+                                                <span className="text-[10px] text-muted-foreground uppercase flex items-center gap-1">
+                                                    <MapPin className="h-2 w-2"/> {tenant.address || 'No location'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        {tenant.activeLease ? (
+                                            <div className="flex flex-col">
+                                                <span className="font-semibold text-xs">Unit {tenant.activeLease.unitNumber}</span>
+                                                <span className="text-[10px] text-muted-foreground uppercase">{tenant.activeLease.propertyName}</span>
+                                            </div>
+                                        ) : (
+                                            <span className="text-xs text-muted-foreground italic">No active lease</span>
+                                        )}
+                                    </TableCell>
+                                    <TableCell className="text-xs font-medium text-gray-600">
+                                        {tenant.panNumber || '—'}
+                                    </TableCell>
+                                    <TableCell>
+                                        {tenant.activeLease ? (
+                                            <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-black uppercase">
+                                                Active
+                                            </Badge>
+                                        ) : (
+                                            <Badge variant="outline" className="bg-gray-50 text-gray-500 border-gray-200 text-[10px] uppercase">
+                                                Inactive
+                                            </Badge>
+                                        )}
+                                    </TableCell>
+                                    <TableCell className={cn(
+                                        "text-right font-mono font-bold text-xs tabular-nums",
+                                        tenant.outstandingBalance > 0 ? "text-red-600" : "text-emerald-600"
+                                    )}>
+                                        Rs. {tenant.outstandingBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                    </TableCell>
+                                    <TableCell className="text-right font-mono text-xs text-gray-600 tabular-nums">
+                                        Rs. {tenant.securityDeposit.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <div className="flex items-center justify-end gap-1">
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <MoreHorizontal className="h-4 w-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end" className="w-48">
+                                                    <DropdownMenuItem onSelect={() => handleOpenDetail(tenant.id)}>
+                                                        <Eye className="mr-2 h-4 w-4"/> View Profile
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem asChild>
+                                                        <Link href={`/rental/payments?tenantId=${tenant.id}`}>
+                                                            <DollarSign className="mr-2 h-4 w-4"/> Collect Rent
+                                                        </Link>
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem onClick={(e) => openEditForm(e, tenant)}>
+                                                        <Edit className="mr-2 h-4 w-4"/> Edit Details
+                                                    </DropdownMenuItem>
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">
+                                                                <Trash2 className="mr-2 h-4 w-4"/> Delete Tenant
+                                                            </DropdownMenuItem>
+                                                        </AlertDialogTrigger>
+                                                        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                                                            <AlertDialogHeader>
+                                                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                                                <AlertDialogDescription>
+                                                                    This will permanently delete the tenant record. Accounting history for this tenant will be preserved but disconnected.
+                                                                </AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter>
+                                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                <AlertDialogAction onClick={(e) => handleDeleteTenant(e, tenant.id)} className="bg-destructive text-destructive-foreground">
+                                                                    Yes, Delete
+                                                                </AlertDialogAction>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                            <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:translate-x-1 transition-transform" />
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                            {!isLoading && filteredTenants.length === 0 && (
+                                <TableRow>
+                                    <TableCell colSpan={7} className="h-40 text-center text-muted-foreground italic">
+                                        <Users className="h-8 w-8 mx-auto opacity-20 mb-2"/>
+                                        No tenants matching your search.
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+        </TabsContent>
+
+        <TabsContent value="form" className="mt-6">
+            <Card className="max-w-4xl mx-auto shadow-lg border-primary/10">
+                <CardHeader className="bg-primary/5 border-b">
+                    <CardTitle className="text-2xl font-black text-gray-900">
+                        {editingTenantId ? 'Edit Tenant Profile' : 'Register New Tenant'}
+                    </CardTitle>
+                    <CardDescription>
+                        Fill in the contact and identification information. This data is exclusive to the Rental module.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="p-8 space-y-8">
+                    <div className="grid gap-6">
+                        <div className="space-y-2">
+                            <Label htmlFor="tenant-name" className="text-xs uppercase font-bold text-muted-foreground tracking-widest">Full Legal Name <span className="text-destructive">*</span></Label>
+                            <Input 
+                                id="tenant-name" 
+                                value={tenantForm.name} 
+                                onChange={e => setTenantForm({...tenantForm, name: e.target.value})} 
+                                placeholder="e.g. John Doe"
+                                className="h-12 text-lg font-bold"
+                            />
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
+                            <div className="space-y-4">
+                                <h4 className="text-[10px] font-black uppercase text-primary tracking-[0.2em] border-b pb-2">Contact Info</h4>
+                                <div className="space-y-2">
+                                    <Label htmlFor="tenant-contact">Mobile / WhatsApp Number</Label>
+                                    <Input 
+                                        id="tenant-contact" 
+                                        value={tenantForm.panNumber} 
+                                        onChange={e => setTenantForm({...tenantForm, panNumber: e.target.value})} 
+                                        placeholder="e.g. 9841XXXXXX"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="tenant-address">Permanent Address</Label>
+                                    <Textarea 
+                                        id="tenant-address" 
+                                        value={tenantForm.address} 
+                                        onChange={e => setTenantForm({...tenantForm, address: e.target.value})} 
+                                        placeholder="Full address details"
+                                        className="min-h-[100px]"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <h4 className="text-[10px] font-black uppercase text-primary tracking-[0.2em] border-b pb-2">Identity Details</h4>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label>ID Type</Label>
+                                        <Select value={tenantForm.identityType} onValueChange={v => setTenantForm({...tenantForm, identityType: v})}>
+                                            <SelectTrigger><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="Citizenship">Citizenship</SelectItem>
+                                                <SelectItem value="NID">National ID (NID)</SelectItem>
+                                                <SelectItem value="Driving License">Driving License</SelectItem>
+                                                <SelectItem value="Voters Card">Voters Card</SelectItem>
+                                                <SelectItem value="Others">Others</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Document Number</Label>
+                                        <Input 
+                                            value={tenantForm.documentNumber} 
+                                            onChange={e => setTenantForm({...tenantForm, documentNumber: e.target.value})} 
+                                            placeholder="Serial #"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label>Issue Date</Label>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button variant="outline" className={cn("w-full justify-start text-left font-normal h-10", !tenantForm.issueDate && "text-muted-foreground")}>
+                                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                                    {tenantForm.issueDate ? toNepaliDate(tenantForm.issueDate) : "Pick date"}
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0" align="start">
+                                                <DualCalendar selected={tenantForm.issueDate ? new Date(tenantForm.issueDate) : undefined} onSelect={d => setTenantForm({...tenantForm, issueDate: d?.toISOString() || ''})} />
+                                            </PopoverContent>
+                                        </Popover>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Expiry Date</Label>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button variant="outline" className={cn("w-full justify-start text-left font-normal h-10", !tenantForm.expiryDate && "text-muted-foreground")}>
+                                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                                    {tenantForm.expiryDate ? toNepaliDate(tenantForm.expiryDate) : "Pick date"}
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0" align="start">
+                                                <DualCalendar selected={tenantForm.expiryDate ? new Date(tenantForm.expiryDate) : undefined} onSelect={d => setTenantForm({...tenantForm, expiryDate: d?.toISOString() || ''})} />
+                                            </PopoverContent>
+                                        </Popover>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </CardContent>
+                <CardFooter className="bg-muted/20 border-t p-8 flex justify-end gap-3">
+                    <Button variant="outline" onClick={() => setActiveTab('records')} className="px-6">Cancel</Button>
+                    <Button onClick={handleTenantSubmit} disabled={isSubmitting || !tenantForm.name} className="px-10 font-bold h-11">
+                        {isSubmitting ? <Loader2 className="animate-spin h-4 w-4 mr-2"/> : <Save className="mr-2 h-4 w-4"/>}
+                        {editingTenantId ? 'Update Tenant Profile' : 'Save & Register Tenant'}
+                    </Button>
+                </CardFooter>
+            </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Tenant Detail Dialog (Remains for profile deep-dive) */}
       {selectedTenant && (
         <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
             <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0 overflow-hidden shadow-2xl border-none">
