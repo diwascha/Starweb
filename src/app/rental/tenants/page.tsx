@@ -19,7 +19,8 @@ import {
   ShieldCheck,
   Building2,
   Download,
-  Edit
+  Edit,
+  Printer
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
