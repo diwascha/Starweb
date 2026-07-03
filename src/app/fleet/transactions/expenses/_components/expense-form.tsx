@@ -50,16 +50,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Badge } from '@/components/ui/badge';
 import { onDestinationsUpdate, addDestination, updateDestination, deleteDestination } from '@/services/destination-service';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription as AlertDialogDesc, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription as AlertDialogDesc, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Separator } from '@/components/ui/separator';
 
 const expenseTypes: { type: ExpenseType; label: string; sub: string; icon: any; color: string }[] = [
-    { type: 'Advance', label: 'Advance', sub: 'Trip advance', icon: Wallet, color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
-    { type: 'Maintenance', label: 'Maintenance', sub: 'Repair / Service', icon: Wrench, color: 'text-blue-600 bg-blue-50 border-blue-200' },
-    { type: 'Loan Repayment', label: 'Loan', sub: 'Bank / EMI', icon: Building2, color: 'text-orange-600 bg-orange-50 border-orange-200' },
+    { type: 'Advance', label: 'Advance / Peski', sub: 'Trip advance', icon: Wallet, color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
+    { type: 'Maintenance', label: 'Maintenance Fee', sub: 'Repair / Service', icon: Wrench, color: 'text-blue-600 bg-blue-50 border-blue-200' },
+    { type: 'Loan Repayment', label: 'Loan Repayment', sub: 'Bank / EMI', icon: Building2, color: 'text-orange-600 bg-orange-50 border-orange-200' },
     { type: 'Membership Renewal', label: 'Renewal', sub: 'Policy / Tax', icon: ShieldCheck, color: 'text-purple-600 bg-purple-50 border-purple-200' },
-    { type: 'Purchase', label: 'Purchase', sub: 'Oil, spares, etc.', icon: ShoppingCart, color: 'text-cyan-600 bg-cyan-50 border-cyan-200' },
-    { type: 'Shivam / Others', label: 'Others', sub: 'Misc expenses', icon: Briefcase, color: 'text-pink-600 bg-pink-50 border-pink-200' },
+    { type: 'Purchase', label: 'Cash Purchase', sub: 'Oil, spares, etc.', icon: ShoppingCart, color: 'text-cyan-600 bg-cyan-50 border-cyan-200' },
+    { type: 'Shivam / Others', label: 'Shivam / Others', sub: 'Misc expenses', icon: Briefcase, color: 'text-pink-600 bg-pink-50 border-pink-200' },
 ];
 
 const expenseSchema = z.object({
@@ -78,7 +78,6 @@ const expenseSchema = z.object({
     destination: z.string().optional(),
     remarks: z.string().max(200).optional(),
 }).refine(data => {
-    // Show party selector for all types except pure Advance
     if (['Maintenance', 'Purchase', 'Loan Repayment', 'Membership Renewal', 'Shivam / Others'].includes(data.expenseType)) return !!data.partyId;
     return true;
 }, { message: "Party / Supplier is required.", path: ['partyId'] })
@@ -344,7 +343,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                     )} />
                 </div>
 
-                <div className="space-y-6 pt-2 pb-4 border-y border-dashed">
+                <div className="space-y-6 pt-4 pb-6 border-y border-dashed bg-muted/10 px-4 rounded-xl">
                     <FormField control={form.control} name="paymentMode" render={({ field }) => (
                         <FormItem className="space-y-2">
                             <FormLabel>Payment Mode</FormLabel>
@@ -372,9 +371,8 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                                         className="flex-1 h-10"
                                         onClick={() => {
                                             field.onChange('Mixed');
-                                            const total = watchedAmount + watchedExtraAmount;
                                             if (watchedCashAmount === 0 && watchedBankAmount === 0) {
-                                                form.setValue('cashAmount', total);
+                                                form.setValue('cashAmount', totalSettlement);
                                                 form.setValue('bankAmount', 0);
                                             }
                                         }}
@@ -405,7 +403,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                     )} />
 
                     <div className={cn(
-                        "grid gap-6 items-end",
+                        "grid gap-6 items-end pt-2",
                         watchedMode === 'Mixed' ? "grid-cols-1 md:grid-cols-3" : "grid-cols-1"
                     )}>
                         <FormField control={form.control} name="amount" render={({ field }) => (
@@ -443,7 +441,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                                             <Input 
                                                 type="number" 
                                                 {...field} 
-                                                className="h-10 font-semibold text-sm border-emerald-100 bg-emerald-50/30" 
+                                                className="h-10 font-semibold text-sm border-emerald-100 bg-white" 
                                                 onChange={e => {
                                                     const val = parseFloat(e.target.value) || 0;
                                                     field.onChange(val);
@@ -461,7 +459,7 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                                             <Input 
                                                 type="number" 
                                                 {...field} 
-                                                className="h-10 font-semibold text-sm border-blue-100 bg-blue-50/30" 
+                                                className="h-10 font-semibold text-sm border-blue-100 bg-white" 
                                                 onChange={e => {
                                                     const val = parseFloat(e.target.value) || 0;
                                                     field.onChange(val);
@@ -477,23 +475,31 @@ export function ExpenseForm({ vehicles, parties, accounts, transactions, initial
                     </div>
                 </div>
 
-                <div className="space-y-3">
-                    <FormLabel className="text-xs uppercase font-bold tracking-wider text-muted-foreground">Select Expense Type</FormLabel>
-                    <div className="flex flex-wrap gap-2">
+                <div className="space-y-4">
+                    <FormLabel className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Select Expense Type <span className="text-destructive">*</span></FormLabel>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                         {expenseTypes.map((item) => (
                             <button
                                 key={item.type}
                                 type="button"
                                 onClick={() => form.setValue('expenseType', item.type as any)}
                                 className={cn(
-                                    "flex items-center px-4 py-2 rounded-full border transition-all gap-2 text-xs font-semibold",
+                                    "flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all gap-2 text-center group",
                                     watchedType === item.type 
-                                        ? cn("ring-2 ring-primary border-primary bg-primary/10", item.color.replace('bg-', 'text-'))
+                                        ? cn("ring-2 ring-primary border-primary bg-primary/5", item.color.split(' ')[0])
                                         : "border-muted bg-white hover:bg-muted/50 text-muted-foreground"
                                 )}
                             >
-                                <item.icon className={cn("h-3.5 w-3.5", watchedType === item.type ? "" : "text-muted-foreground")} />
-                                <span>{item.label}</span>
+                                <div className={cn(
+                                    "p-2 rounded-lg transition-colors",
+                                    watchedType === item.type ? item.color.split(' ')[1] : "bg-muted/50 group-hover:bg-muted"
+                                )}>
+                                    <item.icon className={cn("h-5 w-5", watchedType === item.type ? item.color.split(' ')[0] : "text-muted-foreground")} />
+                                </div>
+                                <div className="space-y-0.5">
+                                    <span className="text-[11px] font-bold block leading-tight">{item.label}</span>
+                                    <span className="text-[9px] opacity-70 block leading-tight">{item.sub}</span>
+                                </div>
                             </button>
                         ))}
                     </div>
