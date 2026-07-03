@@ -21,7 +21,10 @@ import {
   Download,
   Edit,
   Printer,
-  ChevronRight
+  ChevronRight,
+  Loader2,
+  Trash2,
+  X
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -48,13 +51,15 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
-import { onPartiesUpdate } from '@/services/party-service';
+import { onPartiesUpdate, addParty, updateParty, deleteParty } from '@/services/party-service';
 import { onAgreementsUpdate } from '@/services/agreement-service';
 import { onTransactionsUpdate } from '@/services/transaction-service';
 import { onRentalBillsUpdate } from '@/services/rental-billing-service';
-import type { Party, RentalAgreement, Transaction, RentalBill } from '@/lib/types';
+import type { Party, RentalAgreement, Transaction, RentalBill, PartyType, AccountOwnership } from '@/lib/types';
 import { cn, toNepaliDate } from '@/lib/utils';
 import Link from 'next/link';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 const NEPALI_MONTHS = [
     { value: 0, name: "Baishakh" }, { value: 1, name: "Jestha" }, { value: 2, name: "Ashadh" },
@@ -77,10 +82,26 @@ export default function TenantsPage() {
   const [selectedTenant, setSelectedTenant] = useState<Party | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
+  // Add/Edit Dialog State
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingTenantId, setEditingTenantId] = useState<string | null>(null);
+  const [tenantForm, setTenantForm] = useState({
+    name: '',
+    address: '',
+    panNumber: '', // Used as phone number in this context
+  });
+
   useEffect(() => {
     setIsLoading(true);
     const unsubs = [
-        onPartiesUpdate((data) => setTenants(data.filter(p => p.type === 'Tenant' || p.type === 'Both'))),
+        onPartiesUpdate((data) => {
+            // Filter parties that are tenants and exclusive to Rental or Both
+            setTenants(data.filter(p => 
+                (p.type === 'Tenant' || p.type === 'Both') && 
+                (p.ownership === 'Rental' || p.ownership === 'Both')
+            ));
+        }),
         onAgreementsUpdate(setAgreements),
         onTransactionsUpdate(setTransactions),
         onRentalBillsUpdate(setBills)
@@ -120,6 +141,64 @@ export default function TenantsPage() {
     }
   };
 
+  const openAddDialog = () => {
+    setEditingTenantId(null);
+    setTenantForm({ name: '', address: '', panNumber: '' });
+    setIsAddDialogOpen(true);
+  };
+
+  const openEditDialog = (e: React.MouseEvent, tenant: Party) => {
+    e.stopPropagation();
+    setEditingTenantId(tenant.id);
+    setTenantForm({
+        name: tenant.name,
+        address: tenant.address || '',
+        panNumber: tenant.panNumber || '',
+    });
+    setIsAddDialogOpen(true);
+  };
+
+  const handleTenantSubmit = async () => {
+    if (!user || !tenantForm.name) return;
+    setIsSubmitting(true);
+    try {
+        if (editingTenantId) {
+            await updateParty(editingTenantId, {
+                name: tenantForm.name,
+                address: tenantForm.address,
+                panNumber: tenantForm.panNumber,
+                lastModifiedBy: user.username
+            });
+            toast({ title: 'Tenant Updated' });
+        } else {
+            await addParty({
+                name: tenantForm.name,
+                address: tenantForm.address,
+                panNumber: tenantForm.panNumber,
+                type: 'Tenant' as PartyType,
+                ownership: 'Rental' as AccountOwnership,
+                createdBy: user.username
+            });
+            toast({ title: 'Tenant Created' });
+        }
+        setIsAddDialogOpen(false);
+    } catch {
+        toast({ title: 'Error saving tenant', variant: 'destructive' });
+    } finally {
+        setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteTenant = async (e: React.MouseEvent, id: string) => {
+      e.stopPropagation();
+      try {
+          await deleteParty(id);
+          toast({ title: 'Tenant Removed' });
+      } catch {
+          toast({ title: 'Error deleting tenant', variant: 'destructive' });
+      }
+  };
+
   return (
     <div className="flex flex-col gap-8">
       <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -138,10 +217,8 @@ export default function TenantsPage() {
                 />
             </div>
             {hasPermission('rental', 'create') && (
-                <Button asChild>
-                    <Link href="/settings?tab=parties">
-                        <Plus className="mr-2 h-4 w-4"/> Add Tenant
-                    </Link>
+                <Button onClick={openAddDialog}>
+                    <Plus className="mr-2 h-4 w-4"/> Add New Tenant
                 </Button>
             )}
         </div>
@@ -154,7 +231,7 @@ export default function TenantsPage() {
                     <TableRow className="hover:bg-transparent">
                         <TableHead className="w-[300px] font-bold">Tenant Name</TableHead>
                         <TableHead className="font-bold">Unit / Property</TableHead>
-                        <TableHead className="font-bold">Contact</TableHead>
+                        <TableHead className="font-bold">Contact / Phone</TableHead>
                         <TableHead className="font-bold">Lease Status</TableHead>
                         <TableHead className="text-right font-bold">Outstanding</TableHead>
                         <TableHead className="text-right font-bold">Deposit</TableHead>
@@ -235,11 +312,30 @@ export default function TenantsPage() {
                                                 </Link>
                                             </DropdownMenuItem>
                                             <DropdownMenuSeparator />
-                                            <DropdownMenuItem asChild>
-                                                <Link href={`/settings?tab=parties`}>
-                                                    <Edit className="mr-2 h-4 w-4"/> Edit Contact
-                                                </Link>
+                                            <DropdownMenuItem onClick={(e) => openEditDialog(e, tenant)}>
+                                                <Edit className="mr-2 h-4 w-4"/> Edit Details
                                             </DropdownMenuItem>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">
+                                                        <Trash2 className="mr-2 h-4 w-4"/> Delete Tenant
+                                                    </DropdownMenuItem>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            This will permanently delete the tenant record. Accounting history for this tenant will be preserved but disconnected.
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={(e) => handleDeleteTenant(e, tenant.id)} className="bg-destructive text-destructive-foreground">
+                                                            Yes, Delete
+                                                        </AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                     <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:translate-x-1 transition-transform" />
@@ -259,6 +355,55 @@ export default function TenantsPage() {
             </Table>
         </CardContent>
       </Card>
+
+      {/* Add/Edit Tenant Dialog */}
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+                <DialogTitle>{editingTenantId ? 'Edit Tenant Profile' : 'Register New Tenant'}</DialogTitle>
+                <DialogDescription>
+                    Fill in the contact information. This data is exclusive to the Rental module.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+                <div className="space-y-2">
+                    <Label htmlFor="tenant-name">Full Name <span className="text-destructive">*</span></Label>
+                    <Input 
+                        id="tenant-name" 
+                        value={tenantForm.name} 
+                        onChange={e => setTenantForm({...tenantForm, name: e.target.value})} 
+                        placeholder="e.g. John Doe"
+                    />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="tenant-contact">Mobile / Contact Number</Label>
+                    <Input 
+                        id="tenant-contact" 
+                        value={tenantForm.panNumber} 
+                        onChange={e => setTenantForm({...tenantForm, panNumber: e.target.value})} 
+                        placeholder="e.g. 9841XXXXXX"
+                    />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="tenant-address">Home Address / Location</Label>
+                    <Textarea 
+                        id="tenant-address" 
+                        value={tenantForm.address} 
+                        onChange={e => setTenantForm({...tenantForm, address: e.target.value})} 
+                        placeholder="Permanent or current address"
+                        className="min-h-[80px]"
+                    />
+                </div>
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
+                <Button onClick={handleTenantSubmit} disabled={isSubmitting || !tenantForm.name}>
+                    {isSubmitting ? <Loader2 className="animate-spin h-4 w-4 mr-2"/> : <PlusCircle className="mr-2 h-4 w-4"/>}
+                    {editingTenantId ? 'Update Record' : 'Create Tenant'}
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {selectedTenant && (
         <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
@@ -285,7 +430,6 @@ export default function TenantsPage() {
                             <TabsTrigger value="overview" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:font-bold rounded-none px-0 h-full text-xs uppercase tracking-widest transition-all">Overview</TabsTrigger>
                             <TabsTrigger value="agreement" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:font-bold rounded-none px-0 h-full text-xs uppercase tracking-widest transition-all">Lease Record</TabsTrigger>
                             <TabsTrigger value="ledger" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:font-bold rounded-none px-0 h-full text-xs uppercase tracking-widest transition-all">Billing Ledger</TabsTrigger>
-                            <TabsTrigger value="documents" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:font-bold rounded-none px-0 h-full text-xs uppercase tracking-widest transition-all">Doc Vault</TabsTrigger>
                         </TabsList>
                     </div>
 
@@ -418,14 +562,6 @@ export default function TenantsPage() {
                                     </TableBody>
                                 </Table>
                              </div>
-                        </TabsContent>
-
-                        <TabsContent value="documents" className="mt-0 flex flex-col items-center justify-center py-24 text-muted-foreground">
-                            <div className="p-4 bg-muted/20 rounded-full mb-4">
-                                <ShieldCheck className="h-10 w-10 opacity-20"/>
-                            </div>
-                            <p className="font-bold uppercase text-[10px] tracking-[0.3em]">Encrypted Storage</p>
-                            <p className="text-xs mt-1">Tenant document vault feature coming soon.</p>
                         </TabsContent>
                     </ScrollArea>
                 </Tabs>
