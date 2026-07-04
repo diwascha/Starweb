@@ -12,9 +12,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, ShieldCheck, Lock, User as UserIcon } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
-import { signInWithEmailAndPassword, AuthErrorCodes } from 'firebase/auth';
+import { AuthErrorCodes } from 'firebase/auth';
 import { useAuthService } from '@/firebase';
-import { getAdminCredentials, getUserByLogin } from '@/services/user-service';
+import { getAdminCredentials, getUserByLogin, loginWithUsername } from '@/services/user-service';
 import { onSettingUpdate } from '@/services/settings-service';
 import type { AppBranding } from '@/lib/types';
 import logo from '@/app/signup/StarSutra.png';
@@ -58,7 +58,7 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormValues) => {
     setIsSubmitting(true);
     
-    // 1. Hardcoded Administrator Bypass
+    // 1. Administrator Bypass
     if (data.loginString.toLowerCase() === 'administrator') {
         const adminCreds = getAdminCredentials();
         if (data.password === adminCreds.password) {
@@ -72,38 +72,45 @@ export default function LoginPage() {
     }
 
     try {
-      // 2. Fetch User Record from Firestore (by Username or Email)
+      // 2. Resolve username and authenticate
+      // The loginWithUsername function handles the username-to-email mapping lookup
+      await loginWithUsername(auth, data.loginString, data.password);
+      
+      // 3. Fetch User Record from Firestore to verify approval and get permissions
       const cloudUser = await getUserByLogin(data.loginString);
       
       if (!cloudUser) {
-        toast({ title: 'Account Not Found', description: 'No user matches those credentials.', variant: 'destructive' });
-        setIsSubmitting(false);
+        await auth.signOut();
+        toast({ title: 'Profile Error', description: 'Account authenticated but profile missing.', variant: 'destructive' });
         return;
       }
 
-      // 3. Verify Approval Status
+      // 4. Verify Approval Status (Business requirement)
       if (cloudUser.isApproved === false) {
+        await auth.signOut(); // Terminate session if not approved
         toast({ 
             title: 'Account Pending', 
             description: 'Your account is pending administrator approval.', 
             variant: 'destructive' 
         });
-        setIsSubmitting(false);
         return;
       }
 
-      // 4. Authenticate via Firebase Auth
-      const authEmail = cloudUser.email || `${cloudUser.username}@starsutra.com`;
-      await signInWithEmailAndPassword(auth, authEmail, data.password);
-      
-      // 5. Establish local session
+      // 5. Establish local session tracking
       await login(cloudUser, false);
       toast({ title: 'Welcome', description: `Signed in as ${cloudUser.username}` });
       
     } catch (error: any) {
-      let errorMessage = 'Login failed. Please check your password.';
-      if (error.code === AuthErrorCodes.INVALID_PASSWORD) errorMessage = 'Incorrect password.';
-      if (error.code === AuthErrorCodes.TOO_MANY_ATTEMPTS_TRY_LATER) errorMessage = 'Too many attempts. Locked for security.';
+      let errorMessage = 'Login failed. Please check your credentials.';
+      
+      // Specifically handle the "Username not found" error from our service function
+      if (error.message === "Username does not exist in our system.") {
+          errorMessage = error.message;
+      } else if (error.code === AuthErrorCodes.INVALID_PASSWORD || error.code === 'auth/invalid-credential') {
+          errorMessage = 'Incorrect password.';
+      } else if (error.code === AuthErrorCodes.TOO_MANY_ATTEMPTS_TRY_LATER) {
+          errorMessage = 'Too many attempts. Locked for security.';
+      }
       
       toast({
         title: 'Authentication Error',

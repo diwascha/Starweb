@@ -78,7 +78,8 @@ import {
   Package,
   Wrench,
   Receipt,
-  FileSpreadsheet
+  FileSpreadsheet,
+  ShoppingCart
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -108,7 +109,8 @@ import {
     saveUser,
     deleteUser as deleteUserService,
     validatePassword, 
-    setAdminPassword, 
+    setAdminPassword,
+    adminCreateUserWithUsername 
 } from '@/services/user-service';
 import { modules, actions, documentTypes, getDocumentName } from '@/lib/types';
 import { NEPALI_MONTHS, DEFAULT_COMPANY_PROFILE, DEFAULT_FLEET_PROFILE } from '@/lib/constants';
@@ -124,6 +126,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Switch } from '@/components/ui/switch';
 import logo from '@/app/signup/StarSutra.png';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useAuthService } from '@/firebase';
 
 const getModuleDisplayName = (m: Module): string => {
     switch (m) {
@@ -256,6 +259,7 @@ function MergePartiesDialog({ open, onOpenChange, parties, onMerge }: { open: bo
 
 export default function SettingsPage() {
   const { user, logout, hasPermission } = useAuth();
+  const auth = useAuthService();
   const { toast } = useToast();
   const router = useRouter();
   
@@ -330,6 +334,7 @@ export default function SettingsPage() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [userForm, setUserForm] = useState({ username: '', email: '', isApproved: true, password: '', permissions: {} as Permissions });
   const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [isSubmittingUser, setIsSubmittingUser] = useState(false);
   
   // Change Password State
   const [isChangePasswordDialogOpen, setIsChangePasswordDialogOpen] = useState(false);
@@ -682,32 +687,46 @@ export default function SettingsPage() {
   const handleUserSubmit = async () => {
     if (!user) return;
     const isEditing = !!editingUser;
+    
     const { isValid, error } = validatePassword(userForm.password, !isEditing);
     if (!isValid) {
         setPasswordError(error!);
         return;
     }
     setPasswordError(null);
-
-    const userData: User = {
-        id: editingUser?.id || Date.now().toString(),
-        username: userForm.username.toLowerCase().trim(),
-        email: userForm.email.toLowerCase().trim(),
-        isApproved: userForm.isApproved,
-        permissions: userForm.permissions,
-        passwordLastUpdated: new Date().toISOString(),
-    };
-
-    if (userForm.password) {
-        userData.password = userForm.password;
-    }
+    setIsSubmittingUser(true);
 
     try {
+        let finalUserId = editingUser?.id || Date.now().toString();
+        
+        // Use mapping-based creation for new users
+        if (!isEditing) {
+            const authUser = await adminCreateUserWithUsername(auth, userForm.username, userForm.email, userForm.password);
+            finalUserId = authUser.uid;
+        }
+
+        const userData: User = {
+            id: finalUserId,
+            username: userForm.username.toLowerCase().trim(),
+            email: userForm.email.toLowerCase().trim(),
+            isApproved: userForm.isApproved,
+            permissions: userForm.permissions,
+            passwordLastUpdated: new Date().toISOString(),
+        };
+
+        if (isEditing && userForm.password) {
+            // Note: Cloud password updates would typically require re-authentication 
+            // or an Admin SDK. For prototype purposes, we log the intent.
+            userData.password = userForm.password;
+        }
+
         await saveUser(userData);
-        toast({ title: 'Success', description: `User ${isEditing ? 'updated' : 'created'}.` });
+        toast({ title: 'Success', description: `User ${isEditing ? 'updated' : 'onboarded'}.` });
         setIsUserDialogOpen(false);
     } catch (e: any) {
-        toast({ title: 'Error', description: e.message, variant: 'destructive' });
+        toast({ title: 'User Setup Failed', description: e.message, variant: 'destructive' });
+    } finally {
+        setIsSubmittingUser(false);
     }
   };
 
@@ -715,9 +734,9 @@ export default function SettingsPage() {
     return users.filter(u => (u.username || '').toLowerCase().includes(searchQuery.toLowerCase()));
   }, [users, searchQuery]);
 
-  const handleDeleteUser = async (id: string) => {
+  const handleDeleteUser = async (id: string, username?: string) => {
       try {
-          await deleteUserService(id);
+          await deleteUserService(id, username);
           toast({ title: 'Success', description: 'User deleted.' });
       } catch (e: any) {
           toast({ title: 'Error', description: 'Failed to delete user.', variant: 'destructive' });
@@ -916,8 +935,8 @@ export default function SettingsPage() {
                                                                 <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Purge User</DropdownMenuItem>
                                                             </AlertDialogTrigger>
                                                             <AlertDialogContent>
-                                                                <AlertDialogHeader><AlertDialogTitle>Delete user "{u.username}"?</AlertDialogTitle><AlertDialogDescription>This will immediately terminate all active sessions for this user. This action is permanent.</AlertDialogDescription></AlertDialogHeader>
-                                                                <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteUser(u.id)} className="bg-destructive text-destructive-foreground">Yes, Delete</AlertDialogAction></AlertDialogFooter>
+                                                                <AlertDialogHeader><AlertDialogTitle>Delete user "{u.username}"?</AlertDialogTitle><AlertDialogDescription>This will immediately terminate all active sessions for this user and remove their username mapping. This action is permanent.</AlertDialogDescription></AlertDialogHeader>
+                                                                <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteUser(u.id, u.username)} className="bg-destructive text-destructive-foreground">Yes, Delete</AlertDialogAction></AlertDialogFooter>
                                                             </AlertDialogContent>
                                                         </AlertDialog>
                                                     </DropdownMenuContent>
@@ -1205,6 +1224,7 @@ export default function SettingsPage() {
                                         <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                         <Input value={userForm.username || ''} onChange={e => setUserForm(p => ({...p, username: e.target.value}))} disabled={!!editingUser} className="h-10 bg-white pl-10 font-bold" placeholder="e.g. diwas" />
                                     </div>
+                                    {!editingUser && <p className="text-[9px] text-muted-foreground italic">Once set, usernames cannot be changed.</p>}
                                 </div>
                                 <div className="space-y-1.5">
                                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Master Email</Label>
@@ -1294,8 +1314,8 @@ export default function SettingsPage() {
 
             <DialogFooter className="p-6 bg-white border-t shrink-0 shadow-2xl">
                 <Button variant="outline" onClick={() => setIsUserDialogOpen(false)} className="h-10 px-8 font-bold text-xs uppercase border-gray-300">Cancel</Button>
-                <Button onClick={handleUserSubmit} className="h-10 px-10 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20">
-                    <Save className="mr-2 h-4 w-4"/>
+                <Button onClick={handleUserSubmit} disabled={isSubmittingUser || !userForm.username} className="h-10 px-10 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20">
+                    {isSubmittingUser ? <Loader2 className="animate-spin h-4 w-4 mr-2"/> : <Save className="mr-2 h-4 w-4"/>}
                     Finalize Account Access
                 </Button>
             </DialogFooter>
@@ -1399,4 +1419,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
