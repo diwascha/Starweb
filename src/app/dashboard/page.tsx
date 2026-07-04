@@ -103,7 +103,7 @@ export default function DashboardPage() {
               <p className="text-sm text-muted-foreground mt-1">Welcome back, {user?.username} • {companyProfile.address}</p>
             </div>
         </div>
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-2 md:pb-0 whitespace-nowrap">
+        <div className="flex flex-wrap items-center justify-end gap-1.5 pb-2 md:pb-0">
           {hasPermission('fleet', 'create') && (
             <Button asChild size="sm" variant="secondary" className="h-7 text-[10px] px-3 font-bold uppercase tracking-wider">
               <Link href="/fleet/transactions/expenses/new">
