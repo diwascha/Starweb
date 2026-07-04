@@ -60,7 +60,12 @@ import {
   ShieldX,
   UserCheck,
   UserX,
-  Mail
+  Mail,
+  Lock,
+  History,
+  FileText,
+  Calculator,
+  Terminal
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -100,10 +105,24 @@ import NepaliDate from 'nepali-date-converter';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { cn } from '@/lib/utils';
+import { cn, generateId } from '@/lib/utils';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { NEPALI_MONTHS, DEFAULT_COMPANY_PROFILE, DEFAULT_FLEET_PROFILE } from '@/lib/constants';
 import { Switch } from '@/components/ui/switch';
+import logo from '@/app/signup/StarSutra.png';
+import { ScrollArea } from '@/components/ui/scroll-area';
+
+function ConnectionIndicator() {
+    return (
+        <div className="flex items-center gap-1.5 text-[9px] font-black uppercase text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">
+            <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            Real-Time Cloud Sync
+        </div>
+    );
+}
 
 function MergePartiesDialog({ open, onOpenChange, parties, onMerge }: { open: boolean, onOpenChange: (open: boolean) => void, parties: Party[], onMerge: (sourceId: string, destinationId: string) => void }) {
     const [sourceId, setSourceId] = useState<string>('');
@@ -115,11 +134,16 @@ function MergePartiesDialog({ open, onOpenChange, parties, onMerge }: { open: bo
 
     const handleMergeClick = async () => {
         setIsMerging(true);
-        await onMerge(sourceId, destinationId);
-        setIsMerging(false);
-        onOpenChange(false);
-        setSourceId('');
-        setDestinationId('');
+        try {
+            await onMerge(sourceId, destinationId);
+            onOpenChange(false);
+            setSourceId('');
+            setDestinationId('');
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setIsMerging(false);
+        }
     };
 
     return (
@@ -128,7 +152,7 @@ function MergePartiesDialog({ open, onOpenChange, parties, onMerge }: { open: bo
                 <DialogHeader>
                     <DialogTitle>Merge Duplicate Parties</DialogTitle>
                     <DialogDescription>
-                        Select a party to merge and a party to merge into. The first party will be deleted, and all its associated records will be reassigned to the second party. This action cannot be undone.
+                        Select a party to merge and a party to merge into. The first party will be deleted, and all its associated records will be reassigned to the second party.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="py-4 space-y-4">
@@ -471,7 +495,7 @@ export default function SettingsPage() {
       }
   };
 
-  const handleMergeParties = async (sourceId: string, destinationId: string) => {
+  const handleMergePartiesInternal = async (sourceId: string, destinationId: string) => {
       try {
           await mergeParties(sourceId, destinationId);
           toast({ title: "Merge Successful" });
@@ -758,11 +782,24 @@ export default function SettingsPage() {
                     </DropdownMenu>
                 </TabsList>
                 
-                {activeTab === 'users-security' && hasPermission('settings', 'create') && (
-                    <Button size="sm" onClick={() => openUserDialog()} className="h-8 shadow-sm">
-                        <Plus className="mr-2 h-4 w-4" /> Add User
+                <div className="flex items-center gap-2">
+                    {activeTab === 'users-security' && hasPermission('settings', 'create') && (
+                        <Button size="sm" onClick={() => openUserDialog()} className="h-8 shadow-sm">
+                            <Plus className="mr-2 h-4 w-4" /> Add User
+                        </Button>
+                    )}
+                    <Button variant="outline" size="sm" className="h-8 gap-2" onClick={handleExportData} disabled={isExporting}>
+                        {isExporting ? <Loader2 className="animate-spin h-3.5 w-3.5" /> : <Download className="h-3.5 w-3.5" />}
+                        Backup
                     </Button>
-                )}
+                    <div className="relative">
+                        <Input type="file" ref={importFileRef} onChange={handleImportFileSelect} accept=".json" className="hidden" />
+                        <Button variant="outline" size="sm" className="h-8 gap-2" onClick={() => importFileRef.current?.click()} disabled={isImporting}>
+                            {isImporting ? <Loader2 className="animate-spin h-3.5 w-3.5" /> : <Upload className="h-3.5 w-3.5" />}
+                            Restore
+                        </Button>
+                    </div>
+                </div>
              </div>
 
             <TabsContent value="users-security" className="mt-6 space-y-6">
@@ -779,7 +816,7 @@ export default function SettingsPage() {
                                 <span className="text-[10px] uppercase font-bold text-muted-foreground">Current Operator</span>
                                 <p className="font-black text-lg text-gray-900">{user?.username}</p>
                             </div>
-                            <Button onClick={() => setIsChangePasswordDialogOpen(true)} variant="outline" className="w-full h-10 border-gray-300 font-bold text-xs">
+                            <Button onClick={() => setIsChangePasswordDialogOpen(true)} variant="outline" className="w-full h-10 border-gray-300 font-bold text-xs text-primary">
                                 <KeyRound className="mr-2 h-4 w-4"/> Update Secure Password
                             </Button>
                         </CardContent>
@@ -887,7 +924,6 @@ export default function SettingsPage() {
                  </Card>
             </TabsContent>
 
-            {/* Other tabs follow similar robust styling patterns */}
             <TabsContent value="company-details" className="mt-6 space-y-8">
                 <Card className="shadow-sm border-gray-100 overflow-hidden">
                     <CardHeader className="flex flex-row items-center justify-between bg-primary/5 py-4 px-6 border-b">
@@ -948,23 +984,54 @@ export default function SettingsPage() {
                         </div>
                     </CardHeader>
                     <CardContent className="p-0">
-                        <Table className="text-xs"><TableHeader className="bg-muted/50"><TableRow><TableHead className="pl-6">Entity Name</TableHead><TableHead>Account Category</TableHead><TableHead>System Group</TableHead><TableHead>Address</TableHead><TableHead className="text-right pr-6">Actions</TableHead></TableRow></TableHeader><TableBody>
-                        {filteredParties.map(party => (
-                            <TableRow key={party.id} className="h-12 border-b-gray-100"><TableCell className="font-bold pl-6 text-gray-900">{party.name}</TableCell><TableCell><Badge variant="secondary" className="text-[9px] uppercase font-black">{party.type}</Badge></TableCell><TableCell><Badge variant="outline" className="text-[9px] uppercase font-black border-blue-200 text-blue-700 bg-blue-50/50">{party.ownership}</Badge></TableCell><TableCell className="text-muted-foreground max-w-[200px] truncate">{party.address}</TableCell><TableCell className="text-right pr-6">
-                                <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-40">
-                                    <DropdownMenuItem onSelect={() => openPartyDialog(party)} className="text-xs">Edit Detail</DropdownMenuItem>
-                                    <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive text-xs">Purge Partner</DropdownMenuItem></AlertDialogTrigger><AlertDialogContent>
-                                        <AlertDialogHeader><AlertDialogTitle>Confirm Purge</AlertDialogTitle><AlertDialogDescription>This removes the record permanently. Historical ledger entries may lose link integrity.</AlertDialogDescription></AlertDialogHeader>
-                                        <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteParty(party.id)} className="bg-destructive text-destructive-foreground">Delete</AlertDialogAction></AlertDialogFooter>
-                                    </AlertDialog></DropdownMenuContent></DropdownMenu>
-                            </TableCell></TableRow>
-                        ))}</TableBody></Table>
+                        <Table className="text-xs">
+                            <TableHeader className="bg-muted/50">
+                                <TableRow className="hover:bg-transparent">
+                                    <TableHead className="pl-6">Entity Name</TableHead>
+                                    <TableHead>Account Category</TableHead>
+                                    <TableHead>System Group</TableHead>
+                                    <TableHead>Address</TableHead>
+                                    <TableHead className="text-right pr-6">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                            {filteredParties.map(party => (
+                                <TableRow key={party.id} className="h-12 border-b-gray-100">
+                                    <TableCell className="font-bold pl-6 text-gray-900">{party.name}</TableCell>
+                                    <TableCell><Badge variant="secondary" className="text-[9px] uppercase font-black">{party.type}</Badge></TableCell>
+                                    <TableCell><Badge variant="outline" className="text-[9px] uppercase font-black border-blue-200 text-blue-700 bg-blue-50/50">{party.ownership}</Badge></TableCell>
+                                    <TableCell className="text-muted-foreground max-w-[200px] truncate">{party.address}</TableCell>
+                                    <TableCell className="text-right pr-6">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end" className="w-48">
+                                                <DropdownMenuItem onSelect={() => openPartyDialog(party)} className="text-xs">Edit Detail</DropdownMenuItem>
+                                                <DropdownMenuSeparator />
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                        <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive text-xs">Purge Partner</DropdownMenuItem>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle>Confirm Purge</AlertDialogTitle>
+                                                            <AlertDialogDescription>This removes the record permanently. Historical ledger entries may lose link integrity.</AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                            <AlertDialogAction onClick={() => handleDeleteParty(party.id)} className="bg-destructive text-destructive-foreground">Delete</AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </TableCell>
+                                </TableRow>
+                            ))}</TableBody>
+                        </Table>
                     </CardContent>
                 </Card>
             </TabsContent>
 
-            {/* Implementation for Accounts and UoM tabs follow similar design language */}
             <TabsContent value="accounts">
                 <Card className="shadow-sm border-gray-100 bg-white">
                     <CardHeader className="flex flex-row items-center justify-between py-4 border-b">
@@ -1134,18 +1201,76 @@ export default function SettingsPage() {
         <Dialog open={isChangePasswordDialogOpen} onOpenChange={setIsChangePasswordDialogOpen}><DialogContent><DialogHeader><DialogTitle>Cloud Security Update</DialogTitle></DialogHeader><div className="space-y-4 py-4"><div className="space-y-2"><Label className="text-[10px] uppercase font-bold text-muted-foreground">New Secure Password</Label><Input type="password" value={newPassword || ''} onChange={e => setNewPassword(e.target.value)} className="h-10" /></div><div className="space-y-2"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Verify Entry</Label><Input type="password" value={confirmPassword || ''} onChange={e => setConfirmPassword(e.target.value)} className="h-10" /></div>{changePasswordError && <p className="text-[10px] text-red-600 font-black uppercase">{changePasswordError}</p>}</div><DialogFooter><Button onClick={handleChangePassword} className="h-11 font-black text-xs uppercase tracking-widest w-full">Commit & Force Re-Login</Button></DialogFooter></DialogContent></Dialog>
         
         <Dialog open={isPrefixDialogOpen} onOpenChange={setIsPrefixDialogOpen}><DialogContent><DialogHeader><DialogTitle className="text-lg font-black uppercase">Prefix Configuration</DialogTitle><DialogDescription className="text-xs">The prefix for {editingPrefix ? getDocumentName(editingPrefix.key) : ''} documents.</DialogDescription></DialogHeader><div className="py-6 space-y-4"><div className="space-y-2"><Label className="text-[10px] font-bold uppercase text-muted-foreground">System Prefix String</Label><Input value={editingPrefix?.value || ''} onChange={e => setEditingPrefix(p => p ? {...p, value: e.target.value} : null)} className="h-12 text-lg font-mono font-bold text-blue-700" placeholder="e.g. INV-" /></div><p className="text-[10px] text-muted-foreground bg-muted/50 p-3 rounded-lg leading-relaxed">Changing a prefix will apply to all **new** documents generated from now on. Existing records will retain their original IDs for audit integrity.</p></div><DialogFooter><Button variant="outline" onClick={() => setIsPrefixDialogOpen(false)} className="h-10">Cancel</Button><Button onClick={handleSavePrefix} className="h-10 font-bold px-8">Save Change</Button></DialogFooter></DialogContent></Dialog>
+
+        <Dialog open={isPartyDialogOpen} onOpenChange={setIsPartyDialogOpen}>
+            <DialogContent>
+                <DialogHeader><DialogTitle>{editingParty ? 'Edit Party' : 'Add New Party'}</DialogTitle></DialogHeader>
+                <div className="grid gap-4 py-4">
+                    <div className="space-y-2"><Label>Name</Label><Input value={partyForm.name} onChange={e => setPartyForm({...partyForm, name: e.target.value})} /></div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2"><Label>Type</Label>
+                            <Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm({...partyForm, type: v})}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent><SelectItem value="Vendor">Vendor</SelectItem><SelectItem value="Customer">Customer</SelectItem><SelectItem value="Both">Both</SelectItem><SelectItem value="Tenant">Tenant</SelectItem></SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2"><Label>Group</Label>
+                            <Select value={partyForm.ownership} onValueChange={(v: AccountOwnership) => setPartyForm({...partyForm, ownership: v})}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent><SelectItem value="Sijan">Sijan</SelectItem><SelectItem value="Shivam">Shivam</SelectItem><SelectItem value="Rental">Rental</SelectItem><SelectItem value="Both">Both</SelectItem></SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <div className="space-y-2"><Label>PAN #</Label><Input value={partyForm.panNumber || ''} onChange={e => setPartyForm({...partyForm, panNumber: e.target.value})} /></div>
+                    <div className="space-y-2"><Label>Address</Label><Textarea value={partyForm.address || ''} onChange={e => setPartyForm({...partyForm, address: e.target.value})} /></div>
+                </div>
+                <DialogFooter><Button onClick={handlePartySubmit}>Save</Button></DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        <Dialog open={isAccountDialogOpen} onOpenChange={setIsAccountDialogOpen}>
+            <DialogContent>
+                <DialogHeader><DialogTitle>{editingAccount ? 'Edit Account' : 'New Account'}</DialogTitle></DialogHeader>
+                <div className="grid gap-4 py-4">
+                    <div className="space-y-2"><Label>Account Name</Label><Input value={accountForm.name} onChange={e => setAccountForm({...accountForm, name: e.target.value})} /></div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2"><Label>Type</Label>
+                            <Select value={accountForm.type} onValueChange={(v: AccountType) => setAccountForm({...accountForm, type: v})}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent><SelectItem value="Cash">Cash</SelectItem><SelectItem value="Bank">Bank</SelectItem></SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2"><Label>System Group</Label>
+                            <Select value={accountForm.ownership} onValueChange={(v: AccountOwnership) => setAccountForm({...accountForm, ownership: v})}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent><SelectItem value="Sijan">Sijan</SelectItem><SelectItem value="Shivam">Shivam</SelectItem><SelectItem value="Rental">Rental</SelectItem><SelectItem value="Both">Both</SelectItem></SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    {accountForm.type === 'Bank' && (
+                        <>
+                            <div className="space-y-2"><Label>Bank Name</Label><Input value={accountForm.bankName || ''} onChange={e => setAccountForm({...accountForm, bankName: e.target.value})} /></div>
+                            <div className="space-y-2"><Label>Account Number</Label><Input value={accountForm.accountNumber || ''} onChange={e => setAccountForm({...accountForm, accountNumber: e.target.value})} /></div>
+                        </>
+                    )}
+                </div>
+                <DialogFooter><Button onClick={handleAccountSubmit}>Save</Button></DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        <Dialog open={isUomDialogOpen} onOpenChange={setIsUomDialogOpen}>
+            <DialogContent>
+                <DialogHeader><DialogTitle>Unit Configuration</DialogTitle></DialogHeader>
+                <div className="space-y-4 py-4">
+                    <div className="space-y-2"><Label>Unit Full Name</Label><Input value={uomForm.name} onChange={e => setUomForm({...uomForm, name: e.target.value})} /></div>
+                    <div className="space-y-2"><Label>Abbreviation</Label><Input value={uomForm.abbreviation} onChange={e => setUomForm({...uomForm, abbreviation: e.target.value})} /></div>
+                </div>
+                <DialogFooter><Button onClick={handleUomSubmit}>Save</Button></DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        <MergePartiesDialog open={isMergeDialogOpen} onOpenChange={setIsMergeDialogOpen} parties={parties} onMerge={handleMergePartiesInternal} />
     </div>
   );
 }
 
-function ConnectionIndicator() {
-    return (
-        <div className="flex items-center gap-1.5 text-[9px] font-black uppercase text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">
-            <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </span>
-            Real-Time Cloud Sync
-        </div>
-    );
-}
