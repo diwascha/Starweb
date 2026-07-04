@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ShieldCheck, Lock } from 'lucide-react';
+import { Loader2, ShieldCheck, Lock, User } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { signInWithEmailAndPassword, AuthErrorCodes } from 'firebase/auth';
 import { useAuthService } from '@/firebase';
@@ -93,7 +93,6 @@ export default function LoginPage() {
       }
 
       // 4. Authenticate via Firebase Auth
-      // Standardize login to email for Firebase
       const authEmail = cloudUser.email || `${cloudUser.username}@starsutra.com`;
       await signInWithEmailAndPassword(auth, authEmail, data.password);
       
@@ -153,7 +152,7 @@ export default function LoginPage() {
                     <input
                         id="loginString"
                         type="text"
-                        placeholder="diwas"
+                        placeholder="Username or email"
                         {...register('loginString')}
                         disabled={isSubmitting}
                         className="flex h-11 w-full rounded-lg border-2 border-muted bg-background pl-10 pr-3 py-2 text-sm font-semibold transition-all focus:border-primary focus:ring-0 outline-none"

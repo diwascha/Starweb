@@ -66,7 +66,8 @@ import {
   FileText,
   Calculator,
   Terminal,
-  ChevronRight
+  ChevronRight,
+  User as UserIcon
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -1141,7 +1142,13 @@ export default function SettingsPage() {
             <ScrollArea className="flex-1 p-6 bg-gray-50/30">
                 <div className="space-y-8">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Identification Name</Label><Input value={userForm.username || ''} onChange={e => setUserForm(p => ({...p, username: e.target.value}))} disabled={!!editingUser} className="h-10 bg-white" placeholder="e.g. jdoe" /></div>
+                    <div className="space-y-1.5">
+                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Identification Name</Label>
+                        <div className="relative">
+                            <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input value={userForm.username || ''} onChange={e => setUserForm(p => ({...p, username: e.target.value}))} disabled={!!editingUser} className="h-10 bg-white pl-10" placeholder="e.g. jdoe" />
+                        </div>
+                    </div>
                     <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Cloud Password</Label><Input type="password" value={userForm.password || ''} onChange={e => setUserForm(p => ({...p, password: e.target.value}))} className="h-10 bg-white" placeholder={editingUser ? "Leave blank to keep current" : "••••••••"} />{passwordError && <p className="text-[9px] text-red-600 font-black uppercase mt-1 animate-pulse">{passwordError}</p>}</div>
                   </div>
                   
