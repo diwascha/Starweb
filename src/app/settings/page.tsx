@@ -65,7 +65,8 @@ import {
   History,
   FileText,
   Calculator,
-  Terminal
+  Terminal,
+  ChevronRight
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -98,7 +99,7 @@ import {
     setAdminPassword, 
 } from '@/services/user-service';
 import { modules, actions, documentTypes, getDocumentName } from '@/lib/types';
-import { NEPALI_MONTHS } from '@/lib/constants';
+import { NEPALI_MONTHS, DEFAULT_COMPANY_PROFILE, DEFAULT_FLEET_PROFILE } from '@/lib/constants';
 import { Checkbox } from '@/components/ui/checkbox';
 import { exportData, importData } from '@/services/backup-service';
 import { useRouter } from 'next/navigation';
@@ -108,7 +109,6 @@ import { format } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn, generateId } from '@/lib/utils';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { DEFAULT_COMPANY_PROFILE, DEFAULT_FLEET_PROFILE } from '@/lib/constants';
 import { Switch } from '@/components/ui/switch';
 import logo from '@/app/signup/StarSutra.png';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -209,7 +209,7 @@ function MergePartiesDialog({ open, onOpenChange, parties, onMerge }: { open: bo
 }
 
 export default function SettingsPage() {
-  const { user, logout } = useAuth();
+  const { user, logout, hasPermission } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
   

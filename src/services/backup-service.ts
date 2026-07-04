@@ -1,4 +1,3 @@
-
 import { getFirebase } from '@/lib/firebase';
 import { collection, getDocs, writeBatch, doc } from 'firebase/firestore';
 
@@ -20,6 +19,7 @@ const collectionsToBackup = [
     'trips',
     'settings',
     'notes',
+    'system_users'
 ];
 
 export const exportData = async (): Promise<Record<string, any[]>> => {
