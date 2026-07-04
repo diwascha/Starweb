@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import type { 
   Party, 
   Account, 
@@ -1379,4 +1379,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
