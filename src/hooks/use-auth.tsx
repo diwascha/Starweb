@@ -48,9 +48,9 @@ const routeToCoreModule = (segment: string): Module | null => {
         'finance': 'finance',
         'report': 'reports',
         'reports': 'reports',
-        'products': 'reports', // Inheritance: Reports covers Products
+        'products': 'reports', 
         'purchase-orders': 'purchaseOrders',
-        'raw-materials': 'purchaseOrders', // Inheritance: Purchase covers Raw Materials
+        'raw-materials': 'purchaseOrders',
         'crm': 'crm',
         'hr': 'hr',
         'fleet': 'fleet',
@@ -86,8 +86,6 @@ const AuthRedirect = ({ children }: { children: ReactNode }) => {
 
         if (user && !isAuthPage && !user.is_admin) {
             const pathSegments = pathname.split('/').filter(Boolean);
-            if (pathSegments.length === 0 && normalizedPath !== '/dashboard') return;
-            
             const firstSegment = pathSegments[0] || 'dashboard';
             const currentModule = routeToCoreModule(firstSegment);
             
@@ -95,10 +93,17 @@ const AuthRedirect = ({ children }: { children: ReactNode }) => {
                 if (!hasPermission(currentModule, 'view')) {
                     const pageOrder: Module[] = ['dashboard', 'finance', 'reports', 'purchaseOrders', 'crm', 'hr', 'fleet', 'rental', 'notes', 'settings'];
                     const firstAllowed = pageOrder.find(m => hasPermission(m, 'view'));
-                    const redirectPath = firstAllowed ? moduleToPath(firstAllowed) : '/dashboard';
                     
-                    if (normalizedPath !== getNormalizedPath(redirectPath)) {
-                        router.push(redirectPath);
+                    // If no modules are allowed, we don't redirect to dashboard to avoid loop
+                    if (firstAllowed) {
+                        const redirectPath = moduleToPath(firstAllowed);
+                        if (normalizedPath !== getNormalizedPath(redirectPath)) {
+                            router.push(redirectPath);
+                        }
+                    } else if (normalizedPath !== '/login') {
+                         // No permissions at all - user is essentially locked out
+                         toast({ title: 'Access Denied', description: 'Your account has no module permissions.', variant: 'destructive' });
+                         signOut(auth);
                     }
                 }
             }
@@ -212,6 +217,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         };
         localStorage.setItem(USER_SESSION_KEY, JSON.stringify(session));
         setUser(session);
+    } else {
+         const session: UserSession = {
+            id: userToLogin.id,
+            username: userToLogin.username,
+            email: userToLogin.email,
+            isApproved: true,
+            is_admin: false,
+            permissions: userToLogin.permissions || {},
+            passwordLastUpdated: userToLogin.passwordLastUpdated
+        };
+        localStorage.setItem(USER_SESSION_KEY, JSON.stringify(session));
+        setUser(session);
     }
   }, []);
 
@@ -226,21 +243,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // 2. Core Permission Check Helper
     const checkCore = (m: Module, a: string): boolean => {
         const perms = user.permissions[m];
-        if (!perms) return false;
+        if (!perms || !Array.isArray(perms)) return false;
         // 3. Admin 'all' override
         if (perms.includes('all')) return true;
         return perms.includes(a as any);
     };
 
     // 4. Inheritance Logic
-    // Reports covers Products
     if (module === 'products') return checkCore('reports', act);
-    // Purchase covers Raw Materials
     if (module === 'rawMaterials') return checkCore('purchaseOrders', act);
     
-    // 5. Standard Module Mapping
-    if (modules.includes(module as Module)) {
-        return checkCore(module as Module, act);
+    // 5. Explicit Module Check - No cross-module bleed
+    const targetModule = module as Module;
+    if (modules.includes(targetModule)) {
+        return checkCore(targetModule, act);
     }
     
     return false;
