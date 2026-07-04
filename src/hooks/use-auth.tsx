@@ -23,7 +23,7 @@ interface AuthContextType {
   loading: boolean;
   login: (user: User, isLocalAdmin?: boolean) => Promise<void>;
   logout: () => Promise<void>;
-  hasPermission: (module: Module, action: Action) => boolean;
+  hasPermission: (module: Module | string, action: Action | 'create') => boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -36,35 +36,30 @@ const AuthContext = createContext<AuthContextType>({
 
 const USER_SESSION_KEY = 'user_session';
 
-const pageOrder: Module[] = ['dashboard', 'reports', 'products', 'purchaseOrders', 'rawMaterials', 'settings', 'hr', 'fleet', 'crm', 'finance', 'rental'];
-
-const kebabToCamel = (s: string): Module | string => {
-    const segments = s.split('/');
-    const mainSegment = segments[0];
-
-    const specialCases: Record<string, Module> = {
-      'report': 'reports',
-      'reports': 'reports',
-      'products': 'products',
-      'purchase-orders': 'purchaseOrders',
-      'raw-materials': 'rawMaterials',
-      'settings': 'settings',
-      'hr': 'hr',
-      'fleet': 'fleet',
-      'dashboard': 'dashboard',
-      'crm': 'crm',
-      'finance': 'finance',
-      'rental': 'rental',
-    };
-    if (specialCases[mainSegment]) return specialCases[mainSegment];
-    return mainSegment.replace(/-./g, x => x[1].toUpperCase());
-};
-
 const moduleToPath = (module: Module): string => {
     if (module === 'dashboard') return '/dashboard';
-    const kebab = module.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`);
-    return `/${kebab}`;
-}
+    if (module === 'purchaseOrders') return '/purchase-orders';
+    return `/${module}`;
+};
+
+const routeToCoreModule = (segment: string): Module | null => {
+    const map: Record<string, Module> = {
+        'dashboard': 'dashboard',
+        'finance': 'finance',
+        'report': 'reports',
+        'reports': 'reports',
+        'products': 'reports', // Inheritance: Reports covers Products
+        'purchase-orders': 'purchaseOrders',
+        'raw-materials': 'purchaseOrders', // Inheritance: Purchase covers Raw Materials
+        'crm': 'crm',
+        'hr': 'hr',
+        'fleet': 'fleet',
+        'rental': 'rental',
+        'notes': 'notes',
+        'settings': 'settings'
+    };
+    return map[segment] || null;
+};
 
 const AuthRedirect = ({ children }: { children: ReactNode }) => {
     const { user, loading, hasPermission } = useAuth();
@@ -94,13 +89,14 @@ const AuthRedirect = ({ children }: { children: ReactNode }) => {
             if (pathSegments.length === 0 && normalizedPath !== '/dashboard') return;
             
             const firstSegment = pathSegments[0] || 'dashboard';
-            const currentModuleAttempt = kebabToCamel(firstSegment);
+            const currentModule = routeToCoreModule(firstSegment);
             
-            if (modules.includes(currentModuleAttempt as Module)) {
-                const currentModule = currentModuleAttempt as Module;
+            if (currentModule) {
                 if (!hasPermission(currentModule, 'view')) {
-                    const firstAllowedPage = pageOrder.find(module => hasPermission(module, 'view'));
-                    const redirectPath = firstAllowedPage ? moduleToPath(firstAllowedPage) : '/dashboard';
+                    const pageOrder: Module[] = ['dashboard', 'finance', 'reports', 'purchaseOrders', 'crm', 'hr', 'fleet', 'rental', 'notes', 'settings'];
+                    const firstAllowed = pageOrder.find(m => hasPermission(m, 'view'));
+                    const redirectPath = firstAllowed ? moduleToPath(firstAllowed) : '/dashboard';
+                    
                     if (normalizedPath !== getNormalizedPath(redirectPath)) {
                         router.push(redirectPath);
                     }
@@ -169,7 +165,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // Find cloud user record by email
         const cloudUser = await getUserByLogin(firebaseUser.email || '');
         if (cloudUser && cloudUser.isApproved !== false) {
           const session: UserSession = {
@@ -178,13 +173,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             email: cloudUser.email,
             isApproved: true,
             is_admin: false,
-            permissions: cloudUser.permissions,
+            permissions: cloudUser.permissions || {},
             passwordLastUpdated: cloudUser.passwordLastUpdated
           };
           localStorage.setItem(USER_SESSION_KEY, JSON.stringify(session));
           setUser(session);
         } else {
-          // Block unapproved or missing users
           signOut(auth);
           localStorage.removeItem(USER_SESSION_KEY);
           setUser(null);
@@ -221,18 +215,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  const hasPermission = useCallback((module: Module, action: Action): boolean => {
+  const hasPermission = useCallback((module: Module | string, action: Action | 'create'): boolean => {
     if (!user) return false;
     if (user.is_admin) return true;
     if (user.isApproved === false) return false;
     
-    if (module === 'crm' && action === 'view') {
-        const financePerms = user.permissions['finance'];
-        if (financePerms && financePerms.includes('view')) return true;
+    // 1. Map legacy 'create' to new 'add' modality
+    const act = action === 'create' ? 'add' : action;
+    
+    // 2. Core Permission Check Helper
+    const checkCore = (m: Module, a: string): boolean => {
+        const perms = user.permissions[m];
+        if (!perms) return false;
+        // 3. Admin 'all' override
+        if (perms.includes('all')) return true;
+        return perms.includes(a as any);
+    };
+
+    // 4. Inheritance Logic
+    // Reports covers Products
+    if (module === 'products') return checkCore('reports', act);
+    // Purchase covers Raw Materials
+    if (module === 'rawMaterials') return checkCore('purchaseOrders', act);
+    
+    // 5. Standard Module Mapping
+    if (modules.includes(module as Module)) {
+        return checkCore(module as Module, act);
     }
     
-    const modulePermissions = user.permissions[module];
-    return !!modulePermissions?.includes(action);
+    return false;
   }, [user]);
 
   return (

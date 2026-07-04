@@ -515,11 +515,22 @@ export interface Trip {
 }
 
 
-// RBAC Types
-export const modules = ['dashboard', 'reports', 'products', 'purchaseOrders', 'rawMaterials', 'settings', 'hr', 'fleet', 'finance', 'crm', 'rental'] as const;
+// RBAC Types - Compact Specification
+export const modules = [
+    'dashboard', 
+    'finance', 
+    'reports', 
+    'purchaseOrders', 
+    'crm', 
+    'hr', 
+    'fleet', 
+    'rental', 
+    'notes', 
+    'settings'
+] as const;
 export type Module = typeof modules[number];
 
-export const actions = ['view', 'create', 'edit', 'delete'] as const;
+export const actions = ['view', 'add', 'edit', 'delete', 'all'] as const;
 export type Action = typeof actions[number];
 
 export type Permissions = {
