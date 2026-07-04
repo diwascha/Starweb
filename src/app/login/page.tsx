@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ShieldCheck, Lock, User } from 'lucide-react';
+import { Loader2, ShieldCheck, Lock, User as UserIcon } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { signInWithEmailAndPassword, AuthErrorCodes } from 'firebase/auth';
 import { useAuthService } from '@/firebase';
@@ -148,7 +148,7 @@ export default function LoginPage() {
               <div className="space-y-2">
                 <Label htmlFor="loginString" className="text-xs font-bold uppercase text-muted-foreground">Username or Email</Label>
                 <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <input
                         id="loginString"
                         type="text"

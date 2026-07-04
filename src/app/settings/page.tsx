@@ -67,7 +67,18 @@ import {
   Calculator,
   Terminal,
   ChevronRight,
-  User as UserIcon
+  User as UserIcon,
+  Zap,
+  Briefcase,
+  Building2,
+  Truck,
+  Home,
+  LayoutDashboard,
+  Settings as SettingsIcon,
+  Package,
+  Wrench,
+  Receipt,
+  FileSpreadsheet
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -81,7 +92,7 @@ import { onAccountsUpdate, addAccount, updateAccount, deleteAccount } from '@/se
 import { onUomsUpdate, addUom, updateUom, deleteUom } from '@/services/uom-service';
 import { onSettingUpdate, setSetting } from '@/services/settings-service';
 import { onPageVisitsUpdate } from '@/services/usage-service';
-import { onLogsUpdate, type SystemLog, logError } from '@/services/log-service';
+import { onLogsUpdate, type SystemLog } from '@/services/log-service';
 import { Separator } from '@/components/ui/separator';
 import { 
     DropdownMenu, 
@@ -114,9 +125,43 @@ import { Switch } from '@/components/ui/switch';
 import logo from '@/app/signup/StarSutra.png';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
+const getModuleDisplayName = (m: Module): string => {
+    switch (m) {
+        case 'reports': return 'Quality Test Reports';
+        case 'products': return 'QT Products Catalog';
+        case 'purchaseOrders': return 'Purchase Orders';
+        case 'rawMaterials': return 'Raw Materials Inventory';
+        case 'settings': return 'System Settings & Users';
+        case 'hr': return 'HRMS & Attendance';
+        case 'fleet': return 'Fleet & Logistics';
+        case 'finance': return 'Finance & Accounting';
+        case 'crm': return 'Customer CRM';
+        case 'rental': return 'Rental Management';
+        case 'dashboard': return 'Executive Dashboard';
+        default: return m.charAt(0).toUpperCase() + m.slice(1);
+    }
+};
+
+const getModuleIcon = (m: Module) => {
+    switch (m) {
+        case 'reports': return <FileText className="h-4 w-4" />;
+        case 'products': return <Package className="h-4 w-4" />;
+        case 'purchaseOrders': return <ShoppingCart className="h-4 w-4" />;
+        case 'rawMaterials': return <Wrench className="h-4 w-4" />;
+        case 'settings': return <SettingsIcon className="h-4 w-4" />;
+        case 'hr': return <Building2 className="h-4 w-4" />;
+        case 'fleet': return <Truck className="h-4 w-4" />;
+        case 'finance': return <Calculator className="h-4 w-4" />;
+        case 'crm': return <Briefcase className="h-4 w-4" />;
+        case 'rental': return <Home className="h-4 w-4" />;
+        case 'dashboard': return <LayoutDashboard className="h-4 w-4" />;
+        default: return <Terminal className="h-4 w-4" />;
+    }
+};
+
 function ConnectionIndicator() {
     return (
-        <div className="flex items-center gap-1.5 text-[9px] font-black uppercase text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">
+        <div className="flex items-center gap-1.5 text-[9px] font-black uppercase text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100 shadow-sm">
             <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
@@ -1005,7 +1050,7 @@ export default function SettingsPage() {
                                     <TableCell className="text-muted-foreground max-w-[200px] truncate">{party.address}</TableCell>
                                     <TableCell className="text-right pr-6">
                                         <DropdownMenu>
-                                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                             <DropdownMenuContent align="end" className="w-48">
                                                 <DropdownMenuItem onSelect={() => openPartyDialog(party)} className="text-xs">Edit Detail</DropdownMenuItem>
                                                 <DropdownMenuSeparator />
@@ -1134,146 +1179,219 @@ export default function SettingsPage() {
         
         {/* Core Settings Dialogs */}
         <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
-          <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden shadow-2xl">
+          <DialogContent className="sm:max-w-4xl max-h-[95vh] flex flex-col p-0 overflow-hidden shadow-2xl border-none">
             <DialogHeader className="p-6 pb-2 border-b bg-muted/5 shrink-0">
-                <DialogTitle className="text-xl font-black text-gray-900 tracking-tight">{editingUser ? 'Account Configuration' : 'Cloud Onboarding'}</DialogTitle>
-                <DialogDescription className="text-xs">Manage user credentials and module-level permissions.</DialogDescription>
-            </DialogHeader>
-            <ScrollArea className="flex-1 p-6 bg-gray-50/30">
-                <div className="space-y-8">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div className="space-y-1.5">
-                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Identification Name</Label>
-                        <div className="relative">
-                            <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input value={userForm.username || ''} onChange={e => setUserForm(p => ({...p, username: e.target.value}))} disabled={!!editingUser} className="h-10 bg-white pl-10" placeholder="e.g. jdoe" />
-                        </div>
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-primary/10 rounded-xl">
+                        <UserIcon className="h-6 w-6 text-primary"/>
                     </div>
-                    <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Cloud Password</Label><Input type="password" value={userForm.password || ''} onChange={e => setUserForm(p => ({...p, password: e.target.value}))} className="h-10 bg-white" placeholder={editingUser ? "Leave blank to keep current" : "••••••••"} />{passwordError && <p className="text-[9px] text-red-600 font-black uppercase mt-1 animate-pulse">{passwordError}</p>}</div>
-                  </div>
-                  
-                  <div className="space-y-1.5">
-                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Authorized Email (for multi-identifier login)</Label>
-                    <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input value={userForm.email || ''} onChange={e => setUserForm(p => ({...p, email: e.target.value}))} className="h-10 bg-white pl-10" placeholder="e.g. john@example.com" />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between bg-white p-4 rounded-xl border shadow-sm">
                     <div>
-                        <p className="text-sm font-bold text-gray-900">Administrator Approval</p>
-                        <p className="text-[10px] text-muted-foreground uppercase font-medium">Allow this user to securely login</p>
+                        <DialogTitle className="text-2xl font-black text-gray-900 tracking-tight">{editingUser ? 'Account Configuration' : 'Cloud Onboarding'}</DialogTitle>
+                        <DialogDescription className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Manage system credentials and assigned access privileges.</DialogDescription>
                     </div>
-                    <Switch checked={userForm.isApproved} onCheckedChange={v => setUserForm(p => ({...p, isApproved: v}))} />
-                  </div>
+                </div>
+            </DialogHeader>
 
-                  <div className="space-y-4">
-                    <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em] border-b pb-2">Access Control Matrix</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {modules.filter(m => m !== 'dashboard').map(m => (
-                            <div key={m} className={cn(
-                                "p-3 rounded-xl border-2 transition-all",
-                                (userForm.permissions[m]?.length || 0) > 0 ? "border-primary/20 bg-white ring-1 ring-primary/5 shadow-sm" : "border-gray-100 bg-gray-50/50 opacity-60"
-                            )}>
-                                <div className="flex items-center justify-between mb-3">
-                                    <Label className="font-black text-[11px] uppercase tracking-tighter text-gray-900">{m}</Label>
-                                    <div className="flex gap-1">
-                                        <Button variant="ghost" size="icon" className="h-5 w-5 text-[8px] font-bold" onClick={() => setUserForm(prev => ({ ...prev, permissions: { ...prev.permissions, [m]: actions }}))}>ALL</Button>
+            <ScrollArea className="flex-1 p-6 bg-gray-50/30">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    {/* User Identity Column */}
+                    <div className="lg:col-span-1 space-y-6">
+                        <div className="space-y-4">
+                            <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em] border-b pb-2">User Identity</h3>
+                            <div className="space-y-4 p-5 rounded-2xl bg-white border shadow-sm">
+                                <div className="space-y-1.5">
+                                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Unique Username</Label>
+                                    <div className="relative">
+                                        <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                        <Input value={userForm.username || ''} onChange={e => setUserForm(p => ({...p, username: e.target.value}))} disabled={!!editingUser} className="h-10 bg-white pl-10 font-bold" placeholder="e.g. diwas" />
                                     </div>
                                 </div>
-                                <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                                    {actions.map(a => (
-                                    <div key={a} className="flex items-center space-x-2">
-                                        <Checkbox id={`${m}-${a}`} checked={userForm.permissions[m]?.includes(a)} onCheckedChange={v => handlePermissionChange(m, a, !!v)} className="h-3.5 w-3.5" />
-                                        <label htmlFor={`${m}-${a}`} className="text-[10px] font-bold capitalize text-gray-600 cursor-pointer">{a}</label>
+                                <div className="space-y-1.5">
+                                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Master Email</Label>
+                                    <div className="relative">
+                                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                        <Input value={userForm.email || ''} onChange={e => setUserForm(p => ({...p, email: e.target.value}))} className="h-10 bg-white pl-10" placeholder="e.g. diwas@starsutra.com" />
                                     </div>
-                                    ))}
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Cloud Password</Label>
+                                    <div className="relative">
+                                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                        <Input type="password" value={userForm.password || ''} onChange={e => setUserForm(p => ({...p, password: e.target.value}))} className="h-10 bg-white pl-10" placeholder={editingUser ? "••••••••" : "Min 8 chars"} />
+                                    </div>
+                                    {passwordError && <p className="text-[9px] text-red-600 font-black uppercase mt-1 animate-pulse">{passwordError}</p>}
                                 </div>
                             </div>
-                        ))}
+                        </div>
+
+                        <div className="space-y-4">
+                            <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em] border-b pb-2">Status & Verification</h3>
+                            <div className="flex items-center justify-between bg-white p-5 rounded-2xl border shadow-sm">
+                                <div className="space-y-0.5">
+                                    <p className="text-xs font-black text-gray-900 uppercase">Administrator Approved</p>
+                                    <p className="text-[9px] text-muted-foreground font-bold uppercase">Enable cloud login</p>
+                                </div>
+                                <Switch checked={userForm.isApproved} onCheckedChange={v => setUserForm(p => ({...p, isApproved: v}))} />
+                            </div>
+                        </div>
                     </div>
-                  </div>
+
+                    {/* Access Control Column */}
+                    <div className="lg:col-span-2 space-y-4">
+                        <div className="flex items-center justify-between border-b pb-2">
+                            <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em]">Module-Based Access Control</h3>
+                            <div className="flex gap-2">
+                                <Button variant="ghost" size="sm" onClick={() => {
+                                    const allPerms: Permissions = {};
+                                    modules.filter(m => m !== 'dashboard').forEach(m => { allPerms[m] = [...actions]; });
+                                    setUserForm(p => ({...p, permissions: allPerms}));
+                                }} className="h-6 text-[9px] font-black uppercase bg-primary/10 text-primary">Grant Total Access</Button>
+                                <Button variant="ghost" size="sm" onClick={() => setUserForm(p => ({...p, permissions: {}}))} className="h-6 text-[9px] font-black uppercase bg-red-50 text-red-600">Clear All</Button>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {modules.filter(m => m !== 'dashboard').map(m => (
+                                <div key={m} className={cn(
+                                    "p-4 rounded-2xl border-2 transition-all duration-300",
+                                    (userForm.permissions[m]?.length || 0) > 0 
+                                        ? "border-primary/40 bg-white shadow-md ring-1 ring-primary/10" 
+                                        : "border-gray-100 bg-gray-50/50 opacity-60"
+                                )}>
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="flex items-center gap-2">
+                                            <div className="p-1.5 bg-muted rounded-lg">{getModuleIcon(m)}</div>
+                                            <div className="space-y-0.5">
+                                                <Label className="font-black text-xs uppercase tracking-tight text-gray-900">{getModuleDisplayName(m)}</Label>
+                                                <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest opacity-50">{m}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                                        {actions.map(a => (
+                                            <div key={a} className="flex items-center space-x-2.5 group/act">
+                                                <Checkbox 
+                                                    id={`${m}-${a}`} 
+                                                    checked={userForm.permissions[m]?.includes(a)} 
+                                                    onCheckedChange={v => handlePermissionChange(m, a, !!v)} 
+                                                    className="h-4 w-4 rounded-md border-gray-300"
+                                                />
+                                                <label 
+                                                    htmlFor={`${m}-${a}`} 
+                                                    className="text-[11px] font-bold capitalize text-gray-600 cursor-pointer group-hover/act:text-primary transition-colors"
+                                                >
+                                                    {a}
+                                                </label>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
                 </div>
             </ScrollArea>
-            <DialogFooter className="p-6 bg-muted/5 border-t shrink-0">
-                <Button variant="outline" onClick={() => setIsUserDialogOpen(false)} className="h-10 px-6 font-bold text-xs uppercase border-gray-300">Cancel</Button>
-                <Button onClick={handleUserSubmit} className="h-10 px-8 font-black text-xs uppercase tracking-widest shadow-lg shadow-primary/20">
+
+            <DialogFooter className="p-6 bg-white border-t shrink-0 shadow-2xl">
+                <Button variant="outline" onClick={() => setIsUserDialogOpen(false)} className="h-10 px-8 font-bold text-xs uppercase border-gray-300">Cancel</Button>
+                <Button onClick={handleUserSubmit} className="h-10 px-10 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20">
                     <Save className="mr-2 h-4 w-4"/>
-                    Finalize Permissions
+                    Finalize Account Access
                 </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
-        <Dialog open={isChangePasswordDialogOpen} onOpenChange={setIsChangePasswordDialogOpen}><DialogContent><DialogHeader><DialogTitle>Cloud Security Update</DialogTitle></DialogHeader><div className="space-y-4 py-4"><div className="space-y-2"><Label className="text-[10px] uppercase font-bold text-muted-foreground">New Secure Password</Label><Input type="password" value={newPassword || ''} onChange={e => setNewPassword(e.target.value)} className="h-10" /></div><div className="space-y-2"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Verify Entry</Label><Input type="password" value={confirmPassword || ''} onChange={e => setConfirmPassword(e.target.value)} className="h-10" /></div>{changePasswordError && <p className="text-[10px] text-red-600 font-black uppercase">{changePasswordError}</p>}</div><DialogFooter><Button onClick={handleChangePassword} className="h-11 font-black text-xs uppercase tracking-widest w-full">Commit & Force Re-Login</Button></DialogFooter></DialogContent></Dialog>
+        <Dialog open={isChangePasswordDialogOpen} onOpenChange={setIsChangePasswordDialogOpen}>
+            <DialogContent>
+                <DialogHeader><DialogTitle>Update Master Access Key</DialogTitle></DialogHeader>
+                <div className="space-y-4 py-4">
+                    <div className="space-y-2"><Label className="text-[10px] uppercase font-bold text-muted-foreground">New Secure Password</Label><Input type="password" value={newPassword || ''} onChange={e => setNewPassword(e.target.value)} className="h-10" /></div>
+                    <div className="space-y-2"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Verify Entry</Label><Input type="password" value={confirmPassword || ''} onChange={e => setConfirmPassword(e.target.value)} className="h-10" /></div>
+                    {changePasswordError && <p className="text-[10px] text-red-600 font-black uppercase">{changePasswordError}</p>}
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsChangePasswordDialogOpen(false)}>Cancel</Button>
+                    <Button onClick={handleChangePassword} className="h-11 font-black text-xs uppercase tracking-widest w-full">Commit & Terminate Active Sessions</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
         
-        <Dialog open={isPrefixDialogOpen} onOpenChange={setIsPrefixDialogOpen}><DialogContent><DialogHeader><DialogTitle className="text-lg font-black uppercase">Prefix Configuration</DialogTitle><DialogDescription className="text-xs">The prefix for {editingPrefix ? getDocumentName(editingPrefix.key) : ''} documents.</DialogDescription></DialogHeader><div className="py-6 space-y-4"><div className="space-y-2"><Label className="text-[10px] uppercase font-bold text-muted-foreground">System Prefix String</Label><Input value={editingPrefix?.value || ''} onChange={e => setEditingPrefix(p => p ? {...p, value: e.target.value} : null)} className="h-12 text-lg font-mono font-bold text-blue-700" placeholder="e.g. INV-" /></div><p className="text-[10px] text-muted-foreground bg-muted/50 p-3 rounded-lg leading-relaxed">Changing a prefix will apply to all **new** documents generated from now on. Existing records will retain their original IDs for audit integrity.</p></div><DialogFooter><Button variant="outline" onClick={() => setIsPrefixDialogOpen(false)} className="h-10">Cancel</Button><Button onClick={handleSavePrefix} className="h-10 font-bold px-8">Save Change</Button></DialogFooter></DialogContent></Dialog>
+        <Dialog open={isPrefixDialogOpen} onOpenChange={setIsPrefixDialogOpen}>
+            <DialogContent>
+                <DialogHeader><DialogTitle className="text-lg font-black uppercase">Prefix Configuration</DialogTitle><DialogDescription className="text-xs">Configure the prefix for {editingPrefix ? getDocumentName(editingPrefix.key) : ''} sequence.</DialogDescription></DialogHeader>
+                <div className="py-6 space-y-4">
+                    <div className="space-y-2"><Label className="text-[10px] uppercase font-bold text-muted-foreground">System Prefix String</Label><Input value={editingPrefix?.value || ''} onChange={e => setEditingPrefix(p => p ? {...p, value: e.target.value} : null)} className="h-12 text-lg font-mono font-bold text-blue-700" placeholder="e.g. INV-" /></div>
+                    <p className="text-[10px] text-muted-foreground bg-muted/50 p-3 rounded-lg leading-relaxed">Sequence changes apply only to **newly created** documents. Audit trail integrity is maintained for existing records.</p>
+                </div>
+                <DialogFooter><Button variant="outline" onClick={() => setIsPrefixDialogOpen(false)} className="h-10">Cancel</Button><Button onClick={handleSavePrefix} className="h-10 font-bold px-8">Save Change</Button></DialogFooter>
+            </DialogContent>
+        </Dialog>
 
         <Dialog open={isPartyDialogOpen} onOpenChange={setIsPartyDialogOpen}>
             <DialogContent>
-                <DialogHeader><DialogTitle>{editingParty ? 'Edit Party' : 'Add New Party'}</DialogTitle></DialogHeader>
+                <DialogHeader><DialogTitle>{editingParty ? 'Edit Partner Detail' : 'Onboard Trading Partner'}</DialogTitle></DialogHeader>
                 <div className="grid gap-4 py-4">
-                    <div className="space-y-2"><Label>Name</Label><Input value={partyForm.name} onChange={e => setPartyForm({...partyForm, name: e.target.value})} /></div>
+                    <div className="space-y-2"><Label>Entity Name</Label><Input value={partyForm.name} onChange={e => setPartyForm({...partyForm, name: e.target.value})} /></div>
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2"><Label>Type</Label>
+                        <div className="space-y-2"><Label>Account Category</Label>
                             <Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm({...partyForm, type: v})}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent><SelectItem value="Vendor">Vendor</SelectItem><SelectItem value="Customer">Customer</SelectItem><SelectItem value="Both">Both</SelectItem><SelectItem value="Tenant">Tenant</SelectItem></SelectContent>
+                                <SelectContent><SelectItem value="Vendor">Vendor / Service Provider</SelectItem><SelectItem value="Customer">Customer / Client</SelectItem><SelectItem value="Both">Strategic Partner (Both)</SelectItem><SelectItem value="Tenant">Real Estate Tenant</SelectItem></SelectContent>
                             </Select>
                         </div>
-                        <div className="space-y-2"><Label>Group</Label>
+                        <div className="space-y-2"><Label>System Group</Label>
                             <Select value={partyForm.ownership} onValueChange={(v: AccountOwnership) => setPartyForm({...partyForm, ownership: v})}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent><SelectItem value="Sijan">Sijan</SelectItem><SelectItem value="Shivam">Shivam</SelectItem><SelectItem value="Rental">Rental</SelectItem><SelectItem value="Both">Both</SelectItem></SelectContent>
+                                <SelectContent><SelectItem value="Sijan">Sijan Dhuwani</SelectItem><SelectItem value="Shivam">Shivam Packaging</SelectItem><SelectItem value="Rental">Rental Assets</SelectItem><SelectItem value="Both">Shared / General</SelectItem></SelectContent>
                             </Select>
                         </div>
                     </div>
-                    <div className="space-y-2"><Label>PAN #</Label><Input value={partyForm.panNumber || ''} onChange={e => setPartyForm({...partyForm, panNumber: e.target.value})} /></div>
-                    <div className="space-y-2"><Label>Address</Label><Textarea value={partyForm.address || ''} onChange={e => setPartyForm({...partyForm, address: e.target.value})} /></div>
+                    <div className="space-y-2"><Label>PAN / VAT #</Label><Input value={partyForm.panNumber || ''} onChange={e => setPartyForm({...partyForm, panNumber: e.target.value})} /></div>
+                    <div className="space-y-2"><Label>Address</Label><Textarea value={partyForm.address || ''} onChange={e => setPartyForm({...partyForm, address: e.target.value})} className="min-h-[60px]" /></div>
                 </div>
-                <DialogFooter><Button onClick={handlePartySubmit}>Save</Button></DialogFooter>
+                <DialogFooter><Button onClick={handlePartySubmit} className="w-full">Finalize Partner Record</Button></DialogFooter>
             </DialogContent>
         </Dialog>
 
         <Dialog open={isAccountDialogOpen} onOpenChange={setIsAccountDialogOpen}>
             <DialogContent>
-                <DialogHeader><DialogTitle>{editingAccount ? 'Edit Account' : 'New Account'}</DialogTitle></DialogHeader>
+                <DialogHeader><DialogTitle>{editingAccount ? 'Edit Account Repository' : 'Define New Account'}</DialogTitle></DialogHeader>
                 <div className="grid gap-4 py-4">
-                    <div className="space-y-2"><Label>Account Name</Label><Input value={accountForm.name} onChange={e => setAccountForm({...accountForm, name: e.target.value})} /></div>
+                    <div className="space-y-2"><Label>Account Description</Label><Input value={accountForm.name} onChange={e => setAccountForm({...accountForm, name: e.target.value})} placeholder="e.g. Main Checking" /></div>
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2"><Label>Type</Label>
+                        <div className="space-y-2"><Label>Class</Label>
                             <Select value={accountForm.type} onValueChange={(v: AccountType) => setAccountForm({...accountForm, type: v})}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent><SelectItem value="Cash">Cash</SelectItem><SelectItem value="Bank">Bank</SelectItem></SelectContent>
+                                <SelectContent><SelectItem value="Cash">Physical Cash</SelectItem><SelectItem value="Bank">Bank Deposit</SelectItem></SelectContent>
                             </Select>
                         </div>
-                        <div className="space-y-2"><Label>System Group</Label>
+                        <div className="space-y-2"><Label>System Scope</Label>
                             <Select value={accountForm.ownership} onValueChange={(v: AccountOwnership) => setAccountForm({...accountForm, ownership: v})}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent><SelectItem value="Sijan">Sijan</SelectItem><SelectItem value="Shivam">Shivam</SelectItem><SelectItem value="Rental">Rental</SelectItem><SelectItem value="Both">Both</SelectItem></SelectContent>
+                                <SelectContent><SelectItem value="Sijan">Logistics</SelectItem><SelectItem value="Shivam">Manufacturing</SelectItem><SelectItem value="Rental">Rental Operations</SelectItem><SelectItem value="Both">General / Group</SelectItem></SelectContent>
                             </Select>
                         </div>
                     </div>
                     {accountForm.type === 'Bank' && (
-                        <>
-                            <div className="space-y-2"><Label>Bank Name</Label><Input value={accountForm.bankName || ''} onChange={e => setAccountForm({...accountForm, bankName: e.target.value})} /></div>
-                            <div className="space-y-2"><Label>Account Number</Label><Input value={accountForm.accountNumber || ''} onChange={e => setAccountForm({...accountForm, accountNumber: e.target.value})} /></div>
-                        </>
+                        <div className="grid grid-cols-1 gap-4 animate-in slide-in-from-top-2">
+                            <div className="space-y-2"><Label>Financial Institution</Label><Input value={accountForm.bankName || ''} onChange={e => setAccountForm({...accountForm, bankName: e.target.value})} /></div>
+                            <div className="space-y-2"><Label>Account Serial Number</Label><Input value={accountForm.accountNumber || ''} onChange={e => setAccountForm({...accountForm, accountNumber: e.target.value})} className="font-mono" /></div>
+                        </div>
                     )}
                 </div>
-                <DialogFooter><Button onClick={handleAccountSubmit}>Save</Button></DialogFooter>
+                <DialogFooter><Button onClick={handleAccountSubmit} className="w-full">Commit Account Configuration</Button></DialogFooter>
             </DialogContent>
         </Dialog>
 
         <Dialog open={isUomDialogOpen} onOpenChange={setIsUomDialogOpen}>
             <DialogContent>
-                <DialogHeader><DialogTitle>Unit Configuration</DialogTitle></DialogHeader>
+                <DialogHeader><DialogTitle>Unit Measurement Configuration</DialogTitle></DialogHeader>
                 <div className="space-y-4 py-4">
-                    <div className="space-y-2"><Label>Unit Full Name</Label><Input value={uomForm.name} onChange={e => setUomForm({...uomForm, name: e.target.value})} /></div>
-                    <div className="space-y-2"><Label>Abbreviation</Label><Input value={uomForm.abbreviation} onChange={e => setUomForm({...uomForm, abbreviation: e.target.value})} /></div>
+                    <div className="space-y-2"><Label>Unit Full Name</Label><Input value={uomForm.name} onChange={e => setUomForm({...uomForm, name: e.target.value})} placeholder="e.g. Kilograms" /></div>
+                    <div className="space-y-2"><Label>ERP Abbreviation</Label><Input value={uomForm.abbreviation} onChange={e => setUomForm({...uomForm, abbreviation: e.target.value})} placeholder="e.g. KG" /></div>
                 </div>
-                <DialogFooter><Button onClick={handleUomSubmit}>Save</Button></DialogFooter>
+                <DialogFooter><Button onClick={handleUomSubmit} className="w-full">Save Unit</Button></DialogFooter>
             </DialogContent>
         </Dialog>
 
@@ -1281,3 +1399,4 @@ export default function SettingsPage() {
     </div>
   );
 }
+
