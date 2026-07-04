@@ -1,16 +1,16 @@
+
 'use client';
 
-import { useState, useEffect, createContext, useContext, ReactNode, useCallback, useRef } from 'react';
+import { useState, useEffect, createContext, useContext, ReactNode, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import type { User, Permissions, Module, Action } from '@/lib/types';
-import { modules } from '@/lib/types';
-import { getAdminCredentials, getUserByLogin } from '@/services/user-service';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { useAuthService } from '@/firebase';
 import { toast } from '@/hooks/use-toast';
+import { getUserByLogin, getAdminCredentials } from '@/services/user-service';
 
 interface UserSession {
-  id: string; // Firebase UID or local ID
+  id: string;
   username: string;
   email?: string;
   isApproved: boolean;
@@ -24,7 +24,7 @@ interface AuthContextType {
   loading: boolean;
   login: (user: User, isLocalAdmin?: boolean) => Promise<void>;
   logout: () => Promise<void>;
-  hasPermission: (module: Module | string, action: Action | 'create') => boolean;
+  hasPermission: (module: string, action: Action | 'create') => boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -43,9 +43,6 @@ const moduleToPath = (module: Module): string => {
     return `/${module}`;
 };
 
-/**
- * Identifies the core module from the URL path.
- */
 const routeToCoreModule = (segment: string): Module | null => {
     const map: Record<string, Module> = {
         'dashboard': 'dashboard',
@@ -94,7 +91,6 @@ export const AuthRedirect = ({ children }: { children: ReactNode }) => {
             const currentModule = routeToCoreModule(firstSegment);
             
             if (currentModule) {
-                // If user doesn't have view permission for the current module, find the first one they do have.
                 if (!hasPermission(currentModule, 'view')) {
                     const pageOrder: Module[] = ['dashboard', 'finance', 'reports', 'purchaseOrders', 'crm', 'hr', 'fleet', 'rental', 'notes', 'settings'];
                     const firstAllowed = pageOrder.find(m => hasPermission(m, 'view'));
@@ -214,38 +210,46 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  /**
-   * Evaluates if a user has permission for a specific module and action.
-   * Includes strictly isolated inheritance for child features.
-   */
   const hasPermission = useCallback((module: string, action: Action | 'create'): boolean => {
     if (!user) return false;
     if (user.is_admin) return true;
     if (user.isApproved === false) return false;
     
-    // Normalize 'create' legacy call to 'add'
     const act = action === 'create' ? 'add' : action;
-    
-    // Map sub-features to their primary module keys for inheritance
-    let primaryKey: Module;
     const m = String(module);
 
-    if (['invoice', 'tds', 'cheque', 'estimatedInvoices', 'tdsCalculations', 'cheques'].includes(m)) {
+    let primaryKey: Module | null = null;
+
+    // Explicit inheritance logic - Map children to their unique parents
+    if (['finance', 'invoice', 'tds', 'cheque', 'estimatedInvoices', 'tdsCalculations', 'cheques'].includes(m)) {
         primaryKey = 'finance';
-    } else if (['payroll', 'attendance', 'analytics', 'bonus', 'payslip'].includes(m)) {
+    } else if (['hr', 'payroll', 'attendance', 'analytics', 'bonus', 'payslip'].includes(m)) {
         primaryKey = 'hr';
-    } else if (m === 'products') {
+    } else if (['reports', 'products'].includes(m)) {
         primaryKey = 'reports';
-    } else if (m === 'rawMaterials') {
+    } else if (['purchaseOrders', 'rawMaterials'].includes(m)) {
         primaryKey = 'purchaseOrders';
-    } else {
-        primaryKey = module as Module;
+    } else if (m === 'dashboard') {
+        primaryKey = 'dashboard';
+    } else if (m === 'fleet') {
+        primaryKey = 'fleet';
+    } else if (m === 'rental') {
+        primaryKey = 'rental';
+    } else if (m === 'crm') {
+        primaryKey = 'crm';
+    } else if (m === 'notes') {
+        primaryKey = 'notes';
+    } else if (m === 'settings') {
+        primaryKey = 'settings';
     }
-    
+
+    if (!primaryKey) return false;
+
     const perms = user.permissions[primaryKey];
     if (!perms || !Array.isArray(perms)) return false;
 
-    // Check for 'all' master override OR specific action match
+    // Strict Isolation: 'all' wildcard covers everything in THAT module, 
+    // otherwise check specific action.
     return perms.includes('all') || perms.includes(act as any);
   }, [user]);
 

@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -111,7 +112,6 @@ import {
 import { modules, actions, documentTypes, getDocumentName } from '@/lib/types';
 import { NEPALI_MONTHS, DEFAULT_COMPANY_PROFILE, DEFAULT_FLEET_PROFILE } from '@/lib/constants';
 import { Checkbox } from '@/components/ui/checkbox';
-import { exportData, importData } from '@/services/backup-service';
 import { useRouter } from 'next/navigation';
 import NepaliDate from 'nepali-date-converter';
 import { Badge } from '@/components/ui/badge';
@@ -122,19 +122,20 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuthService } from '@/firebase';
+import { exportData, importData } from '@/services/backup-service';
 
 const getModuleDisplayName = (m: Module): string => {
     switch (m) {
+        case 'dashboard': return 'Executive Dashboard';
+        case 'finance': return 'Finance (Invoice, TDS, Cheque)';
         case 'reports': return 'Test Report Management';
         case 'purchaseOrders': return 'Purchase Management';
-        case 'settings': return 'System Settings & Users';
-        case 'hr': return 'HRMS & Payroll';
+        case 'crm': return 'CRM';
+        case 'hr': return 'HRMS (Payroll, Attendance)';
         case 'fleet': return 'Fleet Management';
-        case 'finance': return 'Finance (Invoice, TDS, Cheque)';
-        case 'crm': return 'Customer CRM';
         case 'rental': return 'Rental Management';
         case 'notes': return 'Notes & To-Do';
-        case 'dashboard': return 'Executive Dashboard';
+        case 'settings': return 'Settings Page';
         default: return m.charAt(0).toUpperCase() + m.slice(1);
     }
 };
@@ -157,15 +158,15 @@ const getModuleIcon = (m: Module) => {
 
 const MODULE_GROUPS = [
     {
-        name: 'Shivam',
-        modules: ['dashboard', 'finance', 'reports', 'crm', 'purchaseOrders', 'hr'] as Module[]
+        name: 'Shivam Manufacturing',
+        modules: ['dashboard', 'finance', 'reports', 'purchaseOrders', 'crm', 'hr'] as Module[]
     },
     {
-        name: 'Sijan',
+        name: 'Sijan Logistics',
         modules: ['fleet'] as Module[]
     },
     {
-        name: 'Others',
+        name: 'General Tools',
         modules: ['rental', 'notes', 'settings'] as Module[]
     }
 ];
@@ -282,67 +283,37 @@ export default function SettingsPage() {
   const [isImporting, setIsImporting] = useState(false);
   const importFileRef = useRef<HTMLInputElement>(null);
 
-  // Usage & Log Analytics State
   const [pageVisits, setPageVisits] = useState<PageVisit[]>([]);
   const [logs, setLogs] = useState<SystemLog[]>([]);
-  const [usageSearch, setUsageSearch] = useState('');
-
-  // Prefixes State
   const [prefixes, setPrefixes] = useState<DocumentPrefixes>({});
   const [isPrefixDialogOpen, setIsPrefixDialogOpen] = useState(false);
   const [editingPrefix, setEditingPrefix] = useState<{ key: keyof DocumentPrefixes; value: string } | null>(null);
-  
-  // Company Profile States
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
-
-  // Fleet Profile States
   const [fleetProfile, setFleetProfile] = useState<CompanyProfile>(DEFAULT_FLEET_PROFILE);
   const [isSavingFleetProfile, setIsSavingFleetProfile] = useState(false);
-
-  // App Branding States
   const [appBranding, setAppBranding] = useState<AppBranding>({ appName: 'StarSutra', appMotto: '' });
   const [isSavingBranding, setIsSavingBranding] = useState(false);
-
-  // Payroll Lock State
   const [payrollLocks, setPayrollLocks] = useState<Record<string, boolean>>({});
   const [bsYears, setBsYears] = useState<number[]>([]);
   const [selectedLockYear, setSelectedLockYear] = useState<string>('');
   const [selectedLockMonth, setSelectedLockMonth] = useState<string>('');
-
-  // Party Dialog State
   const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
   const [isMergeDialogOpen, setIsMergeDialogOpen] = useState(false);
   const [editingParty, setEditingParty] = useState<Party | null>(null);
   const [partyForm, setPartyForm] = useState<{name: string, type: PartyType, ownership: AccountOwnership, address?: string, panNumber?: string}>({name: '', type: 'Vendor', ownership: 'Both', address: '', panNumber: ''});
-
-  // Account Dialog State
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
-  const [accountForm, setAccountForm] = useState({ 
-    name: '', 
-    type: 'Cash' as AccountType, 
-    ownership: 'Both' as AccountOwnership, 
-    accountNumber: '', 
-    bankName: '', 
-    branch: '', 
-    bankAccountType: 'Saving' as BankAccountType | undefined
-  });
-  
-  // UoM Dialog State
+  const [accountForm, setAccountForm] = useState({ name: '', type: 'Cash' as AccountType, ownership: 'Both' as AccountOwnership, accountNumber: '', bankName: '', branch: '', bankAccountType: 'Saving' as BankAccountType | undefined });
   const [isUomDialogOpen, setIsUomDialogOpen] = useState(false);
   const [editingUom, setEditingUom] = useState<UnitOfMeasurement | null>(null);
   const [uomForm, setUomForm] = useState({ name: '', abbreviation: '' });
-  
-  // User Dialog State
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [userForm, setUserForm] = useState({ username: '', email: '', isApproved: true, password: '', permissions: {} as Permissions });
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [isSubmittingUser, setIsSubmittingUser] = useState(false);
   const [moduleSearch, setModuleSearch] = useState('');
-  
-  // Change Password State
   const [isChangePasswordDialogOpen, setIsChangePasswordDialogOpen] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -380,11 +351,7 @@ export default function SettingsPage() {
     if (!user) return;
     setIsSavingProfile(true);
     try {
-        const updatedProfile = {
-            ...companyProfile,
-            lastModifiedBy: user.username,
-            lastModifiedAt: new Date().toISOString()
-        };
+        const updatedProfile = { ...companyProfile, lastModifiedBy: user.username, lastModifiedAt: new Date().toISOString() };
         await setSetting('companyProfile', updatedProfile);
         toast({ title: 'Success', description: 'Main Company details updated.' });
     } catch {
@@ -398,11 +365,7 @@ export default function SettingsPage() {
     if (!user) return;
     setIsSavingFleetProfile(true);
     try {
-        const updatedProfile = {
-            ...fleetProfile,
-            lastModifiedBy: user.username,
-            lastModifiedAt: new Date().toISOString()
-        };
+        const updatedProfile = { ...fleetProfile, lastModifiedBy: user.username, lastModifiedAt: new Date().toISOString() };
         await setSetting('fleetCompanyProfile', updatedProfile);
         toast({ title: 'Success', description: 'Fleet Company details updated.' });
     } catch {
@@ -470,17 +433,10 @@ export default function SettingsPage() {
         try {
             const content = e.target?.result as string;
             const data = JSON.parse(content);
-            
             setIsImporting(true);
             await importData(data);
-            
-            toast({
-                title: 'Import Successful',
-                description: 'Data has been restored from backup. The application will now reload.',
-            });
-
+            toast({ title: 'Import Successful', description: 'Data has been restored from backup. The application will now reload.' });
             setTimeout(() => window.location.reload(), 2000);
-
         } catch (error) {
             console.error("Import failed:", error);
             toast({ title: 'Import Failed', description: 'Could not restore data from the selected file.', variant: 'destructive' });
@@ -498,7 +454,6 @@ export default function SettingsPage() {
     }
     const lockKey = `${selectedLockYear}-${selectedLockMonth}`;
     const newLocks = { ...payrollLocks, [lockKey]: !payrollLocks[lockKey] };
-    
     try {
         await setSetting('payrollLocks', newLocks);
         toast({ title: 'Success', description: `Payroll for ${NEPALI_MONTHS.find(m => m.value.toString() === selectedLockMonth)?.name} ${selectedLockYear} has been ${newLocks[lockKey] ? 'locked' : 'unlocked'}.` });
@@ -567,15 +522,7 @@ export default function SettingsPage() {
   const openAccountDialog = (account: Account | null = null) => {
     if (account) {
         setEditingAccount(account);
-        setAccountForm({ 
-            name: account.name, 
-            type: account.type, 
-            ownership: account.ownership || 'Both',
-            accountNumber: account.accountNumber || '', 
-            bankName: account.bankName || '', 
-            branch: account.branch || '', 
-            bankAccountType: account.bankAccountType || 'Saving' 
-        });
+        setAccountForm({ name: account.name, type: account.type, ownership: account.ownership || 'Both', accountNumber: account.accountNumber || '', bankName: account.bankName || '', branch: account.branch || '', bankAccountType: account.bankAccountType || 'Saving' });
     } else {
         setEditingAccount(null);
         setAccountForm({ name: '', type: 'Cash' as AccountType, ownership: 'Both', accountNumber: '', bankName: '', branch: '', bankAccountType: 'Saving' });
@@ -587,10 +534,6 @@ export default function SettingsPage() {
       if(!user) return;
       if(!accountForm.name || !accountForm.type || !accountForm.ownership) {
           toast({title: 'Error', description: 'Name, Type, and Ownership are mandatory.', variant: 'destructive'});
-          return;
-      }
-       if (accountForm.type === 'Bank' && (!accountForm.bankName || !accountForm.accountNumber)) {
-          toast({ title: 'Error', description: 'Bank Name and Account Number are required.', variant: 'destructive' });
           return;
       }
       try {
@@ -660,12 +603,8 @@ export default function SettingsPage() {
   
   const filteredUoms = uoms.filter(u => u.name.toLowerCase().includes(searchQuery.toLowerCase()) || u.abbreviation.toLowerCase().includes(searchQuery.toLowerCase()));
 
-  /**
-   * Initializes the user edit form with fresh, isolated permission arrays for every module.
-   */
   const openUserDialog = (userToEdit: User | null = null) => {
     const freshPermissions: Permissions = {};
-    // Ensure every module has an independent array to prevent state bleeding
     modules.forEach(m => {
         freshPermissions[m] = userToEdit?.permissions?.[m] ? [...userToEdit.permissions[m]!] : [];
     });
@@ -687,24 +626,15 @@ export default function SettingsPage() {
     setIsUserDialogOpen(true);
   };
   
-  /**
-   * Handles changes to the permission matrix for a specific module/action.
-   * Enforces strict isolation by working on a deep clone of the permission state.
-   */
   const handlePermissionChange = (module: Module, action: Action, checked: boolean) => {
     setUserForm(prev => {
-        // 1. Deep clone the permissions map
         const newPermissions = { ...prev.permissions };
-        
-        // 2. Deep clone the specific module's array to avoid shared references
         const currentModulePerms = newPermissions[module] ? [...newPermissions[module]!] : [];
-        
         if (checked) {
             newPermissions[module] = Array.from(new Set([...currentModulePerms, action]));
         } else {
             newPermissions[module] = currentModulePerms.filter(a => a !== action);
         }
-        
         return { ...prev, permissions: newPermissions };
     });
   };
@@ -712,33 +642,17 @@ export default function SettingsPage() {
   const handleUserSubmit = async () => {
     if (!user) return;
     const isEditing = !!editingUser;
-    
     const { isValid, error } = validatePassword(userForm.password, !isEditing);
-    if (!isValid) {
-        setPasswordError(error!);
-        return;
-    }
+    if (!isValid) { setPasswordError(error!); return; }
     setPasswordError(null);
     setIsSubmittingUser(true);
-
     try {
         let finalUserId = editingUser?.id || Date.now().toString();
-        
         if (!isEditing) {
             const authUser = await adminCreateUserWithUsername(auth, userForm.username, userForm.email, userForm.password);
             finalUserId = authUser.uid;
         }
-
-        const userData: User = {
-            id: finalUserId,
-            username: userForm.username.toLowerCase().trim(),
-            email: userForm.email.toLowerCase().trim(),
-            isApproved: userForm.isApproved,
-            permissions: userForm.permissions,
-            passwordLastUpdated: new Date().toISOString(),
-        };
-
-        await saveUser(userData);
+        await saveUser({ id: finalUserId, username: userForm.username.toLowerCase().trim(), email: userForm.email.toLowerCase().trim(), isApproved: userForm.isApproved, permissions: userForm.permissions, passwordLastUpdated: new Date().toISOString() });
         toast({ title: 'Success', description: `User ${isEditing ? 'updated' : 'onboarded'}.` });
         setIsUserDialogOpen(false);
     } catch (e: any) {
@@ -764,32 +678,17 @@ export default function SettingsPage() {
   
   const handleChangePassword = async () => {
     if (!user) return;
-    if (newPassword !== confirmPassword) {
-        setChangePasswordError("New passwords do not match.");
-        return;
-    }
+    if (newPassword !== confirmPassword) { setChangePasswordError("New passwords do not match."); return; }
     const { isValid, error } = validatePassword(newPassword);
-    if (!isValid) {
-        setChangePasswordError(error!);
-        return;
-    }
+    if (!isValid) { setChangePasswordError(error!); return; }
     setChangePasswordError(null);
-
     try {
-        if (user.is_admin) {
-            await setAdminPassword(newPassword, new Date().toISOString());
-        } else {
-            const currentUser = users.find(u => u.username === user.username);
-            if (currentUser) {
-                await saveUser({ ...currentUser, password: newPassword, passwordLastUpdated: new Date().toISOString() });
-            }
-        }
+        if (user.is_admin) { await setAdminPassword(newPassword, new Date().toISOString()); }
+        else { const currentUser = users.find(u => u.username === user.username); if (currentUser) { await saveUser({ ...currentUser, password: newPassword, passwordLastUpdated: new Date().toISOString() }); } }
         toast({ title: 'Success', description: 'Password updated. Please log in again.' });
         setIsChangePasswordDialogOpen(false);
         await logout();
-    } catch(e: any) {
-        setChangePasswordError(e.message);
-    }
+    } catch(e: any) { setChangePasswordError(e.message); }
   };
   
   const otherTabs = [
@@ -1194,7 +1093,11 @@ export default function SettingsPage() {
                                         className="h-8 w-48 text-[10px] pl-7 bg-white"
                                     />
                                 </div>
-                                <Button variant="outline" size="sm" className="h-8 text-[9px] font-black uppercase tracking-widest px-4" onClick={() => setUserForm(p => ({...p, permissions: {}}))}>Clear All</Button>
+                                <Button variant="outline" size="sm" className="h-8 text-[9px] font-black uppercase tracking-widest px-4" onClick={() => {
+                                    const freshPermissions: Permissions = {};
+                                    modules.forEach(m => freshPermissions[m] = []);
+                                    setUserForm(p => ({...p, permissions: freshPermissions}))
+                                }}>Clear All</Button>
                             </div>
                         </div>
 
@@ -1265,23 +1168,27 @@ export default function SettingsPage() {
                                                                 </div>
                                                             </TableCell>
                                                             <TableCell className="text-center">
-                                                                <Checkbox 
-                                                                    checked={isAll} 
-                                                                    onCheckedChange={v => handlePermissionChange(m, 'all', !!v)}
-                                                                    className="h-5 w-5 rounded border-2 border-primary/30"
-                                                                />
+                                                                <div className="flex justify-center">
+                                                                    <Checkbox 
+                                                                        checked={isAll} 
+                                                                        onCheckedChange={v => handlePermissionChange(m, 'all', !!v)}
+                                                                        className="h-5 w-5 rounded border-2 border-primary/30"
+                                                                    />
+                                                                </div>
                                                             </TableCell>
                                                             {['view', 'add', 'edit', 'delete'].map((act) => (
                                                                 <TableCell key={act} className="text-center">
-                                                                    <Checkbox 
-                                                                        disabled={isAll}
-                                                                        checked={isAll || currentPerms.includes(act as any)} 
-                                                                        onCheckedChange={v => handlePermissionChange(m, act as any, !!v)}
-                                                                        className={cn(
-                                                                            "h-4 w-4 rounded",
-                                                                            isAll && "opacity-30 cursor-not-allowed"
-                                                                        )}
-                                                                    />
+                                                                    <div className="flex justify-center">
+                                                                        <Checkbox 
+                                                                            disabled={isAll}
+                                                                            checked={isAll || currentPerms.includes(act as any)} 
+                                                                            onCheckedChange={v => handlePermissionChange(m, act as any, !!v)}
+                                                                            className={cn(
+                                                                                "h-4 w-4 rounded",
+                                                                                isAll && "opacity-30 cursor-not-allowed"
+                                                                            )}
+                                                                        />
+                                                                    </div>
                                                                 </TableCell>
                                                             ))}
                                                         </TableRow>
