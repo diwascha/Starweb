@@ -43,6 +43,9 @@ const moduleToPath = (module: Module): string => {
     return `/${module}`;
 };
 
+/**
+ * Identifies the core module from the URL path.
+ */
 const routeToCoreModule = (segment: string): Module | null => {
     const map: Record<string, Module> = {
         'dashboard': 'dashboard',
@@ -62,7 +65,7 @@ const routeToCoreModule = (segment: string): Module | null => {
     return map[segment] || null;
 };
 
-const AuthRedirect = ({ children }: { children: ReactNode }) => {
+export const AuthRedirect = ({ children }: { children: ReactNode }) => {
     const { user, loading, hasPermission, logout } = useAuth();
     const router = useRouter();
     const pathname = usePathname();
@@ -91,6 +94,7 @@ const AuthRedirect = ({ children }: { children: ReactNode }) => {
             const currentModule = routeToCoreModule(firstSegment);
             
             if (currentModule) {
+                // If user doesn't have view permission for the current module, find the first one they do have.
                 if (!hasPermission(currentModule, 'view')) {
                     const pageOrder: Module[] = ['dashboard', 'finance', 'reports', 'purchaseOrders', 'crm', 'hr', 'fleet', 'rental', 'notes', 'settings'];
                     const firstAllowed = pageOrder.find(m => hasPermission(m, 'view'));
@@ -124,25 +128,6 @@ const AuthRedirect = ({ children }: { children: ReactNode }) => {
     return <>{children}</>;
 };
 
-const useInactivityLogout = (logout: () => void, timeout = 1800000) => {
-    const timerRef = useRef<NodeJS.Timeout | null>(null);
-    const resetTimer = useCallback(() => {
-        if (timerRef.current) clearTimeout(timerRef.current);
-        timerRef.current = setTimeout(logout, timeout);
-    }, [logout, timeout]);
-
-    useEffect(() => {
-        const events = ['mousemove', 'keydown', 'click', 'scroll'];
-        const handleActivity = () => resetTimer();
-        events.forEach(event => window.addEventListener(event, handleActivity));
-        resetTimer();
-        return () => {
-            if (timerRef.current) clearTimeout(timerRef.current);
-            events.forEach(event => window.removeEventListener(event, handleActivity));
-        };
-    }, [resetTimer]);
-};
-
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<UserSession | null>(null);
   const [loading, setLoading] = useState(true);
@@ -153,8 +138,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem(USER_SESSION_KEY);
     setUser(null);
   }, [auth]);
-
-  useInactivityLogout(logout, 30 * 60 * 1000);
 
   useEffect(() => {
     const sessionJson = localStorage.getItem(USER_SESSION_KEY);
@@ -231,29 +214,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  const hasPermission = useCallback((module: Module | string, action: Action | 'create'): boolean => {
+  /**
+   * Evaluates if a user has permission for a specific module and action.
+   * Includes strictly isolated inheritance for child features.
+   */
+  const hasPermission = useCallback((module: string, action: Action | 'create'): boolean => {
     if (!user) return false;
     if (user.is_admin) return true;
     if (user.isApproved === false) return false;
     
-    // 1. Map legacy 'create' to new 'add' modality
+    // Normalize 'create' legacy call to 'add'
     const act = action === 'create' ? 'add' : action;
-    const mod = module as Module;
     
-    // 2. Map inherited sub-modules to primary keys
-    let primaryKey: Module = mod;
-    if (mod === 'products') primaryKey = 'reports';
-    if (mod === 'rawMaterials') primaryKey = 'purchaseOrders';
+    // Map sub-features to their primary module keys for inheritance
+    let primaryKey: Module;
+    const m = String(module);
+
+    if (['invoice', 'tds', 'cheque', 'estimatedInvoices', 'tdsCalculations', 'cheques'].includes(m)) {
+        primaryKey = 'finance';
+    } else if (['payroll', 'attendance', 'analytics', 'bonus', 'payslip'].includes(m)) {
+        primaryKey = 'hr';
+    } else if (m === 'products') {
+        primaryKey = 'reports';
+    } else if (m === 'rawMaterials') {
+        primaryKey = 'purchaseOrders';
+    } else {
+        primaryKey = module as Module;
+    }
     
-    // 3. Strict Primary Key Check
     const perms = user.permissions[primaryKey];
     if (!perms || !Array.isArray(perms)) return false;
 
-    // 4. Admin 'all' override for this specific module
-    if (perms.includes('all')) return true;
-
-    // 5. Explicit action check
-    return perms.includes(act as any);
+    // Check for 'all' master override OR specific action match
+    return perms.includes('all') || perms.includes(act as any);
   }, [user]);
 
   return (
@@ -264,4 +257,3 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 };
 
 export const useAuth = () => useContext(AuthContext);
-export { AuthRedirect };

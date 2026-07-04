@@ -57,36 +57,25 @@ import {
   Loader2,
   ShieldCheck,
   ShieldAlert,
-  ShieldX,
   UserCheck,
   UserX,
-  Mail,
-  Lock,
   History,
   FileText,
   Calculator,
   Terminal,
-  ChevronRight,
   User as UserIcon,
-  Zap,
   Briefcase,
   Building2,
   Truck,
   Home,
   LayoutDashboard,
   Settings as SettingsIcon,
-  Package,
-  Wrench,
-  Receipt,
-  FileSpreadsheet,
   ShoppingCart,
   StickyNote,
   Crown,
   Eye,
   PlusCircle,
   Pencil,
-  ChevronUp,
-  LayoutGrid
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -131,7 +120,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn, generateId } from '@/lib/utils';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Switch } from '@/components/ui/switch';
-import logo from '@/app/signup/StarSutra.png';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuthService } from '@/firebase';
 
@@ -161,7 +149,7 @@ const getModuleIcon = (m: Module) => {
         case 'finance': return <Calculator className="h-4 w-4" />;
         case 'crm': return <Briefcase className="h-4 w-4" />;
         case 'rental': return <Home className="h-4 w-4" />;
-        case 'dashboard': return <LayoutGrid className="h-4 w-4" />;
+        case 'dashboard': return <LayoutDashboard className="h-4 w-4" />;
         case 'notes': return <StickyNote className="h-4 w-4" />;
         default: return <Terminal className="h-4 w-4" />;
     }
@@ -672,7 +660,16 @@ export default function SettingsPage() {
   
   const filteredUoms = uoms.filter(u => u.name.toLowerCase().includes(searchQuery.toLowerCase()) || u.abbreviation.toLowerCase().includes(searchQuery.toLowerCase()));
 
+  /**
+   * Initializes the user edit form with fresh, isolated permission arrays for every module.
+   */
   const openUserDialog = (userToEdit: User | null = null) => {
+    const freshPermissions: Permissions = {};
+    // Ensure every module has an independent array to prevent state bleeding
+    modules.forEach(m => {
+        freshPermissions[m] = userToEdit?.permissions?.[m] ? [...userToEdit.permissions[m]!] : [];
+    });
+
     if (userToEdit) {
         setEditingUser(userToEdit);
         setUserForm({ 
@@ -680,24 +677,34 @@ export default function SettingsPage() {
             email: userToEdit.email || '', 
             isApproved: userToEdit.isApproved !== false, 
             password: '', 
-            permissions: userToEdit.permissions || {} 
+            permissions: freshPermissions
         });
     } else {
         setEditingUser(null);
-        setUserForm({ username: '', email: '', isApproved: true, password: '', permissions: {} });
+        setUserForm({ username: '', email: '', isApproved: true, password: '', permissions: freshPermissions });
     }
     setPasswordError(null);
     setIsUserDialogOpen(true);
   };
   
+  /**
+   * Handles changes to the permission matrix for a specific module/action.
+   * Enforces strict isolation by working on a deep clone of the permission state.
+   */
   const handlePermissionChange = (module: Module, action: Action, checked: boolean) => {
     setUserForm(prev => {
+        // 1. Deep clone the permissions map
         const newPermissions = { ...prev.permissions };
+        
+        // 2. Deep clone the specific module's array to avoid shared references
+        const currentModulePerms = newPermissions[module] ? [...newPermissions[module]!] : [];
+        
         if (checked) {
-            newPermissions[module] = Array.from(new Set([...(newPermissions[module] || []), action]));
+            newPermissions[module] = Array.from(new Set([...currentModulePerms, action]));
         } else {
-            newPermissions[module] = (newPermissions[module] || []).filter(a => a !== action);
+            newPermissions[module] = currentModulePerms.filter(a => a !== action);
         }
+        
         return { ...prev, permissions: newPermissions };
     });
   };
@@ -737,6 +744,7 @@ export default function SettingsPage() {
     } catch (e: any) {
         toast({ title: 'User Setup Failed', description: e.message, variant: 'destructive' });
     } finally {
+        setIsUserDialogOpen(false);
         setIsSubmittingUser(false);
     }
   };
@@ -1139,7 +1147,6 @@ export default function SettingsPage() {
             </TabsContent>
         </Tabs>
         
-        {/* Core Settings Dialogs */}
         <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
           <DialogContent className="sm:max-w-5xl h-[95vh] flex flex-col p-0 overflow-hidden shadow-2xl border-none">
             <DialogHeader className="p-6 pb-2 border-b bg-muted/5 shrink-0">
@@ -1151,7 +1158,6 @@ export default function SettingsPage() {
 
             <ScrollArea className="flex-1 p-0 bg-gray-50/30">
                 <div className="p-6 space-y-8">
-                    {/* User Profile Section */}
                     <section className="space-y-4">
                         <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em] border-b pb-2">User Identity</h3>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1175,7 +1181,6 @@ export default function SettingsPage() {
                         </div>
                     </section>
 
-                    {/* Redesigned Permission Matrix */}
                     <section className="space-y-4">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-2">
                             <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em]">Module-Based Access Control</h3>
@@ -1329,7 +1334,6 @@ export default function SettingsPage() {
 
         <MergePartiesDialog open={isMergeDialogOpen} onOpenChange={setIsMergeDialogOpen} parties={parties} onMerge={handleMergePartiesInternal} />
 
-        {/* Support for Quick Add Dialogs for Parties and Accounts */}
         <Dialog open={isPartyDialogOpen} onOpenChange={setIsPartyDialogOpen}>
           <DialogContent>
             <DialogHeader><DialogTitle>{editingParty ? 'Edit Party' : 'Add Party'}</DialogTitle></DialogHeader>
