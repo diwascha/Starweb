@@ -96,11 +96,13 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex items-center gap-4">
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight uppercase">{companyProfile.nameEn}</h1>
-              <h2 className="text-lg font-semibold text-muted-foreground">{companyProfile.nameNp}</h2>
-              <p className="text-sm text-muted-foreground mt-1">Welcome back, {user?.username} • {companyProfile.address}</p>
+        <div className="flex items-center gap-4 overflow-hidden">
+            <div className="flex flex-col min-w-0 max-w-full">
+              <h1 className="text-lg sm:text-xl font-black tracking-tighter uppercase whitespace-nowrap overflow-hidden text-ellipsis">
+                {companyProfile.nameEn}
+              </h1>
+              <h2 className="text-base font-bold text-muted-foreground truncate">{companyProfile.nameNp}</h2>
+              <p className="text-[11px] text-muted-foreground mt-1 truncate">Welcome back, {user?.username} • {companyProfile.address}</p>
             </div>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-1.5 pb-2 md:pb-0">
