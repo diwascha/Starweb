@@ -262,25 +262,27 @@ export function AppSidebar() {
             </SidebarMenu>
         )}
     
-        <SidebarMenu>
-             <SidebarSeparator />
-             <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={getIsActive('/hr')}>
-                <Link href="/hr">
-                    <Building2 />
-                    <span>HRMS</span>
-                </Link>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
-            <div className="ml-4">
-                <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/hr/employees')}><Link href="/hr/employees"><Users /><span>Employees</span></Link></SidebarMenuButton></SidebarMenuItem>
-                <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/hr/attendance')}><Link href="/hr/attendance"><Calendar /><span>Attendance</span></Link></SidebarMenuButton></SidebarMenuItem>
-                <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/hr/analytics')}><Link href="/hr/analytics"><BarChart2 /><span>Analytics</span></Link></SidebarMenuButton></SidebarMenuItem>
-                <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/hr/payroll')}><Link href="/hr/payroll"><FileText /><span>Payroll</span></Link></SidebarMenuButton></SidebarMenuItem>
-                <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/hr/bonus')}><Link href="/hr/bonus"><Award /><span>Bonus</span></Link></SidebarMenuButton></SidebarMenuItem>
-                <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/hr/payslip')}><Link href="/hr/payslip"><Wallet /><span>Payslip</span></Link></SidebarMenuButton></SidebarMenuItem>
-            </div>
-        </SidebarMenu>
+        {hasPermission('hr', 'view') && (
+            <SidebarMenu>
+                 <SidebarSeparator />
+                 <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={getIsActive('/hr')}>
+                    <Link href="/hr">
+                        <Building2 />
+                        <span>HRMS</span>
+                    </Link>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+                <div className="ml-4">
+                    <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/hr/employees')}><Link href="/hr/employees"><Users /><span>Employees</span></Link></SidebarMenuButton></SidebarMenuItem>
+                    <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/hr/attendance')}><Link href="/hr/attendance"><Calendar /><span>Attendance</span></Link></SidebarMenuButton></SidebarMenuItem>
+                    <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/hr/analytics')}><Link href="/hr/analytics"><BarChart2 /><span>Analytics</span></Link></SidebarMenuButton></SidebarMenuItem>
+                    <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/hr/payroll')}><Link href="/hr/payroll"><FileText /><span>Payroll</span></Link></SidebarMenuButton></SidebarMenuItem>
+                    <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/hr/bonus')}><Link href="/hr/bonus"><Award /><span>Bonus</span></Link></SidebarMenuButton></SidebarMenuItem>
+                    <SidebarMenuItem><SidebarMenuButton asChild isActive={getIsActive('/hr/payslip')}><Link href="/hr/payslip"><Wallet /><span>Payslip</span></Link></SidebarMenuButton></SidebarMenuItem>
+                </div>
+            </SidebarMenu>
+        )}
         
         {hasPermission('fleet', 'view') && (
              <SidebarMenu>
@@ -347,17 +349,19 @@ export function AppSidebar() {
             </SidebarMenu>
         )}
         
-        <SidebarMenu>
-            <SidebarSeparator />
-            <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={getIsActive('/notes')}>
-                    <Link href="/notes">
-                        <Notebook />
-                        <span>Notes & Todos</span>
-                    </Link>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
-        </SidebarMenu>
+        {hasPermission('notes', 'view') && (
+            <SidebarMenu>
+                <SidebarSeparator />
+                <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={getIsActive('/notes')}>
+                        <Link href="/notes">
+                            <Notebook />
+                            <span>Notes & Todos</span>
+                        </Link>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+            </SidebarMenu>
+        )}
       </SidebarContent>
        <SidebarFooter>
         <SidebarMenu>

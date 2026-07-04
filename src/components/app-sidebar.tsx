@@ -369,30 +369,32 @@ export function AppSidebar() {
             </Collapsible>
         )}
     
-        <Collapsible asChild defaultOpen={getIsActive('/hr')} className="group/collapsible">
-            <SidebarMenu>
-                <SidebarSeparator />
-                <SidebarMenuItem>
-                    <CollapsibleTrigger asChild>
-                        <SidebarMenuButton tooltip="HRMS" isActive={getIsActive('/hr')}>
-                            <Building2 />
-                            <span>HRMS</span>
-                            <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                        </SidebarMenuButton>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                        <SidebarMenuSub>
-                            <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/employees')}><Link href="/hr/employees"><Users className="h-4 w-4" /><span>Employees</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
-                            <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/attendance')}><Link href="/hr/attendance"><Calendar className="h-4 w-4" /><span>Attendance</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
-                            <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/analytics')}><Link href="/hr/analytics"><BarChart2 className="h-4 w-4" /><span>Analytics</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
-                            <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/payroll')}><Link href="/hr/payroll"><FileText className="h-4 w-4" /><span>Payroll</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
-                            <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/bonus')}><Link href="/hr/bonus"><Award className="h-4 w-4" /><span>Bonus</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
-                            <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/payslip')}><Link href="/hr/payslip"><Wallet className="h-4 w-4" /><span>Payslip</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
-                        </SidebarMenuSub>
-                    </CollapsibleContent>
-                </SidebarMenuItem>
-            </SidebarMenu>
-        </Collapsible>
+        {hasPermission('hr', 'view') && (
+            <Collapsible asChild defaultOpen={getIsActive('/hr')} className="group/collapsible">
+                <SidebarMenu>
+                    <SidebarSeparator />
+                    <SidebarMenuItem>
+                        <CollapsibleTrigger asChild>
+                            <SidebarMenuButton tooltip="HRMS" isActive={getIsActive('/hr')}>
+                                <Building2 />
+                                <span>HRMS</span>
+                                <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                            </SidebarMenuButton>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                            <SidebarMenuSub>
+                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/employees')}><Link href="/hr/employees"><Users className="h-4 w-4" /><span>Employees</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/attendance')}><Link href="/hr/attendance"><Calendar className="h-4 w-4" /><span>Attendance</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/analytics')}><Link href="/hr/analytics"><BarChart2 className="h-4 w-4" /><span>Analytics</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/payroll')}><Link href="/hr/payroll"><FileText className="h-4 w-4" /><span>Payroll</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/bonus')}><Link href="/hr/bonus"><Award className="h-4 w-4" /><span>Bonus</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/hr/payslip')}><Link href="/hr/payslip"><Wallet className="h-4 w-4" /><span>Payslip</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                            </SidebarMenuSub>
+                        </CollapsibleContent>
+                    </SidebarMenuItem>
+                </SidebarMenu>
+            </Collapsible>
+        )}
         
         {hasPermission('fleet', 'view') && (
             <Collapsible asChild defaultOpen={getIsActive('/fleet')} className="group/collapsible">
@@ -494,17 +496,19 @@ export function AppSidebar() {
             </Collapsible>
         )}
         
-        <SidebarMenu>
-            <SidebarSeparator />
-            <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={getIsActive('/notes')}>
-                    <Link href="/notes">
-                        <Notebook />
-                        <span>Notes & Todos</span>
-                    </Link>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
-        </SidebarMenu>
+        {hasPermission('notes', 'view') && (
+            <SidebarMenu>
+                <SidebarSeparator />
+                <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={getIsActive('/notes')}>
+                        <Link href="/notes">
+                            <Notebook />
+                            <span>Notes & Todos</span>
+                        </Link>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+            </SidebarMenu>
+        )}
       </SidebarContent>
        <SidebarFooter>
         <SidebarMenu>
