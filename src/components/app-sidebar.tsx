@@ -481,8 +481,7 @@ export function AppSidebar() {
                         <CollapsibleContent>
                             <SidebarMenuSub>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/rental', true)}><Link href="/rental"><span>Dashboard</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
-                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/rental/properties')}><Link href="/rental/properties"><span>Properties</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
-                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/rental/units')}><Link href="/rental/units"><span>Units</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                                <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/rental/properties')}><Link href="/rental/properties"><span>Assets & Units</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/rental/tenants')}><Link href="/rental/tenants"><span>Tenants</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/rental/agreements')}><Link href="/rental/agreements"><span>Agreements</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>
                                 <SidebarMenuSubItem><SidebarMenuSubButton asChild isActive={getIsActive('/rental/billing')}><Link href="/rental/billing"><span>Rent Billing</span></Link></SidebarMenuSubButton></SidebarMenuSubItem>

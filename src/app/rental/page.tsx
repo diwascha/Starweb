@@ -11,7 +11,8 @@ import {
   DollarSign, 
   TrendingUp,
   ArrowRight,
-  Plus
+  Plus,
+  Loader2
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -70,7 +71,7 @@ export default function RentalDashboardPage() {
       .slice(0, 5);
   }, [bills]);
 
-  if (isLoading) return <div className="p-8 text-center"><Loader2 className="animate-spin h-8 w-8 mx-auto"/></div>;
+  if (isLoading) return <div className="p-8 text-center"><Loader2 className="animate-spin h-8 w-8 mx-auto text-primary"/></div>;
 
   return (
     <div className="flex flex-col gap-8">
@@ -135,7 +136,11 @@ export default function RentalDashboardPage() {
               <CardTitle>Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-2">
-              <Button variant="outline" className="justify-start" asChild><Link href="/rental/units"><Home className="mr-2 h-4 w-4"/> View Vacant Units</Link></Button>
+              <Button variant="outline" className="justify-start" asChild>
+                <Link href="/rental/properties?tab=units">
+                    <Home className="mr-2 h-4 w-4"/> View Vacant Units
+                </Link>
+              </Button>
               <Button variant="outline" className="justify-start" asChild><Link href="/rental/billing"><DollarSign className="mr-2 h-4 w-4"/> Generate Monthly Rent</Link></Button>
               <Button variant="outline" className="justify-start" asChild><Link href="/rental/payments"><Clock className="mr-2 h-4 w-4"/> Record Tenant Payment</Link></Button>
             </CardContent>
@@ -190,5 +195,3 @@ function SummaryCard({ title, value, subtitle, icon: Icon, color }: any) {
     </Card>
   );
 }
-
-const Loader2 = ({ className }: { className?: string }) => <div className={cn("animate-spin rounded-full border-2 border-primary border-t-transparent h-4 w-4", className)} />;
