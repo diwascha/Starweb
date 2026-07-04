@@ -98,6 +98,7 @@ import {
     setAdminPassword, 
 } from '@/services/user-service';
 import { modules, actions, documentTypes, getDocumentName } from '@/lib/types';
+import { NEPALI_MONTHS } from '@/lib/constants';
 import { Checkbox } from '@/components/ui/checkbox';
 import { exportData, importData } from '@/services/backup-service';
 import { useRouter } from 'next/navigation';
@@ -107,7 +108,7 @@ import { format } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn, generateId } from '@/lib/utils';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { NEPALI_MONTHS, DEFAULT_COMPANY_PROFILE, DEFAULT_FLEET_PROFILE } from '@/lib/constants';
+import { DEFAULT_COMPANY_PROFILE, DEFAULT_FLEET_PROFILE } from '@/lib/constants';
 import { Switch } from '@/components/ui/switch';
 import logo from '@/app/signup/StarSutra.png';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -1200,7 +1201,7 @@ export default function SettingsPage() {
 
         <Dialog open={isChangePasswordDialogOpen} onOpenChange={setIsChangePasswordDialogOpen}><DialogContent><DialogHeader><DialogTitle>Cloud Security Update</DialogTitle></DialogHeader><div className="space-y-4 py-4"><div className="space-y-2"><Label className="text-[10px] uppercase font-bold text-muted-foreground">New Secure Password</Label><Input type="password" value={newPassword || ''} onChange={e => setNewPassword(e.target.value)} className="h-10" /></div><div className="space-y-2"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Verify Entry</Label><Input type="password" value={confirmPassword || ''} onChange={e => setConfirmPassword(e.target.value)} className="h-10" /></div>{changePasswordError && <p className="text-[10px] text-red-600 font-black uppercase">{changePasswordError}</p>}</div><DialogFooter><Button onClick={handleChangePassword} className="h-11 font-black text-xs uppercase tracking-widest w-full">Commit & Force Re-Login</Button></DialogFooter></DialogContent></Dialog>
         
-        <Dialog open={isPrefixDialogOpen} onOpenChange={setIsPrefixDialogOpen}><DialogContent><DialogHeader><DialogTitle className="text-lg font-black uppercase">Prefix Configuration</DialogTitle><DialogDescription className="text-xs">The prefix for {editingPrefix ? getDocumentName(editingPrefix.key) : ''} documents.</DialogDescription></DialogHeader><div className="py-6 space-y-4"><div className="space-y-2"><Label className="text-[10px] font-bold uppercase text-muted-foreground">System Prefix String</Label><Input value={editingPrefix?.value || ''} onChange={e => setEditingPrefix(p => p ? {...p, value: e.target.value} : null)} className="h-12 text-lg font-mono font-bold text-blue-700" placeholder="e.g. INV-" /></div><p className="text-[10px] text-muted-foreground bg-muted/50 p-3 rounded-lg leading-relaxed">Changing a prefix will apply to all **new** documents generated from now on. Existing records will retain their original IDs for audit integrity.</p></div><DialogFooter><Button variant="outline" onClick={() => setIsPrefixDialogOpen(false)} className="h-10">Cancel</Button><Button onClick={handleSavePrefix} className="h-10 font-bold px-8">Save Change</Button></DialogFooter></DialogContent></Dialog>
+        <Dialog open={isPrefixDialogOpen} onOpenChange={setIsPrefixDialogOpen}><DialogContent><DialogHeader><DialogTitle className="text-lg font-black uppercase">Prefix Configuration</DialogTitle><DialogDescription className="text-xs">The prefix for {editingPrefix ? getDocumentName(editingPrefix.key) : ''} documents.</DialogDescription></DialogHeader><div className="py-6 space-y-4"><div className="space-y-2"><Label className="text-[10px] uppercase font-bold text-muted-foreground">System Prefix String</Label><Input value={editingPrefix?.value || ''} onChange={e => setEditingPrefix(p => p ? {...p, value: e.target.value} : null)} className="h-12 text-lg font-mono font-bold text-blue-700" placeholder="e.g. INV-" /></div><p className="text-[10px] text-muted-foreground bg-muted/50 p-3 rounded-lg leading-relaxed">Changing a prefix will apply to all **new** documents generated from now on. Existing records will retain their original IDs for audit integrity.</p></div><DialogFooter><Button variant="outline" onClick={() => setIsPrefixDialogOpen(false)} className="h-10">Cancel</Button><Button onClick={handleSavePrefix} className="h-10 font-bold px-8">Save Change</Button></DialogFooter></DialogContent></Dialog>
 
         <Dialog open={isPartyDialogOpen} onOpenChange={setIsPartyDialogOpen}>
             <DialogContent>
@@ -1273,4 +1274,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-

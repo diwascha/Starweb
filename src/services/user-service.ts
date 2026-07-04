@@ -70,6 +70,15 @@ export const getUserByLogin = async (loginString: string): Promise<User | null> 
 
 export const getAdminCredentials = () => defaultAdminCreds;
 
+export const setAdminPassword = async (password: string, date: string) => {
+    const { db } = getFirebase();
+    const adminRef = doc(db, 'settings', 'admin_config');
+    await setDoc(adminRef, { 
+        password, 
+        passwordLastUpdated: date 
+    }, { merge: true });
+};
+
 export const validatePassword = (password: string, isRequired: boolean = true): { isValid: boolean, error?: string } => {
     if (!isRequired && !password) return { isValid: true };
     if (isRequired && !password) return { isValid: false, error: 'Password is required.' };
