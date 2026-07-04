@@ -529,6 +529,8 @@ export type Permissions = {
 export interface User {
   id: string;
   username: string;
+  email?: string;
+  isApproved?: boolean;
   password?: string;
   permissions: Permissions;
   passwordLastUpdated?: string; // ISO Date string

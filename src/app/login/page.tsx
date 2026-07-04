@@ -10,19 +10,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ShieldCheck, Lock } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
-import { exportData } from '@/services/backup-service';
-import { format } from 'date-fns';
 import { signInWithEmailAndPassword, AuthErrorCodes } from 'firebase/auth';
 import { useAuthService } from '@/firebase';
-import { getAdminCredentials, getUsers } from '@/services/user-service';
+import { getAdminCredentials, getUserByLogin } from '@/services/user-service';
 import { onSettingUpdate } from '@/services/settings-service';
 import type { AppBranding } from '@/lib/types';
 import logo from '@/app/signup/StarSutra.png';
 
 const loginSchema = z.object({
-  username: z.string().min(1, { message: 'Username is required' }),
+  loginString: z.string().min(1, { message: 'Username or Email is required' }),
   password: z.string().min(1, { message: 'Password is required' }),
 });
 
@@ -57,70 +55,59 @@ export default function LoginPage() {
     return () => unsubBranding();
   }, []);
 
-  const handleDailyBackup = async () => {
-    const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP === 'true';
-    if (!isDesktop) return;
-
-    const lastBackupDate = localStorage.getItem('lastAutoBackupDate');
-    const today = format(new Date(), 'yyyy-MM-dd');
-
-    if (lastBackupDate !== today) {
-        try {
-            const data = await exportData();
-            const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(data, null, 2))}`;
-            const link = document.createElement("a");
-            link.href = jsonString;
-            link.download = `starsutra-backup-auto-${today}.json`;
-            link.click();
-            localStorage.setItem('lastAutoBackupDate', today);
-            toast({
-                title: "Automatic Backup",
-                description: `Backup file saved.`,
-            });
-        } catch (error) {
-            console.error("Automatic backup failed:", error);
-        }
-    }
-  };
-
-
   const onSubmit = async (data: LoginFormValues) => {
     setIsSubmitting(true);
     
-    if (data.username.toLowerCase() === 'administrator') {
+    // 1. Hardcoded Administrator Bypass
+    if (data.loginString.toLowerCase() === 'administrator') {
         const adminCreds = getAdminCredentials();
         if (data.password === adminCreds.password) {
-            await login({ username: 'Administrator', id: 'admin', permissions: {}}, true);
-            toast({ title: 'Success', description: 'Admin logged in successfully.' });
-            await handleDailyBackup();
+            await login({ username: 'Administrator', id: 'admin', permissions: {}, isApproved: true } as any, true);
+            toast({ title: 'Success', description: 'Admin session started.' });
         } else {
-            toast({ title: 'Login Failed', description: 'Invalid username or password.', variant: 'destructive'});
+            toast({ title: 'Access Denied', description: 'Invalid administrator password.', variant: 'destructive'});
         }
         setIsSubmitting(false);
         return;
     }
 
-    const email = `${data.username.toLowerCase()}@starsutra.com`;
-
     try {
-      await signInWithEmailAndPassword(auth, email, data.password);
+      // 2. Fetch User Record from Firestore (by Username or Email)
+      const cloudUser = await getUserByLogin(data.loginString);
       
-      const localUsers = getUsers();
-      const localUser = localUsers.find(u => u.username.toLowerCase() === data.username.toLowerCase());
-      if (localUser) {
-        await login(localUser, false);
+      if (!cloudUser) {
+        toast({ title: 'Account Not Found', description: 'No user matches those credentials.', variant: 'destructive' });
+        setIsSubmitting(false);
+        return;
       }
 
-      toast({ title: 'Success', description: 'Logged in successfully.' });
-      await handleDailyBackup();
+      // 3. Verify Approval Status
+      if (cloudUser.isApproved === false) {
+        toast({ 
+            title: 'Account Pending', 
+            description: 'Your account is pending administrator approval.', 
+            variant: 'destructive' 
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      // 4. Authenticate via Firebase Auth
+      // Standardize login to email for Firebase
+      const authEmail = cloudUser.email || `${cloudUser.username}@starsutra.com`;
+      await signInWithEmailAndPassword(auth, authEmail, data.password);
+      
+      // 5. Establish local session
+      await login(cloudUser, false);
+      toast({ title: 'Welcome', description: `Signed in as ${cloudUser.username}` });
       
     } catch (error: any) {
-      let errorMessage = 'Invalid username or password.';
-      if (error && error.code) {
-          if (error.code === AuthErrorCodes.USER_DELETED) errorMessage = 'User deleted.';
-      }
+      let errorMessage = 'Login failed. Please check your password.';
+      if (error.code === AuthErrorCodes.INVALID_PASSWORD) errorMessage = 'Incorrect password.';
+      if (error.code === AuthErrorCodes.TOO_MANY_ATTEMPTS_TRY_LATER) errorMessage = 'Too many attempts. Locked for security.';
+      
       toast({
-        title: 'Login Failed',
+        title: 'Authentication Error',
         description: errorMessage,
         variant: 'destructive',
       });
@@ -131,61 +118,75 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-md animate-in fade-in zoom-in-95 duration-500">
          <div className="flex flex-col justify-center items-center gap-4 mb-8 text-center">
-            <div className="w-28 h-28 rounded-2xl bg-white shadow-xl flex items-center justify-center overflow-hidden border border-primary/20">
+            <div className="w-24 h-24 rounded-3xl bg-white shadow-2xl flex items-center justify-center overflow-hidden border-2 border-primary/20 p-2">
                 <img 
                     src={logo.src} 
-                    width="112" 
-                    height="112" 
+                    width="80" 
+                    height="80" 
                     alt="App Logo"
                     className="object-contain"
                 />
             </div>
             <div className="space-y-1">
-                <h1 className="text-4xl font-black tracking-tight">{appBranding.appName}</h1>
+                <h1 className="text-3xl font-black tracking-tight text-gray-900">{appBranding.appName}</h1>
                 {appBranding.appMotto && (
-                    <p className="text-sm font-medium text-muted-foreground italic uppercase tracking-wider">{appBranding.appMotto}</p>
+                    <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">{appBranding.appMotto}</p>
                 )}
             </div>
         </div>
-        <Card className="shadow-2xl border-primary/20">
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold">Account Access</CardTitle>
-            <CardDescription>Enter your credentials to manage your business operations.</CardDescription>
+        <Card className="shadow-2xl border-none ring-1 ring-black/5 bg-white">
+          <CardHeader className="text-center pb-2">
+            <CardTitle className="text-xl font-bold flex items-center justify-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-primary"/>
+                Security Access
+            </CardTitle>
+            <CardDescription className="text-xs">Authorized business users only.</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-4">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 mt-4">
               <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
-                <input
-                  id="username"
-                  type="text"
-                  placeholder="e.g. administrator"
-                  {...register('username')}
-                  disabled={isSubmitting}
-                  className="flex h-12 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
-                />
-                {errors.username && <p className="text-sm text-destructive font-medium">{errors.username.message}</p>}
+                <Label htmlFor="loginString" className="text-xs font-bold uppercase text-muted-foreground">Username or Email</Label>
+                <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <input
+                        id="loginString"
+                        type="text"
+                        placeholder="diwas"
+                        {...register('loginString')}
+                        disabled={isSubmitting}
+                        className="flex h-11 w-full rounded-lg border-2 border-muted bg-background pl-10 pr-3 py-2 text-sm font-semibold transition-all focus:border-primary focus:ring-0 outline-none"
+                    />
+                </div>
+                {errors.loginString && <p className="text-[10px] text-destructive font-black uppercase">{errors.loginString.message}</p>}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <input 
-                  id="password" 
-                  type="password" 
-                  {...register('password')} 
-                  disabled={isSubmitting}
-                  className="flex h-12 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
-                />
-                {errors.password && <p className="text-sm text-destructive font-medium">{errors.password.message}</p>}
+                <Label htmlFor="password" title="Enter your secure password" className="text-xs font-bold uppercase text-muted-foreground">Secure Password</Label>
+                <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <input 
+                    id="password" 
+                    type="password" 
+                    placeholder="••••••••"
+                    {...register('password')} 
+                    disabled={isSubmitting}
+                    className="flex h-11 w-full rounded-lg border-2 border-muted bg-background pl-10 pr-3 py-2 text-sm font-semibold transition-all focus:border-primary focus:ring-0 outline-none"
+                    />
+                </div>
+                {errors.password && <p className="text-[10px] text-destructive font-black uppercase">{errors.password.message}</p>}
               </div>
-              <Button type="submit" className="w-full h-12 text-lg font-bold" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
-                {isSubmitting ? 'Verifying...' : 'Sign In'}
+              <Button type="submit" className="w-full h-11 text-sm font-black uppercase tracking-widest shadow-lg shadow-primary/20" disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isSubmitting ? 'Verifying...' : 'Authorize Login'}
               </Button>
             </form>
           </CardContent>
         </Card>
+        
+        <p className="mt-8 text-center text-[10px] text-muted-foreground font-medium uppercase tracking-widest">
+            StarSutra Integrated Enterprise Suite
+        </p>
       </div>
     </div>
   );

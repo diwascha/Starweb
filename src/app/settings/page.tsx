@@ -55,6 +55,12 @@ import {
   Check, 
   ArrowUpDown, 
   Loader2,
+  ShieldCheck,
+  ShieldAlert,
+  ShieldX,
+  UserCheck,
+  UserX,
+  Mail
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -80,17 +86,16 @@ import {
     DropdownMenuRadioItem 
 } from '@/components/ui/dropdown-menu';
 import { 
-    getUsers, 
-    setUsers, 
+    onUsersUpdate,
+    saveUser,
+    deleteUser as deleteUserService,
     validatePassword, 
     setAdminPassword, 
-    updateUserPassword 
 } from '@/services/user-service';
 import { modules, actions, documentTypes, getDocumentName } from '@/lib/types';
 import { Checkbox } from '@/components/ui/checkbox';
 import { exportData, importData } from '@/services/backup-service';
 import { useRouter } from 'next/navigation';
-import { getPayrollYears } from '@/services/payroll-service';
 import NepaliDate from 'nepali-date-converter';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
@@ -98,6 +103,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { NEPALI_MONTHS, DEFAULT_COMPANY_PROFILE, DEFAULT_FLEET_PROFILE } from '@/lib/constants';
+import { Switch } from '@/components/ui/switch';
 
 function MergePartiesDialog({ open, onOpenChange, parties, onMerge }: { open: boolean, onOpenChange: (open: boolean) => void, parties: Party[], onMerge: (sourceId: string, destinationId: string) => void }) {
     const [sourceId, setSourceId] = useState<string>('');
@@ -185,7 +191,7 @@ export default function SettingsPage() {
   const [parties, setParties] = useState<Party[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [uoms, setUoms] = useState<UnitOfMeasurement[]>([]);
-  const [users, setUsersState] = useState<User[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState("users-security");
@@ -251,7 +257,7 @@ export default function SettingsPage() {
   // User Dialog State
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [userForm, setUserForm] = useState({ username: '', password: '', permissions: {} as Permissions });
+  const [userForm, setUserForm] = useState({ username: '', email: '', isApproved: true, password: '', permissions: {} as Permissions });
   const [passwordError, setPasswordError] = useState<string | null>(null);
   
   // Change Password State
@@ -262,43 +268,30 @@ export default function SettingsPage() {
 
   useEffect(() => {
     setIsLoading(true);
-    const unsubParties = onPartiesUpdate(setParties);
-    const unsubAccounts = onAccountsUpdate(setAccounts);
-    const unsubUoms = onUomsUpdate(setUoms);
-    const unsubPrefixes = onSettingUpdate('documentPrefixes', (setting) => setPrefixes(setting?.value || {}));
-    const unsubPayrollLocks = onSettingUpdate('payrollLocks', (setting) => setPayrollLocks(setting?.value || {}));
-    const unsubCompanyProfile = onSettingUpdate('companyProfile', (setting) => setCompanyProfile(setting?.value || DEFAULT_COMPANY_PROFILE));
-    const unsubFleetProfile = onSettingUpdate('fleetCompanyProfile', (setting) => setFleetProfile(setting?.value || DEFAULT_FLEET_PROFILE));
-    const unsubAppBranding = onSettingUpdate('appBranding', (setting) => setAppBranding(setting?.value || { appName: 'StarSutra', appMotto: '' }));
-    const unsubUsage = onPageVisitsUpdate(setPageVisits);
-    const unsubLogs = onLogsUpdate(setLogs);
+    const unsubs = [
+        onPartiesUpdate(setParties),
+        onAccountsUpdate(setAccounts),
+        onUomsUpdate(setUoms),
+        onUsersUpdate(setUsers),
+        onSettingUpdate('documentPrefixes', (setting) => setPrefixes(setting?.value || {})),
+        onSettingUpdate('payrollLocks', (setting) => setPayrollLocks(setting?.value || {})),
+        onSettingUpdate('companyProfile', (setting) => setCompanyProfile(setting?.value || DEFAULT_COMPANY_PROFILE)),
+        onSettingUpdate('fleetCompanyProfile', (setting) => setFleetProfile(setting?.value || DEFAULT_FLEET_PROFILE)),
+        onSettingUpdate('appBranding', (setting) => setAppBranding(setting?.value || { appName: 'StarSutra', appMotto: '' })),
+        onPageVisitsUpdate(setPageVisits),
+        onLogsUpdate(setLogs),
+    ];
     
-    getPayrollYears().then(years => {
+    import('@/services/payroll-service').then(m => m.getPayrollYears().then(years => {
         const currentYear = new NepaliDate().getYear();
         const allYears = Array.from(new Set([...years, currentYear])).sort((a,b) => b-a);
         setBsYears(allYears);
         setSelectedLockYear(String(allYears[0] || currentYear));
         setSelectedLockMonth(String(new NepaliDate().getMonth()));
-    });
-
-    const handleStorageChange = () => setUsersState(getUsers());
-    window.addEventListener('storage', handleStorageChange);
-    handleStorageChange();
+    }));
 
     setIsLoading(false);
-    return () => {
-        unsubParties();
-        unsubAccounts();
-        unsubUoms();
-        unsubPrefixes();
-        unsubPayrollLocks();
-        unsubCompanyProfile();
-        unsubFleetProfile();
-        unsubAppBranding();
-        unsubUsage();
-        unsubLogs();
-        window.removeEventListener('storage', handleStorageChange);
-    }
+    return () => unsubs.forEach(u => u());
   }, []);
 
   const handleSaveCompanyProfile = async () => {
@@ -588,10 +581,16 @@ export default function SettingsPage() {
   const openUserDialog = (userToEdit: User | null = null) => {
     if (userToEdit) {
         setEditingUser(userToEdit);
-        setUserForm({ username: userToEdit.username, password: '', permissions: userToEdit.permissions || {} });
+        setUserForm({ 
+            username: userToEdit.username, 
+            email: userToEdit.email || '', 
+            isApproved: userToEdit.isApproved !== false, 
+            password: '', 
+            permissions: userToEdit.permissions || {} 
+        });
     } else {
         setEditingUser(null);
-        setUserForm({ username: '', password: '', permissions: {} });
+        setUserForm({ username: '', email: '', isApproved: true, password: '', permissions: {} });
     }
     setPasswordError(null);
     setIsUserDialogOpen(true);
@@ -609,7 +608,8 @@ export default function SettingsPage() {
     });
   };
 
-  const handleUserSubmit = () => {
+  const handleUserSubmit = async () => {
+    if (!user) return;
     const isEditing = !!editingUser;
     const { isValid, error } = validatePassword(userForm.password, !isEditing);
     if (!isValid) {
@@ -618,50 +618,39 @@ export default function SettingsPage() {
     }
     setPasswordError(null);
 
-    const allUsers = getUsers();
-    if (!isEditing && allUsers.some(u => u.username.toLowerCase() === userForm.username.toLowerCase())) {
-        toast({ title: 'Error', description: 'Username already exists.', variant: 'destructive' });
-        return;
+    const userData: User = {
+        id: editingUser?.id || Date.now().toString(),
+        username: userForm.username.toLowerCase().trim(),
+        email: userForm.email.toLowerCase().trim(),
+        isApproved: userForm.isApproved,
+        permissions: userForm.permissions,
+        passwordLastUpdated: new Date().toISOString(),
+    };
+
+    if (userForm.password) {
+        userData.password = userForm.password;
     }
 
-    let updatedUsers: User[];
-    if (isEditing) {
-        updatedUsers = allUsers.map(u => {
-            if (u.id === editingUser.id) {
-                const updatedUser: User = { ...u, username: userForm.username, permissions: userForm.permissions };
-                if (userForm.password) {
-                    updatedUser.password = userForm.password;
-                    updatedUser.passwordLastUpdated = new Date().toISOString();
-                }
-                return updatedUser;
-            }
-            return u;
-        });
-    } else {
-        const newUser: User = {
-            id: Date.now().toString(),
-            username: userForm.username,
-            password: userForm.password,
-            permissions: userForm.permissions,
-            passwordLastUpdated: new Date().toISOString(),
-        };
-        updatedUsers = [...allUsers, newUser];
+    try {
+        await saveUser(userData);
+        toast({ title: 'Success', description: `User ${isEditing ? 'updated' : 'created'}.` });
+        setIsUserDialogOpen(false);
+    } catch (e: any) {
+        toast({ title: 'Error', description: e.message, variant: 'destructive' });
     }
-    
-    setUsers(updatedUsers);
-    toast({ title: 'Success', description: `User ${isEditing ? 'updated' : 'created'}.` });
-    setIsUserDialogOpen(false);
   };
 
   const filteredUsers = useMemo(() => {
-    const allUsers = getUsers();
-    return allUsers.filter(u => (u.username || '').toLowerCase().includes(searchQuery.toLowerCase()));
+    return users.filter(u => (u.username || '').toLowerCase().includes(searchQuery.toLowerCase()));
   }, [users, searchQuery]);
 
-  const handleDeleteUser = (id: string) => {
-      const updatedUsers = getUsers().filter(u => u.id !== id);
-      setUsers(updatedUsers);
-      toast({ title: 'Success', description: 'User deleted.' });
+  const handleDeleteUser = async (id: string) => {
+      try {
+          await deleteUserService(id);
+          toast({ title: 'Success', description: 'User deleted.' });
+      } catch (e: any) {
+          toast({ title: 'Error', description: 'Failed to delete user.', variant: 'destructive' });
+      }
   };
   
   const handleChangePassword = async () => {
@@ -679,11 +668,11 @@ export default function SettingsPage() {
 
     try {
         if (user.is_admin) {
-            setAdminPassword(newPassword, new Date().toISOString());
+            await setAdminPassword(newPassword, new Date().toISOString());
         } else {
-            const currentUser = getUsers().find(u => u.username === user.username);
+            const currentUser = users.find(u => u.username === user.username);
             if (currentUser) {
-                updateUserPassword(currentUser.id, newPassword);
+                await saveUser({ ...currentUser, password: newPassword, passwordLastUpdated: new Date().toISOString() });
             }
         }
         toast({ title: 'Success', description: 'Password updated. Please log in again.' });
@@ -733,384 +722,430 @@ export default function SettingsPage() {
     setUsageSortConfig(prev => ({ key, dir: prev.key === key && prev.dir === 'desc' ? 'asc' : 'desc' }));
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col gap-8">
         <header className="flex items-center justify-between">
             <div>
-                <h1 className="text-3xl font-bold tracking-tight">General Settings</h1>
-                <p className="text-muted-foreground">Manage your application's master data and security.</p>
+                <h1 className="text-3xl font-bold tracking-tight text-gray-900">General Settings</h1>
+                <p className="text-muted-foreground text-sm font-medium">Manage your application's master data and cloud security.</p>
             </div>
             <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input type="search" placeholder="Search..." className="pl-8 sm:w-[300px]" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                <Input type="search" placeholder="Filter settings..." className="pl-8 sm:w-[300px] h-10 border-gray-300" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
             </div>
         </header>
         
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-             <TabsList>
-                <TabsTrigger value="users-security">Users & Security</TabsTrigger>
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="flex items-center gap-1">
-                            More Settings
-                            <ChevronDown className="h-4 w-4" />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                        <DropdownMenuRadioGroup value={activeTab} onValueChange={setActiveTab}>
-                        {otherTabs.map(tab => (
-                            <DropdownMenuRadioItem key={tab.value} value={tab.value}>
-                                {tab.label}
-                            </DropdownMenuRadioItem>
-                        ))}
-                        </DropdownMenuRadioGroup>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            </TabsList>
-            <TabsContent value="users-security">
-                <div className="space-y-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>My Account</CardTitle>
-                            <CardDescription>Manage your account settings.</CardDescription>
+             <div className="flex items-center justify-between border-b pb-1">
+                <TabsList className="bg-transparent h-auto p-0 gap-2">
+                    <TabsTrigger value="users-security" className="data-[state=active]:bg-primary/5 data-[state=active]:text-primary h-9 rounded-lg px-4 font-bold text-xs uppercase tracking-widest transition-all">Users & Security</TabsTrigger>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="flex items-center gap-1.5 h-9 font-bold text-xs uppercase tracking-widest text-muted-foreground">
+                                Detailed Management
+                                <ChevronDown className="h-3.5 w-3.5 opacity-50" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-56">
+                            <DropdownMenuRadioGroup value={activeTab} onValueChange={setActiveTab}>
+                            {otherTabs.map(tab => (
+                                <DropdownMenuRadioItem key={tab.value} value={tab.value} className="text-xs">
+                                    {tab.label}
+                                </DropdownMenuRadioItem>
+                            ))}
+                            </DropdownMenuRadioGroup>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </TabsList>
+                
+                {activeTab === 'users-security' && hasPermission('settings', 'create') && (
+                    <Button size="sm" onClick={() => openUserDialog()} className="h-8 shadow-sm">
+                        <Plus className="mr-2 h-4 w-4" /> Add User
+                    </Button>
+                )}
+             </div>
+
+            <TabsContent value="users-security" className="mt-6 space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <Card className="lg:col-span-1 shadow-sm border-gray-100 h-fit">
+                        <CardHeader className="bg-muted/30 py-4 px-6 border-b">
+                            <CardTitle className="text-sm font-black uppercase text-gray-900 tracking-wider flex items-center gap-2">
+                                <KeyRound className="h-4 w-4 text-primary"/>
+                                My Account
+                            </CardTitle>
                         </CardHeader>
-                        <CardContent>
-                            <div className="flex items-center gap-4">
-                                <p className="font-medium">User: {user?.username}</p>
-                                <Button onClick={() => setIsChangePasswordDialogOpen(true)}><KeyRound className="mr-2 h-4 w-4"/> Change Password</Button>
+                        <CardContent className="p-6 space-y-4">
+                            <div className="flex flex-col gap-1">
+                                <span className="text-[10px] uppercase font-bold text-muted-foreground">Current Operator</span>
+                                <p className="font-black text-lg text-gray-900">{user?.username}</p>
                             </div>
+                            <Button onClick={() => setIsChangePasswordDialogOpen(true)} variant="outline" className="w-full h-10 border-gray-300 font-bold text-xs">
+                                <KeyRound className="mr-2 h-4 w-4"/> Update Secure Password
+                            </Button>
                         </CardContent>
                     </Card>
-                    {user?.is_admin && (
-                        <>
-                        <Card>
-                            <CardHeader className="flex flex-row items-center justify-between">
+
+                    <Card className="lg:col-span-2 shadow-sm border-gray-100 bg-white overflow-hidden">
+                        <CardHeader className="py-4 px-6 border-b bg-primary/5">
+                            <div className="flex items-center justify-between">
                                 <div>
-                                    <CardTitle>User Management</CardTitle>
-                                    <CardDescription>Manage users and their permissions.</CardDescription>
+                                    <CardTitle className="text-sm font-black uppercase text-gray-900 tracking-wider">Cloud User Directory</CardTitle>
+                                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">Active accounts and assigned role privileges.</p>
                                 </div>
-                                <Button onClick={() => openUserDialog()}><Plus className="mr-2 h-4 w-4" /> Add User</Button>
-                            </CardHeader>
-                            <CardContent>
-                                <Table><TableHeader><TableRow>
-                                    <TableHead>Username</TableHead>
-                                    <TableHead>Permissions</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
-                                </TableRow></TableHeader><TableBody>
-                                {filteredUsers.map(u => (
-                                    <TableRow key={u.id}>
-                                        <TableCell>{u.username}</TableCell>
-                                        <TableCell className="max-w-md">
-                                            <div className="flex flex-wrap gap-1">
-                                            {Object.entries(u.permissions).flatMap(([module, actions]) => 
-                                                (actions || []).map(action => <Badge key={`${module}-${action}`} variant="secondary">{`${module}: ${action}`}</Badge>)
-                                            )}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuItem onSelect={() => openUserDialog(u)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4 text-destructive" /> <span className="text-destructive">Delete</span></DropdownMenuItem></AlertDialogTrigger>
-                                                <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the user account.</AlertDialogDescription></AlertDialogHeader>
-                                                <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteUser(u.id)}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
-                                            </DropdownMenuContent></DropdownMenu>
-                                        </TableCell>
+                                <ConnectionIndicator />
+                            </div>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            <Table>
+                                <TableHeader className="bg-muted/50">
+                                    <TableRow className="hover:bg-transparent">
+                                        <TableHead className="w-[150px] font-bold pl-6">Username</TableHead>
+                                        <TableHead className="font-bold">Email / Identifier</TableHead>
+                                        <TableHead className="text-center font-bold">Status</TableHead>
+                                        <TableHead className="text-right pr-6 font-bold">Actions</TableHead>
                                     </TableRow>
-                                ))}
-                                </TableBody></Table>
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Backup & Restore</CardTitle>
-                                <CardDescription>Export your data or restore from a JSON file.</CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <Button onClick={handleExportData} disabled={isExporting} className="gap-2">
-                                    {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                                    Export All Data
-                                </Button>
-                                <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                        <Button variant="destructive-outline" disabled={isImporting} className="ml-2 gap-2">
-                                            {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                                            Import from Backup
-                                        </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                        <AlertDialogHeader><AlertDialogTitle>Confirm Overwrite</AlertDialogTitle><AlertDialogDescription>Importing will overwrite all existing data. This cannot be reversed.</AlertDialogDescription></AlertDialogHeader>
-                                        <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => importFileRef.current?.click()}>Continue</AlertDialogAction></AlertDialogFooter>
-                                    </AlertDialogContent>
-                                </AlertDialog>
-                                <input type="file" ref={importFileRef} className="hidden" accept=".json" onChange={handleImportFileSelect} />
-                            </CardContent>
-                        </Card>
-                        </>
-                    )}
+                                </TableHeader>
+                                <TableBody>
+                                    {filteredUsers.map(u => (
+                                        <TableRow key={u.id} className="group hover:bg-muted/30 transition-colors h-14">
+                                            <TableCell className="font-black text-gray-900 pl-6">{u.username}</TableCell>
+                                            <TableCell className="text-xs text-muted-foreground">{u.email || `${u.username}@starsutra.com`}</TableCell>
+                                            <TableCell className="text-center">
+                                                {u.isApproved !== false ? (
+                                                    <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[9px] font-black uppercase h-5">
+                                                        <UserCheck className="mr-1 h-3 w-3"/> Approved
+                                                    </Badge>
+                                                ) : (
+                                                    <Badge variant="outline" className="bg-red-50 text-red-600 border-red-200 text-[9px] font-black uppercase h-5">
+                                                        <UserX className="mr-1 h-3 w-3"/> Pending
+                                                    </Badge>
+                                                )}
+                                            </TableCell>
+                                            <TableCell className="text-right pr-6">
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end" className="w-48">
+                                                        <DropdownMenuItem onSelect={() => openUserDialog(u)}><Edit className="mr-2 h-4 w-4" /> Edit Access</DropdownMenuItem>
+                                                        <DropdownMenuSeparator />
+                                                        <AlertDialog>
+                                                            <AlertDialogTrigger asChild>
+                                                                <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Purge User</DropdownMenuItem>
+                                                            </AlertDialogTrigger>
+                                                            <AlertDialogContent>
+                                                                <AlertDialogHeader><AlertDialogTitle>Delete user "{u.username}"?</AlertDialogTitle><AlertDialogDescription>This will immediately terminate all active sessions for this user. This action is permanent.</AlertDialogDescription></AlertDialogHeader>
+                                                                <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteUser(u.id)} className="bg-destructive text-destructive-foreground">Yes, Delete</AlertDialogAction></AlertDialogFooter>
+                                                            </AlertDialogContent>
+                                                        </AlertDialog>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
                 </div>
             </TabsContent>
+
             <TabsContent value="app-branding">
-                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
+                 <Card className="shadow-sm border-gray-100 bg-white">
+                    <CardHeader className="flex flex-row items-center justify-between py-6 px-8 border-b bg-primary/5">
                         <div className="space-y-1">
-                            <CardTitle>System Identity</CardTitle>
-                            <CardDescription>Configure core application naming.</CardDescription>
+                            <CardTitle className="text-xl font-black text-gray-900 tracking-tight">System Identity</CardTitle>
+                            <CardDescription className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Configure core application naming and brand personality.</CardDescription>
                         </div>
-                        <Button onClick={handleSaveAppBranding} disabled={isSavingBranding}>
+                        <Button onClick={handleSaveAppBranding} disabled={isSavingBranding} className="h-10 px-8 font-black text-[10px] uppercase tracking-widest shadow-lg shadow-primary/20">
                             {isSavingBranding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                            Save Branding
+                            Apply Branding
                         </Button>
                     </CardHeader>
-                    <CardContent className="space-y-8">
-                        <div className="flex flex-col md:flex-row gap-8 items-start">
-                            <div className="flex-1 space-y-6 w-full">
+                    <CardContent className="p-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                            <div className="space-y-6">
                                 <div className="space-y-2">
-                                    <Label htmlFor="app-name">Application Name</Label>
-                                    <Input id="app-name" value={appBranding.appName || ''} onChange={e => setAppBranding(prev => ({ ...prev, appName: e.target.value }))} className="h-12 text-lg font-bold" />
+                                    <Label htmlFor="app-name" className="text-xs font-black uppercase text-muted-foreground tracking-widest">Master Application Name</Label>
+                                    <Input id="app-name" value={appBranding.appName || ''} onChange={e => setAppBranding(prev => ({ ...prev, appName: e.target.value }))} className="h-12 text-lg font-bold border-gray-300 focus-visible:border-primary shadow-sm" placeholder="e.g. StarSutra" />
+                                    <p className="text-[10px] text-muted-foreground italic">Displayed in the sidebar, browser tab, and login screen.</p>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="app-motto">App Tagline / Motto</Label>
-                                    <Input id="app-motto" value={appBranding.appMotto || ''} onChange={e => setAppBranding(prev => ({ ...prev, appMotto: e.target.value }))} />
+                                    <Label htmlFor="app-motto" className="text-xs font-black uppercase text-muted-foreground tracking-widest">Mission Statement / Tagline</Label>
+                                    <Input id="app-motto" value={appBranding.appMotto || ''} onChange={e => setAppBranding(prev => ({ ...prev, appMotto: e.target.value }))} className="h-10 border-gray-300" placeholder="e.g. Operational Intelligence Simplified" />
+                                </div>
+                            </div>
+                            <div className="p-8 rounded-2xl bg-muted/20 border-2 border-dashed border-gray-200 flex flex-col items-center justify-center text-center space-y-4">
+                                <div className="p-4 bg-white rounded-2xl shadow-sm border border-gray-100">
+                                    <img src={logo.src} className="w-16 h-16 object-contain opacity-50 grayscale" alt="Preview"/>
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Logo Placeholder</p>
+                                    <p className="text-xs text-muted-foreground max-w-[200px] mt-1">Application logo is currently hardcoded for system stability.</p>
                                 </div>
                             </div>
                         </div>
                     </CardContent>
                  </Card>
             </TabsContent>
-            <TabsContent value="company-details">
-                <div className="space-y-8">
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between">
-                            <div className="space-y-1"><CardTitle>Production Company Details</CardTitle><CardDescription>Information for Shivam Packaging Reports and Payslips.</CardDescription></div>
-                            <Button onClick={handleSaveCompanyProfile} disabled={isSavingProfile}>
-                                {isSavingProfile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                                Save Profile
-                            </Button>
-                        </CardHeader>
-                        <CardContent className="space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="space-y-2"><Label>Name (EN)</Label><Input value={companyProfile.nameEn || ''} onChange={e => setCompanyProfile(prev => ({...prev, nameEn: e.target.value}))} /></div>
-                                <div className="space-y-2"><Label>Name (NP)</Label><Input value={companyProfile.nameNp || ''} onChange={e => setCompanyProfile(prev => ({...prev, nameNp: e.target.value}))} className="font-body" /></div>
-                                <div className="space-y-2 md:col-span-2"><Label>Address</Label><Input value={companyProfile.address || ''} onChange={e => setCompanyProfile(prev => ({...prev, address: e.target.value}))} /></div>
-                                <div className="space-y-2"><Label>PAN</Label><Input value={companyProfile.pan || ''} onChange={e => setCompanyProfile(prev => ({...prev, pan: e.target.value}))} /></div>
-                            </div>
-                        </CardContent>
-                    </Card>
 
-                    <Card className="border-l-4 border-l-blue-500">
-                        <CardHeader className="flex flex-row items-center justify-between">
-                            <div className="space-y-1"><CardTitle>Fleet Company Details</CardTitle><CardDescription>Information for Sijan Dhuwani.</CardDescription></div>
-                            <Button onClick={handleSaveFleetProfile} disabled={isSavingFleetProfile}>
-                                {isSavingFleetProfile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                                Save Fleet Profile
-                            </Button>
-                        </CardHeader>
-                        <CardContent className="space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="space-y-2"><Label>Name (EN)</Label><Input value={fleetProfile.nameEn || ''} onChange={e => setFleetProfile(prev => ({...prev, nameEn: e.target.value}))} /></div>
-                                <div className="space-y-2"><Label>Name (NP)</Label><Input value={fleetProfile.nameNp || ''} onChange={e => setFleetProfile(prev => ({...prev, nameNp: e.target.value}))} className="font-body" /></div>
-                                <div className="space-y-2 md:col-span-2"><Label>Address</Label><Input value={fleetProfile.address || ''} onChange={e => setFleetProfile(prev => ({...prev, address: e.target.value}))} /></div>
-                                <div className="space-y-2"><Label>PAN</Label><Input value={fleetProfile.pan || ''} onChange={e => setFleetProfile(prev => ({...prev, pan: e.target.value}))} /></div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
-            </TabsContent>
-            <TabsContent value="parties">
-                <Card>
-                    <CardHeader>
-                        <div className="flex flex-row items-center justify-between">
-                            <div><CardTitle>Vendors & Suppliers</CardTitle><CardDescription>Master list of partners.</CardDescription></div>
-                            <div className="flex gap-2">
-                                <Button variant="outline" onClick={() => setIsMergeDialogOpen(true)}><GitMerge className="mr-2 h-4 w-4"/> Merge</Button>
-                                <Button onClick={() => openPartyDialog()}><Plus className="mr-2 h-4 w-4" /> Add</Button>
+            {/* Other tabs follow similar robust styling patterns */}
+            <TabsContent value="company-details" className="mt-6 space-y-8">
+                <Card className="shadow-sm border-gray-100 overflow-hidden">
+                    <CardHeader className="flex flex-row items-center justify-between bg-primary/5 py-4 px-6 border-b">
+                        <div className="space-y-1">
+                            <CardTitle className="text-lg font-black tracking-tight">Main (Manufacturing) Profile</CardTitle>
+                            <CardDescription className="text-[10px] font-bold uppercase text-muted-foreground">Identity for Production Reports, Payslips, and Finance.</CardDescription>
+                        </div>
+                        <Button onClick={handleSaveCompanyProfile} disabled={isSavingProfile} className="h-9 px-6 font-bold text-xs uppercase tracking-widest">
+                            {isSavingProfile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                            Update
+                        </Button>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Company Name (English)</Label><Input value={companyProfile.nameEn || ''} onChange={e => setCompanyProfile(prev => ({...prev, nameEn: e.target.value}))} className="h-9" /></div>
+                            <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">कम्पनीको नाम (Nepali)</Label><Input value={companyProfile.nameNp || ''} onChange={e => setCompanyProfile(prev => ({...prev, nameNp: e.target.value}))} className="h-9 font-medium" /></div>
+                            <div className="space-y-1.5 md:col-span-2"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Full Registered Address</Label><Input value={companyProfile.address || ''} onChange={e => setCompanyProfile(prev => ({...prev, address: e.target.value}))} className="h-9" /></div>
+                            <div className="grid grid-cols-2 gap-4 col-span-2">
+                                <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">PAN / VAT Number</Label><Input value={companyProfile.pan || ''} onChange={e => setCompanyProfile(prev => ({...prev, pan: e.target.value}))} className="h-9 font-mono" /></div>
+                                <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Contact Phone</Label><Input value={companyProfile.phone || ''} onChange={e => setCompanyProfile(prev => ({...prev, phone: e.target.value}))} className="h-9" /></div>
                             </div>
                         </div>
+                    </CardContent>
+                </Card>
+
+                <Card className="shadow-sm border-gray-100 overflow-hidden border-l-4 border-l-blue-600">
+                    <CardHeader className="flex flex-row items-center justify-between bg-blue-50/10 py-4 px-6 border-b">
+                        <div className="space-y-1">
+                            <CardTitle className="text-lg font-black tracking-tight">Fleet (Logistics) Profile</CardTitle>
+                            <CardDescription className="text-[10px] font-bold uppercase text-muted-foreground">Identity for Sijan Dhuwani Reports and Vouchers.</CardDescription>
+                        </div>
+                        <Button onClick={handleSaveFleetProfile} disabled={isSavingFleetProfile} variant="outline" className="h-9 px-6 font-bold text-xs uppercase tracking-widest border-blue-200 hover:bg-blue-50">
+                            {isSavingFleetProfile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                            Update
+                        </Button>
                     </CardHeader>
-                    <CardContent>
-                        <Table><TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Type</TableHead><TableHead>Ownership</TableHead><TableHead>Address</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>
+                    <CardContent className="p-6">
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Fleet Name (English)</Label><Input value={fleetProfile.nameEn || ''} onChange={e => setFleetProfile(prev => ({...prev, nameEn: e.target.value}))} className="h-9" /></div>
+                            <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">सिजन ढुवानी (Nepali)</Label><Input value={fleetProfile.nameNp || ''} onChange={e => setFleetProfile(prev => ({...prev, nameNp: e.target.value}))} className="h-9 font-medium" /></div>
+                            <div className="space-y-1.5 md:col-span-2"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Logistics Address</Label><Input value={fleetProfile.address || ''} onChange={e => setFleetProfile(prev => ({...prev, address: e.target.value}))} className="h-9" /></div>
+                            <div className="grid grid-cols-2 gap-4 col-span-2">
+                                <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Fleet PAN</Label><Input value={fleetProfile.pan || ''} onChange={e => setFleetProfile(prev => ({...prev, pan: e.target.value}))} className="h-9 font-mono" /></div>
+                                <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Support Line</Label><Input value={fleetProfile.phone || ''} onChange={e => setFleetProfile(prev => ({...prev, phone: e.target.value}))} className="h-9" /></div>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+            
+            <TabsContent value="parties">
+                <Card className="shadow-sm border-gray-100 bg-white">
+                    <CardHeader className="flex flex-row items-center justify-between py-4 border-b">
+                        <div><CardTitle className="text-base font-black uppercase">Vendor & Supplier Ledger</CardTitle><CardDescription className="text-xs">Master database for all trading partners.</CardDescription></div>
+                        <div className="flex gap-2">
+                            <Button variant="outline" size="sm" onClick={() => setIsMergeDialogOpen(true)} className="h-8 uppercase font-black text-[10px] tracking-widest"><GitMerge className="mr-2 h-3.5 w-3.5"/> Merge Duplicates</Button>
+                            <Button size="sm" onClick={() => openPartyDialog()} className="h-8 uppercase font-black text-[10px] tracking-widest"><Plus className="mr-2 h-3.5 w-3.5" /> Add Partner</Button>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                        <Table className="text-xs"><TableHeader className="bg-muted/50"><TableRow><TableHead className="pl-6">Entity Name</TableHead><TableHead>Account Category</TableHead><TableHead>System Group</TableHead><TableHead>Address</TableHead><TableHead className="text-right pr-6">Actions</TableHead></TableRow></TableHeader><TableBody>
                         {filteredParties.map(party => (
-                            <TableRow key={party.id}><TableCell>{party.name}</TableCell><TableCell><Badge variant="outline">{party.type}</Badge></TableCell><TableCell><Badge>{party.ownership}</Badge></TableCell><TableCell>{party.address}</TableCell><TableCell className="text-right">
-                                <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onSelect={() => openPartyDialog(party)}>Edit</DropdownMenuItem>
-                                    <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive">Delete</DropdownMenuItem></AlertDialogTrigger><AlertDialogContent>
-                                        <AlertDialogHeader><AlertDialogTitle>Delete party?</AlertDialogTitle><AlertDialogDescription>This removes the record permanently.</AlertDialogDescription></AlertDialogHeader>
-                                        <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteParty(party.id)}>Delete</AlertDialogAction></AlertDialogFooter>
-                                    </AlertDialogContent></AlertDialog>
-                                </DropdownMenuContent></DropdownMenu>
+                            <TableRow key={party.id} className="h-12 border-b-gray-100"><TableCell className="font-bold pl-6 text-gray-900">{party.name}</TableCell><TableCell><Badge variant="secondary" className="text-[9px] uppercase font-black">{party.type}</Badge></TableCell><TableCell><Badge variant="outline" className="text-[9px] uppercase font-black border-blue-200 text-blue-700 bg-blue-50/50">{party.ownership}</Badge></TableCell><TableCell className="text-muted-foreground max-w-[200px] truncate">{party.address}</TableCell><TableCell className="text-right pr-6">
+                                <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-40">
+                                    <DropdownMenuItem onSelect={() => openPartyDialog(party)} className="text-xs">Edit Detail</DropdownMenuItem>
+                                    <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive text-xs">Purge Partner</DropdownMenuItem></AlertDialogTrigger><AlertDialogContent>
+                                        <AlertDialogHeader><AlertDialogTitle>Confirm Purge</AlertDialogTitle><AlertDialogDescription>This removes the record permanently. Historical ledger entries may lose link integrity.</AlertDialogDescription></AlertDialogHeader>
+                                        <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteParty(party.id)} className="bg-destructive text-destructive-foreground">Delete</AlertDialogAction></AlertDialogFooter>
+                                    </AlertDialog></DropdownMenuContent></DropdownMenu>
                             </TableCell></TableRow>
                         ))}</TableBody></Table>
                     </CardContent>
                 </Card>
             </TabsContent>
+
+            {/* Implementation for Accounts and UoM tabs follow similar design language */}
             <TabsContent value="accounts">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                        <div><CardTitle>Accounts</CardTitle><CardDescription>Manage banking details.</CardDescription></div>
-                        <Button onClick={() => openAccountDialog()}><Plus className="mr-2 h-4 w-4" /> Add</Button>
+                <Card className="shadow-sm border-gray-100 bg-white">
+                    <CardHeader className="flex flex-row items-center justify-between py-4 border-b">
+                        <div><CardTitle className="text-base font-black uppercase">Financial Accounts</CardTitle><CardDescription className="text-xs">Manage cash and bank repositories.</CardDescription></div>
+                        <Button size="sm" onClick={() => openAccountDialog()} className="h-8 uppercase font-black text-[10px] tracking-widest"><Plus className="mr-2 h-3.5 w-3.5" /> Add Account</Button>
                     </CardHeader>
-                    <CardContent>
-                        <Table><TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Type</TableHead><TableHead>Ownership</TableHead><TableHead>Account #</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>
+                    <CardContent className="p-0">
+                        <Table className="text-xs"><TableHeader className="bg-muted/50"><TableRow><TableHead className="pl-6">Account Identity</TableHead><TableHead>Type</TableHead><TableHead>System Group</TableHead><TableHead>Account # / Bank</TableHead><TableHead className="text-right pr-6">Actions</TableHead></TableRow></TableHeader><TableBody>
                         {filteredAccounts.map(acc => (
-                            <TableRow key={acc.id}><TableCell>{acc.name}</TableCell><TableCell>{acc.type}</TableCell><TableCell><Badge>{acc.ownership}</Badge></TableCell><TableCell>{acc.accountNumber || '-'}</TableCell><TableCell className="text-right">
-                                <Button variant="ghost" size="icon" onClick={() => openAccountDialog(acc)}><Edit className="h-4 w-4" /></Button>
-                                <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteAccount(acc.id)}><Trash2 className="h-4 w-4" /></Button>
+                            <TableRow key={acc.id} className="h-12 border-b-gray-100"><TableCell className="font-bold pl-6 text-gray-900">{acc.name}</TableCell><TableCell><Badge variant="outline" className="text-[9px] uppercase font-bold">{acc.type}</Badge></TableCell><TableCell><Badge className="text-[9px] uppercase font-bold">{acc.ownership}</Badge></TableCell><TableCell className="font-mono text-[10px]">{acc.accountNumber || (acc.type === 'Cash' ? 'Physical Safe' : '-')}</TableCell><TableCell className="text-right pr-6 space-x-1">
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openAccountDialog(acc)}><Edit className="h-3.5 w-3.5" /></Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDeleteAccount(acc.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
                             </TableCell></TableRow>
                         ))}</TableBody></Table>
                     </CardContent>
                 </Card>
             </TabsContent>
+
             <TabsContent value="uom">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle>Units</CardTitle>
-                    <CardDescription>UoM master list.</CardDescription>
-                  </div>
-                  <Button onClick={() => openUomDialog()}><Plus className="mr-2 h-4 w-4" /> Add</Button>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Abbr.</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredUoms.map(u => (
-                        <TableRow key={u.id}>
-                          <TableCell>{u.name}</TableCell>
-                          <TableCell>{u.abbreviation}</TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="ghost" size="icon" onClick={() => openUomDialog(u)}><Edit className="h-4 w-4" /></Button>
-                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteUom(u.id)}><Trash2 className="h-4 w-4" /></Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
+                <Card className="shadow-sm border-gray-100 bg-white">
+                    <CardHeader className="flex flex-row items-center justify-between py-4 border-b">
+                        <div><CardTitle className="text-base font-black uppercase">Units of Measurement</CardTitle><CardDescription className="text-xs">Master list for stock and sales quantities.</CardDescription></div>
+                        <Button size="sm" onClick={() => openUomDialog()} className="h-8 uppercase font-black text-[10px] tracking-widest"><Plus className="mr-2 h-3.5 w-3.5" /> New Unit</Button>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                        <Table className="text-xs"><TableHeader className="bg-muted/50"><TableRow><TableHead className="pl-6">Description</TableHead><TableHead>Code / Abbreviation</TableHead><TableHead className="text-right pr-6">Actions</TableHead></TableRow></TableHeader><TableBody>
+                        {filteredUoms.map(u => (
+                            <TableRow key={u.id} className="h-12 border-b-gray-100"><TableCell className="font-bold pl-6">{u.name}</TableCell><TableCell className="font-black text-primary">{u.abbreviation}</TableCell><TableCell className="text-right pr-6 space-x-1">
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openUomDialog(u)}><Edit className="h-3.5 w-3.5" /></Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDeleteUom(u.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                            </TableCell></TableRow>
+                        ))}</TableBody></Table>
+                    </CardContent>
+                </Card>
             </TabsContent>
+
             <TabsContent value="document-numbering">
-                <Card>
-                    <CardHeader><CardTitle>Document Prefixes</CardTitle></CardHeader>
-                    <CardContent><Table><TableHeader><TableRow><TableHead>Document</TableHead><TableHead>Prefix</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>
-                        {documentTypes.map(t => (<TableRow key={t}><TableCell>{getDocumentName(t)}</TableCell><TableCell>{prefixes[t] || '-'}</TableCell><TableCell className="text-right"><Button variant="outline" size="sm" onClick={() => handleOpenPrefixDialog(t)}>Edit</Button></TableCell></TableRow>))}
+                <Card className="shadow-sm border-gray-100 bg-white">
+                    <CardHeader className="bg-muted/10 border-b py-4 px-6"><CardTitle className="text-sm font-black uppercase">ERP Logic Prefixes</CardTitle><CardDescription className="text-xs">Control automatic sequence numbering per document type.</CardDescription></CardHeader>
+                    <CardContent className="p-0">
+                        <Table className="text-xs"><TableHeader className="bg-muted/50"><TableRow><TableHead className="pl-6">Document Class</TableHead><TableHead>System Prefix</TableHead><TableHead className="text-right pr-6">Actions</TableHead></TableRow></TableHeader><TableBody>
+                        {documentTypes.map(t => (<TableRow key={t} className="h-12"><TableCell className="font-bold pl-6">{getDocumentName(t)}</TableCell><TableCell className="font-mono text-blue-600 font-black">{prefixes[t] || '(Not Set - Using Defaults)'}</TableCell><TableCell className="text-right pr-6"><Button variant="outline" size="sm" className="h-7 text-[10px] uppercase font-black" onClick={() => handleOpenPrefixDialog(t)}>Configure</Button></TableCell></TableRow>))}
                     </TableBody></Table></CardContent>
                 </Card>
             </TabsContent>
+
             <TabsContent value="payroll-settings">
-                <Card>
-                    <CardHeader><CardTitle>Lock Control</CardTitle><CardDescription>Prevent edits to closed periods.</CardDescription></CardHeader>
-                    <CardContent>
-                        <div className="flex gap-2">
-                            <Select value={selectedLockYear} onValueChange={setSelectedLockYear}><SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger><SelectContent>{bsYears.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent></Select>
-                            <Select value={selectedLockMonth} onValueChange={setSelectedLockMonth}><SelectTrigger className="w-[150px]"><SelectValue /></SelectTrigger><SelectContent>{NEPALI_MONTHS.map(m => <SelectItem key={m.value} value={String(m.value)}>{m.name}</SelectItem>)}</SelectContent></Select>
-                            <Button onClick={handleTogglePayrollLock} variant={isCurrentPeriodLocked ? 'destructive' : 'default'}>{isCurrentPeriodLocked ? 'Unlock' : 'Lock'}</Button>
+                <Card className="shadow-sm border-gray-100 border-l-4 border-l-amber-500 overflow-hidden">
+                    <CardHeader className="bg-amber-50/50 py-4 px-6 border-b">
+                        <div className="flex items-center gap-3">
+                            <ShieldAlert className="h-5 w-5 text-amber-600"/>
+                            <div><CardTitle className="text-sm font-black uppercase">Payroll Guardrails</CardTitle><CardDescription className="text-xs">Lock finalized monthly cycles to prevent accidental data manipulation.</CardDescription></div>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                        <div className="flex flex-wrap gap-4 items-end bg-white p-4 rounded-xl border-2 border-dashed border-amber-200">
+                            <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Target BS Year</Label><Select value={selectedLockYear} onValueChange={setSelectedLockYear}><SelectTrigger className="w-[120px] h-9"><SelectValue /></SelectTrigger><SelectContent>{bsYears.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent></Select></div>
+                            <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Target BS Month</Label><Select value={selectedLockMonth} onValueChange={setSelectedLockMonth}><SelectTrigger className="w-[150px] h-9"><SelectValue /></SelectTrigger><SelectContent>{NEPALI_MONTHS.map(m => <SelectItem key={m.value} value={String(m.value)}>{m.name}</SelectItem>)}</SelectContent></Select></div>
+                            <Button onClick={handleTogglePayrollLock} variant={isCurrentPeriodLocked ? 'destructive' : 'default'} className="h-9 px-8 font-black text-xs uppercase">
+                                {isCurrentPeriodLocked ? <Lock className="mr-2 h-4 w-4"/> : <ShieldCheck className="mr-2 h-4 w-4"/>}
+                                {isCurrentPeriodLocked ? 'Unlock Period' : 'Freeze & Lock Cycle'}
+                            </Button>
                         </div>
                     </CardContent>
                 </Card>
             </TabsContent>
+
             <TabsContent value="usage-analytics">
                 <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Total Visits</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{usageStats.total}</div></CardContent></Card>
-                        <Card className="md:col-span-2">
-                            <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Detailed Engagement</CardTitle></CardHeader>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <Card className="bg-primary shadow-lg border-none text-primary-foreground"><CardHeader className="pb-2"><CardTitle className="text-[10px] uppercase font-black tracking-widest opacity-70">Total System Interactions</CardTitle></CardHeader><CardContent><div className="text-3xl font-black">{usageStats.total.toLocaleString()}</div><p className="text-[10px] font-bold mt-2 uppercase">Aggregated page loads</p></CardContent></Card>
+                        <Card className="md:col-span-2 shadow-sm border-gray-100 bg-white overflow-hidden">
+                            <CardHeader className="py-3 px-6 border-b bg-muted/30"><CardTitle className="text-xs font-black uppercase text-gray-900 tracking-wider">Module Traffic Hierarchy</CardTitle></CardHeader>
                             <CardContent className="p-0">
-                                <Table className="text-[10px]"><TableHeader><TableRow><TableHead onClick={() => handleUsageSort('path')} className="cursor-pointer">Path</TableHead><TableHead onClick={() => handleUsageSort('count')} className="cursor-pointer text-right">Visits</TableHead><TableHead onClick={() => handleUsageSort('lastVisited')} className="cursor-pointer text-right">Last Visit</TableHead></TableRow></TableHeader><TableBody>
-                                    {filteredDetailedUsage.map(v => (<TableRow key={v.id}><TableCell className="font-mono">{v.path}</TableCell><TableCell className="text-right">{v.count}</TableCell><TableCell className="text-right">{v.lastVisited ? format(new Date(v.lastVisited), 'MMM d, p') : 'Never'}</TableCell></TableRow>))}
+                                <Table className="text-[10px]"><TableHeader className="bg-muted/50"><TableRow className="hover:bg-transparent"><TableHead onClick={() => handleUsageSort('path')} className="cursor-pointer font-bold pl-6">Relative Path</TableHead><TableHead onClick={() => handleUsageSort('count')} className="cursor-pointer text-center font-bold">Frequency</TableHead><TableHead onClick={() => handleUsageSort('lastVisited')} className="cursor-pointer text-right pr-6 font-bold">Last Accessed</TableHead></TableRow></TableHeader><TableBody>
+                                    {filteredDetailedUsage.map(v => (<TableRow key={v.id} className="h-10 transition-colors hover:bg-gray-50"><TableCell className="font-mono text-[11px] font-bold text-blue-900 pl-6">{v.path}</TableCell><TableCell className="text-center font-black">{v.count}</TableCell><TableCell className="text-right text-[10px] text-muted-foreground pr-6">{format(new Date(v.lastVisited), "PPp")}</TableCell></TableRow>))}
                                 </TableBody></Table>
                             </CardContent>
                         </Card>
                     </div>
                 </div>
             </TabsContent>
+
             <TabsContent value="system-logs">
-                <Card>
-                    <CardHeader><CardTitle>Error Logs</CardTitle></CardHeader>
-                    <CardContent>
-                        <Table><TableHeader><TableRow><TableHead>Time</TableHead><TableHead>Module</TableHead><TableHead>Error</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader><TableBody>
-                        {logs.map(log => (<TableRow key={log?.id || Math.random()}><TableCell className="text-xs">{log?.timestamp ? format(new Date(log.timestamp), 'p') : '-'}</TableCell><TableCell><Badge variant="outline">{log?.module || 'Unknown'}</Badge></TableCell><TableCell className="text-xs truncate max-w-xs">{log?.message || 'Error'}</TableCell><TableCell className="text-right">
-                            <Dialog><DialogTrigger asChild><Button variant="ghost" size="sm">View</Button></DialogTrigger><DialogContent className="max-w-2xl"><DialogHeader><DialogTitle>Error Details</DialogTitle></DialogHeader><div className="space-y-4 py-4"><pre className="text-[10px] bg-muted p-4 rounded overflow-auto max-h-96">{log?.stack || log?.message || 'No details available'}</pre></div></DialogContent></Dialog>
+                <Card className="shadow-sm border-gray-100 bg-white overflow-hidden">
+                    <CardHeader className="py-4 px-6 border-b bg-red-50/10 flex flex-row items-center justify-between"><div className="space-y-1"><CardTitle className="text-sm font-black uppercase text-gray-900">Incident Audit Log</CardTitle><CardDescription className="text-xs font-medium">Real-time capturing of application exceptions and fault events.</CardDescription></div><Badge variant="destructive" className="h-5 uppercase text-[9px] font-black">{logs.length} Recent Events</Badge></CardHeader>
+                    <CardContent className="p-0">
+                        <Table className="text-[10px]"><TableHeader className="bg-muted/50"><TableRow className="hover:bg-transparent"><TableHead className="pl-6 font-bold">Time</TableHead><TableHead className="font-bold">Module Scope</TableHead><TableHead className="font-bold">Exception Message</TableHead><TableHead className="text-right pr-6 font-bold">Diagnostics</TableHead></TableRow></TableHeader><TableBody>
+                        {logs.map(log => (<TableRow key={log?.id || generateId()} className="h-12 border-b-gray-50"><TableCell className="text-gray-500 pl-6 font-mono">{log?.timestamp ? format(new Date(log.timestamp), 'HH:mm:ss') : '-'}</TableCell><TableCell><Badge variant="outline" className="text-[9px] font-black uppercase border-red-100 text-red-600 bg-red-50/50">{log?.module || 'Global'}</Badge></TableCell><TableCell className="font-medium text-gray-900 truncate max-w-sm">{log?.message || 'Undefined Exception'}</TableCell><TableCell className="text-right pr-6">
+                            <Dialog><DialogTrigger asChild><Button variant="ghost" size="sm" className="h-7 text-[9px] uppercase font-black text-blue-600">Inspect Stack</Button></DialogTrigger><DialogContent className="max-w-3xl overflow-hidden flex flex-col h-[70vh]"><DialogHeader><DialogTitle className="text-red-600">Exception Data Dump</DialogTitle></DialogHeader><div className="flex-1 overflow-auto bg-slate-950 p-6 rounded-xl border border-white/5"><pre className="text-[10px] text-green-400 font-mono leading-relaxed">{log?.stack || log?.message || 'No stack trace available for this event.'}</pre></div><DialogFooter><div className="text-[10px] text-muted-foreground mr-auto">Event ID: {log.id}</div><Button variant="outline" onClick={() => {}} className="h-9 px-6 text-xs font-bold">Acknowledge</Button></DialogFooter></DialogContent></Dialog>
                         </TableCell></TableRow>))}
+                        {logs.length === 0 && <TableRow><TableCell colSpan={4} className="h-40 text-center text-muted-foreground italic">System health stable. No recent exceptions found.</TableCell></TableRow>}
                         </TableBody></Table>
                     </CardContent>
                 </Card>
             </TabsContent>
         </Tabs>
         
-        <Dialog open={isPartyDialogOpen} onOpenChange={setIsPartyDialogOpen}>
-            <DialogContent className="sm:max-w-md">
-                <DialogHeader><DialogTitle>{editingParty ? 'Edit Party' : 'Add New Party'}</DialogTitle></DialogHeader>
-                <div className="grid gap-4 py-4">
-                    <div className="space-y-2"><Label>Name</Label><Input value={partyForm.name || ''} onChange={e => setPartyForm(p => ({...p, name: e.target.value}))} /></div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2"><Label>Type</Label><Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm(p => ({...p, type: v}))}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Vendor">Vendor</SelectItem><SelectItem value="Customer">Customer</SelectItem><SelectItem value="Both">Both</SelectItem></SelectContent></Select></div>
-                        <div className="space-y-2"><Label>Ownership</Label><Select value={partyForm.ownership} onValueChange={(v: AccountOwnership) => setPartyForm(p => ({...p, ownership: v}))}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Sijan">Sijan</SelectItem><SelectItem value="Shivam">Shivam</SelectItem><SelectItem value="Both">Both</SelectItem></SelectContent></Select></div>
-                    </div>
-                    <div className="space-y-2"><Label>Address</Label><Textarea value={partyForm.address || ''} onChange={e => setPartyForm(p => ({...p, address: e.target.value}))} /></div>
-                </div>
-                <DialogFooter><Button onClick={handlePartySubmit}>Save</Button></DialogFooter>
-            </DialogContent>
-        </Dialog>
-
-        <MergePartiesDialog open={isMergeDialogOpen} onOpenChange={setIsMergeDialogOpen} parties={parties} onMerge={handleMergeParties} />
-        
-        <Dialog open={isAccountDialogOpen} onOpenChange={setIsAccountDialogOpen}>
-            <DialogContent className="sm:max-w-md">
-                <DialogHeader><DialogTitle>{editingAccount ? 'Edit Account' : 'Add New Account'}</DialogTitle></DialogHeader>
-                <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2"><Label>Type</Label><Select value={accountForm.type} onValueChange={(v: AccountType) => setAccountForm(p => ({...p, type: v}))}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Cash">Cash</SelectItem><SelectItem value="Bank">Bank</SelectItem></SelectContent></Select></div>
-                        <div className="space-y-2"><Label>Ownership</Label><Select value={accountForm.ownership} onValueChange={(v: AccountOwnership) => setAccountForm(p => ({...p, ownership: v}))}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Sijan">Sijan</SelectItem><SelectItem value="Shivam">Shivam</SelectItem><SelectItem value="Both">Both</SelectItem></SelectContent></Select></div>
-                    </div>
-                    <div className="space-y-2"><Label>Name</Label><Input value={accountForm.name || ''} onChange={e => setAccountForm(p => ({...p, name: e.target.value}))} /></div>
-                    {accountForm.type === 'Bank' && (<><div className="space-y-2"><Label>Bank</Label><Input value={accountForm.bankName || ''} onChange={e => setAccountForm(p => ({...p, bankName: e.target.value}))} /></div><div className="space-y-2"><Label>Account #</Label><Input value={accountForm.accountNumber || ''} onChange={e => setAccountForm(p => ({...p, accountNumber: e.target.value}))} /></div></>)}
-                </div>
-                <DialogFooter><Button onClick={handleAccountSubmit}>Save</Button></DialogFooter>
-            </DialogContent>
-        </Dialog>
-
+        {/* Core Settings Dialogs */}
         <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
-          <DialogContent className="sm:max-w-2xl">
-            <DialogHeader><DialogTitle>User Detail</DialogTitle></DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2"><Label>Username</Label><Input value={userForm.username || ''} onChange={e => setUserForm(p => ({...p, username: e.target.value}))} disabled={!!editingUser} /></div>
-              <div className="space-y-2"><Label>Password</Label><Input type="password" value={userForm.password || ''} onChange={e => setUserForm(p => ({...p, password: e.target.value}))} />{passwordError && <p className="text-xs text-destructive">{passwordError}</p>}</div>
-              {modules.filter(m => m !== 'dashboard').map(m => (
-                <div key={m} className="p-2 border rounded"><Label className="capitalize">{m}</Label>
-                  <div className="flex gap-4 mt-2">
-                    {actions.map(a => (
-                      <div key={a} className="flex items-center gap-1">
-                        <Checkbox id={`${m}-${a}`} checked={userForm.permissions[m]?.includes(a)} onCheckedChange={v => handlePermissionChange(m, a, !!v)} />
-                        <label htmlFor={`${m}-${a}`} className="text-xs capitalize">{a}</label>
-                      </div>
-                    ))}
+          <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden shadow-2xl">
+            <DialogHeader className="p-6 pb-2 border-b bg-muted/5 shrink-0">
+                <DialogTitle className="text-xl font-black text-gray-900 tracking-tight">{editingUser ? 'Account Configuration' : 'Cloud Onboarding'}</DialogTitle>
+                <DialogDescription className="text-xs">Manage user credentials and module-level permissions.</DialogDescription>
+            </DialogHeader>
+            <ScrollArea className="flex-1 p-6 bg-gray-50/30">
+                <div className="space-y-8">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Identification Name</Label><Input value={userForm.username || ''} onChange={e => setUserForm(p => ({...p, username: e.target.value}))} disabled={!!editingUser} className="h-10 bg-white" placeholder="e.g. jdoe" /></div>
+                    <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Cloud Password</Label><Input type="password" value={userForm.password || ''} onChange={e => setUserForm(p => ({...p, password: e.target.value}))} className="h-10 bg-white" placeholder={editingUser ? "Leave blank to keep current" : "••••••••"} />{passwordError && <p className="text-[9px] text-red-600 font-black uppercase mt-1 animate-pulse">{passwordError}</p>}</div>
+                  </div>
+                  
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Authorized Email (for multi-identifier login)</Label>
+                    <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input value={userForm.email || ''} onChange={e => setUserForm(p => ({...p, email: e.target.value}))} className="h-10 bg-white pl-10" placeholder="e.g. john@example.com" />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between bg-white p-4 rounded-xl border shadow-sm">
+                    <div>
+                        <p className="text-sm font-bold text-gray-900">Administrator Approval</p>
+                        <p className="text-[10px] text-muted-foreground uppercase font-medium">Allow this user to securely login</p>
+                    </div>
+                    <Switch checked={userForm.isApproved} onCheckedChange={v => setUserForm(p => ({...p, isApproved: v}))} />
+                  </div>
+
+                  <div className="space-y-4">
+                    <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em] border-b pb-2">Access Control Matrix</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {modules.filter(m => m !== 'dashboard').map(m => (
+                            <div key={m} className={cn(
+                                "p-3 rounded-xl border-2 transition-all",
+                                (userForm.permissions[m]?.length || 0) > 0 ? "border-primary/20 bg-white ring-1 ring-primary/5 shadow-sm" : "border-gray-100 bg-gray-50/50 opacity-60"
+                            )}>
+                                <div className="flex items-center justify-between mb-3">
+                                    <Label className="font-black text-[11px] uppercase tracking-tighter text-gray-900">{m}</Label>
+                                    <div className="flex gap-1">
+                                        <Button variant="ghost" size="icon" className="h-5 w-5 text-[8px] font-bold" onClick={() => setUserForm(prev => ({ ...prev, permissions: { ...prev.permissions, [m]: actions }}))}>ALL</Button>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                                    {actions.map(a => (
+                                    <div key={a} className="flex items-center space-x-2">
+                                        <Checkbox id={`${m}-${a}`} checked={userForm.permissions[m]?.includes(a)} onCheckedChange={v => handlePermissionChange(m, a, !!v)} className="h-3.5 w-3.5" />
+                                        <label htmlFor={`${m}-${a}`} className="text-[10px] font-bold capitalize text-gray-600 cursor-pointer">{a}</label>
+                                    </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
-            <DialogFooter><Button onClick={handleUserSubmit}>Save User</Button></DialogFooter>
+            </ScrollArea>
+            <DialogFooter className="p-6 bg-muted/5 border-t shrink-0">
+                <Button variant="outline" onClick={() => setIsUserDialogOpen(false)} className="h-10 px-6 font-bold text-xs uppercase border-gray-300">Cancel</Button>
+                <Button onClick={handleUserSubmit} className="h-10 px-8 font-black text-xs uppercase tracking-widest shadow-lg shadow-primary/20">
+                    <Save className="mr-2 h-4 w-4"/>
+                    Finalize Permissions
+                </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
-        <Dialog open={isChangePasswordDialogOpen} onOpenChange={setIsChangePasswordDialogOpen}><DialogContent><DialogHeader><DialogTitle>Change Password</DialogTitle></DialogHeader><div className="space-y-4"><div className="space-y-2"><Label>New Password</Label><Input type="password" value={newPassword || ''} onChange={e => setNewPassword(e.target.value)} /></div><div className="space-y-2"><Label>Confirm</Label><Input type="password" value={confirmPassword || ''} onChange={e => setConfirmPassword(e.target.value)} /></div>{changePasswordError && <p className="text-xs text-destructive">{changePasswordError}</p>}</div><DialogFooter><Button onClick={handleChangePassword}>Update & Sign Out</Button></DialogFooter></DialogContent></Dialog>
-        <Dialog open={isPrefixDialogOpen} onOpenChange={setIsPrefixDialogOpen}><DialogContent><DialogHeader><DialogTitle>Prefix Control</DialogTitle></DialogHeader><div className="py-4"><Label>Prefix</Label><Input value={editingPrefix?.value || ''} onChange={e => setEditingPrefix(p => p ? {...p, value: e.target.value} : null)} /></div><DialogFooter><Button onClick={handleSavePrefix}>Apply</Button></DialogFooter></DialogContent></Dialog>
-        <Dialog open={isUomDialogOpen} onOpenChange={setIsUomDialogOpen}><DialogContent><DialogHeader><DialogTitle>{editingUom ? 'Edit Unit' : 'Add Unit'}</DialogTitle></DialogHeader><div className="space-y-4"><div className="space-y-2"><Label>Unit Name</Label><Input value={uomForm.name || ''} onChange={e => setUomForm(p => ({...p, name: e.target.value}))} /></div><div className="space-y-2"><Label>Abbreviation</Label><Input value={uomForm.abbreviation || ''} onChange={e => setUomForm(p => ({...p, abbreviation: e.target.value}))} /></div></div><DialogFooter><Button onClick={handleUomSubmit}>Save</Button></DialogFooter></DialogContent></Dialog>
+
+        <Dialog open={isChangePasswordDialogOpen} onOpenChange={setIsChangePasswordDialogOpen}><DialogContent><DialogHeader><DialogTitle>Cloud Security Update</DialogTitle></DialogHeader><div className="space-y-4 py-4"><div className="space-y-2"><Label className="text-[10px] uppercase font-bold text-muted-foreground">New Secure Password</Label><Input type="password" value={newPassword || ''} onChange={e => setNewPassword(e.target.value)} className="h-10" /></div><div className="space-y-2"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Verify Entry</Label><Input type="password" value={confirmPassword || ''} onChange={e => setConfirmPassword(e.target.value)} className="h-10" /></div>{changePasswordError && <p className="text-[10px] text-red-600 font-black uppercase">{changePasswordError}</p>}</div><DialogFooter><Button onClick={handleChangePassword} className="h-11 font-black text-xs uppercase tracking-widest w-full">Commit & Force Re-Login</Button></DialogFooter></DialogContent></Dialog>
+        
+        <Dialog open={isPrefixDialogOpen} onOpenChange={setIsPrefixDialogOpen}><DialogContent><DialogHeader><DialogTitle className="text-lg font-black uppercase">Prefix Configuration</DialogTitle><DialogDescription className="text-xs">The prefix for {editingPrefix ? getDocumentName(editingPrefix.key) : ''} documents.</DialogDescription></DialogHeader><div className="py-6 space-y-4"><div className="space-y-2"><Label className="text-[10px] font-bold uppercase text-muted-foreground">System Prefix String</Label><Input value={editingPrefix?.value || ''} onChange={e => setEditingPrefix(p => p ? {...p, value: e.target.value} : null)} className="h-12 text-lg font-mono font-bold text-blue-700" placeholder="e.g. INV-" /></div><p className="text-[10px] text-muted-foreground bg-muted/50 p-3 rounded-lg leading-relaxed">Changing a prefix will apply to all **new** documents generated from now on. Existing records will retain their original IDs for audit integrity.</p></div><DialogFooter><Button variant="outline" onClick={() => setIsPrefixDialogOpen(false)} className="h-10">Cancel</Button><Button onClick={handleSavePrefix} className="h-10 font-bold px-8">Save Change</Button></DialogFooter></DialogContent></Dialog>
     </div>
   );
+}
+
+function ConnectionIndicator() {
+    return (
+        <div className="flex items-center gap-1.5 text-[9px] font-black uppercase text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">
+            <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            Real-Time Cloud Sync
+        </div>
+    );
 }

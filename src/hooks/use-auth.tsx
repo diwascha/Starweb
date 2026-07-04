@@ -4,13 +4,15 @@ import { useState, useEffect, createContext, useContext, ReactNode, useCallback,
 import { useRouter, usePathname } from 'next/navigation';
 import type { User, Permissions, Module, Action } from '@/lib/types';
 import { modules } from '@/lib/types';
-import { getAdminCredentials, getUsers } from '@/services/user-service';
-import { onAuthStateChanged, signOut, Auth } from 'firebase/auth';
+import { getAdminCredentials, getUserByLogin } from '@/services/user-service';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { useAuthService } from '@/firebase';
 
 interface UserSession {
-  id: string; // Firebase UID or a local ID for admin
+  id: string; // Firebase UID or local ID
   username: string;
+  email?: string;
+  isApproved: boolean;
   is_admin: boolean;
   permissions: Permissions;
   passwordLastUpdated?: string;
@@ -34,7 +36,7 @@ const AuthContext = createContext<AuthContextType>({
 
 const USER_SESSION_KEY = 'user_session';
 
-const pageOrder: Module[] = ['dashboard', 'reports', 'products', 'purchaseOrders', 'rawMaterials', 'settings', 'hr', 'fleet', 'crm', 'finance'];
+const pageOrder: Module[] = ['dashboard', 'reports', 'products', 'purchaseOrders', 'rawMaterials', 'settings', 'hr', 'fleet', 'crm', 'finance', 'rental'];
 
 const kebabToCamel = (s: string): Module | string => {
     const segments = s.split('/');
@@ -52,12 +54,10 @@ const kebabToCamel = (s: string): Module | string => {
       'dashboard': 'dashboard',
       'crm': 'crm',
       'finance': 'finance',
+      'rental': 'rental',
     };
-    if (specialCases[mainSegment]) {
-        return specialCases[mainSegment];
-    }
-    const cameled = mainSegment.replace(/-./g, x => x[1].toUpperCase());
-    return cameled;
+    if (specialCases[mainSegment]) return specialCases[mainSegment];
+    return mainSegment.replace(/-./g, x => x[1].toUpperCase());
 };
 
 const moduleToPath = (module: Module): string => {
@@ -71,7 +71,6 @@ const AuthRedirect = ({ children }: { children: ReactNode }) => {
     const router = useRouter();
     const pathname = usePathname();
 
-    // Helper to normalize paths and handle trailing slashes
     const getNormalizedPath = (path: string) => path.replace(/\/$/, '') || '/';
 
     useEffect(() => {
@@ -101,9 +100,7 @@ const AuthRedirect = ({ children }: { children: ReactNode }) => {
                 const currentModule = currentModuleAttempt as Module;
                 if (!hasPermission(currentModule, 'view')) {
                     const firstAllowedPage = pageOrder.find(module => hasPermission(module, 'view'));
-                    
                     const redirectPath = firstAllowedPage ? moduleToPath(firstAllowedPage) : '/dashboard';
-
                     if (normalizedPath !== getNormalizedPath(redirectPath)) {
                         router.push(redirectPath);
                     }
@@ -112,61 +109,39 @@ const AuthRedirect = ({ children }: { children: ReactNode }) => {
         }
     }, [user, loading, pathname, router, hasPermission]);
 
-
     const normalizedPath = getNormalizedPath(pathname);
     if (loading || (!user && normalizedPath !== '/login')) {
         return (
-            <div className="flex h-screen items-center justify-center">
-                <p>Loading session...</p>
+            <div className="flex h-screen items-center justify-center bg-background">
+                <div className="flex flex-col items-center gap-3">
+                    <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Authorizing Session...</p>
+                </div>
             </div>
         );
     }
     
-    // This check ensures children of AuthRedirect are only rendered when appropriate
-    if (user && !loading && normalizedPath !== '/login') {
-         return <>{children}</>;
-    }
-
-    if (!user && !loading && normalizedPath === '/login') {
-        return <>{children}</>;
-    }
-    
-    return (
-        <div className="flex h-screen items-center justify-center">
-            <p>Loading application...</p>
-        </div>
-    );
+    return <>{children}</>;
 };
 
 const useInactivityLogout = (logout: () => void, timeout = 1800000) => {
     const timerRef = useRef<NodeJS.Timeout | null>(null);
-
     const resetTimer = useCallback(() => {
-        if (timerRef.current) {
-            clearTimeout(timerRef.current);
-        }
+        if (timerRef.current) clearTimeout(timerRef.current);
         timerRef.current = setTimeout(logout, timeout);
     }, [logout, timeout]);
 
     useEffect(() => {
         const events = ['mousemove', 'keydown', 'click', 'scroll'];
-
-        const handleActivity = () => {
-            resetTimer();
-        };
-
+        const handleActivity = () => resetTimer();
         events.forEach(event => window.addEventListener(event, handleActivity));
-        resetTimer(); // Start the timer on mount
-
+        resetTimer();
         return () => {
-            if (timerRef.current) {
-                clearTimeout(timerRef.current);
-            }
+            if (timerRef.current) clearTimeout(timerRef.current);
             events.forEach(event => window.removeEventListener(event, handleActivity));
         };
     }, [resetTimer]);
 };
-
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<UserSession | null>(null);
@@ -179,8 +154,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(null);
   }, [auth]);
 
-  useInactivityLogout(logout, 30 * 60 * 1000); // 30 minutes
-
+  useInactivityLogout(logout, 30 * 60 * 1000);
 
   useEffect(() => {
     const sessionJson = localStorage.getItem(USER_SESSION_KEY);
@@ -192,25 +166,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         localStorage.removeItem(USER_SESSION_KEY);
       }
     }
-    setLoading(false); // End initial loading from local storage
 
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        const username = firebaseUser.email?.split('@')[0] || '';
-        const localUsers = getUsers();
-        const localUser = localUsers.find(u => u.username.toLowerCase() === username.toLowerCase());
-        
-        if (localUser) {
+        // Find cloud user record by email
+        const cloudUser = await getUserByLogin(firebaseUser.email || '');
+        if (cloudUser && cloudUser.isApproved !== false) {
           const session: UserSession = {
             id: firebaseUser.uid,
-            username: localUser.username,
+            username: cloudUser.username,
+            email: cloudUser.email,
+            isApproved: true,
             is_admin: false,
-            permissions: localUser.permissions,
-            passwordLastUpdated: localUser.passwordLastUpdated
+            permissions: cloudUser.permissions,
+            passwordLastUpdated: cloudUser.passwordLastUpdated
           };
           localStorage.setItem(USER_SESSION_KEY, JSON.stringify(session));
           setUser(session);
         } else {
+          // Block unapproved or missing users
           signOut(auth);
           localStorage.removeItem(USER_SESSION_KEY);
           setUser(null);
@@ -219,13 +193,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const currentSessionJson = localStorage.getItem(USER_SESSION_KEY);
         if (currentSessionJson) {
             const currentSession = JSON.parse(currentSessionJson);
-            // Only clear the session if it's not the local admin
             if (!currentSession.is_admin) {
                 localStorage.removeItem(USER_SESSION_KEY);
                 setUser(null);
             }
         }
       }
+      setLoading(false);
     });
 
     return () => unsubscribe();
@@ -237,6 +211,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const session: UserSession = {
             id: 'admin_user',
             username: userToLogin.username,
+            isApproved: true,
             is_admin: true,
             permissions: {},
             passwordLastUpdated: adminCreds.passwordLastUpdated
@@ -244,26 +219,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         localStorage.setItem(USER_SESSION_KEY, JSON.stringify(session));
         setUser(session);
     }
-    // Firebase regular user login is handled by onAuthStateChanged, which will set the session.
   }, []);
 
   const hasPermission = useCallback((module: Module, action: Action): boolean => {
     if (!user) return false;
     if (user.is_admin) return true;
+    if (user.isApproved === false) return false;
     
-    // Grant CRM view if Finance view is present
     if (module === 'crm' && action === 'view') {
         const financePerms = user.permissions['finance'];
-        if (financePerms && financePerms.includes('view')) {
-            return true;
-        }
+        if (financePerms && financePerms.includes('view')) return true;
     }
     
     const modulePermissions = user.permissions[module];
     return !!modulePermissions?.includes(action);
   }, [user]);
-  
-  
+
   return (
     <AuthContext.Provider value={{ user, loading, login, logout, hasPermission }}>
       {children}
