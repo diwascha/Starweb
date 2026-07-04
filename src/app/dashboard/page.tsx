@@ -102,7 +102,10 @@ export default function DashboardPage() {
                 {companyProfile.nameEn}
               </h1>
               <h2 className="text-base font-bold text-muted-foreground truncate">{companyProfile.nameNp}</h2>
-              <p className="text-[11px] text-muted-foreground mt-1 truncate">Welcome back, {user?.username} • {companyProfile.address}</p>
+              <div className="mt-1">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase truncate">{companyProfile.address}</p>
+                <p className="text-[11px] text-muted-foreground">Welcome back, {user?.username}</p>
+              </div>
             </div>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-1.5 pb-2 md:pb-0">
