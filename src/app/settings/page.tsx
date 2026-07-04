@@ -80,7 +80,13 @@ import {
   Receipt,
   FileSpreadsheet,
   ShoppingCart,
-  StickyNote
+  StickyNote,
+  Crown,
+  Eye,
+  PlusCircle,
+  Pencil,
+  ChevronUp,
+  LayoutGrid
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -133,11 +139,11 @@ const getModuleDisplayName = (m: Module): string => {
     switch (m) {
         case 'reports': return 'Test Report Management';
         case 'purchaseOrders': return 'Purchase Management';
-        case 'settings': return 'Settings & Security';
+        case 'settings': return 'System Settings & Users';
         case 'hr': return 'HRMS & Payroll';
         case 'fleet': return 'Fleet Management';
         case 'finance': return 'Finance (Invoice, TDS, Cheque)';
-        case 'crm': return 'CRM';
+        case 'crm': return 'Customer CRM';
         case 'rental': return 'Rental Management';
         case 'notes': return 'Notes & To-Do';
         case 'dashboard': return 'Executive Dashboard';
@@ -155,11 +161,26 @@ const getModuleIcon = (m: Module) => {
         case 'finance': return <Calculator className="h-4 w-4" />;
         case 'crm': return <Briefcase className="h-4 w-4" />;
         case 'rental': return <Home className="h-4 w-4" />;
-        case 'dashboard': return <LayoutDashboard className="h-4 w-4" />;
+        case 'dashboard': return <LayoutGrid className="h-4 w-4" />;
         case 'notes': return <StickyNote className="h-4 w-4" />;
         default: return <Terminal className="h-4 w-4" />;
     }
 };
+
+const MODULE_GROUPS = [
+    {
+        name: 'Shivam',
+        modules: ['dashboard', 'finance', 'reports', 'crm', 'purchaseOrders', 'hr'] as Module[]
+    },
+    {
+        name: 'Sijan',
+        modules: ['fleet'] as Module[]
+    },
+    {
+        name: 'Others',
+        modules: ['rental', 'notes', 'settings'] as Module[]
+    }
+];
 
 function ConnectionIndicator() {
     return (
@@ -278,8 +299,6 @@ export default function SettingsPage() {
   const [logs, setLogs] = useState<SystemLog[]>([]);
   const [usageSearch, setUsageSearch] = useState('');
   const [usageSortConfig, setUsageSortConfig] = useState<{ key: 'count' | 'path' | 'lastVisited', dir: 'asc' | 'desc' }>({ key: 'count', dir: 'desc' });
-  const [usageFilterMonth, setUsageFilterMonth] = useState<string>('All');
-  const [usageFilterYear, setUsageFilterYear] = useState<string>('All');
 
   // Prefixes State
   const [prefixes, setPrefixes] = useState<DocumentPrefixes>({});
@@ -334,6 +353,7 @@ export default function SettingsPage() {
   const [userForm, setUserForm] = useState({ username: '', email: '', isApproved: true, password: '', permissions: {} as Permissions });
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [isSubmittingUser, setIsSubmittingUser] = useState(false);
+  const [moduleSearch, setModuleSearch] = useState('');
   
   // Change Password State
   const [isChangePasswordDialogOpen, setIsChangePasswordDialogOpen] = useState(false);
@@ -783,23 +803,6 @@ export default function SettingsPage() {
     return { total, top5: sorted.slice(0, 5) };
   }, [pageVisits]);
 
-  const filteredDetailedUsage = useMemo(() => {
-    let filtered = [...pageVisits];
-    if (usageSearch) filtered = filtered.filter(v => v.path.toLowerCase().includes(usageSearch.toLowerCase()));
-    filtered.sort((a, b) => {
-        const aVal = a[usageSortConfig.key];
-        const bVal = b[usageSortConfig.key];
-        if (aVal < bVal) return usageSortConfig.dir === 'asc' ? -1 : 1;
-        if (aVal > bVal) return usageSortConfig.dir === 'asc' ? 1 : -1;
-        return 0;
-    });
-    return filtered;
-  }, [pageVisits, usageSearch, usageSortConfig]);
-
-  const handleUsageSort = (key: 'count' | 'path' | 'lastVisited') => {
-    setUsageSortConfig(prev => ({ key, dir: prev.key === key && prev.dir === 'desc' ? 'asc' : 'desc' }));
-  };
-
   return (
     <div className="flex flex-col gap-8">
         <header className="flex items-center justify-between">
@@ -1119,7 +1122,7 @@ export default function SettingsPage() {
         
         {/* Core Settings Dialogs */}
         <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
-          <DialogContent className="sm:max-w-4xl max-h-[95vh] flex flex-col p-0 overflow-hidden shadow-2xl border-none">
+          <DialogContent className="sm:max-w-5xl h-[95vh] flex flex-col p-0 overflow-hidden shadow-2xl border-none">
             <DialogHeader className="p-6 pb-2 border-b bg-muted/5 shrink-0">
                 <div className="flex items-center gap-3">
                     <UserIcon className="h-6 w-6 text-primary"/>
@@ -1127,68 +1130,152 @@ export default function SettingsPage() {
                 </div>
             </DialogHeader>
 
-            <ScrollArea className="flex-1 p-6 bg-gray-50/30">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div className="lg:col-span-1 space-y-6">
-                        <div className="space-y-4">
-                            <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em] border-b pb-2">User Identity</h3>
-                            <div className="space-y-4 p-5 rounded-2xl bg-white border shadow-sm">
-                                <div className="space-y-1.5">
-                                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Unique Username</Label>
-                                    <Input value={userForm.username || ''} onChange={e => setUserForm(p => ({...p, username: e.target.value}))} disabled={!!editingUser} className="h-10 bg-white" placeholder="e.g. diwas" />
-                                </div>
-                                <div className="space-y-1.5">
-                                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Master Email</Label>
-                                    <Input value={userForm.email || ''} onChange={e => setUserForm(p => ({...p, email: e.target.value}))} className="h-10 bg-white" placeholder="e.g. diwas@starsutra.com" />
-                                </div>
-                                <div className="space-y-1.5">
-                                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Cloud Password</Label>
-                                    <Input type="password" value={userForm.password || ''} onChange={e => setUserForm(p => ({...p, password: e.target.value}))} className="h-10 bg-white" placeholder={editingUser ? "••••••••" : "Min 8 chars"} />
-                                    {passwordError && <p className="text-[9px] text-red-600 font-black uppercase mt-1">{passwordError}</p>}
-                                </div>
+            <ScrollArea className="flex-1 p-0 bg-gray-50/30">
+                <div className="p-6 space-y-8">
+                    {/* User Profile Section */}
+                    <section className="space-y-4">
+                        <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em] border-b pb-2">User Identity</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Unique Username</Label>
+                                <Input value={userForm.username || ''} onChange={e => setUserForm(p => ({...p, username: e.target.value}))} disabled={!!editingUser} className="h-10 bg-white" placeholder="e.g. diwas" />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Master Email</Label>
+                                <Input value={userForm.email || ''} onChange={e => setUserForm(p => ({...p, email: e.target.value}))} className="h-10 bg-white" placeholder="e.g. diwas@starsutra.com" />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Cloud Password</Label>
+                                <Input type="password" value={userForm.password || ''} onChange={e => setUserForm(p => ({...p, password: e.target.value}))} className="h-10 bg-white" placeholder={editingUser ? "••••••••" : "Min 8 chars"} />
+                                {passwordError && <p className="text-[9px] text-red-600 font-black uppercase mt-1">{passwordError}</p>}
                             </div>
                         </div>
-                        <div className="flex items-center justify-between bg-white p-5 rounded-2xl border shadow-sm">
-                            <div className="space-y-0.5">
-                                <p className="text-xs font-black text-gray-900 uppercase">Approved</p>
-                                <p className="text-[9px] text-muted-foreground font-bold uppercase">Enable login</p>
-                            </div>
-                            <Switch checked={userForm.isApproved} onCheckedChange={v => setUserForm(p => ({...p, isApproved: v}))} />
+                        <div className="flex items-center gap-2 pt-2">
+                             <Switch id="user-approved" checked={userForm.isApproved} onCheckedChange={v => setUserForm(p => ({...p, isApproved: v}))} />
+                             <Label htmlFor="user-approved" className="text-xs font-bold uppercase text-gray-700">Administrator Approved (Enable cloud login)</Label>
                         </div>
-                    </div>
+                    </section>
 
-                    <div className="lg:col-span-2 space-y-4">
-                        <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em] border-b pb-2">Module-Based Access Control</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {modules.map(m => (
-                                <div key={m} className={cn(
-                                    "p-4 rounded-2xl border-2 transition-all",
-                                    (userForm.permissions[m]?.length || 0) > 0 ? "border-primary/40 bg-white" : "border-gray-100 bg-gray-50/50"
-                                )}>
-                                    <div className="flex items-center gap-2 mb-4">
-                                        {getModuleIcon(m)}
-                                        <Label className="font-black text-xs uppercase text-gray-900">{getModuleDisplayName(m)}</Label>
-                                    </div>
-                                    <div className="grid grid-cols-3 gap-2">
-                                        {actions.map(a => (
-                                            <div key={a} className="flex items-center space-x-1">
-                                                <Checkbox id={`${m}-${a}`} checked={userForm.permissions[m]?.includes(a)} onCheckedChange={v => handlePermissionChange(m, a, !!v)} />
-                                                <label htmlFor={`${m}-${a}`} className="text-[9px] font-bold uppercase">{a}</label>
-                                            </div>
-                                        ))}
-                                    </div>
+                    {/* Redesigned Permission Matrix */}
+                    <section className="space-y-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-2">
+                            <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em]">Module-Based Access Control</h3>
+                            <div className="flex items-center gap-2">
+                                <div className="relative">
+                                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground"/>
+                                    <Input 
+                                        placeholder="Search modules..." 
+                                        value={moduleSearch} 
+                                        onChange={e => setModuleSearch(e.target.value)} 
+                                        className="h-8 w-48 text-[10px] pl-7 bg-white"
+                                    />
                                 </div>
-                            ))}
+                                <Button variant="outline" size="sm" className="h-8 text-[9px] font-black uppercase tracking-widest px-4" onClick={() => setUserForm(p => ({...p, permissions: {}}))}>Clear All</Button>
+                            </div>
                         </div>
-                    </div>
+
+                        <div className="border rounded-xl bg-white overflow-hidden shadow-sm">
+                            <Table className="text-[11px]">
+                                <TableHeader className="bg-muted/30">
+                                    <TableRow className="hover:bg-transparent">
+                                        <TableHead className="w-[300px] font-black uppercase text-gray-900">Module</TableHead>
+                                        <TableHead className="text-center w-[120px] font-black uppercase text-blue-600">
+                                            <div className="flex flex-col items-center gap-1">
+                                                <Crown className="h-3 w-3"/>
+                                                <span>Full Access</span>
+                                            </div>
+                                        </TableHead>
+                                        <TableHead className="text-center w-[80px] font-black uppercase">
+                                            <div className="flex flex-col items-center gap-1">
+                                                <Eye className="h-3 w-3 opacity-60"/>
+                                                <span>View</span>
+                                            </div>
+                                        </TableHead>
+                                        <TableHead className="text-center w-[80px] font-black uppercase">
+                                            <div className="flex flex-col items-center gap-1">
+                                                <PlusCircle className="h-3 w-3 opacity-60"/>
+                                                <span>Add</span>
+                                            </div>
+                                        </TableHead>
+                                        <TableHead className="text-center w-[80px] font-black uppercase">
+                                            <div className="flex flex-col items-center gap-1">
+                                                <Pencil className="h-3 w-3 opacity-60"/>
+                                                <span>Edit</span>
+                                            </div>
+                                        </TableHead>
+                                        <TableHead className="text-center w-[80px] font-black uppercase">
+                                            <div className="flex flex-col items-center gap-1">
+                                                <Trash2 className="h-3 w-3 opacity-60"/>
+                                                <span>Delete</span>
+                                            </div>
+                                        </TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {MODULE_GROUPS.map((group) => {
+                                        const visibleModules = group.modules.filter(m => getModuleDisplayName(m).toLowerCase().includes(moduleSearch.toLowerCase()));
+                                        if (visibleModules.length === 0) return null;
+
+                                        return (
+                                            <React.Fragment key={group.name}>
+                                                <TableRow className="bg-muted/10 hover:bg-muted/10 border-b-2">
+                                                    <TableCell colSpan={6} className="py-2.5 px-4">
+                                                        <div className="flex items-center gap-2 text-primary font-black text-[10px] uppercase tracking-widest">
+                                                            <ChevronDown className="h-3.5 w-3.5"/>
+                                                            {group.name}
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+                                                {visibleModules.map(m => {
+                                                    const isAll = userForm.permissions[m]?.includes('all');
+                                                    return (
+                                                        <TableRow key={m} className={cn("group h-12 transition-colors", isAll && "bg-blue-50/20")}>
+                                                            <TableCell className="pl-6">
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className="p-1.5 bg-gray-50 rounded-lg group-hover:bg-white transition-colors">
+                                                                        {getModuleIcon(m)}
+                                                                    </div>
+                                                                    <span className="font-bold text-gray-900">{getModuleDisplayName(m)}</span>
+                                                                </div>
+                                                            </TableCell>
+                                                            <TableCell className="text-center">
+                                                                <Checkbox 
+                                                                    checked={isAll} 
+                                                                    onCheckedChange={v => handlePermissionChange(m, 'all', !!v)}
+                                                                    className="h-5 w-5 rounded border-2 border-primary/30"
+                                                                />
+                                                            </TableCell>
+                                                            {['view', 'add', 'edit', 'delete'].map((act) => (
+                                                                <TableCell key={act} className="text-center">
+                                                                    <Checkbox 
+                                                                        disabled={isAll}
+                                                                        checked={isAll || userForm.permissions[m]?.includes(act as any)} 
+                                                                        onCheckedChange={v => handlePermissionChange(m, act as any, !!v)}
+                                                                        className={cn(
+                                                                            "h-4 w-4 rounded",
+                                                                            isAll && "opacity-30 cursor-not-allowed"
+                                                                        )}
+                                                                    />
+                                                                </TableCell>
+                                                            ))}
+                                                        </TableRow>
+                                                    );
+                                                })}
+                                            </React.Fragment>
+                                        );
+                                    })}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </section>
                 </div>
             </ScrollArea>
 
             <DialogFooter className="p-6 bg-white border-t">
-                <Button variant="outline" onClick={() => setIsUserDialogOpen(false)}>Cancel</Button>
-                <Button onClick={handleUserSubmit} disabled={isSubmittingUser}>
+                <Button variant="outline" onClick={() => setIsUserDialogOpen(false)} className="h-11 px-8 font-bold text-xs uppercase">Cancel</Button>
+                <Button onClick={handleUserSubmit} disabled={isSubmittingUser} className="h-11 px-12 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20">
                     {isSubmittingUser ? <Loader2 className="animate-spin h-4 w-4 mr-2"/> : <Save className="mr-2 h-4 w-4"/>}
-                    Finalize Access
+                    Save Permissions
                 </Button>
             </DialogFooter>
           </DialogContent>
@@ -1220,6 +1307,76 @@ export default function SettingsPage() {
         </Dialog>
 
         <MergePartiesDialog open={isMergeDialogOpen} onOpenChange={setIsMergeDialogOpen} parties={parties} onMerge={handleMergePartiesInternal} />
+
+        {/* Support for Quick Add Dialogs for Parties and Accounts */}
+        <Dialog open={isPartyDialogOpen} onOpenChange={setIsPartyDialogOpen}>
+          <DialogContent>
+            <DialogHeader><DialogTitle>{editingParty ? 'Edit Party' : 'Add Party'}</DialogTitle></DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <Label>Party Name</Label>
+                <Input value={partyForm.name} onChange={e => setPartyForm({...partyForm, name: e.target.value})} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Category</Label>
+                  <Select value={partyForm.type} onValueChange={(v: PartyType) => setPartyForm({...partyForm, type: v})}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Vendor">Vendor</SelectItem>
+                      <SelectItem value="Customer">Customer</SelectItem>
+                      <SelectItem value="Tenant">Tenant</SelectItem>
+                      <SelectItem value="Both">Both</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Ownership</Label>
+                  <Select value={partyForm.ownership} onValueChange={(v: AccountOwnership) => setPartyForm({...partyForm, ownership: v})}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Sijan">Sijan</SelectItem>
+                      <SelectItem value="Shivam">Shivam</SelectItem>
+                      <SelectItem value="Rental">Rental</SelectItem>
+                      <SelectItem value="Both">Both</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+            <DialogFooter><Button onClick={handlePartySubmit}>Save Partner</Button></DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isAccountDialogOpen} onOpenChange={setIsAccountDialogOpen}>
+            <DialogContent>
+                <DialogHeader><DialogTitle>{editingAccount ? 'Edit Account' : 'Add Account'}</DialogTitle></DialogHeader>
+                <div className="grid gap-4 py-4">
+                    <div className="space-y-2"><Label>Account Name</Label><Input value={accountForm.name} onChange={e => setAccountForm({...accountForm, name: e.target.value})} /></div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2"><Label>Type</Label>
+                            <Select value={accountForm.type} onValueChange={(v: any) => setAccountForm({...accountForm, type: v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Cash">Cash</SelectItem><SelectItem value="Bank">Bank</SelectItem></SelectContent></Select>
+                        </div>
+                        <div className="space-y-2"><Label>Ownership</Label>
+                            <Select value={accountForm.ownership} onValueChange={(v: any) => setAccountForm({...accountForm, ownership: v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Sijan">Sijan</SelectItem><SelectItem value="Shivam">Shivam</SelectItem><SelectItem value="Rental">Rental</SelectItem><SelectItem value="Both">Both</SelectItem></SelectContent></Select>
+                        </div>
+                    </div>
+                </div>
+                <DialogFooter><Button onClick={handleAccountSubmit}>Save Account</Button></DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        <Dialog open={isUomDialogOpen} onOpenChange={setIsUomDialogOpen}>
+            <DialogContent>
+                <DialogHeader><DialogTitle>{editingUom ? 'Edit Unit' : 'New Unit'}</DialogTitle></DialogHeader>
+                <div className="grid gap-4 py-4">
+                    <div className="space-y-2"><Label>Unit Name</Label><Input value={uomForm.name} onChange={e => setUomForm({...uomForm, name: e.target.value})} /></div>
+                    <div className="space-y-2"><Label>Code / Abbreviation</Label><Input value={uomForm.abbreviation} onChange={e => setUomForm({...uomForm, abbreviation: e.target.value})} /></div>
+                </div>
+                <DialogFooter><Button onClick={handleUomSubmit}>Save Unit</Button></DialogFooter>
+            </DialogContent>
+        </Dialog>
     </div>
   );
 }
+
