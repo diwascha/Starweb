@@ -7,6 +7,7 @@ import { modules } from '@/lib/types';
 import { getAdminCredentials, getUserByLogin } from '@/services/user-service';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { useAuthService } from '@/firebase';
+import { toast } from '@/hooks/use-toast';
 
 interface UserSession {
   id: string; // Firebase UID or local ID
@@ -62,7 +63,7 @@ const routeToCoreModule = (segment: string): Module | null => {
 };
 
 const AuthRedirect = ({ children }: { children: ReactNode }) => {
-    const { user, loading, hasPermission } = useAuth();
+    const { user, loading, hasPermission, logout } = useAuth();
     const router = useRouter();
     const pathname = usePathname();
 
@@ -94,21 +95,19 @@ const AuthRedirect = ({ children }: { children: ReactNode }) => {
                     const pageOrder: Module[] = ['dashboard', 'finance', 'reports', 'purchaseOrders', 'crm', 'hr', 'fleet', 'rental', 'notes', 'settings'];
                     const firstAllowed = pageOrder.find(m => hasPermission(m, 'view'));
                     
-                    // If no modules are allowed, we don't redirect to dashboard to avoid loop
                     if (firstAllowed) {
                         const redirectPath = moduleToPath(firstAllowed);
                         if (normalizedPath !== getNormalizedPath(redirectPath)) {
                             router.push(redirectPath);
                         }
                     } else if (normalizedPath !== '/login') {
-                         // No permissions at all - user is essentially locked out
-                         toast({ title: 'Access Denied', description: 'Your account has no module permissions.', variant: 'destructive' });
-                         signOut(auth);
+                         toast({ title: 'Access Denied', description: 'Your account has no authorized modules.', variant: 'destructive' });
+                         logout();
                     }
                 }
             }
         }
-    }, [user, loading, pathname, router, hasPermission]);
+    }, [user, loading, pathname, router, hasPermission, logout]);
 
     const normalizedPath = getNormalizedPath(pathname);
     if (loading || (!user && normalizedPath !== '/login')) {
@@ -239,27 +238,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     
     // 1. Map legacy 'create' to new 'add' modality
     const act = action === 'create' ? 'add' : action;
+    const mod = module as Module;
     
-    // 2. Core Permission Check Helper
-    const checkCore = (m: Module, a: string): boolean => {
-        const perms = user.permissions[m];
-        if (!perms || !Array.isArray(perms)) return false;
-        // 3. Admin 'all' override
-        if (perms.includes('all')) return true;
-        return perms.includes(a as any);
-    };
+    // 2. Map inherited sub-modules to primary keys
+    let primaryKey: Module = mod;
+    if (mod === 'products') primaryKey = 'reports';
+    if (mod === 'rawMaterials') primaryKey = 'purchaseOrders';
+    
+    // 3. Strict Primary Key Check
+    const perms = user.permissions[primaryKey];
+    if (!perms || !Array.isArray(perms)) return false;
 
-    // 4. Inheritance Logic
-    if (module === 'products') return checkCore('reports', act);
-    if (module === 'rawMaterials') return checkCore('purchaseOrders', act);
-    
-    // 5. Explicit Module Check - No cross-module bleed
-    const targetModule = module as Module;
-    if (modules.includes(targetModule)) {
-        return checkCore(targetModule, act);
-    }
-    
-    return false;
+    // 4. Admin 'all' override for this specific module
+    if (perms.includes('all')) return true;
+
+    // 5. Explicit action check
+    return perms.includes(act as any);
   }, [user]);
 
   return (

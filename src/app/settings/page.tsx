@@ -298,7 +298,6 @@ export default function SettingsPage() {
   const [pageVisits, setPageVisits] = useState<PageVisit[]>([]);
   const [logs, setLogs] = useState<SystemLog[]>([]);
   const [usageSearch, setUsageSearch] = useState('');
-  const [usageSortConfig, setUsageSortConfig] = useState<{ key: 'count' | 'path' | 'lastVisited', dir: 'asc' | 'desc' }>({ key: 'count', dir: 'desc' });
 
   // Prefixes State
   const [prefixes, setPrefixes] = useState<DocumentPrefixes>({});
@@ -614,7 +613,7 @@ export default function SettingsPage() {
               await addAccount({ ...accountForm, createdBy: user.username });
               toast({title: 'Success', description: 'New account added.'});
           }
-          setIsAccountDialogOpen(true);
+          setIsAccountDialogOpen(false);
       } catch {
            toast({title: 'Error', description: 'Failed to add account.', variant: 'destructive'});
       }
@@ -695,7 +694,7 @@ export default function SettingsPage() {
     setUserForm(prev => {
         const newPermissions = { ...prev.permissions };
         if (checked) {
-            newPermissions[module] = [...(newPermissions[module] || []), action];
+            newPermissions[module] = Array.from(new Set([...(newPermissions[module] || []), action]));
         } else {
             newPermissions[module] = (newPermissions[module] || []).filter(a => a !== action);
         }
@@ -990,6 +989,26 @@ export default function SettingsPage() {
                         </div>
                     </CardContent>
                 </Card>
+
+                <Card className="shadow-sm border-gray-100 overflow-hidden">
+                    <CardHeader className="flex flex-row items-center justify-between bg-muted/20 py-4 px-6 border-b">
+                        <div className="space-y-1">
+                            <CardTitle className="text-lg font-black tracking-tight">Sijan Fleet (Logistics) Profile</CardTitle>
+                        </div>
+                        <Button onClick={handleSaveFleetProfile} disabled={isSavingFleetProfile} className="h-9 px-6 font-bold text-xs uppercase tracking-widest">
+                            {isSavingFleetProfile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                            Update
+                        </Button>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Fleet Name (English)</Label><Input value={fleetProfile.nameEn || ''} onChange={e => setFleetProfile(prev => ({...prev, nameEn: e.target.value}))} className="h-9" /></div>
+                            <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">फ्लीटको नाम (Nepali)</Label><Input value={fleetProfile.nameNp || ''} onChange={e => setFleetProfile(prev => ({...prev, nameNp: e.target.value}))} className="h-9 font-medium" /></div>
+                            <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">PAN/VAT Number</Label><Input value={fleetProfile.pan || ''} onChange={e => setFleetProfile(prev => ({...prev, pan: e.target.value}))} className="h-9 font-mono" /></div>
+                            <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Fleet Office Address</Label><Input value={fleetProfile.address || ''} onChange={e => setFleetProfile(prev => ({...prev, address: e.target.value}))} className="h-9" /></div>
+                        </div>
+                    </CardContent>
+                </Card>
             </TabsContent>
             
             <TabsContent value="parties">
@@ -1038,7 +1057,7 @@ export default function SettingsPage() {
                 <Card className="shadow-sm border-gray-100 bg-white">
                     <CardHeader className="flex flex-row items-center justify-between py-4 border-b">
                         <div><CardTitle className="text-base font-black uppercase">Financial Accounts</CardTitle></div>
-                        <Button size="sm" onClick={() => openAccountDialog()} className="h-8 uppercase font-black text-[10px] tracking-widest"><Plus className="mr-2 h-3.5 w-3.5" /> Add Account</Button>
+                        <Button size="sm" onClick={() => openAccountDialog()} className="h-8 uppercase font-black text-[10px] tracking-widest"><Plus className="mr-2 h-4 w-4" /> Add Account</Button>
                     </CardHeader>
                     <CardContent className="p-0">
                         <Table className="text-xs"><TableHeader className="bg-muted/50"><TableRow><TableHead className="pl-6">Account Name</TableHead><TableHead>Type</TableHead><TableHead className="text-right pr-6">Actions</TableHead></TableRow></TableHeader><TableBody>
@@ -1056,7 +1075,7 @@ export default function SettingsPage() {
                 <Card className="shadow-sm border-gray-100 bg-white">
                     <CardHeader className="flex flex-row items-center justify-between py-4 border-b">
                         <div><CardTitle className="text-base font-black uppercase">Units of Measurement</CardTitle></div>
-                        <Button size="sm" onClick={() => openUomDialog()} className="h-8 uppercase font-black text-[10px] tracking-widest"><Plus className="mr-2 h-3.5 w-3.5" /> New Unit</Button>
+                        <Button size="sm" onClick={() => openUomDialog()} className="h-8 uppercase font-black text-[10px] tracking-widest"><Plus className="mr-2 h-4 w-4" /> New Unit</Button>
                     </CardHeader>
                     <CardContent className="p-0">
                         <Table className="text-xs"><TableHeader className="bg-muted/50"><TableRow><TableHead className="pl-6">Description</TableHead><TableHead>Code</TableHead><TableHead className="text-right pr-6">Actions</TableHead></TableRow></TableHeader><TableBody>
@@ -1227,7 +1246,9 @@ export default function SettingsPage() {
                                                     </TableCell>
                                                 </TableRow>
                                                 {visibleModules.map(m => {
-                                                    const isAll = userForm.permissions[m]?.includes('all');
+                                                    const currentPerms = userForm.permissions[m] || [];
+                                                    const isAll = currentPerms.includes('all');
+                                                    
                                                     return (
                                                         <TableRow key={m} className={cn("group h-12 transition-colors", isAll && "bg-blue-50/20")}>
                                                             <TableCell className="pl-6">
@@ -1249,7 +1270,7 @@ export default function SettingsPage() {
                                                                 <TableCell key={act} className="text-center">
                                                                     <Checkbox 
                                                                         disabled={isAll}
-                                                                        checked={isAll || userForm.permissions[m]?.includes(act as any)} 
+                                                                        checked={isAll || currentPerms.includes(act as any)} 
                                                                         onCheckedChange={v => handlePermissionChange(m, act as any, !!v)}
                                                                         className={cn(
                                                                             "h-4 w-4 rounded",
