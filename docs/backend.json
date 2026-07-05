@@ -60,6 +60,22 @@
       },
       "required": ["date", "vehicleId", "expenseType", "amount", "paymentMode", "createdBy"]
     },
+    "FileRecord": {
+      "title": "File Record",
+      "description": "Metadata for files stored in Firebase Storage.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "url": { "type": "string", "format": "uri" },
+        "size": { "type": "number" },
+        "type": { "type": "string" },
+        "path": { "type": "string" },
+        "uploadedBy": { "type": "string" },
+        "uploadedAt": { "type": "string", "format": "date-time" },
+        "category": { "type": "string", "enum": ["General", "HR", "Fleet", "Finance", "CRM"] }
+      },
+      "required": ["name", "url", "path", "uploadedBy", "uploadedAt"]
+    },
     "SystemLog": {
       "title": "System Log",
       "description": "Captures application crashes and events for debugging.",
@@ -88,6 +104,10 @@
     "/expenses/{expenseId}": {
       "schema": { "$ref": "#/entities/Expense" },
       "description": "Stores daily operational expenses for fleet management."
+    },
+    "/files/{fileId}": {
+      "schema": { "$ref": "#/entities/FileRecord" },
+      "description": "Index of files for the document management system."
     },
     "/logs/{logId}": {
       "schema": { "$ref": "#/entities/SystemLog" },
