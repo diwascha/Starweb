@@ -15,6 +15,7 @@ export interface ProductSpecification {
   printing: string;
   moisture: string;
   load: string;
+  paperType?: string;
   paperShade?: string; // NS
   boxType?: string; // RSC
   paperBf?: string;
@@ -442,7 +443,7 @@ export interface Transaction {
     voucherId?: string; // To group payment/receipt transactions
     createdBy: string;
     createdAt: string; // ISO string
-    lastModifiedBy?: string;
+    lastModifiedBy?: string | null;
     lastModifiedAt?: string; // ISO string
 }
 
@@ -664,6 +665,8 @@ export interface Cheque {
     }[];
     createdBy: string;
     createdAt: string; // ISO string
+    lastModifiedBy?: string;
+    lastModifiedAt?: string;
 }
 
 
@@ -685,6 +688,8 @@ export interface TdsCalculation {
   netPayable: number;
   createdBy: string;
   createdAt: string; // ISO string
+  lastModifiedBy?: string;
+  lastModifiedAt?: string;
 }
 
 export interface EstimateInvoiceItem {

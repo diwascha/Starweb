@@ -249,7 +249,7 @@ export default function EmployeesPage() {
         await updateEmployee(editingEmployee.id, updatedEmployeeData);
         toast({ title: 'Success', description: 'Employee updated.' });
       } else {
-        const newEmployeeData = { ...employeeData, createdBy: user.username };
+        const newEmployeeData = { ...employeeData, createdBy: user.username, createdAt: new Date().toISOString() };
         await addEmployee(newEmployeeData);
         toast({ title: 'Success', description: 'New employee added.' });
       }
@@ -412,7 +412,7 @@ export default function EmployeesPage() {
                 </TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
-                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="ml-2 h-4 w-4" /></Button></DropdownMenuTrigger>
+                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       {hasPermission('hr', 'edit') && <DropdownMenuItem onSelect={() => openEditEmployeeDialog(employee)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>}
                       {hasPermission('hr', 'delete') && <DropdownMenuSeparator />}

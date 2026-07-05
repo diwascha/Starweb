@@ -146,8 +146,8 @@ function SavedTdsRecords({ onEdit, companyProfile }: { onEdit: (calculation: Tds
         }
         
         filtered.sort((a, b) => {
-            const aVal = a[sortConfig.key];
-            const bVal = b[sortConfig.key];
+            const aVal = a[sortConfig.key] ?? '';
+            const bVal = b[sortConfig.key] ?? '';
 
             if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
             if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
@@ -650,7 +650,7 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
     
     try {
         if (calculationToEdit) {
-            await updateTdsCalculation(calculationToEdit.id, { ...calculation, lastModifiedBy: user.username });
+            await updateTdsCalculation(calculationToEdit.id, { ...calculation });
             toast({ title: "Updated!", description: "TDS calculation has been updated." });
         } else {
             await addTdsCalculation({ ...calculation, createdBy: user.username });
@@ -670,7 +670,7 @@ function CalculatorTab({ calculationToEdit, onSaveSuccess, onCancelEdit, company
         return;
     }
     try {
-        const newPartyId = await addParty({...partyForm, createdBy: user.username});
+        const newPartyId = await addParty({...partyForm, createdBy: user.username, createdAt: new Date().toISOString()});
         setPartyName(partyForm.name);
         toast({title: 'Success', description: 'New party added.'});
         setIsPartyDialogOpen(false);

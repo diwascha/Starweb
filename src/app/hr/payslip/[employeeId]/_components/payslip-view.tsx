@@ -1,11 +1,10 @@
-
 'use client';
 
 import type { Employee, Payroll } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Printer, Save, Loader2, ArrowLeft } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
-import { toNepaliDate, toWords } from '@/lib/utils';
+import { toWords } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Table, TableBody, TableCell, TableRow, TableHeader, TableHead } from '@/components/ui/table';
 import { useState } from 'react';
@@ -59,20 +58,20 @@ export default function PayslipView({ employee, payroll, bsYear, bsMonthName }: 
   };
   
   const earnings = [
-      { label: "Normal Pay", amount: payroll.regularPay },
-      { label: "Overtime Pay", amount: payroll.otPay },
-      { label: "Allowance", amount: payroll.allowance },
-      { label: "Bonus", amount: payroll.bonus },
+      { label: "Normal Pay", amount: payroll.regularPay || 0 },
+      { label: "Overtime Pay", amount: payroll.otPay || 0 },
+      { label: "Allowance", amount: payroll.allowance || 0 },
+      { label: "Bonus", amount: payroll.bonus || 0 },
   ];
   
   const deductions = [
-      { label: "Absent Deduction", amount: payroll.deduction },
-      { label: "TDS (1%)", amount: payroll.tds },
-      { label: "Advance", amount: payroll.advance },
+      { label: "Absent Deduction", amount: payroll.deduction || 0 },
+      { label: "TDS (1%)", amount: payroll.tds || 0 },
+      { label: "Advance", amount: payroll.advance || 0 },
   ];
 
-  const totalEarnings = earnings.reduce((sum, item) => sum + item.amount, 0);
-  const totalDeductions = deductions.reduce((sum, item) => sum + item.amount, 0);
+  const totalEarnings = earnings.reduce((sum, item) => sum + (item.amount || 0), 0);
+  const totalDeductions = deductions.reduce((sum, item) => sum + (item.amount || 0), 0);
 
   return (
     <>
@@ -131,7 +130,7 @@ export default function PayslipView({ employee, payroll, bsYear, bsMonthName }: 
                         {earnings.map(item => (
                             <TableRow key={item.label} className="border-b-gray-300">
                                 <TableCell className="px-2 py-1 text-xs">{item.label}</TableCell>
-                                <TableCell className="px-2 py-1 text-xs text-right">{item.amount.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                                <TableCell className="px-2 py-1 text-xs text-right">{(item.amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
@@ -148,7 +147,7 @@ export default function PayslipView({ employee, payroll, bsYear, bsMonthName }: 
                         {deductions.map(item => (
                             <TableRow key={item.label} className="border-b-gray-300">
                                 <TableCell className="px-2 py-1 text-xs">{item.label}</TableCell>
-                                <TableCell className="px-2 py-1 text-xs text-right">{item.amount.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                                <TableCell className="px-2 py-1 text-xs text-right">{(item.amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
@@ -180,8 +179,8 @@ export default function PayslipView({ employee, payroll, bsYear, bsMonthName }: 
         </div>
         
         <div className="mt-4 p-2 bg-blue-100 border border-blue-300 rounded-md text-center">
-            <p className="font-semibold text-sm">Net Salary: NPR {payroll.netPayment.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
-            <p className="text-xs font-medium">In Words: {toWords(payroll.netPayment)}</p>
+            <p className="font-semibold text-sm">Net Salary: NPR {(payroll.netPayment || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+            <p className="text-xs font-medium">In Words: {toWords(payroll.netPayment || 0)}</p>
         </div>
 
 

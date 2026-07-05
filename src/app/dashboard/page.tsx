@@ -259,10 +259,10 @@ export default function DashboardPage() {
                 src="https://www.hamropatro.com/widgets/calender-medium.php" 
                 frameBorder="0" 
                 scrolling="no" 
-                marginWidth="0" 
-                marginHeight="0" 
-                style={{ border: 'none', overflow: 'hidden', width: '295px', height: '385px' }}
-                allowtransparency="true">
+                marginWidth={0} 
+                marginHeight={0} 
+                style={{ border: 'none', overflow: 'hidden', width: 295, height: 385 }}
+                allowTransparency={true}>
               </iframe>
             </CardContent>
           </Card>

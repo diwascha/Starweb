@@ -1,4 +1,3 @@
-
 import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, getDoc } from 'firebase/firestore';
 import type { PurchaseOrder, PurchaseOrderVersion } from '@/lib/types';
@@ -18,6 +17,7 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData> | DocumentD
         poDate: data.poDate,
         createdAt: data.createdAt,
         updatedAt: data.updatedAt,
+        partyId: data.partyId || '',
         companyName: String(data.companyName || ''),
         companyAddress: String(data.companyAddress || ''),
         panNumber: data.panNumber ? String(data.panNumber) : undefined,

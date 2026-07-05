@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { 
   Product, 
   Party, 
@@ -12,7 +12,8 @@ import type {
   CalculatedValues, 
   CostReportTerm,
   Accessory,
-  CompanyProfile
+  CompanyProfile,
+  AccountOwnership
 } from '@/lib/types';
 import { onProductsUpdate, addProduct as addProductService, updateProduct, deleteProduct } from '@/services/product-service';
 import { onPartiesUpdate, addParty } from '@/services/party-service';
@@ -82,8 +83,7 @@ const CostingTableRow = React.memo(({
     onAddAccessory, 
     onRemoveItem, 
     onTogglePrint, 
-    selectedForPrint,
-    onAddProductQuickly
+    selectedForPrint
 }: any) => {
     // Safety check for calculation values
     const calc = item.calculated || { paperCost: 0, transportCost: 0, totalGsm: 0, paperWeight: 0 };
@@ -233,7 +233,7 @@ const CostingTableRow = React.memo(({
                         {maxPly >= 9 && (
                             <>
                                 <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.liner3Gsm ?? ''} onChange={e => onItemChange(index, 'acc_liner3Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 9 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 9} /></TableCell>
-                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.flute4Gsm ?? ''} onChange={e => onItemChange(index, 'flute4Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 9 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 9} /></TableCell>
+                                <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.flute4Gsm ?? ''} onChange={e => onItemChange(index, 'acc_flute4Gsm', { aIdx, v: e.target.value })} className={cn("h-12 text-center px-0 w-full border-none", parseInt(acc.ply, 10) < 9 ? "bg-muted/20" : "bg-transparent")} disabled={parseInt(acc.ply, 10) < 9} /></TableCell>
                             </>
                         )}
                         <TableCell className="border-r p-0 bg-orange-50/10"><Input type="number" value={acc.bottomGsm ?? ''} onChange={e => onItemChange(index, 'acc_bottomGsm', { aIdx, v: e.target.value })} className="h-12 text-center px-0 w-full border-none bg-transparent" /></TableCell>
@@ -253,7 +253,7 @@ const CostingTableRow = React.memo(({
 });
 CostingTableRow.displayName = 'CostingTableRow';
 
-function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview, companyProfile }: any) {
+function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview }: any) {
   const [parties, setParties] = useState<Party[]>([]);
   const [costReports, setCostReports] = useState<CostReport[]>([]);
   const [selectedPartyId, setSelectedPartyId] = useState('');
@@ -273,7 +273,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
   
   const [isSaving, setIsSaving] = useState(false);
   const [isPartyDialogOpen, setIsPartyDialogOpen] = useState(false);
-  const [partyForm, setPartyForm] = useState({ name: '', type: 'Customer' as PartyType, address: '', panNumber: '' });
+  const [partyForm, setPartyForm] = useState({ name: '', type: 'Customer' as PartyType, address: '', panNumber: '', ownership: 'Both' as AccountOwnership });
   const [isPartyPopoverOpen, setIsPartyPopoverOpen] = useState(false);
   const [partySearch, setPartySearch] = useState('');
   
@@ -545,11 +545,11 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
         return;
     }
     try {
-        const newPartyId = await addParty({ ...partyForm, createdBy: user.username });
+        const newPartyId = await addParty({ ...partyForm, createdBy: user.username, createdAt: new Date().toISOString() });
         setSelectedPartyId(newPartyId);
         toast({ title: 'Success', description: 'New party added.' });
         setIsPartyDialogOpen(false);
-        setPartyForm({ name: '', type: 'Customer', address: '', panNumber: '' });
+        setPartyForm({ name: '', type: 'Customer', address: '', panNumber: '', ownership: 'Both' });
     } catch {
         toast({ title: 'Error', description: 'Failed to add party.', variant: 'destructive' });
     }
@@ -690,12 +690,12 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
                                     <CommandInput placeholder="Search customer..." value={partySearch} onValueChange={setPartySearch} />
                                     <CommandList>
                                         <CommandEmpty>
-                                            <Button variant="ghost" className="w-full justify-start text-xs" onClick={() => { setPartyForm({ name: partySearch, type: 'Customer', address: '', panNumber: '' }); setIsPartyDialogOpen(true); setIsPartyPopoverOpen(false); }}>
+                                            <Button variant="ghost" className="w-full justify-start text-xs" onClick={() => { setPartyForm({ name: partySearch, type: 'Customer', address: '', panNumber: '', ownership: 'Both' }); setIsPartyDialogOpen(true); setIsPartyPopoverOpen(false); }}>
                                                 <PlusCircle className="mr-2 h-4 w-4" /> Add "{partySearch}"
                                             </Button>
                                         </CommandEmpty>
                                         <CommandGroup>
-                                            {parties.sort((a,b)=>a.name.localeCompare(b.name)).map(p => (
+                                            {parties.sort((a: Party, b: Party)=>a.name.localeCompare(b.name)).map(p => (
                                                 <CommandItem key={p.id} value={p.name} onSelect={() => { setSelectedPartyId(p.id); setIsPartyPopoverOpen(false); }}>
                                                     <Check className={cn("mr-2 h-4 w-4", selectedPartyId === p.id ? "opacity-100" : "opacity-0")} />
                                                     {p.name}
@@ -831,7 +831,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {items.map((item, idx) => (
+                                {items.map((item: CostReportItem, idx: number) => (
                                     <CostingTableRow 
                                         key={item.id} 
                                         item={item} 
@@ -843,7 +843,6 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
                                         onRemoveItem={(id: string) => setItems(prev => prev.filter(i => i.id !== id))} 
                                         onTogglePrint={handleTogglePrint} 
                                         selectedForPrint={selectedForPrint}
-                                        onAddProductQuickly={() => setIsProductDialogOpen(true)}
                                     />
                                 ))}
                             </TableBody>
@@ -937,7 +936,7 @@ function CostReportCalculator({ reportToEdit, onSaveSuccess, products, onPreview
                 <DialogHeader className="p-6 pb-0"><DialogTitle>Quick Add Product</DialogTitle></DialogHeader>
                 <div className="flex-1 overflow-y-auto px-6 pb-6">
                     <ProductForm onSaveSuccess={(data: any) => { 
-                        addProductService({...data, createdBy: user?.username}).then(() => {
+                        addProductService({...data, createdBy: user?.username, createdAt: new Date().toISOString()}).then(() => {
                             setIsProductDialogOpen(false);
                             toast({ title: 'Product Added' });
                         }); 

@@ -1,4 +1,3 @@
-
 import { getFirebase } from '@/lib/firebase';
 import { collection, doc, writeBatch, onSnapshot, DocumentData, QueryDocumentSnapshot, getDocs, query, where, limit, updateDoc } from 'firebase/firestore';
 import type { Payroll, Employee, AttendanceRecord, PunctualityInsight, BehaviorInsight, PatternInsight, WorkforceAnalytics } from '@/lib/types';
@@ -248,7 +247,7 @@ export const importPayrollFromSheet = async (
                 bsYear, bsMonth,
                 employeeId: employee.id,
                 employeeName,
-                joiningDate: employee.joiningDate || null,
+                joiningDate: employee.joiningDate || undefined,
                 totalHours: regularHours + otHours,
                 otHours: otHours,
                 regularHours: regularHours,
@@ -374,7 +373,7 @@ export const generateAnalyticsForMonth = (
         const scheduledDays = employeeAttendance.length;
         if (scheduledDays === 0) continue;
 
-        const presentDays = employeeAttendance.filter(r => ['Present', 'EXTRAOK', 'Saturday', 'Public Holiday'].includes(r.status)).length;
+        const presentDays = employeeAttendance.filter(r => ['Present', 'EXTRAOK', 'Saturday', 'Public Holiday'].includes(r.status || '')).length;
         const absentDays = scheduledDays - presentDays;
         const attendanceRate = scheduledDays > 0 ? presentDays / scheduledDays : 0;
         const lateArrivals = employeeAttendance.filter(r => r.onDuty && r.clockIn && r.clockIn > r.onDuty).length;

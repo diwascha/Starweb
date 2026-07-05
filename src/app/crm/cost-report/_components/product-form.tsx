@@ -79,7 +79,8 @@ export function ProductForm({ productToEdit, onSaveSuccess }: ProductFormProps) 
                 type: 'Customer', 
                 ownership: partyForm.ownership,
                 address: partyForm.address || '',
-                createdBy: user.username 
+                createdBy: user.username,
+                createdAt: new Date().toISOString()
             });
             setForm({ ...form, partyId: newId });
             setIsPartyDialogOpen(false);

@@ -1,5 +1,3 @@
-
-
 import { getFirebase } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, DocumentData, QueryDocumentSnapshot, doc, deleteDoc, query, orderBy, updateDoc, getDocs } from 'firebase/firestore';
 import type { Cheque } from '@/lib/types';
@@ -28,6 +26,8 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Cheque =>
         })),
         createdBy: data.createdBy,
         createdAt: data.createdAt,
+        lastModifiedBy: data.lastModifiedBy,
+        lastModifiedAt: data.lastModifiedAt,
     };
 }
 

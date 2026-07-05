@@ -17,7 +17,7 @@ import { FileText, LayoutDashboard, Package, FileSpreadsheet, ShoppingCart, Wren
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
-import { Button } from './ui/button';
+import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { exportData } from '@/services/backup-service';
 import { Loader2 } from 'lucide-react';
@@ -318,7 +318,7 @@ export function AppSidebar() {
                                     <ShoppingCart />
                                     <span>Purchase Entry</span>
                                 </Link>
-                            </SidebarMenuButton>
+                            </SidebarMenuItem>
                         </SidebarMenuItem>
                         <SidebarMenuItem>
                             <SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/expenses/new')}>

@@ -10,7 +10,7 @@ import { cn, toWords, generateNextVoucherNumber, toNepaliDate, generateId } from
 import { format, addDays, parseISO } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { onPartiesUpdate, addParty } from '@/services/party-service';
-import type { Party, PartyType, Cheque, ChequeSplit, ChequeStatus, Account, BankAccountType, AccountOwnership } from '@/lib/types';
+import type { Party, PartyType, Cheque, ChequeSplit, ChequeStatus, Account, BankAccountType, AccountOwnership, PartialPayment } from '@/lib/types';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { DualCalendar } from '@/components/ui/dual-calendar';
 import { useAuth } from '@/hooks/use-auth';
@@ -116,7 +116,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                     id: s.id || generateId(),
                     chequeDate: splitDate,
                     chequeNumber: s.chequeNumber,
-                    amount: s.amount,
+                    amount: s.amount === 0 ? '' : s.amount,
                     remarks: s.remarks,
                     interval: interval >= 0 ? interval : 0,
                     status: s.status || 'Due',
@@ -137,7 +137,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
         const numSplits = Math.max(1, numberOfSplits || 1);
         const baseDate = invoiceDate || paymentDate;
 
-        const newSplits = Array.from({ length: numSplits }, (_, i) => {
+        const newSplits: ChequeSplit[] = Array.from({ length: numSplits }, (_, i) => {
             const existingSplit = chequeSplits[i] || {};
             
             const splitAmount = totalAmount > 0 ? Math.floor(totalAmount / numSplits) : '';
@@ -151,7 +151,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                 id: existingSplit.id || `${Date.now()}-${i}`,
                 chequeDate: chequeDate,
                 chequeNumber: existingSplit.chequeNumber || '',
-                amount: currentAmount,
+                amount: currentAmount as number | "",
                 remarks: existingSplit.remarks || '',
                 interval: intervalDays,
                 status: 'Due' as ChequeStatus,
@@ -192,7 +192,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
             return;
         }
         try {
-            await addParty({...partyForm, createdBy: user.username});
+            await addParty({...partyForm, createdBy: user.username, createdAt: new Date().toISOString()});
             handlePartySelect(partyForm.name);
             toast({title: 'Success', description: 'New party added.'});
             setIsPartyDialogOpen(false);
@@ -218,6 +218,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                 branch: accountForm.branch,
                 bankAccountType: accountForm.bankAccountType,
                 createdBy: user.username,
+                createdAt: new Date().toISOString(),
             });
             setSelectedAccountId(newAccountId);
             toast({ title: 'Success', description: 'New bank account added.' });
@@ -275,7 +276,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
             };
 
             if (chequeToEdit) {
-                await updateCheque(chequeToEdit.id, {...chequeData, lastModifiedBy: user.username});
+                await updateCheque(chequeToEdit.id, {...chequeData});
                 toast({ title: 'Success', description: 'Cheque record updated.' });
             } else {
                 await addCheque(chequeData);
@@ -353,7 +354,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
             
             const totalAmount = chequeSplits.reduce((sum, split) => sum + (Number(split.amount) || 0), 0);
 
-            const body = chequeSplits.map((split, index) => {
+            const body = chequeSplits.map((split) => {
                 const bankDetails = account && account.type === 'Bank' ? `${account.bankName}\nA/C: ${account.accountNumber}` : "Cash Payment";
                 const nepaliChequeDate = toNepaliDate(split.chequeDate.toISOString());
                 const adChequeDate = format(split.chequeDate, 'yyyy-MM-dd');
@@ -374,7 +375,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                 foot: [['Total', '', '', { content: totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 }), styles: { halign: 'right' } }]],
                 footStyles: { fontStyle: 'bold', fontSize: 11 },
                 didDrawPage: (data) => {
-                    let finalY = data.cursor.y;
+                    let finalY = data.cursor?.y || 0;
                     doc.setFontSize(10);
                     doc.text(`In Words: ${toWords(totalAmount)}`, 14, finalY + 10);
                     
@@ -693,7 +694,7 @@ export function ChequeGeneratorForm({ chequeToEdit, onSaveSuccess }: ChequeGener
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="bankAccountType">Account Type</Label>
-                            <Select value={accountForm.bankAccountType} onValueChange={(v: BankAccountType) => setAccountForm(p => ({ ...p, bankAccountType: v }))}>
+                            <Select value={accountForm.bankAccountType || 'Saving'} onValueChange={(v: BankAccountType) => setAccountForm(p => ({ ...p, bankAccountType: v }))}>
                                 <SelectTrigger id="bankAccountType"><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="Saving">Saving</SelectItem>
