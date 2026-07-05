@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -223,7 +222,7 @@ const ChartTooltipItem = React.forwardRef<
   React.ComponentProps<"div"> & {
     color?: string
     name?: string
-    value?: string
+    value?: any
     unit?: string
     "data-testid"?: string
   }
@@ -260,6 +259,7 @@ const ChartTooltipContent = React.forwardRef<
       hideLabel?: boolean
       hideIndicator?: boolean
       labelKey?: string
+      nameKey?: string
       "data-testid"?: string
     }
 >(
@@ -312,8 +312,6 @@ const ChartTooltipContent = React.forwardRef<
       return null
     }
 
-    const nestLabel = payload.length > 1
-
     return (
       <ChartTooltipFrame
         ref={ref}
@@ -335,8 +333,8 @@ const ChartTooltipContent = React.forwardRef<
                 key={item.dataKey}
                 data-testid={`tooltip-item-${index}`}
                 name={
-                  itemConfig?.label ||
-                  (item.name as React.ReactNode)
+                  (itemConfig?.label as string) ||
+                  (item.name as string)
                 }
                 value={
                   formatter
@@ -369,5 +367,3 @@ export {
   ChartTooltipItem,
   ChartTooltipContent,
 }
-
-    

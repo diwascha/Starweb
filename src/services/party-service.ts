@@ -66,7 +66,7 @@ export const getPartyByName = async (name: string): Promise<Party | null> => {
 };
 
 
-export const addParty = async (party: Omit<Party, 'id'>): Promise<string> => {
+export const addParty = async (party: Omit<Party, 'id' | 'createdAt'>): Promise<string> => {
     const docRef = await addDoc(getPartiesCollection(), {
         ...party,
         createdAt: new Date().toISOString(),
