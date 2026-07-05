@@ -9,7 +9,8 @@ import {
   MousePointerClick,
   Clock,
   ArrowRightLeft,
-  Wallet
+  Wallet,
+  Calendar as CalendarIcon
 } from 'lucide-react';
 
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -23,9 +24,33 @@ import { onPageVisitsUpdate } from '@/services/usage-service';
 import { onSettingUpdate } from '@/services/settings-service';
 import { onChequesUpdate } from '@/services/cheque-service';
 import type { PolicyOrMembership, PurchaseOrder, EstimatedInvoice, PageVisit, CompanyProfile, Cheque, AppBranding } from '@/lib/types';
-import { differenceInDays, startOfToday, startOfMonth } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { differenceInDays, startOfToday, startOfMonth, format } from 'date-fns';
+import { cn, toNepaliDate } from '@/lib/utils';
 import { DEFAULT_COMPANY_PROFILE } from '@/lib/constants';
+
+function LiveDateTime() {
+  const [now, setNow] = useState<Date | null>(null);
+
+  useEffect(() => {
+    setNow(new Date());
+    const interval = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (!now) return null;
+
+  return (
+    <div className="flex flex-col items-end md:items-start lg:items-end bg-muted/30 border border-dashed rounded-lg px-4 py-1.5 shadow-sm min-w-[140px]">
+        <div className="text-lg font-black tabular-nums tracking-tighter text-primary leading-none">
+            {format(now, 'HH:mm:ss')}
+        </div>
+        <div className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mt-1 flex items-center gap-1">
+            <CalendarIcon className="h-2.5 w-2.5" />
+            {toNepaliDate(now.toISOString())} BS
+        </div>
+    </div>
+  );
+}
 
 export default function DashboardPage() {
   const { user, hasPermission } = useAuth();
@@ -96,7 +121,7 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex items-center gap-4 overflow-hidden">
+        <div className="flex items-center gap-6 overflow-hidden">
             <div className="flex flex-col min-w-0 max-w-full">
               <h1 className="text-lg sm:text-xl font-black tracking-tighter uppercase whitespace-nowrap overflow-hidden text-ellipsis">
                 {companyProfile.nameEn}
@@ -107,8 +132,14 @@ export default function DashboardPage() {
                 <p className="text-[11px] text-muted-foreground">Welcome back, {user?.username}</p>
               </div>
             </div>
+            <div className="hidden lg:block">
+              <LiveDateTime />
+            </div>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-1.5 pb-2 md:pb-0">
+          <div className="lg:hidden w-full mb-2">
+            <LiveDateTime />
+          </div>
           {hasPermission('fleet', 'create') && (
             <Button asChild size="sm" variant="secondary" className="h-7 text-[10px] px-3 font-bold uppercase tracking-wider">
               <Link href="/fleet/transactions/expenses/new">
