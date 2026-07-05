@@ -122,7 +122,7 @@ export default function AttendancePage() {
         }
     });
     return () => { isMounted = false; };
-  }, [attendance]);
+  }, [attendance, selectedBsYear]);
   
   useEffect(() => {
     if (selectedBsYear && selectedBsMonth) {
@@ -570,7 +570,7 @@ export default function AttendancePage() {
                                             </Select>
                                             <Select value={currentSelection.month} onValueChange={(value) => handleSheetPeriodChange(sheet.name, 'month', value)}>
                                                 <SelectTrigger className="w-[150px] h-8"><SelectValue /></SelectTrigger>
-                                                <SelectContent>{NEPALI_MONTHS.map(month => <SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>))}</SelectContent>
+                                                <SelectContent>{NEPALI_MONTHS.map(month => <SelectItem key={month.value} value={String(month.value)}>{month.name}</SelectItem>)}</SelectContent>
                                             </Select>
                                         </div>
                                     )}

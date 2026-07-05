@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -195,11 +194,11 @@ export default function ReportView({ initialReport }: { initialReport: Report })
                     </div>
                      <div>
                         <span className="font-medium">Delivered To: </span>
-                        <span>{report.product.companyName}</span>
+                        <span>{report.product.partyName}</span>
                     </div>
                     <div>
                         <span className="font-medium">Address: </span>
-                        <span>{report.product.address}</span>
+                        <span>{report.product.partyAddress}</span>
                     </div>
                     <div>
                         <span className="font-medium">Supplied Quantities: </span>
