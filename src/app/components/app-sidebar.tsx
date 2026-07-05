@@ -13,7 +13,35 @@ import {
   useSidebar,
   SidebarGroupLabel,
 } from '@/components/ui/sidebar';
-import { FileText, LayoutDashboard, Package, FileSpreadsheet, ShoppingCart, Wrench, LogOut, Settings, Users, Calendar, Award, Wallet, Building2, PlusCircle, Truck, ShieldCheck, CreditCard, ArrowRightLeft, TrendingUp, BarChart2, Notebook, Download, Calculator, PanelLeft, PanelRight, Receipt, Briefcase } from 'lucide-react';
+import { 
+  FileText, 
+  LayoutDashboard, 
+  Package, 
+  FileSpreadsheet, 
+  ShoppingCart, 
+  Wrench, 
+  LogOut, 
+  Settings, 
+  Users, 
+  Calendar, 
+  Award, 
+  Wallet, 
+  Building2, 
+  PlusCircle, 
+  Truck, 
+  ShieldCheck, 
+  CreditCard, 
+  ArrowRightLeft, 
+  TrendingUp, 
+  BarChart2, 
+  Notebook, 
+  Download, 
+  Calculator, 
+  PanelLeft, 
+  PanelRight, 
+  Receipt, 
+  Briefcase 
+} from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
@@ -318,7 +346,7 @@ export function AppSidebar() {
                                     <ShoppingCart />
                                     <span>Purchase Entry</span>
                                 </Link>
-                            </SidebarMenuItem>
+                            </SidebarMenuButton>
                         </SidebarMenuItem>
                         <SidebarMenuItem>
                             <SidebarMenuButton asChild isActive={getIsActive('/fleet/transactions/expenses/new')}>

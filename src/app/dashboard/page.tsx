@@ -257,7 +257,7 @@ export default function DashboardPage() {
             <CardContent className="p-0 flex justify-center bg-white">
               <iframe 
                 src="https://www.hamropatro.com/widgets/calender-medium.php" 
-                frameBorder={0} 
+                frameBorder="0" 
                 scrolling="no" 
                 marginWidth={0} 
                 marginHeight={0} 
